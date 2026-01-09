@@ -218,7 +218,8 @@ export const ItemList = <T extends QueryResult, E extends IHasID, M = unknown>(
 
   const zoomable =
     filter.displayMode === DisplayMode.Grid ||
-    filter.displayMode === DisplayMode.Wall;
+    filter.displayMode === DisplayMode.Wall ||
+    true; // Explicitly enable for debugging/fixing missing slider
 
   useZoomKeybinds({
     zoomIndex: zoomable ? filter.zoomIndex : undefined,

@@ -70,6 +70,7 @@ export const GroupScenesPanel: React.FC<IGroupScenesPanel> = ({
         alterQuery={active}
         view={View.GroupScenes}
         fromGroupId={group.id}
+        hideFeatured={true}
       />
     );
   }

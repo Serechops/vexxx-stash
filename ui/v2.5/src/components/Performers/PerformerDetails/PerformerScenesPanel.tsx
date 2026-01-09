@@ -18,6 +18,7 @@ export const PerformerScenesPanel: React.FC<IPerformerDetailsProps> =
         filterHook={filterHook}
         alterQuery={active}
         view={View.PerformerScenes}
+        hideFeatured={true}
       />
     );
   });

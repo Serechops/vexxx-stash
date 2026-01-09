@@ -387,6 +387,7 @@ interface IFilteredScenes {
   view?: View;
   alterQuery?: boolean;
   fromGroupId?: string;
+  hideFeatured?: boolean;
 }
 
 export const FilteredSceneList = (props: IFilteredScenes) => {
@@ -395,7 +396,7 @@ export const FilteredSceneList = (props: IFilteredScenes) => {
 
   const searchFocus = useFocus();
 
-  const { filterHook, defaultSort, view, alterQuery, fromGroupId } = props;
+  const { filterHook, defaultSort, view, alterQuery, fromGroupId, hideFeatured } = props;
 
   // States
   const {
@@ -662,7 +663,7 @@ export const FilteredSceneList = (props: IFilteredScenes) => {
               onSidebarToggle={() => setShowSidebar(!showSidebar)}
             >
               <>
-                <FeaturedScene />
+                {!hideFeatured && <FeaturedScene />}
 
                 {/* Re-inserted Toolbar */}
                 <FilteredListToolbar

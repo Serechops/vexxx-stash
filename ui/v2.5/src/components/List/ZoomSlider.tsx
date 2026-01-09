@@ -3,7 +3,7 @@ import Mousetrap from "mousetrap";
 import { Form } from "react-bootstrap";
 
 const minZoom = 0;
-const maxZoom = 3;
+const maxZoom = 4;
 
 export function useZoomKeybinds(props: {
   zoomIndex: number | undefined;

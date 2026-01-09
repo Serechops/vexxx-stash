@@ -151,7 +151,8 @@ dd {
 }
 
 .detail-header {
-  background-color: #192127;
+  // background-color: #192127; // Legacy
+  background-color: $body-bg; // Match new body background or make transparent overlap
   min-height: 15rem;
   overflow: hidden;
   padding: 1rem;
@@ -193,7 +194,7 @@ dd {
     z-index: 20;
 
     .detail-item-value.age {
-      border-bottom: 1px dotted #f5f8fa;
+      border-bottom: 1px dotted $text-color;
       margin-right: auto;
     }
 
@@ -215,7 +216,7 @@ dd {
   }
 
   .alias-head {
-    color: #868791;
+    color: $text-muted;
   }
 
   .detail-expand-collapse,
@@ -269,7 +270,7 @@ dd {
 
   nav {
     align-content: center;
-    border-bottom: solid 2px #192127;
+    border-bottom: solid 2px rgba(255, 255, 255, 0.05); // Subtle border
     display: flex;
     justify-content: center;
     margin: 0;

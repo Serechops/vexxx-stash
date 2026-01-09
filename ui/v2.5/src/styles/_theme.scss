@@ -1,7 +1,7 @@
-/* Blueprint dark theme */
+/* WetFlix Dark Theme (Zinc Palette match) */
 
-$secondary: #394b59;
-$muted-gray: #bfccd6;
+$secondary: #27272a; // Zinc-800
+$muted-gray: #a1a1aa; // Zinc-400
 $success: #0f9960;
 $warning: #d9822b;
 $danger: #db3737;
@@ -12,20 +12,21 @@ $theme-colors: (
   success: $success,
   warning: $warning,
   danger: $danger,
-  dark: #394b59,
+  dark: #27272a,
 );
 
-$body-bg: #202b33;
+$body-bg: #09090b; // Zinc-950
 $text-muted: $muted-gray;
 $link-color: #48aff0;
 $link-hover-color: $link-color;
-$text-color: #f5f8fa;
+$text-color: #fafafa; // Zinc-50
 $pre-color: $text-color;
-$navbar-dark-color: rgb(245, 248, 250);
+$navbar-dark-color: rgb(24, 24, 27);
 $popover-bg: $secondary;
-$dark-text: #182026;
-$textfield-bg: rgba(16, 22, 26, 0.3);
-$card-bg: #30404d;
+$dark-text: #18181b; // Zinc-900
+$textfield-bg: rgba(24, 24, 27, 0.3);
+$card-bg: #18181b; // Zinc-900 for slight contrast
+
 $card-cap-bg: rgba(#000, 0.03);
 
 @import "node_modules/bootstrap/scss/bootstrap";
@@ -69,7 +70,7 @@ hr {
   margin: 5px 0;
 }
 
-:not(.show-carat) > .dropdown-toggle::after {
+:not(.show-carat)>.dropdown-toggle::after {
   content: none;
 }
 

@@ -280,25 +280,8 @@ export const SceneCard = PatchComponent(
                     </div>
                   )}
 
-                  {/* Performers & Rating - LARGE AVATARS */}
-                  <div className="flex justify-between items-end pt-2">
-                    {/* Larger Avatars (Triple Size -> h-20 w-20 approx) */}
-                    <div className="flex -space-x-4 overflow-hidden pl-1 pb-1">
-                      {props.scene.performers.slice(0, 3).map(p => (
-                        <div key={p.id} className="inline-block h-20 w-20 rounded-full ring-2 ring-card bg-secondary flex items-center justify-center overflow-hidden shadow-md" title={p.name}>
-                          {p.image_path ? (
-                            <img src={p.image_path} alt={p.name} className="h-full w-full object-cover" />
-                          ) : (
-                            <span className="text-lg uppercase font-bold text-muted-foreground">{p.name.charAt(0)}</span>
-                          )}
-                        </div>
-                      ))}
-                      {props.scene.performers.length > 3 && (
-                        <div className="flex items-center justify-center h-20 w-20 rounded-full ring-2 ring-card bg-muted text-sm font-bold z-10">
-                          +{props.scene.performers.length - 3}
-                        </div>
-                      )}
-                    </div>
+                  {/* Rating Only (Performers moved to back) */}
+                  <div className="flex justify-end items-end pt-2">
                     {props.scene.rating100 !== null && props.scene.rating100 !== undefined && (
                       <div className="flex items-center gap-1 text-sm font-bold text-yellow-500 mb-2">
                         <span>★</span>
@@ -357,6 +340,37 @@ export const SceneCard = PatchComponent(
               <p className="text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap font-medium">
                 {props.scene.details || <span className="text-muted-foreground italic">No description available.</span>}
               </p>
+            </div>
+
+            {/* Performers (Moved from Front) */}
+            <div className="mb-3 flex-shrink-0">
+              <h4 className="w-full text-xs font-bold text-muted-foreground uppercase mb-2">Performers</h4>
+              <div className="flex -space-x-3 overflow-hidden pl-1">
+                {props.scene.performers.slice(0, 5).map(p => (
+                  <div
+                    key={p.id}
+                    className="inline-block h-12 w-12 rounded-full ring-2 ring-card bg-secondary flex items-center justify-center overflow-hidden shadow-md cursor-pointer hover:scale-110 hover:z-10 transition-transform"
+                    title={p.name}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.nativeEvent.stopImmediatePropagation(); // Prevent flip
+                      history.push(`/performers/${p.id}`);
+                    }}
+                  >
+                    {p.image_path ? (
+                      <img src={p.image_path} alt={p.name} className="h-full w-full object-cover" />
+                    ) : (
+                      <span className="text-xs uppercase font-bold text-muted-foreground">{p.name.charAt(0)}</span>
+                    )}
+                  </div>
+                ))}
+                {props.scene.performers.length > 5 && (
+                  <div className="flex items-center justify-center h-12 w-12 rounded-full ring-2 ring-card bg-muted text-xs font-bold z-10">
+                    +{props.scene.performers.length - 5}
+                  </div>
+                )}
+                {props.scene.performers.length === 0 && <span className="text-sm text-muted-foreground italic">No performers</span>}
+              </div>
             </div>
 
             {/* Tags (Scrollable, takes remaining space) */}

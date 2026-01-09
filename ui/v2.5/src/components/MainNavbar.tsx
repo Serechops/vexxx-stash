@@ -351,14 +351,13 @@ export const MainNavbar: React.FC = () => {
         collapseOnSelect
         fixed="top"
         variant="dark"
-        bg="dark"
-        className="top-nav"
-        expand="xl"
+        className="top-nav !bg-background/90 backdrop-blur-md border-b border-white/5 shadow-sm transition-all duration-300"
+        expand="lg"
         expanded={expanded}
         onToggle={setExpanded}
         ref={navbarRef}
       >
-        <Navbar.Collapse className="bg-dark order-sm-1">
+        <Navbar.Collapse className="order-sm-1 bg-background/95 lg:bg-transparent border-t lg:border-t-0 border-white/5">
           <MainNavbarMenuItems>
             {menuItems.map(({ href, icon, message }) => (
               <Nav.Link
@@ -368,10 +367,10 @@ export const MainNavbar: React.FC = () => {
                 className="col-4 col-sm-3 col-md-2 col-lg-auto"
               >
                 <LinkContainer activeClassName="active" exact to={href}>
-                  <Button className="minimal p-4 p-xl-2 d-flex d-xl-inline-block flex-column justify-content-between align-items-center">
+                  <Button className="minimal p-4 p-lg-2 d-flex d-lg-inline-block flex-column justify-content-between align-items-center text-muted-foreground hover:text-primary hover:bg-white/5 [&.active]:text-primary [&.active]:bg-primary/10 transition-colors duration-200">
                     <Icon
                       {...{ icon }}
-                      className="nav-menu-icon d-block d-xl-inline mb-2 mb-xl-0"
+                      className="nav-menu-icon d-block d-lg-inline mb-2 mb-lg-0"
                     />
                     <span>{intl.formatMessage(message)}</span>
                   </Button>
@@ -387,16 +386,20 @@ export const MainNavbar: React.FC = () => {
         </Navbar.Collapse>
 
         <Navbar.Brand as="div" onClick={handleDismiss}>
-          <Link to="/">
-            <Button className="minimal brand-link d-inline-block">Stash</Button>
+          <Link to="/" className="no-underline hover:no-underline">
+            <img
+              src="/wetflix.png"
+              alt="WetFlix"
+              className="h-16 w-auto object-contain drop-shadow-sm hover:opacity-90 transition-opacity"
+            />
           </Link>
         </Navbar.Brand>
 
-        <Nav className="navbar-buttons flex-row ml-auto order-xl-2">
+        <Nav className="navbar-buttons flex-row ml-auto order-lg-2">
           {!!newPath && (
             <div className="mr-2">
               <Link to={newPath}>
-                <Button variant="primary">
+                <Button className="bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 border-none rounded-full px-4 py-1.5 shadow-md hover:shadow-pink-500/25 transition-all duration-300 font-bold text-white text-sm">
                   <FormattedMessage id="new" defaultMessage="New" />
                 </Button>
               </Link>

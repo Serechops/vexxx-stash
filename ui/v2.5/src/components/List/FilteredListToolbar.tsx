@@ -115,7 +115,7 @@ export const FilteredListToolbar: React.FC<IFilteredListToolbar> = ({
 
   return (
     <ButtonToolbar
-      className={cx("filtered-list-toolbar", { "has-selection": hasSelection })}
+      className={cx("filtered-list-toolbar !bg-card text-card-foreground rounded-md shadow-sm p-2 mb-4 flex items-center gap-2", { "has-selection": hasSelection })}
     >
       {hasSelection ? (
         <SelectionSection

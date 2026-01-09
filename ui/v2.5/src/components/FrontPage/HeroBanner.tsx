@@ -93,7 +93,7 @@ export const HeroBanner: React.FC = () => {
                         className="h-16 w-auto object-contain mb-2 drop-shadow-lg self-start"
                     />
                 )}
-                <h1 className="text-4xl md:text-6xl font-bold text-white max-w-2xl drop-shadow-lg line-clamp-2">
+                <h1 className="text-4xl md:text-6xl font-bold text-white max-w-3xl drop-shadow-lg line-clamp-4 leading-tight pb-3">
                     {scene.title || "Untitled Scene"}
                 </h1>
 

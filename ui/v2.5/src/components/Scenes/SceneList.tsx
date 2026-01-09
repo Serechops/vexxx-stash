@@ -77,6 +77,7 @@ import { SavedFilterDropdown } from "../List/SavedFilterList";
 import { FilterButton } from "../List/Filters/FilterButton";
 import { FilterTags } from "../List/FilterTags";
 import { useCallback, useEffect, useMemo } from "react";
+import { FilteredListToolbar } from "../List/FilteredListToolbar";
 
 function renderMetadataByline(result: GQL.FindScenesQueryResult) {
   const duration = result?.data?.findScenes?.duration;
@@ -378,94 +379,7 @@ interface IOperations {
   className?: string;
 }
 
-const SceneListOperations: React.FC<{
-  items: number;
-  hasSelection: boolean;
-  operations: IOperations[];
-  onEdit: () => void;
-  onDelete: () => void;
-  onPlay: () => void;
-  onCreateNew: () => void;
-}> = PatchComponent(
-  "SceneListOperations",
-  ({
-    items,
-    hasSelection,
-    operations,
-    onEdit,
-    onDelete,
-    onPlay,
-    onCreateNew,
-  }) => {
-    const intl = useIntl();
-
-    return (
-      <div className="scene-list-operations">
-        <ButtonGroup>
-          {!!items && (
-            <Button
-              className="play-button"
-              variant="secondary"
-              onClick={() => onPlay()}
-              title={intl.formatMessage({ id: "actions.play" })}
-            >
-              <Icon icon={faPlay} />
-            </Button>
-          )}
-          {!hasSelection && (
-            <Button
-              className="create-new-button"
-              variant="secondary"
-              onClick={() => onCreateNew()}
-              title={intl.formatMessage(
-                { id: "actions.create_entity" },
-                { entityType: intl.formatMessage({ id: "scene" }) }
-              )}
-            >
-              <Icon icon={faPlus} />
-            </Button>
-          )}
-
-          {hasSelection && (
-            <>
-              <Button variant="secondary" onClick={() => onEdit()}>
-                <Icon icon={faPencil} />
-              </Button>
-              <Button
-                variant="danger"
-                className="btn-danger-minimal"
-                onClick={() => onDelete()}
-              >
-                <Icon icon={faTrash} />
-              </Button>
-            </>
-          )}
-
-          <OperationDropdown
-            className="scene-list-operations"
-            menuClassName="scene-list-operations-dropdown"
-            menuPortalTarget={document.body}
-          >
-            {operations.map((o) => {
-              if (o.isDisplayed && !o.isDisplayed()) {
-                return null;
-              }
-
-              return (
-                <OperationDropdownItem
-                  key={o.text}
-                  onClick={o.onClick}
-                  text={o.text}
-                  className={o.className}
-                />
-              );
-            })}
-          </OperationDropdown>
-        </ButtonGroup>
-      </div>
-    );
-  }
-);
+// SceneListOperations removed (reverted to FilteredListToolbar internal handling)
 
 interface IFilteredScenes {
   filterHook?: (filter: ListFilterModel) => ListFilterModel;
@@ -648,30 +562,29 @@ export const FilteredSceneList = (props: IFilteredScenes) => {
     );
   }
 
+  // Ensure operations match expected type
   const otherOperations = [
     {
       text: intl.formatMessage({ id: "actions.play" }),
-      onClick: () => onPlay(),
+      onClick: async () => onPlay(),
       isDisplayed: () => items.length > 0,
-      className: "play-item",
     },
     {
       text: intl.formatMessage(
         { id: "actions.create_entity" },
         { entityType: intl.formatMessage({ id: "scene" }) }
       ),
-      onClick: () => onCreateNew(),
+      onClick: async () => onCreateNew(),
       isDisplayed: () => !hasSelection,
-      className: "create-new-item",
     },
     {
       text: intl.formatMessage({ id: "actions.select_all" }),
-      onClick: () => onSelectAll(),
+      onClick: async () => onSelectAll(),
       isDisplayed: () => totalCount > 0,
     },
     {
       text: intl.formatMessage({ id: "actions.select_none" }),
-      onClick: () => onSelectNone(),
+      onClick: async () => onSelectNone(),
       isDisplayed: () => hasSelection,
     },
     {
@@ -681,7 +594,7 @@ export const FilteredSceneList = (props: IFilteredScenes) => {
     },
     {
       text: `${intl.formatMessage({ id: "actions.generate" })}…`,
-      onClick: () =>
+      onClick: async () =>
         showModal(
           <GenerateDialog
             type="scene"
@@ -693,7 +606,7 @@ export const FilteredSceneList = (props: IFilteredScenes) => {
     },
     {
       text: `${intl.formatMessage({ id: "actions.identify" })}…`,
-      onClick: () =>
+      onClick: async () =>
         showModal(
           <IdentifyDialog
             selectedIds={Array.from(selectedIds.values())}
@@ -704,34 +617,22 @@ export const FilteredSceneList = (props: IFilteredScenes) => {
     },
     {
       text: `${intl.formatMessage({ id: "actions.merge" })}…`,
-      onClick: () => onMerge(),
+      onClick: async () => onMerge(),
       isDisplayed: () => hasSelection,
     },
     {
       text: intl.formatMessage({ id: "actions.export" }),
-      onClick: () => onExport(false),
+      onClick: async () => onExport(false),
       isDisplayed: () => hasSelection,
     },
     {
       text: intl.formatMessage({ id: "actions.export_all" }),
-      onClick: () => onExport(true),
+      onClick: async () => onExport(true),
     },
   ];
 
   // render
   if (sidebarStateLoading) return null;
-
-  const operations = (
-    <SceneListOperations
-      items={items.length}
-      hasSelection={hasSelection}
-      operations={otherOperations}
-      onEdit={onEdit}
-      onDelete={onDelete}
-      onPlay={onPlay}
-      onCreateNew={onCreateNew}
-    />
-  );
 
   return (
     <TaggerContext>
@@ -755,7 +656,6 @@ export const FilteredSceneList = (props: IFilteredScenes) => {
                 onClose={() => setShowSidebar(false)}
                 count={cachedResult.loading ? undefined : totalCount}
                 focus={searchFocus}
-                operations={otherOperations}
               />
             </Sidebar>
             <SidebarPaneContent
@@ -764,7 +664,20 @@ export const FilteredSceneList = (props: IFilteredScenes) => {
               <>
                 <FeaturedScene />
 
-                {/* Operations moved to sidebar */}
+                {/* Re-inserted Toolbar */}
+                <FilteredListToolbar
+                  filter={filter}
+                  setFilter={setFilter}
+                  showEditFilter={showEditFilter} // Restored Dialog
+                  view={view}
+                  listSelect={listSelect}
+                  onEdit={onEdit}
+                  onDelete={onDelete}
+                  operations={otherOperations}
+                  zoomable
+                />
+
+                {/* Top Pagination removed */}
               </>
 
               <FilterTags
@@ -793,10 +706,17 @@ export const FilteredSceneList = (props: IFilteredScenes) => {
                       itemsPerPage={filter.itemsPerPage}
                       currentPage={filter.currentPage}
                       totalItems={totalCount}
-                      metadataByline={metadataByline}
                       onChangePage={setPage}
                       pagePopupPlacement="top"
                     />
+                    <div className="text-center mt-1">
+                      <PaginationIndex
+                        itemsPerPage={filter.itemsPerPage}
+                        currentPage={filter.currentPage}
+                        totalItems={totalCount}
+                        metadataByline={metadataByline}
+                      />
+                    </div>
                   </div>
                 </div>
               )}

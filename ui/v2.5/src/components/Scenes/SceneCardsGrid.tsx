@@ -20,8 +20,23 @@ export const SceneCardsGrid: React.FC<ISceneCardsGrid> = ({
   onSelectChange,
   fromGroupId,
 }) => {
+  function getGridClass(zoom: number) {
+    switch (zoom) {
+      case 0:
+        return "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8";
+      case 1:
+        return "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6";
+      case 2:
+        return "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6";
+      case 3:
+        return "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5";
+      default:
+        return "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6";
+    }
+  }
+
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6 p-4">
+    <div className={`grid ${getGridClass(zoomIndex)} gap-6 p-4`}>
       {scenes.map((scene, index) => (
         <SceneCard
           key={scene.id}

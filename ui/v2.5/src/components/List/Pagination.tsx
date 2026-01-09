@@ -11,6 +11,7 @@ import {
 import { FormattedMessage, FormattedNumber, useIntl } from "react-intl";
 import useFocus from "src/utils/focus";
 import { Icon } from "../Shared/Icon";
+import cx from "classnames";
 import { faCheck, faChevronDown } from "@fortawesome/free-solid-svg-icons";
 import { useStopWheelScroll } from "src/utils/form";
 import { Placement } from "react-bootstrap/esm/Overlay";
@@ -27,118 +28,118 @@ const PageCount: React.FC<{
   onChangePage,
   pagePopupPlacement = "bottom",
 }) => {
-  const intl = useIntl();
-  const currentPageCtrl = useRef(null);
-  const [pageInput, pageFocus] = useFocus();
-  const [showSelectPage, setShowSelectPage] = useState(false);
+    const intl = useIntl();
+    const currentPageCtrl = useRef(null);
+    const [pageInput, pageFocus] = useFocus();
+    const [showSelectPage, setShowSelectPage] = useState(false);
 
-  useEffect(() => {
-    if (showSelectPage) {
-      // delaying the focus to the next execution loop so that rendering takes place first and stops the page from resetting.
-      setTimeout(() => {
-        pageFocus();
-      }, 0);
+    useEffect(() => {
+      if (showSelectPage) {
+        // delaying the focus to the next execution loop so that rendering takes place first and stops the page from resetting.
+        setTimeout(() => {
+          pageFocus();
+        }, 0);
+      }
+    }, [showSelectPage, pageFocus]);
+
+    useStopWheelScroll(pageInput);
+
+    const pageOptions = useMemo(() => {
+      const maxPagesToShow = 1000;
+      const min = Math.max(1, currentPage - maxPagesToShow / 2);
+      const max = Math.min(min + maxPagesToShow, totalPages);
+      const pages = [];
+      for (let i = min; i <= max; i++) {
+        pages.push(i);
+      }
+      return pages;
+    }, [totalPages, currentPage]);
+
+    function onCustomChangePage() {
+      const newPage = Number.parseInt(pageInput.current?.value ?? "0");
+      if (newPage) {
+        onChangePage(newPage);
+      }
+      setShowSelectPage(false);
     }
-  }, [showSelectPage, pageFocus]);
 
-  useStopWheelScroll(pageInput);
-
-  const pageOptions = useMemo(() => {
-    const maxPagesToShow = 1000;
-    const min = Math.max(1, currentPage - maxPagesToShow / 2);
-    const max = Math.min(min + maxPagesToShow, totalPages);
-    const pages = [];
-    for (let i = min; i <= max; i++) {
-      pages.push(i);
-    }
-    return pages;
-  }, [totalPages, currentPage]);
-
-  function onCustomChangePage() {
-    const newPage = Number.parseInt(pageInput.current?.value ?? "0");
-    if (newPage) {
-      onChangePage(newPage);
-    }
-    setShowSelectPage(false);
-  }
-
-  return (
-    <div className="page-count-container">
-      <ButtonGroup>
-        <Button
-          variant="secondary"
-          className="page-count"
-          ref={currentPageCtrl}
-          onClick={() => {
-            setShowSelectPage(true);
-            pageFocus();
-          }}
-        >
-          <FormattedMessage
-            id="pagination.current_total"
-            values={{
-              current: intl.formatNumber(currentPage),
-              total: intl.formatNumber(totalPages),
+    return (
+      <div className="page-count-container">
+        <ButtonGroup>
+          <Button
+            variant="secondary"
+            className="page-count !bg-card hover:!bg-secondary !text-foreground"
+            ref={currentPageCtrl}
+            onClick={() => {
+              setShowSelectPage(true);
+              pageFocus();
             }}
-          />
-        </Button>
-        <Dropdown>
-          <Dropdown.Toggle variant="secondary" className="page-count-dropdown">
-            <Icon size="xs" icon={faChevronDown} />
-          </Dropdown.Toggle>
-          <Dropdown.Menu>
-            {pageOptions.map((s) => (
-              <Dropdown.Item
-                key={s}
-                active={s === currentPage}
-                onClick={() => onChangePage(s)}
-              >
-                {s}
-              </Dropdown.Item>
-            ))}
-          </Dropdown.Menu>
-        </Dropdown>
-      </ButtonGroup>
-      <Overlay
-        target={currentPageCtrl.current}
-        show={showSelectPage}
-        placement={pagePopupPlacement}
-        rootClose
-        onHide={() => setShowSelectPage(false)}
-      >
-        <Popover id="select_page_popover">
-          <Form inline>
-            <InputGroup>
-              {/* can't use NumberField because of the ref */}
-              <Form.Control
-                type="number"
-                min={1}
-                max={totalPages}
-                className="text-input"
-                ref={pageInput}
-                defaultValue={currentPage}
-                onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                  if (e.key === "Enter") {
-                    onCustomChangePage();
-                    e.preventDefault();
+          >
+            <FormattedMessage
+              id="pagination.current_total"
+              values={{
+                current: intl.formatNumber(currentPage),
+                total: intl.formatNumber(totalPages),
+              }}
+            />
+          </Button>
+          <Dropdown>
+            <Dropdown.Toggle variant="secondary" className="page-count-dropdown !bg-card hover:!bg-secondary !text-foreground">
+              <Icon size="xs" icon={faChevronDown} />
+            </Dropdown.Toggle>
+            <Dropdown.Menu>
+              {pageOptions.map((s) => (
+                <Dropdown.Item
+                  key={s}
+                  active={s === currentPage}
+                  onClick={() => onChangePage(s)}
+                >
+                  {s}
+                </Dropdown.Item>
+              ))}
+            </Dropdown.Menu>
+          </Dropdown>
+        </ButtonGroup>
+        <Overlay
+          target={currentPageCtrl.current}
+          show={showSelectPage}
+          placement={pagePopupPlacement}
+          rootClose
+          onHide={() => setShowSelectPage(false)}
+        >
+          <Popover id="select_page_popover">
+            <Form inline>
+              <InputGroup>
+                {/* can't use NumberField because of the ref */}
+                <Form.Control
+                  type="number"
+                  min={1}
+                  max={totalPages}
+                  className="text-input"
+                  ref={pageInput}
+                  defaultValue={currentPage}
+                  onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                    if (e.key === "Enter") {
+                      onCustomChangePage();
+                      e.preventDefault();
+                    }
+                  }}
+                  onFocus={(e: React.FocusEvent<HTMLInputElement>) =>
+                    e.target.select()
                   }
-                }}
-                onFocus={(e: React.FocusEvent<HTMLInputElement>) =>
-                  e.target.select()
-                }
-              />
-              <InputGroup.Append>
-                <Button variant="primary" onClick={() => onCustomChangePage()}>
-                  <Icon icon={faCheck} />
-                </Button>
-              </InputGroup.Append>
-            </InputGroup>
-          </Form>
-        </Popover>
-      </Overlay>
-    </div>
-  );
-};
+                />
+                <InputGroup.Append>
+                  <Button variant="primary" onClick={() => onCustomChangePage()}>
+                    <Icon icon={faCheck} />
+                  </Button>
+                </InputGroup.Append>
+              </InputGroup>
+            </Form>
+          </Popover>
+        </Overlay>
+      </div>
+    );
+  };
 
 interface IPaginationProps {
   itemsPerPage: number;
@@ -189,7 +190,13 @@ export const Pagination: React.FC<IPaginationProps> = PatchComponent(
 
       return pages.map((page: number) => (
         <Button
-          variant="secondary"
+          variant={currentPage === page ? "primary" : "secondary"}
+          className={cx(
+            "hover:!bg-secondary !text-foreground border-none font-bold",
+            currentPage === page
+              ? "!bg-primary !text-primary-foreground !opacity-100 !bg-opacity-100 shadow-md transform scale-110 z-10"
+              : "!bg-card !opacity-90"
+          )}
           key={page}
           active={currentPage === page}
           onClick={() => onChangePage(page)}
@@ -205,6 +212,7 @@ export const Pagination: React.FC<IPaginationProps> = PatchComponent(
       <ButtonGroup className="pagination">
         <Button
           variant="secondary"
+          className="!bg-card hover:!bg-secondary !text-foreground"
           disabled={currentPage === 1}
           onClick={() => onChangePage(1)}
           title={intl.formatMessage({ id: "pagination.first" })}
@@ -213,6 +221,7 @@ export const Pagination: React.FC<IPaginationProps> = PatchComponent(
         </Button>
         <Button
           variant="secondary"
+          className="!bg-card hover:!bg-secondary !text-foreground"
           disabled={currentPage === 1}
           onClick={() => onChangePage(currentPage - 1)}
           title={intl.formatMessage({ id: "pagination.previous" })}
@@ -222,6 +231,7 @@ export const Pagination: React.FC<IPaginationProps> = PatchComponent(
         {pageButtons}
         <Button
           variant="secondary"
+          className="!bg-card hover:!bg-secondary !text-foreground"
           disabled={currentPage === totalPages}
           onClick={() => onChangePage(currentPage + 1)}
           title={intl.formatMessage({ id: "pagination.next" })}
@@ -230,6 +240,7 @@ export const Pagination: React.FC<IPaginationProps> = PatchComponent(
         </Button>
         <Button
           variant="secondary"
+          className="!bg-card hover:!bg-secondary !text-foreground"
           disabled={currentPage === totalPages}
           onClick={() => onChangePage(totalPages)}
           title={intl.formatMessage({ id: "pagination.last" })}

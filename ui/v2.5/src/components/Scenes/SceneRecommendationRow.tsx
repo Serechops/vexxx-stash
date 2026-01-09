@@ -38,24 +38,30 @@ export const SceneRecommendationRow: React.FC<IProps> = (props) => {
       }
     >
       <Slider
-        {...getSlickSliderSettings(
-          cardCount ? cardCount : props.filter.itemsPerPage,
-          props.isTouch
-        )}
+        {...{
+          ...getSlickSliderSettings(
+            cardCount ? cardCount : props.filter.itemsPerPage,
+            props.isTouch
+          ),
+          variableWidth: false,
+        }}
       >
         {result.loading
           ? [...Array(props.filter.itemsPerPage)].map((i) => (
-              <div key={`_${i}`} className="scene-skeleton skeleton-card"></div>
-            ))
+            <div key={`_${i}`} className="px-2">
+              <div className="scene-skeleton skeleton-card"></div>
+            </div>
+          ))
           : result.data?.findScenes.scenes.map((scene, index) => (
+            <div key={scene.id} className="px-2 h-full">
               <SceneCard
-                key={scene.id}
                 scene={scene}
                 queue={queue}
                 index={index}
                 zoomIndex={1}
               />
-            ))}
+            </div>
+          ))}
       </Slider>
     </RecommendationRow>
   );

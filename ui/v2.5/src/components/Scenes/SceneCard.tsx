@@ -213,7 +213,7 @@ export const SceneCard = PatchComponent(
               )}
               url={sceneLink}
               title={null}
-              width={undefined} // Let grid handle width
+              width={props.width}
               linkClassName="block relative aspect-video"
               thumbnailSectionClassName="w-full h-full"
               image={<SceneCardImage {...props} />}

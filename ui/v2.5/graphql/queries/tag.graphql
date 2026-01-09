@@ -1,0 +1,37 @@
+query FindTags($filter: FindFilterType, $tag_filter: TagFilterType) {
+  findTags(filter: $filter, tag_filter: $tag_filter) {
+    count
+    tags {
+      ...TagData
+    }
+  }
+}
+
+query FindTag($id: ID!) {
+  findTag(id: $id) {
+    ...TagData
+  }
+}
+
+query FindTagsForSelect(
+  $filter: FindFilterType
+  $tag_filter: TagFilterType
+  $ids: [ID!]
+) {
+  findTags(filter: $filter, tag_filter: $tag_filter, ids: $ids) {
+    count
+    tags {
+      ...SelectTagData
+    }
+  }
+}
+
+# Optimized query for tag list page - uses TagListData fragment without recursive counts
+query FindTagsForList($filter: FindFilterType, $tag_filter: TagFilterType) {
+  findTags(filter: $filter, tag_filter: $tag_filter) {
+    count
+    tags {
+      ...TagListData
+    }
+  }
+}

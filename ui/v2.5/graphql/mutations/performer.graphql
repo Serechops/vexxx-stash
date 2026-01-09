@@ -1,0 +1,31 @@
+mutation PerformerCreate($input: PerformerCreateInput!) {
+  performerCreate(input: $input) {
+    ...PerformerData
+  }
+}
+
+mutation PerformerUpdate($input: PerformerUpdateInput!) {
+  performerUpdate(input: $input) {
+    ...PerformerData
+  }
+}
+
+mutation BulkPerformerUpdate($input: BulkPerformerUpdateInput!) {
+  bulkPerformerUpdate(input: $input) {
+    ...PerformerData
+  }
+}
+
+mutation PerformerDestroy($id: ID!) {
+  performerDestroy(input: { id: $id })
+}
+
+mutation PerformersDestroy($ids: [ID!]!) {
+  performersDestroy(ids: $ids)
+}
+
+mutation PerformerMerge($input: PerformerMergeInput!) {
+  performerMerge(input: $input) {
+    id
+  }
+}

@@ -1,0 +1,25 @@
+mutation StudioCreate($input: StudioCreateInput!) {
+  studioCreate(input: $input) {
+    ...StudioData
+  }
+}
+
+mutation StudioUpdate($input: StudioUpdateInput!) {
+  studioUpdate(input: $input) {
+    ...StudioData
+  }
+}
+
+mutation BulkStudioUpdate($input: BulkStudioUpdateInput!) {
+  bulkStudioUpdate(input: $input) {
+    ...StudioData
+  }
+}
+
+mutation StudioDestroy($id: ID!) {
+  studioDestroy(input: { id: $id })
+}
+
+mutation StudiosDestroy($ids: [ID!]!) {
+  studiosDestroy(ids: $ids)
+}

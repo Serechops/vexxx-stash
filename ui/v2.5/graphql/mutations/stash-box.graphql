@@ -1,0 +1,21 @@
+mutation SubmitStashBoxFingerprints(
+  $input: StashBoxFingerprintSubmissionInput!
+) {
+  submitStashBoxFingerprints(input: $input)
+}
+
+mutation StashBoxBatchPerformerTag($input: StashBoxBatchTagInput!) {
+  stashBoxBatchPerformerTag(input: $input)
+}
+
+mutation StashBoxBatchStudioTag($input: StashBoxBatchTagInput!) {
+  stashBoxBatchStudioTag(input: $input)
+}
+
+mutation SubmitStashBoxSceneDraft($input: StashBoxDraftSubmissionInput!) {
+  submitStashBoxSceneDraft(input: $input)
+}
+
+mutation SubmitStashBoxPerformerDraft($input: StashBoxDraftSubmissionInput!) {
+  submitStashBoxPerformerDraft(input: $input)
+}

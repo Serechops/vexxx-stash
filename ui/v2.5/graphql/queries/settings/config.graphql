@@ -1,0 +1,20 @@
+query Configuration {
+  configuration {
+    ...ConfigData
+  }
+}
+
+query Directory($path: String) {
+  directory(path: $path) {
+    path
+    parent
+    directories
+  }
+}
+
+query ValidateStashBox($input: StashBoxInput!) {
+  validateStashBoxCredentials(input: $input) {
+    valid
+    status
+  }
+}

@@ -1,0 +1,802 @@
+﻿
+> build
+> vite build
+
+node.exe : [baseline-b
+rowser-mapping] The 
+data in this module 
+is over two months 
+old.  To ensure 
+accurate Baseline 
+data, please update: 
+`npm i baseline-browse
+r-mapping@latest -D`
+At line:1 char:1
++ & "C:\Program Files\
+nodejs/node.exe" "C:\U
+sers\Adm1n\AppData\Roa
+ming\ ...
++ ~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
+~~~~~
+    + CategoryInfo    
+          : NotSpeci  
+  fied: ([baseline-   
+ brows...ping@late    
+st -D`:String) []    
+, RemoteException
+    + FullyQualifiedE 
+   rrorId : NativeCo  
+  mmandError
+ 
+[36mvite v5.4.21 [32mbuilding for production...[36m[39m
+transforming...
+DEPRECATION WARNING 
+[legacy-js-api]: The 
+legacy JS API is 
+deprecated and will 
+be removed in Dart 
+Sass 2.0.0.
+
+More info: https://sas
+s-lang.com/d/legacy-js
+-api
+
+DEPRECATION WARNING 
+[import]: Sass 
+@import rules are 
+deprecated and will 
+be removed in Dart 
+Sass 3.0.0.
+
+More info and 
+automated migrator: ht
+tps://sass-lang.com/d/
+import
+
+   Γò╖
+14 Γöé @import 
+"styles/theme";
+   Γöé         
+^^^^^^^^^^^^^^
+   Γò╡
+    src\index.scss 
+14:9  root stylesheet
+
+DEPRECATION WARNING 
+[import]: Sass 
+@import rules are 
+deprecated and will 
+be removed in Dart 
+Sass 3.0.0.
+
+More info and 
+automated migrator: ht
+tps://sass-lang.com/d/
+import
+
+   Γò╖
+15 Γöé @import 
+"styles/range";
+   Γöé         
+^^^^^^^^^^^^^^
+   Γò╡
+    src\index.scss 
+15:9  root stylesheet
+
+DEPRECATION WARNING 
+[import]: Sass 
+@import rules are 
+deprecated and will 
+be removed in Dart 
+Sass 3.0.0.
+
+More info and 
+automated migrator: ht
+tps://sass-lang.com/d/
+import
+
+   Γò╖
+16 Γöé @import 
+"styles/scrollbars";
+   Γöé         
+^^^^^^^^^^^^^^^^^^^
+   Γò╡
+    src\index.scss 
+16:9  root stylesheet
+
+DEPRECATION WARNING 
+[import]: Sass 
+@import rules are 
+deprecated and will 
+be removed in Dart 
+Sass 3.0.0.
+
+More info and 
+automated migrator: ht
+tps://sass-lang.com/d/
+import
+
+   Γò╖
+17 Γöé @import 
+"sfw-mode.scss";
+   Γöé         
+^^^^^^^^^^^^^^^
+   Γò╡
+    src\index.scss 
+17:9  root stylesheet
+
+DEPRECATION WARNING 
+[import]: Sass 
+@import rules are 
+deprecated and will 
+be removed in Dart 
+Sass 3.0.0.
+
+More info and 
+automated migrator: ht
+tps://sass-lang.com/d/
+import
+
+   Γò╖
+18 Γöé @import "src/co
+mponents/Changelog/sty
+les.scss";
+   Γöé         ^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^
+   Γò╡
+    src\index.scss 
+18:9  root stylesheet
+
+DEPRECATION WARNING 
+[global-builtin]: 
+Global built-in 
+functions are 
+deprecated and will 
+be removed in Dart 
+Sass 3.0.0.
+Use map.merge instead.
+
+More info and 
+automated migrator: ht
+tps://sass-lang.com/d/
+import
+
+   Γò╖
+21 Γöé   $grays: 
+map-merge(
+   Γöé ΓöîΓöÇΓöÇΓöÇΓöÇ
+ΓöÇΓöÇΓöÇΓöÇΓöÇ^
+22 Γöé Γöé   (
+23 Γöé Γöé     "100": 
+$gray-100,
+24 Γöé Γöé     "200": 
+$gray-200,
+25 Γöé Γöé     "300": 
+$gray-300,
+26 Γöé Γöé     "400": 
+$gray-400,
+27 Γöé Γöé     "500": 
+$gray-500,
+28 Γöé Γöé     "600": 
+$gray-600,
+29 Γöé Γöé     "700": 
+$gray-700,
+30 Γöé Γöé     "800": 
+$gray-800,
+31 Γöé Γöé     "900": 
+$gray-900
+32 Γöé Γöé   ),
+33 Γöé Γöé   $grays
+34 Γöé Γöé );
+   Γöé ΓööΓöÇ^
+   Γò╡
+    node_modules\boots
+trap\scss\_variables.s
+css 21:9  @import
+    node_modules\boots
+trap\scss\bootstrap.sc
+ss 9:9    @import
+    src\styles\_theme.
+scss 31:9             
+          @import
+    src\index.scss 
+14:9                  
+             root 
+stylesheet
+
+DEPRECATION WARNING 
+[global-builtin]: 
+Global built-in 
+functions are 
+deprecated and will 
+be removed in Dart 
+Sass 3.0.0.
+Use map.merge instead.
+
+More info and 
+automated migrator: ht
+tps://sass-lang.com/d/
+import
+
+   Γò╖
+48 Γöé   $colors: 
+map-merge(
+   Γöé ΓöîΓöÇΓöÇΓöÇΓöÇ
+ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ^
+49 Γöé Γöé   (
+50 Γöé Γöé     
+"blue":       $blue,
+51 Γöé Γöé     
+"indigo":     $indigo,
+52 Γöé Γöé     
+"purple":     $purple,
+53 Γöé Γöé     
+"pink":       $pink,
+54 Γöé Γöé     "red": 
+       $red,
+55 Γöé Γöé     
+"orange":     $orange,
+56 Γöé Γöé     
+"yellow":     $yellow,
+57 Γöé Γöé     
+"green":      $green,
+58 Γöé Γöé     
+"teal":       $teal,
+59 Γöé Γöé     
+"cyan":       $cyan,
+60 Γöé Γöé     
+"white":      $white,
+61 Γöé Γöé     
+"gray":       
+$gray-600,
+62 Γöé Γöé     
+"gray-dark":  
+$gray-800
+63 Γöé Γöé   ),
+64 Γöé Γöé   $colors
+65 Γöé Γöé );
+   Γöé ΓööΓöÇ^
+   Γò╡
+    node_modules\boots
+trap\scss\_variables.s
+css 48:10  @import
+    node_modules\boots
+trap\scss\bootstrap.sc
+ss 9:9     @import
+    src\styles\_theme.
+scss 31:9             
+           @import
+    src\index.scss 
+14:9                  
+              root 
+stylesheet
+
+DEPRECATION WARNING 
+[global-builtin]: 
+Global built-in 
+functions are 
+deprecated and will 
+be removed in Dart 
+Sass 3.0.0.
+Use map.merge instead.
+
+More info and 
+automated migrator: ht
+tps://sass-lang.com/d/
+import
+
+   Γò╖
+77 Γöé   
+$theme-colors: 
+map-merge(
+   Γöé ΓöîΓöÇΓöÇΓöÇΓöÇ
+ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓ
+öÇΓöÇΓöÇΓöÇΓöÇ^
+78 Γöé Γöé   (
+79 Γöé Γöé     
+"primary":    
+$primary,
+80 Γöé Γöé     
+"secondary":  
+$secondary,
+81 Γöé Γöé     
+"success":    
+$success,
+82 Γöé Γöé     
+"info":       $info,
+83 Γöé Γöé     
+"warning":    
+$warning,
+84 Γöé Γöé     
+"danger":     $danger,
+85 Γöé Γöé     
+"light":      $light,
+86 Γöé Γöé     
+"dark":       $dark
+87 Γöé Γöé   ),
+88 Γöé Γöé   
+$theme-colors
+89 Γöé Γöé );
+   Γöé ΓööΓöÇ^
+   Γò╡
+    node_modules\boots
+trap\scss\_variables.s
+css 77:16  @import
+    node_modules\boots
+trap\scss\bootstrap.sc
+ss 9:9     @import
+    src\styles\_theme.
+scss 31:9             
+           @import
+    src\index.scss 
+14:9                  
+              root 
+stylesheet
+
+DEPRECATION WARNING 
+[global-builtin]: 
+Global built-in 
+functions are 
+deprecated and will 
+be removed in Dart 
+Sass 3.0.0.
+Use map.merge instead.
+
+More info and 
+automated migrator: ht
+tps://sass-lang.com/d/
+import
+
+    Γò╖
+138 Γöé   $spacers: 
+map-merge(
+    Γöé ΓöîΓöÇΓöÇΓöÇΓö
+ÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+^
+139 Γöé Γöé   (
+140 Γöé Γöé     0: 0,
+141 Γöé Γöé     1: 
+($spacer * .25),
+142 Γöé Γöé     2: 
+($spacer * .5),
+143 Γöé Γöé     3: 
+$spacer,
+144 Γöé Γöé     4: 
+($spacer * 1.5),
+145 Γöé Γöé     5: 
+($spacer * 3)
+146 Γöé Γöé   ),
+147 Γöé Γöé   $spacers
+148 Γöé Γöé );
+    Γöé ΓööΓöÇ^
+    Γò╡
+    node_modules\boots
+trap\scss\_variables.s
+css 138:11  @import
+    node_modules\boots
+trap\scss\bootstrap.sc
+ss 9:9      @import
+    src\styles\_theme.
+scss 31:9             
+            @import
+    src\index.scss 
+14:9                  
+               root 
+stylesheet
+
+DEPRECATION WARNING 
+[global-builtin]: 
+Global built-in 
+functions are 
+deprecated and will 
+be removed in Dart 
+Sass 3.0.0.
+Use map.merge instead.
+
+More info and 
+automated migrator: ht
+tps://sass-lang.com/d/
+import
+
+    Γò╖
+152 Γöé   $sizes: 
+map-merge(
+    Γöé ΓöîΓöÇΓöÇΓöÇΓö
+ÇΓöÇΓöÇΓöÇΓöÇΓöÇ^
+153 Γöé Γöé   (
+154 Γöé Γöé     25: 
+25%,
+155 Γöé Γöé     50: 
+50%,
+156 Γöé Γöé     75: 
+75%,
+157 Γöé Γöé     100: 
+100%,
+158 Γöé Γöé     auto: 
+auto
+159 Γöé Γöé   ),
+160 Γöé Γöé   $sizes
+161 Γöé Γöé );
+    Γöé ΓööΓöÇ^
+    Γò╡
+    node_modules\boots
+trap\scss\_variables.s
+css 152:9  @import
+    node_modules\boots
+trap\scss\bootstrap.sc
+ss 9:9     @import
+    src\styles\_theme.
+scss 31:9             
+           @import
+    src\index.scss 
+14:9                  
+              root 
+stylesheet
+
+DEPRECATION WARNING 
+[color-functions]: 
+lighten() is 
+deprecated. 
+Suggestions:
+
+color.scale($color, 
+$lightness: 
+9.7081218274%)
+color.adjust($color, 
+$lightness: 7.5%)
+
+More info: https://sas
+s-lang.com/d/color-fun
+ctions
+
+    Γò╖
+374 Γöé $table-dark-bo
+rder-color:     lighte
+n($table-dark-bg, 
+7.5%) !default;
+    Γöé               
+                ^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^
+^
+    Γò╡
+    node_modules\boots
+trap\scss\_variables.s
+css 374:31  @import
+    node_modules\boots
+trap\scss\bootstrap.sc
+ss 9:9      @import
+    src\styles\_theme.
+scss 31:9             
+            @import
+    src\index.scss 
+14:9                  
+               root 
+stylesheet
+
+DEPRECATION WARNING 
+[color-functions]: 
+lighten() is 
+deprecated. 
+Suggestions:
+
+color.scale($color, 
+$lightness: 
+42.2185430464%)
+color.adjust($color, 
+$lightness: 25%)
+
+More info: https://sas
+s-lang.com/d/color-fun
+ctions
+
+    Γò╖
+487 Γöé $input-focus-b
+order-color:          
+    lighten($component
+-active-bg, 25%) 
+!default;
+    Γöé               
+                      
+    ^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^
+    Γò╡
+    node_modules\boots
+trap\scss\_variables.s
+css 487:41  @import
+    node_modules\boots
+trap\scss\bootstrap.sc
+ss 9:9      @import
+    src\styles\_theme.
+scss 31:9             
+            @import
+    src\index.scss 
+14:9                  
+               root 
+stylesheet
+
+DEPRECATION WARNING 
+[color-functions]: 
+lighten() is 
+deprecated. 
+Suggestions:
+
+color.scale($color, 
+$lightness: 
+59.1059602649%)
+color.adjust($color, 
+$lightness: 35%)
+
+More info: https://sas
+s-lang.com/d/color-fun
+ctions
+
+    Γò╖
+552 Γöé $custom-contro
+l-indicator-active-bg:
+            lighten($c
+omponent-active-bg, 
+35%) !default;
+    Γöé               
+                      
+            ^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^
+^^
+    Γò╡
+    node_modules\boots
+trap\scss\_variables.s
+css 552:49  @import
+    node_modules\boots
+trap\scss\bootstrap.sc
+ss 9:9      @import
+    src\styles\_theme.
+scss 31:9             
+            @import
+    src\index.scss 
+14:9                  
+               root 
+stylesheet
+
+DEPRECATION WARNING 
+[color-functions]: 
+lighten() is 
+deprecated. 
+Suggestions:
+
+color.scale($color, 
+$lightness: 
+59.1059602649%)
+color.adjust($color, 
+$lightness: 35%)
+
+More info: https://sas
+s-lang.com/d/color-fun
+ctions
+
+    Γò╖
+627 Γöé $custom-range-
+thumb-active-bg:      
+         lighten($comp
+onent-active-bg, 35%) 
+!default;
+    Γöé               
+                      
+         ^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^
+    Γò╡
+    node_modules\boots
+trap\scss\_variables.s
+css 627:46  @import
+    node_modules\boots
+trap\scss\bootstrap.sc
+ss 9:9      @import
+    src\styles\_theme.
+scss 31:9             
+            @import
+    src\index.scss 
+14:9                  
+               root 
+stylesheet
+
+DEPRECATION WARNING 
+[color-functions]: 
+darken() is 
+deprecated. 
+Suggestions:
+
+color.scale($color, 
+$lightness: 
+-34.4594594595%)
+color.adjust($color, 
+$lightness: -5%)
+
+More info: https://sas
+s-lang.com/d/color-fun
+ctions
+
+    Γò╖
+777 Γöé $dropdown-link
+-hover-color:         
+darken($gray-900, 5%) 
+!default;
+    Γöé               
+                      
+^^^^^^^^^^^^^^^^^^^^^
+    Γò╡
+    node_modules\boots
+trap\scss\_variables.s
+css 777:37  @import
+    node_modules\boots
+trap\scss\bootstrap.sc
+ss 9:9      @import
+    src\styles\_theme.
+scss 31:9             
+            @import
+    src\index.scss 
+14:9                  
+               root 
+stylesheet
+
+DEPRECATION WARNING 
+[abs-percent]: 
+Passing percentage 
+units to the global 
+abs() function is 
+deprecated.
+In the future, this 
+will emit a CSS abs() 
+function to be 
+resolved by the 
+browser.
+To preserve current 
+behavior: 
+math.abs(100%)
+To emit a CSS abs() 
+now: abs(#{100%})
+More info: https://sas
+s-lang.com/d/abs-perce
+nt
+
+   Γò╖
+54 Γöé   $dividend: 
+abs($dividend);
+   Γöé              
+^^^^^^^^^^^^^^
+   Γò╡
+    node_modules\boots
+trap\scss\vendor\_rfs.
+scss 54:14            
+ divide()
+    node_modules\boots
+trap\scss\mixins\_grid
+.scss 66:15           
+ row-cols()
+    node_modules\boots
+trap\scss\mixins\_grid
+-framework.scss 43:13 
+ @content
+    node_modules\boots
+trap\scss\mixins\_brea
+kpoints.scss 65:5     
+ media-breakpoint-up()
+    node_modules\boots
+trap\scss\mixins\_grid
+-framework.scss 32:5  
+ make-grid-columns()
+    node_modules\boots
+trap\scss\_grid.scss 
+72:3                  
+  @import
+    node_modules\boots
+trap\scss\bootstrap.sc
+ss 16:9               
+ @import
+    src\styles\_theme.
+scss 31:9             
+                      
+ @import
+    src\index.scss 
+14:9                  
+                      
+    root stylesheet
+
+[32mΓ£ô[39m 1228 modules transformed.
+
+Γ£¿ [vite-plugin-compression]:algorithm=gzip - compressed file successfully: 
+
+
+[31mx[39m Build 
+failed in 3.48s
+[31merror during 
+build:
+[31m[vite:css] 
+[postcss] It looks 
+like you're trying to 
+use `tailwindcss` 
+directly as a PostCSS 
+plugin. The PostCSS 
+plugin has moved to a 
+separate package, so 
+to continue using 
+Tailwind CSS with 
+PostCSS you'll need 
+to install `@tailwindc
+ss/postcss` and 
+update your PostCSS 
+configuration.[31m
+file: [36mC:/stash/ui
+/v2.5/node_modules/.pn
+pm/flexbin@0.2.0/node_
+modules/flexbin/flexbi
+n.css:undefined:NaN[3
+1m
+    at lt (C:\stash\ui
+\v2.5\node_modules\.pn
+pm\tailwindcss@4.1.18\
+node_modules\tailwindc
+ss\dist\lib.js:38:1643
+)
+    at 
+LazyResult.runOnRoot (
+C:\stash\ui\v2.5\node_
+modules\.pnpm\postcss@
+8.5.6\node_modules\pos
+tcss\lib\lazy-result.j
+s:361:16)
+    at 
+LazyResult.runAsync (C
+:\stash\ui\v2.5\node_m
+odules\.pnpm\postcss@8
+.5.6\node_modules\post
+css\lib\lazy-result.js
+:290:26)
+    at 
+LazyResult.async (C:\s
+tash\ui\v2.5\node_modu
+les\.pnpm\postcss@8.5.
+6\node_modules\postcss
+\lib\lazy-result.js:19
+2:30)
+    at 
+LazyResult.then (C:\st
+ash\ui\v2.5\node_modul
+es\.pnpm\postcss@8.5.6
+\node_modules\postcss\
+lib\lazy-result.js:436
+:17)
+    at async 
+compileCSS (file:///C:
+/stash/ui/v2.5/node_mo
+dules/.pnpm/vite@5.4.2
+1_@types+node@18.19.13
+0_sass@1.93.2_terser@5
+.44.0/node_modules/vit
+e/dist/node/chunks/dep
+-BK3b2jBa.js:36898:21)
+    at async 
+Object.transform (file
+:///C:/stash/ui/v2.5/n
+ode_modules/.pnpm/vite
+@5.4.21_@types+node@18
+.19.130_sass@1.93.2_te
+rser@5.44.0/node_modul
+es/vite/dist/node/chun
+ks/dep-BK3b2jBa.js:361
+71:11)
+    at async 
+transform (file:///C:/
+stash/ui/v2.5/node_mod
+ules/.pnpm/rollup@4.53
+.1/node_modules/rollup
+/dist/es/shared/node-e
+ntry.js:21149:16)
+    at async ModuleLoa
+der.addModuleSource (f
+ile:///C:/stash/ui/v2.
+5/node_modules/.pnpm/r
+ollup@4.53.1/node_modu
+les/rollup/dist/es/sha
+red/node-entry.js:2136
+3:36)[39m

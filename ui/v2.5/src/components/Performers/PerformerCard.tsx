@@ -167,7 +167,7 @@ const PerformerCardImage: React.FC<IPerformerCardProps> = PatchComponent(
       <div className="w-full h-full bg-gray-900 aspect-[2/3] relative group">
         <img
           loading="lazy"
-          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+          className="w-full h-full object-cover transition-transform duration-700"
           alt={performer.name ?? ""}
           src={performer.image_path ?? ""}
         />
@@ -192,7 +192,7 @@ export const PerformerCard: React.FC<IPerformerCardProps> = PatchComponent(
 
     return (
       <GridCard
-        className={`performer-card group zoom-${zoomIndex} [&_.card-section]:hidden !rounded-xl overflow-hidden shadow-md hover:shadow-xl !border-none !bg-gray-900 !p-0`}
+        className={`performer-card group zoom-${zoomIndex} [&_.card-section]:hidden !rounded-xl overflow-hidden shadow-md hover:shadow-xl !border-none !bg-gray-900 !p-0 hover:!scale-100 !transition-none`}
         url={`/performers/${performer.id}`}
         width={cardWidth}
         title={undefined}

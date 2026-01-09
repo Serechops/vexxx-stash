@@ -207,7 +207,7 @@ export const SceneCard = PatchComponent(
           <div className="scene-card-front relative w-full h-full backface-hidden top-0 left-0">
             <GridCard
               className={cx(
-                "scene-card h-full !bg-card rounded-lg overflow-hidden",
+                "scene-card h-full !bg-card rounded-lg overflow-hidden hover:!scale-100 !transition-none",
                 // Removed hover styling from GridCard itself to rely on container or just keeping it simple
                 props.selected ? "ring-2 ring-primary" : ""
               )}
@@ -244,7 +244,7 @@ export const SceneCard = PatchComponent(
                     <div className="flex items-center gap-2">
                       {props.scene.studio?.image_path ? (
                         <div
-                          className="cursor-pointer opacity-80 hover:opacity-100 hover:scale-105 transition-all"
+                          className="cursor-pointer opacity-80 hover:opacity-100 transition-all"
                           title={props.scene.studio.name ?? "Studio"}
                           onClick={(e) => {
                             e.stopPropagation();
@@ -326,6 +326,7 @@ export const SceneCard = PatchComponent(
                 onClick={(e) => {
                   e.stopPropagation();
                   e.preventDefault();
+                  e.nativeEvent.stopImmediatePropagation();
                   setIsFlipped(false);
                 }}
                 title="Back to Preview"

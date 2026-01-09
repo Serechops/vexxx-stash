@@ -523,48 +523,18 @@ textarea.text-input {
   }
 }
 
-.zoom-0 {
+/* Zoom levels now handled by JS calculation */
+.zoom-0,
+.zoom-1,
+.zoom-2,
+.zoom-3,
+.zoom-4 {
+  width: auto;
 
   .gallery-card-image,
-  .tag-card-image {
-    height: 180px;
-  }
-}
-
-.zoom-1 {
-  width: 320px;
-
-  .gallery-card-image,
-  .tag-card-image {
-    height: 240px;
-  }
-
-  .image-card-preview {
-    height: 240px;
-  }
-}
-
-.zoom-2 {
-
-  .gallery-card-image,
-  .tag-card-image {
-    height: 360px;
-  }
-
-  .image-card-preview {
-    height: 360px;
-  }
-}
-
-.zoom-3 {
-
   .tag-card-image,
-  .gallery-card-image {
-    height: 480px;
-  }
-
   .image-card-preview {
-    height: 480px;
+    height: auto;
   }
 }
 

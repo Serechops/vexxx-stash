@@ -44,12 +44,12 @@ export const GroupsHero: React.FC = () => {
         if (absDiff > 3) return { display: 'none' };
 
         // Config
-        const spread = 16; // Spacing percentage
+        const spread = 20; // Spacing percentage
         const left = 50 + (diff * spread);
         const zIndex = 50 - absDiff;
 
         // Active item scale
-        const scale = isActive ? 2.8 : 2.8;
+        const scale = isActive ? 2.8 : 3.6;
         const opacity = isActive ? 1 : 0.4;
 
         // 3D transform for depth
@@ -105,14 +105,6 @@ export const GroupsHero: React.FC = () => {
                                 <div className="absolute inset-0 bg-black/10 transition-opacity duration-1000" />
                             )}
 
-                            {/* Title - static display */}
-                            {isActive && (
-                                <div className="absolute left-3 bottom-3 right-3 text-white z-10">
-                                    <h3 className="text-lg font-bold tracking-wide drop-shadow-lg line-clamp-2">
-                                        {group.name}
-                                    </h3>
-                                </div>
-                            )}
                         </div>
                     );
                 })}

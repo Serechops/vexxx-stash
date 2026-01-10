@@ -290,6 +290,9 @@ const (
 
 	// Developer options
 	ExtraBlobsPaths = "developer_options.extra_blob_paths"
+
+	// Scheduled Tasks
+	ScheduledTasks = "scheduled_tasks"
 )
 
 // slice default values
@@ -1942,4 +1945,30 @@ func (i *Config) SetInitialConfig() error {
 func (i *Config) FinalizeSetup() {
 	i.isNewSystem = false
 	// i.configUpdates <- 0
+}
+
+// ScheduledTaskConfig represents a scheduled task stored in config
+type ScheduledTaskConfig struct {
+	ID           string  `json:"id"`
+	Name         string  `json:"name"`
+	CronSchedule string  `json:"cronSchedule"`
+	TaskType     string  `json:"taskType"`
+	Enabled      bool    `json:"enabled"`
+	Options      string  `json:"options,omitempty"`
+	LastRun      *string `json:"lastRun,omitempty"`
+}
+
+func (i *Config) GetScheduledTasks() []ScheduledTaskConfig {
+	i.RLock()
+	defer i.RUnlock()
+
+	var ret []ScheduledTaskConfig
+	if err := i.forKey(ScheduledTasks).Unmarshal(ScheduledTasks, &ret); err != nil {
+		return nil
+	}
+	return ret
+}
+
+func (i *Config) SetScheduledTasks(tasks []ScheduledTaskConfig) {
+	i.SetInterface(ScheduledTasks, tasks)
 }

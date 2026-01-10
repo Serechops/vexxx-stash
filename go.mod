@@ -43,6 +43,7 @@ require (
 	github.com/natefinch/pie v0.0.0-20170715172608-9a0d72014007
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
 	github.com/remeh/sizedwaitgroup v1.0.0
+	github.com/robfig/cron/v3 v3.0.1
 	github.com/rwcarlsen/goexif v0.0.0-20190401172101-9e8deecbddbd
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cast v1.6.0

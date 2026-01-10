@@ -220,6 +220,7 @@ func Initialize() (*Server, error) {
 	r.Mount("/tag", server.getTagRoutes())
 	r.Mount("/downloads", server.getDownloadsRoutes())
 	r.Mount("/plugin", server.getPluginRoutes())
+	r.Mount("/scheduled-tasks", server.getScheduledTaskRoutes())
 
 	r.HandleFunc("/css", cssHandler(cfg))
 	r.HandleFunc("/javascript", javascriptHandler(cfg))
@@ -418,6 +419,10 @@ func (s *Server) getPluginRoutes() chi.Router {
 	return pluginRoutes{
 		pluginCache: s.manager.PluginCache,
 	}.Routes()
+}
+
+func (s *Server) getScheduledTaskRoutes() chi.Router {
+	return scheduledTaskRoutes{}.Routes()
 }
 
 func copyFile(w io.Writer, path string) error {

@@ -121,6 +121,9 @@ func Initialize(cfg *config.Config, l *log.Logger) (*Manager, error) {
 			return nil, err
 		}
 
+		// Initialize and start the scheduler
+		mgr.initScheduler()
+
 		mgr.checkSecurityTripwire()
 	} else {
 		cfgFile := cfg.GetConfigFile()

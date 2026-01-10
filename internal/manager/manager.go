@@ -24,6 +24,7 @@ import (
 	"github.com/stashapp/stash/pkg/models/paths"
 	"github.com/stashapp/stash/pkg/pkg"
 	"github.com/stashapp/stash/pkg/plugin"
+	"github.com/stashapp/stash/pkg/scheduler"
 	"github.com/stashapp/stash/pkg/scraper"
 	"github.com/stashapp/stash/pkg/session"
 	"github.com/stashapp/stash/pkg/sqlite"
@@ -67,6 +68,8 @@ type Manager struct {
 	ImageService   ImageService
 	GalleryService GalleryService
 	GroupService   GroupService
+
+	Scheduler *scheduler.Scheduler
 
 	scanSubs *subscriptionManager
 }

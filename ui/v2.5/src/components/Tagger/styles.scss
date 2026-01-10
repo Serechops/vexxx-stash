@@ -37,7 +37,7 @@
 }
 
 .search-item {
-  background-color: #495b68;
+  background-color: $card-bg;
   border-radius: 3px;
   padding: 1rem;
 
@@ -57,11 +57,11 @@
 }
 
 .search-result {
-  background-color: rgba(61, 80, 92, 0.3);
+  background-color: rgba(24, 24, 27, 0.3);
   padding: 1rem 0;
 
   &:hover {
-    background-color: hsl(204, 20%, 30%);
+    background-color: $secondary;
     cursor: pointer;
   }
 
@@ -83,7 +83,7 @@
 }
 
 .selected-result {
-  background-color: hsl(204, 20%, 30%);
+  background-color: $secondary;
   border-radius: 3px;
 
   &:hover {
@@ -185,7 +185,7 @@
   }
 
   &-performer {
-    background-color: #495b68;
+    background-color: $card-bg;
     border-radius: 3px;
     display: flex;
     margin: 1rem;
@@ -293,7 +293,7 @@
   }
 
   &-studio {
-    background-color: #495b68;
+    background-color: $card-bg;
     border-radius: 3px;
     display: flex;
     margin: 1rem;
@@ -307,7 +307,7 @@
       padding: 0;
 
       img {
-        background-color: #495b68;
+        background-color: $card-bg;
         max-height: 150px;
         object-fit: contain;
         vertical-align: middle;
@@ -407,11 +407,12 @@ li.active .optional-field.excluded .scene-link {
 // }
 
 .tagger-container {
+
   .scene-details,
   .original-scene-details {
     margin-top: 0.5rem;
 
-    > .row {
+    >.row {
       width: 100%;
     }
   }

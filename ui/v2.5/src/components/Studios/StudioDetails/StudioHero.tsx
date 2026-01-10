@@ -11,6 +11,11 @@ interface IStudioHeroProps {
     studio: GQL.StudioDataFragment;
 }
 
+/**
+ * Context-aware hero banner for the Studio detail page.
+ * Fetches and displays a carousel of random scene previews filtered by the current studio.
+ * Shown only when the studio has scenes and the page is not in edit mode.
+ */
 export const StudioHero: React.FC<IStudioHeroProps> = ({ studio }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const [isMuted, setIsMuted] = useState(true);
@@ -100,11 +105,17 @@ export const StudioHero: React.FC<IStudioHeroProps> = ({ studio }) => {
                     </span>
                 </div>
 
-                <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white max-w-4xl line-clamp-2 drop-shadow-xl tracking-tight">
+                <h2
+                    className="text-4xl md:text-5xl lg:text-6xl font-bold text-white max-w-4xl line-clamp-2 drop-shadow-xl tracking-tight"
+                    style={{ fontFamily: "'Poppins', sans-serif" }}
+                >
                     {scene.title || "Untitled Scene"}
                 </h2>
 
-                <p className="text-base md:text-lg text-gray-200 max-w-2xl line-clamp-3 drop-shadow-md leading-relaxed opacity-90">
+                <p
+                    className="text-base md:text-lg text-gray-200 max-w-2xl line-clamp-3 drop-shadow-md leading-relaxed opacity-90"
+                    style={{ fontFamily: "'Poppins', sans-serif" }}
+                >
                     {scene.details}
                 </p>
 

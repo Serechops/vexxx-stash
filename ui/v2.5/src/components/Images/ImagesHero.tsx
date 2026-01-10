@@ -25,7 +25,7 @@ export const ImagesHero: React.FC = () => {
 
         const interval = setInterval(() => {
             setActiveIndex((prev) => (prev + 1) % images.length);
-        }, 4000); // 4 seconds per slide
+        }, 3000); // 3 seconds per slide
 
         return () => clearInterval(interval);
     }, [images.length]);
@@ -40,14 +40,14 @@ export const ImagesHero: React.FC = () => {
 
         // Configuration
         const spread = 15; // Percentage / spacing unit
-        const scaleStep = 0.2;
-        const opacityStep = 0.4;
+        const scaleStep = 0.1;
+        const opacityStep = 0.25;
 
         const absDiff = Math.abs(diff);
         const isActive = diff === 0;
 
         // Hide items too far away to reduce rendering load/clutter
-        if (absDiff > 2) return { display: 'none' };
+        if (absDiff > 3) return { display: 'none' };
 
         const zIndex = 10 - absDiff;
         const scale = Math.max(0.4, 1 - absDiff * scaleStep);

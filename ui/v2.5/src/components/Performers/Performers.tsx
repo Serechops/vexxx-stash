@@ -7,8 +7,15 @@ import PerformerCreate from "./PerformerDetails/PerformerCreate";
 import { PerformerList } from "./PerformerList";
 import { View } from "../List/views";
 
+import { PerformersHero } from "./PerformersHero";
+
 const Performers: React.FC = () => {
-  return <PerformerList view={View.Performers} />;
+  return (
+    <>
+      <PerformersHero />
+      <PerformerList view={View.Performers} />
+    </>
+  );
 };
 
 const PerformerRoutes: React.FC = () => {

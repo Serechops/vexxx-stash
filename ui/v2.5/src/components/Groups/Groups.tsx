@@ -5,10 +5,16 @@ import { useTitleProps } from "src/hooks/title";
 import Group from "./GroupDetails/Group";
 import GroupCreate from "./GroupDetails/GroupCreate";
 import { GroupList } from "./GroupList";
+import { GroupsHero } from "./GroupsHero";
 import { View } from "../List/views";
 
 const Groups: React.FC = () => {
-  return <GroupList view={View.Groups} />;
+  return (
+    <>
+      <GroupsHero />
+      <GroupList view={View.Groups} />
+    </>
+  );
 };
 
 const GroupRoutes: React.FC = () => {

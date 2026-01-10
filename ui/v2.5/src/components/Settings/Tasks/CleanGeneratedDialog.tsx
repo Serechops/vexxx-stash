@@ -8,7 +8,7 @@ import { SettingSection } from "../SettingSection";
 import { useSettings } from "../context";
 import { LoadingIndicator } from "src/components/Shared/LoadingIndicator";
 
-const CleanGeneratedOptions: React.FC<{
+export const CleanGeneratedOptions: React.FC<{
   options: GQL.CleanGeneratedInput;
   setOptions: (s: GQL.CleanGeneratedInput) => void;
 }> = ({ options, setOptions: setOptionsState }) => {

@@ -4,6 +4,7 @@ import { LoadingIndicator } from "src/components/Shared/LoadingIndicator";
 import { LibraryTasks } from "./LibraryTasks";
 import { DataManagementTasks } from "./DataManagementTasks";
 import { PluginTasks } from "./PluginTasks";
+import { ScheduledTasks } from "./ScheduledTasks";
 import { JobTable } from "./JobTable";
 
 export const SettingsTasksPanel: React.FC = () => {
@@ -37,6 +38,8 @@ export const SettingsTasksPanel: React.FC = () => {
       </div>
 
       <div className="tasks-panel-tasks">
+        <ScheduledTasks />
+        <hr />
         <LibraryTasks />
         <hr />
         <DataManagementTasks

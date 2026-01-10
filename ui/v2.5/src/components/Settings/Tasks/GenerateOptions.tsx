@@ -11,6 +11,7 @@ interface IGenerateOptions {
   selection?: boolean;
   options: GQL.GenerateMetadataInput;
   setOptions: (s: GQL.GenerateMetadataInput) => void;
+  keyPrefix?: string;
 }
 
 export const GenerateOptions: React.FC<IGenerateOptions> = ({
@@ -18,6 +19,7 @@ export const GenerateOptions: React.FC<IGenerateOptions> = ({
   selection,
   options,
   setOptions: setOptionsState,
+  keyPrefix = "",
 }) => {
   const previewOptions: GQL.GeneratePreviewOptionsInput =
     options.previewOptions ?? {};
@@ -34,13 +36,13 @@ export const GenerateOptions: React.FC<IGenerateOptions> = ({
       {showSceneOptions && (
         <>
           <BooleanSetting
-            id="covers-task"
+            id={`${keyPrefix}covers-task`}
             headingID="dialogs.scene_gen.covers"
             checked={options.covers ?? false}
             onChange={(v) => setOptions({ covers: v })}
           />
           <BooleanSetting
-            id="preview-task"
+            id={`${keyPrefix}preview-task`}
             checked={options.previews ?? false}
             headingID="dialogs.scene_gen.video_previews"
             tooltipID="dialogs.scene_gen.video_previews_tooltip"
@@ -49,7 +51,7 @@ export const GenerateOptions: React.FC<IGenerateOptions> = ({
           <BooleanSetting
             advanced
             className="sub-setting"
-            id="image-preview-task"
+            id={`${keyPrefix}image-preview-task`}
             checked={options.imagePreviews ?? false}
             disabled={!options.previews}
             headingID="dialogs.scene_gen.image_previews"
@@ -60,7 +62,7 @@ export const GenerateOptions: React.FC<IGenerateOptions> = ({
           {/* #2251 - only allow preview generation options to be overridden when generating from a selection */}
           {selection ? (
             <ModalSetting<VideoPreviewSettingsInput>
-              id="video-preview-settings"
+              id={`${keyPrefix}video-preview-settings`}
               className="sub-setting"
               disabled={!options.previews}
               headingID="dialogs.scene_gen.override_preview_generation_options"
@@ -82,14 +84,14 @@ export const GenerateOptions: React.FC<IGenerateOptions> = ({
           ) : undefined}
 
           <BooleanSetting
-            id="sprite-task"
+            id={`${keyPrefix}sprite-task`}
             checked={options.sprites ?? false}
             headingID="dialogs.scene_gen.sprites"
             tooltipID="dialogs.scene_gen.sprites_tooltip"
             onChange={(v) => setOptions({ sprites: v })}
           />
           <BooleanSetting
-            id="marker-task"
+            id={`${keyPrefix}marker-task`}
             checked={options.markers ?? false}
             headingID="dialogs.scene_gen.markers"
             tooltipID="dialogs.scene_gen.markers_tooltip"
@@ -97,7 +99,7 @@ export const GenerateOptions: React.FC<IGenerateOptions> = ({
           />
           <BooleanSetting
             advanced
-            id="marker-image-preview-task"
+            id={`${keyPrefix}marker-image-preview-task`}
             className="sub-setting"
             checked={options.markerImagePreviews ?? false}
             headingID="dialogs.scene_gen.marker_image_previews"
@@ -109,7 +111,7 @@ export const GenerateOptions: React.FC<IGenerateOptions> = ({
             }
           />
           <BooleanSetting
-            id="marker-screenshot-task"
+            id={`${keyPrefix}marker-screenshot-task`}
             checked={options.markerScreenshots ?? false}
             headingID="dialogs.scene_gen.marker_screenshots"
             tooltipID="dialogs.scene_gen.marker_screenshots_tooltip"
@@ -118,7 +120,7 @@ export const GenerateOptions: React.FC<IGenerateOptions> = ({
 
           <BooleanSetting
             advanced
-            id="transcode-task"
+            id={`${keyPrefix}transcode-task`}
             checked={options.transcodes ?? false}
             headingID="dialogs.scene_gen.transcodes"
             tooltipID="dialogs.scene_gen.transcodes_tooltip"
@@ -127,7 +129,7 @@ export const GenerateOptions: React.FC<IGenerateOptions> = ({
           {selection ? (
             <BooleanSetting
               advanced
-              id="force-transcode"
+              id={`${keyPrefix}force-transcode`}
               className="sub-setting"
               checked={options.forceTranscodes ?? false}
               disabled={!options.transcodes}
@@ -138,7 +140,7 @@ export const GenerateOptions: React.FC<IGenerateOptions> = ({
           ) : undefined}
 
           <BooleanSetting
-            id="phash-task"
+            id={`${keyPrefix}phash-task`}
             checked={options.phashes ?? false}
             headingID="dialogs.scene_gen.phash"
             tooltipID="dialogs.scene_gen.phash_tooltip"
@@ -146,7 +148,7 @@ export const GenerateOptions: React.FC<IGenerateOptions> = ({
           />
 
           <BooleanSetting
-            id="interactive-heatmap-speed-task"
+            id={`${keyPrefix}interactive-heatmap-speed-task`}
             checked={options.interactiveHeatmapsSpeeds ?? false}
             headingID="dialogs.scene_gen.interactive_heatmap_speed"
             onChange={(v) => setOptions({ interactiveHeatmapsSpeeds: v })}
@@ -156,7 +158,7 @@ export const GenerateOptions: React.FC<IGenerateOptions> = ({
       {showImageOptions && (
         <>
           <BooleanSetting
-            id="clip-previews"
+            id={`${keyPrefix}clip-previews`}
             checked={options.clipPreviews ?? false}
             headingID="dialogs.scene_gen.clip_previews"
             onChange={(v) => setOptions({ clipPreviews: v })}

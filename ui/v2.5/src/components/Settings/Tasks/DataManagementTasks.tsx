@@ -131,11 +131,13 @@ const CleanDialog: React.FC<ICleanDialog> = ({
 interface ICleanOptions {
   options: GQL.CleanMetadataInput;
   setOptions: (s: GQL.CleanMetadataInput) => void;
+  keyPrefix?: string;
 }
 
-const CleanOptions: React.FC<ICleanOptions> = ({
+export const CleanOptions: React.FC<ICleanOptions> = ({
   options,
   setOptions: setOptionsState,
+  keyPrefix = "",
 }) => {
   function setOptions(input: Partial<GQL.CleanMetadataInput>) {
     setOptionsState({ ...options, ...input });
@@ -144,9 +146,9 @@ const CleanOptions: React.FC<ICleanOptions> = ({
   return (
     <>
       <BooleanSetting
-        id="clean-dryrun"
+        id={`${keyPrefix}dry-run`}
+        headingID="config.tasks.clean.dry_run"
         checked={options.dryRun}
-        headingID="config.tasks.only_dry_run"
         onChange={(v) => setOptions({ dryRun: v })}
       />
     </>

@@ -606,3 +606,52 @@ schema {
   mutation: Mutation
   subscription: Subscription
 }
+
+enum ScheduledTaskType {
+  SCAN
+  GENERATE
+  AUTO_TAG
+  CLEAN
+  OPTIMISE
+  PLUGIN
+}
+
+type ScheduledTask {
+  id: ID!
+  name: String!
+  cron_schedule: String!
+  task_type: ScheduledTaskType!
+  enabled: Boolean!
+  options: String  # JSON-encoded task-specific options
+  last_run: Time
+  next_run: Time
+}
+
+input ScheduledTaskCreateInput {
+  name: String!
+  cron_schedule: String!
+  task_type: ScheduledTaskType!
+  enabled: Boolean
+  options: String
+}
+
+input ScheduledTaskUpdateInput {
+  id: ID!
+  name: String
+  cron_schedule: String
+  task_type: ScheduledTaskType
+  enabled: Boolean
+  options: String
+}
+
+extend type Query {
+  scheduledTasks: [ScheduledTask!]!
+  scheduledTask(id: ID!): ScheduledTask
+}
+
+extend type Mutation {
+  scheduledTaskCreate(input: ScheduledTaskCreateInput!): ScheduledTask!
+  scheduledTaskUpdate(input: ScheduledTaskUpdateInput!): ScheduledTask!
+  scheduledTaskDestroy(id: ID!): Boolean!
+  scheduledTaskRun(id: ID!): Int!  # Returns job ID
+}

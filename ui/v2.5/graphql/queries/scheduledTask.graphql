@@ -1,0 +1,46 @@
+query ScheduledTasks {
+  scheduledTasks {
+    id
+    name
+    cron_schedule
+    task_type
+    enabled
+    options
+    last_run
+    next_run
+  }
+}
+
+mutation ScheduledTaskCreate($input: ScheduledTaskCreateInput!) {
+  scheduledTaskCreate(input: $input) {
+    id
+    name
+    cron_schedule
+    task_type
+    enabled
+    options
+    last_run
+    next_run
+  }
+}
+
+mutation ScheduledTaskUpdate($input: ScheduledTaskUpdateInput!) {
+  scheduledTaskUpdate(input: $input) {
+    id
+    name
+    cron_schedule
+    task_type
+    enabled
+    options
+    last_run
+    next_run
+  }
+}
+
+mutation ScheduledTaskDestroy($id: ID!) {
+  scheduledTaskDestroy(id: $id)
+}
+
+mutation ScheduledTaskRun($id: ID!) {
+  scheduledTaskRun(id: $id)
+}

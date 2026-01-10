@@ -1415,3 +1415,23 @@ select {
 h3 .TruncatedText {
   line-height: 1.5;
 }
+
+// Scheduled Tasks specific overrides - Compact options
+.task-options-container {
+  .setting {
+    >div:first-child {
+      h3 {
+        font-size: 1rem;
+        margin-bottom: 0px;
+        font-weight: 600;
+        margin-top: 5px;
+      }
+
+      .sub-heading {
+        font-size: 0.85rem;
+        color: var(--text-color-muted);
+        margin-bottom: 5px;
+      }
+    }
+  }
+}

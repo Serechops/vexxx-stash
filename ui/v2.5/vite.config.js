@@ -41,6 +41,18 @@ export default defineConfig(() => {
     server: {
       port: 3000,
       cors: false,
+      proxy: {
+        "/scheduled-tasks": {
+          target: "http://localhost:9999",
+          changeOrigin: true,
+          secure: false,
+        },
+        "/graphql": {
+          target: "http://localhost:9999",
+          changeOrigin: true,
+          secure: false,
+        },
+      },
     },
     publicDir: "public",
     assetsInclude: ["**/*.md"],

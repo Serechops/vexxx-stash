@@ -24,11 +24,13 @@ import { useSettings } from "../context";
 interface IAutoTagOptions {
   options: GQL.AutoTagMetadataInput;
   setOptions: (s: GQL.AutoTagMetadataInput) => void;
+  keyPrefix?: string;
 }
 
-const AutoTagOptions: React.FC<IAutoTagOptions> = ({
+export const AutoTagOptions: React.FC<IAutoTagOptions> = ({
   options,
   setOptions: setOptionsState,
+  keyPrefix = "",
 }) => {
   const { performers, studios, tags } = options;
   const wildcard = ["*"];
@@ -47,19 +49,19 @@ const AutoTagOptions: React.FC<IAutoTagOptions> = ({
   return (
     <>
       <BooleanSetting
-        id="autotag-performers"
+        id={`${keyPrefix}autotag-performers`}
         checked={!!performers?.length}
         headingID="performers"
         onChange={(v) => setOptions({ performers: set(v) })}
       />
       <BooleanSetting
-        id="autotag-studios"
+        id={`${keyPrefix}autotag-studios`}
         checked={!!studios?.length}
         headingID="studios"
         onChange={(v) => setOptions({ studios: set(v) })}
       />
       <BooleanSetting
-        id="autotag-tags"
+        id={`${keyPrefix}autotag-tags`}
         checked={!!tags?.length}
         headingID="tags"
         onChange={(v) => setOptions({ tags: set(v) })}
@@ -67,6 +69,7 @@ const AutoTagOptions: React.FC<IAutoTagOptions> = ({
     </>
   );
 };
+
 
 export const LibraryTasks: React.FC = () => {
   const intl = useIntl();

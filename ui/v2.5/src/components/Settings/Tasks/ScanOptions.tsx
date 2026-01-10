@@ -5,23 +5,14 @@ import { BooleanSetting } from "../Inputs";
 interface IScanOptions {
   options: GQL.ScanMetadataInput;
   setOptions: (s: GQL.ScanMetadataInput) => void;
+  keyPrefix?: string;
 }
 
 export const ScanOptions: React.FC<IScanOptions> = ({
   options,
   setOptions: setOptionsState,
+  keyPrefix = "",
 }) => {
-  const {
-    scanGenerateCovers,
-    scanGeneratePreviews,
-    scanGenerateImagePreviews,
-    scanGenerateSprites,
-    scanGeneratePhashes,
-    scanGenerateThumbnails,
-    scanGenerateClipPreviews,
-    rescan,
-  } = options;
-
   function setOptions(input: Partial<GQL.ScanMetadataInput>) {
     setOptionsState({ ...options, ...input });
   }
@@ -29,61 +20,50 @@ export const ScanOptions: React.FC<IScanOptions> = ({
   return (
     <>
       <BooleanSetting
-        id="scan-generate-covers"
+        id={`${keyPrefix}scan-generate-covers`}
         headingID="config.tasks.generate_video_covers_during_scan"
-        checked={scanGenerateCovers ?? true}
+        checked={options.scanGenerateCovers ?? true}
         onChange={(v) => setOptions({ scanGenerateCovers: v })}
       />
       <BooleanSetting
-        id="scan-generate-previews"
+        id={`${keyPrefix}scan-generate-previews`}
         headingID="config.tasks.generate_video_previews_during_scan"
-        tooltipID="config.tasks.generate_video_previews_during_scan_tooltip"
-        checked={scanGeneratePreviews ?? false}
+        checked={options.scanGeneratePreviews ?? true}
         onChange={(v) => setOptions({ scanGeneratePreviews: v })}
       />
       <BooleanSetting
         advanced
-        id="scan-generate-image-previews"
-        className="sub-setting"
-        headingID="config.tasks.generate_previews_during_scan"
-        tooltipID="config.tasks.generate_previews_during_scan_tooltip"
-        checked={scanGenerateImagePreviews ?? false}
-        disabled={!scanGeneratePreviews}
+        id={`${keyPrefix}scan-generate-image-previews`}
+        headingID="Generate image previews"
+        checked={options.scanGenerateImagePreviews ?? true}
         onChange={(v) => setOptions({ scanGenerateImagePreviews: v })}
       />
 
       <BooleanSetting
-        id="scan-generate-sprites"
+        id={`${keyPrefix}scan-generate-sprites`}
         headingID="config.tasks.generate_sprites_during_scan"
         tooltipID="config.tasks.generate_sprites_during_scan_tooltip"
-        checked={scanGenerateSprites ?? false}
+        checked={options.scanGenerateSprites ?? true}
         onChange={(v) => setOptions({ scanGenerateSprites: v })}
       />
       <BooleanSetting
-        id="scan-generate-phashes"
-        checked={scanGeneratePhashes ?? false}
+        id={`${keyPrefix}scan-generate-phashes`}
+        checked={options.scanGeneratePhashes ?? true}
         headingID="config.tasks.generate_phashes_during_scan"
         tooltipID="config.tasks.generate_phashes_during_scan_tooltip"
         onChange={(v) => setOptions({ scanGeneratePhashes: v })}
       />
       <BooleanSetting
-        id="scan-generate-thumbnails"
-        checked={scanGenerateThumbnails ?? false}
+        id={`${keyPrefix}scan-generate-thumbnails`}
+        checked={options.scanGenerateThumbnails ?? true}
         headingID="config.tasks.generate_thumbnails_during_scan"
         onChange={(v) => setOptions({ scanGenerateThumbnails: v })}
       />
       <BooleanSetting
-        id="scan-generate-clip-previews"
-        checked={scanGenerateClipPreviews ?? false}
+        id={`${keyPrefix}scan-generate-clip-previews`}
+        checked={options.scanGenerateClipPreviews ?? true}
         headingID="config.tasks.generate_clip_previews_during_scan"
         onChange={(v) => setOptions({ scanGenerateClipPreviews: v })}
-      />
-      <BooleanSetting
-        id="force-rescan"
-        headingID="config.tasks.rescan"
-        tooltipID="config.tasks.rescan_tooltip"
-        checked={rescan ?? false}
-        onChange={(v) => setOptions({ rescan: v })}
       />
     </>
   );

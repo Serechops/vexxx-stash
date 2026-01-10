@@ -6,6 +6,8 @@ import {
   faCog,
   faHourglassStart,
   faTimes,
+  faMemory,
+  faMicrochip,
 } from "@fortawesome/free-solid-svg-icons";
 import moment from "moment/min/moment-with-locales";
 import React, { useEffect, useState } from "react";
@@ -208,6 +210,7 @@ export const JobTable: React.FC = () => {
   if (!queue?.length) {
     return (
       <div className="job-table-container">
+        <ResourceMonitor />
         <div className="empty-queue-message">
           {intl.formatMessage({ id: "config.tasks.empty_queue" })}
         </div>
@@ -217,9 +220,36 @@ export const JobTable: React.FC = () => {
 
   return (
     <div className="job-table-container">
+      <ResourceMonitor />
       {(queue ?? []).map((j) => (
         <Task job={j} key={j.id} />
       ))}
+    </div>
+  );
+};
+
+const ResourceMonitor: React.FC = () => {
+  const { data } = GQL.useSystemStatsQuery({
+    pollInterval: 2000,
+    fetchPolicy: "network-only",
+  });
+
+  if (!data?.systemStats) return null;
+
+  /**
+   * Displays real-time system metrics (Memory usage and Goroutine count).
+   * Polls every 2 seconds via GraphQL.
+   */
+  return (
+    <div className="resource-monitor d-flex justify-content-end mb-2 text-muted small">
+      <span className="mr-3" title="Memory Usage">
+        <Icon icon={faMemory} className="mr-1" />
+        <strong>{Math.round(data.systemStats.memory)} MB</strong>
+      </span>
+      <span title="Active Goroutines (Concurrency)">
+        <Icon icon={faMicrochip} className="mr-1" />
+        <strong>{data.systemStats.goroutines}</strong>
+      </span>
     </div>
   );
 };

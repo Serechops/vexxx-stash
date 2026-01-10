@@ -1,5 +1,6 @@
 "The query root for this schema"
 type Query {
+  systemStats: SystemStats!
   # Filters
   findSavedFilter(id: ID!): SavedFilter
   findSavedFilters(mode: FilterMode): [SavedFilter!]!

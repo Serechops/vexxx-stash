@@ -15,3 +15,8 @@ type StatsResultType {
   total_play_count: Int!
   scenes_played: Int!
 }
+
+type SystemStats {
+  memory: Float! # Megabytes
+  goroutines: Int!
+}

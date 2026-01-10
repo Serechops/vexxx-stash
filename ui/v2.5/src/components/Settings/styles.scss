@@ -381,9 +381,10 @@
     color: #d4d4d8; // Zinc-300
     font-family: "JetBrains Mono", "Fira Code", monospace;
     font-size: 0.7rem;
+    height: 120px;
     margin-top: 0.5rem;
     max-height: 120px;
-    overflow-y: auto;
+    overflow-y: scroll;
     padding: 0.5rem;
 
     &::-webkit-scrollbar {

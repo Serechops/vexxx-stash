@@ -46,3 +46,10 @@ query LatestVersion {
     url
   }
 }
+
+query SystemStats {
+  systemStats {
+    memory
+    goroutines
+  }
+}

@@ -70,6 +70,8 @@ func (m *Manager) Add(ctx context.Context, description string, e JobExec) int {
 	m.queue = append(m.queue, &j)
 
 	// notify that there is now a job in the queue
+	// We must always broadcast, even if queue > 1, because the dispatcher
+	// might be waiting if it previously found the queue empty or drained it.
 	m.notEmpty.Broadcast()
 
 	m.notifyNewJob(&j)

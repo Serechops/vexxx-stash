@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback } from "react";
 import { QueryResult } from "@apollo/client";
 import { ListFilterModel } from "src/models/list-filter/filter";
 import { IconDefinition } from "@fortawesome/fontawesome-svg-core";
@@ -18,6 +18,7 @@ import { faTimes } from "@fortawesome/free-solid-svg-icons";
 import { faSquareCheck } from "@fortawesome/free-regular-svg-icons";
 import { useIntl } from "react-intl";
 import cx from "classnames";
+import { useZoomContext } from "src/hooks/ZoomContext";
 
 const SelectionSection: React.FC<{
   filter: ListFilterModel;
@@ -95,10 +96,20 @@ export const FilteredListToolbar: React.FC<IFilteredListToolbar> = ({
   zoomable = false,
 }) => {
   const filterOptions = filter.options;
-  const { setDisplayMode, setZoom } = useFilterOperations({
+  const { setDisplayMode } = useFilterOperations({
     filter,
     setFilter,
   });
+
+  // Use ZoomContext for per-page zoom persistence (bypasses URL-based filter)
+  const { getZoom, setZoom: setContextZoom } = useZoomContext();
+  const contextZoomIndex = zoomable ? getZoom(filter.mode) : undefined;
+  const handleSetZoom = useCallback((v: number) => {
+    setContextZoom(filter.mode, v);
+    // Also update the filter to keep UI in sync
+    setFilter(cv => cv.setZoom(v));
+  }, [filter.mode, setContextZoom, setFilter]);
+
   const { selectedIds, onSelectAll, onSelectNone } = listSelect;
   const hasSelection = selectedIds.size > 0;
 
@@ -166,8 +177,8 @@ export const FilteredListToolbar: React.FC<IFilteredListToolbar> = ({
         displayMode={filter.displayMode}
         displayModeOptions={filterOptions.displayModeOptions}
         onSetDisplayMode={setDisplayMode}
-        zoomIndex={zoomable ? filter.zoomIndex : undefined}
-        onSetZoom={zoomable ? setZoom : undefined}
+        zoomIndex={contextZoomIndex}
+        onSetZoom={zoomable ? handleSetZoom : undefined}
       />
     </ButtonToolbar>
   );

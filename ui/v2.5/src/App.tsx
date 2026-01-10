@@ -12,6 +12,7 @@ import cloneDeep from "lodash-es/cloneDeep";
 import mergeWith from "lodash-es/mergeWith";
 import { ToastProvider } from "src/hooks/Toast";
 import { LightboxProvider } from "src/hooks/Lightbox/context";
+import { ZoomProvider } from "src/hooks/ZoomContext";
 import { initPolyfills } from "src/polyfills";
 
 import locales, { registerCountry } from "src/locales";
@@ -358,15 +359,17 @@ export const App: React.FC = () => {
                 {maybeRenderReleaseNotes()}
                 <ConnectionMonitor />
                 <Suspense fallback={<LoadingIndicator />}>
-                  <LightboxProvider>
-                    <ManualProvider>
-                      <InteractiveProvider>
-                        <Helmet {...titleProps} />
-                        {maybeRenderNavbar()}
-                        <MainContainer>{renderContent()}</MainContainer>
-                      </InteractiveProvider>
-                    </ManualProvider>
-                  </LightboxProvider>
+                  <ZoomProvider>
+                    <LightboxProvider>
+                      <ManualProvider>
+                        <InteractiveProvider>
+                          <Helmet {...titleProps} />
+                          {maybeRenderNavbar()}
+                          <MainContainer>{renderContent()}</MainContainer>
+                        </InteractiveProvider>
+                      </ManualProvider>
+                    </LightboxProvider>
+                  </ZoomProvider>
                 </Suspense>
               </ConfigurationProvider>
             </AppContainer>

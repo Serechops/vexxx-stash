@@ -44,6 +44,7 @@ import {
 import { PagedList } from "./PagedList";
 import { useConfigurationContext } from "src/hooks/Config";
 import { useZoomKeybinds } from "./ZoomSlider";
+import { useZoomContext } from "src/hooks/ZoomContext";
 import { DisplayMode } from "src/models/list-filter/types";
 
 interface IFilteredItemList<T extends QueryResult, E extends IHasID = IHasID> {
@@ -413,6 +414,7 @@ export const ItemListContext = <
   } = props;
 
   const { configuration: config } = useConfigurationContext();
+  const { getZoom, setZoom } = useZoomContext();
 
   const emptyFilter = useMemo(
     () =>
@@ -423,10 +425,36 @@ export const ItemListContext = <
     [config, filterMode, defaultSort, providedDefaultFilter]
   );
 
-  const [filter, setFilterState] = useState<ListFilterModel>(
-    () =>
-      new ListFilterModel(filterMode, config, { defaultSortBy: defaultSort })
+  // Initialize filter with zoom from context
+  const [filter, setFilterStateInternal] = useState<ListFilterModel>(() => {
+    const initialFilter = new ListFilterModel(filterMode, config, { defaultSortBy: defaultSort });
+    const savedZoom = getZoom(filterMode);
+    if (savedZoom !== initialFilter.zoomIndex) {
+      return initialFilter.setZoom(savedZoom);
+    }
+    return initialFilter;
+  });
+
+  // Wrap setFilterState to apply context zoom when URL doesn't specify it
+  const setFilterState: React.Dispatch<React.SetStateAction<ListFilterModel>> = useCallback(
+    (action) => {
+      setFilterStateInternal((prev) => {
+        const newFilter = typeof action === 'function' ? action(prev) : action;
+        // If zoom is still at default (1), apply the saved zoom from context
+        const savedZoom = getZoom(filterMode);
+        if (newFilter.zoomIndex === 1 && savedZoom !== 1) {
+          return newFilter.setZoom(savedZoom);
+        }
+        return newFilter;
+      });
+    },
+    [filterMode, getZoom]
   );
+
+  // Sync zoom changes to context
+  useEffect(() => {
+    setZoom(filterMode, filter.zoomIndex);
+  }, [filter.zoomIndex, filterMode, setZoom]);
 
   const { defaultFilter } = useDefaultFilter(emptyFilter, view);
 

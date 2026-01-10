@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import * as GQL from "src/core/generated-graphql";
-import { IState, useLightboxContext } from "./context";
+import { IState, useLightboxContext } from "src/hooks/Lightbox/context";
 import { IChapter } from "./types";
 
 export const useLightbox = (

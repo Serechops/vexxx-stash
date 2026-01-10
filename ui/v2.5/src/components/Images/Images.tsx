@@ -6,8 +6,15 @@ import Image from "./ImageDetails/Image";
 import { ImageList } from "./ImageList";
 import { View } from "../List/views";
 
+import { ImagesHero } from "./ImagesHero";
+
 const Images: React.FC = () => {
-  return <ImageList view={View.Images} />;
+  return (
+    <>
+      <ImagesHero />
+      <ImageList view={View.Images} />
+    </>
+  );
 };
 
 const ImageRoutes: React.FC = () => {

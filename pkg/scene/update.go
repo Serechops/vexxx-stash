@@ -115,14 +115,5 @@ func (s *Service) AssignFile(ctx context.Context, sceneID int, fileID models.Fil
 		return fmt.Errorf("%s is not a video file", ff.Base().Path)
 	}
 
-	isPrimary, err := s.File.IsPrimary(ctx, fileID)
-	if err != nil {
-		return err
-	}
-
-	if isPrimary {
-		return errors.New("cannot reassign primary file")
-	}
-
 	return s.Repository.AssignFiles(ctx, sceneID, []models.FileID{fileID})
 }

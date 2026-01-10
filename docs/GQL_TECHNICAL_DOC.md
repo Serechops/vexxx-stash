@@ -75,3 +75,27 @@ Moving from REST to GraphQL shifts where validation happens.
 ---
 
 **Summary**: The migration to GraphQL successfully resolved persistent `400 Bad Request` errors by enforcing structure and allowed for cleaner, typed frontend code. Future migrations should follow this pattern of **Schema -> Gen -> Stub -> Implement**.
+
+---
+
+## 6. Group Scenes (Virtual Scenes)
+
+To support "Movies" where a single video file contains multiple scenes, we introduced the concept of **Group Scenes** (or Virtual Scenes).
+
+### The Problem
+Previously, one File mapped to one Scene (typically). Splitting a 2-hour movie into 10 scenes required file splitting (transcoding/lossy) or complex multi-file management.
+
+### The Solution: Virtual Segments
+We added `start_point` and `end_point` (Float, seconds) to the `Scene` entity.
+
+*   **Data Model**: A Scene can now represent a *segment* of its assigned file(s).
+*   **Playback**: The `ScenePlayer` must check for these properties. If present, it should:
+    *   Seek to `start_point` on load.
+    *   (Optional) Stop or loop at `end_point`.
+*   **Scraping**: Scrapers can now populate these fields if they identify a scene as part of a movie timestamps.
+
+### GraphQL Updates
+*   `Scene`: Added `start_point`, `end_point`.
+*   `SceneCreateInput` / `SceneUpdateInput`: Added corresponding fields.
+
+This allows the user to have one 5GB "Movie.mp4" file and create 10 distinct Scene objects (with tags, performers, stats) that all point to that same file but different timestamps.

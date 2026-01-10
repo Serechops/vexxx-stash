@@ -14,6 +14,9 @@ fragment SlimSceneData on Scene {
   resume_time
   play_duration
   play_count
+  
+  start_point
+  end_point
 
   files {
     ...VideoFileData

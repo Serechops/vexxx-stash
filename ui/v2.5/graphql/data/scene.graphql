@@ -22,6 +22,9 @@ fragment SceneData on Scene {
   play_duration
   play_count
 
+  start_point
+  end_point
+
   play_history
   o_history
 

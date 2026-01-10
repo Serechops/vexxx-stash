@@ -68,3 +68,10 @@ func nullIntFromFolderIDPtr(i *models.FolderID) null.Int {
 
 	return null.IntFrom(int64(*i))
 }
+
+func nullFloatFromPtr(f *float64) null.Float {
+	if f == nil {
+		return null.NewFloat(0, false)
+	}
+	return null.FloatFrom(*f)
+}

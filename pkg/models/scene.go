@@ -171,6 +171,9 @@ type SceneCreateInput struct {
 	// Files will be reassigned from existing scenes if applicable.
 	// Files must not already be primary for another scene.
 	FileIds []string `json:"file_ids"`
+
+	StartPoint *float64 `json:"start_point"`
+	EndPoint   *float64 `json:"end_point"`
 }
 
 type SceneUpdateInput struct {
@@ -199,6 +202,9 @@ type SceneUpdateInput struct {
 	PlayDuration  *float64       `json:"play_duration"`
 	PlayCount     *int           `json:"play_count"`
 	PrimaryFileID *string        `json:"primary_file_id"`
+
+	StartPoint *float64 `json:"start_point"`
+	EndPoint   *float64 `json:"end_point"`
 }
 
 type SceneDestroyInput struct {

@@ -62,6 +62,11 @@ type Scene {
   play_duration: Float
   "The number ot times a scene has been played"
   play_count: Int
+  
+  "Start time in seconds for the scene segment (Virtual/Group Scene)"
+  start_point: Float
+  "End time in seconds for the scene segment (Virtual/Group Scene)"
+  end_point: Float
 
   "Times a scene was played"
   play_history: [Time!]!
@@ -120,6 +125,9 @@ input SceneCreateInput {
   Files must not already be primary for another scene.
   """
   file_ids: [ID!]
+
+  start_point: Float
+  end_point: Float
 }
 
 input SceneUpdateInput {
@@ -158,6 +166,9 @@ input SceneUpdateInput {
     )
 
   primary_file_id: ID
+
+  start_point: Float
+  end_point: Float
 }
 
 enum BulkUpdateIdMode {

@@ -37,6 +37,9 @@ type Scene struct {
 	ResumeTime   float64 `json:"resume_time"`
 	PlayDuration float64 `json:"play_duration"`
 
+	StartPoint *float64 `json:"start_point"`
+	EndPoint   *float64 `json:"end_point"`
+
 	URLs         RelatedStrings  `json:"urls"`
 	GalleryIDs   RelatedIDs      `json:"gallery_ids"`
 	TagIDs       RelatedIDs      `json:"tag_ids"`
@@ -69,6 +72,8 @@ type ScenePartial struct {
 	UpdatedAt    OptionalTime
 	ResumeTime   OptionalFloat64
 	PlayDuration OptionalFloat64
+	StartPoint   OptionalFloat64
+	EndPoint     OptionalFloat64
 
 	URLs          *UpdateStrings
 	GalleryIDs    *UpdateIDs

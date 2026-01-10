@@ -84,6 +84,9 @@ const GenerateDialog = lazyComponent(
 const SceneVideoFilterPanel = lazyComponent(
   () => import("./SceneVideoFilterPanel")
 );
+const SceneSegmentsPanel = lazyComponent(
+  () => import("./SceneSegmentsPanel").then(module => ({ default: module.SceneSegmentsPanel }))
+) as React.FC<{ scene: GQL.SceneDataFragment }>;
 
 const VideoFrameRateResolution: React.FC<{
   width?: number;
@@ -511,6 +514,13 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
                 </Nav.Link>
               </Nav.Item>
             ) : undefined}
+            {scene.files.length > 0 && (
+              <Nav.Item>
+                <Nav.Link eventKey="scene-segments-panel">
+                  <FormattedMessage id="segments" defaultMessage="Segments" />
+                </Nav.Link>
+              </Nav.Item>
+            )}
             <Nav.Item>
               <Nav.Link eventKey="scene-video-filter-panel">
                 <FormattedMessage id="effect_filters.name" />
@@ -578,6 +588,9 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
           <Tab.Pane eventKey="scene-video-filter-panel">
             <SceneVideoFilterPanel scene={scene} />
           </Tab.Pane>
+          <Tab.Pane eventKey="scene-segments-panel">
+            <SceneSegmentsPanel scene={scene} />
+          </Tab.Pane>
           <Tab.Pane
             className="file-info-panel"
             eventKey="scene-file-info-panel"
@@ -620,9 +633,8 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
       {maybeRenderMergeDialog()}
       {maybeRenderDeleteDialog()}
       <div
-        className={`scene-tabs order-xl-first order-last ${
-          collapsed ? "collapsed" : ""
-        }`}
+        className={`scene-tabs order-xl-first order-last ${collapsed ? "collapsed" : ""
+          }`}
       >
         <div>
           <div className="scene-header-container">

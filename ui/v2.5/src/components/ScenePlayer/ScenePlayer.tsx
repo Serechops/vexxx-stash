@@ -42,6 +42,7 @@ import {
 import { SceneInteractiveStatus } from "src/hooks/Interactive/status";
 import { languageMap } from "src/utils/caption";
 import { VIDEO_PLAYER_ID } from "./util";
+import { Button } from "react-bootstrap";
 
 // @ts-ignore
 import airplay from "@silvermine/videojs-airplay";
@@ -56,30 +57,57 @@ airplay(videojs);
 chromecast(videojs);
 abLoopPlugin(window, videojs);
 
+// Extend VideoJsPlayer to support virtual timeline properties
+declare module "video.js" {
+  interface VideoJsPlayer {
+    virtualStart?: number;
+    virtualEnd?: number;
+  }
+}
+
 function handleHotkeys(player: VideoJsPlayer, event: videojs.KeyboardEvent) {
   function seekStep(step: number) {
     const time = player.currentTime() + step;
-    const duration = player.duration();
-    if (time < 0) {
-      player.currentTime(0);
-    } else if (time < duration) {
+
+    // Virtual duration/bounds handling
+    const start = player.virtualStart ?? 0;
+    const end = player.virtualEnd ?? player.duration();
+
+    if (time < start) {
+      player.currentTime(start);
+    } else if (time < end) {
       player.currentTime(time);
     } else {
-      player.currentTime(duration);
+      player.currentTime(end);
     }
   }
 
   function seekPercent(percent: number) {
-    const duration = player.duration();
-    const time = duration * percent;
+    const start = player.virtualStart ?? 0;
+    const end = player.virtualEnd ?? player.duration();
+    const duration = end - start;
+
+    const time = start + duration * percent;
     player.currentTime(time);
   }
 
   function seekPercentRelative(percent: number) {
-    const duration = player.duration();
+    const start = player.virtualStart ?? 0;
+    const end = player.virtualEnd ?? player.duration();
+    const duration = end - start;
+
     const currentTime = player.currentTime();
     const time = currentTime + duration * percent;
-    if (time > duration) return;
+
+    if (time > end) {
+      player.currentTime(end);
+      return;
+    }
+    if (time < start) {
+      player.currentTime(start);
+      return;
+    }
+
     player.currentTime(time);
   }
 
@@ -291,8 +319,11 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
         permitLoop &&
         maxLoopDuration !== 0 &&
         file.duration < maxLoopDuration,
+
       [file, permitLoop, maxLoopDuration]
     );
+
+    const isVirtual = (scene.start_point ?? 0) > 0 || !!scene.end_point;
 
     const getPlayer = useCallback(() => {
       if (!_player) return null;
@@ -343,6 +374,9 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
             inline: false,
           },
           chaptersButton: false,
+          progressControl: !isVirtual, // Hide native progress bar for virtual scenes
+          remainingTimeDisplay: !isVirtual,
+          durationDisplay: !isVirtual,
         },
         html5: {
           dash: {
@@ -443,7 +477,7 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
       // Note: interfaceConfig?.autostartVideo is intentionally excluded to prevent
       // player re-initialization when toggling autostart (which would interrupt playback)
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [uiConfig?.showAbLoopControls, uiConfig?.enableChromecast]);
+    }, [uiConfig?.showAbLoopControls, uiConfig?.enableChromecast, isVirtual]);
 
     useEffect(() => {
       const player = getPlayer();
@@ -559,7 +593,20 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
 
       function timeupdate(this: VideoJsPlayer) {
         if (this.paused()) return;
-        setTime(this.currentTime());
+        const currentTime = this.currentTime();
+        setTime(currentTime);
+
+        if (scene.end_point && currentTime >= scene.end_point) {
+          this.pause();
+          if (this.loop()) {
+            this.currentTime(scene.start_point ?? 0);
+            this.play();
+          } else {
+            // End of virtual scene
+            this.currentTime(scene.end_point);
+            // Optionally trigger onComplete?
+          }
+        }
       }
 
       player.on("playing", playing);
@@ -689,6 +736,12 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
       const resumeTime = scene.resume_time ?? 0;
 
       let startPosition = _initialTimestamp;
+
+      // Group Scene logic: start at start_point if no specific timestamp provided
+      if (!startPosition && (scene.start_point ?? 0) > 0) {
+        startPosition = scene.start_point!;
+      }
+
       if (
         !startPosition &&
         !alwaysStartFromBeginning &&
@@ -882,9 +935,13 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
       const player = getPlayer();
       if (!player) return;
 
+      // Sync virtual bounds
+      player.virtualStart = scene.start_point ?? undefined;
+      player.virtualEnd = scene.end_point ?? undefined;
+
       player.loop(looping);
       interactiveClient.setLooping(looping);
-    }, [getPlayer, interactiveClient, looping]);
+    }, [getPlayer, interactiveClient, looping, scene.start_point, scene.end_point]);
 
     useEffect(() => {
       const player = getPlayer();
@@ -985,6 +1042,7 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
         onKeyDownCapture={onKeyDown}
       >
         <div className="video-wrapper" ref={videoRef} />
+
         {scene.interactive &&
           (interactiveState !== ConnectionState.Ready ||
             getPlayer()?.paused()) && <SceneInteractiveStatus />}
@@ -993,6 +1051,8 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
             file={file}
             scene={scene}
             time={time}
+            start={scene.start_point ?? 0}
+            end={scene.end_point ?? file.duration}
             onSeek={onScrubberSeek}
             onScroll={onScrubberScroll}
           />

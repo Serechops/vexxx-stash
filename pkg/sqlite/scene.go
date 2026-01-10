@@ -92,6 +92,9 @@ type sceneRow struct {
 	ResumeTime   float64   `db:"resume_time"`
 	PlayDuration float64   `db:"play_duration"`
 
+	StartPoint null.Float `db:"start_point"`
+	EndPoint   null.Float `db:"end_point"`
+
 	// not used in resolutions or updates
 	CoverBlob zero.String `db:"cover_blob"`
 }
@@ -111,6 +114,8 @@ func (r *sceneRow) fromScene(o models.Scene) {
 	r.UpdatedAt = Timestamp{Timestamp: o.UpdatedAt}
 	r.ResumeTime = o.ResumeTime
 	r.PlayDuration = o.PlayDuration
+	r.StartPoint = nullFloatFromPtr(o.StartPoint)
+	r.EndPoint = nullFloatFromPtr(o.EndPoint)
 }
 
 type sceneQueryRow struct {
@@ -143,6 +148,9 @@ func (r *sceneQueryRow) resolve() *models.Scene {
 
 		ResumeTime:   r.ResumeTime,
 		PlayDuration: r.PlayDuration,
+
+		StartPoint: r.StartPoint.Ptr(),
+		EndPoint:   r.EndPoint.Ptr(),
 	}
 
 	if r.PrimaryFileFolderPath.Valid && r.PrimaryFileBasename.Valid {
@@ -169,6 +177,8 @@ func (r *sceneRowRecord) fromPartial(o models.ScenePartial) {
 	r.setTimestamp("updated_at", o.UpdatedAt)
 	r.setFloat64("resume_time", o.ResumeTime)
 	r.setFloat64("play_duration", o.PlayDuration)
+	r.setNullFloat64("start_point", o.StartPoint)
+	r.setNullFloat64("end_point", o.EndPoint)
 }
 
 type sceneRepositoryType struct {

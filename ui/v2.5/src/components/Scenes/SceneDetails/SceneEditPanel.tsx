@@ -132,6 +132,8 @@ export const SceneEditPanel: React.FC<IProps> = ({
     stash_ids: yup.mixed<GQL.StashIdInput[]>().defined(),
     details: yup.string().ensure(),
     cover_image: yup.string().nullable().optional(),
+    start_point: yup.number().nullable().optional(),
+    end_point: yup.number().nullable().optional(),
   });
 
   const initialValues = useMemo(
@@ -151,6 +153,8 @@ export const SceneEditPanel: React.FC<IProps> = ({
       stash_ids: getStashIDs(scene.stash_ids),
       details: scene.details ?? "",
       cover_image: initialCoverImage,
+      start_point: scene.start_point ?? null,
+      end_point: scene.end_point ?? null,
     }),
     [scene, initialCoverImage]
   );
@@ -605,16 +609,16 @@ export const SceneEditPanel: React.FC<IProps> = ({
   const urlProps = isNew
     ? splitProps
     : {
-        labelProps: {
-          column: true,
-          md: 3,
-          lg: 12,
-        },
-        fieldProps: {
-          md: 9,
-          lg: 12,
-        },
-      };
+      labelProps: {
+        column: true,
+        md: 3,
+        lg: 12,
+      },
+      fieldProps: {
+        md: 9,
+        lg: 12,
+      },
+    };
   const {
     renderField,
     renderInputField,
@@ -794,6 +798,11 @@ export const SceneEditPanel: React.FC<IProps> = ({
 
             {renderDateField("date")}
             {renderInputField("director")}
+
+            <Form.Row>
+              <Col xs={6}>{renderInputField("start_point", "number")}</Col>
+              <Col xs={6}>{renderInputField("end_point", "number")}</Col>
+            </Form.Row>
 
             {renderGalleriesField()}
             {renderStudioField()}

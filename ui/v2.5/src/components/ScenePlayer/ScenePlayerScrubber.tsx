@@ -19,6 +19,8 @@ interface IScenePlayerScrubberProps {
   file: GQL.VideoFileDataFragment;
   scene: GQL.SceneDataFragment;
   time: number;
+  start?: number;
+  end?: number;
   onSeek: (seconds: number) => void;
   onScroll: () => void;
 }
@@ -32,6 +34,8 @@ export const ScenePlayerScrubber: React.FC<IScenePlayerScrubberProps> = ({
   file,
   scene,
   time,
+  start = 0,
+  end,
   onSeek,
   onScroll,
 }) => {
@@ -76,10 +80,11 @@ export const ScenePlayerScrubber: React.FC<IScenePlayerScrubberProps> = ({
       position.current = newPosition;
 
       if (seek) {
-        onSeek(percentage * (file.duration || 0));
+        const duration = (end ?? file.duration ?? 0) - start;
+        onSeek(start + percentage * duration);
       }
     },
-    [onSeek, file.duration, scrubWidth]
+    [onSeek, file.duration, scrubWidth, start, end]
   );
 
   const spriteInfo = useSpriteInfo(scene.paths.vtt ?? undefined);
@@ -88,9 +93,22 @@ export const ScenePlayerScrubber: React.FC<IScenePlayerScrubberProps> = ({
   useEffect(() => {
     if (!spriteInfo) return;
     let totalWidth = 0;
-    const newSprites = spriteInfo?.map((sprite, index) => {
+    const newSprites: ISceneSpriteItem[] = [];
+
+    // Virtual timeline bounds
+    const virtualStart = start;
+    const virtualEnd = end ?? Number.MAX_VALUE;
+
+    spriteInfo.forEach((sprite) => {
+      // Skip sprites strictly before start or strictly after end
+      if (sprite.end < virtualStart || sprite.start > virtualEnd) {
+        return;
+      }
+
       totalWidth += sprite.w;
-      const left = sprite.w * index;
+      // Position is based on cumulative width of *included* sprites
+      const left = totalWidth - sprite.w;
+
       const style = {
         width: `${sprite.w}px`,
         height: `${sprite.h}px`,
@@ -98,16 +116,23 @@ export const ScenePlayerScrubber: React.FC<IScenePlayerScrubberProps> = ({
         backgroundImage: `url(${sprite.url})`,
         left: `${left}px`,
       };
-      const start = TextUtils.secondsToTimestamp(sprite.start);
-      const end = TextUtils.secondsToTimestamp(sprite.end);
-      return {
+
+      // Adjust timestamps to be relative to the virtual start
+      const relativeStart = Math.max(0, sprite.start - virtualStart);
+      const relativeEnd = Math.max(0, sprite.end - virtualStart);
+
+      const startStr = TextUtils.secondsToTimestamp(relativeStart);
+      const endStr = TextUtils.secondsToTimestamp(relativeEnd);
+
+      newSprites.push({
         style,
-        time: `${start} - ${end}`,
-      };
+        time: `${startStr} - ${endStr}`,
+      });
     });
+
     setScrubWidth(totalWidth);
     setSpriteItems(newSprites);
-  }, [spriteInfo]);
+  }, [spriteInfo, start, end]);
 
   useEffect(() => {
     const onResize = (entries: ResizeObserverEntry[]) => {
@@ -148,8 +173,13 @@ export const ScenePlayerScrubber: React.FC<IScenePlayerScrubberProps> = ({
   useEffect(() => {
     if (!scrubWidth || !width) return;
 
-    const duration = Number(file.duration);
-    const percentage = time / duration;
+    const duration = (end ?? Number(file.duration)) - start;
+    if (duration <= 0) return;
+
+    // Clamp time to start/end for display purposes
+    const displayTime = Math.max(start, Math.min(time, end ?? Number(file.duration)));
+    const percentage = (displayTime - start) / duration;
+
     const newPosition = width / 2 - percentage * scrubWidth;
 
     // Ignore position changes of < 1px
@@ -168,7 +198,7 @@ export const ScenePlayerScrubber: React.FC<IScenePlayerScrubberProps> = ({
     prevTime.current = time;
 
     setPosition(newPosition, false);
-  }, [file.duration, setPosition, time, width, scrubWidth]);
+  }, [file.duration, setPosition, time, width, scrubWidth, start, end]);
 
   const onMouseUp = useCallback(
     (event: MouseEvent) => {
@@ -277,8 +307,11 @@ export const ScenePlayerScrubber: React.FC<IScenePlayerScrubberProps> = ({
     if (!spriteItems) return;
 
     return scene.scene_markers.map((marker, index) => {
-      const { duration } = file;
-      const left = (scrubWidth * marker.seconds) / duration;
+      const duration = (end ?? Number(file.duration)) - start;
+      // Filter markers outside of range
+      if (marker.seconds < start || (end && marker.seconds > end)) return null;
+
+      const left = (scrubWidth * (marker.seconds - start)) / duration;
       const style = { left: `${left}px` };
 
       return (

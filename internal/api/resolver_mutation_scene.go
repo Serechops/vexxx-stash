@@ -53,6 +53,9 @@ func (r *mutationResolver) SceneCreate(ctx context.Context, input models.SceneCr
 	newScene.Organized = translator.bool(input.Organized)
 	newScene.StashIDs = models.NewRelatedStashIDs(models.StashIDInputs(input.StashIds).ToStashIDs())
 
+	newScene.StartPoint = input.StartPoint
+	newScene.EndPoint = input.EndPoint
+
 	newScene.Date, err = translator.datePtr(input.Date)
 	if err != nil {
 		return nil, fmt.Errorf("converting date: %w", err)
@@ -191,6 +194,8 @@ func scenePartialFromInput(input models.SceneUpdateInput, translator changesetTr
 	}
 
 	updatedScene.PlayDuration = translator.optionalFloat64(input.PlayDuration, "play_duration")
+	updatedScene.StartPoint = translator.optionalFloat64(input.StartPoint, "start_point")
+	updatedScene.EndPoint = translator.optionalFloat64(input.EndPoint, "end_point")
 	updatedScene.Organized = translator.optionalBool(input.Organized, "organized")
 	updatedScene.StashIDs = translator.updateStashIDs(input.StashIds, "stash_ids")
 

@@ -108,6 +108,11 @@ export const PerformersHero: React.FC = () => {
                                 <div className="absolute inset-0 bg-black/10 transition-opacity duration-1000" />
                             )}
 
+                            {/* Bottom gradient for text readability */}
+                            {isActive && (
+                                <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/70 to-transparent" />
+                            )}
+
                             {/* Text Name - static display */}
                             {isActive && (
                                 <div className="absolute left-5 bottom-4 text-white z-10">

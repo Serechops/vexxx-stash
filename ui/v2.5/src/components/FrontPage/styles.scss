@@ -280,8 +280,7 @@
 }
 
 .slick-loading .slick-list {
-  background: #fff url("slick-carousel/slick/ajax-loader.gif") center center
-    no-repeat;
+  background: #fff url("slick-carousel/slick/ajax-loader.gif") center center no-repeat;
 }
 
 .slick-list .card-check {
@@ -301,11 +300,29 @@
   height: 98%;
 }
 
+/* Blur effect for non-hovered cards in recommendation rows */
+.slick-track:hover .slick-slide {
+  filter: blur(2px);
+  opacity: 0.7;
+  transition: filter 0.3s ease, opacity 0.3s ease;
+}
+
+.slick-track .slick-slide:hover {
+  filter: blur(0);
+  opacity: 1;
+  transition: filter 0.3s ease, opacity 0.3s ease;
+}
+
+.slick-track .slick-slide {
+  transition: filter 0.3s ease, opacity 0.3s ease;
+}
+
 .slick-slide .studio-card-image {
   height: 150px;
 }
 
 @media (max-width: 576px) {
+
   .slick-list .scene-card.card,
   .slick-list .studio-card.card,
   .slick-list .gallery-card.card,
@@ -329,8 +346,7 @@
   font-weight: normal;
 
   src: url("slick-carousel/slick/fonts/slick.eot");
-  src: url("slick-carousel/slick/fonts/slick.eot?#iefix")
-      format("embedded-opentype"),
+  src: url("slick-carousel/slick/fonts/slick.eot?#iefix") format("embedded-opentype"),
     url("slick-carousel/slick/fonts/slick.woff") format("woff"),
     url("slick-carousel/slick/fonts/slick.ttf") format("truetype"),
     url("slick-carousel/slick/fonts/slick.svg#slick") format("svg");

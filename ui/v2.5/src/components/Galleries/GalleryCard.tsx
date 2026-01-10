@@ -21,15 +21,24 @@ import { PatchComponent } from "src/patch";
 interface IGalleryPreviewProps {
   gallery: GQL.SlimGalleryDataFragment;
   onScrubberClick?: (index: number) => void;
+  onOrientationDetected?: (isLandscape: boolean) => void;
 }
 
 export const GalleryPreview: React.FC<IGalleryPreviewProps> = ({
   gallery,
   onScrubberClick,
+  onOrientationDetected,
 }) => {
   const [imgSrc, setImgSrc] = useState<string | undefined>(
     gallery.paths.cover ?? undefined
   );
+
+  const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = e.currentTarget;
+    if (onOrientationDetected && img.naturalWidth && img.naturalHeight) {
+      onOrientationDetected(img.naturalWidth > img.naturalHeight);
+    }
+  };
 
   return (
     <div className={cx("gallery-card-cover")}>
@@ -39,6 +48,7 @@ export const GalleryPreview: React.FC<IGalleryPreviewProps> = ({
           className="gallery-card-image"
           alt={gallery.title ?? ""}
           src={imgSrc}
+          onLoad={handleImageLoad}
         />
       )}
       {gallery.image_count > 0 && (
@@ -61,6 +71,8 @@ interface IGalleryCardProps {
   selected?: boolean | undefined;
   zoomIndex?: number;
   onSelectedChanged?: (selected: boolean, shiftKey: boolean) => void;
+  onOrientationDetected?: (galleryId: string, isLandscape: boolean) => void;
+  isLandscape?: boolean;
 }
 
 const GalleryCardPopovers = PatchComponent(
@@ -204,6 +216,12 @@ const GalleryCardImage = PatchComponent(
   (props: IGalleryCardProps) => {
     const history = useHistory();
 
+    const handleOrientationDetected = (isLandscape: boolean) => {
+      if (props.onOrientationDetected) {
+        props.onOrientationDetected(props.gallery.id, isLandscape);
+      }
+    };
+
     return (
       <>
         <GalleryPreview
@@ -211,6 +229,7 @@ const GalleryCardImage = PatchComponent(
           onScrubberClick={(i) => {
             history.push(`/galleries/${props.gallery.id}/images/${i}`);
           }}
+          onOrientationDetected={handleOrientationDetected}
         />
         <RatingBanner rating={props.gallery.rating100} />
       </>
@@ -221,9 +240,18 @@ const GalleryCardImage = PatchComponent(
 export const GalleryCard = PatchComponent(
   "GalleryCard",
   (props: IGalleryCardProps) => {
+    const orientationClass = props.isLandscape === true
+      ? "gallery-card-landscape"
+      : props.isLandscape === false
+        ? "gallery-card-portrait"
+        : "";
+
     return (
       <GridCard
-        className={`gallery-card zoom-${props.zoomIndex} hover:!scale-100 !transition-none`}
+        className={cx(
+          `gallery-card zoom-${props.zoomIndex} hover:!scale-100 !transition-none`,
+          orientationClass
+        )}
         url={`/galleries/${props.gallery.id}`}
         width={props.cardWidth}
         title={galleryTitle(props.gallery)}

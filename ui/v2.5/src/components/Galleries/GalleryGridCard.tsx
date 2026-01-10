@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useCallback } from "react";
 import * as GQL from "src/core/generated-graphql";
 import { GalleryCard } from "./GalleryCard";
 import {
@@ -24,8 +24,24 @@ export const GalleryCardGrid: React.FC<IGalleryCardGrid> = ({
   const [componentRef, { width: containerWidth }] = useContainerDimensions();
   const cardWidth = useCardWidth(containerWidth, zoomIndex, zoomWidths);
 
+  // Track orientation for each gallery by ID
+  const [orientations, setOrientations] = useState<Record<string, boolean>>({});
+
+  const handleOrientationDetected = useCallback((galleryId: string, isLandscape: boolean) => {
+    setOrientations(prev => {
+      if (prev[galleryId] === isLandscape) return prev;
+      return { ...prev, [galleryId]: isLandscape };
+    });
+  }, []);
+
   return (
-    <div className="row justify-content-center" ref={componentRef}>
+    <div
+      className="gallery-magazine-grid"
+      ref={componentRef}
+      style={{
+        gridTemplateColumns: `repeat(auto-fill, minmax(${cardWidth}px, 1fr))`,
+      }}
+    >
       {galleries.map((gallery) => (
         <GalleryCard
           key={gallery.id}
@@ -37,6 +53,8 @@ export const GalleryCardGrid: React.FC<IGalleryCardGrid> = ({
           onSelectedChanged={(selected: boolean, shiftKey: boolean) =>
             onSelectChange(gallery.id, selected, shiftKey)
           }
+          onOrientationDetected={handleOrientationDetected}
+          isLandscape={orientations[gallery.id]}
         />
       ))}
     </div>

@@ -20,6 +20,9 @@ export function getSlickSliderSettings(cardCount: number, isTouch: boolean) {
     speed: 300,
     variableWidth: true,
     swipeToSlide: true,
+    autoplay: true,
+    autoplaySpeed: 3000,
+    pauseOnHover: true,
     slidesToShow: cardCount! > 5 ? 5 : cardCount,
     slidesToScroll: determineSlidesToScroll(cardCount!, 5, isTouch),
     responsive: [

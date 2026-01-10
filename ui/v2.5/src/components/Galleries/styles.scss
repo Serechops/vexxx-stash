@@ -115,6 +115,32 @@
   }
 }
 
+/* Magazine-style CSS Grid layout */
+.gallery-magazine-grid {
+  display: grid;
+  gap: 1rem;
+  padding: 0 1rem;
+  width: 100%;
+
+  /* Cards fill available space by default */
+  .gallery-card {
+    width: 100% !important;
+    margin: 0 !important;
+  }
+}
+
+/* Landscape images span 2 columns when there's room */
+.gallery-card-landscape {
+  @media (min-width: 768px) {
+    grid-column: span 2;
+  }
+}
+
+/* Portrait images stay in single column */
+.gallery-card-portrait {
+  grid-column: span 1;
+}
+
 .gallery-tabs {
   max-height: calc(100vh - 4rem);
 
@@ -182,7 +208,8 @@ $galleryTabWidth: 450px;
   width: 100%;
 }
 
-@media (min-width: 1200px), (max-width: 575px) {
+@media (min-width: 1200px),
+(max-width: 575px) {
   .gallery-performers {
     .performer-card {
       width: 15rem;
@@ -375,6 +402,7 @@ div.GalleryWall {
     @media (min-width: 768px) {
       @include galleryWidth(16vw);
     }
+
     @media (min-width: 1200px) {
       @include galleryWidth(10vw);
     }
@@ -384,6 +412,7 @@ div.GalleryWall {
     @media (min-width: 768px) {
       @include galleryWidth(24vw);
     }
+
     @media (min-width: 1200px) {
       @include galleryWidth(16vw);
     }
@@ -393,6 +422,7 @@ div.GalleryWall {
     @media (min-width: 768px) {
       @include galleryWidth(32vw);
     }
+
     @media (min-width: 1200px) {
       @include galleryWidth(24vw);
     }
@@ -402,6 +432,7 @@ div.GalleryWall {
     @media (min-width: 768px) {
       @include galleryWidth(48vw);
     }
+
     @media (min-width: 1200px) {
       @include galleryWidth(32vw);
     }

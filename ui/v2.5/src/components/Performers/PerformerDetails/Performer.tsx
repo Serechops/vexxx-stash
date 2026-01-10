@@ -50,7 +50,6 @@ import { PatchComponent } from "src/patch";
 import { ILightboxImage } from "src/hooks/Lightbox/types";
 import { goBackOrReplace } from "src/utils/history";
 import { OCounterButton } from "src/components/Shared/CountButton";
-import { PerformerHero } from "./PerformerHero";
 
 interface IProps {
   performer: GQL.PerformerDataFragment;
@@ -418,10 +417,6 @@ const PerformerPage: React.FC<IProps> = PatchComponent(
         <Helmet>
           <title>{performer.name}</title>
         </Helmet>
-
-        {!isEditing && performer.scene_count > 0 && (
-          <PerformerHero performer={performer} />
-        )}
 
         <div className={headerClassName}>
           <BackgroundImage

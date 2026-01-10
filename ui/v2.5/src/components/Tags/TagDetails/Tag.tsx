@@ -45,7 +45,6 @@ import { FavoriteIcon } from "src/components/Shared/FavoriteIcon";
 import { AliasList } from "src/components/Shared/DetailsPage/AliasList";
 import { HeaderImage } from "src/components/Shared/DetailsPage/HeaderImage";
 import { goBackOrReplace } from "src/utils/history";
-import { TagHero } from "./TagHero";
 
 interface IProps {
   tag: GQL.TagDataFragment;
@@ -493,10 +492,6 @@ const TagPage: React.FC<IProps> = ({ tag, tabKey }) => {
       <Helmet>
         <title>{tag.name}</title>
       </Helmet>
-
-      {!isEditing && tag.scene_count > 0 && (
-        <TagHero tag={tag} />
-      )}
 
       <div className={headerClassName}>
         <BackgroundImage

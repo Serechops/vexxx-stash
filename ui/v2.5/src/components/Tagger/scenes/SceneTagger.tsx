@@ -1,7 +1,7 @@
 import React, { useContext, useMemo, useState } from "react";
 import * as GQL from "src/core/generated-graphql";
 import { SceneQueue } from "src/models/sceneQueue";
-import { Button, Form } from "react-bootstrap";
+import { Button, Form, Dropdown, DropdownButton } from "react-bootstrap";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Icon } from "src/components/Shared/Icon";
@@ -22,7 +22,8 @@ const Scene: React.FC<{
   queue?: SceneQueue;
   index: number;
   showLightboxImage: (imagePath: string) => void;
-}> = ({ scene, searchResult, queue, index, showLightboxImage }) => {
+  queryOverride?: string;
+}> = ({ scene, searchResult, queue, index, showLightboxImage, queryOverride }) => {
   const intl = useIntl();
   const { currentSource, doSceneQuery, doSceneFragmentScrape, loading } =
     useContext(TaggerStateContext);
@@ -57,20 +58,21 @@ const Scene: React.FC<{
       doSceneQuery={
         currentSource?.supportSceneQuery
           ? async (v) => {
-              await doSceneQuery(scene.id, v);
-            }
+            await doSceneQuery(scene.id, v);
+          }
           : undefined
       }
       scrapeSceneFragment={
         currentSource?.supportSceneFragment
           ? async () => {
-              await doSceneFragmentScrape(scene.id);
-            }
+            await doSceneFragmentScrape(scene.id);
+          }
           : undefined
       }
       showLightboxImage={showLightboxImage}
       queue={queue}
       index={index}
+      queryOverride={queryOverride}
     >
       {searchResult && searchResult.results?.length ? (
         <SceneSearchResults scenes={searchResult.results} target={scene} />
@@ -97,9 +99,21 @@ export const Tagger: React.FC<ITaggerProps> = ({ scenes, queue }) => {
     multiError,
     submitFingerprints,
     pendingFingerprints,
+    doMassSave,
+    doMassCreateTags,
+    doMassCreatePerformers,
+    doMassCreateStudios,
+    doRunAll,
+    pendingTagsCount,
+    pendingPerformersCount,
+    pendingStudiosCount,
+    pendingScenesCount,
+    doSearchAll,
   } = useContext(TaggerStateContext);
   const [showConfig, setShowConfig] = useState(false);
   const [hideUnmatched, setHideUnmatched] = useState(false);
+  const [globalQueryOverride, setGlobalQueryOverride] = useState("");
+  const [fillAllEnabled, setFillAllEnabled] = useState(false);
 
   const intl = useIntl();
 
@@ -252,6 +266,43 @@ export const Tagger: React.FC<ITaggerProps> = ({ scenes, queue }) => {
     );
   }
 
+  function renderMassActions() {
+    if (Object.keys(searchResults).length === 0) return;
+
+    return (
+      <DropdownButton
+        className="ml-1"
+        title={intl.formatMessage({ id: "Bulk Operations" })}
+        id="mass-actions-dropdown"
+        disabled={loading || loadingMulti}
+      >
+        <Dropdown.Item
+          onClick={() => doSearchAll(scenes, globalQueryOverride)}
+          disabled={!fillAllEnabled || !globalQueryOverride}
+        >
+          Search All ({Object.keys(searchResults).length})
+        </Dropdown.Item>
+        <Dropdown.Divider />
+        <Dropdown.Item onClick={() => doMassCreateTags()} disabled={pendingTagsCount === 0}>
+          Create All Tags ({pendingTagsCount})
+        </Dropdown.Item>
+        <Dropdown.Item onClick={() => doMassCreatePerformers()} disabled={pendingPerformersCount === 0}>
+          Create All Performers ({pendingPerformersCount})
+        </Dropdown.Item>
+        <Dropdown.Item onClick={() => doMassCreateStudios()} disabled={pendingStudiosCount === 0}>
+          Create All Studios ({pendingStudiosCount})
+        </Dropdown.Item>
+        <Dropdown.Item onClick={() => doMassSave()} disabled={pendingScenesCount === 0}>
+          Save All Matched ({pendingScenesCount})
+        </Dropdown.Item>
+        <Dropdown.Divider />
+        <Dropdown.Item onClick={() => doRunAll()} disabled={pendingScenesCount === 0}>
+          <strong>Run All</strong>
+        </Dropdown.Item>
+      </DropdownButton>
+    );
+  }
+
   return (
     <SceneTaggerModals>
       <div className="tagger-container mx-md-auto">
@@ -262,10 +313,41 @@ export const Tagger: React.FC<ITaggerProps> = ({ scenes, queue }) => {
               {maybeRenderShowHideUnmatchedButton()}
               {maybeRenderSubmitFingerprintsButton()}
               {renderFragmentScrapeButton()}
+              {/* Standalone Search All button - visible when Fill All is enabled */}
+              {fillAllEnabled && globalQueryOverride && (
+                <Button
+                  className="ml-1"
+                  onClick={() => doSearchAll(scenes, globalQueryOverride)}
+                  disabled={loading || loadingMulti || scenes.length === 0}
+                >
+                  Search All ({scenes.length})
+                </Button>
+              )}
+              {renderMassActions()}
               {renderConfigButton()}
             </div>
           </div>
           <Config show={showConfig} />
+          {/* Fill All Queries Input */}
+          <div className="d-flex align-items-center mt-2 mb-2">
+            <Form.Check
+              type="switch"
+              id="fill-all-switch"
+              label="Fill All Queries"
+              checked={fillAllEnabled}
+              onChange={(e) => setFillAllEnabled(e.target.checked)}
+              className="mr-2"
+            />
+            {fillAllEnabled && (
+              <Form.Control
+                type="text"
+                placeholder="Enter query text for all scenes..."
+                value={globalQueryOverride}
+                onChange={(e) => setGlobalQueryOverride(e.target.value)}
+                className="w-50"
+              />
+            )}
+          </div>
         </div>
         <div>
           {filteredScenes.map((s, i) => (
@@ -276,6 +358,7 @@ export const Tagger: React.FC<ITaggerProps> = ({ scenes, queue }) => {
               index={i}
               showLightboxImage={showLightboxImage}
               queue={queue}
+              queryOverride={fillAllEnabled ? globalQueryOverride : undefined}
             />
           ))}
         </div>

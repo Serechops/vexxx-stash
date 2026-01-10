@@ -605,9 +605,8 @@ export const useBulkSceneUpdate = (input: GQL.BulkSceneUpdateInput) =>
     },
   });
 
-export const useScenesUpdate = (input: GQL.SceneUpdateInput[]) =>
+export const useScenesUpdate = () =>
   GQL.useScenesUpdateMutation({
-    variables: { input },
     update(cache, result) {
       if (!result.data?.scenesUpdate) return;
 
@@ -2979,3 +2978,8 @@ export const queryParseSceneFilenames = (
     variables: { filter, config },
     fetchPolicy: "network-only",
   });
+
+export const useTagsCreate = GQL.useTagsCreateMutation;
+export const usePerformersCreate = GQL.usePerformersCreateMutation;
+export const useStudiosCreate = GQL.useStudiosCreateMutation;
+

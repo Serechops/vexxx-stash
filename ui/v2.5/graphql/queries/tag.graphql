@@ -35,3 +35,9 @@ query FindTagsForList($filter: FindFilterType, $tag_filter: TagFilterType) {
     }
   }
 }
+
+mutation TagsCreate($input: [TagCreateInput!]!) {
+  tagsCreate(input: $input) {
+    ...TagData
+  }
+}

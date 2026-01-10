@@ -139,6 +139,130 @@ func (r *mutationResolver) PerformerCreate(ctx context.Context, input models.Per
 	return r.getPerformer(ctx, newPerformer.ID)
 }
 
+func (r *mutationResolver) PerformersCreate(ctx context.Context, input []*models.PerformerCreateInput) ([]*models.Performer, error) {
+	type performerCreateData struct {
+		input        models.PerformerCreateInput
+		imageData    []byte
+		newPerformer models.Performer
+		createInput  *models.CreatePerformerInput
+	}
+
+	var data []*performerCreateData
+	translator := changesetTranslator{
+		inputMap: getUpdateInputMap(ctx),
+	}
+
+	for _, i := range input {
+		d := &performerCreateData{input: *i}
+		d.newPerformer = models.NewPerformer()
+
+		// Populate newPerformer fields (copied from PerformerCreate)
+		d.newPerformer.Name = strings.TrimSpace(i.Name)
+		d.newPerformer.Disambiguation = translator.string(i.Disambiguation)
+		d.newPerformer.Aliases = models.NewRelatedStrings(stringslice.TrimSpace(i.AliasList))
+		d.newPerformer.Gender = i.Gender
+		d.newPerformer.Ethnicity = translator.string(i.Ethnicity)
+		d.newPerformer.Country = translator.string(i.Country)
+		d.newPerformer.EyeColor = translator.string(i.EyeColor)
+		d.newPerformer.Measurements = translator.string(i.Measurements)
+		d.newPerformer.FakeTits = translator.string(i.FakeTits)
+		d.newPerformer.PenisLength = i.PenisLength
+		d.newPerformer.Circumcised = i.Circumcised
+		d.newPerformer.CareerLength = translator.string(i.CareerLength)
+		d.newPerformer.Tattoos = translator.string(i.Tattoos)
+		d.newPerformer.Piercings = translator.string(i.Piercings)
+		d.newPerformer.Favorite = translator.bool(i.Favorite)
+		d.newPerformer.Rating = i.Rating100
+		d.newPerformer.Details = translator.string(i.Details)
+		d.newPerformer.HairColor = translator.string(i.HairColor)
+		d.newPerformer.Height = i.HeightCm
+		d.newPerformer.Weight = i.Weight
+		d.newPerformer.IgnoreAutoTag = translator.bool(i.IgnoreAutoTag)
+		d.newPerformer.StashIDs = models.NewRelatedStashIDs(models.StashIDInputs(i.StashIds).ToStashIDs())
+
+		d.newPerformer.URLs = models.NewRelatedStrings([]string{})
+		if i.URL != nil {
+			d.newPerformer.URLs.Add(strings.TrimSpace(*i.URL))
+		}
+		if i.Twitter != nil {
+			d.newPerformer.URLs.Add(utils.URLFromHandle(strings.TrimSpace(*i.Twitter), twitterURL))
+		}
+		if i.Instagram != nil {
+			d.newPerformer.URLs.Add(utils.URLFromHandle(strings.TrimSpace(*i.Instagram), instagramURL))
+		}
+		if i.Urls != nil {
+			d.newPerformer.URLs.Add(stringslice.TrimSpace(i.Urls)...)
+		}
+
+		var err error
+		d.newPerformer.Birthdate, err = translator.datePtr(i.Birthdate)
+		if err != nil {
+			return nil, fmt.Errorf("converting birthdate for %s: %w", d.newPerformer.Name, err)
+		}
+		d.newPerformer.DeathDate, err = translator.datePtr(i.DeathDate)
+		if err != nil {
+			return nil, fmt.Errorf("converting death date for %s: %w", d.newPerformer.Name, err)
+		}
+
+		d.newPerformer.TagIDs, err = translator.relatedIds(i.TagIds)
+		if err != nil {
+			return nil, fmt.Errorf("converting tag ids for %s: %w", d.newPerformer.Name, err)
+		}
+
+		if i.Image != nil {
+			d.imageData, err = utils.ProcessImageInput(ctx, *i.Image)
+			if err != nil {
+				return nil, fmt.Errorf("processing image for %s: %w", d.newPerformer.Name, err)
+			}
+		}
+
+		d.createInput = &models.CreatePerformerInput{
+			Performer:    &d.newPerformer,
+			CustomFields: convertMapJSONNumbers(i.CustomFields),
+		}
+
+		data = append(data, d)
+	}
+
+	// Transaction
+	if err := r.withTxn(ctx, func(ctx context.Context) error {
+		qb := r.repository.Performer
+		for _, d := range data {
+			if err := performer.ValidateCreate(ctx, d.newPerformer, qb); err != nil {
+				return err
+			}
+
+			// We need to pass the *pointer* to the newPerformer inside createInput
+			// But createInput is already set up to point to d.newPerformer
+			if err := qb.Create(ctx, d.createInput); err != nil {
+				return err
+			}
+
+			if len(d.imageData) > 0 {
+				if err := qb.UpdateImage(ctx, d.newPerformer.ID, d.imageData); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	// Post-hooks and refetch
+	var ret []*models.Performer
+	for _, d := range data {
+		r.hookExecutor.ExecutePostHooks(ctx, d.newPerformer.ID, hook.PerformerCreatePost, d.input, nil)
+		p, err := r.getPerformer(ctx, d.newPerformer.ID)
+		if err != nil {
+			return nil, err
+		}
+		ret = append(ret, p)
+	}
+
+	return ret, nil
+}
+
 func validateNoLegacyURLs(translator changesetTranslator) error {
 	// ensure url/twitter/instagram are not included in the input
 	if translator.hasField("url") {

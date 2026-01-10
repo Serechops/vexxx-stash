@@ -97,7 +97,99 @@ func (r *mutationResolver) StudioCreate(ctx context.Context, input models.Studio
 	}
 
 	r.hookExecutor.ExecutePostHooks(ctx, newStudio.ID, hook.StudioCreatePost, input, nil)
+	r.hookExecutor.ExecutePostHooks(ctx, newStudio.ID, hook.StudioCreatePost, input, nil)
 	return r.getStudio(ctx, newStudio.ID)
+}
+
+func (r *mutationResolver) StudiosCreate(ctx context.Context, input []*models.StudioCreateInput) ([]*models.Studio, error) {
+	translator := changesetTranslator{
+		inputMap: getUpdateInputMap(ctx),
+	}
+
+	var newStudios []*models.Studio
+	var imageDatas [][]byte // Corresponds to newStudios
+
+	for _, i := range input {
+		newStudio := models.NewStudio()
+
+		newStudio.Name = strings.TrimSpace(i.Name)
+		newStudio.Rating = i.Rating100
+		newStudio.Favorite = translator.bool(i.Favorite)
+		newStudio.Details = translator.string(i.Details)
+		newStudio.IgnoreAutoTag = translator.bool(i.IgnoreAutoTag)
+		newStudio.Aliases = models.NewRelatedStrings(stringslice.TrimSpace(i.Aliases))
+		newStudio.StashIDs = models.NewRelatedStashIDs(models.StashIDInputs(i.StashIds).ToStashIDs())
+
+		var err error
+		newStudio.URLs = models.NewRelatedStrings([]string{})
+		if i.URL != nil {
+			newStudio.URLs.Add(strings.TrimSpace(*i.URL))
+		}
+		if i.Urls != nil {
+			newStudio.URLs.Add(stringslice.TrimSpace(i.Urls)...)
+		}
+
+		newStudio.ParentID, err = translator.intPtrFromString(i.ParentID)
+		if err != nil {
+			return nil, fmt.Errorf("converting parent id: %w", err)
+		}
+
+		newStudio.TagIDs, err = translator.relatedIds(i.TagIds)
+		if err != nil {
+			return nil, fmt.Errorf("converting tag ids: %w", err)
+		}
+
+		// Process the base 64 encoded image string
+		var imageData []byte
+		if i.Image != nil {
+			var err error
+			imageData, err = utils.ProcessImageInput(ctx, *i.Image)
+			if err != nil {
+				return nil, fmt.Errorf("processing image: %w", err)
+			}
+		}
+
+		newStudios = append(newStudios, &newStudio)
+		imageDatas = append(imageDatas, imageData)
+	}
+
+	// Start the transaction and save the studios
+	if err := r.withTxn(ctx, func(ctx context.Context) error {
+		qb := r.repository.Studio
+
+		for idx, newStudio := range newStudios {
+			if err := studio.ValidateCreate(ctx, *newStudio, qb); err != nil {
+				return err
+			}
+
+			if err := qb.Create(ctx, newStudio); err != nil {
+				return err
+			}
+
+			imageData := imageDatas[idx]
+			if len(imageData) > 0 {
+				if err := qb.UpdateImage(ctx, newStudio.ID, imageData); err != nil {
+					return err
+				}
+			}
+		}
+
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	var ret []*models.Studio
+	for i, s := range newStudios {
+		r.hookExecutor.ExecutePostHooks(ctx, s.ID, hook.StudioCreatePost, input[i], nil)
+		created, err := r.getStudio(ctx, s.ID)
+		if err != nil {
+			return nil, err
+		}
+		ret = append(ret, created)
+	}
+
+	return ret, nil
 }
 
 func (r *mutationResolver) StudioUpdate(ctx context.Context, input models.StudioUpdateInput) (*models.Studio, error) {

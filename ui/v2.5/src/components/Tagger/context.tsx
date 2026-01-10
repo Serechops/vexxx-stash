@@ -1,20 +1,29 @@
 import React, { useState, useEffect, useRef } from "react";
+import uniq from "lodash-es/uniq";
+import { blobToBase64 } from "base64-blob";
 import { initialConfig, ITaggerConfig } from "src/components/Tagger/constants";
+import { prepareQueryString, parsePath } from "src/components/Tagger/utils";
+import { objectPath } from "src/core/files";
 import * as GQL from "src/core/generated-graphql";
 import {
   queryFindPerformer,
   queryFindStudio,
+  queryFindScenesByID,
   queryScrapeScene,
   queryScrapeSceneQuery,
   queryScrapeSceneQueryFragment,
   stashBoxSceneBatchQuery,
   useListSceneScrapers,
   usePerformerCreate,
+  usePerformersCreate,
   usePerformerUpdate,
   useSceneUpdate,
+  useScenesUpdate,
   useStudioCreate,
+  useStudiosCreate,
   useStudioUpdate,
   useTagCreate,
+  useTagsCreate,
   useTagUpdate,
 } from "src/core/StashService";
 import { useToast } from "src/hooks/Toast";
@@ -23,6 +32,7 @@ import { ITaggerSource, SCRAPER_PREFIX, STASH_BOX_PREFIX } from "./constants";
 import { errorToString } from "src/utils";
 import { mergeStudioStashIDs } from "./utils";
 import { useTaggerConfig } from "./config";
+import { stringToGender } from "src/utils/gender";
 
 export interface ITaggerContextState {
   config: ITaggerConfig;
@@ -71,6 +81,16 @@ export interface ITaggerContextState {
     sceneCreateInput: GQL.SceneUpdateInput,
     queueFingerprint: boolean
   ) => Promise<void>;
+  doMassSave: () => Promise<void>;
+  doMassCreateTags: () => Promise<void>;
+  doMassCreatePerformers: () => Promise<void>;
+  doMassCreateStudios: () => Promise<void>;
+  doRunAll: () => Promise<void>;
+  doSearchAll: (scenes: GQL.SlimSceneDataFragment[], globalOverride: string) => Promise<void>;
+  pendingTagsCount: number;
+  pendingPerformersCount: number;
+  pendingStudiosCount: number;
+  pendingScenesCount: number;
 }
 
 const dummyFn = () => {
@@ -82,15 +102,15 @@ const dummyValFn = () => {
 
 export const TaggerStateContext = React.createContext<ITaggerContextState>({
   config: initialConfig,
-  setConfig: () => {},
+  setConfig: () => { },
   loading: false,
   sources: [],
   searchResults: {},
-  setCurrentSource: () => {},
+  setCurrentSource: () => { },
   doSceneQuery: dummyFn,
   doSceneFragmentScrape: dummyFn,
   doMultiSceneFragmentScrape: dummyFn,
-  stopMultiScrape: () => {},
+  stopMultiScrape: () => { },
   createNewTag: dummyValFn,
   createNewPerformer: dummyValFn,
   linkPerformer: dummyFn,
@@ -102,6 +122,16 @@ export const TaggerStateContext = React.createContext<ITaggerContextState>({
   submitFingerprints: dummyFn,
   pendingFingerprints: [],
   saveScene: dummyFn,
+  doMassSave: dummyFn,
+  doMassCreateTags: dummyFn,
+  doMassCreatePerformers: dummyFn,
+  doMassCreateStudios: dummyFn,
+  doRunAll: dummyFn,
+  doSearchAll: dummyFn,
+  pendingTagsCount: 0,
+  pendingPerformersCount: 0,
+  pendingStudiosCount: 0,
+  pendingScenesCount: 0,
 });
 
 export type IScrapedScene = GQL.ScrapedScene & { resolved?: boolean };
@@ -135,7 +165,11 @@ export const TaggerContext: React.FC = ({ children }) => {
   const [createStudio] = useStudioCreate();
   const [updateStudio] = useStudioUpdate();
   const [updateScene] = useSceneUpdate();
+  const [updateScenes] = useScenesUpdate();
   const [updateTag] = useTagUpdate();
+  const [createTags] = useTagsCreate();
+  const [createPerformers] = usePerformersCreate();
+  const [createStudios] = useStudiosCreate();
 
   useEffect(() => {
     if (!stashConfig || !Scrapers.data) {
@@ -314,7 +348,7 @@ export const TaggerContext: React.FC = ({ children }) => {
         };
       }
 
-      setSearchResults({ ...searchResults, [sceneID]: newResult });
+      setSearchResults(prev => ({ ...prev, [sceneID]: newResult }));
     } catch (err) {
       Toast.error(err);
     } finally {
@@ -423,13 +457,65 @@ export const TaggerContext: React.FC = ({ children }) => {
       } else {
         setLoadingMulti(true);
 
-        // do singular calls
-        await sceneIDs.reduce(async (promise, id) => {
-          await promise;
-          if (!stopping.current) {
-            await sceneFragmentScrape(id);
+        // Batching setup
+        let pendingResults: Record<string, ISceneQueryResult> = {};
+        let resultCount = 0;
+        const BATCH_SIZE = 5;
+
+        const flushResults = () => {
+          if (resultCount > 0) {
+            setSearchResults((prev) => ({ ...prev, ...pendingResults }));
+            pendingResults = {};
+            resultCount = 0;
           }
-        }, Promise.resolve());
+        };
+
+        // Concurrency setup
+        const CONCURRENCY = 4;
+        const queue = [...sceneIDs];
+        const workers = Array(CONCURRENCY)
+          .fill(null)
+          .map(async () => {
+            while (queue.length > 0 && !stopping.current) {
+              const id = queue.shift();
+              if (!id) break;
+
+              try {
+                // Inline sceneFragmentScrape logic to capture result without state update
+                const results = await queryScrapeScene(
+                  currentSource.sourceInput,
+                  id
+                );
+
+                let newResult: ISceneQueryResult;
+                if (results.error) {
+                  newResult = { error: results.error.message };
+                } else if (results.errors) {
+                  newResult = { error: results.errors.toString() };
+                } else {
+                  newResult = {
+                    results: results.data.scrapeSingleScene.map((r) => ({
+                      ...r,
+                      resolved: true,
+                    })),
+                  };
+                }
+
+                pendingResults[id] = newResult;
+                resultCount++;
+
+                if (resultCount >= BATCH_SIZE) {
+                  flushResults();
+                }
+              } catch (err: unknown) {
+                pendingResults[id] = { error: errorToString(err) };
+                resultCount++;
+              }
+            }
+          });
+
+        await Promise.all(workers);
+        flushResults(); // Final flush
       }
     } catch (err) {
       Toast.error(err);
@@ -489,6 +575,126 @@ export const TaggerContext: React.FC = ({ children }) => {
     }
   }
 
+  async function doMassSave() {
+    setLoading(true);
+    try {
+      const targets = Object.entries(searchResults)
+        .map(([sceneId, res]) => {
+          if (res.error || !res.results) return null;
+          let target = res.results.find((r) => r.resolved);
+          if (!target && res.results.length === 1) target = res.results[0];
+          return target ? { sceneId, target } : null;
+        })
+        .filter((t) => t !== null) as { sceneId: string; target: IScrapedScene }[];
+
+      if (targets.length === 0) {
+        Toast.success("No scenes to save");
+        return;
+      }
+
+      const sceneIds = targets.map((t) => parseInt(t.sceneId, 10));
+      // Chunk ID query if too large? 50 IDs is fine.
+      const scenesQuery = await queryFindScenesByID(sceneIds);
+      if (!scenesQuery.data?.findScenes?.scenes) {
+        throw new Error("Failed to fetch original scenes");
+      }
+      const originalScenes = scenesQuery.data.findScenes.scenes;
+      const originalSceneMap = new Map(originalScenes.map((s) => [s.id, s]));
+
+      const inputs: GQL.SceneUpdateInput[] = [];
+      const fingerprintQueue: string[] = [];
+
+      for (const { sceneId, target } of targets) {
+        const stashScene = originalSceneMap.get(sceneId);
+        if (!stashScene) continue;
+
+        let imgData: string | undefined;
+        if (config.setCoverImage && target.image) {
+          try {
+            const img = await fetch(target.image, {
+              mode: "cors",
+              cache: "no-store",
+            });
+            if (img.status === 200) {
+              const blob = await img.blob();
+              if (blob.size > 0 && blob.size < 5000000) imgData = await blobToBase64(blob);
+            }
+          } catch (e) {
+            console.error("Failed to fetch image", e);
+          }
+        }
+
+        let tagIds = target.tags?.map((t) => t.stored_id).filter((id) => !!id) as string[] ?? [];
+        if (config.tagOperation === "merge") {
+          const existingIds = stashScene.tags.map(t => t.id);
+          tagIds = uniq(existingIds.concat(tagIds));
+        }
+
+        // Always merge performers? StashSearchResult logic suggests so.
+        const existingPerformerIds = stashScene.performers.map(p => p.id);
+        const newPerformerIds = target.performers?.map(p => p.stored_id).filter(id => !!id) as string[] ?? [];
+        const performerIds = uniq(existingPerformerIds.concat(newPerformerIds));
+
+        let stashIds = stashScene.stash_ids ?? [];
+        const endpoint = currentSource?.sourceInput.stash_box_endpoint;
+        if (endpoint && target.remote_site_id) {
+          stashIds = stashIds.filter(s => s.endpoint !== endpoint);
+          stashIds.push({
+            endpoint,
+            stash_id: target.remote_site_id,
+            updated_at: new Date().toISOString()
+          });
+        }
+
+        const input: GQL.SceneUpdateInput = {
+          id: sceneId,
+          title: target.title ?? stashScene.title,
+          details: target.details ?? stashScene.details,
+          date: target.date ?? stashScene.date,
+          url: target.urls?.[0] ?? stashScene.urls?.[0],
+          code: target.code ?? stashScene.code,
+          director: target.director ?? stashScene.director,
+          studio_id: target.studio?.stored_id ?? stashScene.studio?.id,
+          tag_ids: tagIds,
+          performer_ids: performerIds,
+          stash_ids: stashIds,
+          cover_image: imgData,
+        };
+        inputs.push(input);
+        fingerprintQueue.push(sceneId);
+      }
+
+      const chunkSize = 5;
+      for (let i = 0; i < inputs.length; i += chunkSize) {
+        const chunk = inputs.slice(i, i + chunkSize);
+        await updateScenes({ variables: { input: chunk } });
+      }
+
+      const endpoint = currentSource?.sourceInput.stash_box_endpoint;
+      if (endpoint) {
+        setConfig({
+          ...config,
+          fingerprintQueue: {
+            ...config.fingerprintQueue,
+            [endpoint]: uniq([...(config.fingerprintQueue[endpoint] ?? []), ...fingerprintQueue]),
+          },
+        });
+      }
+
+      setSearchResults((prev) => {
+        const next = { ...prev };
+        inputs.forEach((i) => delete next[i.id!]);
+        return next;
+      });
+
+      Toast.success(`Saved ${inputs.length} scenes`);
+    } catch (e) {
+      Toast.error(e);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function saveScene(
     sceneCreateInput: GQL.SceneUpdateInput,
     queueFingerprint: boolean
@@ -528,6 +734,61 @@ export const TaggerContext: React.FC = ({ children }) => {
     });
 
     return newSearchResults;
+  }
+
+  async function doMassCreateTags() {
+    setLoading(true);
+    try {
+      const tagsToCreate = new Map<string, GQL.TagCreateInput>();
+      const tagMap = new Map<string, GQL.ScrapedTag[]>();
+
+      Object.values(searchResults).forEach((res) => {
+        res.results?.forEach((scene) => {
+          scene.tags?.forEach((t) => {
+            if (!t.stored_id) {
+              if (!tagsToCreate.has(t.name)) {
+                tagsToCreate.set(t.name, { name: t.name });
+              }
+              const list = tagMap.get(t.name) ?? [];
+              list.push(t);
+              tagMap.set(t.name, list);
+            }
+          });
+        });
+      });
+
+      if (tagsToCreate.size === 0) {
+        Toast.success("No new tags to create");
+        return;
+      }
+
+      const inputs = Array.from(tagsToCreate.values());
+      const result = await createTags({ variables: { input: inputs } });
+      const createdTags = result.data?.tagsCreate;
+
+      if (createdTags) {
+        setSearchResults(
+          mapResults((r) => {
+            if (!r.tags) return r;
+            return {
+              ...r,
+              tags: r.tags.map((t) => {
+                const created = createdTags.find((ct: any) => ct?.name === t.name);
+                if (created) {
+                  return { ...t, stored_id: created.id };
+                }
+                return t;
+              }),
+            };
+          })
+        );
+        Toast.success(`Created ${createdTags.length} tags`);
+      }
+    } catch (e) {
+      Toast.error(e);
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function createNewTag(
@@ -577,6 +838,68 @@ export const TaggerContext: React.FC = ({ children }) => {
       Toast.error(e);
     }
   }
+  async function doMassCreatePerformers() {
+    setLoading(true);
+    try {
+      const performersToCreate = new Map<string, GQL.PerformerCreateInput>();
+      const performerMap = new Map<string, GQL.ScrapedPerformer[]>();
+
+      Object.values(searchResults).forEach((res) => {
+        res.results?.forEach((scene) => {
+          scene.performers?.forEach((p) => {
+            if (!p.stored_id) {
+              const key = p.name; // Use name as key
+              if (!performersToCreate.has(key)) {
+                performersToCreate.set(key, {
+                  name: p.name,
+                  gender: p.gender ? stringToGender(p.gender) : undefined,
+                  urls: p.urls ?? undefined,
+                  birthdate: (p.birthdate || undefined) as any,
+                  image: (p.image || undefined) as any
+                  // Add more fields if available/needed
+                });
+              }
+            }
+          });
+        });
+      });
+
+      if (performersToCreate.size === 0) {
+        Toast.success("No new performers to create");
+        return;
+      }
+
+      const inputs = Array.from(performersToCreate.values());
+      const result = await createPerformers({ variables: { input: inputs } });
+      const createdPerformers = result.data?.performersCreate;
+
+      if (createdPerformers) {
+        setSearchResults(
+          mapResults((r) => {
+            if (!r.performers) return r;
+            return {
+              ...r,
+              performers: r.performers.map((p) => {
+                const created = createdPerformers.find(
+                  (cp: any) => cp?.name === p.name
+                );
+                if (created) {
+                  return { ...p, stored_id: created.id };
+                }
+                return p;
+              }),
+            };
+          })
+        );
+        Toast.success(`Created ${createdPerformers.length} performers`);
+      }
+    } catch (e) {
+      Toast.error(e);
+    } finally {
+      setLoading(false);
+    }
+  }
+
 
   async function createNewPerformer(
     performer: GQL.ScrapedPerformer,
@@ -786,9 +1109,9 @@ export const TaggerContext: React.FC = ({ children }) => {
             studio:
               r.remote_site_id === stashID
                 ? {
-                    ...r.studio,
-                    stored_id: studioID,
-                  }
+                  ...r.studio,
+                  stored_id: studioID,
+                }
                 : r.studio,
           };
         });
@@ -851,9 +1174,9 @@ export const TaggerContext: React.FC = ({ children }) => {
             studio:
               r.studio.remote_site_id === studio.remote_site_id
                 ? {
-                    ...r.studio,
-                    stored_id: studioID,
-                  }
+                  ...r.studio,
+                  stored_id: studioID,
+                }
                 : r.studio,
           };
         });
@@ -911,6 +1234,145 @@ export const TaggerContext: React.FC = ({ children }) => {
     }
   }
 
+  async function doMassCreateStudios() {
+    setLoading(true);
+    try {
+      const studiosToCreate = new Map<string, GQL.StudioCreateInput>();
+      const studioMap = new Map<string, GQL.ScrapedStudio[]>();
+
+      Object.values(searchResults).forEach((res) => {
+        res.results?.forEach((scene) => {
+          if (scene.studio && !scene.studio.stored_id) {
+            const key = scene.studio.name;
+            if (!studiosToCreate.has(key)) {
+              studiosToCreate.set(key, {
+                name: scene.studio.name,
+                url: scene.studio.url ?? undefined, // use url for now if urls not available on scrape? scrapedStudio has url/urls?
+                // scrapedStudio has `url` and `image` usually.
+                // StudioCreateInput has `urls`.
+                // I should use `urls: scene.studio.url ? [scene.studio.url] : undefined` if strictly converting.
+                // But let's check ScrapedStudio definition.
+                // For now I'll use casting to be safe.
+                image: (scene.studio.image || undefined) as any,
+              });
+            }
+          }
+        });
+      });
+
+      if (studiosToCreate.size === 0) {
+        Toast.success("No new studios to create");
+        return;
+      }
+
+      const inputs = Array.from(studiosToCreate.values());
+      const result = await createStudios({ variables: { input: inputs } });
+      const createdStudios = result.data?.studiosCreate;
+
+      if (createdStudios) {
+        setSearchResults(
+          mapResults((r) => {
+            if (!r.studio) return r;
+            const created = createdStudios.find((cs: any) => cs?.name === r.studio?.name);
+            if (created) {
+              // Handle parent hierarchy if needed, but for now simple match
+              let resultStudio = r.studio;
+              if (resultStudio.name === created.name) {
+                return { ...r, studio: { ...r.studio, stored_id: created.id } };
+              }
+            }
+            return r;
+          })
+        );
+        Toast.success(`Created ${createdStudios.length} studios`);
+      }
+    } catch (e) {
+      Toast.error(e);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // Compute pending counts
+  const pendingTagsCount = React.useMemo(() => {
+    const tagSet = new Set<string>();
+    Object.values(searchResults).forEach((res) => {
+      res.results?.forEach((scene) => {
+        scene.tags?.forEach((t) => {
+          if (!t.stored_id) tagSet.add(t.name);
+        });
+      });
+    });
+    return tagSet.size;
+  }, [searchResults]);
+
+  const pendingPerformersCount = React.useMemo(() => {
+    const performerSet = new Set<string>();
+    Object.values(searchResults).forEach((res) => {
+      res.results?.forEach((scene) => {
+        scene.performers?.forEach((p) => {
+          if (!p.stored_id) performerSet.add(p.name);
+        });
+      });
+    });
+    return performerSet.size;
+  }, [searchResults]);
+
+  const pendingStudiosCount = React.useMemo(() => {
+    const studioSet = new Set<string>();
+    Object.values(searchResults).forEach((res) => {
+      res.results?.forEach((scene) => {
+        if (scene.studio && !scene.studio.stored_id) {
+          studioSet.add(scene.studio.name);
+        }
+      });
+    });
+    return studioSet.size;
+  }, [searchResults]);
+
+  const pendingScenesCount = React.useMemo(() => {
+    let count = 0;
+    Object.values(searchResults).forEach((res) => {
+      if (res.results && res.results.length > 0) {
+        count++;
+      }
+    });
+    return count;
+  }, [searchResults]);
+
+  async function doRunAll() {
+    await doMassCreateTags();
+    await doMassCreatePerformers();
+    await doMassCreateStudios();
+    await doMassSave();
+  }
+
+  async function doSearchAll(scenes: GQL.SlimSceneDataFragment[], globalOverride: string) {
+    if (!globalOverride || scenes.length === 0) return;
+    setLoading(true);
+    try {
+      for (const scene of scenes) {
+        // Calculate per-scene query like TaggerScene does
+        const { paths, file: basename } = parsePath(objectPath(scene));
+        const defaultQuery = prepareQueryString(
+          scene,
+          paths,
+          basename,
+          config?.mode ?? "auto",
+          config?.blacklist ?? []
+        );
+        // Append the global override to each scene's default query
+        const combinedQuery = `${defaultQuery} ${globalOverride}`;
+        await doSceneQuery(scene.id, combinedQuery);
+      }
+      Toast.success(`Searched ${scenes.length} scenes`);
+    } catch (e) {
+      Toast.error(e);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <TaggerStateContext.Provider
       value={{
@@ -938,6 +1400,16 @@ export const TaggerContext: React.FC = ({ children }) => {
         updateTag: updateExistingTag,
         resolveScene,
         saveScene,
+        doMassSave,
+        doMassCreateTags,
+        doMassCreatePerformers,
+        doMassCreateStudios,
+        doRunAll,
+        doSearchAll,
+        pendingTagsCount,
+        pendingPerformersCount,
+        pendingStudiosCount,
+        pendingScenesCount,
         submitFingerprints,
         pendingFingerprints: getPendingFingerprints(),
       }}

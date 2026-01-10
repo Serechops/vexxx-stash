@@ -116,6 +116,7 @@ interface ITaggerScene {
   showLightboxImage: (imagePath: string) => void;
   queue?: SceneQueue;
   index?: number;
+  queryOverride?: string;
 }
 
 export const TaggerScene: React.FC<PropsWithChildren<ITaggerScene>> = ({
@@ -129,9 +130,10 @@ export const TaggerScene: React.FC<PropsWithChildren<ITaggerScene>> = ({
   showLightboxImage,
   queue,
   index,
+  queryOverride,
 }) => {
   const { config } = useContext(TaggerStateContext);
-  const [queryString, setQueryString] = useState<string>("");
+  const [queryString, setQueryString] = useState<string>(queryOverride ?? "");
   const [queryLoading, setQueryLoading] = useState(false);
 
   const { paths, file: basename } = parsePath(objectPath(scene));
@@ -171,22 +173,29 @@ export const TaggerScene: React.FC<PropsWithChildren<ITaggerScene>> = ({
   function renderQueryForm() {
     if (!doSceneQuery) return;
 
+    // Append override to existing query rather than replacing
+    const baseQuery = queryString || defaultQueryString;
+    const displayValue = queryOverride ? `${baseQuery} ${queryOverride}` : baseQuery;
+    const isOverridden = !!queryOverride;
+
     return (
       <InputGroup>
         <InputGroup.Prepend>
           <InputGroup.Text>
             <FormattedMessage id="component_tagger.noun_query" />
+            {isOverridden && <span className="ml-1 text-info">(Global)</span>}
           </InputGroup.Text>
         </InputGroup.Prepend>
         <Form.Control
           className="text-input"
-          value={queryString || defaultQueryString}
+          value={displayValue}
           onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
             setQueryString(e.currentTarget.value);
           }}
           onKeyPress={(e: React.KeyboardEvent<HTMLInputElement>) =>
             e.key === "Enter" && query()
           }
+          style={isOverridden ? { backgroundColor: '#2a4a5e' } : undefined}
         />
         <InputGroup.Append>
           <OperationButton
@@ -226,10 +235,10 @@ export const TaggerScene: React.FC<PropsWithChildren<ITaggerScene>> = ({
   function onScrubberClick(timestamp: number) {
     const link = queue
       ? queue.makeLink(scene.id, {
-          sceneIndex: index,
-          continue: cont,
-          start: timestamp,
-        })
+        sceneIndex: index,
+        continue: cont,
+        start: timestamp,
+      })
       : `/scenes/${scene.id}?t=${timestamp}`;
 
     history.push(link);
@@ -255,6 +264,10 @@ export const TaggerScene: React.FC<PropsWithChildren<ITaggerScene>> = ({
           <Link to={url} className="scene-link overflow-hidden">
             <TruncatedText text={objectTitle(scene)} lineCount={2} />
           </Link>
+          {/* Full file path for identification */}
+          <div className="text-muted small mt-1" style={{ wordBreak: 'break-all' }}>
+            {objectPath(scene)}
+          </div>
         </div>
         <div className="col-md-6 my-1">
           <div>

@@ -98,6 +98,96 @@ func (r *mutationResolver) TagCreate(ctx context.Context, input TagCreateInput) 
 	return r.getTag(ctx, newTag.ID)
 }
 
+func (r *mutationResolver) TagsCreate(ctx context.Context, input []*TagCreateInput) ([]*models.Tag, error) {
+	type tagCreateData struct {
+		input     TagCreateInput
+		imageData []byte
+		newTag    models.Tag
+	}
+
+	var data []*tagCreateData
+	translator := changesetTranslator{
+		inputMap: getUpdateInputMap(ctx),
+	}
+
+	// Pre-process inputs and images
+	for _, i := range input {
+		d := &tagCreateData{input: *i}
+
+		d.newTag = models.NewTag()
+		d.newTag.Name = strings.TrimSpace(i.Name)
+		d.newTag.SortName = translator.string(i.SortName)
+		d.newTag.Aliases = models.NewRelatedStrings(stringslice.TrimSpace(i.Aliases))
+		d.newTag.Favorite = translator.bool(i.Favorite)
+		d.newTag.Description = translator.string(i.Description)
+		d.newTag.IgnoreAutoTag = translator.bool(i.IgnoreAutoTag)
+
+		var stashIDInputs models.StashIDInputs
+		for _, sid := range i.StashIds {
+			if sid != nil {
+				stashIDInputs = append(stashIDInputs, *sid)
+			}
+		}
+		d.newTag.StashIDs = models.NewRelatedStashIDs(stashIDInputs.ToStashIDs())
+
+		var err error
+		d.newTag.ParentIDs, err = translator.relatedIds(i.ParentIds)
+		if err != nil {
+			return nil, fmt.Errorf("converting parent tag ids for tag %s: %w", d.newTag.Name, err)
+		}
+
+		d.newTag.ChildIDs, err = translator.relatedIds(i.ChildIds)
+		if err != nil {
+			return nil, fmt.Errorf("converting child tag ids for tag %s: %w", d.newTag.Name, err)
+		}
+
+		if i.Image != nil {
+			d.imageData, err = utils.ProcessImageInput(ctx, *i.Image)
+			if err != nil {
+				return nil, fmt.Errorf("processing image for tag %s: %w", d.newTag.Name, err)
+			}
+		}
+
+		data = append(data, d)
+	}
+
+	// Transaction
+	if err := r.withTxn(ctx, func(ctx context.Context) error {
+		qb := r.repository.Tag
+		for _, d := range data {
+			if err := tag.ValidateCreate(ctx, d.newTag, qb); err != nil {
+				return err
+			}
+
+			if err := qb.Create(ctx, &d.newTag); err != nil {
+				return err
+			}
+
+			if len(d.imageData) > 0 {
+				if err := qb.UpdateImage(ctx, d.newTag.ID, d.imageData); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	// Post-hooks and refetch
+	var ret []*models.Tag
+	for _, d := range data {
+		r.hookExecutor.ExecutePostHooks(ctx, d.newTag.ID, hook.TagCreatePost, d.input, nil)
+		t, err := r.getTag(ctx, d.newTag.ID)
+		if err != nil {
+			return nil, err
+		}
+		ret = append(ret, t)
+	}
+
+	return ret, nil
+}
+
 func (r *mutationResolver) TagUpdate(ctx context.Context, input TagUpdateInput) (*models.Tag, error) {
 	tagID, err := strconv.Atoi(input.ID)
 	if err != nil {

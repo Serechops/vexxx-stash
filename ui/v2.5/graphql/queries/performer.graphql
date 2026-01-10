@@ -37,3 +37,9 @@ query FindPerformersForSelect(
     }
   }
 }
+
+mutation PerformersCreate($input: [PerformerCreateInput!]!) {
+  performersCreate(input: $input) {
+    ...PerformerData
+  }
+}

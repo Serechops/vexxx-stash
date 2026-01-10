@@ -370,6 +370,7 @@ type Mutation {
   galleryChapterDestroy(id: ID!): Boolean!
 
   performerCreate(input: PerformerCreateInput!): Performer
+  performersCreate(input: [PerformerCreateInput!]!): [Performer]
   performerUpdate(input: PerformerUpdateInput!): Performer
   performerDestroy(input: PerformerDestroyInput!): Boolean!
   performersDestroy(ids: [ID!]!): Boolean!
@@ -377,6 +378,7 @@ type Mutation {
   performerMerge(input: PerformerMergeInput!): Performer!
 
   studioCreate(input: StudioCreateInput!): Studio
+  studiosCreate(input: [StudioCreateInput!]!): [Studio]
   studioUpdate(input: StudioUpdateInput!): Studio
   studioDestroy(input: StudioDestroyInput!): Boolean!
   studiosDestroy(ids: [ID!]!): Boolean!
@@ -406,6 +408,7 @@ type Mutation {
   reorderSubGroups(input: ReorderSubGroupsInput!): Boolean!
 
   tagCreate(input: TagCreateInput!): Tag
+  tagsCreate(input: [TagCreateInput!]!): [Tag]
   tagUpdate(input: TagUpdateInput!): Tag
   tagDestroy(input: TagDestroyInput!): Boolean!
   tagsDestroy(ids: [ID!]!): Boolean!

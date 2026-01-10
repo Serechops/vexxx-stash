@@ -25,6 +25,8 @@ type Manager struct {
 
 	subscriptions       []*ManagerSubscription
 	updateThrottleLimit time.Duration
+
+	MaxConcurrentJobs int
 }
 
 // NewManager initialises and returns a new Manager.
@@ -32,6 +34,7 @@ func NewManager() *Manager {
 	ret := &Manager{
 		stop:                make(chan struct{}),
 		updateThrottleLimit: defaultThrottleLimit,
+		MaxConcurrentJobs:   3,
 	}
 
 	ret.notEmpty = sync.NewCond(&ret.mutex)
@@ -66,10 +69,8 @@ func (m *Manager) Add(ctx context.Context, description string, e JobExec) int {
 
 	m.queue = append(m.queue, &j)
 
-	if len(m.queue) == 1 {
-		// notify that there is now a job in the queue
-		m.notEmpty.Broadcast()
-	}
+	// notify that there is now a job in the queue
+	m.notEmpty.Broadcast()
 
 	m.notifyNewJob(&j)
 
@@ -130,6 +131,14 @@ func (m *Manager) getReadyJob() *Job {
 func (m *Manager) dispatcher() {
 	m.mutex.Lock()
 
+	// semaphore to limit concurrent jobs
+	// ensure at least 1
+	limit := m.MaxConcurrentJobs
+	if limit < 1 {
+		limit = 1
+	}
+	sem := make(chan struct{}, limit)
+
 	for {
 		// wait until we have something to process
 		j := m.getReadyJob()
@@ -148,17 +157,40 @@ func (m *Manager) dispatcher() {
 			}
 		}
 
-		done := m.dispatch(j.outerCtx, j)
-
-		// unlock the mutex and wait for the job to finish
+		// acquire semaphore
 		m.mutex.Unlock()
-		<-done
+		sem <- struct{}{}
 		m.mutex.Lock()
 
-		// remove the job from the queue
-		m.removeJob(j)
+		// re-check stop signal after blocking on semaphore
+		select {
+		case <-m.stop:
+			m.mutex.Unlock()
+			return
+		default:
+		}
 
-		// process next job
+		if j.Status != StatusReady {
+			<-sem // release
+			continue
+		}
+
+		// Mark as running immediately to prevent getReadyJob from picking it up again
+		// in the next iteration while the goroutine is starting.
+		// dispatch() will update the start time.
+		j.Status = StatusRunning
+
+		// dispatch in background
+		go func(job *Job) {
+			defer func() { <-sem }() // release semaphore on finish
+
+			done := m.dispatch(job.outerCtx, job)
+			<-done
+
+			m.mutex.Lock()
+			m.removeJob(job)
+			m.mutex.Unlock()
+		}(j)
 	}
 }
 
@@ -174,9 +206,13 @@ func (m *Manager) newProgress(j *Job) *Progress {
 
 func (m *Manager) dispatch(ctx context.Context, j *Job) (done chan struct{}) {
 	// assumes lock held
+	// or called from dispatcher with exclusive right to this job
+
+	m.mutex.Lock()
 	t := time.Now()
 	j.StartTime = &t
 	j.Status = StatusRunning
+	m.mutex.Unlock()
 
 	// create a cancellable context for the job that is not canceled by the outer context
 	ctx, cancelFunc := context.WithCancel(context.WithoutCancel(ctx))
@@ -185,7 +221,9 @@ func (m *Manager) dispatch(ctx context.Context, j *Job) (done chan struct{}) {
 	done = make(chan struct{})
 	go m.executeJob(ctx, j, done)
 
+	m.mutex.Lock()
 	m.notifyJobUpdate(j)
+	m.mutex.Unlock()
 
 	return
 }

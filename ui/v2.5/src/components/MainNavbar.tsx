@@ -87,8 +87,8 @@ const messages = defineMessages({
     defaultMessage: "Scene Tagger",
   },
   donate: {
-    id: "donate",
-    defaultMessage: "Donate",
+    id: "patreon",
+    defaultMessage: "Patreon",
   },
   statistics: {
     id: "statistics",
@@ -299,7 +299,7 @@ export const MainNavbar: React.FC = () => {
       <>
         <Nav.Link
           className="nav-utility"
-          href="https://opencollective.com/stashapp"
+          href="https://www.patreon.com/c/Creat1veB1te"
           target="_blank"
           onClick={handleDismiss}
         >

@@ -9,8 +9,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import moment from "moment/min/moment-with-locales";
 import React, { useEffect, useState } from "react";
-import { Button, Card, ProgressBar } from "react-bootstrap";
-import { FormattedMessage, useIntl } from "react-intl";
+import { useIntl } from "react-intl";
 import { Icon } from "src/components/Shared/Icon";
 import {
   mutateStopJob,
@@ -39,7 +38,7 @@ const Task: React.FC<IJob> = ({ job }) => {
   const [className, setClassName] = useState("");
 
   useEffect(() => {
-    setTimeout(() => setClassName("fade-in"));
+    requestAnimationFrame(() => setClassName("fade-in"));
   }, []);
 
   useEffect(() => {
@@ -48,12 +47,11 @@ const Task: React.FC<IJob> = ({ job }) => {
       job.status === GQL.JobStatus.Failed ||
       job.status === GQL.JobStatus.Finished
     ) {
-      // fade out around 10 seconds
       setTimeout(() => {
         setClassName("fade-out");
-      }, 9800);
+      }, 4500);
     }
-  }, [job]);
+  }, [job.status]);
 
   async function stopJob() {
     setStopping(true);
@@ -68,37 +66,31 @@ const Task: React.FC<IJob> = ({ job }) => {
     );
   }
 
-  function getStatusClass() {
+  function getStatusColorClass() {
     switch (job.status) {
-      case GQL.JobStatus.Ready:
-        return "ready";
       case GQL.JobStatus.Running:
-        return "running";
-      case GQL.JobStatus.Stopping:
-        return "stopping";
+        return "status-running";
       case GQL.JobStatus.Finished:
-        return "finished";
-      case GQL.JobStatus.Cancelled:
-        return "cancelled";
+        return "status-done";
       case GQL.JobStatus.Failed:
-        return "failed";
+      case GQL.JobStatus.Cancelled:
+        return "status-failed";
+      default:
+        return "status-queued";
     }
   }
 
   function getStatusIcon() {
     let icon = faCircle;
-    let iconClass = "";
+    let spin = false;
     switch (job.status) {
       case GQL.JobStatus.Ready:
         icon = faHourglassStart;
         break;
       case GQL.JobStatus.Running:
-        icon = faCog;
-        iconClass = "fa-spin";
-        break;
       case GQL.JobStatus.Stopping:
         icon = faCog;
-        iconClass = "fa-spin";
+        spin = true;
         break;
       case GQL.JobStatus.Finished:
         icon = faCheck;
@@ -111,96 +103,58 @@ const Task: React.FC<IJob> = ({ job }) => {
         break;
     }
 
-    return <Icon icon={icon} className={`fa-fw ${iconClass}`} />;
+    return (
+      <span className={`job-icon ${getStatusColorClass()}`}>
+        <Icon icon={icon} className={spin ? "fa-spin" : ""} />
+      </span>
+    );
   }
 
-  function maybeRenderProgress() {
-    if (
-      job.status === GQL.JobStatus.Running &&
-      job.progress !== undefined &&
-      job.progress !== null
-    ) {
-      const progress = job.progress * 100;
-      return (
-        <ProgressBar
-          animated
-          now={progress}
-          label={`${progress.toFixed(0)}%`}
-        />
-      );
-    }
-  }
+  const progress = (job.progress ?? 0) * 100;
 
-  function maybeRenderETA() {
-    if (
-      job.status === GQL.JobStatus.Running &&
-      job.startTime !== null &&
-      job.startTime !== undefined &&
-      job.progress !== null &&
-      job.progress !== undefined &&
-      job.progress > 0
-    ) {
-      const now = new Date();
-      const start = new Date(job.startTime);
-      const nowMS = now.valueOf();
-      const startMS = start.valueOf();
-      const estimatedLength = (nowMS - startMS) / job.progress;
-      const estLenStr = moment.duration(estimatedLength).humanize();
-      return (
-        <span className="job-eta">
-          <FormattedMessage id="eta" />: {estLenStr}
-        </span>
-      );
-    }
-  }
+  return (
+    <div className={`job-card ${className}`}>
+      <div className="job-header">
+        <div className="job-title-row">
+          {getStatusIcon()}
+          <span title={job.description}>
+            {job.description}
+          </span>
+        </div>
+        <button
+          className="btn-stop"
+          onClick={stopJob}
+          disabled={!canStop()}
+          title="Stop Job"
+        >
+          <Icon icon={faTimes} />
+        </button>
+      </div>
 
-  function maybeRenderSubTasks() {
-    if (
-      job.status === GQL.JobStatus.Running ||
-      job.status === GQL.JobStatus.Stopping
-    ) {
-      return (
-        <div>
-          {/* eslint-disable react/no-array-index-key */}
-          {(job.subTasks ?? []).map((t, i) => (
+      <div className="job-progress-row">
+        <div className="progress">
+          <div
+            className="progress-bar"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+        {job.status === GQL.JobStatus.Running && job.startTime && (
+          <span className="eta">{moment(job.startTime).fromNow(true)}</span>
+        )}
+      </div>
+
+      {(job.subTasks && job.subTasks.length > 0) || job.error ? (
+        <div className="job-terminal">
+          {job.subTasks?.map((t, i) => (
+            // eslint-disable-next-line react/no-array-index-key
             <div className="job-subtask" key={i}>
               {t}
             </div>
           ))}
-          {/* eslint-enable react/no-array-index-key */}
+          {job.error && <div className="job-error">Error: {job.error}</div>}
         </div>
-      );
-    }
-
-    if (job.status === GQL.JobStatus.Failed && job.error) {
-      return <div className="job-error">{job.error}</div>;
-    }
-  }
-
-  return (
-    <li className={`job ${className}`}>
-      <div>
-        <Button
-          className="minimal stop"
-          size="sm"
-          onClick={() => stopJob()}
-          disabled={!canStop()}
-        >
-          <Icon icon={faTimes} />
-        </Button>
-        <div className={`job-status ${getStatusClass()}`}>
-          <div className="job-description">
-            <div>
-              {getStatusIcon()}
-              <span>{job.description}</span>
-            </div>
-            {maybeRenderETA()}
-          </div>
-          <div>{maybeRenderProgress()}</div>
-          {maybeRenderSubTasks()}
-        </div>
-      </div>
-    </li>
+      ) : null}
+    </div>
   );
 };
 
@@ -236,15 +190,14 @@ export const JobTable: React.FC = () => {
 
     switch (event.type) {
       case GQL.JobStatusUpdateType.Add:
-        // add to the end of the queue
         setQueue((q) => q.concat([event.job]));
         break;
       case GQL.JobStatusUpdateType.Remove:
-        // update the job then remove after a timeout
         updateJob();
+        // keep it visible for a moment before removing
         setTimeout(() => {
           setQueue((q) => q.filter((j) => j.id !== event.job.id));
-        }, 10000);
+        }, 5000);
         break;
       case GQL.JobStatusUpdateType.Update:
         updateJob();
@@ -252,18 +205,21 @@ export const JobTable: React.FC = () => {
     }
   }, [jobsSubscribe.data]);
 
+  if (!queue?.length) {
+    return (
+      <div className="job-table-container">
+        <div className="empty-queue-message">
+          {intl.formatMessage({ id: "config.tasks.empty_queue" })}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <Card className="job-table">
-      <ul>
-        {!queue?.length ? (
-          <span className="empty-queue-message">
-            {intl.formatMessage({ id: "config.tasks.empty_queue" })}
-          </span>
-        ) : undefined}
-        {(queue ?? []).map((j) => (
-          <Task job={j} key={j.id} />
-        ))}
-      </ul>
-    </Card>
+    <div className="job-table-container">
+      {(queue ?? []).map((j) => (
+        <Task job={j} key={j.id} />
+      ))}
+    </div>
   );
 };

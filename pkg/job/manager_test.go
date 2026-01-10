@@ -44,6 +44,7 @@ func (e *testExec) Execute(ctx context.Context, p *Progress) error {
 
 func TestAdd(t *testing.T) {
 	m := NewManager()
+	m.MaxConcurrentJobs = 1
 
 	const jobName = "test job"
 	exec1 := newTestExec(make(chan struct{}))
@@ -128,6 +129,7 @@ func TestAdd(t *testing.T) {
 
 func TestCancel(t *testing.T) {
 	m := NewManager()
+	m.MaxConcurrentJobs = 1
 
 	// add two jobs
 	const jobName = "test job"
@@ -196,6 +198,7 @@ func TestCancel(t *testing.T) {
 
 func TestCancelAll(t *testing.T) {
 	m := NewManager()
+	m.MaxConcurrentJobs = 1
 
 	// add two jobs
 	const jobName = "test job"

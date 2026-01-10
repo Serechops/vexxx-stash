@@ -53,17 +53,18 @@
     }
 
     &.disabled {
+
       .custom-switch,
       h3 {
         opacity: 0.5;
       }
     }
 
-    > div:first-child {
+    >div:first-child {
       flex-grow: 0;
     }
 
-    > div:last-child {
+    >div:last-child {
       min-width: 100px;
       text-align: right;
 
@@ -90,7 +91,7 @@
   }
 
   .setting-group {
-    &.collapsible > .setting {
+    &.collapsible>.setting {
       cursor: pointer;
     }
 
@@ -107,12 +108,12 @@
       border-bottom: 1px solid #000;
     }
 
-    > .setting:first-child {
+    >.setting:first-child {
       border-bottom: none;
       padding-bottom: 0;
     }
 
-    > .setting:not(:first-child),
+    >.setting:not(:first-child),
     .collapsible-section .setting {
       margin-left: 2.5rem;
       margin-right: 1.5rem;
@@ -133,7 +134,7 @@
       flex-wrap: wrap;
       width: auto;
 
-      & > div:last-child {
+      &>div:last-child {
         margin-left: auto;
       }
     }
@@ -155,7 +156,7 @@
     padding: 0;
   }
 
-  .stash-row .setting > div:last-child {
+  .stash-row .setting>div:last-child {
     text-align: left;
   }
 }
@@ -163,7 +164,7 @@
 #tasks-panel {
   @media (min-width: 576px) and (min-height: 600px) {
     .tasks-panel-queue {
-      background-color: #202b33;
+      background-color: #09090b; // Zinc-950
       margin-top: -1rem;
       padding-bottom: 0.25rem;
       padding-top: 1rem;
@@ -264,67 +265,192 @@
   justify-content: space-between;
 }
 
-.job-table.card {
-  background-color: $card-bg;
-  height: 10em;
-  margin-bottom: 30px;
-  overflow-y: auto;
-  padding: 0.5rem 15px;
+.job-table-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 
-  ul {
-    list-style: none;
-    padding-inline-start: 0;
+  .empty-queue-message {
+    color: $text-muted;
+    font-style: italic;
+    padding: 1rem;
+    text-align: center;
   }
 
-  li {
-    opacity: 0;
-    transition: opacity 0.25s;
+  .job-card {
+    background-color: #18181b; // Zinc-900 hardcodded for safety if $card-bg is missing
+    background-color: $card-bg;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+      0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 0.75rem;
+    position: relative;
+    transition: all 0.2s ease-in-out;
+
+    &:hover {
+      border-color: rgba(255, 255, 255, 0.1);
+      transform: translateY(-1px);
+    }
 
     &.fade-in {
-      opacity: 1;
+      animation: fadeIn 0.3s ease-out;
     }
 
-    > div {
-      align-items: flex-start;
-      display: flex;
+    &.fade-out {
+      opacity: 0.5;
+      pointer-events: none;
     }
   }
 
-  .job-status {
-    width: 100%;
-  }
-
-  .job-description {
+  .job-header {
+    align-items: center;
     display: flex;
     justify-content: space-between;
+    margin-bottom: 0.5rem;
   }
 
-  .stop:not(:disabled),
-  .stopping .fa-icon,
-  .cancelled .fa-icon {
-    color: $danger;
+  .job-title-row {
+    align-items: center;
+    display: flex;
+    gap: 0.5rem;
+
+    .job-icon {
+      font-size: 0.875rem;
+    }
+
+    span {
+      font-weight: 500;
+      white-space: nowrap;
+    }
   }
 
-  .running .fa-icon,
-  .finished .fa-icon {
-    color: $success;
+  // State Colors
+  .status-running {
+    color: #3b82f6; // Blue-500
   }
 
-  .failed .fa-icon {
-    color: $danger;
+  .status-queued {
+    color: #a1a1aa; // Zinc-400
   }
 
-  .ready .fa-icon {
-    color: $warning;
+  .status-failed {
+    color: #ef4444; // Red-500
   }
 
-  .cancelled,
-  .finished {
+  .status-done {
+    color: #22c55e; // Green-500
+  }
+
+  .job-progress-row {
+    align-items: center;
+    display: flex;
+    font-size: 0.75rem;
+    justify-content: space-between;
+    margin-bottom: 0.25rem;
+    margin-top: 0.25rem;
+
+    .progress {
+      background-color: rgba(255, 255, 255, 0.1);
+      border-radius: 999px;
+      flex-grow: 1;
+      height: 6px;
+      margin: 0 0.5rem;
+      overflow: hidden;
+
+      .progress-bar {
+        background-color: #3b82f6; // Blue-500
+        transition: width 0.3s ease;
+      }
+    }
+
+    .eta {
+      color: $text-muted;
+      font-family: monospace;
+      white-space: nowrap;
+    }
+  }
+
+  .job-terminal {
+    background-color: #09090b; // Zinc-950
+    border: 1px solid #27272a; // Zinc-800
+    border-radius: 0.25rem;
+    color: #d4d4d8; // Zinc-300
+    font-family: "JetBrains Mono", "Fira Code", monospace;
+    font-size: 0.7rem;
+    margin-top: 0.5rem;
+    max-height: 120px;
+    overflow-y: auto;
+    padding: 0.5rem;
+
+    &::-webkit-scrollbar {
+      height: 4px;
+      width: 4px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: #3f3f46;
+      border-radius: 2px;
+    }
+
+    .job-subtask {
+      border-bottom: 1px solid #18181b;
+      line-height: 1.4;
+      padding: 2px 0;
+
+      &:last-child {
+        border-bottom: none;
+      }
+
+      // Subtle animation for new lines
+      animation: slideIn 0.2s ease-out;
+    }
+
+    .job-error {
+      color: #f87171; // Red-400
+      font-weight: bold;
+    }
+  }
+
+  .btn-stop {
+    background: transparent;
+    border: none;
     color: $text-muted;
+    padding: 0;
+
+    &:hover {
+      color: #ef4444;
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+      opacity: 0.3;
+    }
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-5px);
   }
 
-  .job-error {
-    color: $danger;
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
   }
 }
 
@@ -333,6 +459,7 @@
 }
 
 #settings-dlna {
+
   .ip-whitelist-input,
   .interfaces-input {
     width: 12em;
@@ -398,6 +525,7 @@
   @include media-breakpoint-down(xs) {
     top: 30px;
   }
+
   @include media-breakpoint-up(sm) {
     bottom: 30px;
   }

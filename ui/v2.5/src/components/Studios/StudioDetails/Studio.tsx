@@ -49,6 +49,7 @@ import { AliasList } from "src/components/Shared/DetailsPage/AliasList";
 import { HeaderImage } from "src/components/Shared/DetailsPage/HeaderImage";
 import { goBackOrReplace } from "src/utils/history";
 import { OCounterButton } from "src/components/Shared/CountButton";
+import { StudioHero } from "./StudioHero";
 
 interface IProps {
   studio: GQL.StudioDataFragment;
@@ -438,6 +439,10 @@ const StudioPage: React.FC<IProps> = ({ studio, tabKey }) => {
         <title>{studio.name ?? intl.formatMessage({ id: "studio" })}</title>
       </Helmet>
 
+      {!isEditing && studio.scene_count > 0 && (
+        <StudioHero studio={studio} />
+      )}
+
       <div className={headerClassName}>
         <BackgroundImage
           imagePath={studio.image_path ?? undefined}
@@ -507,9 +512,9 @@ const StudioPage: React.FC<IProps> = ({ studio, tabKey }) => {
                   isNew={false}
                   isEditing={isEditing}
                   onToggleEdit={() => toggleEditing()}
-                  onSave={() => {}}
-                  onImageChange={() => {}}
-                  onClearImage={() => {}}
+                  onSave={() => { }}
+                  onImageChange={() => { }}
+                  onClearImage={() => { }}
                   onAutoTag={onAutoTag}
                   autoTagDisabled={studio.ignore_auto_tag}
                   onDelete={onDelete}

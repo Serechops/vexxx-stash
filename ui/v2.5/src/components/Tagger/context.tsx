@@ -747,7 +747,14 @@ export const TaggerContext: React.FC = ({ children }) => {
           scene.tags?.forEach((t) => {
             if (!t.stored_id) {
               if (!tagsToCreate.has(t.name)) {
-                tagsToCreate.set(t.name, { name: t.name });
+                const stash_ids: GQL.StashIdInput[] = [];
+                if (t.remote_site_id && currentSource?.sourceInput.stash_box_endpoint) {
+                  stash_ids.push({
+                    endpoint: currentSource.sourceInput.stash_box_endpoint,
+                    stash_id: t.remote_site_id!,
+                  });
+                }
+                tagsToCreate.set(t.name, { name: t.name, stash_ids });
               }
               const list = tagMap.get(t.name) ?? [];
               list.push(t);
@@ -850,12 +857,20 @@ export const TaggerContext: React.FC = ({ children }) => {
             if (!p.stored_id) {
               const key = p.name; // Use name as key
               if (!performersToCreate.has(key)) {
+                const stash_ids: GQL.StashIdInput[] = [];
+                if (p.remote_site_id && currentSource?.sourceInput.stash_box_endpoint) {
+                  stash_ids.push({
+                    endpoint: currentSource.sourceInput.stash_box_endpoint,
+                    stash_id: p.remote_site_id!,
+                  });
+                }
                 performersToCreate.set(key, {
                   name: p.name,
                   gender: p.gender ? stringToGender(p.gender) : undefined,
                   urls: p.urls ?? undefined,
                   birthdate: (p.birthdate || undefined) as any,
-                  image: (p.image || undefined) as any
+                  image: (p.image || undefined) as any,
+                  stash_ids,
                   // Add more fields if available/needed
                 });
               }
@@ -1245,6 +1260,13 @@ export const TaggerContext: React.FC = ({ children }) => {
           if (scene.studio && !scene.studio.stored_id) {
             const key = scene.studio.name;
             if (!studiosToCreate.has(key)) {
+              const stash_ids: GQL.StashIdInput[] = [];
+              if (scene.studio.remote_site_id && currentSource?.sourceInput.stash_box_endpoint) {
+                stash_ids.push({
+                  endpoint: currentSource.sourceInput.stash_box_endpoint,
+                  stash_id: scene.studio.remote_site_id!,
+                });
+              }
               studiosToCreate.set(key, {
                 name: scene.studio.name,
                 url: scene.studio.url ?? undefined, // use url for now if urls not available on scrape? scrapedStudio has url/urls?
@@ -1254,6 +1276,7 @@ export const TaggerContext: React.FC = ({ children }) => {
                 // But let's check ScrapedStudio definition.
                 // For now I'll use casting to be safe.
                 image: (scene.studio.image || undefined) as any,
+                stash_ids,
               });
             }
           }

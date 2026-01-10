@@ -276,13 +276,6 @@ export const Tagger: React.FC<ITaggerProps> = ({ scenes, queue }) => {
         id="mass-actions-dropdown"
         disabled={loading || loadingMulti}
       >
-        <Dropdown.Item
-          onClick={() => doSearchAll(scenes, globalQueryOverride)}
-          disabled={!fillAllEnabled || !globalQueryOverride}
-        >
-          Search All ({Object.keys(searchResults).length})
-        </Dropdown.Item>
-        <Dropdown.Divider />
         <Dropdown.Item onClick={() => doMassCreateTags()} disabled={pendingTagsCount === 0}>
           Create All Tags ({pendingTagsCount})
         </Dropdown.Item>

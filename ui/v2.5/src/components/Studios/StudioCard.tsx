@@ -214,7 +214,7 @@ export const StudioCard: React.FC<IProps> = PatchComponent(
 
     return (
       <GridCard
-        className={`studio-card zoom-${zoomIndex}`}
+        className={`studio-card zoom-${zoomIndex} hover:!scale-100 !transition-none`}
         url={`/studios/${studio.id}`}
         width={cardWidth}
         title={studio.name}

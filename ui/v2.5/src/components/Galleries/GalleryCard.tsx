@@ -223,7 +223,7 @@ export const GalleryCard = PatchComponent(
   (props: IGalleryCardProps) => {
     return (
       <GridCard
-        className={`gallery-card zoom-${props.zoomIndex}`}
+        className={`gallery-card zoom-${props.zoomIndex} hover:!scale-100 !transition-none`}
         url={`/galleries/${props.gallery.id}`}
         width={props.cardWidth}
         title={galleryTitle(props.gallery)}

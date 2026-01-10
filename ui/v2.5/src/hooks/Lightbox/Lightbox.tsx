@@ -19,6 +19,7 @@ import usePageVisibility from "../PageVisibility";
 import { useToast } from "../Toast";
 import { FormattedMessage, useIntl } from "react-intl";
 import { LightboxImage } from "./LightboxImage";
+import { LightboxFilmstrip } from "./LightboxFilmstrip";
 import { useConfigurationContext } from "../Config";
 import { Link } from "react-router-dom";
 import { OCounterButton } from "src/components/Scenes/SceneDetails/OCounterButton";
@@ -760,9 +761,9 @@ export const LightboxComponent: React.FC<IProps> = ({
     const pageHeader =
       page && pages
         ? intl.formatMessage(
-            { id: "dialogs.lightbox.page_header" },
-            { page, total: pages }
-          )
+          { id: "dialogs.lightbox.page_header" },
+          { page, total: pages }
+        )
         : "";
 
     return (
@@ -774,9 +775,8 @@ export const LightboxComponent: React.FC<IProps> = ({
               {chapterHeader()} {pageHeader}
             </span>
             {images.length > 1 ? (
-              <b ref={indicatorRef}>{`${currentIndex + 1} / ${
-                images.length
-              }`}</b>
+              <b ref={indicatorRef}>{`${currentIndex + 1} / ${images.length
+                }`}</b>
             ) : undefined}
           </div>
           <div className={CLASSNAME_RIGHT}>
@@ -983,6 +983,12 @@ export const LightboxComponent: React.FC<IProps> = ({
           </div>
           <div className={CLASSNAME_FOOTER_RIGHT}></div>
         </div>
+        <LightboxFilmstrip
+          visible={true}
+          images={images}
+          currentIndex={currentIndex}
+          onSelect={setIndex}
+        />
       </>
     );
   }

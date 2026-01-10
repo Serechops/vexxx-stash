@@ -150,7 +150,7 @@ export const ImageCard: React.FC<IImageCardProps> = PatchComponent(
 
     return (
       <GridCard
-        className={`image-card zoom-${props.zoomIndex}`}
+        className={`image-card zoom-${props.zoomIndex} hover:!scale-100 !transition-none`}
         url={`/images/${props.image.id}`}
         width={props.cardWidth}
         title={imageTitle(props.image)}

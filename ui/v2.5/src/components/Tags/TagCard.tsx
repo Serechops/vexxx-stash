@@ -238,7 +238,7 @@ export const TagCard: React.FC<IProps> = PatchComponent("TagCard", (props) => {
 
   return (
     <GridCard
-      className={`tag-card zoom-${zoomIndex}`}
+      className={`tag-card zoom-${zoomIndex} hover:!scale-100 !transition-none`}
       url={`/tags/${tag.id}`}
       width={cardWidth}
       title={<TagCardTitle {...props} />}

@@ -8,11 +8,13 @@ import * as GQL from "src/core/generated-graphql";
 import {
   queryFindPerformer,
   queryFindStudio,
+  queryFindTag,
   queryFindScenesByID,
   queryScrapeScene,
   queryScrapeSceneQuery,
   queryScrapeSceneQueryFragment,
   stashBoxSceneBatchQuery,
+  mutateStashBoxBatchPerformerTag,
   useListSceneScrapers,
   usePerformerCreate,
   usePerformersCreate,
@@ -32,7 +34,7 @@ import { ITaggerSource, SCRAPER_PREFIX, STASH_BOX_PREFIX } from "./constants";
 import { errorToString } from "src/utils";
 import { mergeStudioStashIDs } from "./utils";
 import { useTaggerConfig } from "./config";
-import { stringToGender } from "src/utils/gender";
+import { genderList, stringToGender } from "src/utils/gender";
 
 export interface ITaggerContextState {
   config: ITaggerConfig;
@@ -737,6 +739,7 @@ export const TaggerContext: React.FC = ({ children }) => {
   }
 
   async function doMassCreateTags() {
+    if (!config.setTags) return;
     setLoading(true);
     try {
       const tagsToCreate = new Map<string, GQL.TagCreateInput>();
@@ -745,16 +748,25 @@ export const TaggerContext: React.FC = ({ children }) => {
       Object.values(searchResults).forEach((res) => {
         res.results?.forEach((scene) => {
           scene.tags?.forEach((t) => {
-            if (!t.stored_id) {
-              if (!tagsToCreate.has(t.name)) {
-                const stash_ids: GQL.StashIdInput[] = [];
-                if (t.remote_site_id && currentSource?.sourceInput.stash_box_endpoint) {
+            if (!t.stored_id && t.name) {
+              const key = t.name;
+              let existing = tagsToCreate.get(key);
+
+              const stash_ids: GQL.StashIdInput[] = existing?.stash_ids || [];
+              if (t.remote_site_id && currentSource?.sourceInput.stash_box_endpoint) {
+                const hasId = stash_ids.some(id => id.stash_id === t.remote_site_id);
+                if (!hasId) {
                   stash_ids.push({
                     endpoint: currentSource.sourceInput.stash_box_endpoint,
                     stash_id: t.remote_site_id!,
                   });
                 }
-                tagsToCreate.set(t.name, { name: t.name, stash_ids });
+              }
+
+              if (!existing) {
+                tagsToCreate.set(key, { name: t.name, stash_ids });
+              } else {
+                existing.stash_ids = stash_ids;
               }
               const list = tagMap.get(t.name) ?? [];
               list.push(t);
@@ -851,28 +863,47 @@ export const TaggerContext: React.FC = ({ children }) => {
       const performersToCreate = new Map<string, GQL.PerformerCreateInput>();
       const performerMap = new Map<string, GQL.ScrapedPerformer[]>();
 
+      const performerGenders = config.performerGenders || genderList;
+
       Object.values(searchResults).forEach((res) => {
         res.results?.forEach((scene) => {
           scene.performers?.forEach((p) => {
-            if (!p.stored_id) {
-              const key = p.name; // Use name as key
-              if (!performersToCreate.has(key)) {
-                const stash_ids: GQL.StashIdInput[] = [];
-                if (p.remote_site_id && currentSource?.sourceInput.stash_box_endpoint) {
+            if (!p.stored_id && p.name) {
+              const gender = p.gender ? stringToGender(p.gender, true) : undefined;
+              if (gender && !performerGenders.includes(gender)) return;
+
+              const key = p.name!; // Use name as key
+              let existing = performersToCreate.get(key);
+
+              const stash_ids: GQL.StashIdInput[] = existing?.stash_ids || [];
+              if (p.remote_site_id && currentSource?.sourceInput.stash_box_endpoint) {
+                // Check if we already have this stash_id
+                const hasId = stash_ids.some(id => id.stash_id === p.remote_site_id);
+                if (!hasId) {
                   stash_ids.push({
                     endpoint: currentSource.sourceInput.stash_box_endpoint,
                     stash_id: p.remote_site_id!,
                   });
                 }
-                performersToCreate.set(key, {
-                  name: p.name,
+              }
+
+              if (!existing) {
+                existing = {
+                  name: p.name!,
                   gender: p.gender ? stringToGender(p.gender) : undefined,
                   urls: p.urls ?? undefined,
                   birthdate: (p.birthdate || undefined) as any,
                   image: (p.image || undefined) as any,
                   stash_ids,
-                  // Add more fields if available/needed
-                });
+                };
+                performersToCreate.set(key, existing);
+              } else {
+                // Update existing with better data if available
+                if (!existing.gender && p.gender) existing.gender = stringToGender(p.gender);
+                if (!existing.birthdate && p.birthdate) existing.birthdate = p.birthdate as any;
+                if (!existing.image && p.image) existing.image = p.image as any;
+                if ((!existing.urls || existing.urls.length === 0) && p.urls) existing.urls = p.urls;
+                existing.stash_ids = stash_ids;
               }
             }
           });
@@ -907,6 +938,29 @@ export const TaggerContext: React.FC = ({ children }) => {
           })
         );
         Toast.success(`Created ${createdPerformers.length} performers`);
+
+        // Trigger batch update for created performers to ensure they are identified/populated
+        const endpoint = currentSource?.sourceInput.stash_box_endpoint;
+        if (endpoint && stashConfig) {
+          const endpointIndex = stashConfig.general.stashBoxes.findIndex(
+            (s) => s.endpoint === endpoint
+          );
+
+          if (endpointIndex !== -1) {
+            const createdIds = createdPerformers.map((p: any) => p.id);
+            try {
+              await mutateStashBoxBatchPerformerTag({
+                ids: createdIds,
+                endpoint: endpointIndex,
+                refresh: true,
+                exclude_fields: config.excludedPerformerFields ?? [],
+                createParent: false,
+              });
+            } catch (err) {
+              console.error("Failed to trigger batch performer update", err);
+            }
+          }
+        }
       }
     } catch (e) {
       Toast.error(e);
@@ -1212,9 +1266,33 @@ export const TaggerContext: React.FC = ({ children }) => {
     const hasRemoteID = !!tag.remote_site_id;
 
     try {
+      const inputCopy = { ...updateInput };
+
+      // Merge stash_ids if we can find the existing tag
+      try {
+        const queryResult = await queryFindTag(updateInput.id);
+        if (queryResult.data.findTag) {
+          const existingIds = queryResult.data.findTag.stash_ids || [];
+          const newIds = inputCopy.stash_ids || [];
+
+          inputCopy.stash_ids = existingIds.map(e => ({
+            endpoint: e.endpoint,
+            stash_id: e.stash_id,
+          }));
+
+          newIds.forEach(newId => {
+            if (!inputCopy.stash_ids!.some(e => e.endpoint === newId.endpoint && e.stash_id === newId.stash_id)) {
+              inputCopy.stash_ids!.push(newId);
+            }
+          });
+        }
+      } catch (err) {
+        console.error("Failed to fetch existing tag for stash_id merge", err);
+      }
+
       await updateTag({
         variables: {
-          input: updateInput,
+          input: inputCopy,
         },
       });
 
@@ -1257,27 +1335,34 @@ export const TaggerContext: React.FC = ({ children }) => {
 
       Object.values(searchResults).forEach((res) => {
         res.results?.forEach((scene) => {
-          if (scene.studio && !scene.studio.stored_id) {
+          if (scene.studio && !scene.studio.stored_id && scene.studio.name) {
             const key = scene.studio.name;
-            if (!studiosToCreate.has(key)) {
-              const stash_ids: GQL.StashIdInput[] = [];
-              if (scene.studio.remote_site_id && currentSource?.sourceInput.stash_box_endpoint) {
+            let existing = studiosToCreate.get(key);
+
+            const stash_ids: GQL.StashIdInput[] = existing?.stash_ids || [];
+            if (scene.studio.remote_site_id && currentSource?.sourceInput.stash_box_endpoint) {
+              const hasId = stash_ids.some(id => id.stash_id === scene.studio!.remote_site_id);
+              if (!hasId) {
                 stash_ids.push({
                   endpoint: currentSource.sourceInput.stash_box_endpoint,
                   stash_id: scene.studio.remote_site_id!,
                 });
               }
-              studiosToCreate.set(key, {
+            }
+
+            if (!existing) {
+              existing = {
                 name: scene.studio.name,
-                url: scene.studio.url ?? undefined, // use url for now if urls not available on scrape? scrapedStudio has url/urls?
-                // scrapedStudio has `url` and `image` usually.
-                // StudioCreateInput has `urls`.
-                // I should use `urls: scene.studio.url ? [scene.studio.url] : undefined` if strictly converting.
-                // But let's check ScrapedStudio definition.
-                // For now I'll use casting to be safe.
+                url: scene.studio.url ?? undefined,
                 image: (scene.studio.image || undefined) as any,
                 stash_ids,
-              });
+              };
+              studiosToCreate.set(key, existing);
+            } else {
+              // Update existing with better data
+              if (!existing.url && scene.studio.url) existing.url = scene.studio.url;
+              if (!existing.image && scene.studio.image) existing.image = scene.studio.image as any;
+              existing.stash_ids = stash_ids;
             }
           }
         });
@@ -1319,10 +1404,11 @@ export const TaggerContext: React.FC = ({ children }) => {
   // Compute pending counts
   const pendingTagsCount = React.useMemo(() => {
     const tagSet = new Set<string>();
+    if (!config.setTags) return 0;
     Object.values(searchResults).forEach((res) => {
       res.results?.forEach((scene) => {
         scene.tags?.forEach((t) => {
-          if (!t.stored_id) tagSet.add(t.name);
+          if (!t.stored_id && t.name) tagSet.add(t.name);
         });
       });
     });
@@ -1331,10 +1417,16 @@ export const TaggerContext: React.FC = ({ children }) => {
 
   const pendingPerformersCount = React.useMemo(() => {
     const performerSet = new Set<string>();
+    const performerGenders = config.performerGenders || genderList;
+
     Object.values(searchResults).forEach((res) => {
       res.results?.forEach((scene) => {
         scene.performers?.forEach((p) => {
-          if (!p.stored_id) performerSet.add(p.name);
+          if (!p.stored_id && p.name) {
+            const gender = p.gender ? stringToGender(p.gender, true) : undefined;
+            if (gender && !performerGenders.includes(gender)) return;
+            performerSet.add(p.name);
+          }
         });
       });
     });
@@ -1345,7 +1437,7 @@ export const TaggerContext: React.FC = ({ children }) => {
     const studioSet = new Set<string>();
     Object.values(searchResults).forEach((res) => {
       res.results?.forEach((scene) => {
-        if (scene.studio && !scene.studio.stored_id) {
+        if (scene.studio && !scene.studio.stored_id && scene.studio.name) {
           studioSet.add(scene.studio.name);
         }
       });

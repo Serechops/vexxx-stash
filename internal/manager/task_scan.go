@@ -545,6 +545,7 @@ func (g *sceneGenerators) Generate(ctx context.Context, s *models.Scene, f *mode
 				Overwrite:           overwrite,
 				fileNamingAlgorithm: g.fileNamingAlgorithm,
 				generator:           generator,
+				repository:          mgr.Repository,
 			}
 			taskPreview.Start(ctx)
 			progress.Increment()

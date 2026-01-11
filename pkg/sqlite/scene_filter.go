@@ -105,6 +105,7 @@ func (qb *sceneFilterHandler) criterionHandler() criterionHandler {
 		qb.codecCriterionHandler(sceneFilter.AudioCodec, "video_files.audio_codec", qb.addVideoFilesTable),
 
 		qb.hasMarkersCriterionHandler(sceneFilter.HasMarkers),
+		boolCriterionHandler(sceneFilter.HasPreview, "scenes.has_preview", nil),
 		qb.isMissingCriterionHandler(sceneFilter.IsMissing),
 		qb.urlsCriterionHandler(sceneFilter.URL),
 

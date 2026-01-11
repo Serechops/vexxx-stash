@@ -95,7 +95,7 @@ export const SettingsInterfacePanel: React.FC = PatchComponent(
       sync: interactiveSync,
     } = React.useContext(InteractiveContext);
 
-    const [, setInterfaceLocalForage] = useInterfaceLocalForage();
+    const [interfaceLocalForage, setInterfaceLocalForage] = useInterfaceLocalForage();
 
     function saveLightboxSettings(v: Partial<GQL.ConfigImageLightboxInput>) {
       // save in local forage as well for consistency
@@ -355,6 +355,21 @@ export const SettingsInterfacePanel: React.FC = PatchComponent(
             checked={iface.showStudioAsText ?? undefined}
             onChange={(v) => saveInterface({ showStudioAsText: v })}
           />
+          <SelectSetting
+            id="scene-card-theme"
+            headingID="Scene Card Design"
+            value={(interfaceLocalForage?.data as any)?.sceneCardTheme || "flip"}
+            onChange={(v) =>
+              setInterfaceLocalForage((prev) => ({
+                ...prev,
+                sceneCardTheme: v,
+              } as any))
+            }
+          >
+            <option value="overlay">Default (Overlay)</option>
+            <option value="flip">Legacy (Flip)</option>
+            <option value="stashdb">Modern (StashDB)</option>
+          </SelectSetting>
         </SettingSection>
 
         <SettingSection headingID="config.ui.scene_player.heading">
@@ -779,26 +794,26 @@ export const SettingsInterfacePanel: React.FC = PatchComponent(
           </SelectSetting>
           {(ui.ratingSystemOptions?.type ?? defaultRatingSystemType) ===
             RatingSystemType.Stars && (
-            <SelectSetting
-              id="rating_system_star_precision"
-              headingID="config.ui.editing.rating_system.star_precision.label"
-              value={
-                ui.ratingSystemOptions?.starPrecision ??
-                defaultRatingStarPrecision
-              }
-              onChange={(v) =>
-                saveRatingSystemStarPrecision(v as RatingStarPrecision)
-              }
-            >
-              {Array.from(ratingStarPrecisionIntlMap.entries()).map((v) => (
-                <option key={v[0]} value={v[0]}>
-                  {intl.formatMessage({
-                    id: v[1],
-                  })}
-                </option>
-              ))}
-            </SelectSetting>
-          )}
+              <SelectSetting
+                id="rating_system_star_precision"
+                headingID="config.ui.editing.rating_system.star_precision.label"
+                value={
+                  ui.ratingSystemOptions?.starPrecision ??
+                  defaultRatingStarPrecision
+                }
+                onChange={(v) =>
+                  saveRatingSystemStarPrecision(v as RatingStarPrecision)
+                }
+              >
+                {Array.from(ratingStarPrecisionIntlMap.entries()).map((v) => (
+                  <option key={v[0]} value={v[0]}>
+                    {intl.formatMessage({
+                      id: v[1],
+                    })}
+                  </option>
+                ))}
+              </SelectSetting>
+            )}
         </SettingSection>
 
         <SettingSection headingID="config.ui.custom_css.heading">

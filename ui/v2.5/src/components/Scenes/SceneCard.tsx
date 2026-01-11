@@ -15,6 +15,9 @@ import { PerformerPopoverButton } from "../Shared/PerformerPopoverButton";
 import { GridCard } from "../Shared/GridCard/GridCard";
 import { RatingBanner } from "../Shared/RatingBanner";
 import { FormattedMessage } from "react-intl";
+import { StashDBCard } from "./StashDBCard";
+import { OverlayCard } from "./OverlayCard";
+import { useInterfaceLocalForage } from "src/hooks/LocalForage";
 import {
   faBox,
   faCopy,
@@ -171,8 +174,9 @@ const SceneCardImage = PatchComponent(
 
 // Reimplement SceneCard with new polish logic
 
-export const SceneCard = PatchComponent(
-  "SceneCard",
+// Renamed original SceneCard to FlipCard
+const FlipCard = PatchComponent(
+  "FlipCard",
   (props: ISceneCardProps) => {
     const { configuration } = useConfigurationContext();
     const history = useHistory();
@@ -390,5 +394,33 @@ export const SceneCard = PatchComponent(
         </div>
       </div>
     );
+  }
+);
+
+// New SceneCard Factory Component
+export const SceneCard = PatchComponent(
+  "SceneCard",
+  (props: ISceneCardProps) => {
+    const [interfaceLocalForage] = useInterfaceLocalForage();
+
+    // cast to any because we haven't added the field to the GQL type yet, 
+    // but localForage is loosely typed or we are extending it.
+    // Actually useInterfaceLocalForage returns typed data. We might need to extend the type or key access.
+    // However, interfaceLocalForage data is any-ish regarding custom fields if not strictly typed in GQL.
+    // Let's assume we can access it or use a default.
+    // The "sceneCardTheme" is not in GQL, so we rely on localForage behaving or falling back.
+
+    // @ts-ignore
+    const theme = interfaceLocalForage.data?.sceneCardTheme || "overlay";
+
+    if (theme === "flip") {
+      return <FlipCard {...props} />;
+    }
+
+    if (theme === "stashdb") {
+      return <StashDBCard {...props} />;
+    }
+
+    return <OverlayCard {...props} />;
   }
 );

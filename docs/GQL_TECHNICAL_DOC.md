@@ -8,7 +8,7 @@ Stash uses a **Schema-First** approach. The source of truth is `graphql/schema/s
 
 ### Step-by-Step Implementation Cycle
 
-1.  **Define Schema**: Add types, queries, and mutations to `graphql/schema/schema.graphql`.
+1.  **Define Schema**: Add types, queries, and mutations to `graphql/schema/schema.graphql` (and other `.graphql` files in that dir).
 2.  **Generate Go Interfaces**: Run `make generate` (or the specific `gqlgen` command).
     *   This updates `internal/api/generated_models.go` and `internal/api/models.go`.
 3.  **Implement Resolvers (Backend)**:
@@ -99,3 +99,38 @@ We added `start_point` and `end_point` (Float, seconds) to the `Scene` entity.
 *   `SceneCreateInput` / `SceneUpdateInput`: Added corresponding fields.
 
 This allows the user to have one 5GB "Movie.mp4" file and create 10 distinct Scene objects (with tags, performers, stats) that all point to that same file but different timestamps.
+
+---
+
+## 7. Database & Model Updates (Adding New Fields)
+
+When a new GraphQL field requires backing by the database (e.g. `has_preview` for filtering), follow this workflow:
+
+### 1- Database Migration
+*   Create a new SQL file in `pkg/sqlite/migrations/`. 
+    *   **Naming**: `<SequentialNumber>_<Description>.up.sql` (e.g., `78_has_preview.up.sql`).
+    *   **Content**: Standard SQL to alter table (e.g., `ALTER TABLE scenes ADD COLUMN has_preview boolean not null default '0';`).
+*   **Go Migration**: Generally, avoid complex Go post-migration scripts (`_postmigrate.go`) unless absolutely necessary. Using SQL mechanics is safer.
+
+#### 1.1 - Registering the Migration
+*   **Bump Version**: You **MUST** update `appSchemaVersion` in `pkg/sqlite/database.go` to match your new migration number (e.g., `78`). If you don't, the application will think it's up to date and ignore your new file.
+*   **Generate Assets**: You **MUST** run `go generate ./cmd/stash` (or `go generate ./...`) to embed the new SQL file into the binary.
+    *   *Failure Symptom*: Backend logs "no such column" errors but the migration setup screen never appears.
+
+### 2- Update Go Models
+*   **Main Model**: Update the struct in `pkg/models/model_<entity>.go`. Add the field with the JSON tag.
+*   **Partial Model**: Update the `Partial` struct (e.g., `ScenePartial`) to include the field using `Optional<Type>` (e.g., `OptionalBool`). This allows partial updates through the API.
+*   **Repository Layer**: Update `pkg/sqlite/<entity>.go`:
+    *   `fromScene`: Map the model field to the DB struct.
+    *   `resolve`: Map the DB struct back to the model.
+    *   `fromPartial`: **Crucial** for updates. Map the `Optional` field to the update/insert query helper. If you forget this, your database column will simply never update.
+
+### 3- Populate the Data
+*   **New Data**: Update the relevant task handler (e.g., `internal/manager/task_generate_preview.go` or `scan.go`) to set the new field during creation/generation.
+*   **Existing Data (Backfilling)**:
+    *   Rather than a one-time migration script (which can delay startup and errors are hard to recover from), consider leveraging existing Tasks.
+    *   **Example**: For `has_preview`, we updated the "Generate Preview" task. If it runs and detects the file *already exists* (fast scan), it updates the database flag. This allows users to "backfill" by simply running the task on their library without re-encoding everything.
+
+### 4- Filter Support
+*   If the field is for filtering, update `pkg/sqlite/<entity>_filter.go`.
+*   Replace any temporary stub logic (e.g., `f.addWhere("0")`) with actual column checks (e.g., `f.addWhere("scenes.has_preview = 1")`).

@@ -41,6 +41,7 @@ export const GalleryViewer: React.FC<IProps> = ({ galleryId }) => {
     return {
       images,
       showNavigation: false,
+      showFilmstrip: true,
     };
   }, [images]);
 

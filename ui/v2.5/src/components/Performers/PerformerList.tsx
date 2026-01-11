@@ -305,6 +305,7 @@ export const PerformerList: React.FC<IPerformerList> = PatchComponent(
               selectedIds={selectedIds}
               onSelectChange={onSelectChange}
               extraCriteria={extraCriteria}
+              loading={result.loading}
             />
           );
         }
@@ -377,6 +378,7 @@ export const PerformerList: React.FC<IPerformerList> = PatchComponent(
           renderContent={renderContent}
           renderEditDialog={renderEditDialog}
           renderDeleteDialog={renderDeleteDialog}
+          allowSkeleton
         />
       </ItemListContext>
     );

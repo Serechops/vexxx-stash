@@ -9,6 +9,7 @@ export interface IState {
   isVisible: boolean;
   isLoading: boolean;
   showNavigation: boolean;
+  showFilmstrip: boolean;
   initialIndex?: number;
   pageCallback?: (props: { direction?: number; page?: number }) => void;
   chapters?: IChapter[];
@@ -41,6 +42,7 @@ export const LightboxProvider: React.FC = ({ children }) => {
     isVisible: false,
     isLoading: false,
     showNavigation: true,
+    showFilmstrip: false,
     slideshowEnabled: false,
   });
 

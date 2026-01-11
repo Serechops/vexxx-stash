@@ -352,6 +352,8 @@ func (qb *sceneFilterHandler) isMissingCriterionHandler(isMissing *string) crite
 				qb.addSceneFilesTable(f)
 				f.addLeftJoin(fingerprintTable, "fingerprints_phash", "scenes_files.file_id = fingerprints_phash.file_id AND fingerprints_phash.type = 'phash'")
 				f.addWhere("fingerprints_phash.fingerprint IS NULL")
+			case "preview":
+				f.addWhere("scenes.has_preview = 0")
 			case "cover":
 				f.addWhere("scenes.cover_blob IS NULL")
 			default:

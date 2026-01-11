@@ -14,17 +14,23 @@ export const FeaturedScene: React.FC = () => {
     const { configuration } = useConfigurationContext();
     const [currentIndex, setCurrentIndex] = useState(0);
 
-    // Fetch 5 random scenes for variety
+    // Fetch 20 random scenes for variety (increased checks for previews)
     const filter = useMemo(() => {
         const f = new ListFilterModel(GQL.FilterMode.Scenes, configuration);
-        f.itemsPerPage = 5;
+        f.itemsPerPage = 20;
         f.sortBy = "random";
         f.sortDirection = GQL.SortDirectionEnum.Desc;
         return f;
     }, [configuration]);
 
     const { data, loading } = useFindScenes(filter);
-    const scenes = data?.findScenes.scenes || [];
+
+    // Filter scenes to only include those with a valid video preview
+    // Prioritize scenes where the preview is NOT a default placeholder
+    const scenes = useMemo(() => {
+        return (data?.findScenes.scenes || []).filter(s => s.has_preview);
+    }, [data]);
+
     const scene = scenes[currentIndex];
 
     useEffect(() => {
@@ -51,7 +57,7 @@ export const FeaturedScene: React.FC = () => {
     const video = scene.paths.preview;
 
     return (
-        <div className="relative w-full h-[40vh] min-h-[300px] overflow-hidden rounded-xl mb-6 bg-card shadow-lg group">
+        <div className="relative w-full h-[70vh] min-h-[300px] overflow-hidden rounded-xl mb-6 bg-card shadow-lg group">
             {/* Media Background */}
             <div className="absolute top-0 left-0 w-full h-full">
                 {video ? (

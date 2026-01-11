@@ -120,7 +120,7 @@ const ImageWall: React.FC<IImageWallProps> = ({
         props.direction === "column"
           ? props.photo.height
           : targetRowHeight(containerRef.current?.offsetWidth ?? 0) *
-            maxHeightFactor;
+          maxHeightFactor;
       return <ImageWallItem {...props} maxHeight={maxHeight} />;
     },
     [targetRowHeight]
@@ -200,6 +200,7 @@ const ImageListImages: React.FC<IImageListImages> = ({
     return {
       images,
       showNavigation: false,
+      showFilmstrip: true,
       pageCallback: pageCount > 1 ? handleLightBoxPage : undefined,
       page: filter.currentPage,
       pages: pageCount,

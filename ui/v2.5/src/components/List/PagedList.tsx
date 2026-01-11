@@ -40,6 +40,7 @@ export const PagedList: React.FC<
     totalCount: number;
     onChangePage: (page: number) => void;
     metadataByline?: React.ReactNode;
+    allowSkeleton?: boolean;
   }>
 > = ({
   result,
@@ -49,71 +50,73 @@ export const PagedList: React.FC<
   onChangePage,
   metadataByline,
   children,
+  allowSkeleton,
 }) => {
-  const pages = Math.ceil(totalCount / filter.itemsPerPage);
+    const pages = Math.ceil(totalCount / filter.itemsPerPage);
 
-  const pagination = useMemo(() => {
+    const pagination = useMemo(() => {
+      return (
+        <Pagination
+          itemsPerPage={filter.itemsPerPage}
+          currentPage={filter.currentPage}
+          totalItems={totalCount}
+          metadataByline={metadataByline}
+          onChangePage={onChangePage}
+        />
+      );
+    }, [
+      filter.itemsPerPage,
+      filter.currentPage,
+      totalCount,
+      metadataByline,
+      onChangePage,
+    ]);
+
+    const paginationIndex = useMemo(() => {
+      if (cachedResult.loading) return;
+      return (
+        <PaginationIndex
+          itemsPerPage={filter.itemsPerPage}
+          currentPage={filter.currentPage}
+          totalItems={totalCount}
+          metadataByline={metadataByline}
+        />
+      );
+    }, [
+      cachedResult.loading,
+      filter.itemsPerPage,
+      filter.currentPage,
+      totalCount,
+      metadataByline,
+    ]);
+
+    const content = useMemo(() => {
+      return (
+        <LoadedContent loading={allowSkeleton ? false : result.loading} error={result.error}>
+          {children}
+          {!!pages && (
+            <>
+              {paginationIndex}
+              {pagination}
+            </>
+          )}
+        </LoadedContent>
+      );
+    }, [
+      result.loading,
+      result.error,
+      pages,
+      children,
+      pagination,
+      paginationIndex,
+      allowSkeleton,
+    ]);
+
     return (
-      <Pagination
-        itemsPerPage={filter.itemsPerPage}
-        currentPage={filter.currentPage}
-        totalItems={totalCount}
-        metadataByline={metadataByline}
-        onChangePage={onChangePage}
-      />
+      <>
+        {pagination}
+        {paginationIndex}
+        {content}
+      </>
     );
-  }, [
-    filter.itemsPerPage,
-    filter.currentPage,
-    totalCount,
-    metadataByline,
-    onChangePage,
-  ]);
-
-  const paginationIndex = useMemo(() => {
-    if (cachedResult.loading) return;
-    return (
-      <PaginationIndex
-        itemsPerPage={filter.itemsPerPage}
-        currentPage={filter.currentPage}
-        totalItems={totalCount}
-        metadataByline={metadataByline}
-      />
-    );
-  }, [
-    cachedResult.loading,
-    filter.itemsPerPage,
-    filter.currentPage,
-    totalCount,
-    metadataByline,
-  ]);
-
-  const content = useMemo(() => {
-    return (
-      <LoadedContent loading={result.loading} error={result.error}>
-        {children}
-        {!!pages && (
-          <>
-            {paginationIndex}
-            {pagination}
-          </>
-        )}
-      </LoadedContent>
-    );
-  }, [
-    result.loading,
-    result.error,
-    pages,
-    children,
-    pagination,
-    paginationIndex,
-  ]);
-
-  return (
-    <>
-      {pagination}
-      {paginationIndex}
-      {content}
-    </>
-  );
-};
+  };

@@ -164,15 +164,21 @@ const PerformerCardImage: React.FC<IPerformerCardProps> = PatchComponent(
   "PerformerCard.Image",
   ({ performer }) => {
     return (
-      <div className="w-full h-full bg-gray-900 aspect-[2/3] relative group">
-        <img
-          loading="lazy"
-          className="w-full h-full object-cover transition-transform duration-700"
-          alt={performer.name ?? ""}
-          src={performer.image_path ?? ""}
-        />
+      <div className="w-full h-full bg-gray-900 relative group overflow-hidden">
+        {/* Enforce 2/3 Aspect Ratio Container independently if needed, though GridCard handles width */}
+        <div className="relative w-full pb-[150%]">
+          <div className="absolute inset-0">
+            <img
+              loading="lazy"
+              className="w-full h-full object-cover transition-transform duration-700"
+              alt={performer.name ?? ""}
+              src={performer.image_path ?? ""}
+            />
+          </div>
+        </div>
+
         {/* Hover Highlight Overlay */}
-        <div className="absolute inset-0 bg-white/0 group-hover:bg-white/5 transition-colors duration-300" />
+        <div className="absolute inset-0 bg-white/0 group-hover:bg-white/5 transition-colors duration-300 pointer-events-none" />
       </div>
     );
   }

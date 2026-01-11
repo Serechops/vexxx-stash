@@ -110,6 +110,7 @@ export const useGalleryLightbox = (id: string, chapters: IChapter[] = []) => {
       setLightboxState({
         isLoading: false,
         isVisible: true,
+        showFilmstrip: true,
         images: data.findImages?.images ?? [],
         pageCallback: pages > 1 ? handleLightBoxPage : undefined,
         page,
@@ -128,6 +129,7 @@ export const useGalleryLightbox = (id: string, chapters: IChapter[] = []) => {
       setLightboxState({
         isLoading: false,
         isVisible: true,
+        showFilmstrip: true,
         initialIndex: index,
         images: data.findImages?.images ?? [],
         pageCallback: pages > 1 ? handleLightBoxPage : undefined,
@@ -141,6 +143,7 @@ export const useGalleryLightbox = (id: string, chapters: IChapter[] = []) => {
         images: [],
         isLoading: true,
         isVisible: true,
+        showFilmstrip: true,
         initialIndex: index,
         pageCallback: undefined,
         page: undefined,

@@ -1,6 +1,7 @@
 import React from "react";
 import * as GQL from "src/core/generated-graphql";
 import { IPerformerCardExtraCriteria, PerformerCard } from "./PerformerCard";
+import { PerformerCardSkeleton } from "../Shared/Skeletons/PerformerCardSkeleton";
 import {
   useCardWidth,
   useContainerDimensions,
@@ -12,6 +13,7 @@ interface IPerformerCardGrid {
   zoomIndex: number;
   onSelectChange: (id: string, selected: boolean, shiftKey: boolean) => void;
   extraCriteria?: IPerformerCardExtraCriteria;
+  loading?: boolean;
 }
 
 const zoomWidths = [240, 300, 375, 470];
@@ -22,26 +24,33 @@ export const PerformerCardGrid: React.FC<IPerformerCardGrid> = ({
   zoomIndex,
   onSelectChange,
   extraCriteria,
+  loading,
 }) => {
   const [componentRef, { width: containerWidth }] = useContainerDimensions();
   const cardWidth = useCardWidth(containerWidth, zoomIndex, zoomWidths);
 
   return (
     <div className="row justify-content-center" ref={componentRef}>
-      {performers.map((p) => (
-        <PerformerCard
-          key={p.id}
-          cardWidth={cardWidth}
-          performer={p}
-          zoomIndex={zoomIndex}
-          selecting={selectedIds.size > 0}
-          selected={selectedIds.has(p.id)}
-          onSelectedChanged={(selected: boolean, shiftKey: boolean) =>
-            onSelectChange(p.id, selected, shiftKey)
-          }
-          extraCriteria={extraCriteria}
-        />
-      ))}
+      {loading && performers.length === 0 ? (
+        Array.from({ length: 20 }).map((_, i) => (
+          <PerformerCardSkeleton key={i} cardWidth={cardWidth} zoomIndex={zoomIndex} />
+        ))
+      ) : (
+        performers.map((p) => (
+          <PerformerCard
+            key={p.id}
+            cardWidth={cardWidth}
+            performer={p}
+            zoomIndex={zoomIndex}
+            selecting={selectedIds.size > 0}
+            selected={selectedIds.has(p.id)}
+            onSelectedChanged={(selected: boolean, shiftKey: boolean) =>
+              onSelectChange(p.id, selected, shiftKey)
+            }
+            extraCriteria={extraCriteria}
+          />
+        ))
+      )}
     </div>
   );
 };

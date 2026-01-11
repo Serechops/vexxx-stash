@@ -204,7 +204,8 @@ const SceneList: React.FC<{
   selectedIds: Set<string>;
   onSelectChange: (id: string, selected: boolean, shiftKey: boolean) => void;
   fromGroupId?: string;
-}> = ({ scenes, filter, selectedIds, onSelectChange, fromGroupId }) => {
+  loading?: boolean;
+}> = ({ scenes, filter, selectedIds, onSelectChange, fromGroupId, loading }) => {
   const queue = useMemo(() => SceneQueue.fromListFilterModel(filter), [filter]);
 
   if (scenes.length === 0 && filter.displayMode !== DisplayMode.Tagger) {
@@ -220,6 +221,7 @@ const SceneList: React.FC<{
         selectedIds={selectedIds}
         onSelectChange={onSelectChange}
         fromGroupId={fromGroupId}
+        loading={loading}
       />
     );
   }
@@ -665,11 +667,10 @@ export const FilteredSceneList = (props: IFilteredScenes) => {
               <>
                 {!hideFeatured && <FeaturedScene />}
 
-                {/* Re-inserted Toolbar */}
                 <FilteredListToolbar
                   filter={filter}
                   setFilter={setFilter}
-                  showEditFilter={showEditFilter} // Restored Dialog
+                  showEditFilter={showEditFilter}
                   view={view}
                   listSelect={listSelect}
                   onEdit={onEdit}
@@ -678,7 +679,17 @@ export const FilteredSceneList = (props: IFilteredScenes) => {
                   zoomable
                 />
 
-                {/* Top Pagination removed */}
+                {totalCount > filter.itemsPerPage && (
+                  <div className="d-flex justify-content-end mb-2">
+                    <Pagination
+                      itemsPerPage={filter.itemsPerPage}
+                      currentPage={filter.currentPage}
+                      totalItems={totalCount}
+                      onChangePage={setPage}
+                      pagePopupPlacement="bottom"
+                    />
+                  </div>
+                )}
               </>
 
               <FilterTags
@@ -690,18 +701,19 @@ export const FilteredSceneList = (props: IFilteredScenes) => {
 
               {/* Top Pagination removed for cleaner UI */}
 
-              <LoadedContent loading={result.loading} error={result.error}>
+              <LoadedContent loading={false} error={result.error}>
                 <SceneList
                   filter={effectiveFilter}
                   scenes={items}
                   selectedIds={selectedIds}
                   onSelectChange={onSelectChange}
                   fromGroupId={fromGroupId}
+                  loading={result.loading}
                 />
               </LoadedContent>
 
               {totalCount > filter.itemsPerPage && (
-                <div className="pagination-footer-container mt-8 flex justify-center">
+                <div className="d-flex justify-content-center mt-4">
                   <div className="pagination-footer">
                     <Pagination
                       itemsPerPage={filter.itemsPerPage}

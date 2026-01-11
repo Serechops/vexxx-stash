@@ -95,6 +95,8 @@ type sceneRow struct {
 	StartPoint null.Float `db:"start_point"`
 	EndPoint   null.Float `db:"end_point"`
 
+	HasPreview bool `db:"has_preview"`
+
 	// not used in resolutions or updates
 	CoverBlob zero.String `db:"cover_blob"`
 }
@@ -116,6 +118,7 @@ func (r *sceneRow) fromScene(o models.Scene) {
 	r.PlayDuration = o.PlayDuration
 	r.StartPoint = nullFloatFromPtr(o.StartPoint)
 	r.EndPoint = nullFloatFromPtr(o.EndPoint)
+	r.HasPreview = o.HasPreview
 }
 
 type sceneQueryRow struct {
@@ -129,15 +132,16 @@ type sceneQueryRow struct {
 
 func (r *sceneQueryRow) resolve() *models.Scene {
 	ret := &models.Scene{
-		ID:        r.ID,
-		Title:     r.Title.String,
-		Code:      r.Code.String,
-		Details:   r.Details.String,
-		Director:  r.Director.String,
-		Date:      r.Date.DatePtr(r.DatePrecision),
-		Rating:    nullIntPtr(r.Rating),
-		Organized: r.Organized,
-		StudioID:  nullIntPtr(r.StudioID),
+		ID:         r.ID,
+		Title:      r.Title.String,
+		Code:       r.Code.String,
+		Details:    r.Details.String,
+		Director:   r.Director.String,
+		Date:       r.Date.DatePtr(r.DatePrecision),
+		Rating:     nullIntPtr(r.Rating),
+		Organized:  r.Organized,
+		StudioID:   nullIntPtr(r.StudioID),
+		HasPreview: r.HasPreview,
 
 		PrimaryFileID: nullIntFileIDPtr(r.PrimaryFileID),
 		OSHash:        r.PrimaryFileOshash.String,
@@ -179,6 +183,7 @@ func (r *sceneRowRecord) fromPartial(o models.ScenePartial) {
 	r.setFloat64("play_duration", o.PlayDuration)
 	r.setNullFloat64("start_point", o.StartPoint)
 	r.setNullFloat64("end_point", o.EndPoint)
+	r.setBool("has_preview", o.HasPreview)
 }
 
 type sceneRepositoryType struct {

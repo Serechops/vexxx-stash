@@ -8,6 +8,7 @@ import (
 	"github.com/stashapp/stash/internal/api/loaders"
 	"github.com/stashapp/stash/internal/api/urlbuilders"
 	"github.com/stashapp/stash/internal/manager"
+	"github.com/stashapp/stash/pkg/fsutil"
 	"github.com/stashapp/stash/pkg/models"
 )
 
@@ -421,4 +422,12 @@ func (r *sceneResolver) OHistory(ctx context.Context, obj *models.Scene) ([]*tim
 	}
 
 	return ptrRet, nil
+}
+
+func (r *sceneResolver) HasPreview(ctx context.Context, obj *models.Scene) (bool, error) {
+	config := manager.GetInstance().Config
+	sceneHash := obj.GetHash(config.GetVideoFileNamingAlgorithm())
+	filepath := manager.GetInstance().Paths.Scene.GetVideoPreviewPath(sceneHash)
+	exists, _ := fsutil.FileExists(filepath)
+	return exists, nil
 }

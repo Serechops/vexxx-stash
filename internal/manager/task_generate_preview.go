@@ -11,6 +11,7 @@ import (
 )
 
 type GeneratePreviewTask struct {
+	repository   models.Repository
 	Scene        models.Scene
 	ImagePreview bool
 
@@ -32,6 +33,8 @@ func (t *GeneratePreviewTask) GetDescription() string {
 func (t *GeneratePreviewTask) Start(ctx context.Context) {
 	videoChecksum := t.Scene.GetHash(t.fileNamingAlgorithm)
 
+	previewValid := false
+
 	if t.videoPreviewRequired() {
 		ffprobe := instance.FFProbe
 		videoFile, err := ffprobe.NewVideoFile(t.Scene.Path)
@@ -44,6 +47,22 @@ func (t *GeneratePreviewTask) Start(ctx context.Context) {
 			logger.Errorf("error generating preview: %v", err)
 			logErrorOutput(err)
 			return
+		}
+		previewValid = true
+	} else if t.videoPreviewExists != nil && *t.videoPreviewExists {
+		previewValid = true
+	}
+
+	if previewValid && !t.Scene.HasPreview {
+		// Update scene HasPreview flag
+		partial := models.NewScenePartial()
+		partial.HasPreview = models.NewOptionalBool(true)
+
+		if err := t.repository.WithTxn(ctx, func(ctx context.Context) error {
+			_, err := t.repository.Scene.UpdatePartial(ctx, t.Scene.ID, partial)
+			return err
+		}); err != nil {
+			logger.Errorf("Failed to update scene has_preview flag: %v", err)
 		}
 	}
 

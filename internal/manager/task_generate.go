@@ -390,6 +390,7 @@ func (j *GenerateJob) queueSceneJobs(ctx context.Context, g *generate.Generator,
 
 	if j.input.Previews {
 		task := &GeneratePreviewTask{
+			repository:          r,
 			Scene:               *scene,
 			ImagePreview:        j.input.ImagePreviews,
 			Options:             options,

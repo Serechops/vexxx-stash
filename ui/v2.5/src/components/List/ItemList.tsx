@@ -139,6 +139,7 @@ interface IItemListProps<T extends QueryResult, E extends IHasID, M = unknown> {
     selectedIds: Set<string>
   ) => () => void;
   renderToolbar?: (props: IFilteredListToolbar) => React.ReactNode;
+  allowSkeleton?: boolean;
 }
 
 export const ItemList = <T extends QueryResult, E extends IHasID, M = unknown>(
@@ -153,6 +154,7 @@ export const ItemList = <T extends QueryResult, E extends IHasID, M = unknown>(
     renderMetadataByline,
     addKeybinds,
     renderToolbar: providedToolbar,
+    allowSkeleton,
   } = props;
 
   const { filter, setFilter: updateFilter } = useFilter();
@@ -356,6 +358,7 @@ export const ItemList = <T extends QueryResult, E extends IHasID, M = unknown>(
         totalCount={totalCount}
         onChangePage={onChangePage}
         metadataByline={metadataByline}
+        allowSkeleton={allowSkeleton}
       >
         {renderContent(
           result,

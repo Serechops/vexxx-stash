@@ -17,9 +17,10 @@ type Scene struct {
 	Director string `json:"director"`
 	Date     *Date  `json:"date"`
 	// Rating expressed in 1-100 scale
-	Rating    *int `json:"rating"`
-	Organized bool `json:"organized"`
-	StudioID  *int `json:"studio_id"`
+	Rating     *int `json:"rating"`
+	Organized  bool `json:"organized"`
+	StudioID   *int `json:"studio_id"`
+	HasPreview bool `json:"has_preview"`
 
 	// transient - not persisted
 	Files         RelatedVideoFiles
@@ -74,6 +75,7 @@ type ScenePartial struct {
 	PlayDuration OptionalFloat64
 	StartPoint   OptionalFloat64
 	EndPoint     OptionalFloat64
+	HasPreview   OptionalBool
 
 	URLs          *UpdateStrings
 	GalleryIDs    *UpdateIDs

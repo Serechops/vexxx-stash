@@ -89,6 +89,7 @@ interface IProps {
   isLoading: boolean;
   initialIndex?: number;
   showNavigation: boolean;
+  showFilmstrip?: boolean;
   slideshowEnabled?: boolean;
   page?: number;
   pages?: number;
@@ -104,6 +105,7 @@ export const LightboxComponent: React.FC<IProps> = ({
   isLoading,
   initialIndex = 0,
   showNavigation,
+  showFilmstrip = false,
   slideshowEnabled = false,
   page,
   pages,
@@ -984,7 +986,7 @@ export const LightboxComponent: React.FC<IProps> = ({
           <div className={CLASSNAME_FOOTER_RIGHT}></div>
         </div>
         <LightboxFilmstrip
-          visible={true}
+          visible={showFilmstrip}
           images={images}
           currentIndex={currentIndex}
           onSelect={setIndex}

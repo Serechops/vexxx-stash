@@ -389,8 +389,8 @@ export const MainNavbar: React.FC = () => {
         <Navbar.Brand as="div" onClick={handleDismiss}>
           <Link to="/" className="no-underline hover:no-underline">
             <img
-              src="/wetflix.png"
-              alt="WetFlix"
+              src="/vexxx.png"
+              alt="Vexxx"
               className="h-16 w-auto object-contain drop-shadow-sm hover:opacity-90 transition-opacity"
             />
           </Link>

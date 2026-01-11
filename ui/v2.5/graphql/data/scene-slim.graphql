@@ -16,7 +16,10 @@ fragment SlimSceneData on Scene {
   play_count
   
   start_point
+
   end_point
+  has_preview
+
 
   files {
     ...VideoFileData

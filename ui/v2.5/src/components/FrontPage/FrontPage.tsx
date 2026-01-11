@@ -4,7 +4,7 @@ import { useConfigureUI } from "src/core/StashService";
 import { LoadingIndicator } from "../Shared/LoadingIndicator";
 import { Button } from "react-bootstrap";
 import { FrontPageConfig } from "./FrontPageConfig";
-import { HeroBanner } from "./HeroBanner";
+import { LandingHero } from "./LandingHero";
 import { useToast } from "src/hooks/Toast";
 import { Control } from "./Control";
 import { useConfigurationContext } from "src/hooks/Config";
@@ -71,7 +71,7 @@ const FrontPage: React.FC = PatchComponent("FrontPage", () => {
 
   return (
     <div className="recommendations-container bg-background min-h-screen">
-      <HeroBanner />
+      <LandingHero />
       <div className="px-4 md:px-12 -mt-24 relative z-10 pb-12 space-y-8">
         {frontPageContent?.map((content, i) => (
           <Control key={i} content={content} />

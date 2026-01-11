@@ -2,6 +2,7 @@ import React from "react";
 import * as GQL from "src/core/generated-graphql";
 import { SceneQueue } from "src/models/sceneQueue";
 import { SceneCard } from "./SceneCard";
+import { SceneCardSkeleton } from "../Shared/Skeletons/SceneCardSkeleton";
 
 interface ISceneCardsGrid {
   scenes: GQL.SlimSceneDataFragment[];
@@ -10,6 +11,7 @@ interface ISceneCardsGrid {
   zoomIndex: number;
   onSelectChange: (id: string, selected: boolean, shiftKey: boolean) => void;
   fromGroupId?: string;
+  loading?: boolean;
 }
 
 export const SceneCardsGrid: React.FC<ISceneCardsGrid> = ({
@@ -19,6 +21,7 @@ export const SceneCardsGrid: React.FC<ISceneCardsGrid> = ({
   zoomIndex,
   onSelectChange,
   fromGroupId,
+  loading,
 }) => {
   function getGridClass(zoom: number) {
     switch (zoom) {
@@ -43,21 +46,28 @@ export const SceneCardsGrid: React.FC<ISceneCardsGrid> = ({
 
   return (
     <div className={`grid ${getGridClass(zoomIndex)} gap-6 p-4`}>
-      {scenes.map((scene, index) => (
-        <SceneCard
-          key={scene.id}
-          scene={scene}
-          queue={queue}
-          index={index}
-          zoomIndex={zoomIndex}
-          selecting={selectedIds.size > 0}
-          selected={selectedIds.has(scene.id)}
-          onSelectedChanged={(selected: boolean, shiftKey: boolean) =>
-            onSelectChange(scene.id, selected, shiftKey)
-          }
-          fromGroupId={fromGroupId}
-        />
-      ))}
+      {loading && scenes.length === 0 ? (
+        // Render Skeletons
+        Array.from({ length: 20 }).map((_, i) => (
+          <SceneCardSkeleton key={i} />
+        ))
+      ) : (
+        scenes.map((scene, index) => (
+          <SceneCard
+            key={scene.id}
+            scene={scene}
+            queue={queue}
+            index={index}
+            zoomIndex={zoomIndex}
+            selecting={selectedIds.size > 0}
+            selected={selectedIds.has(scene.id)}
+            onSelectedChanged={(selected: boolean, shiftKey: boolean) =>
+              onSelectChange(scene.id, selected, shiftKey)
+            }
+            fromGroupId={fromGroupId}
+          />
+        ))
+      )}
     </div>
   );
 };

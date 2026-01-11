@@ -576,7 +576,7 @@ func setPageSecurityHeaders(w http.ResponseWriter, r *http.Request, plugins []*p
 		"'self'",
 		"'unsafe-inline'",
 	}
-	mediaSrc := "blob: 'self'"
+	mediaSrc := "blob: 'self' https://*.project1content.com https://*.project1service.com https://*.algolia.net https://*.adulttime.com https://*.adulttimecdn.com https://*.gammacdn.com"
 
 	// Workaround Safari bug https://bugs.webkit.org/show_bug.cgi?id=201591
 	// Allows websocket requests to any origin

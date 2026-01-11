@@ -1,0 +1,20 @@
+# Trailer scraping types and queries
+
+type TrailerResult {
+  "The original URL that was scraped"
+  url: String!
+  "The scraped trailer URL, if found"
+  trailer_url: String
+  "Error message if scraping failed"
+  error: String
+}
+
+extend type Query {
+  """
+  Scrape trailer URLs from supported sites.
+  Returns trailer URLs for scenes from Algolia-powered sites (AdultTime, GirlsWay, etc.)
+  and Aylo/MindGeek sites (Brazzers, RealityKings, etc.).
+  Unsupported sites will return null trailer_url without error.
+  """
+  scrapeTrailerUrls(urls: [String!]!): [TrailerResult!]!
+}

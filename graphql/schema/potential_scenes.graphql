@@ -27,4 +27,14 @@ extend type Query {
 extend type Mutation {
   potentialSceneCreate(input: PotentialSceneCreateInput!): PotentialScene
   potentialSceneDestroy(id: ID!): Boolean!
+  
+  """
+  Scrape scenes for a performer from a StashBox endpoint.
+  Returns the scraped performer data including all their scenes.
+  """
+  scrapePerformerScenesFromStashBox(
+    stash_box_endpoint: String!
+    performer_stash_id: String!
+  ): ScrapedPerformer
 }
+

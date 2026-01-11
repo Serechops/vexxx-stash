@@ -1,33 +1,52 @@
 import React, { useState, useMemo } from "react";
-import { Button, Table } from "react-bootstrap";
-import { FormattedMessage } from "react-intl";
+import { Button, Form, InputGroup, Dropdown, DropdownButton, ButtonGroup } from "react-bootstrap";
+import { FormattedMessage, useIntl } from "react-intl";
 import * as GQL from "src/core/generated-graphql";
 import { useToast } from "src/hooks/Toast";
 import { LoadingIndicator } from "src/components/Shared/LoadingIndicator";
 import { useConfigurationContext } from "src/hooks/Config";
 import { Icon } from "src/components/Shared/Icon";
-import { faPlus, faSearch } from "@fortawesome/free-solid-svg-icons";
+import { faPlus, faSearch, faSortAmountDown, faSortAmountUp, faFilter } from "@fortawesome/free-solid-svg-icons";
 import { getClient } from "src/core/StashService";
 import { ScrapedSceneCardsGrid } from "src/components/Scenes/ScrapedSceneCardsGrid";
+import { Pagination } from "src/components/List/Pagination";
 
 interface IPerformerMissingScenesPanelProps {
     active: boolean;
     performer: GQL.PerformerDataFragment;
 }
 
+type StatusFilter = "all" | "untracked" | "tracked" | "owned";
+type SortField = "date" | "title" | "studio";
+type SortDirection = "asc" | "desc";
+
 export const PerformerMissingScenesPanel: React.FC<IPerformerMissingScenesPanelProps> = ({
     active,
     performer,
 }) => {
+    const intl = useIntl();
     const [scanning, setScanning] = useState(false);
     const [missingScenes, setMissingScenes] = useState<GQL.ScrapedSceneDataFragment[]>([]);
     const [trackedStatus, setTrackedStatus] = useState<Record<string, boolean>>({});
     const [ownedStatus, setOwnedStatus] = useState<Record<string, boolean>>({});
+    const [trailerUrls, setTrailerUrls] = useState<Record<string, string>>({});
+    const [trailersFetched, setTrailersFetched] = useState(false);
     const { configuration } = useConfigurationContext();
     const Toast = useToast();
 
+    // Filter/Sort/Pagination state
+    const [searchTerm, setSearchTerm] = useState("");
+    const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+    const [sortField, setSortField] = useState<SortField>("date");
+    const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(24);
+
     // Create/Destroy hooks
     const [createPotentialScene] = GQL.usePotentialSceneCreateMutation();
+
+    // Trailer scraping query (lazy)
+    const [scrapeTrailers, { loading: scrapingTrailers }] = GQL.useScrapeTrailerUrlsLazyQuery();
 
     const stashBoxEndpoints = useMemo(() => {
         return configuration?.general.stashBoxes || [];
@@ -56,7 +75,6 @@ export const PerformerMissingScenesPanel: React.FC<IPerformerMissingScenesPanelP
                     const sceneData = JSON.parse(ps.data) as GQL.ScrapedSceneDataFragment;
                     loadedScenes.push(sceneData);
                     newTrackedStatus[ps.stash_id] = true;
-                    // Check if existing_scene is present (scene exists locally)
                     if (ps.existing_scene?.id) {
                         newOwnedStatus[ps.stash_id] = true;
                     }
@@ -66,35 +84,170 @@ export const PerformerMissingScenesPanel: React.FC<IPerformerMissingScenesPanelP
             });
 
             if (!scanning && loadedScenes.length > 0) {
-                setMissingScenes(prev => {
-                    return loadedScenes;
-                });
+                setMissingScenes(loadedScenes);
                 setTrackedStatus(newTrackedStatus);
                 setOwnedStatus(newOwnedStatus);
             }
         }
     }, [potentialData, scanning]);
 
+    // Fetch trailers when tab becomes active and scenes are loaded
+    React.useEffect(() => {
+        if (active && missingScenes.length > 0 && !trailersFetched && !scrapingTrailers) {
+            // Collect URLs from scenes
+            const urls = missingScenes
+                .map(s => s.urls?.[0])
+                .filter((url): url is string => !!url);
+
+            if (urls.length > 0) {
+                setTrailersFetched(true);
+                scrapeTrailers({
+                    variables: { urls },
+                }).then((result) => {
+                    if (result.data?.scrapeTrailerUrls) {
+                        const newTrailerUrls: Record<string, string> = {};
+                        result.data.scrapeTrailerUrls.forEach(t => {
+                            if (t.trailer_url) {
+                                newTrailerUrls[t.url] = t.trailer_url;
+                            }
+                        });
+                        setTrailerUrls(newTrailerUrls);
+                    }
+                }).catch(err => {
+                    console.error("Failed to scrape trailers:", err);
+                });
+            }
+        }
+    }, [active, missingScenes, trailersFetched, scrapingTrailers, scrapeTrailers]);
+
+    // Filter, sort, and paginate scenes
+    const filteredAndSortedScenes = useMemo(() => {
+        let result = [...missingScenes];
+
+        // Apply search filter
+        if (searchTerm.trim()) {
+            const term = searchTerm.toLowerCase();
+            result = result.filter(s =>
+                s.title?.toLowerCase().includes(term) ||
+                s.studio?.name?.toLowerCase().includes(term) ||
+                s.performers?.some(p => p.name?.toLowerCase().includes(term))
+            );
+        }
+
+        // Apply status filter
+        if (statusFilter !== "all") {
+            result = result.filter(s => {
+                const id = s.remote_site_id;
+                if (!id) return false;
+                const isOwned = ownedStatus[id];
+                const isTracked = trackedStatus[id];
+
+                switch (statusFilter) {
+                    case "owned": return isOwned;
+                    case "tracked": return isTracked && !isOwned;
+                    case "untracked": return !isTracked;
+                    default: return true;
+                }
+            });
+        }
+
+        // Apply sorting
+        result.sort((a, b) => {
+            let comparison = 0;
+            switch (sortField) {
+                case "date":
+                    comparison = (a.date || "").localeCompare(b.date || "");
+                    break;
+                case "title":
+                    comparison = (a.title || "").localeCompare(b.title || "");
+                    break;
+                case "studio":
+                    comparison = (a.studio?.name || "").localeCompare(b.studio?.name || "");
+                    break;
+            }
+            return sortDirection === "asc" ? comparison : -comparison;
+        });
+
+        return result;
+    }, [missingScenes, searchTerm, statusFilter, sortField, sortDirection, trackedStatus, ownedStatus]);
+
+    // Paginated results
+    const paginatedScenes = useMemo(() => {
+        const start = (currentPage - 1) * itemsPerPage;
+        return filteredAndSortedScenes.slice(start, start + itemsPerPage);
+    }, [filteredAndSortedScenes, currentPage, itemsPerPage]);
+
+    // Reset to page 1 when filters change
+    React.useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, statusFilter, sortField, sortDirection]);
+
+    const [scrapePerformerScenes] = GQL.useScrapePerformerScenesFromStashBoxMutation();
+
     const onScan = async () => {
+        if (!performer.stash_ids || performer.stash_ids.length === 0) {
+            Toast.error("Performer has no StashBox IDs");
+            return;
+        }
+
         setScanning(true);
-        // Don't clear immediately if we want to merge? 
-        // Desired: "Scan" finds NEW missing scenes.
-        // If we clear, we lose "Tracked" scenes display until we fetch them again or merge.
-        // Let's Keep existing tracked scenes and merge new ones!
-        // setMissingScenes([]); 
-        // setTrackedStatus({}); // Don't clear tracked status
+        setTrailersFetched(false); // Reset trailer fetching for new scan
 
         try {
-            const client = getClient();
-            const allScraped: GQL.ScrapedSceneDataFragment[] = [...missingScenes]; // Start with existing
-            const stashFieldsToCheck: string[] = [];
+            const allScraped: GQL.ScrapedSceneDataFragment[] = [...missingScenes]; // Keep existing
+            const existingIds = new Set(allScraped.map(s => s.remote_site_id));
+            let newScenesCount = 0;
 
-            // ... (Rest of scanning logic)
-            // inside loop:
-            // if (!allScraped.some(...)) allScraped.push(s);
+            // For each stash_id, query the corresponding stash box endpoint
+            for (const stashId of performer.stash_ids) {
+                if (!stashId.stash_id || !stashId.endpoint) continue;
 
-            // ...
+                try {
+                    // Use the new mutation that fetches performer with all scenes
+                    const result = await scrapePerformerScenes({
+                        variables: {
+                            stash_box_endpoint: stashId.endpoint,
+                            performer_stash_id: stashId.stash_id,
+                        },
+                    });
+
+                    const scrapedPerformer = result.data?.scrapePerformerScenesFromStashBox;
+                    if (!scrapedPerformer) continue;
+
+                    // Extract scenes from the performer data
+                    const scenes = scrapedPerformer.scenes || [];
+
+                    for (const scene of scenes) {
+                        // Skip if we already have this scene
+                        if (scene.remote_site_id && existingIds.has(scene.remote_site_id)) {
+                            continue;
+                        }
+
+                        // Add to our list
+                        allScraped.push(scene);
+                        if (scene.remote_site_id) {
+                            existingIds.add(scene.remote_site_id);
+                        }
+                        newScenesCount++;
+                    }
+
+                    Toast.success(`Found ${scenes.length} scenes for ${scrapedPerformer.name || "performer"}`);
+                } catch (e) {
+                    console.error(`Error scraping from ${stashId.endpoint}:`, e);
+                    Toast.error(`Error scraping from ${stashId.endpoint}`);
+                }
+            }
+
+            if (newScenesCount === 0) {
+                Toast.success("No new missing scenes found. Check tracked scenes below.");
+            } else {
+                Toast.success(`Found ${newScenesCount} new missing scenes`);
+            }
+
             setMissingScenes(allScraped);
+
+            // Refetch potential scenes to update tracked/owned status
+            await refetchPotential();
         } catch (e) {
             Toast.error(e);
         } finally {
@@ -121,45 +274,154 @@ export const PerformerMissingScenesPanel: React.FC<IPerformerMissingScenesPanelP
     };
 
     const onTrackAll = async () => {
-        const toTrack = missingScenes.filter(s => s.remote_site_id && !trackedStatus[s.remote_site_id]);
+        const toTrack = filteredAndSortedScenes.filter(s => s.remote_site_id && !trackedStatus[s.remote_site_id]);
         if (toTrack.length === 0) return;
 
         Toast.success(`Tracking ${toTrack.length} scenes...`);
-
         for (const s of toTrack) {
-            // Silence individual success toasts? Or pass flag?
-            // For now just calling existing onTrack
             await onTrack(s);
         }
         Toast.success(`Finished tracking scenes`);
     };
 
+    const toggleSortDirection = () => {
+        setSortDirection(prev => prev === "asc" ? "desc" : "asc");
+    };
+
+    const statusFilterLabel = {
+        all: "All",
+        untracked: "Untracked",
+        tracked: "Tracked",
+        owned: "Owned",
+    };
+
+    const sortFieldLabel = {
+        date: "Date",
+        title: "Title",
+        studio: "Studio",
+    };
+
     return (
         <>
-            <div className="my-3 d-flex align-items-center">
-                <Button variant="primary" onClick={onScan} disabled={scanning} className="mr-2">
+            {/* Action Buttons */}
+            <div className="my-3 d-flex align-items-center flex-wrap gap-2">
+                <Button variant="primary" onClick={onScan} disabled={scanning}>
                     <Icon icon={faSearch} className="mr-2" />
                     <FormattedMessage id="scan_missing_scenes" defaultMessage="Scan for Missing Scenes (StashBox)" />
                 </Button>
 
-                {!scanning && missingScenes.length > 0 && (
-                    <Button variant="success" onClick={onTrackAll} className="ml-2">
+                {!scanning && filteredAndSortedScenes.filter(s => s.remote_site_id && !trackedStatus[s.remote_site_id]).length > 0 && (
+                    <Button variant="success" onClick={onTrackAll}>
                         <Icon icon={faPlus} className="mr-2" />
                         <FormattedMessage id="track_all" defaultMessage="Track All" />
                     </Button>
                 )}
             </div>
 
+            {/* Filter/Sort Toolbar */}
+            {missingScenes.length > 0 && (
+                <div className="mb-3 d-flex flex-wrap align-items-center gap-2 p-2 bg-secondary text-white rounded">
+                    {/* Search */}
+                    <InputGroup style={{ maxWidth: "300px" }}>
+                        <InputGroup.Prepend>
+                            <InputGroup.Text><Icon icon={faSearch} /></InputGroup.Text>
+                        </InputGroup.Prepend>
+                        <Form.Control
+                            placeholder="Search title, studio, performer..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </InputGroup>
+
+                    {/* Status Filter */}
+                    <DropdownButton
+                        as={ButtonGroup}
+                        variant="outline-light"
+                        title={<><Icon icon={faFilter} className="mr-1" /> {statusFilterLabel[statusFilter]}</>}
+                    >
+                        {(["all", "untracked", "tracked", "owned"] as StatusFilter[]).map(status => (
+                            <Dropdown.Item
+                                key={status}
+                                active={statusFilter === status}
+                                onClick={() => setStatusFilter(status)}
+                            >
+                                {statusFilterLabel[status]}
+                            </Dropdown.Item>
+                        ))}
+                    </DropdownButton>
+
+                    {/* Sort */}
+                    <DropdownButton
+                        as={ButtonGroup}
+                        variant="outline-light"
+                        title={<>Sort: {sortFieldLabel[sortField]}</>}
+                    >
+                        {(["date", "title", "studio"] as SortField[]).map(field => (
+                            <Dropdown.Item
+                                key={field}
+                                active={sortField === field}
+                                onClick={() => setSortField(field)}
+                            >
+                                {sortFieldLabel[field]}
+                            </Dropdown.Item>
+                        ))}
+                    </DropdownButton>
+
+                    <Button
+                        variant="outline-light"
+                        onClick={toggleSortDirection}
+                        title={sortDirection === "asc" ? "Ascending" : "Descending"}
+                    >
+                        <Icon icon={sortDirection === "asc" ? faSortAmountUp : faSortAmountDown} />
+                    </Button>
+
+                    {/* Stats Summary */}
+                    <div className="ml-auto d-flex align-items-center gap-2">
+                        <span className="badge bg-info text-white px-2 py-1" title="Owned (in library)">
+                            {Object.keys(ownedStatus).length} Owned
+                        </span>
+                        <span className="badge bg-success text-white px-2 py-1" title="Tracked (not in library)">
+                            {Object.keys(trackedStatus).filter(k => trackedStatus[k] && !ownedStatus[k]).length} Tracked
+                        </span>
+                        <span className="badge bg-secondary text-white px-2 py-1" title="Total scenes">
+                            {missingScenes.length} Total
+                        </span>
+                    </div>
+                </div>
+            )}
+
             {scanning && <LoadingIndicator />}
 
-            {!scanning && missingScenes.length > 0 && (
-                <ScrapedSceneCardsGrid
-                    scenes={missingScenes}
-                    trackedStatus={trackedStatus}
-                    ownedStatus={ownedStatus}
-                    onTrack={onTrack}
-                />
+            {!scanning && paginatedScenes.length > 0 && (
+                <>
+                    <ScrapedSceneCardsGrid
+                        scenes={paginatedScenes}
+                        trackedStatus={trackedStatus}
+                        ownedStatus={ownedStatus}
+                        trailerUrls={trailerUrls}
+                        onTrack={onTrack}
+                    />
+
+                    {/* Pagination */}
+                    {filteredAndSortedScenes.length > itemsPerPage && (
+                        <div className="d-flex justify-content-center mt-4">
+                            <Pagination
+                                itemsPerPage={itemsPerPage}
+                                currentPage={currentPage}
+                                totalItems={filteredAndSortedScenes.length}
+                                onChangePage={setCurrentPage}
+                            />
+                        </div>
+                    )}
+                </>
+            )}
+
+            {!scanning && missingScenes.length > 0 && paginatedScenes.length === 0 && (
+                <div className="text-center text-muted py-4">
+                    No scenes match the current filters.
+                </div>
             )}
         </>
     );
 };
+

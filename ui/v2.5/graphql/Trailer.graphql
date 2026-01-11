@@ -1,0 +1,7 @@
+query ScrapeTrailerUrls($urls: [String!]!) {
+  scrapeTrailerUrls(urls: $urls) {
+    url
+    trailer_url
+    error
+  }
+}

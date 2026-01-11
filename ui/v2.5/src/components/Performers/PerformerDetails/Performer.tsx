@@ -104,6 +104,22 @@ const PerformerTabs: React.FC<{
     baseURL: `/performers/${performer.id}`,
   });
 
+  // Query potential scenes count for missing scenes tab
+  const { data: potentialData } = GQL.useFindPotentialScenesQuery({
+    variables: {
+      filter: {
+        performer_stash_id: performer.stash_ids?.[0]?.stash_id
+      }
+    },
+    skip: !performer.stash_ids || performer.stash_ids.length === 0,
+  });
+
+  // Count only scenes that are NOT owned (truly missing from library)
+  const missingSceneCount = useMemo(() => {
+    if (!potentialData?.findPotentialScenes) return 0;
+    return potentialData.findPotentialScenes.filter(ps => !ps.existing_scene?.id).length;
+  }, [potentialData]);
+
   useEffect(() => {
     Mousetrap.bind("c", () => setTabKey("scenes"));
     Mousetrap.bind("g", () => setTabKey("galleries"));
@@ -207,7 +223,11 @@ const PerformerTabs: React.FC<{
       <Tab
         eventKey="missing"
         title={
-          <FormattedMessage id="missing_scenes" defaultMessage="Missing Scenes" />
+          <TabTitleCounter
+            messageID="Missing Scenes"
+            count={missingSceneCount}
+            abbreviateCounter={abbreviateCounter}
+          />
         }
       >
         <PerformerMissingScenesPanel

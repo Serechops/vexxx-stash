@@ -1,0 +1,105 @@
+package trailer
+
+// Algolia-powered sites - domains that use Algolia search API for content
+var AlgoliaSites = map[string]bool{
+	"1000facials.com":        true,
+	"21naturals.com":         true,
+	"21sextreme.com":         true,
+	"21sextury.com":          true,
+	"3rddegreefilms.com":     true,
+	"adulttime.com":          true,
+	"adulttimepilots.com":    true,
+	"allblackx.com":          true,
+	"allgirlmassage.com":     true,
+	"asmrfantasy.com":        true,
+	"burningangel.com":       true,
+	"darkx.com":              true,
+	"devilsfilm.com":         true,
+	"devilstgirls.com":       true,
+	"disruptivefilms.com":    true,
+	"eroticax.com":           true,
+	"evilangel.com":          true,
+	"falconstudios.com":      true,
+	"famedigital.com":        true,
+	"fantasymassage.com":     true,
+	"filthykings.com":        true,
+	"girlcore.com":           true,
+	"girlfriendsfilms.com":   true,
+	"girlsway.com":           true,
+	"hardx.com":              true,
+	"isthisreal.com":         true,
+	"lethalhardcore.com":     true,
+	"lesbianx.com":           true,
+	"milkingtable.com":       true,
+	"modeltime.com":          true,
+	"moderndaysins.com":      true,
+	"mommyblowsbest.com":     true,
+	"mommysboy.com":          true,
+	"mommysgirl.com":         true,
+	"mypervyfamily.com":      true,
+	"nextdoorstudios.com":    true,
+	"nurumassage.com":        true,
+	"oopsie.com":             true,
+	"prettydirty.com":        true,
+	"puretaboo.com":          true,
+	"ragingstallion.com":     true,
+	"roccosiffredi.com":      true,
+	"soapymassage.com":       true,
+	"throated.com":           true,
+	"transfixed.com":         true,
+	"trickyspa.com":          true,
+	"webyoung.com":           true,
+	"wicked.com":             true,
+	"xempire.com":            true,
+	"zerotolerancefilms.com": true,
+}
+
+// Aylo/MindGeek-powered sites - domains that use Project1Service API
+var AyloSites = map[string]bool{
+	"8thstreetlatinas.com":   true,
+	"bangbros.com":           true,
+	"brazzers.com":           true,
+	"brazzersextra.com":      true,
+	"brazzersvr.com":         true,
+	"digitalplayground.com":  true,
+	"familyhookups.com":      true,
+	"familysinners.com":      true,
+	"hentaipros.com":         true,
+	"iconmale.com":           true,
+	"iknowthatgirl.com":      true,
+	"letsdoeit.com":          true,
+	"lilhumpers.com":         true,
+	"lookathernow.com":       true,
+	"men.com":                true,
+	"metrohd.com":            true,
+	"milfed.com":             true,
+	"milehighmedia.com":      true,
+	"mofos.com":              true,
+	"momsbangteens.com":      true,
+	"propertysex.com":        true,
+	"realityjunkies.com":     true,
+	"realitykings.com":       true,
+	"rkprime.com":            true,
+	"seancody.com":           true,
+	"sexyhub.com":            true,
+	"shewillcheat.com":       true,
+	"sneakysex.com":          true,
+	"sweetheartvideo.com":    true,
+	"sweetsinner.com":        true,
+	"teenslovehugecocks.com": true,
+	"transsensual.com":       true,
+	"twistys.com":            true,
+	"virtualporn.com":        true,
+	"welivetogether.com":     true,
+}
+
+// GetSiteType returns the scraper type for a given domain
+func GetSiteType(domain string) string {
+	if AlgoliaSites[domain] {
+		return "algolia"
+	}
+	if AyloSites[domain] {
+		return "aylo"
+	}
+	return "unsupported"
+}

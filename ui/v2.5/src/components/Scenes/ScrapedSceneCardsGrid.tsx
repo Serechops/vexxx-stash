@@ -3,16 +3,17 @@ import { SceneCard } from "./SceneCard";
 import * as GQL from "src/core/generated-graphql";
 import { Button, Badge } from "react-bootstrap";
 import { Icon } from "../Shared/Icon";
-import { faTag, faCheck } from "@fortawesome/free-solid-svg-icons";
+import { faTag, faCheck, faCircle } from "@fortawesome/free-solid-svg-icons";
 
 interface IScrapedSceneCardsGridProps {
     scenes: GQL.ScrapedSceneDataFragment[];
     trackedStatus: Record<string, boolean>;
-    ownedStatus: Record<string, boolean>; // NEW: Maps stash_id to whether scene exists locally
+    ownedStatus: Record<string, boolean>;
+    trailerUrls?: Record<string, string>; // Maps scene URL to trailer URL
     onTrack: (scene: GQL.ScrapedSceneDataFragment) => void;
 }
 
-function scrapedToSlim(scraped: GQL.ScrapedSceneDataFragment): GQL.SlimSceneDataFragment {
+function scrapedToSlim(scraped: GQL.ScrapedSceneDataFragment, trailerUrl?: string): GQL.SlimSceneDataFragment {
     return {
         id: scraped.remote_site_id || scraped.title || "temp-id",
         title: scraped.title,
@@ -29,7 +30,7 @@ function scrapedToSlim(scraped: GQL.ScrapedSceneDataFragment): GQL.SlimSceneData
         files: [],
         paths: {
             screenshot: scraped.image,
-            preview: null,
+            preview: trailerUrl || null, // Use trailer URL for preview if available
             stream: null,
             vtt: null,
             chapters_vtt: null,
@@ -66,6 +67,7 @@ export const ScrapedSceneCardsGrid: React.FC<IScrapedSceneCardsGridProps> = ({
     scenes,
     trackedStatus,
     ownedStatus,
+    trailerUrls = {},
     onTrack,
 }) => {
     if (!scenes || scenes.length === 0) return null;
@@ -73,10 +75,13 @@ export const ScrapedSceneCardsGrid: React.FC<IScrapedSceneCardsGridProps> = ({
     return (
         <div className="row justify-content-center">
             {scenes.map((scene, index) => {
-                const slimScene = scrapedToSlim(scene);
+                const sceneUrl = scene.urls?.[0];
+                const trailerUrl = sceneUrl ? trailerUrls[sceneUrl] : undefined;
+                const slimScene = scrapedToSlim(scene, trailerUrl);
                 const stashId = scene.remote_site_id;
                 const isTracked = !!(stashId && trackedStatus[stashId]);
                 const isOwned = !!(stashId && ownedStatus[stashId]);
+                const hasTrailer = !!trailerUrl;
 
                 // Determine button state: Owned > Tracked > Track
                 let buttonVariant: "info" | "success" | "secondary" = "secondary";
@@ -105,17 +110,24 @@ export const ScrapedSceneCardsGrid: React.FC<IScrapedSceneCardsGridProps> = ({
                             scene={slimScene}
                             link={scene.urls?.[0] || undefined}
                             extraActions={
-                                <Button
-                                    className={`btn-track ${isOwned ? "owned" : isTracked ? "tracked" : ""}`}
-                                    variant={buttonVariant}
-                                    size="sm"
-                                    onClick={() => onTrack(scene)}
-                                    title={buttonText.trim()}
-                                    disabled={buttonDisabled}
-                                >
-                                    <Icon icon={buttonIcon} />
-                                    {buttonText}
-                                </Button>
+                                <div className="d-flex align-items-center gap-1">
+                                    {hasTrailer && (
+                                        <span className="text-success" title="Trailer available">
+                                            <Icon icon={faCircle} className="fa-xs" />
+                                        </span>
+                                    )}
+                                    <Button
+                                        className={`btn-track ${isOwned ? "owned" : isTracked ? "tracked" : ""}`}
+                                        variant={buttonVariant}
+                                        size="sm"
+                                        onClick={() => onTrack(scene)}
+                                        title={buttonText.trim()}
+                                        disabled={buttonDisabled}
+                                    >
+                                        <Icon icon={buttonIcon} />
+                                        {buttonText}
+                                    </Button>
+                                </div>
                             }
                         />
                     </div>
@@ -124,3 +136,4 @@ export const ScrapedSceneCardsGrid: React.FC<IScrapedSceneCardsGridProps> = ({
         </div>
     );
 };
+

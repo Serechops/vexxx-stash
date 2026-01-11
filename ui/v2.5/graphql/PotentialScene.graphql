@@ -19,3 +19,16 @@ mutation PotentialSceneCreate($input: PotentialSceneCreateInput!) {
 mutation PotentialSceneDestroy($id: ID!) {
   potentialSceneDestroy(id: $id)
 }
+
+mutation ScrapePerformerScenesFromStashBox(
+  $stash_box_endpoint: String!
+  $performer_stash_id: String!
+) {
+  scrapePerformerScenesFromStashBox(
+    stash_box_endpoint: $stash_box_endpoint
+    performer_stash_id: $performer_stash_id
+  ) {
+    ...ScrapedPerformerData
+  }
+}
+

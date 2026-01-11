@@ -235,7 +235,7 @@ func (j *GenerateJob) queueTasks(ctx context.Context, g *generate.Generator, que
 	j.totals = totalsGenerate{}
 
 	j.queueScenesTasks(ctx, g, queue)
-	j.queueImagesTasks(ctx, g, queue)
+	j.queueImagesTasks(ctx, queue)
 }
 
 func (j *GenerateJob) queueScenesTasks(ctx context.Context, g *generate.Generator, queue chan<- Task) {
@@ -277,7 +277,7 @@ func (j *GenerateJob) queueScenesTasks(ctx context.Context, g *generate.Generato
 	}
 }
 
-func (j *GenerateJob) queueImagesTasks(ctx context.Context, g *generate.Generator, queue chan<- Task) {
+func (j *GenerateJob) queueImagesTasks(ctx context.Context, queue chan<- Task) {
 	const batchSize = 1000
 
 	findFilter := models.BatchFindFilter(batchSize)
@@ -305,7 +305,7 @@ func (j *GenerateJob) queueImagesTasks(ctx context.Context, g *generate.Generato
 				return
 			}
 
-			j.queueImageJob(g, ss, queue)
+			j.queueImageJob(ss, queue)
 		}
 
 		if len(images) != batchSize {
@@ -500,7 +500,7 @@ func (j *GenerateJob) queueMarkerJob(g *generate.Generator, marker *models.Scene
 	queue <- task
 }
 
-func (j *GenerateJob) queueImageJob(g *generate.Generator, image *models.Image, queue chan<- Task) {
+func (j *GenerateJob) queueImageJob(image *models.Image, queue chan<- Task) {
 	if j.input.ImageThumbnails {
 		task := &GenerateImageThumbnailTask{
 			Image:     *image,

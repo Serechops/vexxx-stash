@@ -72,7 +72,7 @@ func (s *DownloadStore) Serve(hash string, w http.ResponseWriter, r *http.Reques
 	}
 
 	if !f.keep {
-		s.waitAndRemoveFile(hash, &w, r)
+		s.waitAndRemoveFile(hash, r)
 	}
 
 	s.mutex.Unlock()
@@ -84,7 +84,7 @@ func (s *DownloadStore) Serve(hash string, w http.ResponseWriter, r *http.Reques
 	http.ServeFile(w, r, f.path)
 }
 
-func (s *DownloadStore) waitAndRemoveFile(hash string, w *http.ResponseWriter, r *http.Request) {
+func (s *DownloadStore) waitAndRemoveFile(hash string, r *http.Request) {
 	f := s.m[hash]
 	notify := r.Context().Done()
 	f.wg.Add(1)

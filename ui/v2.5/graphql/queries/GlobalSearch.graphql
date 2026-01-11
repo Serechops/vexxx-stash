@@ -1,0 +1,38 @@
+query GlobalSearch($term: String!, $per_page: Int = 8) {
+  scenes: findScenes(filter: { q: $term, per_page: $per_page }) {
+    count
+    scenes {
+      ...SlimSceneData
+    }
+  }
+  images: findImages(filter: { q: $term, per_page: $per_page }) {
+    count
+    images {
+      ...SlimImageData
+    }
+  }
+  galleries: findGalleries(filter: { q: $term, per_page: $per_page }) {
+    count
+    galleries {
+      ...SlimGalleryData
+    }
+  }
+  performers: findPerformers(filter: { q: $term, per_page: $per_page }) {
+    count
+    performers {
+      ...PerformerData
+    }
+  }
+  studios: findStudios(filter: { q: $term, per_page: 5 }) {
+    count
+    studios {
+      ...SlimStudioData
+    }
+  }
+  tags: findTags(filter: { q: $term, per_page: 5 }) {
+    count
+    tags {
+      ...SlimTagData
+    }
+  }
+}

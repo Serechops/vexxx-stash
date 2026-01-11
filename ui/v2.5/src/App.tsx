@@ -28,6 +28,7 @@ import MousetrapPause from "mousetrap-pause";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { MainNavbar } from "./components/MainNavbar";
 import { PageNotFound } from "./components/PageNotFound";
+import { GlobalSearch } from "./components/GlobalSearch/GlobalSearch";
 import * as GQL from "./core/generated-graphql";
 import { makeTitleProps } from "./hooks/title";
 import { LoadingIndicator } from "./components/Shared/LoadingIndicator";
@@ -364,6 +365,7 @@ export const App: React.FC = () => {
                       <ManualProvider>
                         <InteractiveProvider>
                           <Helmet {...titleProps} />
+                          <GlobalSearch />
                           {maybeRenderNavbar()}
                           <MainContainer>{renderContent()}</MainContainer>
                         </InteractiveProvider>

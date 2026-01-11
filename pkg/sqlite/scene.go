@@ -643,6 +643,22 @@ func (qb *SceneStore) GetManyFileIDs(ctx context.Context, ids []int) ([][]models
 	return sceneRepository.files.getMany(ctx, ids, primaryOnly)
 }
 
+func (qb *SceneStore) GetManyTagIDs(ctx context.Context, ids []int) ([][]int, error) {
+	return sceneRepository.tags.getManyIDs(ctx, ids)
+}
+
+func (qb *SceneStore) GetManyPerformerIDs(ctx context.Context, ids []int) ([][]int, error) {
+	return sceneRepository.performers.getManyIDs(ctx, ids)
+}
+
+func (qb *SceneStore) GetManyGalleryIDs(ctx context.Context, ids []int) ([][]int, error) {
+	return sceneRepository.galleries.getManyIDs(ctx, ids)
+}
+
+func (qb *SceneStore) GetManyStashIDs(ctx context.Context, ids []int) ([][]models.StashID, error) {
+	return sceneRepository.stashIDs.getMany(ctx, ids)
+}
+
 func (qb *SceneStore) FindByFileID(ctx context.Context, fileID models.FileID) ([]*models.Scene, error) {
 	sq := dialect.From(scenesFilesJoinTable).Select(scenesFilesJoinTable.Col(sceneIDColumn)).Where(
 		scenesFilesJoinTable.Col(fileIDColumn).Eq(fileID),

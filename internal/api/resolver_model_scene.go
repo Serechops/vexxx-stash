@@ -162,16 +162,19 @@ func (r *sceneResolver) Captions(ctx context.Context, obj *models.Scene) (ret []
 }
 
 func (r *sceneResolver) Galleries(ctx context.Context, obj *models.Scene) (ret []*models.Gallery, err error) {
+	var galleryIDs []int
 	if !obj.GalleryIDs.Loaded() {
-		if err := r.withReadTxn(ctx, func(ctx context.Context) error {
-			return obj.LoadGalleryIDs(ctx, r.repository.Scene)
-		}); err != nil {
+		var err error
+		galleryIDs, err = loaders.From(ctx).SceneGalleryIDs.Load(obj.ID)
+		if err != nil {
 			return nil, err
 		}
+	} else {
+		galleryIDs = obj.GalleryIDs.List()
 	}
 
 	var errs []error
-	ret, errs = loaders.From(ctx).GalleryByID.LoadAll(obj.GalleryIDs.List())
+	ret, errs = loaders.From(ctx).GalleryByID.LoadAll(galleryIDs)
 	return ret, firstError(errs)
 }
 
@@ -246,38 +249,47 @@ func (r *sceneResolver) Groups(ctx context.Context, obj *models.Scene) (ret []*S
 }
 
 func (r *sceneResolver) Tags(ctx context.Context, obj *models.Scene) (ret []*models.Tag, err error) {
+	var tagIDs []int
 	if !obj.TagIDs.Loaded() {
-		if err := r.withReadTxn(ctx, func(ctx context.Context) error {
-			return obj.LoadTagIDs(ctx, r.repository.Scene)
-		}); err != nil {
+		var err error
+		tagIDs, err = loaders.From(ctx).SceneTags.Load(obj.ID)
+		if err != nil {
 			return nil, err
 		}
+	} else {
+		tagIDs = obj.TagIDs.List()
 	}
 
 	var errs []error
-	ret, errs = loaders.From(ctx).TagByID.LoadAll(obj.TagIDs.List())
+	ret, errs = loaders.From(ctx).TagByID.LoadAll(tagIDs)
 	return ret, firstError(errs)
 }
 
 func (r *sceneResolver) Performers(ctx context.Context, obj *models.Scene) (ret []*models.Performer, err error) {
+	var performerIDs []int
 	if !obj.PerformerIDs.Loaded() {
-		if err := r.withReadTxn(ctx, func(ctx context.Context) error {
-			return obj.LoadPerformerIDs(ctx, r.repository.Scene)
-		}); err != nil {
+		var err error
+		performerIDs, err = loaders.From(ctx).ScenePerformers.Load(obj.ID)
+		if err != nil {
 			return nil, err
 		}
+	} else {
+		performerIDs = obj.PerformerIDs.List()
 	}
 
 	var errs []error
-	ret, errs = loaders.From(ctx).PerformerByID.LoadAll(obj.PerformerIDs.List())
+	ret, errs = loaders.From(ctx).PerformerByID.LoadAll(performerIDs)
 	return ret, firstError(errs)
 }
 
 func (r *sceneResolver) StashIds(ctx context.Context, obj *models.Scene) (ret []*models.StashID, err error) {
-	if err := r.withReadTxn(ctx, func(ctx context.Context) error {
-		return obj.LoadStashIDs(ctx, r.repository.Scene)
-	}); err != nil {
-		return nil, err
+	if !obj.StashIDs.Loaded() {
+		stashIDs, err := loaders.From(ctx).SceneStashIDs.Load(obj.ID)
+		if err != nil {
+			return nil, err
+		}
+
+		return stashIDsSliceToPtrSlice(stashIDs), nil
 	}
 
 	return stashIDsSliceToPtrSlice(obj.StashIDs.List()), nil

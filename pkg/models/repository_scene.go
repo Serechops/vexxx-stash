@@ -105,6 +105,11 @@ type SceneReader interface {
 	StashIDLoader
 	VideoFileLoader
 
+	GetManyTagIDs(ctx context.Context, ids []int) ([][]int, error)
+	GetManyPerformerIDs(ctx context.Context, ids []int) ([][]int, error)
+	GetManyGalleryIDs(ctx context.Context, ids []int) ([][]int, error)
+	GetManyStashIDs(ctx context.Context, ids []int) ([][]StashID, error)
+
 	All(ctx context.Context) ([]*Scene, error)
 	Wall(ctx context.Context, q *string) ([]*Scene, error)
 	Size(ctx context.Context) (float64, error)

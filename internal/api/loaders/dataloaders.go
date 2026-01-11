@@ -17,9 +17,13 @@
 //go:generate go run github.com/vektah/dataloaden CustomFieldsLoader int github.com/stashapp/stash/pkg/models.CustomFieldMap
 //go:generate go run github.com/vektah/dataloaden SceneOCountLoader int int
 //go:generate go run github.com/vektah/dataloaden ScenePlayCountLoader int int
-//go:generate go run github.com/vektah/dataloaden SceneOHistoryLoader int []time.Time
-//go:generate go run github.com/vektah/dataloaden ScenePlayHistoryLoader int []time.Time
-//go:generate go run github.com/vektah/dataloaden SceneLastPlayedLoader int *time.Time
+//go:generate go run github.com/vektah/dataloaden SceneOHistoryLoader int []Timestamp
+//go:generate go run github.com/vektah/dataloaden ScenePlayHistoryLoader int []Timestamp
+//go:generate go run github.com/vektah/dataloaden SceneLastPlayedLoader int *Timestamp
+//go:generate go run github.com/vektah/dataloaden SceneTagsLoader int []int
+//go:generate go run github.com/vektah/dataloaden ScenePerformersLoader int []int
+//go:generate go run github.com/vektah/dataloaden SceneGalleryIDsLoader int []int
+//go:generate go run github.com/vektah/dataloaden SceneStashIDsLoader int []github.com/stashapp/stash/pkg/models.StashID
 package loaders
 
 import (
@@ -36,6 +40,8 @@ var (
 	loadersCtxKey = &contextKey{"loaders"}
 )
 
+type Timestamp = time.Time
+
 const (
 	wait     = 1 * time.Millisecond
 	maxBatch = 100
@@ -49,6 +55,11 @@ type Loaders struct {
 	ScenePlayHistory *ScenePlayHistoryLoader
 	SceneOHistory    *SceneOHistoryLoader
 	SceneLastPlayed  *SceneLastPlayedLoader
+
+	SceneTags       *SceneTagsLoader
+	ScenePerformers *ScenePerformersLoader
+	SceneGalleryIDs *SceneGalleryIDsLoader
+	SceneStashIDs   *SceneStashIDsLoader
 
 	ImageFiles   *ImageFileIDsLoader
 	GalleryFiles *GalleryFileIDsLoader
@@ -163,6 +174,26 @@ func (m Middleware) Middleware(next http.Handler) http.Handler {
 				wait:     wait,
 				maxBatch: maxBatch,
 				fetch:    m.fetchScenesOHistory(ctx),
+			},
+			SceneTags: &SceneTagsLoader{
+				wait:     wait,
+				maxBatch: maxBatch,
+				fetch:    m.fetchScenesTags(ctx),
+			},
+			ScenePerformers: &ScenePerformersLoader{
+				wait:     wait,
+				maxBatch: maxBatch,
+				fetch:    m.fetchScenesPerformers(ctx),
+			},
+			SceneGalleryIDs: &SceneGalleryIDsLoader{
+				wait:     wait,
+				maxBatch: maxBatch,
+				fetch:    m.fetchScenesGalleryIDs(ctx),
+			},
+			SceneStashIDs: &SceneStashIDsLoader{
+				wait:     wait,
+				maxBatch: maxBatch,
+				fetch:    m.fetchScenesStashIDs(ctx),
 			},
 		}
 
@@ -379,6 +410,50 @@ func (m Middleware) fetchScenesLastPlayed(ctx context.Context) func(keys []int) 
 		err := m.Repository.WithDB(ctx, func(ctx context.Context) error {
 			var err error
 			ret, err = m.Repository.Scene.GetManyLastViewed(ctx, keys)
+			return err
+		})
+		return ret, toErrorSlice(err)
+	}
+}
+
+func (m Middleware) fetchScenesTags(ctx context.Context) func(keys []int) ([][]int, []error) {
+	return func(keys []int) (ret [][]int, errs []error) {
+		err := m.Repository.WithDB(ctx, func(ctx context.Context) error {
+			var err error
+			ret, err = m.Repository.Scene.GetManyTagIDs(ctx, keys)
+			return err
+		})
+		return ret, toErrorSlice(err)
+	}
+}
+
+func (m Middleware) fetchScenesPerformers(ctx context.Context) func(keys []int) ([][]int, []error) {
+	return func(keys []int) (ret [][]int, errs []error) {
+		err := m.Repository.WithDB(ctx, func(ctx context.Context) error {
+			var err error
+			ret, err = m.Repository.Scene.GetManyPerformerIDs(ctx, keys)
+			return err
+		})
+		return ret, toErrorSlice(err)
+	}
+}
+
+func (m Middleware) fetchScenesGalleryIDs(ctx context.Context) func(keys []int) ([][]int, []error) {
+	return func(keys []int) (ret [][]int, errs []error) {
+		err := m.Repository.WithDB(ctx, func(ctx context.Context) error {
+			var err error
+			ret, err = m.Repository.Scene.GetManyGalleryIDs(ctx, keys)
+			return err
+		})
+		return ret, toErrorSlice(err)
+	}
+}
+
+func (m Middleware) fetchScenesStashIDs(ctx context.Context) func(keys []int) ([][]models.StashID, []error) {
+	return func(keys []int) (ret [][]models.StashID, errs []error) {
+		err := m.Repository.WithDB(ctx, func(ctx context.Context) error {
+			var err error
+			ret, err = m.Repository.Scene.GetManyStashIDs(ctx, keys)
 			return err
 		})
 		return ret, toErrorSlice(err)

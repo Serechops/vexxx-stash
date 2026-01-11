@@ -249,6 +249,53 @@ func (r *joinRepository) getIDs(ctx context.Context, id int) ([]int, error) {
 	return r.runIdsQuery(ctx, query, []interface{}{id})
 }
 
+func (r *joinRepository) getManyIDs(ctx context.Context, ids []int) ([][]int, error) {
+	var joinStr string
+	if r.foreignTable != "" {
+		joinStr = fmt.Sprintf(" INNER JOIN %s ON %[1]s.id = %s.%s", r.foreignTable, r.tableName, r.fkColumn)
+	}
+
+	query := fmt.Sprintf(`SELECT %s as id, %s as fk_id from %s%s WHERE %s IN %s`, r.idColumn, r.fkColumn, r.tableName, joinStr, r.idColumn, getInBinding(len(ids)))
+
+	if r.orderBy != "" {
+		query += " ORDER BY " + r.orderBy
+	}
+
+	args := make([]interface{}, len(ids))
+	for i, id := range ids {
+		args[i] = id
+	}
+
+	type row struct {
+		ID   int `db:"id"`
+		FkID int `db:"fk_id"`
+	}
+
+	var rows []row
+	if err := r.queryFunc(ctx, query, args, false, func(r *sqlx.Rows) error {
+		var v row
+		if err := r.StructScan(&v); err != nil {
+			return err
+		}
+		rows = append(rows, v)
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	ret := make([][]int, len(ids))
+	idToIndex := idToIndexMap(ids)
+
+	for _, v := range rows {
+		index, ok := idToIndex[v.ID]
+		if ok {
+			ret[index] = append(ret[index], v.FkID)
+		}
+	}
+
+	return ret, nil
+}
+
 func (r *joinRepository) insert(ctx context.Context, id int, foreignIDs ...int) error {
 	stmt, err := dbWrapper.Prepare(ctx, fmt.Sprintf("INSERT INTO %s (%s, %s) VALUES (?, ?)", r.tableName, r.idColumn, r.fkColumn))
 	if err != nil {
@@ -423,6 +470,44 @@ func (r *stashIDRepository) get(ctx context.Context, id int) ([]models.StashID, 
 		return nil
 	})
 	return ret, err
+}
+
+func (r *stashIDRepository) getMany(ctx context.Context, ids []int) ([][]models.StashID, error) {
+	query := fmt.Sprintf("SELECT %s as id, stash_id, endpoint, updated_at from %s WHERE %s IN %s", r.idColumn, r.tableName, r.idColumn, getInBinding(len(ids)))
+
+	args := make([]interface{}, len(ids))
+	for i, id := range ids {
+		args[i] = id
+	}
+
+	type row struct {
+		ID int `db:"id"`
+		stashIDRow
+	}
+
+	var rows []row
+	if err := r.queryFunc(ctx, query, args, false, func(r *sqlx.Rows) error {
+		var v row
+		if err := r.StructScan(&v); err != nil {
+			return err
+		}
+		rows = append(rows, v)
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	ret := make([][]models.StashID, len(ids))
+	idToIndex := idToIndexMap(ids)
+
+	for _, v := range rows {
+		index, ok := idToIndex[v.ID]
+		if ok {
+			ret[index] = append(ret[index], v.stashIDRow.resolve())
+		}
+	}
+
+	return ret, nil
 }
 
 type filesRepository struct {

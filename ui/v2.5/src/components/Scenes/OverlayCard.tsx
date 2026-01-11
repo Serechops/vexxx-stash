@@ -31,6 +31,9 @@ interface ISceneCardProps {
     zoomIndex?: number;
     onSelectedChanged?: (selected: boolean, shiftKey: boolean) => void;
     fromGroupId?: string;
+    // Extensions for non-standard use (e.g. Scraped Cards)
+    link?: string;
+    extraActions?: React.ReactNode;
 }
 
 export const OverlayCard: React.FC<ISceneCardProps> = ({
@@ -41,6 +44,8 @@ export const OverlayCard: React.FC<ISceneCardProps> = ({
     selecting,
     selected,
     onSelectedChanged,
+    link,
+    extraActions,
 }) => {
     const history = useHistory();
     const { configuration } = useConfigurationContext();
@@ -58,6 +63,9 @@ export const OverlayCard: React.FC<ISceneCardProps> = ({
             continue: cont,
         })
         : `/scenes/${scene.id}`;
+
+    const finalLink = link ?? sceneLink;
+    const isInternalLink = !link || link.startsWith("/");
 
     const rating = scene.rating100 ? Math.round(scene.rating100 / 20 * 10) / 10 : null;
     const duration = file?.duration ? TextUtils.secondsToTimestamp(file.duration) : null;
@@ -91,16 +99,9 @@ export const OverlayCard: React.FC<ISceneCardProps> = ({
         }
     };
 
-    return (
-        <div
-            className={cx("scene-card-overlay-variant", { "selected": selected })}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
-            onClick={handleCardClick}
-            style={{ width: width ? width : "100%" }}
-        >
-            <Link to={selecting ? "#" : sceneLink} className="scene-card-link" onClick={e => selecting && e.preventDefault()}>
-
+    function renderCardContent() {
+        return (
+            <>
                 {/* Media Container: Full Bleed */}
                 <div className="overlay-media">
                     <HoverVideoPreview
@@ -112,8 +113,14 @@ export const OverlayCard: React.FC<ISceneCardProps> = ({
                         vttPath={scene.paths.vtt ?? undefined}
                     />
 
-                    {/* Top Right Badges */}
-
+                    {extraActions && (
+                        <div className="absolute top-2 right-2 z-20" onClick={e => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                        }}>
+                            {extraActions}
+                        </div>
+                    )}
                 </div>
 
                 {/* Gradient Overlay & Content */}
@@ -199,7 +206,27 @@ export const OverlayCard: React.FC<ISceneCardProps> = ({
                         />
                     </div>
                 )}
-            </Link>
+            </>
+        );
+    }
+
+    return (
+        <div
+            className={cx("scene-card-overlay-variant", { "selected": selected })}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+            onClick={handleCardClick}
+            style={{ width: width ? width : "100%" }}
+        >
+            {isInternalLink ? (
+                <Link to={selecting ? "#" : finalLink} className="scene-card-link" onClick={e => selecting && e.preventDefault()}>
+                    {renderCardContent()}
+                </Link>
+            ) : (
+                <a href={finalLink} className="scene-card-link" target="_blank" rel="noopener noreferrer" onClick={e => selecting && e.preventDefault()}>
+                    {renderCardContent()}
+                </a>
+            )}
         </div>
     );
 };

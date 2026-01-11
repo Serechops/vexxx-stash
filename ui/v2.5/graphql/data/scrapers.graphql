@@ -47,6 +47,9 @@ fragment ScrapedPerformerData on ScrapedPerformer {
   }
   images
   details
+  scenes {
+    ...ScrapedSceneData
+  }
   death_date
   hair_color
   weight
@@ -170,6 +173,7 @@ fragment ScrapedSceneData on ScrapedScene {
   date
   image
   remote_site_id
+  duration
 
   file {
     size

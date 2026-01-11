@@ -159,28 +159,29 @@ func (s *ScrapedStudio) ToPartial(id string, endpoint string, excluded map[strin
 // A performer from a scraping operation...
 type ScrapedPerformer struct {
 	// Set if performer matched
-	StoredID       *string       `json:"stored_id"`
-	Name           *string       `json:"name"`
-	Disambiguation *string       `json:"disambiguation"`
-	Gender         *string       `json:"gender"`
-	URLs           []string      `json:"urls"`
-	URL            *string       `json:"url"`       // deprecated
-	Twitter        *string       `json:"twitter"`   // deprecated
-	Instagram      *string       `json:"instagram"` // deprecated
-	Birthdate      *string       `json:"birthdate"`
-	Ethnicity      *string       `json:"ethnicity"`
-	Country        *string       `json:"country"`
-	EyeColor       *string       `json:"eye_color"`
-	Height         *string       `json:"height"`
-	Measurements   *string       `json:"measurements"`
-	FakeTits       *string       `json:"fake_tits"`
-	PenisLength    *string       `json:"penis_length"`
-	Circumcised    *string       `json:"circumcised"`
-	CareerLength   *string       `json:"career_length"`
-	Tattoos        *string       `json:"tattoos"`
-	Piercings      *string       `json:"piercings"`
-	Aliases        *string       `json:"aliases"`
-	Tags           []*ScrapedTag `json:"tags"`
+	StoredID       *string         `json:"stored_id"`
+	Name           *string         `json:"name"`
+	Disambiguation *string         `json:"disambiguation"`
+	Gender         *string         `json:"gender"`
+	URLs           []string        `json:"urls"`
+	URL            *string         `json:"url"`       // deprecated
+	Twitter        *string         `json:"twitter"`   // deprecated
+	Instagram      *string         `json:"instagram"` // deprecated
+	Birthdate      *string         `json:"birthdate"`
+	Ethnicity      *string         `json:"ethnicity"`
+	Country        *string         `json:"country"`
+	EyeColor       *string         `json:"eye_color"`
+	Height         *string         `json:"height"`
+	Measurements   *string         `json:"measurements"`
+	FakeTits       *string         `json:"fake_tits"`
+	PenisLength    *string         `json:"penis_length"`
+	Circumcised    *string         `json:"circumcised"`
+	CareerLength   *string         `json:"career_length"`
+	Tattoos        *string         `json:"tattoos"`
+	Piercings      *string         `json:"piercings"`
+	Aliases        *string         `json:"aliases"`
+	Tags           []*ScrapedTag   `json:"tags"`
+	Scenes         []*ScrapedScene `json:"scenes"`
 	// This should be a base64 encoded data URL
 	Image              *string  `json:"image"` // deprecated: use Images
 	Images             []string `json:"images"`

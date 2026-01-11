@@ -1,0 +1,30 @@
+
+type PotentialScene {
+  id: ID!
+  stash_id: String!
+  data: String!
+  created_at: Time!
+  existing_scene: Scene
+}
+
+input PotentialSceneCreateInput {
+  stash_id: String!
+  data: String!
+  created_at: Time
+}
+
+input PotentialSceneFilterInput {
+  stash_id: String
+  stash_ids: [String!]
+  performer_stash_id: String
+  studio_stash_id: String
+}
+
+extend type Query {
+  findPotentialScenes(filter: PotentialSceneFilterInput): [PotentialScene!]!
+}
+
+extend type Mutation {
+  potentialSceneCreate(input: PotentialSceneCreateInput!): PotentialScene
+  potentialSceneDestroy(id: ID!): Boolean!
+}

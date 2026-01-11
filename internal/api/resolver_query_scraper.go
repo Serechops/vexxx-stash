@@ -431,12 +431,26 @@ func (r *queryResolver) ScrapeSinglePerformer(ctx context.Context, source scrape
 		var query string
 		switch {
 		case input.PerformerID != nil:
-			names, err := r.findPerformerNames(ctx, []string{*input.PerformerID})
-			if err != nil {
-				return nil, err
-			}
+			if _, err := strconv.Atoi(*input.PerformerID); err == nil {
+				names, err := r.findPerformerNames(ctx, []string{*input.PerformerID})
+				if err != nil {
+					return nil, err
+				}
 
-			query = names[0]
+				query = names[0]
+			} else {
+				// Assume it is a Stash ID
+				out, err := client.FindPerformerByID(ctx, *input.PerformerID)
+				if err != nil {
+					return nil, err
+				}
+
+				if out != nil {
+					ret = append(ret, out)
+				}
+
+				return ret, nil
+			}
 		case input.Query != nil:
 			query = *input.Query
 		default:

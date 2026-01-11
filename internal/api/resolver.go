@@ -98,6 +98,9 @@ func (r *Resolver) ImageFile() ImageFileResolver {
 func (r *Resolver) BasicFile() BasicFileResolver {
 	return &basicFileResolver{r}
 }
+func (r *Resolver) PotentialScene() PotentialSceneResolver {
+	return &potentialSceneResolver{r}
+}
 func (r *Resolver) Folder() FolderResolver {
 	return &folderResolver{r}
 }

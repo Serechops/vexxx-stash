@@ -610,7 +610,7 @@ type groupsScenesRow struct {
 	SceneIndex null.Int `db:"scene_index"`
 }
 
-func (r groupsScenesRow) resolve(sceneID int) models.GroupsScenes {
+func (r groupsScenesRow) resolve() models.GroupsScenes {
 	return models.GroupsScenes{
 		GroupID:    int(r.GroupID.Int64),
 		SceneIndex: nullIntPtr(r.SceneIndex),
@@ -628,7 +628,7 @@ func (t *scenesGroupsTable) get(ctx context.Context, id int) ([]models.GroupsSce
 			return err
 		}
 
-		ret = append(ret, v.resolve(id))
+		ret = append(ret, v.resolve())
 
 		return nil
 	}); err != nil {

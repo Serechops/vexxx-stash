@@ -155,6 +155,9 @@ query SearchPerformer($term: String!) {
 query FindPerformerByID($id: ID!) {
   findPerformer(id: $id) {
     ...PerformerFragment
+    scenes {
+      ...SceneFragment
+    }
   }
 }
 
@@ -181,6 +184,15 @@ query QueryTags($input: TagQueryInput!) {
     count
     tags {
       ...TagFragment
+    }
+  }
+}
+
+query QueryScenes($input: SceneQueryInput!) {
+  queryScenes(input: $input) {
+    count
+    scenes {
+      ...SceneFragment
     }
   }
 }

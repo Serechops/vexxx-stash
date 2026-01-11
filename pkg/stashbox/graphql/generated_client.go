@@ -19,6 +19,7 @@ type StashBoxGraphQLClient interface {
 	FindStudio(ctx context.Context, id *string, name *string, interceptors ...clientv2.RequestInterceptor) (*FindStudio, error)
 	FindTag(ctx context.Context, id *string, name *string, interceptors ...clientv2.RequestInterceptor) (*FindTag, error)
 	QueryTags(ctx context.Context, input TagQueryInput, interceptors ...clientv2.RequestInterceptor) (*QueryTags, error)
+	QueryScenes(ctx context.Context, input SceneQueryInput, interceptors ...clientv2.RequestInterceptor) (*QueryScenes, error)
 	SubmitFingerprint(ctx context.Context, input FingerprintSubmission, interceptors ...clientv2.RequestInterceptor) (*SubmitFingerprint, error)
 	Me(ctx context.Context, interceptors ...clientv2.RequestInterceptor) (*Me, error)
 	SubmitSceneDraft(ctx context.Context, input SceneDraftInput, interceptors ...clientv2.RequestInterceptor) (*SubmitSceneDraft, error)
@@ -608,6 +609,196 @@ func (t *SearchScene_SearchScene_SceneFragment_Studio_StudioFragment_Parent) Get
 	return t.Name
 }
 
+type FindPerformerByID_FindPerformer_Scenes_SceneFragment_Studio_StudioFragment_Parent struct {
+	ID   string "json:\"id\" graphql:\"id\""
+	Name string "json:\"name\" graphql:\"name\""
+}
+
+func (t *FindPerformerByID_FindPerformer_Scenes_SceneFragment_Studio_StudioFragment_Parent) GetID() string {
+	if t == nil {
+		t = &FindPerformerByID_FindPerformer_Scenes_SceneFragment_Studio_StudioFragment_Parent{}
+	}
+	return t.ID
+}
+func (t *FindPerformerByID_FindPerformer_Scenes_SceneFragment_Studio_StudioFragment_Parent) GetName() string {
+	if t == nil {
+		t = &FindPerformerByID_FindPerformer_Scenes_SceneFragment_Studio_StudioFragment_Parent{}
+	}
+	return t.Name
+}
+
+type FindPerformerByID_FindPerformer struct {
+	Aliases         []string                    "json:\"aliases\" graphql:\"aliases\""
+	BirthDate       *string                     "json:\"birth_date,omitempty\" graphql:\"birth_date\""
+	BreastType      *BreastTypeEnum             "json:\"breast_type,omitempty\" graphql:\"breast_type\""
+	CareerEndYear   *int                        "json:\"career_end_year,omitempty\" graphql:\"career_end_year\""
+	CareerStartYear *int                        "json:\"career_start_year,omitempty\" graphql:\"career_start_year\""
+	Country         *string                     "json:\"country,omitempty\" graphql:\"country\""
+	DeathDate       *string                     "json:\"death_date,omitempty\" graphql:\"death_date\""
+	Deleted         bool                        "json:\"deleted\" graphql:\"deleted\""
+	Disambiguation  *string                     "json:\"disambiguation,omitempty\" graphql:\"disambiguation\""
+	Ethnicity       *EthnicityEnum              "json:\"ethnicity,omitempty\" graphql:\"ethnicity\""
+	EyeColor        *EyeColorEnum               "json:\"eye_color,omitempty\" graphql:\"eye_color\""
+	Gender          *GenderEnum                 "json:\"gender,omitempty\" graphql:\"gender\""
+	HairColor       *HairColorEnum              "json:\"hair_color,omitempty\" graphql:\"hair_color\""
+	Height          *int                        "json:\"height,omitempty\" graphql:\"height\""
+	ID              string                      "json:\"id\" graphql:\"id\""
+	Images          []*ImageFragment            "json:\"images\" graphql:\"images\""
+	Measurements    *MeasurementsFragment       "json:\"measurements\" graphql:\"measurements\""
+	MergedIds       []string                    "json:\"merged_ids\" graphql:\"merged_ids\""
+	MergedIntoID    *string                     "json:\"merged_into_id,omitempty\" graphql:\"merged_into_id\""
+	Name            string                      "json:\"name\" graphql:\"name\""
+	Piercings       []*BodyModificationFragment "json:\"piercings,omitempty\" graphql:\"piercings\""
+	Scenes          []*SceneFragment            "json:\"scenes\" graphql:\"scenes\""
+	Tattoos         []*BodyModificationFragment "json:\"tattoos,omitempty\" graphql:\"tattoos\""
+	Urls            []*URLFragment              "json:\"urls\" graphql:\"urls\""
+}
+
+func (t *FindPerformerByID_FindPerformer) GetAliases() []string {
+	if t == nil {
+		t = &FindPerformerByID_FindPerformer{}
+	}
+	return t.Aliases
+}
+func (t *FindPerformerByID_FindPerformer) GetBirthDate() *string {
+	if t == nil {
+		t = &FindPerformerByID_FindPerformer{}
+	}
+	return t.BirthDate
+}
+func (t *FindPerformerByID_FindPerformer) GetBreastType() *BreastTypeEnum {
+	if t == nil {
+		t = &FindPerformerByID_FindPerformer{}
+	}
+	return t.BreastType
+}
+func (t *FindPerformerByID_FindPerformer) GetCareerEndYear() *int {
+	if t == nil {
+		t = &FindPerformerByID_FindPerformer{}
+	}
+	return t.CareerEndYear
+}
+func (t *FindPerformerByID_FindPerformer) GetCareerStartYear() *int {
+	if t == nil {
+		t = &FindPerformerByID_FindPerformer{}
+	}
+	return t.CareerStartYear
+}
+func (t *FindPerformerByID_FindPerformer) GetCountry() *string {
+	if t == nil {
+		t = &FindPerformerByID_FindPerformer{}
+	}
+	return t.Country
+}
+func (t *FindPerformerByID_FindPerformer) GetDeathDate() *string {
+	if t == nil {
+		t = &FindPerformerByID_FindPerformer{}
+	}
+	return t.DeathDate
+}
+func (t *FindPerformerByID_FindPerformer) GetDeleted() bool {
+	if t == nil {
+		t = &FindPerformerByID_FindPerformer{}
+	}
+	return t.Deleted
+}
+func (t *FindPerformerByID_FindPerformer) GetDisambiguation() *string {
+	if t == nil {
+		t = &FindPerformerByID_FindPerformer{}
+	}
+	return t.Disambiguation
+}
+func (t *FindPerformerByID_FindPerformer) GetEthnicity() *EthnicityEnum {
+	if t == nil {
+		t = &FindPerformerByID_FindPerformer{}
+	}
+	return t.Ethnicity
+}
+func (t *FindPerformerByID_FindPerformer) GetEyeColor() *EyeColorEnum {
+	if t == nil {
+		t = &FindPerformerByID_FindPerformer{}
+	}
+	return t.EyeColor
+}
+func (t *FindPerformerByID_FindPerformer) GetGender() *GenderEnum {
+	if t == nil {
+		t = &FindPerformerByID_FindPerformer{}
+	}
+	return t.Gender
+}
+func (t *FindPerformerByID_FindPerformer) GetHairColor() *HairColorEnum {
+	if t == nil {
+		t = &FindPerformerByID_FindPerformer{}
+	}
+	return t.HairColor
+}
+func (t *FindPerformerByID_FindPerformer) GetHeight() *int {
+	if t == nil {
+		t = &FindPerformerByID_FindPerformer{}
+	}
+	return t.Height
+}
+func (t *FindPerformerByID_FindPerformer) GetID() string {
+	if t == nil {
+		t = &FindPerformerByID_FindPerformer{}
+	}
+	return t.ID
+}
+func (t *FindPerformerByID_FindPerformer) GetImages() []*ImageFragment {
+	if t == nil {
+		t = &FindPerformerByID_FindPerformer{}
+	}
+	return t.Images
+}
+func (t *FindPerformerByID_FindPerformer) GetMeasurements() *MeasurementsFragment {
+	if t == nil {
+		t = &FindPerformerByID_FindPerformer{}
+	}
+	return t.Measurements
+}
+func (t *FindPerformerByID_FindPerformer) GetMergedIds() []string {
+	if t == nil {
+		t = &FindPerformerByID_FindPerformer{}
+	}
+	return t.MergedIds
+}
+func (t *FindPerformerByID_FindPerformer) GetMergedIntoID() *string {
+	if t == nil {
+		t = &FindPerformerByID_FindPerformer{}
+	}
+	return t.MergedIntoID
+}
+func (t *FindPerformerByID_FindPerformer) GetName() string {
+	if t == nil {
+		t = &FindPerformerByID_FindPerformer{}
+	}
+	return t.Name
+}
+func (t *FindPerformerByID_FindPerformer) GetPiercings() []*BodyModificationFragment {
+	if t == nil {
+		t = &FindPerformerByID_FindPerformer{}
+	}
+	return t.Piercings
+}
+func (t *FindPerformerByID_FindPerformer) GetScenes() []*SceneFragment {
+	if t == nil {
+		t = &FindPerformerByID_FindPerformer{}
+	}
+	return t.Scenes
+}
+func (t *FindPerformerByID_FindPerformer) GetTattoos() []*BodyModificationFragment {
+	if t == nil {
+		t = &FindPerformerByID_FindPerformer{}
+	}
+	return t.Tattoos
+}
+func (t *FindPerformerByID_FindPerformer) GetUrls() []*URLFragment {
+	if t == nil {
+		t = &FindPerformerByID_FindPerformer{}
+	}
+	return t.Urls
+}
+
 type FindSceneByID_FindScene_SceneFragment_Studio_StudioFragment_Parent struct {
 	ID   string "json:\"id\" graphql:\"id\""
 	Name string "json:\"name\" graphql:\"name\""
@@ -660,6 +851,42 @@ func (t *QueryTags_QueryTags) GetTags() []*TagFragment {
 		t = &QueryTags_QueryTags{}
 	}
 	return t.Tags
+}
+
+type QueryScenes_QueryScenes_Scenes_SceneFragment_Studio_StudioFragment_Parent struct {
+	ID   string "json:\"id\" graphql:\"id\""
+	Name string "json:\"name\" graphql:\"name\""
+}
+
+func (t *QueryScenes_QueryScenes_Scenes_SceneFragment_Studio_StudioFragment_Parent) GetID() string {
+	if t == nil {
+		t = &QueryScenes_QueryScenes_Scenes_SceneFragment_Studio_StudioFragment_Parent{}
+	}
+	return t.ID
+}
+func (t *QueryScenes_QueryScenes_Scenes_SceneFragment_Studio_StudioFragment_Parent) GetName() string {
+	if t == nil {
+		t = &QueryScenes_QueryScenes_Scenes_SceneFragment_Studio_StudioFragment_Parent{}
+	}
+	return t.Name
+}
+
+type QueryScenes_QueryScenes struct {
+	Count  int              "json:\"count\" graphql:\"count\""
+	Scenes []*SceneFragment "json:\"scenes\" graphql:\"scenes\""
+}
+
+func (t *QueryScenes_QueryScenes) GetCount() int {
+	if t == nil {
+		t = &QueryScenes_QueryScenes{}
+	}
+	return t.Count
+}
+func (t *QueryScenes_QueryScenes) GetScenes() []*SceneFragment {
+	if t == nil {
+		t = &QueryScenes_QueryScenes{}
+	}
+	return t.Scenes
 }
 
 type Me_Me struct {
@@ -751,10 +978,10 @@ func (t *SearchPerformer) GetSearchPerformer() []*PerformerFragment {
 }
 
 type FindPerformerByID struct {
-	FindPerformer *PerformerFragment "json:\"findPerformer,omitempty\" graphql:\"findPerformer\""
+	FindPerformer *FindPerformerByID_FindPerformer "json:\"findPerformer,omitempty\" graphql:\"findPerformer\""
 }
 
-func (t *FindPerformerByID) GetFindPerformer() *PerformerFragment {
+func (t *FindPerformerByID) GetFindPerformer() *FindPerformerByID_FindPerformer {
 	if t == nil {
 		t = &FindPerformerByID{}
 	}
@@ -803,6 +1030,17 @@ func (t *QueryTags) GetQueryTags() *QueryTags_QueryTags {
 		t = &QueryTags{}
 	}
 	return &t.QueryTags
+}
+
+type QueryScenes struct {
+	QueryScenes QueryScenes_QueryScenes "json:\"queryScenes\" graphql:\"queryScenes\""
+}
+
+func (t *QueryScenes) GetQueryScenes() *QueryScenes_QueryScenes {
+	if t == nil {
+		t = &QueryScenes{}
+	}
+	return &t.QueryScenes
 }
 
 type SubmitFingerprint struct {
@@ -1475,6 +1713,9 @@ func (c *Client) SearchPerformer(ctx context.Context, term string, interceptors 
 const FindPerformerByIDDocument = `query FindPerformerByID ($id: ID!) {
 	findPerformer(id: $id) {
 		... PerformerFragment
+		scenes {
+			... SceneFragment
+		}
 	}
 }
 fragment PerformerFragment on Performer {
@@ -1531,6 +1772,63 @@ fragment MeasurementsFragment on Measurements {
 fragment BodyModificationFragment on BodyModification {
 	location
 	description
+}
+fragment SceneFragment on Scene {
+	id
+	title
+	code
+	details
+	director
+	duration
+	date
+	urls {
+		... URLFragment
+	}
+	images {
+		... ImageFragment
+	}
+	studio {
+		... StudioFragment
+	}
+	tags {
+		... TagFragment
+	}
+	performers {
+		... PerformerAppearanceFragment
+	}
+	fingerprints {
+		... FingerprintFragment
+	}
+}
+fragment StudioFragment on Studio {
+	name
+	id
+	aliases
+	urls {
+		... URLFragment
+	}
+	parent {
+		name
+		id
+	}
+	images {
+		... ImageFragment
+	}
+}
+fragment TagFragment on Tag {
+	name
+	id
+}
+fragment PerformerAppearanceFragment on PerformerAppearance {
+	as
+	performer {
+		... PerformerFragment
+	}
+}
+fragment FingerprintFragment on Fingerprint {
+	algorithm
+	hash
+	duration
 }
 `
 
@@ -1797,6 +2095,145 @@ func (c *Client) QueryTags(ctx context.Context, input TagQueryInput, interceptor
 	return &res, nil
 }
 
+const QueryScenesDocument = `query QueryScenes ($input: SceneQueryInput!) {
+	queryScenes(input: $input) {
+		count
+		scenes {
+			... SceneFragment
+		}
+	}
+}
+fragment SceneFragment on Scene {
+	id
+	title
+	code
+	details
+	director
+	duration
+	date
+	urls {
+		... URLFragment
+	}
+	images {
+		... ImageFragment
+	}
+	studio {
+		... StudioFragment
+	}
+	tags {
+		... TagFragment
+	}
+	performers {
+		... PerformerAppearanceFragment
+	}
+	fingerprints {
+		... FingerprintFragment
+	}
+}
+fragment URLFragment on URL {
+	url
+	type
+}
+fragment ImageFragment on Image {
+	id
+	url
+	width
+	height
+}
+fragment StudioFragment on Studio {
+	name
+	id
+	aliases
+	urls {
+		... URLFragment
+	}
+	parent {
+		name
+		id
+	}
+	images {
+		... ImageFragment
+	}
+}
+fragment TagFragment on Tag {
+	name
+	id
+}
+fragment PerformerAppearanceFragment on PerformerAppearance {
+	as
+	performer {
+		... PerformerFragment
+	}
+}
+fragment PerformerFragment on Performer {
+	id
+	name
+	disambiguation
+	aliases
+	gender
+	merged_ids
+	deleted
+	merged_into_id
+	urls {
+		... URLFragment
+	}
+	images {
+		... ImageFragment
+	}
+	birth_date
+	death_date
+	ethnicity
+	country
+	eye_color
+	hair_color
+	height
+	measurements {
+		... MeasurementsFragment
+	}
+	breast_type
+	career_start_year
+	career_end_year
+	tattoos {
+		... BodyModificationFragment
+	}
+	piercings {
+		... BodyModificationFragment
+	}
+}
+fragment MeasurementsFragment on Measurements {
+	band_size
+	cup_size
+	waist
+	hip
+}
+fragment BodyModificationFragment on BodyModification {
+	location
+	description
+}
+fragment FingerprintFragment on Fingerprint {
+	algorithm
+	hash
+	duration
+}
+`
+
+func (c *Client) QueryScenes(ctx context.Context, input SceneQueryInput, interceptors ...clientv2.RequestInterceptor) (*QueryScenes, error) {
+	vars := map[string]any{
+		"input": input,
+	}
+
+	var res QueryScenes
+	if err := c.Client.Post(ctx, "QueryScenes", QueryScenesDocument, &res, vars, interceptors...); err != nil {
+		if c.Client.ParseDataWhenErrors {
+			return &res, err
+		}
+
+		return nil, err
+	}
+
+	return &res, nil
+}
+
 const SubmitFingerprintDocument = `mutation SubmitFingerprint ($input: FingerprintSubmission!) {
 	submitFingerprint(input: $input)
 }
@@ -1900,6 +2337,7 @@ var DocumentOperationNames = map[string]string{
 	FindStudioDocument:                    "FindStudio",
 	FindTagDocument:                       "FindTag",
 	QueryTagsDocument:                     "QueryTags",
+	QueryScenesDocument:                   "QueryScenes",
 	SubmitFingerprintDocument:             "SubmitFingerprint",
 	MeDocument:                            "Me",
 	SubmitSceneDraftDocument:              "SubmitSceneDraft",

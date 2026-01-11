@@ -1421,7 +1421,7 @@ func (qb *SceneStore) GetGroups(ctx context.Context, id int) (ret []models.Group
 			return err
 		}
 
-		ret = append(ret, ms.resolve(id))
+		ret = append(ret, ms.resolve())
 		return nil
 	}); err != nil {
 		return nil, err

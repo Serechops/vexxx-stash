@@ -93,13 +93,6 @@ func (r *updateRecord) setTimestamp(destField string, v models.OptionalTime) {
 	}
 }
 
-//nolint:golint,unused
-func (r *updateRecord) setNullTimestamp(destField string, v models.OptionalTime) {
-	if v.Set {
-		r.set(destField, NullTimestampFromTimePtr(v.Ptr()))
-	}
-}
-
 func (r *updateRecord) setNullDate(destField string, precisionField string, v models.OptionalDate) {
 	if v.Set {
 		r.set(destField, NullDateFromDatePtr(v.Ptr()))

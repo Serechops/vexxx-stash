@@ -3,6 +3,7 @@ package stashbox
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -308,7 +309,58 @@ func (c Client) FindPerformerByID(ctx context.Context, id string) (*models.Scrap
 		return nil, nil
 	}
 
-	ret := performerFragmentToScrapedPerformer(*performer.FindPerformer)
+	var fragment graphql.PerformerFragment
+	b, err := json.Marshal(performer.FindPerformer)
+	if err == nil {
+		_ = json.Unmarshal(b, &fragment)
+	}
+
+	ret := performerFragmentToScrapedPerformer(fragment)
+
+	ret.Scenes = nil // Clear scenes from initial query as they might be incomplete
+
+	// Fetch all scenes using QueryScenes with pagination
+	page := 1
+	perPage := 50
+	sceneInput := graphql.SceneQueryInput{
+		Performers: &graphql.MultiIDCriterionInput{
+			Value:    []string{id},
+			Modifier: graphql.CriterionModifierIncludes,
+		},
+		Page:      page,
+		PerPage:   perPage,
+		Sort:      graphql.SceneSortEnumDate,
+		Direction: graphql.SortDirectionEnumDesc,
+	}
+
+	for {
+		sceneInput.Page = page
+		sceneResult, err := c.client.QueryScenes(ctx, sceneInput)
+		if err != nil {
+			// If scene query fails, just return what we have (performer w/o scenes) or log?
+			// Better to return partial result than fail completely, but ideally we warn.
+			// For now, let's log/return error if it's critical, or just break.
+			// Returning error is safer to signal something went wrong.
+			return nil, err
+		}
+
+		if len(sceneResult.QueryScenes.Scenes) == 0 {
+			break
+		}
+
+		for _, s := range sceneResult.QueryScenes.Scenes {
+			ss, err := c.sceneFragmentToScrapedScene(ctx, s)
+			if err == nil {
+				ret.Scenes = append(ret.Scenes, ss)
+			}
+		}
+
+		if len(ret.Scenes) >= sceneResult.QueryScenes.Count {
+			break
+		}
+
+		page++
+	}
 
 	return ret, nil
 }

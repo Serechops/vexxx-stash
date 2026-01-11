@@ -1,0 +1,21 @@
+query FindPotentialScenes($filter: PotentialSceneFilterInput) {
+  findPotentialScenes(filter: $filter) {
+    id
+    stash_id
+    data
+    created_at
+    existing_scene {
+      id
+    }
+  }
+}
+
+mutation PotentialSceneCreate($input: PotentialSceneCreateInput!) {
+  potentialSceneCreate(input: $input) {
+    id
+  }
+}
+
+mutation PotentialSceneDestroy($id: ID!) {
+  potentialSceneDestroy(id: $id)
+}

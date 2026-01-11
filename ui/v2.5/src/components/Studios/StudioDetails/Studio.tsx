@@ -20,6 +20,7 @@ import { ErrorMessage } from "src/components/Shared/ErrorMessage";
 import { useToast } from "src/hooks/Toast";
 import { useConfigurationContext } from "src/hooks/Config";
 import { StudioScenesPanel } from "./StudioScenesPanel";
+import { StudioMissingScenesPanel } from "./StudioMissingScenesPanel";
 import { StudioGalleriesPanel } from "./StudioGalleriesPanel";
 import { StudioImagesPanel } from "./StudioImagesPanel";
 import { StudioChildrenPanel } from "./StudioChildrenPanel";
@@ -67,6 +68,7 @@ const validTabs = [
   "images",
   "performers",
   "groups",
+  "missing",
   "childstudios",
 ] as const;
 type TabKey = (typeof validTabs)[number];
@@ -252,6 +254,17 @@ const StudioTabs: React.FC<{
       >
         <StudioChildrenPanel
           active={tabKey === "childstudios"}
+          studio={studio}
+        />
+      </Tab>
+      <Tab
+        eventKey="missing"
+        title={
+          <FormattedMessage id="missing_scenes" defaultMessage="Missing Scenes" />
+        }
+      >
+        <StudioMissingScenesPanel
+          active={tabKey === "missing"}
           studio={studio}
         />
       </Tab>

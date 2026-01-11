@@ -107,6 +107,9 @@ interface ISceneCardProps {
   zoomIndex?: number;
   onSelectedChanged?: (selected: boolean, shiftKey: boolean) => void;
   fromGroupId?: string;
+  // Extensions for non-standard use (e.g. Scraped Cards)
+  link?: string;
+  extraActions?: React.ReactNode;
 }
 
 
@@ -223,6 +226,14 @@ const FlipCard = PatchComponent(
               image={<SceneCardImage {...props} />}
               overlays={
                 <>
+                  {props.extraActions && (
+                    <div className="absolute top-2 left-2 z-20" onClick={e => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }}>
+                      {props.extraActions}
+                    </div>
+                  )}
                   {/* Info Button for Flip - Top Right */}
                   <div className="absolute top-2 right-2 z-20 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button

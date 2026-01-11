@@ -17,8 +17,7 @@ import (
 )
 
 const (
-	savedFilterTable       = "saved_filters"
-	savedFilterDefaultName = ""
+	savedFilterTable = "saved_filters"
 )
 
 type savedFilterRow struct {

@@ -23,6 +23,7 @@ import {
   PerformerDetailsPanel,
 } from "./PerformerDetailsPanel";
 import { PerformerScenesPanel } from "./PerformerScenesPanel";
+import { PerformerMissingScenesPanel } from "./PerformerMissingScenesPanel";
 import { PerformerGalleriesPanel } from "./PerformerGalleriesPanel";
 import { PerformerGroupsPanel } from "./PerformerGroupsPanel";
 import { PerformerImagesPanel } from "./PerformerImagesPanel";
@@ -67,6 +68,7 @@ const validTabs = [
   "galleries",
   "images",
   "groups",
+  "missing",
   "appearswith",
 ] as const;
 type TabKey = (typeof validTabs)[number];
@@ -198,6 +200,18 @@ const PerformerTabs: React.FC<{
       >
         <PerformerAppearsWithPanel
           active={tabKey === "appearswith"}
+          performer={performer}
+        />
+      </Tab>
+
+      <Tab
+        eventKey="missing"
+        title={
+          <FormattedMessage id="missing_scenes" defaultMessage="Missing Scenes" />
+        }
+      >
+        <PerformerMissingScenesPanel
+          active={tabKey === "missing"}
           performer={performer}
         />
       </Tab>

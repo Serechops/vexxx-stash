@@ -713,7 +713,7 @@ func (qb *TagStore) getDefaultTagSort() string {
 	return getSort("name", "ASC", "tags")
 }
 
-func (qb *TagStore) getTagSort(query *queryBuilder, findFilter *models.FindFilterType) (string, error) {
+func (qb *TagStore) getTagSort(_ *queryBuilder, findFilter *models.FindFilterType) (string, error) {
 	var sort string
 	var direction string
 	if findFilter == nil {

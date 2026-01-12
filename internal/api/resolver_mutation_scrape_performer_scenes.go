@@ -2,7 +2,9 @@ package api
 
 import (
 	"context"
+	"strconv"
 
+	"github.com/stashapp/stash/internal/manager"
 	"github.com/stashapp/stash/pkg/models"
 )
 
@@ -24,4 +26,21 @@ func (r *mutationResolver) ScrapePerformerScenesFromStashBox(ctx context.Context
 	}
 
 	return performer, nil
+}
+
+func (r *mutationResolver) StartScrapePerformerScenesJob(ctx context.Context, stashBoxEndpoint string, performerStashID string) (*string, error) {
+	// Resolve the stash box by endpoint to validate it
+	_, err := resolveStashBox(nil, &stashBoxEndpoint)
+	if err != nil {
+		return nil, err
+	}
+
+	task := &manager.ScrapePerformerScenesTask{
+		StashBoxEndpoint: stashBoxEndpoint,
+		PerformerStashID: performerStashID,
+	}
+
+	jobID := manager.GetInstance().JobManager.Add(ctx, task.GetDescription(), task)
+	jidStr := strconv.Itoa(jobID)
+	return &jidStr, nil
 }

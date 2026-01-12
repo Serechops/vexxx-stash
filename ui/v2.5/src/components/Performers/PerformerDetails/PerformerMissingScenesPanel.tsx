@@ -83,13 +83,30 @@ export const PerformerMissingScenesPanel: React.FC<IPerformerMissingScenesPanelP
                 }
             });
 
-            if (!scanning && loadedScenes.length > 0) {
-                setMissingScenes(loadedScenes);
-                setTrackedStatus(newTrackedStatus);
-                setOwnedStatus(newOwnedStatus);
+            if (Object.keys(newOwnedStatus).length > 0) {
+                setOwnedStatus(prev => ({ ...prev, ...newOwnedStatus }));
             }
+            if (Object.keys(newTrackedStatus).length > 0) {
+                setTrackedStatus(prev => ({ ...prev, ...newTrackedStatus }));
+            }
+
+            // Merge loaded scenes with existing missing scenes to prevent overwriting scan results
+            setMissingScenes(prev => {
+                const existingIds = new Set(prev.map(s => s.remote_site_id));
+                const combined = [...prev];
+                let changed = false;
+
+                loadedScenes.forEach(s => {
+                    if (s.remote_site_id && !existingIds.has(s.remote_site_id)) {
+                        combined.push(s);
+                        changed = true;
+                    }
+                });
+
+                return changed ? combined : prev;
+            });
         }
-    }, [potentialData, scanning]);
+    }, [potentialData]); // Remove scanning dependency to avoid race conditions
 
     // Fetch trailers when tab becomes active and scenes are loaded
     React.useEffect(() => {
@@ -255,6 +272,31 @@ export const PerformerMissingScenesPanel: React.FC<IPerformerMissingScenesPanelP
         }
     };
 
+    const [startBackgroundScan] = GQL.useStartScrapePerformerScenesJobMutation();
+
+    const onScanBackground = async () => {
+        if (!performer.stash_ids || performer.stash_ids.length === 0) {
+            Toast.error("Performer has no StashBox IDs");
+            return;
+        }
+
+        for (const stashId of performer.stash_ids) {
+            if (!stashId.stash_id || !stashId.endpoint) continue;
+            try {
+                await startBackgroundScan({
+                    variables: {
+                        stash_box_endpoint: stashId.endpoint,
+                        performer_stash_id: stashId.stash_id,
+                    }
+                });
+                Toast.success(`Started background scan for ${stashId.endpoint}`);
+            } catch (e) {
+                console.error(e);
+                Toast.error(e);
+            }
+        }
+    };
+
     const onTrack = async (scene: GQL.ScrapedSceneDataFragment) => {
         if (!scene.remote_site_id) return;
         try {
@@ -308,6 +350,11 @@ export const PerformerMissingScenesPanel: React.FC<IPerformerMissingScenesPanelP
                 <Button variant="primary" onClick={onScan} disabled={scanning}>
                     <Icon icon={faSearch} className="mr-2" />
                     <FormattedMessage id="scan_missing_scenes" defaultMessage="Scan for Missing Scenes (StashBox)" />
+                </Button>
+
+                <Button variant="secondary" onClick={onScanBackground} disabled={scanning}>
+                    <Icon icon={faSearch} className="mr-2" />
+                    <FormattedMessage id="scan_missing_scenes_bg" defaultMessage="Scan in Background" />
                 </Button>
 
                 {!scanning && filteredAndSortedScenes.filter(s => s.remote_site_id && !trackedStatus[s.remote_site_id]).length > 0 && (

@@ -134,3 +134,71 @@ When a new GraphQL field requires backing by the database (e.g. `has_preview` fo
 ### 4- Filter Support
 *   If the field is for filtering, update `pkg/sqlite/<entity>_filter.go`.
 *   Replace any temporary stub logic (e.g., `f.addWhere("0")`) with actual column checks (e.g., `f.addWhere("scenes.has_preview = 1")`).
+
+---
+
+## 8. Asynchronous Background Jobs via GraphQL
+
+For operations that take longer than a few seconds (e.g., scraping thousands of scenes, bulk tagging), using a synchronous GraphQL mutation will likely timeout or degrade the user experience. The preferred pattern is to trigger a **Background Job**.
+
+### The Pattern
+1.  **Frontend**: Calls a `Start<Feature>Job` mutation.
+2.  **Backend**: Creates and queues a `Job`, returning immediate success (usually the Job ID).
+3.  **Background**: The job executes asynchronously, updating its progress.
+4.  **Completion**: The job finishes, and the user sees the result (via toast, notification, or data refresh).
+
+### Implementation Steps
+
+#### 1. Define the Job Task (Backend)
+Create a new struct in `pkg/manager/` (e.g., `task_your_feature.go`). It must implement the `JobExec` interface by defining the `Execute` method.
+
+```go
+type YourFeatureTask struct {
+    InputParam string
+}
+
+func (t *YourFeatureTask) Execute(ctx context.Context, progress *job.Progress) error {
+    // 1. Perform long running work
+    // 2. Report progress/log errors
+    // 3. Return nil on success
+    return nil
+}
+
+func (t *YourFeatureTask) GetDescription() string {
+    return fmt.Sprintf("Processing %s", t.InputParam)
+}
+```
+
+#### 2. Create the Mutation
+In your resolver (`internal/api/resolver_mutation_<feature>.go`), use the `JobManager` to queue the task.
+
+```go
+func (r *mutationResolver) StartYourFeatureJob(ctx context.Context, input string) (*string, error) {
+    task := &manager.YourFeatureTask{
+        InputParam: input,
+    }
+
+    // Add returns the Job ID
+    jobID := manager.GetInstance().JobManager.Add(ctx, task.GetDescription(), task)
+    jidStr := strconv.Itoa(jobID)
+    return &jidStr, nil
+}
+```
+
+#### 3. Frontend Trigger
+Call the mutation and handle the start notification.
+
+```tsx
+const [startJob] = GQL.useStartYourFeatureJobMutation();
+
+const onStart = async () => {
+    try {
+        await startJob({ variables: { input: "foo" } });
+        Toast.success("Job started in background");
+    } catch (e) {
+        Toast.error(e);
+    }
+};
+```
+
+This pattern ensures the UI remains responsive and the server can manage concurrency efficiently (e.g., limiting parallel text-generation or scraping tasks).

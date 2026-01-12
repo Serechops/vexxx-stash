@@ -27,7 +27,7 @@ func (c Client) QueryScene(ctx context.Context, queryStr string) ([]*models.Scra
 	var ret []*models.ScrapedScene
 	var ignoredTags []string
 	for _, s := range sceneFragments {
-		ss, err := c.sceneFragmentToScrapedScene(ctx, s)
+		ss, err := c.sceneFragmentToScrapedScene(ctx, s, true)
 		if err != nil {
 			return nil, err
 		}
@@ -123,7 +123,7 @@ func (c Client) findScenesByFingerprints(ctx context.Context, scenes [][]*graphq
 		for _, sceneFragments := range scenes.FindScenesBySceneFingerprints {
 			var sceneResults []*models.ScrapedScene
 			for _, scene := range sceneFragments {
-				ss, err := c.sceneFragmentToScrapedScene(ctx, scene)
+				ss, err := c.sceneFragmentToScrapedScene(ctx, scene, true)
 				if err != nil {
 					return nil, err
 				}
@@ -154,7 +154,7 @@ func (c Client) findScenesByFingerprints(ctx context.Context, scenes [][]*graphq
 	return ret, nil
 }
 
-func (c Client) sceneFragmentToScrapedScene(ctx context.Context, s *graphql.SceneFragment) (*models.ScrapedScene, error) {
+func (c Client) sceneFragmentToScrapedScene(ctx context.Context, s *graphql.SceneFragment, fetchImageContent bool) (*models.ScrapedScene, error) {
 	stashID := s.ID
 
 	ss := &models.ScrapedScene{
@@ -182,7 +182,12 @@ func (c Client) sceneFragmentToScrapedScene(ctx context.Context, s *graphql.Scen
 	if len(s.Images) > 0 {
 		// TODO - #454 code sorts images by aspect ratio according to a wanted
 		// orientation. I'm just grabbing the first for now
-		ss.Image = getFirstImage(ctx, c.httpClient, s.Images)
+		if fetchImageContent {
+			ss.Image = getFirstImage(ctx, c.httpClient, s.Images)
+		} else {
+			// Just use the URL
+			ss.Image = &s.Images[0].URL
+		}
 	}
 
 	ss.URLs = make([]string, len(s.Urls))

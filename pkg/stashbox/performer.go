@@ -319,47 +319,111 @@ func (c Client) FindPerformerByID(ctx context.Context, id string) (*models.Scrap
 
 	ret.Scenes = nil // Clear scenes from initial query as they might be incomplete
 
-	// Fetch all scenes using QueryScenes with pagination
-	page := 1
-	perPage := 50
+	// First, get the total count of scenes
+	perPage := 40 // Increased page size for better efficiency
 	sceneInput := graphql.SceneQueryInput{
 		Performers: &graphql.MultiIDCriterionInput{
 			Value:    []string{id},
 			Modifier: graphql.CriterionModifierIncludes,
 		},
-		Page:      page,
+		Page:      1,
 		PerPage:   perPage,
 		Sort:      graphql.SceneSortEnumDate,
 		Direction: graphql.SortDirectionEnumDesc,
 	}
 
-	for {
-		sceneInput.Page = page
-		sceneResult, err := c.client.QueryScenes(ctx, sceneInput)
-		if err != nil {
-			// If scene query fails, just return what we have (performer w/o scenes) or log?
-			// Better to return partial result than fail completely, but ideally we warn.
-			// For now, let's log/return error if it's critical, or just break.
-			// Returning error is safer to signal something went wrong.
-			return nil, err
-		}
+	// Initial query to get count and first page
+	firstResult, err := c.client.QueryScenes(ctx, sceneInput)
+	if err != nil {
+		return nil, err
+	}
 
-		if len(sceneResult.QueryScenes.Scenes) == 0 {
-			break
-		}
+	totalCount := firstResult.QueryScenes.Count
+	if totalCount == 0 {
+		return ret, nil
+	}
 
-		for _, s := range sceneResult.QueryScenes.Scenes {
-			ss, err := c.sceneFragmentToScrapedScene(ctx, s)
-			if err == nil {
-				ret.Scenes = append(ret.Scenes, ss)
+	// Process first page results
+	for _, s := range firstResult.QueryScenes.Scenes {
+		ss, err := c.sceneFragmentToScrapedScene(ctx, s, false)
+		if err == nil {
+			ret.Scenes = append(ret.Scenes, ss)
+		}
+	}
+
+	// If all scenes fit on first page, we're done
+	if len(firstResult.QueryScenes.Scenes) >= totalCount {
+		return ret, nil
+	}
+
+	// Calculate remaining pages needed
+	totalPages := (totalCount + perPage - 1) / perPage
+	if totalPages <= 1 {
+		return ret, nil
+	}
+
+	// Fetch remaining pages concurrently (pages 2 through totalPages)
+	type pageResult struct {
+		page   int
+		scenes []*models.ScrapedScene
+		err    error
+	}
+
+	resultChan := make(chan pageResult, totalPages-1)
+
+	// Limit concurrency to avoid overwhelming the API
+	maxConcurrent := 5
+	semaphore := make(chan struct{}, maxConcurrent)
+
+	for page := 2; page <= totalPages; page++ {
+		go func(p int) {
+			semaphore <- struct{}{}
+			defer func() { <-semaphore }()
+
+			input := graphql.SceneQueryInput{
+				Performers: &graphql.MultiIDCriterionInput{
+					Value:    []string{id},
+					Modifier: graphql.CriterionModifierIncludes,
+				},
+				Page:      p,
+				PerPage:   perPage,
+				Sort:      graphql.SceneSortEnumDate,
+				Direction: graphql.SortDirectionEnumDesc,
 			}
-		}
 
-		if len(ret.Scenes) >= sceneResult.QueryScenes.Count {
-			break
-		}
+			result, err := c.client.QueryScenes(ctx, input)
+			if err != nil {
+				resultChan <- pageResult{page: p, err: err}
+				return
+			}
 
-		page++
+			var scenes []*models.ScrapedScene
+			for _, s := range result.QueryScenes.Scenes {
+				ss, err := c.sceneFragmentToScrapedScene(ctx, s, false)
+				if err == nil {
+					scenes = append(scenes, ss)
+				}
+			}
+			resultChan <- pageResult{page: p, scenes: scenes}
+		}(page)
+	}
+
+	// Collect results from all pages
+	pageScenes := make(map[int][]*models.ScrapedScene)
+	for i := 2; i <= totalPages; i++ {
+		result := <-resultChan
+		if result.err != nil {
+			// Log error but continue with partial results
+			continue
+		}
+		pageScenes[result.page] = result.scenes
+	}
+
+	// Add scenes in page order to maintain date ordering
+	for page := 2; page <= totalPages; page++ {
+		if scenes, ok := pageScenes[page]; ok {
+			ret.Scenes = append(ret.Scenes, scenes...)
+		}
 	}
 
 	return ret, nil

@@ -27,7 +27,7 @@ func startSystray(exit chan int, faviconProvider FaviconProvider) {
 		if runtime.GOOS == "darwin" {
 			location = "menu bar"
 		}
-		SendNotification("Stash has moved!", "Stash now runs in your "+location+", instead of a terminal window.")
+		SendNotification("Vexxx has moved!", "Vexxx now runs in your "+location+", instead of a terminal window.")
 		c.SetBool(config.ShowOneTimeMovedNotification, false)
 		if err := c.Write(); err != nil {
 			logger.Errorf("Error while writing configuration file: %v", err)
@@ -60,9 +60,9 @@ func systrayInitialize(exit chan<- int, faviconProvider FaviconProvider) {
 	favicon := faviconProvider.GetFavicon()
 	systray.SetTemplateIcon(favicon, favicon)
 	c := config.GetInstance()
-	systray.SetTooltip(fmt.Sprintf("🟢 Stash is Running on port %d.", c.GetPort()))
+	systray.SetTooltip(fmt.Sprintf("🟢 Vexxx is Running on port %d.", c.GetPort()))
 
-	openStashButton := systray.AddMenuItem("Open Stash", "Open a browser window to Stash")
+	openStashButton := systray.AddMenuItem("Open Vexxx", "Open a browser window to Vexxx")
 	var menuItems []string
 	systray.AddSeparator()
 	if !c.IsNewSystem() {
@@ -89,7 +89,7 @@ func systrayInitialize(exit chan<- int, faviconProvider FaviconProvider) {
 		// systray.AddSeparator()
 	}
 
-	quitStashButton := systray.AddMenuItem("Quit Stash Server", "Quits the Stash server")
+	quitStashButton := systray.AddMenuItem("Quit Vexxx Server", "Quits the Vexxx server")
 
 	go func() {
 		for {

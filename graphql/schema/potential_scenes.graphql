@@ -36,5 +36,14 @@ extend type Mutation {
     stash_box_endpoint: String!
     performer_stash_id: String!
   ): ScrapedPerformer
+
+  """
+  Starts a background job to scrape scenes for a performer from a StashBox endpoint.
+  Returns the Job ID.
+  """
+  startScrapePerformerScenesJob(
+    stash_box_endpoint: String!
+    performer_stash_id: String!
+  ): ID
 }
 

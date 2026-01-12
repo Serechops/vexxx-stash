@@ -32,3 +32,13 @@ mutation ScrapePerformerScenesFromStashBox(
   }
 }
 
+mutation StartScrapePerformerScenesJob(
+  $stash_box_endpoint: String!
+  $performer_stash_id: String!
+) {
+  startScrapePerformerScenesJob(
+    stash_box_endpoint: $stash_box_endpoint
+    performer_stash_id: $performer_stash_id
+  )
+}
+

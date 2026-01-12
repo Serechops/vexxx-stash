@@ -67,13 +67,13 @@ func isServerDockerized() bool {
 
 func sendNotification(notificationTitle string, notificationText string) {
 	notification := toast.Notification{
-		AppID:   "Stash",
+		AppID:   "Vexxx",
 		Title:   notificationTitle,
 		Message: notificationText,
 		Icon:    getIconPath(),
 		Actions: []toast.Action{{
 			Type:      "protocol",
-			Label:     "Open Stash",
+			Label:     "Open Vexxx",
 			Arguments: getServerURL(""),
 		}},
 	}

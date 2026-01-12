@@ -38,6 +38,17 @@ import { useTaggerConfig } from "./config";
 import { genderList, stringToGender } from "src/utils/gender";
 import { stringToCircumcised } from "src/utils/circumcised";
 
+export interface ITaggerHistoryEntry {
+  id: string;
+  timestamp: Date;
+  type: 'tag' | 'performer' | 'studio' | 'scene';
+  action: 'created' | 'updated' | 'saved';
+  name: string;
+  entityId: string;
+  associatedSceneIds?: string[];
+  associatedSceneTitles?: string[];
+}
+
 export interface ITaggerContextState {
   config: ITaggerConfig;
   setConfig: (c: ITaggerConfig) => void;
@@ -95,6 +106,9 @@ export interface ITaggerContextState {
   pendingPerformersCount: number;
   pendingStudiosCount: number;
   pendingScenesCount: number;
+  bulkProgress?: { progress: number; total: number; message: string };
+  taggerHistory: ITaggerHistoryEntry[];
+  clearTaggerHistory: () => void;
 }
 
 const dummyFn = () => {
@@ -136,6 +150,9 @@ export const TaggerStateContext = React.createContext<ITaggerContextState>({
   pendingPerformersCount: 0,
   pendingStudiosCount: 0,
   pendingScenesCount: 0,
+  bulkProgress: undefined,
+  taggerHistory: [],
+  clearTaggerHistory: () => { },
 });
 
 export type IScrapedScene = GQL.ScrapedScene & { resolved?: boolean };
@@ -154,6 +171,20 @@ export const TaggerContext: React.FC = ({ children }) => {
   const [searchResults, setSearchResults] = useState<
     Record<string, ISceneQueryResult>
   >({});
+  const [bulkProgress, setBulkProgress] = useState<
+    { progress: number; total: number; message: string } | undefined
+  >();
+  const [taggerHistory, setTaggerHistory] = useState<ITaggerHistoryEntry[]>([]);
+
+  const clearTaggerHistory = () => setTaggerHistory([]);
+
+  const addHistoryEntry = (entry: Omit<ITaggerHistoryEntry, 'id' | 'timestamp'>) => {
+    setTaggerHistory(prev => [...prev, {
+      ...entry,
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      timestamp: new Date(),
+    }]);
+  };
 
   const stopping = useRef(false);
 
@@ -596,6 +627,8 @@ export const TaggerContext: React.FC = ({ children }) => {
         return;
       }
 
+      setBulkProgress({ progress: 0, total: targets.length, message: "Saving scenes..." });
+
       const sceneIds = targets.map((t) => parseInt(t.sceneId, 10));
       // Chunk ID query if too large? 50 IDs is fine.
       const scenesQuery = await queryFindScenesByID(sceneIds);
@@ -672,6 +705,7 @@ export const TaggerContext: React.FC = ({ children }) => {
       for (let i = 0; i < inputs.length; i += chunkSize) {
         const chunk = inputs.slice(i, i + chunkSize);
         await updateScenes({ variables: { input: chunk } });
+        setBulkProgress({ progress: Math.min(i + chunkSize, inputs.length), total: inputs.length, message: "Saving scenes..." });
       }
 
       const endpoint = currentSource?.sourceInput.stash_box_endpoint;
@@ -691,11 +725,22 @@ export const TaggerContext: React.FC = ({ children }) => {
         return next;
       });
 
+      // Log saved scenes to history
+      inputs.forEach((input) => {
+        addHistoryEntry({
+          type: 'scene',
+          action: 'saved',
+          name: input.title ?? `Scene ${input.id}`,
+          entityId: input.id!,
+        });
+      });
+
       Toast.success(`Saved ${inputs.length} scenes`);
     } catch (e) {
       Toast.error(e);
     } finally {
       setLoading(false);
+      setBulkProgress(undefined);
     }
   }
 
@@ -788,6 +833,23 @@ export const TaggerContext: React.FC = ({ children }) => {
       const createdTags = result.data?.tagsCreate;
 
       if (createdTags) {
+        // Build scene association map for history
+        const tagToScenes = new Map<string, { ids: string[]; titles: string[] }>();
+        Object.entries(searchResults).forEach(([sceneId, res]) => {
+          res.results?.forEach((scene) => {
+            scene.tags?.forEach((t) => {
+              if (t.name) {
+                const existing = tagToScenes.get(t.name) ?? { ids: [], titles: [] };
+                if (!existing.ids.includes(sceneId)) {
+                  existing.ids.push(sceneId);
+                  existing.titles.push(scene.title ?? `Scene ${sceneId}`);
+                }
+                tagToScenes.set(t.name, existing);
+              }
+            });
+          });
+        });
+
         setSearchResults(
           mapResults((r) => {
             if (!r.tags) return r;
@@ -803,6 +865,22 @@ export const TaggerContext: React.FC = ({ children }) => {
             };
           })
         );
+
+        // Log to history
+        createdTags.forEach((ct: any) => {
+          if (ct) {
+            const scenes = tagToScenes.get(ct.name);
+            addHistoryEntry({
+              type: 'tag',
+              action: 'created',
+              name: ct.name,
+              entityId: ct.id,
+              associatedSceneIds: scenes?.ids,
+              associatedSceneTitles: scenes?.titles,
+            });
+          }
+        });
+
         Toast.success(`Created ${createdTags.length} tags`);
       }
     } catch (e) {
@@ -1002,6 +1080,23 @@ export const TaggerContext: React.FC = ({ children }) => {
       const createdPerformers = result.data?.performersCreate;
 
       if (createdPerformers) {
+        // Build scene association map for history
+        const performerToScenes = new Map<string, { ids: string[]; titles: string[] }>();
+        Object.entries(searchResults).forEach(([sceneId, res]) => {
+          res.results?.forEach((scene) => {
+            scene.performers?.forEach((p) => {
+              if (p.name) {
+                const existing = performerToScenes.get(p.name) ?? { ids: [], titles: [] };
+                if (!existing.ids.includes(sceneId)) {
+                  existing.ids.push(sceneId);
+                  existing.titles.push(scene.title ?? `Scene ${sceneId}`);
+                }
+                performerToScenes.set(p.name, existing);
+              }
+            });
+          });
+        });
+
         setSearchResults(
           mapResults((r) => {
             if (!r.performers) return r;
@@ -1019,6 +1114,22 @@ export const TaggerContext: React.FC = ({ children }) => {
             };
           })
         );
+
+        // Log to history
+        createdPerformers.forEach((cp: any) => {
+          if (cp) {
+            const scenes = performerToScenes.get(cp.name);
+            addHistoryEntry({
+              type: 'performer',
+              action: 'created',
+              name: cp.name,
+              entityId: cp.id,
+              associatedSceneIds: scenes?.ids,
+              associatedSceneTitles: scenes?.titles,
+            });
+          }
+        });
+
         Toast.success(`Created ${createdPerformers.length} performers`);
 
         // Create performers with full data, so no need for batch update
@@ -1439,6 +1550,21 @@ export const TaggerContext: React.FC = ({ children }) => {
       const createdStudios = result.data?.studiosCreate;
 
       if (createdStudios) {
+        // Build scene association map for history
+        const studioToScenes = new Map<string, { ids: string[]; titles: string[] }>();
+        Object.entries(searchResults).forEach(([sceneId, res]) => {
+          res.results?.forEach((scene) => {
+            if (scene.studio?.name) {
+              const existing = studioToScenes.get(scene.studio.name) ?? { ids: [], titles: [] };
+              if (!existing.ids.includes(sceneId)) {
+                existing.ids.push(sceneId);
+                existing.titles.push(scene.title ?? `Scene ${sceneId}`);
+              }
+              studioToScenes.set(scene.studio.name, existing);
+            }
+          });
+        });
+
         setSearchResults(
           mapResults((r) => {
             if (!r.studio) return r;
@@ -1453,6 +1579,22 @@ export const TaggerContext: React.FC = ({ children }) => {
             return r;
           })
         );
+
+        // Log to history
+        createdStudios.forEach((cs: any) => {
+          if (cs) {
+            const scenes = studioToScenes.get(cs.name);
+            addHistoryEntry({
+              type: 'studio',
+              action: 'created',
+              name: cs.name,
+              entityId: cs.id,
+              associatedSceneIds: scenes?.ids,
+              associatedSceneTitles: scenes?.titles,
+            });
+          }
+        });
+
         Toast.success(`Created ${createdStudios.length} studios`);
       }
     } catch (e) {
@@ -1526,11 +1668,13 @@ export const TaggerContext: React.FC = ({ children }) => {
   async function doSearchAll(scenes: GQL.SlimSceneDataFragment[], globalOverride: string) {
     if (!globalOverride || scenes.length === 0) return;
     setLoading(true);
+    setBulkProgress({ progress: 0, total: scenes.length, message: "Searching scenes..." });
 
     try {
       stopping.current = false;
       const queue = [...scenes];
       const CONCURRENCY = 6;
+      let completed = 0;
 
       const workers = Array(CONCURRENCY)
         .fill(null)
@@ -1551,6 +1695,8 @@ export const TaggerContext: React.FC = ({ children }) => {
             // Append the global override to each scene's default query
             const combinedQuery = `${defaultQuery} ${globalOverride}`;
             await doSceneQuery(scene.id, combinedQuery);
+            completed++;
+            setBulkProgress({ progress: completed, total: scenes.length, message: "Searching scenes..." });
           }
         });
 
@@ -1560,6 +1706,7 @@ export const TaggerContext: React.FC = ({ children }) => {
       Toast.error(e);
     } finally {
       setLoading(false);
+      setBulkProgress(undefined);
     }
   }
 
@@ -1600,6 +1747,9 @@ export const TaggerContext: React.FC = ({ children }) => {
         pendingPerformersCount,
         pendingStudiosCount,
         pendingScenesCount,
+        bulkProgress,
+        taggerHistory,
+        clearTaggerHistory,
         submitFingerprints,
         pendingFingerprints: getPendingFingerprints(),
       }}

@@ -424,3 +424,127 @@ li.active .optional-field.excluded .scene-link {
   display: inline-block;
   text-decoration: underline dotted;
 }
+
+// TaggerReview Component Styles
+.tagger-review {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  padding: 1rem;
+
+  .tagger-review-header {
+    align-items: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+
+    h5 {
+      margin: 0;
+    }
+  }
+
+  .tagger-review-actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .tagger-review-accordion {
+    max-height: 60vh;
+    overflow-y: auto;
+
+    .card {
+      background-color: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      margin-bottom: 0.5rem;
+    }
+
+    .card-header {
+      background-color: rgba(0, 0, 0, 0.3);
+      cursor: pointer;
+      padding: 0.75rem 1rem;
+      transition: background-color 0.2s ease;
+
+      &:hover {
+        background-color: rgba(255, 255, 255, 0.05);
+      }
+    }
+
+    .card-body {
+      background-color: rgba(0, 0, 0, 0.1);
+      padding: 0.5rem;
+    }
+  }
+
+  .tagger-review-section {
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .tagger-review-scene-body {
+    padding: 0.75rem;
+  }
+
+  .tagger-review-metadata-row {
+    align-items: flex-start;
+    display: flex;
+    margin-bottom: 0.5rem;
+    padding: 0.25rem 0;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  .tagger-review-label {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.85em;
+    margin-right: 0.5rem;
+    min-width: 80px;
+  }
+
+  .tagger-review-entity-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+  }
+
+  .tagger-review-entity-item {
+    align-items: center;
+    display: inline-flex;
+  }
+
+  .tagger-review-entity-link {
+    color: $text-color;
+    font-weight: 500;
+
+    &:hover {
+      color: $link-color;
+    }
+  }
+
+  .tagger-review-entry-name {
+    color: $text-color;
+    font-weight: 500;
+
+    &:hover {
+      color: $link-color;
+    }
+  }
+
+  .tagger-review-entry-time {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.8em;
+  }
+
+  .tagger-review-empty {
+    border: 1px dashed rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+  }
+
+  .tagger-review-summary {
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding-top: 0.75rem;
+  }
+}

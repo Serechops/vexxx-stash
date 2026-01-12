@@ -822,6 +822,7 @@ input[type="range"].zoom-slider {
   }
 
   .newline-list.overflowable {
+    line-clamp: 1;
     -webkit-line-clamp: 1;
     width: 700px;
   }

@@ -1,7 +1,7 @@
 import React, { useContext, useMemo, useState } from "react";
 import * as GQL from "src/core/generated-graphql";
 import { SceneQueue } from "src/models/sceneQueue";
-import { Button, Form, Dropdown, DropdownButton } from "react-bootstrap";
+import { Button, Form, Dropdown, DropdownButton, ProgressBar } from "react-bootstrap";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Icon } from "src/components/Shared/Icon";
@@ -13,8 +13,9 @@ import { TaggerScene } from "./TaggerScene";
 import { SceneTaggerModals } from "./sceneTaggerModals";
 import { SceneSearchResults } from "./StashSearchResult";
 import { useConfigurationContext } from "src/hooks/Config";
-import { faCog } from "@fortawesome/free-solid-svg-icons";
+import { faCog, faClipboardList } from "@fortawesome/free-solid-svg-icons";
 import { useLightbox } from "src/hooks/Lightbox/hooks";
+import { TaggerReview } from "./TaggerReview";
 
 const Scene: React.FC<{
   scene: GQL.SlimSceneDataFragment;
@@ -109,8 +110,11 @@ export const Tagger: React.FC<ITaggerProps> = ({ scenes, queue }) => {
     pendingStudiosCount,
     pendingScenesCount,
     doSearchAll,
+    bulkProgress,
+    taggerHistory,
   } = useContext(TaggerStateContext);
   const [showConfig, setShowConfig] = useState(false);
+  const [showReview, setShowReview] = useState(false);
   const [hideUnmatched, setHideUnmatched] = useState(false);
   const [globalQueryOverride, setGlobalQueryOverride] = useState("");
   const [fillAllEnabled, setFillAllEnabled] = useState(false);
@@ -296,6 +300,20 @@ export const Tagger: React.FC<ITaggerProps> = ({ scenes, queue }) => {
     );
   }
 
+  function renderBulkProgress() {
+    if (!bulkProgress) return null;
+    const percent = (bulkProgress.progress / bulkProgress.total) * 100;
+    return (
+      <div className="mb-3">
+        <div className="d-flex justify-content-between mb-1">
+          <span>{bulkProgress.message}</span>
+          <span>{bulkProgress.progress} / {bulkProgress.total}</span>
+        </div>
+        <ProgressBar animated now={percent} label={`${percent.toFixed(0)}%`} />
+      </div>
+    );
+  }
+
   return (
     <SceneTaggerModals>
       <div className="tagger-container mx-md-auto">
@@ -317,6 +335,18 @@ export const Tagger: React.FC<ITaggerProps> = ({ scenes, queue }) => {
                 </Button>
               )}
               {renderMassActions()}
+              {/* Review toggle button */}
+              {taggerHistory.length > 0 && (
+                <Button
+                  className="ml-2"
+                  variant={showReview ? "primary" : "outline-secondary"}
+                  onClick={() => setShowReview(!showReview)}
+                  title="Show Tagging Session Review"
+                >
+                  <Icon icon={faClipboardList} />
+                  <span className="ml-1">{taggerHistory.length}</span>
+                </Button>
+              )}
               {renderConfigButton()}
             </div>
           </div>
@@ -342,6 +372,8 @@ export const Tagger: React.FC<ITaggerProps> = ({ scenes, queue }) => {
             )}
           </div>
         </div>
+        {renderBulkProgress()}
+        <TaggerReview show={showReview} onClose={() => setShowReview(false)} />
         <div>
           {filteredScenes.map((s, i) => (
             <Scene

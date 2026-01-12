@@ -1,4 +1,4 @@
-# WetFlix: New Features & Improvements
+# Vexxx: New Features & Improvements
 
 We are proud to introduce a suite of powerful new features designed to streamline your workflow and enhance the viewing experience.
 

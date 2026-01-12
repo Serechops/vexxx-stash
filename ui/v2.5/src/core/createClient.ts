@@ -22,9 +22,9 @@ const readReference = (typename: string): FieldReadFunction => {
     canRead(existing)
       ? existing
       : toReference({
-          __typename: typename,
-          id: args?.id,
-        });
+        __typename: typename,
+        id: args?.id,
+      });
 };
 
 // A read function that returns null if a cached reference is invalid.
@@ -91,6 +91,9 @@ const typePolicies: TypePolicies = {
     fields: {
       studio: {
         read: readDanglingNull,
+      },
+      paths: {
+        merge: true,
       },
     },
   },

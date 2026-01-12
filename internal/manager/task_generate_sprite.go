@@ -42,6 +42,14 @@ func (t *GenerateSpriteTask) Start(ctx context.Context) {
 	}
 	generator.Overwrite = t.Overwrite
 
+	logger.Infof("GenerateSpriteTask for Scene %d. Start: %v, End: %v", t.Scene.ID, t.Scene.StartPoint, t.Scene.EndPoint)
+
+	if t.Scene.StartPoint != nil && t.Scene.EndPoint != nil && *t.Scene.EndPoint > *t.Scene.StartPoint {
+		generator.StartOffset = *t.Scene.StartPoint
+		generator.Duration = *t.Scene.EndPoint - *t.Scene.StartPoint
+		logger.Infof("Setting sprite generator offset: %f, duration: %f", generator.StartOffset, generator.Duration)
+	}
+
 	if err := generator.Generate(); err != nil {
 		logger.Errorf("error generating sprite: %s", err.Error())
 		logErrorOutput(err)

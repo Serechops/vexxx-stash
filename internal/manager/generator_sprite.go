@@ -27,6 +27,9 @@ type SpriteGenerator struct {
 
 	Overwrite bool
 
+	StartOffset float64
+	Duration    float64
+
 	g *generate.Generator
 }
 
@@ -103,10 +106,15 @@ func (g *SpriteGenerator) generateSpriteImage() error {
 	if !g.SlowSeek {
 		logger.Infof("[generator] generating sprite image for %s", g.Info.VideoFile.Path)
 		// generate `ChunkCount` thumbnails
-		stepSize := g.Info.VideoFile.VideoStreamDuration / float64(g.Info.ChunkCount)
+		duration := g.Info.VideoFile.VideoStreamDuration
+		if g.Duration > 0 {
+			duration = g.Duration
+		}
+
+		stepSize := duration / float64(g.Info.ChunkCount)
 
 		for i := 0; i < g.Info.ChunkCount; i++ {
-			time := float64(i) * stepSize
+			time := g.StartOffset + (float64(i) * stepSize)
 
 			img, err := g.g.SpriteScreenshot(context.TODO(), g.Info.VideoFile.Path, time)
 			if err != nil {
@@ -149,7 +157,9 @@ func (g *SpriteGenerator) generateSpriteVTT() error {
 	logger.Infof("[generator] generating sprite vtt for %s", g.Info.VideoFile.Path)
 
 	var stepSize float64
-	if !g.SlowSeek {
+	if g.Duration > 0 {
+		stepSize = g.Duration / float64(g.Info.ChunkCount)
+	} else if !g.SlowSeek {
 		stepSize = float64(g.Info.NthFrame) / g.Info.FrameRate
 	} else {
 		// for files with a low framecount (<ChunkCount) g.Info.NthFrame can be zero

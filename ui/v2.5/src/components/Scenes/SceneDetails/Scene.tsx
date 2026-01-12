@@ -719,6 +719,10 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
   );
 });
 
+const SegmentPlayer = lazyComponent(
+  () => import("src/components/ScenePlayer/SegmentPlayer").then(module => ({ default: module.SegmentPlayer }))
+) as React.FC<{ scene: GQL.SceneDataFragment }>;
+
 const SceneLoader: React.FC<RouteComponentProps<ISceneParams>> = ({
   location,
   history,
@@ -980,6 +984,8 @@ const SceneLoader: React.FC<RouteComponentProps<ISceneParams>> = ({
     return <ErrorMessage error={`No scene found with id ${id}.`} />;
   }
 
+  const isSegment = (scene?.start_point !== null && scene?.start_point !== undefined && scene.start_point > 0) || (scene?.end_point !== null && scene?.end_point !== undefined && scene.end_point > 0);
+
   return (
     <div className="row">
       <ScenePage
@@ -1001,18 +1007,22 @@ const SceneLoader: React.FC<RouteComponentProps<ISceneParams>> = ({
         setContinuePlaylist={setContinuePlaylist}
       />
       <div className={`scene-player-container ${collapsed ? "expanded" : ""}`}>
-        <ScenePlayer
-          key="ScenePlayer"
-          scene={scene}
-          hideScrubberOverride={hideScrubber}
-          autoplay={autoplay}
-          permitLoop={!continuePlaylist}
-          initialTimestamp={initialTimestamp}
-          sendSetTimestamp={getSetTimestamp}
-          onComplete={onComplete}
-          onNext={() => queueNext(true)}
-          onPrevious={() => queuePrevious(true)}
-        />
+        {isSegment ? (
+          <SegmentPlayer scene={scene} />
+        ) : (
+          <ScenePlayer
+            key="ScenePlayer"
+            scene={scene}
+            hideScrubberOverride={hideScrubber}
+            autoplay={autoplay}
+            permitLoop={!continuePlaylist}
+            initialTimestamp={initialTimestamp}
+            sendSetTimestamp={getSetTimestamp}
+            onComplete={onComplete}
+            onNext={() => queueNext(true)}
+            onPrevious={() => queuePrevious(true)}
+          />
+        )}
       </div>
     </div>
   );

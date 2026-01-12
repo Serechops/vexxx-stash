@@ -4,6 +4,8 @@ import { useIntl } from "react-intl";
 import * as GQL from "src/core/generated-graphql";
 import { useToast } from "src/hooks/Toast";
 
+import TextUtils from "src/utils/text";
+
 interface IProps {
     fileId: string;
     fileDuration?: number;
@@ -20,14 +22,24 @@ export const CreateSceneSegmentDialog: React.FC<IProps> = ({
     const intl = useIntl();
     const Toast = useToast();
     const [title, setTitle] = useState("");
-    const [startPoint, setStartPoint] = useState<number | undefined>();
-    const [endPoint, setEndPoint] = useState<number | undefined>(fileDuration);
+    const [startPointStr, setStartPointStr] = useState("");
+    const [endPointStr, setEndPointStr] = useState(
+        fileDuration ? TextUtils.secondsToTimestamp(fileDuration) : ""
+    );
 
     const [createScene] = GQL.useSceneCreateMutation();
 
     const handleSave = async () => {
         if (!title) {
             Toast.error("Title is required");
+            return;
+        }
+
+        const startPoint = TextUtils.timestampToSeconds(startPointStr);
+        const endPoint = TextUtils.timestampToSeconds(endPointStr);
+
+        if ((startPointStr && startPoint === null) || (endPointStr && endPoint === null)) {
+            Toast.error("Invalid duration format");
             return;
         }
 
@@ -68,25 +80,23 @@ export const CreateSceneSegmentDialog: React.FC<IProps> = ({
                     <Form.Row>
                         <Col>
                             <Form.Group controlId="startPoint">
-                                <Form.Label>Start Point (s)</Form.Label>
+                                <Form.Label>Start Point (MM:SS)</Form.Label>
                                 <Form.Control
-                                    type="number"
-                                    value={startPoint || ""}
-                                    onChange={(e) =>
-                                        setStartPoint(parseFloat(e.target.value) || undefined)
-                                    }
+                                    type="text"
+                                    value={startPointStr}
+                                    onChange={(e) => setStartPointStr(e.target.value)}
+                                    placeholder="0"
                                 />
                             </Form.Group>
                         </Col>
                         <Col>
                             <Form.Group controlId="endPoint">
-                                <Form.Label>End Point (s)</Form.Label>
+                                <Form.Label>End Point (MM:SS)</Form.Label>
                                 <Form.Control
-                                    type="number"
-                                    value={endPoint || ""}
-                                    onChange={(e) =>
-                                        setEndPoint(parseFloat(e.target.value) || undefined)
-                                    }
+                                    type="text"
+                                    value={endPointStr}
+                                    onChange={(e) => setEndPointStr(e.target.value)}
+                                    placeholder="MM:SS"
                                 />
                             </Form.Group>
                         </Col>

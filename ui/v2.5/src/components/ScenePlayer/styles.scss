@@ -3,6 +3,7 @@
 @import "videojs-seek-buttons/dist/videojs-seek-buttons.css";
 @import "@silvermine/videojs-chromecast/dist/silvermine-videojs-chromecast.css";
 @import "@silvermine/videojs-airplay/dist/silvermine-videojs-airplay.css";
+@import "../../styles/theme";
 
 $scrubberHeight: 120px;
 $menuHeight: 4rem;
@@ -35,6 +36,7 @@ $sceneTabWidth: 450px;
 }
 
 .VideoPlayer.no-file .video-js {
+
   .vjs-big-play-button,
   .vjs-control-bar {
     display: none;
@@ -55,6 +57,7 @@ $sceneTabWidth: 450px;
   &.vjs-error .vjs-control-bar {
     display: flex !important;
   }
+
   /* stylelint-enable declaration-no-important */
 
   // allow interaction with the controls when error is displayed
@@ -162,11 +165,9 @@ $sceneTabWidth: 450px;
     font-size: 15px;
 
     &::before {
-      background: linear-gradient(
-        0deg,
-        rgba(0, 0, 0, 0.4) 0%,
-        rgba(0, 0, 0, 0) 100%
-      );
+      background: linear-gradient(0deg,
+          rgba(0, 0, 0, 0.4) 0%,
+          rgba(0, 0, 0, 0) 100%);
       bottom: 0;
       content: "";
       height: 10rem;
@@ -212,6 +213,7 @@ $sceneTabWidth: 450px;
   .vjs-play-progress .vjs-time-tooltip {
     display: none !important;
   }
+
   /* stylelint-enable declaration-no-important */
 
   .vjs-volume-control {
@@ -223,6 +225,7 @@ $sceneTabWidth: 450px;
     box-shadow: none !important;
     text-shadow: none !important;
   }
+
   /* stylelint-enable declaration-no-important */
 
   .vjs-vtt-thumbnail-display {
@@ -254,6 +257,7 @@ $sceneTabWidth: 450px;
   }
 
   &.vjs-skip-buttons {
+
     .vjs-icon-next-item,
     .vjs-icon-previous-item {
       display: none;
@@ -274,7 +278,7 @@ $sceneTabWidth: 450px;
       font-size: 0.8em;
     }
 
-    .vjs-button > .vjs-icon-placeholder::before {
+    .vjs-button>.vjs-icon-placeholder::before {
       content: "\f110";
       font-family: VideoJS;
     }
@@ -395,6 +399,7 @@ $sceneTabWidth: 450px;
       }
     }
   }
+
   @media (max-width: 576px) {
     .vjs-control-bar {
       .vjs-autostart-button {
@@ -419,7 +424,7 @@ $sceneTabWidth: 450px;
         width: 3em;
       }
 
-      .vjs-button > .vjs-icon-placeholder::before,
+      .vjs-button>.vjs-icon-placeholder::before,
       .vjs-skip-button::before {
         font-size: 1.5em;
         line-height: 2;
@@ -644,6 +649,7 @@ $sceneTabWidth: 450px;
     margin-right: 5px;
   }
 }
+
 @media (min-width: 1200px) {
   .scene-tabs {
     flex: 0 0 $sceneTabWidth;

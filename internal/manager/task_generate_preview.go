@@ -36,6 +36,19 @@ func (t *GeneratePreviewTask) Start(ctx context.Context) {
 	previewValid := false
 
 	if t.videoPreviewRequired() {
+		logger.Infof("GeneratePreviewTask for Scene %d. Start: %v, End: %v", t.Scene.ID, t.Scene.StartPoint, t.Scene.EndPoint)
+		if t.Scene.StartPoint != nil {
+			logger.Infof("StartPoint value: %f", *t.Scene.StartPoint)
+		}
+		if t.Scene.EndPoint != nil {
+			logger.Infof("EndPoint value: %f", *t.Scene.EndPoint)
+		}
+
+		if t.Scene.StartPoint != nil && t.Scene.EndPoint != nil && *t.Scene.EndPoint > *t.Scene.StartPoint {
+			t.Options.LimitStart = t.Scene.StartPoint
+			t.Options.LimitEnd = t.Scene.EndPoint
+		}
+
 		ffprobe := instance.FFProbe
 		videoFile, err := ffprobe.NewVideoFile(t.Scene.Path)
 		if err != nil {
@@ -43,7 +56,12 @@ func (t *GeneratePreviewTask) Start(ctx context.Context) {
 			return
 		}
 
-		if err := t.generateVideo(videoChecksum, videoFile.VideoStreamDuration, videoFile.FrameRate); err != nil {
+		duration := videoFile.VideoStreamDuration
+		if t.Options.LimitStart != nil && t.Options.LimitEnd != nil {
+			duration = *t.Options.LimitEnd - *t.Options.LimitStart
+		}
+
+		if err := t.generateVideo(videoChecksum, duration, videoFile.FrameRate); err != nil {
 			logger.Errorf("error generating preview: %v", err)
 			logErrorOutput(err)
 			return

@@ -96,7 +96,7 @@ func (qb *sceneFilterHandler) criterionHandler() criterionHandler {
 		qb.oCountCriterionHandler(sceneFilter.OCounter),
 		boolCriterionHandler(sceneFilter.Organized, "scenes.organized", nil),
 
-		floatIntCriterionHandler(sceneFilter.Duration, "video_files.duration", qb.addVideoFilesTable),
+		floatIntCriterionHandler(sceneFilter.Duration, "CASE WHEN scenes.start_point IS NOT NULL AND scenes.end_point IS NOT NULL THEN (scenes.end_point - scenes.start_point) ELSE video_files.duration END", qb.addVideoFilesTable),
 		resolutionCriterionHandler(sceneFilter.Resolution, "video_files.height", "video_files.width", qb.addVideoFilesTable),
 		orientationCriterionHandler(sceneFilter.Orientation, "video_files.height", "video_files.width", qb.addVideoFilesTable),
 		floatIntCriterionHandler(sceneFilter.Framerate, "ROUND(video_files.frame_rate)", qb.addVideoFilesTable),

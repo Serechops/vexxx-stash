@@ -1398,9 +1398,9 @@ func (qb *SceneStore) destroyCover(ctx context.Context, sceneID int) error {
 
 func (qb *SceneStore) AssignFiles(ctx context.Context, sceneID int, fileIDs []models.FileID) error {
 	// assuming a file can only be assigned to a single scene
-	if err := scenesFilesTableMgr.destroyJoins(ctx, fileIDs); err != nil {
-		return err
-	}
+	// if err := scenesFilesTableMgr.destroyJoins(ctx, fileIDs); err != nil {
+	// 	return err
+	// }
 
 	// assign primary only if destination has no files
 	existingFileIDs, err := sceneRepository.files.get(ctx, sceneID)

@@ -30,6 +30,9 @@ type PreviewOptions struct {
 	ExcludeStart    string
 	ExcludeEnd      string
 
+	LimitStart *float64
+	LimitEnd   *float64
+
 	Preset string
 
 	Audio bool
@@ -55,6 +58,14 @@ func getExcludeValue(videoDuration float64, v string) float64 {
 // excluded duration exceeds the duration of the video, then offset is 0, and
 // the video duration is used to calculate the step size.
 func (g PreviewOptions) getStepSizeAndOffset(videoDuration float64) (stepSize float64, offset float64) {
+	if g.LimitStart != nil && g.LimitEnd != nil {
+		offset = *g.LimitStart
+		duration := *g.LimitEnd - *g.LimitStart
+
+		stepSize = duration / float64(g.Segments)
+		return
+	}
+
 	excludeStart := getExcludeValue(videoDuration, g.ExcludeStart)
 	excludeEnd := getExcludeValue(videoDuration, g.ExcludeEnd)
 
@@ -152,8 +163,13 @@ func (g *Generator) previewVideo(input string, videoDuration float64, options Pr
 
 func (g *Generator) previewVideoSingle(input string, videoDuration float64, options PreviewOptions, fallback bool, useVsync2 bool) generateFn {
 	return func(lockCtx *fsutil.LockContext, tmpFn string) error {
+		startTime := 0.0
+		if options.LimitStart != nil {
+			startTime = *options.LimitStart
+		}
+
 		chunkOptions := previewChunkOptions{
-			StartTime:  0,
+			StartTime:  startTime,
 			Duration:   videoDuration,
 			OutputPath: tmpFn,
 			Audio:      options.Audio,

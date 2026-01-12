@@ -82,6 +82,39 @@ const FrontPage: React.FC = PatchComponent("FrontPage", () => {
           <FormattedMessage id={"actions.customise"} />
         </Button>
       </div>
+
+      <footer className="w-full py-6 mt-12 border-t border-gray-800 text-center text-sm text-gray-500">
+        <p>
+          Powered by{" "}
+          <a
+            href="https://github.com/stashapp/stash"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-gray-400 hover:text-white transition-colors"
+          >
+            Stash
+          </a>
+          . Licensed under{" "}
+          <a
+            href="https://github.com/stashapp/stash/blob/develop/LICENSE"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-gray-400 hover:text-white transition-colors"
+          >
+            AGPLv3
+          </a>
+          . <span className="mx-2">|</span> Report bugs at{" "}
+          <a
+            href="https://github.com/Serechops/vexxx-stash"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-gray-400 hover:text-white transition-colors"
+          >
+            Vexxx Stash
+          </a>
+          .
+        </p>
+      </footer>
     </div>
   );
 });

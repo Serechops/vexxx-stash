@@ -40,14 +40,14 @@ export const GalleryRecommendationRow: React.FC<IProps> = (props) => {
       >
         {result.loading
           ? [...Array(props.filter.itemsPerPage)].map((i) => (
-              <div
-                key={`_${i}`}
-                className="gallery-skeleton skeleton-card"
-              ></div>
-            ))
+            <div
+              key={`_${i}`}
+              className="gallery-skeleton skeleton-card"
+            ></div>
+          ))
           : result.data?.findGalleries.galleries.map((g) => (
-              <GalleryCard key={g.id} gallery={g} zoomIndex={1} />
-            ))}
+            <GalleryCard key={g.id} gallery={g} zoomIndex={1} isMasonry={false} cardWidth={340} />
+          ))}
       </Slider>
     </RecommendationRow>
   );

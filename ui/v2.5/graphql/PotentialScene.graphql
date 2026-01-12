@@ -42,3 +42,6 @@ mutation StartScrapePerformerScenesJob(
   )
 }
 
+mutation StartScrapeStudioScenesJob($stash_box_endpoint: String!, $studio_stash_id: String!) {
+  startScrapeStudioScenesJob(stash_box_endpoint: $stash_box_endpoint, studio_stash_id: $studio_stash_id)
+}

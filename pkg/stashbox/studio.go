@@ -83,3 +83,61 @@ func studioFragmentToScrapedStudio(s graphql.StudioFragment) *models.ScrapedStud
 
 	return st
 }
+
+func (c Client) FindStudioByID(ctx context.Context, id string) (*models.ScrapedStudio, error) {
+	// First fetch the studio itself
+	studioResult, err := c.client.FindStudio(ctx, &id, nil)
+	if err != nil {
+		return nil, err
+	}
+	if studioResult.FindStudio == nil {
+		return nil, nil // Not found
+	}
+
+	ret := studioFragmentToScrapedStudio(*studioResult.FindStudio)
+
+	// Now fetch scenes with pagination
+	page := 1
+	perPage := 40 // Consistent with Performer
+	for {
+		input := graphql.SceneQueryInput{
+			Studios: &graphql.MultiIDCriterionInput{
+				Value:    []string{id},
+				Modifier: graphql.CriterionModifierIncludes,
+			},
+			Page:      page,
+			PerPage:   perPage,
+			Sort:      graphql.SceneSortEnumDate,
+			Direction: graphql.SortDirectionEnumDesc,
+		}
+
+		res, err := c.client.QueryScenes(ctx, input)
+		if err != nil {
+			return nil, err
+		}
+
+		if res == nil {
+			break
+		}
+
+		for _, s := range res.QueryScenes.Scenes {
+			scrapedScene, err := c.sceneFragmentToScrapedScene(ctx, s, false)
+			if err != nil {
+				continue
+			}
+
+			// Ensure the scene has the studio attached if not present in fragment
+			if scrapedScene.Studio == nil {
+				scrapedScene.Studio = ret
+			}
+			ret.Scenes = append(ret.Scenes, scrapedScene)
+		}
+
+		if len(res.QueryScenes.Scenes) < perPage {
+			break
+		}
+		page++
+	}
+
+	return ret, nil
+}

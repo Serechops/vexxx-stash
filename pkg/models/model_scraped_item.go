@@ -12,17 +12,18 @@ import (
 
 type ScrapedStudio struct {
 	// Set if studio matched
-	StoredID     *string        `json:"stored_id"`
-	Name         string         `json:"name"`
-	URL          *string        `json:"url"` // deprecated
-	URLs         []string       `json:"urls"`
-	Parent       *ScrapedStudio `json:"parent"`
-	Image        *string        `json:"image"`
-	Images       []string       `json:"images"`
-	Details      *string        `json:"details"`
-	Aliases      *string        `json:"aliases"`
-	Tags         []*ScrapedTag  `json:"tags"`
-	RemoteSiteID *string        `json:"remote_site_id"`
+	StoredID     *string         `json:"stored_id"`
+	Name         string          `json:"name"`
+	URL          *string         `json:"url"` // deprecated
+	URLs         []string        `json:"urls"`
+	Parent       *ScrapedStudio  `json:"parent"`
+	Image        *string         `json:"image"`
+	Images       []string        `json:"images"`
+	Details      *string         `json:"details"`
+	Aliases      *string         `json:"aliases"`
+	Tags         []*ScrapedTag   `json:"tags"`
+	Scenes       []*ScrapedScene `json:"scenes"`
+	RemoteSiteID *string         `json:"remote_site_id"`
 }
 
 func (ScrapedStudio) IsScrapedContent() {}

@@ -44,6 +44,6 @@ extend type Mutation {
   startScrapePerformerScenesJob(
     stash_box_endpoint: String!
     performer_stash_id: String!
-  ): ID
+  ): ID!
+  startScrapeStudioScenesJob(stash_box_endpoint: String!, studio_stash_id: String!): ID!
 }
-

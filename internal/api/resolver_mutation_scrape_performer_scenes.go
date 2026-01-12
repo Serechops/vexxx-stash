@@ -28,11 +28,11 @@ func (r *mutationResolver) ScrapePerformerScenesFromStashBox(ctx context.Context
 	return performer, nil
 }
 
-func (r *mutationResolver) StartScrapePerformerScenesJob(ctx context.Context, stashBoxEndpoint string, performerStashID string) (*string, error) {
+func (r *mutationResolver) StartScrapePerformerScenesJob(ctx context.Context, stashBoxEndpoint string, performerStashID string) (string, error) {
 	// Resolve the stash box by endpoint to validate it
 	_, err := resolveStashBox(nil, &stashBoxEndpoint)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
 	task := &manager.ScrapePerformerScenesTask{
@@ -42,5 +42,22 @@ func (r *mutationResolver) StartScrapePerformerScenesJob(ctx context.Context, st
 
 	jobID := manager.GetInstance().JobManager.Add(ctx, task.GetDescription(), task)
 	jidStr := strconv.Itoa(jobID)
-	return &jidStr, nil
+	return jidStr, nil
+}
+
+func (r *mutationResolver) StartScrapeStudioScenesJob(ctx context.Context, stashBoxEndpoint string, studioStashID string) (string, error) {
+	// Resolve the stash box by endpoint to validate it
+	_, err := resolveStashBox(nil, &stashBoxEndpoint)
+	if err != nil {
+		return "", err
+	}
+
+	task := &manager.ScrapeStudioScenesTask{
+		StashBoxEndpoint: stashBoxEndpoint,
+		StudioStashID:    studioStashID,
+	}
+
+	jobID := manager.GetInstance().JobManager.Add(ctx, task.GetDescription(), task)
+	jidStr := strconv.Itoa(jobID)
+	return jidStr, nil
 }

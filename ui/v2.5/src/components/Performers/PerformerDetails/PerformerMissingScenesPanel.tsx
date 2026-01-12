@@ -45,6 +45,11 @@ export const PerformerMissingScenesPanel: React.FC<IPerformerMissingScenesPanelP
     // Create/Destroy hooks
     const [createPotentialScene] = GQL.usePotentialSceneCreateMutation();
 
+    // Additional Filters
+    const [selectedStudio, setSelectedStudio] = useState<string | null>(null);
+    const [selectedPerformer, setSelectedPerformer] = useState<string | null>(null);
+    const [selectedTag, setSelectedTag] = useState<string | null>(null);
+
     // Trailer scraping query (lazy)
     const [scrapeTrailers, { loading: scrapingTrailers }] = GQL.useScrapeTrailerUrlsLazyQuery();
 
@@ -137,9 +142,46 @@ export const PerformerMissingScenesPanel: React.FC<IPerformerMissingScenesPanelP
         }
     }, [active, missingScenes, trailersFetched, scrapingTrailers, scrapeTrailers]);
 
+    // Extract unique values for filters
+    const { uniqueStudios, uniquePerformers, uniqueTags } = useMemo(() => {
+        const studios = new Map<string, string>();
+        const performers = new Map<string, string>();
+        const tags = new Map<string, string>();
+
+        missingScenes.forEach(scene => {
+            if (scene.studio?.name) {
+                // Use name as ID for simplicity since scraped data might not have stable IDs
+                studios.set(scene.studio.name, scene.studio.name);
+            }
+            scene.performers?.forEach(p => {
+                if (p.name) performers.set(p.name, p.name);
+            });
+            scene.tags?.forEach(t => {
+                if (t.name) tags.set(t.name, t.name);
+            });
+        });
+
+        return {
+            uniqueStudios: Array.from(studios.values()).sort(),
+            uniquePerformers: Array.from(performers.values()).sort(),
+            uniqueTags: Array.from(tags.values()).sort(),
+        };
+    }, [missingScenes]);
+
     // Filter, sort, and paginate scenes
     const filteredAndSortedScenes = useMemo(() => {
         let result = [...missingScenes];
+
+        // Apply metadata filters
+        if (selectedStudio) {
+            result = result.filter(s => s.studio?.name === selectedStudio);
+        }
+        if (selectedPerformer) {
+            result = result.filter(s => s.performers?.some(p => p.name === selectedPerformer));
+        }
+        if (selectedTag) {
+            result = result.filter(s => s.tags?.some(t => t.name === selectedTag));
+        }
 
         // Apply search filter
         if (searchTerm.trim()) {
@@ -197,7 +239,7 @@ export const PerformerMissingScenesPanel: React.FC<IPerformerMissingScenesPanelP
     // Reset to page 1 when filters change
     React.useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm, statusFilter, sortField, sortDirection]);
+    }, [searchTerm, statusFilter, sortField, sortDirection, selectedStudio, selectedPerformer, selectedTag]);
 
     const [scrapePerformerScenes] = GQL.useScrapePerformerScenesFromStashBoxMutation();
 
@@ -369,16 +411,52 @@ export const PerformerMissingScenesPanel: React.FC<IPerformerMissingScenesPanelP
             {missingScenes.length > 0 && (
                 <div className="mb-3 d-flex flex-wrap align-items-center gap-2 p-2 bg-secondary text-white rounded">
                     {/* Search */}
-                    <InputGroup style={{ maxWidth: "300px" }}>
+                    <InputGroup style={{ maxWidth: "250px" }}>
                         <InputGroup.Prepend>
                             <InputGroup.Text><Icon icon={faSearch} /></InputGroup.Text>
                         </InputGroup.Prepend>
                         <Form.Control
-                            placeholder="Search title, studio, performer..."
+                            placeholder="Search..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </InputGroup>
+
+                    {/* Studio Filter */}
+                    <Form.Control
+                        as="select"
+                        value={selectedStudio || ""}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSelectedStudio(e.target.value || null)}
+                        style={{ maxWidth: "150px" }}
+                        className="custom-select"
+                    >
+                        <option value="">All Studios</option>
+                        {uniqueStudios.map(s => <option key={s} value={s}>{s}</option>)}
+                    </Form.Control>
+
+                    {/* Performer Filter */}
+                    <Form.Control
+                        as="select"
+                        value={selectedPerformer || ""}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSelectedPerformer(e.target.value || null)}
+                        style={{ maxWidth: "150px" }}
+                        className="custom-select"
+                    >
+                        <option value="">All Performers</option>
+                        {uniquePerformers.map(p => <option key={p} value={p}>{p}</option>)}
+                    </Form.Control>
+
+                    {/* Tag Filter */}
+                    <Form.Control
+                        as="select"
+                        value={selectedTag || ""}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSelectedTag(e.target.value || null)}
+                        style={{ maxWidth: "150px" }}
+                        className="custom-select"
+                    >
+                        <option value="">All Tags</option>
+                        {uniqueTags.map(t => <option key={t} value={t}>{t}</option>)}
+                    </Form.Control>
 
                     {/* Status Filter */}
                     <DropdownButton

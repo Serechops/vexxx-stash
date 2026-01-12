@@ -115,17 +115,20 @@
   }
 }
 
-/* Magazine-style CSS Grid layout */
+/* Magazine-style CSS Column layout */
 .gallery-magazine-grid {
-  display: grid;
-  gap: 1rem;
+  display: block; // Columns work on block containers
   padding: 0 1rem;
   width: 100%;
 
-  /* Cards fill available space by default */
+  /* Cards fill column width */
   .gallery-card {
     width: 100% !important;
-    margin: 0 !important;
+    margin: 0 0 1rem 0 !important; // Add bottom margin for vertical spacing
+    break-inside: avoid; // Prevent card from splitting across columns
+    page-break-inside: avoid;
+    -webkit-column-break-inside: avoid;
+    display: inline-block; // Helps with break-inside in some browsers
   }
 }
 

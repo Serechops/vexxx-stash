@@ -41,10 +41,16 @@ export const GalleryList: React.FC<IGalleryList> = PatchComponent(
     const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
     const [isExportAll, setIsExportAll] = useState(false);
 
+    const [isMasonry, setIsMasonry] = useState(true);
+
     const filterMode = GQL.FilterMode.Galleries;
 
     const otherOperations = [
       ...extraOperations,
+      {
+        text: isMasonry ? "Switch to Grid" : "Switch to Magazine",
+        onClick: async () => setIsMasonry(!isMasonry),
+      },
       {
         text: intl.formatMessage({ id: "actions.view_random" }),
         onClick: viewRandom,
@@ -136,6 +142,7 @@ export const GalleryList: React.FC<IGalleryList> = PatchComponent(
               selectedIds={selectedIds}
               zoomIndex={filter.zoomIndex}
               onSelectChange={onSelectChange}
+              isMasonry={isMasonry}
             />
           );
         }

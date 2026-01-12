@@ -57,7 +57,7 @@ export const FeaturedScene: React.FC = () => {
     const video = scene.paths.preview;
 
     return (
-        <div className="relative w-full h-[70vh] min-h-[300px] overflow-hidden rounded-xl mb-6 bg-card shadow-lg group">
+        <div className="hidden md:block relative w-full h-[70vh] min-h-[300px] overflow-hidden rounded-xl mb-6 bg-card shadow-lg group">
             {/* Media Background */}
             <div className="absolute top-0 left-0 w-full h-full">
                 {video ? (

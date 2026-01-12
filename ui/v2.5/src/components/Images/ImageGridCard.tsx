@@ -23,6 +23,10 @@ export const ImageGridCard: React.FC<IImageCardGrid> = ({
   onSelectChange,
   onPreview,
 }) => {
+  // Use column-width based on zoom level to let browser handle column count
+  const columnWidth = zoomWidths[zoomIndex] || zoomWidths[0];
+
+  // Grid hooks (always run to keep hooks consistent)
   const [componentRef, { width: containerWidth }] = useContainerDimensions();
   const cardWidth = useCardWidth(containerWidth, zoomIndex, zoomWidths);
 
@@ -39,15 +43,16 @@ export const ImageGridCard: React.FC<IImageCardGrid> = ({
   return (
     <div
       className="image-magazine-grid"
-      ref={componentRef}
       style={{
-        gridTemplateColumns: `repeat(auto-fill, minmax(${cardWidth}px, 1fr))`,
+        columnWidth: `${columnWidth}px`,
+        columnGap: "1rem",
+        display: "block",
       }}
     >
       {images.map((image, index) => (
         <ImageCard
           key={image.id}
-          cardWidth={cardWidth}
+          // cardWidth is handled by the column responsive width
           image={image}
           zoomIndex={zoomIndex}
           selecting={selectedIds.size > 0}

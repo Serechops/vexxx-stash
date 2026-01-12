@@ -62,7 +62,7 @@ export const HeroBanner: React.FC = () => {
     const video = scene.paths.preview;
 
     return (
-        <div className="relative w-full h-[56.25vw] max-h-[85vh] overflow-hidden mb-8 bg-black">
+        <div className="hidden md:block relative w-full h-[56.25vw] max-h-[85vh] overflow-hidden mb-8 bg-black">
             {/* Background Media */}
             <div className="absolute top-0 left-0 w-full h-full animate-in fade-in duration-1000">
                 {video ? (

@@ -75,7 +75,7 @@ export const PerformersHero: React.FC = () => {
     };
 
     return (
-        <div className="relative w-full h-[60vh] overflow-hidden bg-[#111113] select-none flex items-center justify-center perspective-1000 mb-6">
+        <div className="hidden md:flex relative w-full h-[60vh] overflow-hidden bg-[#111113] select-none items-center justify-center perspective-1000 mb-6">
             {/* Background Gradients mimicking the CodePen */}
             <div className="absolute inset-0 bg-gradient-radial from-[#950923]/20 to-[#111113] opacity-50 z-0 pointer-events-none" />
 

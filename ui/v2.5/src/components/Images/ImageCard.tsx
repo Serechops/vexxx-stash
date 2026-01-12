@@ -151,9 +151,7 @@ export const ImageCard: React.FC<IImageCardProps> = PatchComponent(
       }
     }
 
-    function isPortrait() {
-      return !isLandscape;
-    }
+    const isPortrait = useMemo(() => !isLandscape, [isLandscape]);
 
     const orientationClass = props.isLandscape === true
       ? "image-card-landscape"
@@ -171,23 +169,23 @@ export const ImageCard: React.FC<IImageCardProps> = PatchComponent(
     return (
       <GridCard
         className={cx(
-          `image-card zoom-${props.zoomIndex} hover:!scale-100 !transition-none`,
+          `image-card group zoom-${props.zoomIndex} [&_.card-section]:hidden !rounded-xl overflow-hidden shadow-md hover:shadow-xl !border-none !bg-gray-900 !p-0 hover:!scale-100 !transition-none`,
           orientationClass
         )}
         url={`/images/${props.image.id}`}
         width={props.cardWidth}
-        title={imageTitle(props.image)}
+        title={undefined}
         linkClassName="image-card-link"
         image={
           <>
             <div
-              className={cx("image-card-preview", { portrait: isPortrait() })}
+              className={cx("image-card-preview w-full", { portrait: isPortrait })}
             >
               <ImagePreview
                 loop={video}
                 autoPlay={video}
                 playsInline={video}
-                className="image-card-preview-image"
+                className="image-card-preview-image object-cover w-full h-auto block"
                 alt={props.image.title ?? ""}
                 src={source}
               />
@@ -199,24 +197,40 @@ export const ImageCard: React.FC<IImageCardProps> = PatchComponent(
                 </div>
               ) : undefined}
             </div>
-            <RatingBanner rating={props.image.rating100} />
           </>
         }
-        details={
-          <div className="image-card__details">
-            <span className="image-card__date">{props.image.date}</span>
-            <TruncatedText
-              className="image-card__description"
-              text={props.image.details}
-              lineCount={3}
-            />
+        details={undefined}
+        overlays={
+          <div className="absolute inset-0 flex flex-col justify-between p-2 pointer-events-none">
+            {/* Top Section */}
+            <div className="flex justify-between items-start pointer-events-auto">
+              <div className="flex gap-1">
+                <RatingBanner rating={props.image.rating100} />
+              </div>
+              <StudioOverlay studio={props.image.studio} />
+            </div>
+
+            {/* Bottom Section */}
+            <div className="mt-auto pointer-events-auto relative">
+              {/* Gradient Background */}
+              <div className="absolute inset-x-[-8px] bottom-[-8px] pt-20 bg-gradient-to-t from-black via-black/80 to-transparent -z-10" />
+
+              <div className="flex flex-col gap-0.5 text-white pb-0">
+                <div className="font-bold text-md leading-tight truncate drop-shadow-sm">
+                  {imageTitle(props.image)}
+                </div>
+                <div className="flex items-center gap-2 text-xs text-gray-300 font-medium">
+                  <span>{props.image.date}</span>
+                </div>
+              </div>
+            </div>
           </div>
         }
-        overlays={<StudioOverlay studio={props.image.studio} />}
-        popovers={maybeRenderPopoverButtonGroup()}
+        popovers={undefined}
         selected={props.selected}
         selecting={props.selecting}
         onSelectedChanged={props.onSelectedChanged}
+        thumbnailSectionClassName="h-full w-full relative !p-0 !m-0"
       />
     );
   }

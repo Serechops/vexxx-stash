@@ -82,6 +82,7 @@
 
 .duration-input,
 .percent-input {
+
   .duration-control,
   .percent-control {
     min-width: 3rem;
@@ -95,13 +96,13 @@
     padding: 1px 7px;
   }
 
-  .btn + .btn {
+  .btn+.btn {
     margin-left: 0;
   }
 }
 
 // z-index gets set on button groups for some reason
-.multi-set .btn-group > button.btn {
+.multi-set .btn-group>button.btn {
   z-index: auto;
 }
 
@@ -264,7 +265,7 @@ button.collapse-button {
   }
 
   .progress-indicator {
-    background-color: #137cbd;
+    background-color: $primary;
     height: 5px;
   }
 
@@ -284,7 +285,8 @@ button.collapse-button {
     opacity: 0;
     width: 1.2rem;
 
-    @media (hover: none), (pointer: coarse) {
+    @media (hover: none),
+    (pointer: coarse) {
       // always show card controls when hovering not supported
       opacity: 0.25;
     }
@@ -301,7 +303,8 @@ button.collapse-button {
       opacity: 0.75;
     }
 
-    @media (hover: none), (pointer: coarse) {
+    @media (hover: none),
+    (pointer: coarse) {
       // and make it bigger when hovering not supported
       width: 1.5rem;
     }
@@ -325,7 +328,7 @@ button.collapse-button {
     white-space: pre-line;
   }
 
-  .file-info-panel a > & {
+  .file-info-panel a>& {
     word-break: break-all;
   }
 
@@ -526,8 +529,7 @@ div.react-datepicker {
     margin-right: 0;
   }
 
-  .react-datepicker__month-dropdown-container
-    .react-datepicker__month-read-view,
+  .react-datepicker__month-dropdown-container .react-datepicker__month-read-view,
   .react-datepicker__year-dropdown-container .react-datepicker__year-read-view {
     font-weight: bold;
     font-size: 0.944rem;
@@ -537,10 +539,8 @@ div.react-datepicker {
   }
 
   // hide the dropdown arrows
-  .react-datepicker__month-dropdown-container
-    .react-datepicker__month-read-view--down-arrow,
-  .react-datepicker__year-dropdown-container
-    .react-datepicker__year-read-view--down-arrow {
+  .react-datepicker__month-dropdown-container .react-datepicker__month-read-view--down-arrow,
+  .react-datepicker__year-dropdown-container .react-datepicker__year-read-view--down-arrow {
     display: none;
   }
 
@@ -771,7 +771,7 @@ button.btn.favorite-button {
   }
 }
 
-.custom-fields-input > .collapse-button {
+.custom-fields-input>.collapse-button {
   font-weight: 700;
 }
 
@@ -800,7 +800,7 @@ button.btn.favorite-button {
     font-size: 0.875rem;
   }
 
-  &.custom-fields-new > div:not(:last-child) {
+  &.custom-fields-new>div:not(:last-child) {
     padding-right: 0;
   }
 }
@@ -836,11 +836,11 @@ button.btn.favorite-button {
     margin-left: -$sidebar-width;
   }
 
-  &.hide-sidebar .sidebar + div {
+  &.hide-sidebar .sidebar+div {
     width: 100%;
   }
 
-  &:not(.hide-sidebar) .sidebar + div {
+  &:not(.hide-sidebar) .sidebar+div {
     width: calc(100% - $sidebar-width);
   }
 
@@ -864,6 +864,7 @@ button.btn.favorite-button {
       }
     }
   }
+
   @include media-breakpoint-down(xs) {
     .sidebar {
       margin-top: 0;
@@ -995,10 +996,11 @@ $sticky-header-height: calc(50px + 3.3rem);
       margin-right: -$sidebar-width;
     }
 
-    .sidebar-pane > .sidebar-pane-content {
+    .sidebar-pane>.sidebar-pane-content {
       transition: none;
     }
   }
+
   @include media-breakpoint-down(xs) {
     .sidebar-pane {
       top: 0;
@@ -1011,6 +1013,7 @@ $sticky-header-height: calc(50px + 3.3rem);
       top: 0;
     }
   }
+
   @include media-breakpoint-up(md) {
     .sidebar-pane:not(.hide-sidebar) {
       > :nth-child(2) {
@@ -1129,6 +1132,7 @@ input[type="range"].double-range-slider-max {
     // sm: label is 3 of 12 columns = 25%, plus partial gutter
     margin-left: calc(25% + 7.5px);
   }
+
   @include media-breakpoint-up(xl) {
     // xl: label is 2 of 12 columns = 16.667%, plus partial gutter
     margin-left: calc(16.667% + 7.5px);

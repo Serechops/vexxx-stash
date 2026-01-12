@@ -3,8 +3,8 @@
 /* Site */
 
 ::selection {
-  background-color: #cce2ff;
-  color: $dark-text;
+  background-color: rgba($primary, 0.5);
+  color: $text-color;
 }
 
 /* Form */
@@ -12,7 +12,7 @@
 textarea::selection,
 input::selection {
   background-color: rgba(100, 100, 100, 0.4);
-  color: $dark-text;
+  color: $text-color;
 }
 
 /* Force Simple Scrollbars */
@@ -24,21 +24,21 @@ body ::-webkit-scrollbar {
 }
 
 body ::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.05);
   border-radius: 0;
 }
 
 body ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.25);
+  background: rgba(255, 255, 255, 0.2);
   border-radius: 5px;
   cursor: pointer;
   transition: color 0.2s ease;
 }
 
 body ::-webkit-scrollbar-thumb:window-inactive {
-  background: rgba(0, 0, 0, 0.15);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 body ::-webkit-scrollbar-thumb:hover {
-  background: rgba(128, 135, 139, 0.8);
+  background: rgba(255, 255, 255, 0.4);
 }

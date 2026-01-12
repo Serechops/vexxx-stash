@@ -10,18 +10,21 @@ $warning: #d9822b;
 $danger: #db3737;
 
 $theme-colors: (
-  primary: #137cbd,
+  primary: #52525b,
+  // Zinc-600
   secondary: $secondary,
   success: $success,
   warning: $warning,
   danger: $danger,
   dark: #27272a,
+  info: #71717a,
+  // Zinc-500
 );
 
 $body-bg: #09090b; // Zinc-950
 $text-muted: $muted-gray;
-$link-color: #48aff0;
-$link-hover-color: $link-color;
+$link-color: #e4e4e7; // Zinc-200
+$link-hover-color: #ffffff;
 $text-color: #fafafa; // Zinc-50
 $pre-color: $text-color;
 $navbar-dark-color: rgb(24, 24, 27);

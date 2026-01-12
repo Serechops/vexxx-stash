@@ -26,7 +26,7 @@ input[type="range"] {
 
   &::-webkit-slider-thumb {
     -webkit-appearance: none;
-    background: #394b59;
+    background: $text-color;
     border: 0 solid #000;
     border-radius: 10px;
     box-shadow: 0 0 0 #000;
@@ -37,7 +37,7 @@ input[type="range"] {
   }
 
   &:focus::-webkit-slider-runnable-track {
-    background: #137cbd;
+    background: $primary;
   }
 
   &::-moz-range-track {
@@ -52,7 +52,7 @@ input[type="range"] {
   }
 
   &::-moz-range-thumb {
-    background: #394b59;
+    background: $text-color;
     border: 0 solid #000;
     border-radius: 10px;
     box-shadow: 0 0 0 #000;
@@ -86,7 +86,7 @@ input[type="range"] {
   }
 
   &::-ms-thumb {
-    background: #394b59;
+    background: $text-color;
     border: 0 solid #000;
     border-radius: 10px;
     box-shadow: 0 0 0 #000;
@@ -97,10 +97,10 @@ input[type="range"] {
   }
 
   &:focus::-ms-fill-lower {
-    background: #137cbd;
+    background: $primary;
   }
 
   &:focus::-ms-fill-upper {
-    background: #137cbd;
+    background: $primary;
   }
 }

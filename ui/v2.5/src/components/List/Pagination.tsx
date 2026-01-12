@@ -194,7 +194,7 @@ export const Pagination: React.FC<IPaginationProps> = PatchComponent(
           className={cx(
             "hover:!bg-secondary !text-foreground border-none font-bold",
             currentPage === page
-              ? "!bg-primary !text-primary-foreground !opacity-100 !bg-opacity-100 shadow-md transform scale-110 z-10"
+              ? "!bg-primary !text-white !opacity-100 !bg-opacity-100 shadow-md transform scale-110 z-10"
               : "!bg-card !opacity-90"
           )}
           key={page}

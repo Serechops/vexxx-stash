@@ -468,17 +468,19 @@ dd {
 }
 
 .input-control,
-.text-input {
+.text-input,
+.form-control,
+.form-select {
   border: 0;
-  box-shadow: 0 0 0 0 rgba(19, 124, 189, 0), 0 0 0 0 rgba(19, 124, 189, 0),
-    0 0 0 0 rgba(19, 124, 189, 0), inset 0 0 0 1px rgba(16, 22, 26, 0.3),
+  box-shadow: 0 0 0 0 rgba($primary, 0), 0 0 0 0 rgba($primary, 0),
+    0 0 0 0 rgba($primary, 0), inset 0 0 0 1px rgba(16, 22, 26, 0.3),
     inset 0 1px 1px rgba(16, 22, 26, 0.4);
   color: $text-color;
 
   &:focus {
     border: 0;
     box-shadow: 0 0 0 1px $primary, 0 0 0 1px $primary,
-      0 0 0 3px rgba(19, 124, 189, 0.3), inset 0 0 0 1px rgba(16, 22, 26, 0.3),
+      0 0 0 3px rgba($primary, 0.3), inset 0 0 0 1px rgba(16, 22, 26, 0.3),
       inset 0 1px 1px rgba(16, 22, 26, 0.4);
     color: $text-color;
   }
@@ -497,8 +499,36 @@ dd {
 .text-input,
 .text-input:focus,
 .text-input[readonly],
-.text-input:disabled {
+.text-input:disabled,
+.form-control,
+.form-control:focus,
+.form-control[readonly],
+.form-control:disabled,
+.form-select,
+.form-select:focus,
+.form-select:disabled {
   background-color: $textfield-bg;
+
+  &::placeholder {
+    color: $text-muted;
+    opacity: 1;
+  }
+}
+
+.btn-secondary {
+  background-color: $secondary;
+  border-color: $secondary;
+  color: $text-color;
+
+  &:hover,
+  &:focus,
+  &:active,
+  &.active,
+  &:not(:disabled):not(.disabled):active {
+    background-color: lighten($secondary, 5%);
+    border-color: lighten($secondary, 5%);
+    color: $text-color;
+  }
 }
 
 textarea.text-input {
@@ -1435,6 +1465,7 @@ h3 .TruncatedText {
     }
   }
 }
+
 .skeleton-card {
-    border-color: rgba(255,255,255,0.05) !important;
+  border-color: rgba(255, 255, 255, 0.05) !important;
 }

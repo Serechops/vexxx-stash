@@ -14,6 +14,7 @@ import {
   queryScrapeSceneQuery,
   queryScrapeSceneQueryFragment,
   stashBoxSceneBatchQuery,
+  stashBoxPerformerQuery,
   mutateStashBoxBatchPerformerTag,
   useListSceneScrapers,
   usePerformerCreate,
@@ -35,6 +36,7 @@ import { errorToString } from "src/utils";
 import { mergeStudioStashIDs } from "./utils";
 import { useTaggerConfig } from "./config";
 import { genderList, stringToGender } from "src/utils/gender";
+import { stringToCircumcised } from "src/utils/circumcised";
 
 export interface ITaggerContextState {
   config: ITaggerConfig;
@@ -473,7 +475,7 @@ export const TaggerContext: React.FC = ({ children }) => {
         };
 
         // Concurrency setup
-        const CONCURRENCY = 4;
+        const CONCURRENCY = 6;
         const queue = [...sceneIDs];
         const workers = Array(CONCURRENCY)
           .fill(null)
@@ -890,20 +892,38 @@ export const TaggerContext: React.FC = ({ children }) => {
               if (!existing) {
                 existing = {
                   name: p.name!,
+                  disambiguation: p.disambiguation ?? undefined,
                   gender: p.gender ? stringToGender(p.gender) : undefined,
                   urls: p.urls ?? undefined,
                   birthdate: (p.birthdate || undefined) as any,
+                  death_date: (p.death_date || undefined) as any,
+                  ethnicity: p.ethnicity ?? undefined,
+                  country: p.country ?? undefined,
+                  eye_color: p.eye_color ?? undefined,
+                  hair_color: p.hair_color ?? undefined,
+                  height_cm: p.height ? parseInt(p.height, 10) : undefined,
+                  weight: p.weight ? parseInt(p.weight, 10) : undefined,
+                  measurements: p.measurements ?? undefined,
+                  fake_tits: p.fake_tits ?? undefined,
+                  penis_length: p.penis_length ? parseFloat(p.penis_length) : undefined,
+                  circumcised: p.circumcised ? stringToCircumcised(p.circumcised) : undefined,
+                  career_length: p.career_length ?? undefined,
+                  tattoos: p.tattoos ?? undefined,
+                  piercings: p.piercings ?? undefined,
+                  alias_list: p.aliases ? p.aliases.split(",").map(s => s.trim()).filter(s => s.length > 0) : undefined,
+                  details: p.details ?? undefined,
                   image: (p.image || undefined) as any,
                   stash_ids,
-                };
-                performersToCreate.set(key, existing);
+                  _remote_site_id: p.remote_site_id, // Store for later scraping
+                } as any;
+                performersToCreate.set(key, existing!);
               } else {
-                // Update existing with better data if available
-                if (!existing.gender && p.gender) existing.gender = stringToGender(p.gender);
-                if (!existing.birthdate && p.birthdate) existing.birthdate = p.birthdate as any;
-                if (!existing.image && p.image) existing.image = p.image as any;
-                if ((!existing.urls || existing.urls.length === 0) && p.urls) existing.urls = p.urls;
+                // Update stash_ids
                 existing.stash_ids = stash_ids;
+                // Store remote_site_id if not already set
+                if (!(existing as any)._remote_site_id && p.remote_site_id) {
+                  (existing as any)._remote_site_id = p.remote_site_id;
+                }
               }
             }
           });
@@ -915,7 +935,69 @@ export const TaggerContext: React.FC = ({ children }) => {
         return;
       }
 
-      const inputs = Array.from(performersToCreate.values());
+      // Scrape full performer data from StashDB for performers with remote_site_id
+      const endpoint = currentSource?.sourceInput.stash_box_endpoint;
+      if (endpoint) {
+        const entries = Array.from(performersToCreate.entries());
+        const CONCURRENCY = 4;
+        const queue = [...entries];
+
+        const workers = Array(CONCURRENCY)
+          .fill(null)
+          .map(async () => {
+            while (queue.length > 0) {
+              const entry = queue.shift();
+              if (!entry) break;
+              const [key, partial] = entry;
+              const remoteId = (partial as any)._remote_site_id;
+              if (!remoteId) continue;
+
+              try {
+                const result = await stashBoxPerformerQuery(remoteId, endpoint);
+                const scraped = result.data?.scrapeSinglePerformer?.[0];
+                if (scraped) {
+                  // Merge scraped data into existing partial
+                  const merged: GQL.PerformerCreateInput = {
+                    name: scraped.name || partial.name!,
+                    disambiguation: scraped.disambiguation ?? partial.disambiguation,
+                    gender: scraped.gender ? stringToGender(scraped.gender) : partial.gender,
+                    urls: scraped.urls ?? partial.urls,
+                    birthdate: (scraped.birthdate || partial.birthdate) as any,
+                    death_date: (scraped.death_date || partial.death_date) as any,
+                    ethnicity: scraped.ethnicity ?? partial.ethnicity,
+                    country: scraped.country ?? partial.country,
+                    eye_color: scraped.eye_color ?? partial.eye_color,
+                    hair_color: scraped.hair_color ?? partial.hair_color,
+                    height_cm: scraped.height ? parseInt(scraped.height, 10) : partial.height_cm,
+                    weight: scraped.weight ? parseInt(scraped.weight, 10) : partial.weight,
+                    measurements: scraped.measurements ?? partial.measurements,
+                    fake_tits: scraped.fake_tits ?? partial.fake_tits,
+                    penis_length: scraped.penis_length ? parseFloat(scraped.penis_length) : partial.penis_length,
+                    circumcised: scraped.circumcised ? stringToCircumcised(scraped.circumcised) : partial.circumcised,
+                    career_length: scraped.career_length ?? partial.career_length,
+                    tattoos: scraped.tattoos ?? partial.tattoos,
+                    piercings: scraped.piercings ?? partial.piercings,
+                    alias_list: scraped.aliases ? scraped.aliases.split(",").map(s => s.trim()).filter(s => s.length > 0) : partial.alias_list,
+                    details: scraped.details ?? partial.details,
+                    image: (scraped.images?.[0] || partial.image) as any,
+                    stash_ids: partial.stash_ids,
+                  };
+                  performersToCreate.set(key, merged);
+                }
+              } catch (err) {
+                console.error(`Failed to scrape performer ${key} from StashDB`, err);
+              }
+            }
+          });
+
+        await Promise.all(workers);
+      }
+
+      // Clean up internal _remote_site_id field before creating
+      const inputs = Array.from(performersToCreate.values()).map(p => {
+        const { _remote_site_id, ...clean } = p as any;
+        return clean as GQL.PerformerCreateInput;
+      });
       const result = await createPerformers({ variables: { input: inputs } });
       const createdPerformers = result.data?.performersCreate;
 
@@ -939,28 +1021,7 @@ export const TaggerContext: React.FC = ({ children }) => {
         );
         Toast.success(`Created ${createdPerformers.length} performers`);
 
-        // Trigger batch update for created performers to ensure they are identified/populated
-        const endpoint = currentSource?.sourceInput.stash_box_endpoint;
-        if (endpoint && stashConfig) {
-          const endpointIndex = stashConfig.general.stashBoxes.findIndex(
-            (s) => s.endpoint === endpoint
-          );
-
-          if (endpointIndex !== -1) {
-            const createdIds = createdPerformers.map((p: any) => p.id);
-            try {
-              await mutateStashBoxBatchPerformerTag({
-                ids: createdIds,
-                endpoint: endpointIndex,
-                refresh: true,
-                exclude_fields: config.excludedPerformerFields ?? [],
-                createParent: false,
-              });
-            } catch (err) {
-              console.error("Failed to trigger batch performer update", err);
-            }
-          }
-        }
+        // Create performers with full data, so no need for batch update
       }
     } catch (e) {
       Toast.error(e);
@@ -1465,21 +1526,35 @@ export const TaggerContext: React.FC = ({ children }) => {
   async function doSearchAll(scenes: GQL.SlimSceneDataFragment[], globalOverride: string) {
     if (!globalOverride || scenes.length === 0) return;
     setLoading(true);
+
     try {
-      for (const scene of scenes) {
-        // Calculate per-scene query like TaggerScene does
-        const { paths, file: basename } = parsePath(objectPath(scene));
-        const defaultQuery = prepareQueryString(
-          scene,
-          paths,
-          basename,
-          config?.mode ?? "auto",
-          config?.blacklist ?? []
-        );
-        // Append the global override to each scene's default query
-        const combinedQuery = `${defaultQuery} ${globalOverride}`;
-        await doSceneQuery(scene.id, combinedQuery);
-      }
+      stopping.current = false;
+      const queue = [...scenes];
+      const CONCURRENCY = 6;
+
+      const workers = Array(CONCURRENCY)
+        .fill(null)
+        .map(async () => {
+          while (queue.length > 0 && !stopping.current) {
+            const scene = queue.shift();
+            if (!scene) break;
+
+            // Calculate per-scene query like TaggerScene does
+            const { paths, file: basename } = parsePath(objectPath(scene));
+            const defaultQuery = prepareQueryString(
+              scene,
+              paths,
+              basename,
+              config?.mode ?? "auto",
+              config?.blacklist ?? []
+            );
+            // Append the global override to each scene's default query
+            const combinedQuery = `${defaultQuery} ${globalOverride}`;
+            await doSceneQuery(scene.id, combinedQuery);
+          }
+        });
+
+      await Promise.all(workers);
       Toast.success(`Searched ${scenes.length} scenes`);
     } catch (e) {
       Toast.error(e);

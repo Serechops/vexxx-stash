@@ -113,6 +113,32 @@
   }
 }
 
+/* Magazine-style CSS Grid layout for images */
+.image-magazine-grid {
+  display: grid;
+  gap: 1rem;
+  padding: 0 1rem;
+  width: 100%;
+
+  /* Cards fill available space by default */
+  .image-card {
+    width: 100% !important;
+    margin: 0 !important;
+  }
+}
+
+/* Landscape images span 2 columns when there's room */
+.image-card-landscape {
+  @media (min-width: 768px) {
+    grid-column: span 2;
+  }
+}
+
+/* Portrait images stay in single column */
+.image-card-portrait {
+  grid-column: span 1;
+}
+
 .image-tabs {
   max-height: calc(100vh - 4rem);
 
@@ -158,7 +184,9 @@ $imageTabWidth: 450px;
     height: calc(100vh - 4rem);
   }
 }
-@media (min-width: 1200px), (max-width: 575px) {
+
+@media (min-width: 1200px),
+(max-width: 575px) {
   .image-performers {
     .performer-card {
       width: 15rem;

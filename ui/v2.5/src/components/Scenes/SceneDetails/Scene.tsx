@@ -374,7 +374,7 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
   function maybeRenderDeleteDialog() {
     if (isDeleteAlertOpen) {
       return (
-        <DeleteScenesDialog selected={[scene]} onClose={onDeleteDialogClosed} />
+        <DeleteScenesDialog selected={[scene as unknown as GQL.SlimSceneDataFragment]} onClose={onDeleteDialogClosed} />
       );
     }
   }

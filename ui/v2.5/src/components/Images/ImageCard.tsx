@@ -28,6 +28,8 @@ interface IImageCardProps {
   zoomIndex: number;
   onSelectedChanged?: (selected: boolean, shiftKey: boolean) => void;
   onPreview?: (ev: MouseEvent) => void;
+  onOrientationDetected?: (imageId: string, isLandscape: boolean) => void;
+  isLandscape?: boolean;
 }
 
 export const ImageCard: React.FC<IImageCardProps> = PatchComponent(
@@ -40,6 +42,20 @@ export const ImageCard: React.FC<IImageCardProps> = PatchComponent(
           : undefined,
       [props.image]
     );
+
+    // Determine orientation and notify parent
+    const isLandscape = useMemo(() => {
+      const width = file?.width ? file.width : 0;
+      const height = file?.height ? file.height : 0;
+      return width > height;
+    }, [file]);
+
+    // Notify parent of orientation on mount/change
+    React.useEffect(() => {
+      if (props.onOrientationDetected) {
+        props.onOrientationDetected(props.image.id, isLandscape);
+      }
+    }, [props.image.id, isLandscape, props.onOrientationDetected]);
 
     function maybeRenderTagPopoverButton() {
       if (props.image.tags.length <= 0) return;
@@ -136,10 +152,14 @@ export const ImageCard: React.FC<IImageCardProps> = PatchComponent(
     }
 
     function isPortrait() {
-      const width = file?.width ? file.width : 0;
-      const height = file?.height ? file.height : 0;
-      return height > width;
+      return !isLandscape;
     }
+
+    const orientationClass = props.isLandscape === true
+      ? "image-card-landscape"
+      : props.isLandscape === false
+        ? "image-card-portrait"
+        : "";
 
     const source =
       props.image.paths.preview != ""
@@ -150,7 +170,10 @@ export const ImageCard: React.FC<IImageCardProps> = PatchComponent(
 
     return (
       <GridCard
-        className={`image-card zoom-${props.zoomIndex} hover:!scale-100 !transition-none`}
+        className={cx(
+          `image-card zoom-${props.zoomIndex} hover:!scale-100 !transition-none`,
+          orientationClass
+        )}
         url={`/images/${props.image.id}`}
         width={props.cardWidth}
         title={imageTitle(props.image)}

@@ -680,14 +680,24 @@ export const FilteredSceneList = (props: IFilteredScenes) => {
                 />
 
                 {totalCount > filter.itemsPerPage && (
-                  <div className="d-flex justify-content-end mb-2">
-                    <Pagination
-                      itemsPerPage={filter.itemsPerPage}
-                      currentPage={filter.currentPage}
-                      totalItems={totalCount}
-                      onChangePage={setPage}
-                      pagePopupPlacement="bottom"
-                    />
+                  <div className="d-flex justify-content-center mb-2">
+                    <div className="d-flex flex-column align-items-center">
+                      <Pagination
+                        itemsPerPage={filter.itemsPerPage}
+                        currentPage={filter.currentPage}
+                        totalItems={totalCount}
+                        onChangePage={setPage}
+                        pagePopupPlacement="bottom"
+                      />
+                      <div className="text-center mt-1">
+                        <PaginationIndex
+                          itemsPerPage={filter.itemsPerPage}
+                          currentPage={filter.currentPage}
+                          totalItems={totalCount}
+                          metadataByline={metadataByline}
+                        />
+                      </div>
+                    </div>
                   </div>
                 )}
               </>

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useCallback } from "react";
 import * as GQL from "src/core/generated-graphql";
 import { ImageCard } from "./ImageCard";
 import {
@@ -26,8 +26,24 @@ export const ImageGridCard: React.FC<IImageCardGrid> = ({
   const [componentRef, { width: containerWidth }] = useContainerDimensions();
   const cardWidth = useCardWidth(containerWidth, zoomIndex, zoomWidths);
 
+  // Track orientation for each image by ID
+  const [orientations, setOrientations] = useState<Record<string, boolean>>({});
+
+  const handleOrientationDetected = useCallback((imageId: string, isLandscape: boolean) => {
+    setOrientations(prev => {
+      if (prev[imageId] === isLandscape) return prev;
+      return { ...prev, [imageId]: isLandscape };
+    });
+  }, []);
+
   return (
-    <div className="row justify-content-center" ref={componentRef}>
+    <div
+      className="image-magazine-grid"
+      ref={componentRef}
+      style={{
+        gridTemplateColumns: `repeat(auto-fill, minmax(${cardWidth}px, 1fr))`,
+      }}
+    >
       {images.map((image, index) => (
         <ImageCard
           key={image.id}
@@ -42,6 +58,8 @@ export const ImageGridCard: React.FC<IImageCardGrid> = ({
           onPreview={
             selectedIds.size < 1 ? (ev) => onPreview(index, ev) : undefined
           }
+          onOrientationDetected={handleOrientationDetected}
+          isLandscape={orientations[image.id]}
         />
       ))}
     </div>

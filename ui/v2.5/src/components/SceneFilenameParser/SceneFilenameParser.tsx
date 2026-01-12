@@ -61,7 +61,7 @@ export const SceneFilenameParser: React.FC = () => {
   // Network state
   const [isLoading, setIsLoading] = useState(false);
 
-  const [updateScenes] = useScenesUpdate(getScenesUpdateData());
+  const [updateScenes] = useScenesUpdate();
 
   useEffect(() => {
     prevParserInputRef.current = parserInput;
@@ -186,7 +186,7 @@ export const SceneFilenameParser: React.FC = () => {
     setIsLoading(true);
 
     try {
-      await updateScenes();
+      await updateScenes({ variables: { input: getScenesUpdateData() } });
       Toast.success(
         intl.formatMessage(
           { id: "toast.updated_entity" },

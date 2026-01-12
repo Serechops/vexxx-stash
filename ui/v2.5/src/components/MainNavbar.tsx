@@ -26,7 +26,6 @@ import {
   faBars,
   faChartColumn,
   faFilm,
-  faHeart,
   faImage,
   faImages,
   faMapMarkerAlt,
@@ -307,7 +306,11 @@ export const MainNavbar: React.FC = () => {
             className="minimal donate"
             title={intl.formatMessage({ id: "donate" })}
           >
-            <Icon icon={faHeart} />
+            <img
+              src="/patreon.png"
+              alt="Patreon"
+              style={{ height: "1.5em", width: "auto", marginRight: "0.5rem" }}
+            />
             <span className="d-none d-sm-inline">
               {intl.formatMessage(messages.donate)}
             </span>

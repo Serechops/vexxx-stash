@@ -27,5 +27,10 @@
         "config": {
             "mark_organized_label": "Mark as Organized on save"
         }
-    }
+    },
+    "patreon": "Patreon",
+    "scan_missing_scenes": "Scan for Missing Scenes (StashBox)",
+    "scan_missing_scenes_bg": "Scan in Background",
+    "track_all": "Track All",
+    "Missing Scenes": "Missing Scenes"
 }

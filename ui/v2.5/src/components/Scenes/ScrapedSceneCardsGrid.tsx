@@ -49,14 +49,14 @@ function scrapedToSlim(scraped: GQL.ScrapedSceneDataFragment, trailerUrl?: strin
         } : null,
         movies: [],
         performers: scraped.performers ? scraped.performers.map(p => ({
-            id: p.stored_id || "perf-id",
+            id: p.stored_id || p.name,
             name: p.name,
             gender: p.gender,
             image_path: p.images?.[0] || null,
             favorite: false,
         })) : [],
         tags: scraped.tags ? scraped.tags.map(t => ({
-            id: t.stored_id || "tag-id",
+            id: t.stored_id || t.name,
             name: t.name,
         })) : [],
         stash_ids: [],

@@ -149,6 +149,22 @@ const StudioTabs: React.FC<{
     );
   }, [showAllDetails, studio.child_studios.length]);
 
+  // Query potential scenes count for missing scenes tab
+  const { data: potentialData } = GQL.useFindPotentialScenesQuery({
+    variables: {
+      filter: {
+        studio_stash_id: studio.stash_ids?.[0]?.stash_id
+      }
+    },
+    skip: !studio.stash_ids || studio.stash_ids.length === 0,
+  });
+
+  // Count only scenes that are NOT owned (truly missing from library)
+  const missingSceneCount = useMemo(() => {
+    if (!potentialData?.findPotentialScenes) return 0;
+    return potentialData.findPotentialScenes.filter(ps => !ps.existing_scene?.id).length;
+  }, [potentialData]);
+
   return (
     <Tabs
       id="studio-tabs"
@@ -260,7 +276,11 @@ const StudioTabs: React.FC<{
       <Tab
         eventKey="missing"
         title={
-          <FormattedMessage id="missing_scenes" defaultMessage="Missing Scenes" />
+          <TabTitleCounter
+            messageID="Missing Scenes"
+            count={missingSceneCount}
+            abbreviateCounter={abbreviateCounter}
+          />
         }
       >
         <StudioMissingScenesPanel

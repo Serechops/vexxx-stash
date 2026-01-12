@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import Select from "react-select";
 import { Button, Form, InputGroup, Dropdown, DropdownButton, ButtonGroup } from "react-bootstrap";
 import { FormattedMessage, useIntl } from "react-intl";
 import * as GQL from "src/core/generated-graphql";
@@ -20,6 +21,7 @@ interface IStudioMissingScenesPanelProps {
 type StatusFilter = "all" | "untracked" | "tracked" | "owned";
 type SortField = "date" | "title" | "studio";
 type SortDirection = "asc" | "desc";
+type Option = { label: string; value: string };
 
 export const StudioMissingScenesPanel: React.FC<IStudioMissingScenesPanelProps> = ({
     active,
@@ -391,6 +393,7 @@ export const StudioMissingScenesPanel: React.FC<IStudioMissingScenesPanelProps> 
                             <InputGroup.Text><Icon icon={faSearch} /></InputGroup.Text>
                         </InputGroup.Prepend>
                         <Form.Control
+                            className="text-input"
                             placeholder="Search..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
@@ -398,40 +401,55 @@ export const StudioMissingScenesPanel: React.FC<IStudioMissingScenesPanelProps> 
                     </InputGroup>
 
                     {/* Studio Filter */}
-                    <Form.Control
-                        as="select"
-                        value={selectedStudio || ""}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSelectedStudio(e.target.value || null)}
-                        style={{ maxWidth: "150px" }}
-                        className="custom-select"
-                    >
-                        <option value="">All Studios</option>
-                        {uniqueStudios.map(s => <option key={s} value={s}>{s}</option>)}
-                    </Form.Control>
+                    <div style={{ width: "200px" }}>
+                        <Select
+                            className="react-select"
+                            classNamePrefix="react-select"
+                            options={uniqueStudios.map(s => ({ label: s, value: s }))}
+                            value={selectedStudio ? { label: selectedStudio, value: selectedStudio } : null}
+                            onChange={(option: Option | null) => setSelectedStudio(option ? option.value : null)}
+                            placeholder="All Studios"
+                            isClearable
+                            menuPortalTarget={document.body}
+                            styles={{
+                                menuPortal: base => ({ ...base, zIndex: 9999 }),
+                            }}
+                        />
+                    </div>
 
                     {/* Performer Filter */}
-                    <Form.Control
-                        as="select"
-                        value={selectedPerformer || ""}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSelectedPerformer(e.target.value || null)}
-                        style={{ maxWidth: "150px" }}
-                        className="custom-select"
-                    >
-                        <option value="">All Performers</option>
-                        {uniquePerformers.map(p => <option key={p} value={p}>{p}</option>)}
-                    </Form.Control>
+                    <div style={{ width: "200px" }}>
+                        <Select
+                            className="react-select"
+                            classNamePrefix="react-select"
+                            options={uniquePerformers.map(p => ({ label: p, value: p }))}
+                            value={selectedPerformer ? { label: selectedPerformer, value: selectedPerformer } : null}
+                            onChange={(option: Option | null) => setSelectedPerformer(option ? option.value : null)}
+                            placeholder="All Performers"
+                            isClearable
+                            menuPortalTarget={document.body}
+                            styles={{
+                                menuPortal: base => ({ ...base, zIndex: 9999 }),
+                            }}
+                        />
+                    </div>
 
                     {/* Tag Filter */}
-                    <Form.Control
-                        as="select"
-                        value={selectedTag || ""}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSelectedTag(e.target.value || null)}
-                        style={{ maxWidth: "150px" }}
-                        className="custom-select"
-                    >
-                        <option value="">All Tags</option>
-                        {uniqueTags.map(t => <option key={t} value={t}>{t}</option>)}
-                    </Form.Control>
+                    <div style={{ width: "200px" }}>
+                        <Select
+                            className="react-select"
+                            classNamePrefix="react-select"
+                            options={uniqueTags.map(t => ({ label: t, value: t }))}
+                            value={selectedTag ? { label: selectedTag, value: selectedTag } : null}
+                            onChange={(option: Option | null) => setSelectedTag(option ? option.value : null)}
+                            placeholder="All Tags"
+                            isClearable
+                            menuPortalTarget={document.body}
+                            styles={{
+                                menuPortal: base => ({ ...base, zIndex: 9999 }),
+                            }}
+                        />
+                    </div>
 
                     {/* Status Filter */}
                     <DropdownButton
@@ -481,7 +499,7 @@ export const StudioMissingScenesPanel: React.FC<IStudioMissingScenesPanelProps> 
                             {Object.keys(ownedStatus).length} Owned
                         </span>
                         <span className="badge bg-success text-white px-2 py-1" title="Tracked (not in library)">
-                            {Object.keys(trackedStatus).filter(k => trackedStatus[k] && !ownedStatus[k]).length} Tracked
+                            {Object.keys(trackedStatus).filter(k => trackedStatus[k] && !ownedStatus[k]).length} Missing
                         </span>
                         <span className="badge bg-secondary text-white px-2 py-1" title="Total scenes">
                             {missingScenes.length} Total

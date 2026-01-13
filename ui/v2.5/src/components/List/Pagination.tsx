@@ -209,7 +209,7 @@ export const Pagination: React.FC<IPaginationProps> = PatchComponent(
     if (totalPages <= 1) return <div />;
 
     return (
-      <ButtonGroup className="pagination">
+      <ButtonGroup className="pagination w-fit mx-auto">
         <Button
           variant="secondary"
           className="!bg-card hover:!bg-secondary !text-foreground"

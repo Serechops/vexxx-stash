@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useApolloClient } from "@apollo/client";
 import { FormattedMessage, useIntl } from "react-intl";
 import { Helmet } from "react-helmet";
 import cx from "classnames";
@@ -230,6 +231,7 @@ const GroupPage: React.FC<IProps> = ({ group, tabKey }) => {
   const [deleteGroup, { loading: deleting }] = useGroupDestroy({
     id: group.id,
   });
+  const client = useApolloClient();
 
   // set up hotkeys
   useEffect(() => {
@@ -259,7 +261,12 @@ const GroupPage: React.FC<IProps> = ({ group, tabKey }) => {
           ...input,
         },
       },
+      // refetchQueries: ["FindScenes"], // Not needed if we evict
     });
+
+    client.cache.evict({ fieldName: "findScenes" });
+    client.cache.gc();
+
     toggleEditing(false);
     Toast.success(
       intl.formatMessage(
@@ -354,9 +361,8 @@ const GroupPage: React.FC<IProps> = ({ group, tabKey }) => {
               {!!activeFrontImage && (
                 <LightboxLink images={lightboxImages}>
                   <DetailImage
-                    className={`front-cover ${
-                      focusedOnFront ? "active" : "inactive"
-                    }`}
+                    className={`front-cover ${focusedOnFront ? "active" : "inactive"
+                      }`}
                     alt="Front Cover"
                     src={activeFrontImage}
                   />
@@ -368,9 +374,8 @@ const GroupPage: React.FC<IProps> = ({ group, tabKey }) => {
                   index={lightboxImages.length - 1}
                 >
                   <DetailImage
-                    className={`back-cover ${
-                      !focusedOnFront ? "active" : "inactive"
-                    }`}
+                    className={`back-cover ${!focusedOnFront ? "active" : "inactive"
+                      }`}
                     alt="Back Cover"
                     src={activeBackImage}
                   />
@@ -430,8 +435,8 @@ const GroupPage: React.FC<IProps> = ({ group, tabKey }) => {
                   isNew={false}
                   isEditing={isEditing}
                   onToggleEdit={() => toggleEditing()}
-                  onSave={() => {}}
-                  onImageChange={() => {}}
+                  onSave={() => { }}
+                  onImageChange={() => { }}
                   onDelete={onDelete}
                 />
               )}

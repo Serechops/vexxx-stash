@@ -45,4 +45,5 @@ type GroupService interface {
 	AddSubGroups(ctx context.Context, groupID int, subGroups []models.GroupIDDescription, insertIndex *int) error
 	RemoveSubGroups(ctx context.Context, groupID int, subGroupIDs []int) error
 	ReorderSubGroups(ctx context.Context, groupID int, subGroupIDs []int, insertPointID int, insertAfter bool) error
+	UpdateScenes(ctx context.Context, groupID int, scenes []models.GroupScene) error
 }

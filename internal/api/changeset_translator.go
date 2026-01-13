@@ -512,3 +512,29 @@ func (t changesetTranslator) updateGroupIDDescriptionsBulk(value *BulkUpdateGrou
 		Mode:   value.Mode,
 	}, nil
 }
+
+func groupScenesFromInput(input []*GroupSceneInput) ([]models.GroupScene, error) {
+	ret := make([]models.GroupScene, len(input))
+
+	for i, v := range input {
+		sID, err := strconv.Atoi(v.SceneID)
+		if err != nil {
+			return nil, fmt.Errorf("invalid scene ID: %s", v.SceneID)
+		}
+
+		ret[i] = models.GroupScene{
+			SceneID:    sID,
+			SceneIndex: v.SceneIndex,
+		}
+	}
+
+	return ret, nil
+}
+
+func (t changesetTranslator) groupScenes(value []*GroupSceneInput, field string) ([]models.GroupScene, error) {
+	if !t.hasField(field) {
+		return nil, nil
+	}
+
+	return groupScenesFromInput(value)
+}

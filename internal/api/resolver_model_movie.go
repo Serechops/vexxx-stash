@@ -193,11 +193,19 @@ func (r *groupResolver) PerformerCount(ctx context.Context, obj *models.Group, d
 	return ret, nil
 }
 
-func (r *groupResolver) Scenes(ctx context.Context, obj *models.Group) (ret []*models.Scene, err error) {
+func (r *groupResolver) Scenes(ctx context.Context, obj *models.Group) (ret []*models.GroupScene, err error) {
 	if err := r.withReadTxn(ctx, func(ctx context.Context) error {
-		var err error
-		ret, err = r.repository.Scene.FindByGroupID(ctx, obj.ID)
-		return err
+		var scenes []models.GroupScene
+		scenes, err = r.repository.Group.GetScenes(ctx, obj.ID)
+		if err != nil {
+			return err
+		}
+
+		ret = make([]*models.GroupScene, len(scenes))
+		for i := range scenes {
+			ret[i] = &scenes[i]
+		}
+		return nil
 	}); err != nil {
 		return nil, err
 	}

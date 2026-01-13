@@ -42,6 +42,7 @@ type GroupUpdater interface {
 	UpdatePartial(ctx context.Context, id int, updatedGroup GroupPartial) (*Group, error)
 	UpdateFrontImage(ctx context.Context, groupID int, frontImage []byte) error
 	UpdateBackImage(ctx context.Context, groupID int, backImage []byte) error
+	UpdateScenes(ctx context.Context, groupID int, scenes []GroupScene) error
 }
 
 // GroupDestroyer provides methods to destroy groups.
@@ -74,6 +75,7 @@ type GroupReader interface {
 	HasFrontImage(ctx context.Context, groupID int) (bool, error)
 	GetBackImage(ctx context.Context, groupID int) ([]byte, error)
 	HasBackImage(ctx context.Context, groupID int) (bool, error)
+	GetScenes(ctx context.Context, groupID int) ([]GroupScene, error)
 }
 
 // GroupWriter provides all methods to modify groups.

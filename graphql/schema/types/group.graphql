@@ -29,13 +29,23 @@ type Group {
   scene_count(depth: Int): Int! # Resolver
   performer_count(depth: Int): Int! # Resolver
   sub_group_count(depth: Int): Int! # Resolver
-  scenes: [Scene!]!
+  scenes: [GroupScene!]!
   o_counter: Int # Resolver
 }
 
 input GroupDescriptionInput {
   group_id: ID!
   description: String
+}
+
+type GroupScene {
+  scene: Scene!
+  scene_index: Int
+}
+
+input GroupSceneInput {
+  scene_id: ID!
+  scene_index: Int
 }
 
 input GroupCreateInput {
@@ -54,6 +64,7 @@ input GroupCreateInput {
 
   containing_groups: [GroupDescriptionInput!]
   sub_groups: [GroupDescriptionInput!]
+  scenes: [GroupSceneInput!]
 
   "This should be a URL or a base64 encoded data URL"
   front_image: String
@@ -77,6 +88,7 @@ input GroupUpdateInput {
 
   containing_groups: [GroupDescriptionInput!]
   sub_groups: [GroupDescriptionInput!]
+  scenes: [GroupSceneInput!]
 
   "This should be a URL or a base64 encoded data URL"
   front_image: String

@@ -11,6 +11,11 @@ type GroupsScenes struct {
 	SceneIndex *int `json:"scene_index"`
 }
 
+type GroupScene struct {
+	SceneID    int  `json:"scene_id" db:"scene_id"`
+	SceneIndex *int `json:"scene_index" db:"scene_index"`
+}
+
 func (s GroupsScenes) SceneMovieInput() SceneMovieInput {
 	return SceneMovieInput{
 		MovieID:    strconv.Itoa(s.GroupID),

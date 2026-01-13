@@ -264,7 +264,65 @@ func (qb *GroupStore) Update(ctx context.Context, updatedObject *models.Group) e
 		return err
 	}
 
+	if err := qb.groupRelationshipStore.replaceSubRelationships(ctx, updatedObject.ID, updatedObject.SubGroups); err != nil {
+		return err
+	}
+
 	return nil
+}
+
+func (qb *GroupStore) UpdateScenes(ctx context.Context, groupID int, scenes []models.GroupScene) error {
+	// Delete existing
+	delQ := dialect.Delete(scenesGroupsJoinTable).Where(scenesGroupsJoinTable.Col(groupIDColumn).Eq(groupID))
+	if _, err := exec(ctx, delQ); err != nil {
+		return fmt.Errorf("deleting old scenes: %w", err)
+	}
+
+	// Insert new
+	if len(scenes) == 0 {
+		return nil
+	}
+
+	rows := make([]interface{}, len(scenes))
+	for i, s := range scenes {
+		r := goqu.Record{
+			groupIDColumn: groupID,
+			sceneIDColumn: s.SceneID,
+		}
+		if s.SceneIndex != nil {
+			r["scene_index"] = *s.SceneIndex
+		}
+		rows[i] = r
+	}
+
+	insertQ := dialect.Insert(scenesGroupsJoinTable).Rows(rows...)
+
+	if _, err := exec(ctx, insertQ); err != nil {
+		return fmt.Errorf("inserting new scenes: %w", err)
+	}
+
+	return nil
+}
+
+func (qb *GroupStore) GetScenes(ctx context.Context, groupID int) ([]models.GroupScene, error) {
+	query := dialect.Select(
+		scenesGroupsJoinTable.Col(sceneIDColumn),
+		scenesGroupsJoinTable.Col("scene_index"),
+	).From(scenesGroupsJoinTable).Where(scenesGroupsJoinTable.Col(groupIDColumn).Eq(groupID))
+
+	var ret []models.GroupScene
+	if err := queryFunc(ctx, query, false, func(rows *sqlx.Rows) error {
+		var r models.GroupScene
+		if err := rows.StructScan(&r); err != nil {
+			return err
+		}
+		ret = append(ret, r)
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	return ret, nil
 }
 
 func (qb *GroupStore) Destroy(ctx context.Context, id int) error {

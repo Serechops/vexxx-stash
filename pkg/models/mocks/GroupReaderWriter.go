@@ -561,3 +561,40 @@ func (_m *GroupReaderWriter) UpdatePartial(ctx context.Context, id int, updatedG
 
 	return r0, r1
 }
+
+// GetScenes provides a mock function with given fields: ctx, groupID
+func (_m *GroupReaderWriter) GetScenes(ctx context.Context, groupID int) ([]models.GroupScene, error) {
+	ret := _m.Called(ctx, groupID)
+
+	var r0 []models.GroupScene
+	if rf, ok := ret.Get(0).(func(context.Context, int) []models.GroupScene); ok {
+		r0 = rf(ctx, groupID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]models.GroupScene)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, int) error); ok {
+		r1 = rf(ctx, groupID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// UpdateScenes provides a mock function with given fields: ctx, groupID, scenes
+func (_m *GroupReaderWriter) UpdateScenes(ctx context.Context, groupID int, scenes []models.GroupScene) error {
+	ret := _m.Called(ctx, groupID, scenes)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, int, []models.GroupScene) error); ok {
+		r0 = rf(ctx, groupID, scenes)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}

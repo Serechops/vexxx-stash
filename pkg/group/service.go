@@ -44,3 +44,7 @@ type SubGroupReorderer interface {
 type Service struct {
 	Repository CreatorUpdater
 }
+
+func (s *Service) UpdateScenes(ctx context.Context, groupID int, scenes []models.GroupScene) error {
+	return s.Repository.UpdateScenes(ctx, groupID, scenes)
+}

@@ -202,3 +202,36 @@ const onStart = async () => {
 ```
 
 This pattern ensures the UI remains responsive and the server can manage concurrency efficiently (e.g., limiting parallel text-generation or scraping tasks).
+
+---
+
+## 9. Handling Real-time UI Updates & Relationships
+
+When updating a parent entity (like `Group`) that has a One-to-Many or Many-to-Many relationship with children (like `Scenes`), you may encounter issues where the child list doesn't update immediately in the UI.
+
+### The Problem
+Apollo Client's cache automatically updates entities it knows about (e.g., if you return the updated `Group`, the cache updates that `Group`). However, if a separate query (like `FindScenes` filtered by `group_id`) provides the list of children, Apollo often **does not know** that this specific query needs to be re-run, even if the Group itself was updated.
+
+### The Solution: Cache Eviction
+Instead of relying on `refetchQueries` (which can be flaky or hard to target precisely if variables differ), explicitly **evicting** the stale query from the cache is often more robust.
+
+```typescript
+import { useApolloClient } from "@apollo/client";
+
+// Inside your component
+const client = useApolloClient();
+
+async function onSave(input) {
+  await updateMutation({ variables: { ... } });
+
+  // FORCE Apollo to forget the cached results for "FindScenes"
+  // This ensures the next component mount/render fetches fresh data.
+  client.cache.evict({ fieldName: "findScenes" });
+  client.cache.gc(); // optional garbage collection
+}
+```
+
+### Sorting & Visibility
+Ensure that newly created relationships have valid sort keys.
+*   **Example**: If sorting by `scene_index`, a `null` index might cause the new item to "disappear" (sorted to the end/hidden), even if it was successfully linked.
+*   **Fix**: Auto-increment or assign a valid default index on the frontend before saving.

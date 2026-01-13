@@ -1,0 +1,13 @@
+# github.com/stashapp/stash/pkg/sqlite_test [github.com/stashapp/stash/pkg/sqlite.test]
+pkg\sqlite\group_integration_test.go:35:22: undefined: models.SQLiteTimestamp
+pkg\sqlite\group_integration_test.go:36:22: undefined: models.SQLiteTimestamp
+pkg\sqlite\group_integration_test.go:38:25: not enough arguments in call to sqb.Create
+	have (context.Context, *models.Scene)
+	want (context.Context, *models.Scene, []models.FileID)
+pkg\sqlite\group_integration_test.go:43:22: undefined: models.SQLiteTimestamp
+pkg\sqlite\group_integration_test.go:44:22: undefined: models.SQLiteTimestamp
+pkg\sqlite\group_integration_test.go:46:25: not enough arguments in call to sqb.Create
+	have (context.Context, *models.Scene)
+	want (context.Context, *models.Scene, []models.FileID)
+FAIL	github.com/stashapp/stash/pkg/sqlite [build failed]
+FAIL

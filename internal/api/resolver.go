@@ -76,6 +76,9 @@ func (r *Resolver) Studio() StudioResolver {
 func (r *Resolver) Group() GroupResolver {
 	return &groupResolver{r}
 }
+func (r *Resolver) GroupScene() GroupSceneResolver {
+	return &groupSceneResolver{r}
+}
 func (r *Resolver) Movie() MovieResolver {
 	return &movieResolver{&groupResolver{r}}
 }

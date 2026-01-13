@@ -93,9 +93,21 @@ func (r *mutationResolver) GroupCreate(ctx context.Context, input GroupCreateInp
 	}
 
 	// Start the transaction and save the group
+	// Start the transaction and save the group
 	if err := r.withTxn(ctx, func(ctx context.Context) error {
 		if err = r.groupService.Create(ctx, newGroup, frontimageData, backimageData); err != nil {
 			return err
+		}
+
+		scenes, err := groupScenesFromInput(input.Scenes)
+		if err != nil {
+			return err
+		}
+
+		if len(scenes) > 0 {
+			if err := r.groupService.UpdateScenes(ctx, newGroup.ID, scenes); err != nil {
+				return err
+			}
 		}
 
 		return nil
@@ -201,6 +213,17 @@ func (r *mutationResolver) GroupUpdate(ctx context.Context, input GroupUpdateInp
 		_, err = r.groupService.UpdatePartial(ctx, groupID, updatedGroup, frontImage, backImage)
 		if err != nil {
 			return err
+		}
+
+		if translator.hasField("scenes") {
+			scenes, err := groupScenesFromInput(input.Scenes)
+			if err != nil {
+				return err
+			}
+
+			if err := r.groupService.UpdateScenes(ctx, groupID, scenes); err != nil {
+				return err
+			}
 		}
 
 		return nil

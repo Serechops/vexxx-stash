@@ -1,0 +1,4 @@
+=== RUN   TestGroupScenes
+--- PASS: TestGroupScenes (0.00s)
+PASS
+ok  	github.com/stashapp/stash/pkg/sqlite	0.276s

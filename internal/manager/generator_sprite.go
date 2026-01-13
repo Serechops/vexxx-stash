@@ -168,7 +168,7 @@ func (g *SpriteGenerator) generateSpriteVTT() error {
 		stepSize /= g.Info.FrameRate
 	}
 
-	return g.g.SpriteVTT(context.TODO(), g.VTTOutputPath, g.ImageOutputPath, stepSize)
+	return g.g.SpriteVTT(context.TODO(), g.VTTOutputPath, g.ImageOutputPath, stepSize, g.StartOffset)
 }
 
 func (g *SpriteGenerator) imageExists() bool {

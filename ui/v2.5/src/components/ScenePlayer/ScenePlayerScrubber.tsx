@@ -130,6 +130,8 @@ export const ScenePlayerScrubber: React.FC<IScenePlayerScrubberProps> = ({
       });
     });
 
+    console.log("[Scrubber] Generated sprite items", { count: newSprites.length });
+
     setScrubWidth(totalWidth);
     setSpriteItems(newSprites);
   }, [spriteInfo, start, end]);

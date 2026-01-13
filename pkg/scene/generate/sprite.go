@@ -87,14 +87,14 @@ func (g Generator) CombineSpriteImages(images []image.Image) image.Image {
 	return montage
 }
 
-func (g Generator) SpriteVTT(ctx context.Context, output string, spritePath string, stepSize float64) error {
+func (g Generator) SpriteVTT(ctx context.Context, output string, spritePath string, stepSize float64, startOffset float64) error {
 	lockCtx := g.LockManager.ReadLock(ctx, spritePath)
 	defer lockCtx.Cancel()
 
-	return g.generateFile(lockCtx, g.ScenePaths, vttPattern, output, g.spriteVTT(spritePath, stepSize))
+	return g.generateFile(lockCtx, g.ScenePaths, vttPattern, output, g.spriteVTT(spritePath, stepSize, startOffset))
 }
 
-func (g Generator) spriteVTT(spritePath string, stepSize float64) generateFn {
+func (g Generator) spriteVTT(spritePath string, stepSize float64, startOffset float64) generateFn {
 	return func(lockCtx *fsutil.LockContext, tmpFn string) error {
 		spriteImage, err := os.Open(spritePath)
 		if err != nil {
@@ -113,8 +113,8 @@ func (g Generator) spriteVTT(spritePath string, stepSize float64) generateFn {
 		for index := 0; index < spriteChunks; index++ {
 			x := width * (index % spriteCols)
 			y := height * int(math.Floor(float64(index)/float64(spriteRows)))
-			startTime := utils.GetVTTTime(float64(index) * stepSize)
-			endTime := utils.GetVTTTime(float64(index+1) * stepSize)
+			startTime := utils.GetVTTTime(startOffset + float64(index)*stepSize)
+			endTime := utils.GetVTTTime(startOffset + float64(index+1)*stepSize)
 
 			vttLines = append(vttLines, startTime+" --> "+endTime)
 			vttLines = append(vttLines, fmt.Sprintf("%s#xywh=%d,%d,%d,%d", spriteImageName, x, y, width, height))

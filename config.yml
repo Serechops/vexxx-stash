@@ -36,9 +36,53 @@ sequential_scanning: false
 session_store_key: ab3054f9fb11ad6e7d6d08c631861b074324f1bac818f5fc04b4473371957dbb
 show_one_time_moved_notification: false
 sound_on_preview: false
-stash: []
+stash:
+    - path: H:\ORION_pr0n_proper\Natural Beauties 13
+      excludevideo: false
+      excludeimage: false
 theme_color: '#202b33'
 ui:
+    frontPageContent:
+        - __typename: CustomFilter
+          direction: DESC
+          message:
+            id: recently_released_objects
+            values:
+                objects: Scenes
+          mode: SCENES
+          sortBy: date
+        - __typename: CustomFilter
+          direction: DESC
+          message:
+            id: recently_added_objects
+            values:
+                objects: Studios
+          mode: STUDIOS
+          sortBy: created_at
+        - __typename: CustomFilter
+          direction: DESC
+          message:
+            id: recently_released_objects
+            values:
+                objects: Groups
+          mode: GROUPS
+          sortBy: date
+        - __typename: CustomFilter
+          direction: DESC
+          message:
+            id: recently_added_objects
+            values:
+                objects: Performers
+          mode: PERFORMERS
+          sortBy: created_at
+        - __typename: CustomFilter
+          direction: DESC
+          message:
+            id: recently_released_objects
+            values:
+                objects: Galleries
+          mode: GALLERIES
+          sortBy: date
     lastNoteSeen: 20251026
 video_file_naming_algorithm: OSHASH
 write_image_thumbnails: true

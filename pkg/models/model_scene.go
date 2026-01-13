@@ -3,6 +3,7 @@ package models
 import (
 	"context"
 	"errors"
+	"fmt"
 	"path/filepath"
 	"strconv"
 	"time"
@@ -248,14 +249,19 @@ func (s Scene) DisplayName() string {
 // GetHash returns the hash of the scene, based on the hash algorithm provided. If
 // hash algorithm is MD5, then Checksum is returned. Otherwise, OSHash is returned.
 func (s Scene) GetHash(hashAlgorithm HashAlgorithm) string {
+	hash := ""
 	switch hashAlgorithm {
 	case HashAlgorithmMd5:
-		return s.Checksum
+		hash = s.Checksum
 	case HashAlgorithmOshash:
-		return s.OSHash
+		hash = s.OSHash
 	}
 
-	return ""
+	if hash != "" && s.ID != 0 && (s.StartPoint != nil || s.EndPoint != nil) {
+		return fmt.Sprintf("%s_segment_%d", hash, s.ID)
+	}
+
+	return hash
 }
 
 // SceneFileType represents the file metadata for a scene.

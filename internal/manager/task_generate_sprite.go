@@ -76,7 +76,11 @@ func (t *GenerateSpriteTask) doesSpriteExist(sceneChecksum string) bool {
 		return false
 	}
 
-	imageExists, _ := fsutil.FileExists(instance.Paths.Scene.GetSpriteImageFilePath(sceneChecksum))
-	vttExists, _ := fsutil.FileExists(instance.Paths.Scene.GetSpriteVttFilePath(sceneChecksum))
+	imagePath := instance.Paths.Scene.GetSpriteImageFilePath(sceneChecksum)
+	vttPath := instance.Paths.Scene.GetSpriteVttFilePath(sceneChecksum)
+
+	imageExists, _ := fsutil.FileExists(imagePath)
+	vttExists, _ := fsutil.FileExists(vttPath)
+
 	return imageExists && vttExists
 }

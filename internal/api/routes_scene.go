@@ -54,7 +54,7 @@ type sceneRoutes struct {
 func (rs sceneRoutes) Routes() chi.Router {
 	r := chi.NewRouter()
 
-	r.Route("/{sceneId}", func(r chi.Router) {
+	r.Route("/{sceneId:[0-9]+}", func(r chi.Router) {
 		r.Use(rs.SceneCtx)
 
 		// streaming endpoints
@@ -83,10 +83,39 @@ func (rs sceneRoutes) Routes() chi.Router {
 		r.Get("/scene_marker/{sceneMarkerId}/preview", rs.SceneMarkerPreview)
 		r.Get("/scene_marker/{sceneMarkerId}/screenshot", rs.SceneMarkerScreenshot)
 	})
-	r.Get("/{sceneHash}_thumbs.vtt", rs.VttThumbs)
-	r.Get("/{sceneHash}_sprite.jpg", rs.VttSprite)
+	r.Get("/{sceneHash:[a-zA-Z0-9_]+}_thumbs.vtt", rs.VttThumbs)
+	r.Get("/{sceneHash:[a-zA-Z0-9_]+}_sprite.jpg", rs.VttSprite)
+
+	// Catch-all for files (sprites, vtt).
+	// These handlers must parse the parameter and verify it's a valid file request.
+	r.Get("/{file}", rs.ServeSceneFile)
 
 	return r
+}
+
+func (rs sceneRoutes) ServeSceneFile(w http.ResponseWriter, r *http.Request) {
+	file := chi.URLParam(r, "file")
+	if strings.HasSuffix(file, "_thumbs.vtt") {
+		sceneHash := strings.TrimSuffix(file, "_thumbs.vtt")
+		rs.serveSpriteFile(w, r, sceneHash, "vtt")
+	} else if strings.HasSuffix(file, "_sprite.jpg") {
+		sceneHash := strings.TrimSuffix(file, "_sprite.jpg")
+		rs.serveSpriteFile(w, r, sceneHash, "jpg")
+	} else {
+		http.NotFound(w, r)
+	}
+}
+
+func (rs sceneRoutes) serveSpriteFile(w http.ResponseWriter, r *http.Request, sceneHash string, fileType string) {
+	var filepath string
+	if fileType == "vtt" {
+		filepath = manager.GetInstance().Paths.Scene.GetSpriteVttFilePath(sceneHash)
+		w.Header().Set("Content-Type", "text/vtt")
+	} else {
+		filepath = manager.GetInstance().Paths.Scene.GetSpriteImageFilePath(sceneHash)
+	}
+
+	utils.ServeStaticFile(w, r, filepath)
 }
 
 func (rs sceneRoutes) StreamDirect(w http.ResponseWriter, r *http.Request) {
@@ -351,6 +380,8 @@ func (rs sceneRoutes) VttThumbs(w http.ResponseWriter, r *http.Request) {
 		sceneHash = chi.URLParam(r, "sceneHash")
 	}
 	filepath := manager.GetInstance().Paths.Scene.GetSpriteVttFilePath(sceneHash)
+
+	logger.Infof("[DEBUG] VttThumbs: hash=%s, path=%s", sceneHash, filepath)
 
 	w.Header().Set("Content-Type", "text/vtt")
 	utils.ServeStaticFile(w, r, filepath)

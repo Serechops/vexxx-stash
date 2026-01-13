@@ -216,11 +216,7 @@ export const Settings: React.FC = () => {
     );
   }
 
-  return (
-    <SettingsContext>
-      <SettingTabs tab={tab} />
-    </SettingsContext>
-  );
+  return <SettingTabs tab={tab} />;
 };
 
 export default Settings;

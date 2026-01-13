@@ -45,6 +45,7 @@ import { getPlatformURL } from "./core/createClient";
 import { lazyComponent } from "./utils/lazyComponent";
 import { isPlatformUniquelyRenderedByApple } from "./utils/apple";
 import Event from "./hooks/event";
+import { SettingsContext } from "./components/Settings/context";
 
 import { PluginRoutes, PluginsLoader } from "./plugins";
 
@@ -364,10 +365,12 @@ export const App: React.FC = () => {
                     <LightboxProvider>
                       <ManualProvider>
                         <InteractiveProvider>
-                          <Helmet {...titleProps} />
-                          <GlobalSearch />
-                          {maybeRenderNavbar()}
-                          <MainContainer>{renderContent()}</MainContainer>
+                          <SettingsContext>
+                            <Helmet {...titleProps} />
+                            <GlobalSearch />
+                            {maybeRenderNavbar()}
+                            <MainContainer>{renderContent()}</MainContainer>
+                          </SettingsContext>
                         </InteractiveProvider>
                       </ManualProvider>
                     </LightboxProvider>

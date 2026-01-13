@@ -234,8 +234,8 @@ const _ChangeButtonSetting = <T extends {}>(props: IDialogSetting<T>) => {
           {headingID
             ? intl.formatMessage({ id: headingID })
             : heading
-            ? heading
-            : undefined}
+              ? heading
+              : undefined}
         </h3>
 
         <div className="value">
@@ -419,7 +419,7 @@ export const _ModalSetting = <T extends {}>(props: IModalSetting<T>) => {
           renderField={renderField}
           close={onClose}
           error={error}
-          {...modalProps}
+          modalProps={modalProps}
         />
       ) : undefined}
 
@@ -450,6 +450,7 @@ export const ModalSetting = PatchComponent(
 interface IStringSetting extends ISetting {
   value: string | undefined;
   onChange: (v: string) => void;
+  modalProps?: ModalProps;
 }
 
 export const StringSetting: React.FC<IStringSetting> = PatchComponent(
@@ -458,6 +459,7 @@ export const StringSetting: React.FC<IStringSetting> = PatchComponent(
     return (
       <ModalSetting<string>
         {...props}
+        modalProps={props.modalProps}
         renderField={(value, setValue) => (
           <Form.Control
             className="text-input"
@@ -476,6 +478,7 @@ export const StringSetting: React.FC<IStringSetting> = PatchComponent(
 interface INumberSetting extends ISetting {
   value: number | undefined;
   onChange: (v: number) => void;
+  modalProps?: ModalProps;
 }
 
 export const NumberSetting: React.FC<INumberSetting> = PatchComponent(
@@ -484,6 +487,7 @@ export const NumberSetting: React.FC<INumberSetting> = PatchComponent(
     return (
       <ModalSetting<number>
         {...props}
+        modalProps={props.modalProps}
         renderField={(value, setValue) => (
           <NumberField
             className="text-input"
@@ -503,6 +507,7 @@ interface IStringListSetting extends ISetting {
   value: string[] | undefined;
   defaultNewValue?: string;
   onChange: (v: string[]) => void;
+  modalProps?: ModalProps;
 }
 
 export const StringListSetting: React.FC<IStringListSetting> = PatchComponent(
@@ -511,6 +516,7 @@ export const StringListSetting: React.FC<IStringListSetting> = PatchComponent(
     return (
       <ModalSetting<string[]>
         {...props}
+        modalProps={props.modalProps}
         renderField={(value, setValue) => (
           <StringListInput
             value={value ?? []}

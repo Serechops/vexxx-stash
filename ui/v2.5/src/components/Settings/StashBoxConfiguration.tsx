@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { Button, Form } from "react-bootstrap";
+import { Button, Form, ModalProps } from "react-bootstrap";
 import { FormattedMessage, useIntl } from "react-intl";
 import { SettingSection } from "./SettingSection";
 import * as GQL from "src/core/generated-graphql";
@@ -8,11 +8,12 @@ import { SettingModal } from "./Inputs";
 export interface IStashBoxModal {
   value: GQL.StashBoxInput;
   close: (v?: GQL.StashBoxInput) => void;
+  modalProps?: ModalProps;
 }
 
 const defaultMaxRequestsPerMinute = 240;
 
-export const StashBoxModal: React.FC<IStashBoxModal> = ({ value, close }) => {
+export const StashBoxModal: React.FC<IStashBoxModal> = ({ value, close, modalProps }) => {
   const intl = useIntl();
   const endpoint = useRef<HTMLInputElement | null>(null);
   const apiKey = useRef<HTMLInputElement | null>(null);
@@ -150,6 +151,7 @@ export const StashBoxModal: React.FC<IStashBoxModal> = ({ value, close }) => {
         </>
       )}
       close={close}
+      modalProps={modalProps}
     />
   );
 };
@@ -157,11 +159,13 @@ export const StashBoxModal: React.FC<IStashBoxModal> = ({ value, close }) => {
 interface IStashBoxSetting {
   value: GQL.StashBoxInput[];
   onChange: (v: GQL.StashBoxInput[]) => void;
+  modalProps?: ModalProps;
 }
 
 export const StashBoxSetting: React.FC<IStashBoxSetting> = ({
   value,
   onChange,
+  modalProps
 }) => {
   const [isCreating, setIsCreating] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | undefined>();
@@ -195,6 +199,7 @@ export const StashBoxSetting: React.FC<IStashBoxSetting> = ({
             if (v) onChange([...value, v]);
             setIsCreating(false);
           }}
+          modalProps={modalProps}
         />
       ) : undefined}
 
@@ -213,6 +218,7 @@ export const StashBoxSetting: React.FC<IStashBoxSetting> = ({
               );
             setEditingIndex(undefined);
           }}
+          modalProps={modalProps}
         />
       ) : undefined}
 

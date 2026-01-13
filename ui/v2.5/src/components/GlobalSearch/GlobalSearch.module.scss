@@ -33,6 +33,34 @@
     flex-direction: column;
 }
 
+.tabs {
+    display: flex;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.tab {
+    flex: 1;
+    padding: 1rem;
+    text-align: center;
+    cursor: pointer;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.5);
+    transition: all 0.2s;
+    border-bottom: 2px solid transparent;
+
+    &:hover {
+        color: rgba(255, 255, 255, 0.8);
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    &.active {
+        color: white;
+        border-bottom-color: #3b82f6;
+        background: rgba(255, 255, 255, 0.05);
+    }
+}
+
 .inputWrapper {
     padding: 1.5rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
@@ -172,5 +200,80 @@
     to {
         opacity: 1;
         transform: scale(1);
+    }
+}
+
+.quickSettings {
+    padding: 1.5rem;
+    overflow-y: auto;
+    flex: 1;
+
+    :global(.nav-tabs) {
+        border-bottom-color: rgba(255, 255, 255, 0.1);
+        margin-bottom: 1.5rem;
+
+        :global(.nav-link) {
+            color: rgba(255, 255, 255, 0.6);
+            border: none;
+            border-bottom: 2px solid transparent;
+
+            &:hover {
+                color: #fff;
+                border-color: transparent;
+            }
+
+            &.active {
+                color: #fff;
+                background: transparent;
+                border-bottom-color: #3b82f6;
+            }
+        }
+    }
+
+    .settingGroup {
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 8px;
+        padding: 1rem;
+    }
+
+    .settingList {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .pluginItem {
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 8px;
+        padding: 1rem;
+
+        .pluginHeader {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .pluginInfo {
+            display: flex;
+            align-items: baseline;
+            gap: 0.5rem;
+
+            .pluginName {
+                font-weight: 600;
+                font-size: 1.1rem;
+            }
+
+            .pluginVersion {
+                font-size: 0.8rem;
+                color: rgba(255, 255, 255, 0.5);
+            }
+        }
+
+        .pluginTasks {
+            padding-top: 1rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            margin-top: 0.5rem;
+        }
     }
 }

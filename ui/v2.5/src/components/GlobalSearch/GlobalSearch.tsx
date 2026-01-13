@@ -2,16 +2,19 @@ import React, { useEffect, useState, useMemo, useRef } from "react";
 import { useHistory } from "react-router-dom";
 import Mousetrap from "mousetrap";
 import debounce from "lodash-es/debounce";
-import { useIntl } from "react-intl";
+import { FormattedMessage, useIntl } from "react-intl";
 import * as GQL from "src/core/generated-graphql";
 import { GlobalSearchResults } from "./GlobalSearchResults";
 import styles from "./GlobalSearch.module.scss";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSearch } from "@fortawesome/free-solid-svg-icons";
+import { QuickSettings } from "./QuickSettings";
+import cx from "classnames";
 
 export const GlobalSearch: React.FC = () => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
+    const [activeTab, setActiveTab] = useState<"search" | "settings">("search");
     const [debouncedTerm, setDebouncedTerm] = useState("");
     const [selectedIndex, setSelectedIndex] = useState(0);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -126,34 +129,65 @@ export const GlobalSearch: React.FC = () => {
         setIsOpen(false);
     }
 
+    const handleTabClick = (tab: "search" | "settings") => {
+        setActiveTab(tab);
+        if (tab === "search") {
+            // Re-focus input when switching back to search
+            setTimeout(() => {
+                inputRef.current?.focus();
+            }, 50);
+        }
+    }
+
     if (!isOpen) return null;
 
     return (
         <div className={styles.overlay} onMouseDown={handleClose}>
             <div className={styles.container}>
-                <div className={styles.inputWrapper}>
-                    <FontAwesomeIcon icon={faSearch} />
-                    <input
-                        ref={inputRef}
-                        type="text"
-                        className={styles.input}
-                        placeholder={intl.formatMessage({ id: "search", defaultMessage: "Search..." })}
-                        value={searchTerm}
-                        onChange={handleInput}
-                        onKeyDown={handleKeyDown}
-                        autoComplete="off"
-                        autoCorrect="off"
-                        spellCheck="false"
-                    />
+                <div className={styles.tabs}>
+                    <div
+                        className={cx(styles.tab, { [styles.active]: activeTab === "search" })}
+                        onClick={() => handleTabClick("search")}
+                    >
+                        <FormattedMessage id="search" defaultMessage="Search" />
+                    </div>
+                    <div
+                        className={cx(styles.tab, { [styles.active]: activeTab === "settings" })}
+                        onClick={() => handleTabClick("settings")}
+                    >
+                        <FormattedMessage id="settings" defaultMessage="Quick Settings" />
+                    </div>
                 </div>
-                {debouncedTerm.length >= 2 && data ? (
-                    <GlobalSearchResults
-                        data={data}
-                        selectedIndex={selectedIndex}
-                        setSelectedIndex={setSelectedIndex}
-                        onSelect={onSelect}
-                    />
-                ) : null}
+
+                {activeTab === "search" ? (
+                    <>
+                        <div className={styles.inputWrapper}>
+                            <FontAwesomeIcon icon={faSearch} />
+                            <input
+                                ref={inputRef}
+                                type="text"
+                                className={styles.input}
+                                placeholder={intl.formatMessage({ id: "search", defaultMessage: "Search..." })}
+                                value={searchTerm}
+                                onChange={handleInput}
+                                onKeyDown={handleKeyDown}
+                                autoComplete="off"
+                                autoCorrect="off"
+                                spellCheck="false"
+                            />
+                        </div>
+                        {debouncedTerm.length >= 2 && data ? (
+                            <GlobalSearchResults
+                                data={data}
+                                selectedIndex={selectedIndex}
+                                setSelectedIndex={setSelectedIndex}
+                                onSelect={onSelect}
+                            />
+                        ) : null}
+                    </>
+                ) : (
+                    <QuickSettings onClose={() => setIsOpen(false)} />
+                )}
             </div>
         </div>
     );

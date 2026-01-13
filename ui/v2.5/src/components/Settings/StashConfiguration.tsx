@@ -89,14 +89,18 @@ const Stash: React.FC<IStashProps> = ({
   );
 };
 
+import { ModalProps } from "react-bootstrap";
+
 interface IStashConfigurationProps {
   stashes: GQL.StashConfig[];
   setStashes: (v: GQL.StashConfig[]) => void;
+  modalProps?: ModalProps;
 }
 
 const StashConfiguration: React.FC<IStashConfigurationProps> = ({
   stashes,
   setStashes,
+  modalProps,
 }) => {
   const [isCreating, setIsCreating] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | undefined>();
@@ -132,6 +136,7 @@ const StashConfiguration: React.FC<IStashConfigurationProps> = ({
               ]);
             setIsCreating(false);
           }}
+          modalProps={modalProps}
         />
       ) : undefined}
 
@@ -153,6 +158,7 @@ const StashConfiguration: React.FC<IStashConfigurationProps> = ({
               );
             setEditingIndex(undefined);
           }}
+          modalProps={modalProps}
         />
       ) : undefined}
 
@@ -191,16 +197,25 @@ const StashConfiguration: React.FC<IStashConfigurationProps> = ({
 interface IStashSetting {
   value: GQL.StashConfigInput[];
   onChange: (v: GQL.StashConfigInput[]) => void;
+  modalProps?: ModalProps;
 }
 
-export const StashSetting: React.FC<IStashSetting> = ({ value, onChange }) => {
+export const StashSetting: React.FC<IStashSetting> = ({
+  value,
+  onChange,
+  modalProps,
+}) => {
   return (
     <SettingSection
       id="stashes"
       headingID="library"
       subHeadingID="config.general.directory_locations_to_your_content"
     >
-      <StashConfiguration stashes={value} setStashes={(v) => onChange(v)} />
+      <StashConfiguration
+        stashes={value}
+        setStashes={(v) => onChange(v)}
+        modalProps={modalProps}
+      />
     </SettingSection>
   );
 };

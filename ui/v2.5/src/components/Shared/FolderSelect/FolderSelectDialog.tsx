@@ -1,23 +1,25 @@
 import React, { useState } from "react";
 import { FormattedMessage } from "react-intl";
-import { Button, Modal } from "react-bootstrap";
+import { Button, Modal, ModalProps } from "react-bootstrap";
 import { FolderSelect } from "./FolderSelect";
 
 interface IProps {
   defaultValue?: string;
   onClose: (directory?: string) => void;
+  modalProps?: ModalProps;
 }
 
 export const FolderSelectDialog: React.FC<IProps> = ({
   defaultValue: currentValue,
   onClose,
+  modalProps,
 }) => {
   const [currentDirectory, setCurrentDirectory] = useState<string>(
     currentValue ?? ""
   );
 
   return (
-    <Modal show onHide={() => onClose()} title="">
+    <Modal show onHide={() => onClose()} title="" {...modalProps}>
       <Modal.Header>Select Directory</Modal.Header>
       <Modal.Body>
         <div className="dialog-content">

@@ -44,6 +44,9 @@ import {
 } from "src/utils/imageWall";
 import { defaultMaxOptionsShown } from "src/core/config";
 import { PatchComponent } from "src/patch";
+import { CustomCssSettings } from "./CustomCssSettings";
+import { CustomJavascriptSettings } from "./CustomJavascriptSettings";
+import { CustomLocalesSettings } from "./CustomLocalesSettings";
 
 const allMenuItems = [
   { id: "scenes", headingID: "scenes" },
@@ -816,110 +819,9 @@ export const SettingsInterfacePanel: React.FC = PatchComponent(
             )}
         </SettingSection>
 
-        <SettingSection headingID="config.ui.custom_css.heading">
-          <BooleanSetting
-            id="custom-css-enabled"
-            headingID="config.ui.custom_css.option_label"
-            checked={iface.cssEnabled ?? undefined}
-            onChange={(v) => saveInterface({ cssEnabled: v })}
-          />
-
-          <ModalSetting<string>
-            id="custom-css"
-            headingID="config.ui.custom_css.heading"
-            subHeadingID="config.ui.custom_css.description"
-            value={iface.css ?? undefined}
-            onChange={(v) => saveInterface({ css: v })}
-            renderField={(value, setValue) => (
-              <Form.Control
-                as="textarea"
-                value={value}
-                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-                  setValue(e.currentTarget.value)
-                }
-                rows={16}
-                className="text-input code"
-              />
-            )}
-            renderValue={() => {
-              return <></>;
-            }}
-          />
-        </SettingSection>
-        <SettingSection headingID="config.ui.custom_javascript.heading">
-          <BooleanSetting
-            id="custom-javascript-enabled"
-            headingID="config.ui.custom_javascript.option_label"
-            checked={iface.javascriptEnabled ?? undefined}
-            onChange={(v) => saveInterface({ javascriptEnabled: v })}
-          />
-
-          <ModalSetting<string>
-            id="custom-javascript"
-            headingID="config.ui.custom_javascript.heading"
-            subHeadingID="config.ui.custom_javascript.description"
-            value={iface.javascript ?? undefined}
-            onChange={(v) => saveInterface({ javascript: v })}
-            validateChange={validateJavascriptString}
-            renderField={(value, setValue, err) => (
-              <>
-                <Form.Control
-                  as="textarea"
-                  value={value}
-                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-                    setValue(e.currentTarget.value)
-                  }
-                  rows={16}
-                  className="text-input code"
-                  isInvalid={!!err}
-                />
-                <Form.Control.Feedback type="invalid">
-                  {err}
-                </Form.Control.Feedback>
-              </>
-            )}
-            renderValue={() => {
-              return <></>;
-            }}
-          />
-        </SettingSection>
-        <SettingSection headingID="config.ui.custom_locales.heading">
-          <BooleanSetting
-            id="custom-locales-enabled"
-            headingID="config.ui.custom_locales.option_label"
-            checked={iface.customLocalesEnabled ?? undefined}
-            onChange={(v) => saveInterface({ customLocalesEnabled: v })}
-          />
-
-          <ModalSetting<string>
-            id="custom-locales"
-            headingID="config.ui.custom_locales.heading"
-            subHeadingID="config.ui.custom_locales.description"
-            value={iface.customLocales ?? undefined}
-            onChange={(v) => saveInterface({ customLocales: v })}
-            validateChange={validateLocaleString}
-            renderField={(value, setValue, err) => (
-              <>
-                <Form.Control
-                  as="textarea"
-                  value={value}
-                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-                    setValue(e.currentTarget.value)
-                  }
-                  rows={16}
-                  className="text-input code"
-                  isInvalid={!!err}
-                />
-                <Form.Control.Feedback type="invalid">
-                  {err}
-                </Form.Control.Feedback>
-              </>
-            )}
-            renderValue={() => {
-              return <></>;
-            }}
-          />
-        </SettingSection>
+        <CustomCssSettings />
+        <CustomJavascriptSettings />
+        <CustomLocalesSettings />
 
         <SettingSection headingID="config.ui.interactive_options">
           <StringSetting

@@ -18,7 +18,7 @@ func customUsage() {
 	flag.PrintDefaults()
 }
 
-func printPhash(ff *ffmpeg.FFMpeg, ffp *ffmpeg.FFProbe, inputfile string, quiet *bool) error {
+func printPhash(ff *ffmpeg.FFMpeg, ffp *ffmpeg.FFProbe, inputfile string, quiet *bool, start float64, duration float64) error {
 	ffvideoFile, err := ffp.NewVideoFile(inputfile)
 	if err != nil {
 		return err
@@ -33,7 +33,12 @@ func printPhash(ff *ffmpeg.FFMpeg, ffp *ffmpeg.FFProbe, inputfile string, quiet 
 		Duration: ffvideoFile.FileDuration,
 	}
 
-	phash, err := videophash.Generate(ff, vf)
+	options := videophash.PhashOptions{
+		Start:    start,
+		Duration: duration,
+	}
+
+	phash, err := videophash.Generate(ff, vf, options)
 	if err != nil {
 		return err
 	}
@@ -56,6 +61,8 @@ func getPaths() (string, string) {
 func main() {
 	flag.Usage = customUsage
 	quiet := flag.BoolP("quiet", "q", false, "print only the phash")
+	start := flag.Float64("start", 0, "start time in seconds")
+	duration := flag.Float64("duration", 0, "duration in seconds")
 	help := flag.BoolP("help", "h", false, "print this help output")
 	flag.Parse()
 
@@ -83,7 +90,7 @@ func main() {
 	ffprobe := ffmpeg.NewFFProbe(ffprobePath)
 
 	for _, item := range args {
-		if err := printPhash(encoder, ffprobe, item, quiet); err != nil {
+		if err := printPhash(encoder, ffprobe, item, quiet, *start, *duration); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 	}

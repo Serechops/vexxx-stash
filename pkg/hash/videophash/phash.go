@@ -23,8 +23,13 @@ const (
 	rows           = 5
 )
 
-func Generate(encoder *ffmpeg.FFMpeg, videoFile *models.VideoFile) (*uint64, error) {
-	sprite, err := generateSprite(encoder, videoFile)
+type PhashOptions struct {
+	Start    float64
+	Duration float64
+}
+
+func Generate(encoder *ffmpeg.FFMpeg, videoFile *models.VideoFile, options PhashOptions) (*uint64, error) {
+	sprite, err := generateSprite(encoder, videoFile, options)
 	if err != nil {
 		return nil, err
 	}
@@ -76,16 +81,21 @@ func combineImages(images []image.Image) image.Image {
 	return montage
 }
 
-func generateSprite(encoder *ffmpeg.FFMpeg, videoFile *models.VideoFile) (image.Image, error) {
+func generateSprite(encoder *ffmpeg.FFMpeg, videoFile *models.VideoFile, options PhashOptions) (image.Image, error) {
 	logger.Infof("[generator] generating phash sprite for %s", videoFile.Path)
+
+	duration := options.Duration
+	if duration == 0 {
+		duration = videoFile.Duration
+	}
 
 	// Generate sprite image offset by 5% on each end to avoid intro/outros
 	chunkCount := columns * rows
-	offset := 0.05 * videoFile.Duration
-	stepSize := (0.9 * videoFile.Duration) / float64(chunkCount)
+	offset := 0.05 * duration
+	stepSize := (0.9 * duration) / float64(chunkCount)
 	var images []image.Image
 	for i := 0; i < chunkCount; i++ {
-		time := offset + (float64(i) * stepSize)
+		time := options.Start + offset + (float64(i) * stepSize)
 
 		img, err := generateSpriteScreenshot(encoder, videoFile.Path, time)
 		if err != nil {

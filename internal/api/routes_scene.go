@@ -380,9 +380,6 @@ func (rs sceneRoutes) VttThumbs(w http.ResponseWriter, r *http.Request) {
 		sceneHash = chi.URLParam(r, "sceneHash")
 	}
 	filepath := manager.GetInstance().Paths.Scene.GetSpriteVttFilePath(sceneHash)
-
-	logger.Infof("[DEBUG] VttThumbs: hash=%s, path=%s", sceneHash, filepath)
-
 	w.Header().Set("Content-Type", "text/vtt")
 	utils.ServeStaticFile(w, r, filepath)
 }

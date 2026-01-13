@@ -456,6 +456,7 @@ func (j *GenerateJob) queueSceneJobs(ctx context.Context, g *generate.Generator,
 			task := &GeneratePhashTask{
 				repository:          r,
 				File:                f,
+				Scene:               scene,
 				fileNamingAlgorithm: j.fileNamingAlgo,
 				Overwrite:           j.overwrite,
 			}

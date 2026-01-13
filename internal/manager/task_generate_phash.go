@@ -12,6 +12,7 @@ import (
 type GeneratePhashTask struct {
 	repository          models.Repository
 	File                *models.VideoFile
+	Scene               *models.Scene
 	Overwrite           bool
 	fileNamingAlgorithm models.HashAlgorithm
 }
@@ -28,9 +29,26 @@ func (t *GeneratePhashTask) Start(ctx context.Context) {
 	var hash int64
 	set := false
 
+	// Check if this is a segment
+	var options videophash.PhashOptions
+	isSegment := false
+	if t.Scene != nil && (t.Scene.StartPoint != nil || t.Scene.EndPoint != nil) {
+		isSegment = true
+		start := 0.0
+		if t.Scene.StartPoint != nil {
+			start = *t.Scene.StartPoint
+		}
+		duration := t.File.Duration - start
+		if t.Scene.EndPoint != nil {
+			duration = *t.Scene.EndPoint - start
+		}
+		options.Start = start
+		options.Duration = duration
+	}
+
 	// #4393 - if there is a file with the same oshash, we can use the same phash
-	// only use this if we're not overwriting
-	if !t.Overwrite {
+	// only use this if we're not overwriting AND not generating for a segment
+	if !t.Overwrite && !isSegment {
 		existing, err := t.findExistingPhash(ctx)
 		if err != nil {
 			logger.Warnf("Error finding existing phash: %v", err)
@@ -42,7 +60,7 @@ func (t *GeneratePhashTask) Start(ctx context.Context) {
 	}
 
 	if !set {
-		generated, err := videophash.Generate(instance.FFMpeg, t.File)
+		generated, err := videophash.Generate(instance.FFMpeg, t.File, options)
 		if err != nil {
 			logger.Errorf("Error generating phash: %v", err)
 			logErrorOutput(err)
@@ -97,6 +115,10 @@ func (t *GeneratePhashTask) findExistingPhash(ctx context.Context) (interface{},
 
 func (t *GeneratePhashTask) required() bool {
 	if t.Overwrite {
+		return true
+	}
+
+	if t.Scene != nil && (t.Scene.StartPoint != nil || t.Scene.EndPoint != nil) {
 		return true
 	}
 

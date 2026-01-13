@@ -102,3 +102,13 @@ query FindScenesForSelect(
     }
   }
 }
+
+mutation GeneratePhash($file_id: ID!, $start: Float, $duration: Float) {
+  generatePhash(file_id: $file_id, start: $start, duration: $duration)
+}
+
+mutation StashDbSearchByPhash($phashes: [String!]!) {
+  stashDbSearchByPhash(phashes: $phashes) {
+    ...ScrapedSceneData
+  }
+}

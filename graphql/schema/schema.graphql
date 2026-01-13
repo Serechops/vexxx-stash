@@ -582,6 +582,11 @@ type Mutation {
   "Run batch studio tag task. Returns the job ID."
   stashBoxBatchStudioTag(input: StashBoxBatchTagInput!): String!
 
+  "Generates a phash for a specific segment of a file. Returns the phash string."
+  generatePhash(file_id: ID!, start: Float, duration: Float): String!
+  "Searches StashDB for scenes matching the given phashes."
+  stashDbSearchByPhash(phashes: [String!]!): [ScrapedScene!]!
+
   "Enables DLNA for an optional duration. Has no effect if DLNA is enabled by default"
   enableDLNA(input: EnableDLNAInput!): Boolean!
   "Disables DLNA for an optional duration. Has no effect if DLNA is disabled by default"

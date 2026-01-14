@@ -70,6 +70,13 @@ export const MovieFy: React.FC = () => {
     const [dbPathInput, setDbPathInput] = useState("");
     const [showConfig, setShowConfig] = useState(false);
 
+    // Initialize dbPathInput from config
+    useEffect(() => {
+        if (configData?.movieFyConfig?.database_path) {
+            setDbPathInput(configData.movieFyConfig.database_path);
+        }
+    }, [configData]);
+
     // Scene search using Stash's native query
     const [searchTerm, setSearchTerm] = useState("");
     const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");

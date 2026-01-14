@@ -178,6 +178,31 @@
   }
 }
 
+// Config Alert override
+.moviefy-container .alert-info {
+  background-color: rgba($primary, 0.15);
+  border-color: rgba($primary, 0.3);
+  color: $text-color;
+
+  code {
+    background-color: rgba(0, 0, 0, 0.3);
+    color: lighten($primary, 20%);
+    padding: 2px 4px;
+    border-radius: 4px;
+  }
+
+  h6 {
+    color: $primary;
+  }
+}
+
+// Input Group Addons
+.moviefy-container .input-group-text {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: $text-muted;
+}
+
 // Input fields (Config) override
 .form-control {
   background-color: rgba(0, 0, 0, 0.2);

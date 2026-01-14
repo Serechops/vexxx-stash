@@ -55,6 +55,7 @@ type SceneIdentifier struct {
 	DefaultOptions              *MetadataOptions
 	Sources                     []ScraperSource
 	SceneUpdatePostHookExecutor SceneUpdatePostHookExecutor
+	SceneRenamer                func(ctx context.Context, scene *models.Scene) error
 }
 
 func (t *SceneIdentifier) Identify(ctx context.Context, scene *models.Scene) error {
@@ -319,6 +320,20 @@ func (t *SceneIdentifier) modifyScene(ctx context.Context, s *models.Scene, resu
 		updateInput := updater.UpdateInput()
 		fields := utils.NotNilFields(updateInput, "json")
 		t.SceneUpdatePostHookExecutor.ExecuteSceneUpdatePostHooks(ctx, updateInput, fields)
+	}
+
+	// Trigger renamer if configured
+	if t.SceneRenamer != nil {
+		// Reload scene to get latest path/metadata before rename
+		// Actually allow the renamer function to handle loading.
+		if err := txn.WithTxn(ctx, t.TxnManager, func(ctx context.Context) error {
+			if err := t.SceneRenamer(ctx, s); err != nil {
+				logger.Errorf("Error renaming scene %d: %v", s.ID, err)
+			}
+			return nil
+		}); err != nil {
+			logger.Errorf("Error renaming scene %d: %v", s.ID, err)
+		}
 	}
 
 	return nil

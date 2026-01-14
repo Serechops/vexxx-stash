@@ -235,3 +235,29 @@ async function onSave(input) {
 Ensure that newly created relationships have valid sort keys.
 *   **Example**: If sorting by `scene_index`, a `null` index might cause the new item to "disappear" (sorted to the end/hidden), even if it was successfully linked.
 *   **Fix**: Auto-increment or assign a valid default index on the frontend before saving.
+
+---
+
+## 10. Renamer & File Operations (Windows Support)
+
+The "Renamer" and "Move Files" features required specific backend handling to support the disconnect between the Database (DB) and the Filesystem (FS), especially on Windows.
+
+### 1. Database vs. Filesystem Gaps
+The `GetOrCreateFolderHierarchy` function is responsible for building the folder tree in the DB.
+*   **Problem**: Stash assumes folders exist. If a user moves a file to a new root (e.g., `C:\NewLib`), the recursion would hit `C:\` and fail because `C:\` isn't in the DB.
+*   **Fix (Bootstrapping)**: If recursion hits a root (`/` or `C:\`) that creates a `nil` parent, the function now **returns nil** (success) instead of checking for existence, triggering the creation of a Root Folder in the DB.
+*   **Physical Creation**: The DB logic **does not** create physical folders. The `Mover.Move` or `RenameScenes` resolver must explicitly call `os.MkdirAll(dir)` before attempting the move, or `rename()` will fail with "path not found".
+
+### 2. Path Handling on Windows
+Go's `filepath` library and Windows OS file APIs can disagree on path separators (`\` vs `/`), and the Stash DB might store mixed formats.
+*   **Shotgun Lookup Strategy**: To find if a folder exists in the DB, we implemented a robust lookup in `pkg/file/folder.go`:
+    1.  Check `filepath.Clean(path)` (Native separators).
+    2.  Check `filepath.ToSlash(path)` (Forced forward slashes).
+    3.  Check `strings.ReplaceAll(path, "/", "\\")` (Forced backslashes).
+    *   This ensures we find the record regardless of how it was historically stored.
+
+### 3. Automatic Hooks
+To support "Auto-Rename on Save":
+*   **SceneUpdate (Singular)**: The singular mutation resolver (`SceneUpdate`) **must** manually check `config.GetRenamerEnabled()` and call `r.renameSceneFile()` inside the transaction. It is not automatically covered by global hooks.
+*   **Consistency**: Ensure `dryRun` is explicitly `false` and `moveFiles` defaults to `nil` (delegating to config) to prevent accidental dry-runs during save.
+

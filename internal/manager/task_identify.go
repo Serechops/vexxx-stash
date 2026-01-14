@@ -148,6 +148,17 @@ func (j *IdentifyJob) identifyScene(ctx context.Context, s *models.Scene, source
 			DefaultOptions:              j.input.Options,
 			Sources:                     sources,
 			SceneUpdatePostHookExecutor: j.postHookExecutor,
+			SceneRenamer: func(ctx context.Context, scene *models.Scene) error {
+				cfg := instance.Config
+				if cfg.GetRenamerEnabled() {
+					template := cfg.GetRenamerTemplate()
+					if template != "" {
+						_, err := RenameSceneFile(ctx, r, scene, template, false, nil, nil, nil)
+						return err
+					}
+				}
+				return nil
+			},
 		}
 
 		taskError = task.Identify(ctx, s)

@@ -153,8 +153,18 @@ func (j *IdentifyJob) identifyScene(ctx context.Context, s *models.Scene, source
 				if cfg.GetRenamerEnabled() {
 					template := cfg.GetRenamerTemplate()
 					if template != "" {
-						_, err := RenameSceneFile(ctx, r, scene, template, false, nil, nil, nil)
-						return err
+						// reload the scene to get the latest metadata
+						s, err := r.Scene.Find(ctx, scene.ID)
+						if err != nil {
+							return fmt.Errorf("error reloading scene: %w", err)
+						}
+
+						res, err := RenameSceneFile(ctx, r, s, template, false, nil, nil, nil)
+						if err != nil {
+							return err
+						} else if res.Error != "" {
+							return fmt.Errorf("renamer error: %s", res.Error)
+						}
 					}
 				}
 				return nil

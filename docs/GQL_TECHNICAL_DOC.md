@@ -261,3 +261,9 @@ To support "Auto-Rename on Save":
 *   **SceneUpdate (Singular)**: The singular mutation resolver (`SceneUpdate`) **must** manually check `config.GetRenamerEnabled()` and call `r.renameSceneFile()` inside the transaction. It is not automatically covered by global hooks.
 *   **Consistency**: Ensure `dryRun` is explicitly `false` and `moveFiles` defaults to `nil` (delegating to config) to prevent accidental dry-runs during save.
 
+### 4. Identification & Stale Metadata
+When the "Identify" task runs, it updates the database with new metadata (Title, Date, Performers). However, the in-memory `Scene` object passed to the hook callbacks often retains the *old* data.
+*   **Problem**: The "Renamer" hook relies on the `Scene` object to generate the new filename. If the object is stale (e.g., missing a Date that was just scraped), the renamer fails with "missing data for token" or generates an incorrect filename.
+*   **Fix**: The `SceneRenamer` callback (in `task_identify.go`) **must explicitly reload** the scene from the database (`r.Scene.Find(ctx, id)`) before calling `RenameSceneFile`. This ensures the renamer sees the latest metadata committed by the identification process.
+*   **Error Handling**: The `RenameSceneFile` function returns a `RenameResult` struct. This struct may contain an error string in `RenameResult.Error` even if the function itself returns `nil`. **Always** check `res.Error` to catch template generation issues.
+

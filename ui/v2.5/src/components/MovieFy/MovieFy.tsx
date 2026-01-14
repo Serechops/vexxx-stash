@@ -52,7 +52,9 @@ interface SceneItem {
     }>;
     groups?: Array<{
         group: { id: string; name: string };
+        scene_index?: number;
     }>;
+    new_scene_index?: number;
 }
 
 interface QueueItem {
@@ -292,35 +294,114 @@ export const MovieFy: React.FC = () => {
             return;
         }
 
-        const queueItem: QueueItem = {
-            group: {
-                ...groupToUse,
-                urls: groupToUse.url ? [groupToUse.url] : undefined,
-            },
-            scenes: selectedScenes,
-        };
+        setQueue((prevQueue) => {
+            const existingItemIndex = prevQueue.findIndex(item =>
+                (groupToUse.id && item.group.id === groupToUse.id) ||
+                item.group.name === groupToUse.name
+            );
 
-        setQueue((prev) => [...prev, queueItem]);
+            if (existingItemIndex !== -1) {
+                // Merge
+                const newQueue = [...prevQueue];
+                const existingItem = newQueue[existingItemIndex];
+                const existingIds = new Set(existingItem.scenes.map(s => s.id));
+                const nonDuplicates = selectedScenes.filter(s => !existingIds.has(s.id));
+
+                if (nonDuplicates.length > 0) {
+                    newQueue[existingItemIndex] = {
+                        ...existingItem,
+                        scenes: [...existingItem.scenes, ...nonDuplicates]
+                    };
+                    Toast.success(`Added ${nonDuplicates.length} scenes to existing group in queue`);
+                } else {
+                    Toast.success("Scenes already in queue for this group");
+                }
+                return newQueue;
+            } else {
+                const queueItem: QueueItem = {
+                    group: {
+                        ...groupToUse,
+                        urls: groupToUse.url ? [groupToUse.url] : undefined,
+                    },
+                    scenes: selectedScenes,
+                };
+                Toast.success("Added to queue");
+                return [...prevQueue, queueItem];
+            }
+        });
+
         setSelectedGroup(null);
         setSelectedScenes([]);
-        Toast.success("Added to queue");
     }, [selectedGroup, selectedScenes, Toast]);
 
-    const handleMovieFyQueue = useCallback((scrapedGroup: GQL.ScrapedGroup) => {
+    const handleMovieFyQueue = useCallback((scrapedGroup: GQL.ScrapedGroup, sceneIndex?: number) => {
         if (selectedScenes.length === 0) {
             Toast.error("Please select scenes to associate with this movie");
             return;
         }
 
-        const queueItem: QueueItem = {
-            group: scrapedGroup,
-            scenes: selectedScenes,
-        };
+        setQueue((prevQueue) => {
+            const existingItemIndex = prevQueue.findIndex(item =>
+                (item.group.urls && scrapedGroup.urls && item.group.urls[0] === scrapedGroup.urls[0]) ||
+                item.group.name === scrapedGroup.name
+            );
 
-        setQueue((prev) => [...prev, queueItem]);
+            // Create scenes with the index (if provided)
+            const scenesToAdd = selectedScenes.map((scene, i) => {
+                // If sceneIndex provided, use it (incrementing if multiple scenes selected?? 
+                // User requirement: "set the scene_index of the paired scene".
+                // Usually implies 1 scene. If multiple, assume sequential starting from index?
+                // Let's assume sequential.
+                const newIndex = sceneIndex !== undefined ? sceneIndex + i : undefined;
+
+                // We attach scene_index to the SCENE item for now so processBatch can find it?
+                // QueueItem.scenes stores SceneItem.
+                // We shouldn't mutate SceneItem directly if it affects other things.
+                // But SceneItem is just a data structure here.
+                // However, SceneItem from `selectedScenes` comes from `scenesData`.
+                // We should clone it or store index in QueueSceneItem wrapper?
+                // QueueSceneItem IS SceneItem currently (lines 58-61: scenes: SceneItem[]).
+                // Let's modify QueueItem to allow extra data or just patch SceneItem.
+                // I'll patch SceneItem for now, locally.
+
+                return {
+                    ...scene,
+                    new_scene_index: newIndex
+                };
+            });
+
+            if (existingItemIndex !== -1) {
+                // Merge
+                const newQueue = [...prevQueue];
+                const existingItem = newQueue[existingItemIndex];
+
+                // Identify duplicates?
+                const existingIds = new Set(existingItem.scenes.map(s => s.id));
+                const nonDuplicates = scenesToAdd.filter(s => !existingIds.has(s.id));
+
+                if (nonDuplicates.length > 0) {
+                    newQueue[existingItemIndex] = {
+                        ...existingItem,
+                        scenes: [...existingItem.scenes, ...nonDuplicates]
+                    };
+                    Toast.success(`Added ${nonDuplicates.length} scenes to existing group in queue`);
+                } else {
+                    Toast.success("Scenes already in queue for this group");
+                }
+                return newQueue;
+            } else {
+                // Add new
+                const queueItem: QueueItem = {
+                    group: scrapedGroup,
+                    scenes: scenesToAdd,
+                };
+                Toast.success(`Added "${scrapedGroup.name}" to queue with ${scenesToAdd.length} scenes`);
+                return [...prevQueue, queueItem];
+            }
+        });
+
         setScrapedGroup(undefined);
-        setSelectedScenes([]); // Clear scene selection? Probably yes.
-        Toast.success(`Added "${scrapedGroup.name}" to queue with ${selectedScenes.length} scenes`);
+        setSelectedScenes([]);
     }, [selectedScenes, Toast]);
 
     // Process single item immediately
@@ -420,13 +501,22 @@ export const MovieFy: React.FC = () => {
                 for (const scene of item.scenes) {
                     const existingGroups = scene.groups?.map((g) => ({
                         group_id: g.group.id,
+                        scene_index: g.scene_index,
                     })) || [];
+
+                    // New group association
+                    const newGroupAssoc: { group_id: string; scene_index?: number } = {
+                        group_id: groupId
+                    };
+                    if (scene.new_scene_index !== undefined) {
+                        newGroupAssoc.scene_index = scene.new_scene_index;
+                    }
 
                     await updateScene({
                         variables: {
                             input: {
                                 id: scene.id,
-                                groups: [...existingGroups, { group_id: groupId }],
+                                groups: [...existingGroups, newGroupAssoc],
                             },
                         },
                     });
@@ -525,15 +615,15 @@ export const MovieFy: React.FC = () => {
                     />
                 </Col>
                 <Col xs="auto" className="ml-auto">
-                    <Button variant="primary" onClick={() => setSidebarOpen(!sidebarOpen)}>
-                        Queue <Badge variant="light">{queue.length}</Badge>
+                    <Button variant="primary" onClick={() => setQueueModalOpen(true)}>
+                        Review Queue <Badge variant="light">{queue.length}</Badge>
                     </Button>
                 </Col>
             </Row>
 
             <Row>
                 {/* Scenes Column */}
-                <Col md={sidebarOpen ? 4 : 6}>
+                <Col md={6}>
                     <Card className="moviefy-card">
                         <Card.Header className="d-flex justify-content-between align-items-center">
                             <span>
@@ -544,6 +634,33 @@ export const MovieFy: React.FC = () => {
                                 <Badge variant="primary">{selectedScenes.length} selected</Badge>
                             )}
                         </Card.Header>
+                        {selectedScenes.length > 0 && (
+                            <div className="bg-secondary text-white p-2 border-bottom">
+                                <div className="d-flex justify-content-between align-items-center mb-1">
+                                    <small>{selectedScenes.length} scenes parked</small>
+                                    <Button size="sm" variant="link" className="text-white p-0" onClick={() => setSelectedScenes([])}>Clear</Button>
+                                </div>
+                                <div className="d-flex flex-wrap" style={{ gap: '0.25rem', maxHeight: '100px', overflowY: 'auto' }}>
+                                    {selectedScenes.map(scene => (
+                                        <Badge key={scene.id} variant="light" className="d-flex align-items-center text-dark border">
+                                            <span className="text-truncate" style={{ maxWidth: '100px' }}>
+                                                {scene.title || scene.files?.[0]?.basename || "Untitled"}
+                                            </span>
+                                            <span
+                                                className="ml-2 cursor-pointer font-weight-bold text-danger"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleSceneSelect(scene);
+                                                }}
+                                                style={{ cursor: "pointer" }}
+                                            >
+                                                &times;
+                                            </span>
+                                        </Badge>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                         <Card.Body className="p-0 overflow-auto">
                             {scenesLoading ? (
                                 <div className="text-center p-4">
@@ -642,7 +759,7 @@ export const MovieFy: React.FC = () => {
                 </Col>
 
                 {/* Groups Column */}
-                <Col md={sidebarOpen ? 4 : 6}>
+                <Col md={6}>
                     <Card className="moviefy-card">
                         <Card.Header>
                             <Icon icon={faDatabase} className="mr-2" />
@@ -858,6 +975,7 @@ export const MovieFy: React.FC = () => {
                 queue={queue}
                 onRemove={removeFromQueue}
                 onProcess={processBatch}
+                onUpdateQueue={setQueue}
                 processing={processing}
             />
             {/* Scrape Dialog */}

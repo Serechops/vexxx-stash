@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Button } from "react-bootstrap";
+import { Button, Form } from "react-bootstrap";
 import { useIntl } from "react-intl";
 import * as GQL from "src/core/generated-graphql";
 import {
@@ -90,6 +90,7 @@ export const GroupScrapeDialog: React.FC<IGroupScrapeDialogProps> = ({
   const [backImage, setBackImage] = useState<ScrapeResult<string>>(
     new ScrapeResult<string>(group.back_image, scraped.back_image)
   );
+
 
   const [newStudio, setNewStudio] = useState<GQL.ScrapedStudio | undefined>(
     scraped.studio && !scraped.studio.stored_id ? scraped.studio : undefined

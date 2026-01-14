@@ -1,5 +1,5 @@
 import React from "react";
-import { Modal, Button, Row, Col, Badge } from "react-bootstrap";
+import { Modal, Button, Row, Col, Badge, Form } from "react-bootstrap";
 import { Icon } from "../Shared/Icon";
 import { faTrash, faUser, faTag, faBuilding } from "@fortawesome/free-solid-svg-icons";
 
@@ -9,13 +9,14 @@ import * as GQL from "src/core/generated-graphql";
 interface QueueSceneItem {
     id: string;
     title?: string | null;
-    paths?: {
+    paths: {
         screenshot?: string | null;
     };
-    files?: Array<{
-        path?: string;
+    files: Array<{
+        path: string;
         basename?: string;
     }>;
+    new_scene_index?: number;
 }
 
 interface QueueMetadata {
@@ -37,6 +38,7 @@ interface MovieFyQueueProps {
     queue: QueueItem[];
     onRemove: (index: number) => void;
     onProcess: () => void;
+    onUpdateQueue: (queue: QueueItem[]) => void;
     processing?: boolean;
 }
 
@@ -46,9 +48,23 @@ export const MovieFyQueue: React.FC<MovieFyQueueProps> = ({
     queue = [],
     onRemove,
     onProcess,
+    onUpdateQueue,
     processing = false,
 }) => {
     const safeQueue = Array.isArray(queue) ? queue : [];
+
+    const handleSceneIndexChange = (itemIndex: number, sceneIndex: number, val: string) => {
+        const newQueue = [...safeQueue];
+        const item = { ...newQueue[itemIndex] };
+        const scenes = [...(item.scenes || [])];
+        scenes[sceneIndex] = {
+            ...scenes[sceneIndex],
+            new_scene_index: val ? parseInt(val, 10) : undefined
+        };
+        item.scenes = scenes;
+        newQueue[itemIndex] = item;
+        onUpdateQueue(newQueue);
+    };
 
     return (
         <Modal show={open} onHide={onClose} size="lg" centered scrollable>
@@ -143,18 +159,25 @@ export const MovieFyQueue: React.FC<MovieFyQueueProps> = ({
                                             </Button>
                                         </div>
 
-                                        {/* Scene List */}
-                                        <div>
-                                            <small className="text-muted">Scenes:</small>
-                                            <div className="d-flex flex-wrap mt-1" style={{ gap: "0.25rem" }}>
+                                        {/* Scene List with Indexes */}
+                                        <div className="mt-2">
+                                            <small className="text-muted">Scenes & Indexes:</small>
+                                            <div className="mt-1">
                                                 {(item.scenes || []).map((scene: QueueSceneItem, sceneIndex: number) => (
-                                                    <Badge
-                                                        key={sceneIndex}
-                                                        variant="outline-secondary"
-                                                        className="border"
-                                                    >
-                                                        {scene.title || `Scene ${sceneIndex + 1}`}
-                                                    </Badge>
+                                                    <div key={sceneIndex} className="d-flex align-items-center mb-1">
+                                                        <Form.Control
+                                                            type="number"
+                                                            size="sm"
+                                                            placeholder="#"
+                                                            style={{ width: "60px" }}
+                                                            className="mr-2"
+                                                            value={scene.new_scene_index?.toString() ?? ""}
+                                                            onChange={(e) => handleSceneIndexChange(index, sceneIndex, e.target.value)}
+                                                        />
+                                                        <span className="text-truncate" title={scene.title || ""}>
+                                                            {scene.title || `Scene ${sceneIndex + 1}`}
+                                                        </span>
+                                                    </div>
                                                 ))}
                                             </div>
                                         </div>
@@ -165,27 +188,30 @@ export const MovieFyQueue: React.FC<MovieFyQueueProps> = ({
                     </div>
                 )}
             </Modal.Body>
-            <Modal.Footer>
-                <Button variant="secondary" onClick={onClose}>
-                    Close
-                </Button>
-                <Button
-                    variant="primary"
-                    onClick={onProcess}
-                    disabled={safeQueue.length === 0 || processing}
-                >
-                    {processing ? (
-                        <>
-                            <span
-                                className="spinner-border spinner-border-sm mr-2"
-                                role="status"
-                            />
-                            Processing...
-                        </>
-                    ) : (
-                        "Process All"
-                    )}
-                </Button>
+            <Modal.Footer className="justify-content-between">
+                <div />
+                <div>
+                    <Button variant="secondary" onClick={onClose} className="mr-2">
+                        Close
+                    </Button>
+                    <Button
+                        variant="primary"
+                        onClick={onProcess}
+                        disabled={safeQueue.length === 0 || processing}
+                    >
+                        {processing ? (
+                            <>
+                                <span
+                                    className="spinner-border spinner-border-sm mr-2"
+                                    role="status"
+                                />
+                                Processing...
+                            </>
+                        ) : (
+                            "Process All"
+                        )}
+                    </Button>
+                </div>
             </Modal.Footer>
         </Modal>
     );

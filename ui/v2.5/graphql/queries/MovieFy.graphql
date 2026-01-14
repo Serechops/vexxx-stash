@@ -1,0 +1,32 @@
+# MovieFy - External Movie Database Search
+
+query SearchMovieFyDatabase($input: MovieFySearchInput!) {
+  searchMovieFyDatabase(input: $input) {
+    movies {
+      id
+      name
+      url
+      front_image
+      domain
+      studio_name
+    }
+    pagination {
+      page
+      per_page
+      total
+      pages
+    }
+    mode
+  }
+}
+
+query MovieFyConfig {
+  movieFyConfig {
+    database_path
+    database_exists
+  }
+}
+
+mutation ConfigureMovieFy($input: MovieFyConfigInput!) {
+  configureMovieFy(input: $input)
+}

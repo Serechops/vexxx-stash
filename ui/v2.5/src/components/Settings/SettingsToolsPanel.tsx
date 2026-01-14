@@ -46,6 +46,14 @@ export const SettingsToolsPanel: React.FC = () => {
               </Link>
             }
           />
+
+          <Setting
+            heading={
+              <Link to="/moviefy">
+                <Button>MovieFy</Button>
+              </Link>
+            }
+          />
         </SettingsToolsSection>
       </SettingSection>
     </>

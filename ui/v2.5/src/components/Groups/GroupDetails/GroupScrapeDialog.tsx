@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Button } from "react-bootstrap";
 import { useIntl } from "react-intl";
 import * as GQL from "src/core/generated-graphql";
 import {
@@ -27,6 +28,7 @@ interface IGroupScrapeDialogProps {
   scraped: GQL.ScrapedGroup;
 
   onClose: (scrapedGroup?: GQL.ScrapedGroup) => void;
+  onMovieFyQueue?: (scrapedGroup: GQL.ScrapedGroup) => void;
 }
 
 export const GroupScrapeDialog: React.FC<IGroupScrapeDialogProps> = ({
@@ -35,6 +37,7 @@ export const GroupScrapeDialog: React.FC<IGroupScrapeDialogProps> = ({
   groupTags: groupTags,
   scraped,
   onClose,
+  onMovieFyQueue,
 }) => {
   const intl = useIntl();
 
@@ -66,9 +69,9 @@ export const GroupScrapeDialog: React.FC<IGroupScrapeDialogProps> = ({
     new ObjectScrapeResult<GQL.ScrapedStudio>(
       groupStudio
         ? {
-            stored_id: groupStudio.id,
-            name: groupStudio.name,
-          }
+          stored_id: groupStudio.id,
+          name: groupStudio.name,
+        }
         : undefined,
       scraped.studio?.stored_id ? scraped.studio : undefined
     )
@@ -231,6 +234,18 @@ export const GroupScrapeDialog: React.FC<IGroupScrapeDialogProps> = ({
       onClose={(apply) => {
         onClose(apply ? makeNewScrapedItem() : undefined);
       }}
+      footerButtons={
+        onMovieFyQueue && (
+          <Button
+            className="ml-2"
+            variant="success"
+            onClick={() => onMovieFyQueue(makeNewScrapedItem())}
+          >
+            Add to Queue
+          </Button>
+        )
+      }
+      hideApply={!!onMovieFyQueue}
     >
       {renderScrapeRows()}
     </ScrapeDialog>

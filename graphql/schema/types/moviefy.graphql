@@ -1,0 +1,61 @@
+# MovieFy types for external movie database search
+
+"""
+A movie result from the external moviefy.db database
+"""
+type MovieFyResult {
+  id: ID!
+  name: String!
+  url: String
+  front_image: String
+  domain: String
+  studio_name: String
+}
+
+"""
+Pagination information for MovieFy search results
+"""
+type MovieFyPagination {
+  page: Int!
+  per_page: Int!
+  total: Int!
+  pages: Int!
+}
+
+"""
+Search result from the moviefy.db database
+"""
+type MovieFySearchResult {
+  movies: [MovieFyResult!]!
+  pagination: MovieFyPagination!
+  "Mode indicates whether premium database is available: 'premium' or 'basic'"
+  mode: String!
+}
+
+"""
+Input for searching the moviefy.db database
+"""
+input MovieFySearchInput {
+  "Search term to look for in movie titles"
+  search: String!
+  "Page number (default: 1)"
+  page: Int
+  "Results per page (default: 40, max: 100)"
+  per_page: Int
+}
+
+"""
+Configuration input for MovieFy database path
+"""
+input MovieFyConfigInput {
+  "Absolute path to the moviefy.db SQLite database file"
+  database_path: String!
+}
+
+"""
+MovieFy configuration result
+"""
+type MovieFyConfig {
+  database_path: String
+  database_exists: Boolean!
+}

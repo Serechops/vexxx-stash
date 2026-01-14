@@ -24,9 +24,10 @@ interface IModal {
   dialogClassName?: string;
   footerButtons?: React.ReactNode;
   leftFooterButtons?: React.ReactNode;
+  hideAccept?: boolean;
 }
 
-const defaultOnHide = () => {};
+const defaultOnHide = () => { };
 
 export const ModalComponent: React.FC<IModal> = ({
   children,
@@ -42,6 +43,7 @@ export const ModalComponent: React.FC<IModal> = ({
   dialogClassName,
   footerButtons,
   leftFooterButtons,
+  hideAccept,
 }) => (
   <Modal
     className="ModalComponent"
@@ -78,24 +80,26 @@ export const ModalComponent: React.FC<IModal> = ({
         ) : (
           ""
         )}
-        <Button
-          disabled={isRunning || disabled}
-          variant={accept?.variant ?? "primary"}
-          onClick={accept?.onClick}
-          className="ml-2"
-        >
-          {isRunning ? (
-            <Spinner animation="border" role="status" size="sm" />
-          ) : (
-            accept?.text ?? (
-              <FormattedMessage
-                id="actions.close"
-                defaultMessage="Close"
-                description="Closes the current modal."
-              />
-            )
-          )}
-        </Button>
+        {!hideAccept && (
+          <Button
+            disabled={isRunning || disabled}
+            variant={accept?.variant ?? "primary"}
+            onClick={accept?.onClick}
+            className="ml-2"
+          >
+            {isRunning ? (
+              <Spinner animation="border" role="status" size="sm" />
+            ) : (
+              accept?.text ?? (
+                <FormattedMessage
+                  id="actions.close"
+                  defaultMessage="Close"
+                  description="Closes the current modal."
+                />
+              )
+            )}
+          </Button>
+        )}
       </div>
     </Modal.Footer>
   </Modal>

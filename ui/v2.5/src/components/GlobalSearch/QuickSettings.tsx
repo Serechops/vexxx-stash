@@ -9,7 +9,11 @@ import { LibrarySettings } from "../Settings/SettingsInterfacePanel/LibrarySetti
 import { StashBoxSettings } from "../Settings/SettingsInterfacePanel/StashBoxSettings";
 import { PluginTasks } from "../Settings/Tasks/PluginTasks";
 
-export const QuickSettings: React.FC = () => {
+interface QuickSettingsProps {
+    onClose?: () => void;
+}
+
+export const QuickSettings: React.FC<QuickSettingsProps> = ({ onClose }) => {
     const [activeTab, setActiveTab] = useState<string>("interface");
 
     const modalProps = {

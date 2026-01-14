@@ -19,6 +19,8 @@ interface IScrapeDialogProps {
   existingLabel?: React.ReactNode;
   scrapedLabel?: React.ReactNode;
   onClose: (apply?: boolean) => void;
+  footerButtons?: React.ReactNode;
+  hideApply?: boolean;
 }
 
 export const ScrapeDialog: React.FC<
@@ -69,10 +71,11 @@ export const ScrapeDialog: React.FC<
       }}
       modalProps={{
         size: "lg",
-        dialogClassName: `${props.className ?? ""} scrape-dialog ${
-          sfwContentMode ? "sfw-mode" : ""
-        }`,
+        dialogClassName: `${props.className ?? ""} scrape-dialog ${sfwContentMode ? "sfw-mode" : ""
+          }`,
       }}
+      footerButtons={props.footerButtons}
+      hideAccept={props.hideApply}
     >
       <div className="dialog-container">
         <ScrapeDialogContext.Provider value={contextState}>

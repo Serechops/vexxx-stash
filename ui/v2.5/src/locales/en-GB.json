@@ -259,6 +259,7 @@
       "interface": "Interface",
       "logs": "Logs",
       "metadata_providers": "Metadata Providers",
+      "moviefy": "MovieFy",
       "plugins": "Plugins",
       "scraping": "Scraping",
       "security": "Security",
@@ -266,6 +267,17 @@
       "system": "System",
       "tasks": "Tasks",
       "tools": "Tools"
+    },
+    "moviefy": {
+      "heading": "MovieFy Settings",
+      "database_path": {
+        "heading": "Database Path",
+        "description": "Path to the external directory for MovieFy data storage"
+      },
+      "scrape_api_url": {
+        "heading": "Scrape API URL",
+        "description": "URL for the external metadata scraping service (default: http://localhost:7001)"
+      }
     },
     "dlna": {
       "allow_temp_ip": "Allow {tempIP}",

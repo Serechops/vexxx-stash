@@ -660,3 +660,17 @@ extend type Mutation {
   scheduledTaskDestroy(id: ID!): Boolean!
   scheduledTaskRun(id: ID!): Int!  # Returns job ID
 }
+
+# MovieFy - External movie database search
+extend type Query {
+  "Search external moviefy.db for movie metadata"
+  searchMovieFyDatabase(input: MovieFySearchInput!): MovieFySearchResult!
+  "Get current MovieFy configuration"
+  movieFyConfig: MovieFyConfig!
+}
+
+extend type Mutation {
+  "Configure MovieFy database path"
+  configureMovieFy(input: MovieFyConfigInput!): Boolean!
+}
+

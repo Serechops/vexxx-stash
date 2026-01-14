@@ -293,6 +293,9 @@ const (
 
 	// Scheduled Tasks
 	ScheduledTasks = "scheduled_tasks"
+
+	// MovieFy database path
+	MovieFyDatabasePath = "moviefy_database_path"
 )
 
 // slice default values
@@ -740,6 +743,16 @@ func (i *Config) GetFFMpegPath() string {
 // If empty, stash will attempt to resolve it from the path.
 func (i *Config) GetFFProbePath() string {
 	return i.getString(FFProbePath)
+}
+
+// GetMovieFyDatabasePath returns the path to the external moviefy.db SQLite database.
+func (i *Config) GetMovieFyDatabasePath() string {
+	return i.getString(MovieFyDatabasePath)
+}
+
+// SetMovieFyDatabasePath sets the path to the external moviefy.db SQLite database.
+func (i *Config) SetMovieFyDatabasePath(path string) {
+	i.SetString(MovieFyDatabasePath, path)
 }
 
 func (i *Config) GetJWTSignKey() []byte {

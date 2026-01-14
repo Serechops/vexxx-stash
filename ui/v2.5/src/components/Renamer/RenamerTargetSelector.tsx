@@ -73,7 +73,7 @@ export const RenamerTargetSelector: React.FC<RenamerTargetSelectorProps> = ({
                     {stashes.map((stash) => (
                         <Button
                             key={stash.path}
-                            variant="outline-info"
+                            variant="info"
                             size="sm"
                             className="mr-2 mb-1"
                             onClick={() => onDirectoryChange(stash.path)}
@@ -115,6 +115,7 @@ export const RenamerTargetSelector: React.FC<RenamerTargetSelectorProps> = ({
                                 <tr>
                                     <th style={{ width: "40px" }}></th>
                                     <th>Title</th>
+                                    <th>Directory</th>
                                     <th>Filename</th>
                                 </tr>
                             </thead>
@@ -123,6 +124,10 @@ export const RenamerTargetSelector: React.FC<RenamerTargetSelectorProps> = ({
                                     const isSelected = selectedSceneIds.includes(scene.id);
                                     const path = scene.files?.[0]?.path;
                                     const filename = path ? path.replace(/^.*[\\/]/, '') : "No file";
+                                    // Extract directory by removing filename
+                                    // Handle both / and \ separators
+                                    const directory = path ? path.replace(/[\\/][^\\/]*$/, '') : "";
+
                                     return (
                                         <tr key={scene.id} onClick={() => handleToggleScene(scene.id)} style={{ cursor: "pointer" }}>
                                             <td className="text-center">
@@ -131,15 +136,12 @@ export const RenamerTargetSelector: React.FC<RenamerTargetSelectorProps> = ({
                                                     checked={isSelected}
                                                     onChange={() => { }} // Handled by row click
                                                     onClick={(e) => e.stopPropagation()}
-                                                    // Stop propagation to prevent double toggle if logic was separate
-                                                    // Actually handleToggleScene is on tr, so let's just make sure 
-                                                    // clicking checkbox calls it or let bubble.
-                                                    // It's safer to just read checked state.
                                                     readOnly
                                                 />
                                             </td>
                                             <td>{scene.title || scene.id}</td>
-                                            <td className="text-muted small">{filename}</td>
+                                            <td className="text-muted small text-break">{directory}</td>
+                                            <td className="text-muted small text-break">{filename}</td>
                                         </tr>
                                     );
                                 })}

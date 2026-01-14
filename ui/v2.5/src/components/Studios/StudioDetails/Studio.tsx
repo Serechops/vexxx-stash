@@ -394,7 +394,7 @@ const StudioPage: React.FC<IProps> = ({ studio, tabKey }) => {
     if (!studio.id) return;
     try {
       await mutateMetadataAutoTag({ studios: [studio.id] });
-      Toast.success(intl.formatMessage({ id: "toast.started_auto_tagging" }));
+      Toast.success(intl.formatMessage({ id: "Started Auto-Tagging..." }));
     } catch (e) {
       Toast.error(e);
     }

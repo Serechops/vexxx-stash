@@ -394,7 +394,7 @@ const TagPage: React.FC<IProps> = ({ tag, tabKey }) => {
     if (!tag.id) return;
     try {
       await mutateMetadataAutoTag({ tags: [tag.id] });
-      Toast.success(intl.formatMessage({ id: "toast.started_auto_tagging" }));
+      Toast.success(intl.formatMessage({ id: "Started Auto-Tagging..." }));
     } catch (e) {
       Toast.error(e);
     }

@@ -150,7 +150,7 @@ export const TagList: React.FC<ITagList> = PatchComponent(
       if (!tag) return;
       try {
         await mutateMetadataAutoTag({ tags: [tag.id] });
-        Toast.success(intl.formatMessage({ id: "toast.started_auto_tagging" }));
+        Toast.success(intl.formatMessage({ id: "Started Auto-Tagging..." }));
       } catch (e) {
         Toast.error(e);
       }
@@ -238,7 +238,7 @@ export const TagList: React.FC<ITagList> = PatchComponent(
         if (filter.displayMode === DisplayMode.List) {
           const deleteAlert = (
             <ModalComponent
-              onHide={() => {}}
+              onHide={() => { }}
               show={!!deletingTag}
               icon={faTrashAlt}
               accept={{

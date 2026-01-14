@@ -160,7 +160,7 @@ export const RenamerTools: React.FC = () => {
                         {["{title}", "{studio}", "{parent_studio}", "{performers}", "{date}", "{year}", "{rating}", "{id}"].map((token) => (
                             <Button
                                 key={token}
-                                variant="outline-secondary"
+                                variant="secondary"
                                 size="sm"
                                 className="mr-1 mb-1"
                                 onClick={() => setTemplate(template + token)}

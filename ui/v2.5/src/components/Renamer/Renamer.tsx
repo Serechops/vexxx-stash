@@ -57,7 +57,7 @@ const Renamer: React.FC = () => {
                     }
                 }
             });
-            Toast.success(intl.formatMessage({ id: "toast.started" }));
+            Toast.success(intl.formatMessage({ id: "Renamer Configuration Saved" }));
         } catch (e) {
             Toast.error(e);
         }
@@ -115,7 +115,7 @@ const Renamer: React.FC = () => {
                                     {["{title}", "{studio}", "{parent_studio}", "{performers}", "{date}", "{year}", "{rating}"].map((token) => (
                                         <Button
                                             key={token}
-                                            variant="outline-secondary"
+                                            variant="secondary"
                                             size="sm"
                                             className="mr-1 mb-1"
                                             onClick={() => setTemplate(template + token)}

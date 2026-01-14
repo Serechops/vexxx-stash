@@ -105,7 +105,7 @@ export const ImportDialog: React.FC<IImportDialogProps> = (
         file,
       });
       setIsRunning(false);
-      Toast.success(intl.formatMessage({ id: "toast.started_importing" }));
+      Toast.success(intl.formatMessage({ id: "Import Started..." }));
     } catch (e) {
       Toast.error(e);
     } finally {

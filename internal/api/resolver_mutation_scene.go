@@ -134,6 +134,26 @@ func (r *mutationResolver) SceneUpdate(ctx context.Context, input models.SceneUp
 	}
 
 	r.hookExecutor.ExecutePostHooks(ctx, ret.ID, hook.SceneUpdatePost, input, translator.getFields())
+
+	// Auto-Rename if enabled
+	cfg := manager.GetInstance().Config
+	if cfg.GetRenamerEnabled() {
+		template := cfg.GetRenamerTemplate()
+		if template != "" {
+			if err := r.withTxn(ctx, func(ctx context.Context) error {
+				setOrganized := input.Organized
+				// renameSceneFile(ctx, s, template, dryRun bool, setOrganized *bool, moveFiles *bool)
+				_, err := r.renameSceneFile(ctx, ret, template, false, setOrganized, nil)
+				if err != nil {
+					logger.Errorf("Auto-rename failed for scene %d: %v", ret.ID, err)
+				}
+				return nil
+			}); err != nil {
+				logger.Errorf("Auto-rename txn failed for scene %d: %v", ret.ID, err)
+			}
+		}
+	}
+
 	return r.getScene(ctx, ret.ID)
 }
 

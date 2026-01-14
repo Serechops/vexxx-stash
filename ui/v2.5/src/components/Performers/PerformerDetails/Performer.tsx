@@ -315,7 +315,7 @@ const PerformerPage: React.FC<IProps> = PatchComponent(
     async function onAutoTag() {
       try {
         await mutateMetadataAutoTag({ performers: [performer.id] });
-        Toast.success(intl.formatMessage({ id: "toast.started_auto_tagging" }));
+        Toast.success(intl.formatMessage({ id: "Started Auto-Tagging..." }));
       } catch (e) {
         Toast.error(e);
       }

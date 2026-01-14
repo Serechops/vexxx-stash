@@ -296,6 +296,12 @@ const (
 
 	// MovieFy database path
 	MovieFyDatabasePath = "moviefy_database_path"
+
+	// Renamer options
+	RenamerEnabled        = "renamer.enabled"
+	RenamerTemplate       = "renamer.template"
+	RenamerPerformerLimit = "renamer.performer_limit"
+	RenamerMoveFiles      = "renamer.move_files"
 )
 
 // slice default values
@@ -750,9 +756,40 @@ func (i *Config) GetMovieFyDatabasePath() string {
 	return i.getString(MovieFyDatabasePath)
 }
 
-// SetMovieFyDatabasePath sets the path to the external moviefy.db SQLite database.
 func (i *Config) SetMovieFyDatabasePath(path string) {
 	i.SetString(MovieFyDatabasePath, path)
+}
+
+func (i *Config) GetRenamerEnabled() bool {
+	return i.getBool(RenamerEnabled)
+}
+
+func (i *Config) SetRenamerEnabled(val bool) {
+	i.SetBool(RenamerEnabled, val)
+}
+
+func (i *Config) GetRenamerTemplate() string {
+	return i.getString(RenamerTemplate)
+}
+
+func (i *Config) SetRenamerTemplate(val string) {
+	i.SetString(RenamerTemplate, val)
+}
+
+func (i *Config) GetRenamerPerformerLimit() int {
+	return i.getInt(RenamerPerformerLimit)
+}
+
+func (i *Config) SetRenamerPerformerLimit(val int) {
+	i.SetInt(RenamerPerformerLimit, val)
+}
+
+func (c *Config) GetRenamerMoveFiles() bool {
+	return c.getBool(RenamerMoveFiles)
+}
+
+func (c *Config) SetRenamerMoveFiles(val bool) {
+	c.SetBool(RenamerMoveFiles, val)
 }
 
 func (i *Config) GetJWTSignKey() []byte {

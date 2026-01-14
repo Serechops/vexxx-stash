@@ -213,6 +213,13 @@ fragment ConfigDefaultSettingsData on ConfigDefaultSettingsResult {
   deleteGenerated
 }
 
+fragment ConfigRenamerData on ConfigRenamerResult {
+  enabled
+  template
+  performer_limit
+  move_files
+}
+
 fragment ConfigData on ConfigResult {
   general {
     ...ConfigGeneralData
@@ -225,6 +232,9 @@ fragment ConfigData on ConfigResult {
   }
   scraping {
     ...ConfigScrapingData
+  }
+  renamer {
+    ...ConfigRenamerData
   }
   defaults {
     ...ConfigDefaultSettingsData

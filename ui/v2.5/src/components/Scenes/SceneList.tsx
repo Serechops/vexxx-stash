@@ -12,6 +12,7 @@ import { SceneWallPanel } from "./SceneWallPanel";
 import { SceneListTable } from "./SceneListTable";
 import { EditScenesDialog } from "./EditScenesDialog";
 import { DeleteScenesDialog } from "./DeleteScenesDialog";
+import { RenameScenesDialog } from "./RenameScenesDialog";
 import { GenerateDialog } from "../Dialogs/GenerateDialog";
 import { ExportDialog } from "../Shared/ExportDialog";
 import { SceneCardsGrid } from "./SceneCardsGrid";
@@ -565,6 +566,20 @@ export const FilteredSceneList = (props: IFilteredScenes) => {
     );
   }
 
+  function onRename() {
+    showModal(
+      <RenameScenesDialog
+        selected={selectedItems}
+        onClose={(applied) => {
+          closeModal();
+          if (applied) {
+            onSelectNone();
+          }
+        }}
+      />
+    );
+  }
+
   // Ensure operations match expected type
   const otherOperations = [
     {
@@ -605,6 +620,11 @@ export const FilteredSceneList = (props: IFilteredScenes) => {
             onClose={() => closeModal()}
           />
         ),
+      isDisplayed: () => hasSelection,
+    },
+    {
+      text: intl.formatMessage({ id: "actions.rename" }),
+      onClick: async () => onRename(),
       isDisplayed: () => hasSelection,
     },
     {

@@ -64,8 +64,19 @@ func makeConfigResult() *ConfigResult {
 		Interface: makeConfigInterfaceResult(),
 		Dlna:      makeConfigDLNAResult(),
 		Scraping:  makeConfigScrapingResult(),
+		Renamer:   makeConfigRenamerResult(),
 		Defaults:  makeConfigDefaultsResult(),
 		UI:        makeConfigUIResult(),
+	}
+}
+
+func makeConfigRenamerResult() *ConfigRenamerResult {
+	config := config.GetInstance()
+	return &ConfigRenamerResult{
+		Enabled:        config.GetRenamerEnabled(),
+		Template:       config.GetRenamerTemplate(),
+		PerformerLimit: config.GetRenamerPerformerLimit(),
+		MoveFiles:      config.GetRenamerMoveFiles(),
 	}
 }
 

@@ -15,15 +15,56 @@ import (
 // Does not create any folders in the file system
 func GetOrCreateFolderHierarchy(ctx context.Context, fc models.FolderFinderCreator, path string) (*models.Folder, error) {
 	// get or create folder hierarchy
-	// assume case sensitive when searching for the folder
-	const caseSensitive = true
-	folder, err := fc.FindByPath(ctx, path, caseSensitive)
+	// Robust Lookup: specific to handling inconsistent Windows path storage in DB
+	// Try 1: Clean path (Native OS separators)
+	targetPath := filepath.Clean(path)
+
+	// assume case insensitive to be safe on Windows/mixed environments
+	const caseSensitive = false
+	folder, err := fc.FindByPath(ctx, targetPath, caseSensitive)
 	if err != nil {
 		return nil, err
 	}
 
+	// Try 2: Force Forward Slashes (common in Stash DB)
 	if folder == nil {
-		parentPath := filepath.Dir(path)
+		slashPath := filepath.ToSlash(targetPath)
+		if slashPath != targetPath {
+			folder, err = fc.FindByPath(ctx, slashPath, caseSensitive)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	// Try 3: Force Backslashes (Native Windows)
+	if folder == nil {
+		backSlashPath := strings.ReplaceAll(targetPath, "/", "\\")
+		if backSlashPath != targetPath {
+			folder, err = fc.FindByPath(ctx, backSlashPath, caseSensitive)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	if folder == nil {
+		logger.Debugf("GetOrCreateFolderHierarchy: Folder not found for path: %s (tried variants)", targetPath)
+	} else {
+		// logger.Debugf("GetOrCreateFolderHierarchy: Found folder: %s", folder.Path)
+	}
+
+	if folder == nil {
+		// Recurse using the CLEAN path to ensure safe ascent
+		parentPath := filepath.Dir(targetPath)
+
+		// Stop at root
+		if parentPath == targetPath || parentPath == "." || parentPath == "/" || parentPath == `\` {
+			// We reached the root of the filesystem and found no existing DB record.
+			// Return nil parent to trigger creation of a new Root Folder in the DB.
+			logger.Debugf("GetOrCreateFolderHierarchy: Root reached, bootstrapping new root for: %s", targetPath)
+			return nil, nil
+		}
 		parent, err := GetOrCreateFolderHierarchy(ctx, fc, parentPath)
 		if err != nil {
 			return nil, err
@@ -31,9 +72,14 @@ func GetOrCreateFolderHierarchy(ctx context.Context, fc models.FolderFinderCreat
 
 		now := time.Now()
 
+		var parentID *models.FolderID
+		if parent != nil {
+			parentID = &parent.ID
+		}
+
 		folder = &models.Folder{
 			Path:           path,
-			ParentFolderID: &parent.ID,
+			ParentFolderID: parentID,
 			DirEntry:       models.DirEntry{
 				// leave mod time empty for now - it will be updated when the folder is scanned
 			},

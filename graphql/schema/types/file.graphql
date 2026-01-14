@@ -151,6 +151,22 @@ input MoveFilesInput {
   destination_basename: String
 }
 
+type RenameResult {
+  id: ID!
+  old_path: String!
+  new_path: String!
+  dry_run: Boolean!
+  error: String
+}
+
+input RenameFilesInput {
+  ids: [ID!]!
+  template: String!
+  dry_run: Boolean
+  set_organized: Boolean
+  move_files: Boolean
+}
+
 input SetFingerprintsInput {
   type: String!
   "an null value will remove the fingerprint"

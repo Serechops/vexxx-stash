@@ -425,6 +425,7 @@ type Mutation {
   Creates folder hierarchy if needed.
   """
   moveFiles(input: MoveFilesInput!): Boolean!
+  renameScenes(input: RenameFilesInput!): [RenameResult!]!
   deleteFiles(ids: [ID!]!): Boolean!
 
   fileSetFingerprints(input: FileSetFingerprintsInput!): Boolean!
@@ -440,6 +441,7 @@ type Mutation {
   configureInterface(input: ConfigInterfaceInput!): ConfigInterfaceResult!
   configureDLNA(input: ConfigDLNAInput!): ConfigDLNAResult!
   configureScraping(input: ConfigScrapingInput!): ConfigScrapingResult!
+  configureRenamer(input: ConfigRenamerInput!): ConfigRenamerResult!
   configureDefaults(
     input: ConfigDefaultSettingsInput!
   ): ConfigDefaultSettingsResult!

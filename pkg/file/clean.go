@@ -283,7 +283,7 @@ func (j *cleanJob) assessFolders(ctx context.Context, toDelete *deleteSet) error
 				err = nil
 				progress.ExecuteTask(fmt.Sprintf("Assessing folder %s for clean", path), func() {
 					if j.shouldCleanFolder(ctx, f) {
-						if err = j.flagFolderForDelete(ctx, toDelete, f); err != nil {
+						if err = j.flagFolderForDelete(toDelete, f); err != nil {
 							return
 						}
 					} else {
@@ -311,7 +311,7 @@ func (j *cleanJob) assessFolders(ctx context.Context, toDelete *deleteSet) error
 	return nil
 }
 
-func (j *cleanJob) flagFolderForDelete(ctx context.Context, toDelete *deleteSet, folder *models.Folder) error {
+func (j *cleanJob) flagFolderForDelete(toDelete *deleteSet, folder *models.Folder) error {
 	// it is possible that child folders may be included while parent folders are not
 	// so we need to check child folders separately
 	toDelete.addFolder(folder.ID, folder.Path)

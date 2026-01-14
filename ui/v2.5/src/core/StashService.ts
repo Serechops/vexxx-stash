@@ -605,6 +605,20 @@ export const useBulkSceneUpdate = (input: GQL.BulkSceneUpdateInput) =>
     },
   });
 
+export const useRenameScenes = (input: GQL.RenameFilesInput) =>
+  GQL.useRenameScenesMutation({
+    variables: { input },
+    update(cache, result) {
+      if (!result.data?.renameScenes) return;
+
+      result.data.renameScenes.forEach((r) => {
+        if (!r?.id) return;
+        const obj = { __typename: "Scene", id: r.id };
+        evictTypeFields(cache, { Scene: ["files"] }, cache.identify(obj));
+      });
+    },
+  });
+
 export const useScenesUpdate = () =>
   GQL.useScenesUpdateMutation({
     update(cache, result) {

@@ -4,16 +4,20 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/stashapp/stash/internal/manager"
+	"github.com/stashapp/stash/internal/manager/config"
 	"github.com/stashapp/stash/pkg/file"
 	"github.com/stashapp/stash/pkg/logger"
 	"github.com/stashapp/stash/pkg/models"
 	"github.com/stashapp/stash/pkg/plugin"
 	"github.com/stashapp/stash/pkg/plugin/hook"
+	"github.com/stashapp/stash/pkg/renamer"
 	"github.com/stashapp/stash/pkg/scene"
 	"github.com/stashapp/stash/pkg/sliceutil"
 	"github.com/stashapp/stash/pkg/sliceutil/stringslice"
@@ -168,6 +172,44 @@ func (r *mutationResolver) ScenesUpdate(ctx context.Context, input []*models.Sce
 		scene, err = r.getScene(ctx, scene.ID)
 		if err != nil {
 			return nil, err
+		}
+
+		// Auto-Rename if enabled
+		cfg := manager.GetInstance().Config
+		if cfg.GetRenamerEnabled() {
+			template := cfg.GetRenamerTemplate()
+			if template != "" {
+				// We ignore errors here to prevent failing the update if rename fails
+				// But we should log?
+				// renameSceneFile uses repository which uses ctx/txn?
+				// getScene uses r.withTxn internally if we call it?
+				// No, getScene (line 26) calls r.withTxn.
+				// RenameScenes calls r.withTxn.
+				// We are currently OUTSIDE the main SceneUpdate txn (line 161).
+				// So we can call renameSceneFile, but we should wrap it in txn?
+				// renameSceneFile doesn't start a txn.
+				// The passed ctx might NOT have a txn attached here?
+				// Line 157 closes the txn.
+				// So we should wrap this in txn.
+				if err := r.withTxn(ctx, func(ctx context.Context) error {
+					setOrganized := input[i].Organized
+					_, err := r.renameSceneFile(ctx, scene, template, false, setOrganized, nil)
+					if err != nil {
+						logger.Errorf("Auto-rename failed for scene %d: %v", scene.ID, err)
+					}
+					return nil // Don't fail the request
+				}); err != nil {
+					logger.Errorf("Auto-rename txn failed for scene %d: %v", scene.ID, err)
+				}
+
+				// Re-fetch scene after rename?
+				// If renamed, path changed. Ret array has old scene object.
+				// We should return fresh object.
+				scene, err = r.getScene(ctx, scene.ID)
+				if err != nil {
+					return nil, err
+				}
+			}
 		}
 
 		newRet = append(newRet, scene)
@@ -1275,4 +1317,207 @@ func (r *mutationResolver) SceneGenerateScreenshot(ctx context.Context, id strin
 	}
 
 	return "todo", nil
+}
+
+func (r *mutationResolver) RenameScenes(ctx context.Context, input RenameFilesInput) ([]*RenameResult, error) {
+	sceneIDInts, err := stringslice.StringSliceToIntSlice(input.Ids)
+	if err != nil {
+		return nil, fmt.Errorf("converting ids: %w", err)
+	}
+
+	dryRun := utils.IsTrue(input.DryRun)
+	results := make([]*RenameResult, 0, len(sceneIDInts))
+
+	// Use withTxn for consistency
+	if err := r.withTxn(ctx, func(ctx context.Context) error {
+		for _, id := range sceneIDInts {
+			s, err := r.repository.Scene.Find(ctx, id)
+			if err != nil {
+				return err
+			}
+			if s == nil {
+				return fmt.Errorf("scene not found: %d", id)
+			}
+
+			res, err := r.renameSceneFile(ctx, s, input.Template, dryRun, input.SetOrganized, input.MoveFiles)
+			if err != nil {
+				// if error returned, it might be fatal, but we want to return result with error
+				// renameSceneFile should probably return result with error populated if it's a "soft" error
+				// But let's handle hard errors too
+				msg := err.Error()
+				results = append(results, &RenameResult{
+					ID:    strconv.Itoa(id),
+					Error: &msg,
+				})
+			} else {
+				results = append(results, res)
+			}
+		}
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	return results, nil
+}
+
+func (r *mutationResolver) renameSceneFile(ctx context.Context, s *models.Scene, template string, dryRun bool, setOrganized *bool, moveFiles *bool) (*RenameResult, error) {
+	if err := s.LoadFiles(ctx, r.repository.Scene); err != nil {
+		return nil, err
+	}
+
+	// Get Primary File object
+	var primaryFile *models.VideoFile
+	if len(s.Files.List()) > 0 {
+		if s.PrimaryFileID != nil {
+			for _, f := range s.Files.List() {
+				if f.ID == *s.PrimaryFileID {
+					primaryFile = f
+					break
+				}
+			}
+		}
+		if primaryFile == nil {
+			primaryFile = s.Files.List()[0]
+		}
+	}
+
+	if primaryFile == nil {
+		return &RenameResult{
+			ID:    strconv.Itoa(s.ID),
+			Error: func(s string) *string { return &s }("Scene has no files"),
+		}, nil
+	}
+
+	// Load Studio
+	var studio *models.Studio
+	var parentStudio *models.Studio
+	if s.StudioID != nil {
+		studio, _ = r.repository.Studio.Find(ctx, *s.StudioID)
+		if studio != nil && studio.ParentID != nil {
+			parentStudio, _ = r.repository.Studio.Find(ctx, *studio.ParentID)
+		}
+	}
+
+	// Load Performers
+	if err := s.LoadPerformerIDs(ctx, r.repository.Scene); err != nil {
+		return nil, err
+	}
+	var performers []*models.Performer
+	for _, pid := range s.PerformerIDs.List() {
+		p, _ := r.repository.Performer.Find(ctx, pid)
+		if p != nil {
+			performers = append(performers, p)
+		}
+	}
+
+	renamerService := renamer.NewRenamer()
+	// Get performer limit from config
+	performerLimit := config.GetInstance().GetRenamerPerformerLimit()
+	newPath, err := renamerService.ComposePath(template, s, studio, parentStudio, performers, primaryFile, performerLimit)
+	if err != nil {
+		return &RenameResult{
+			ID:      strconv.Itoa(s.ID),
+			OldPath: primaryFile.Path,
+			Error:   func(s string) *string { return &s }(err.Error()),
+		}, nil
+	}
+
+	// Determine if we should move files
+	shouldMove := config.GetInstance().GetRenamerMoveFiles()
+	if moveFiles != nil {
+		shouldMove = *moveFiles
+	}
+
+	paths := manager.GetInstance().Config.GetStashPaths()
+	libraryPath := paths.GetStashFromDirPath(primaryFile.Path)
+
+	// If renamer path is not absolute, join with libraryPath.Path
+	fullNewPath := newPath
+	if !filepath.IsAbs(newPath) && libraryPath != nil {
+		fullNewPath = filepath.Join(libraryPath.Path, newPath)
+	}
+
+	// If we are NOT moving files, we must preserve the original directory
+	if !shouldMove {
+		originalDir := filepath.Dir(primaryFile.Path)
+		filename := filepath.Base(fullNewPath)
+		fullNewPath = filepath.Join(originalDir, filename)
+	}
+
+	// Check if the destination is exactly the same as the source
+	// Use Clean to normalize separators
+	// On Windows, comparing cleaned paths is usually checking for string equality of standard format
+	// Stash assumes mostly case-insensitive FS on Windows, but let's stick to Clean comparison first.
+	// Actually, we should probably lowercase it on Windows, but Clean is a good start.
+	// Given we just fixed the path separators, Clean should be enough if the casing matches. Serechops wants casing changes to happen?
+	// If casing is different but path letters are same, Windows treats it as same file.
+	// If the user wants to rename "File.mp4" to "file.mp4", that IS a rename on Windows but requires special handling (temp rename).
+	// But here we are skipping if it matches.
+	// If newPath == oldPath (including case), then absolutely skip.
+	if filepath.Clean(fullNewPath) == filepath.Clean(primaryFile.Path) {
+		msg := "Destination matches current path"
+		return &RenameResult{
+			ID:      strconv.Itoa(s.ID),
+			OldPath: primaryFile.Path,
+			NewPath: fullNewPath,
+			Error:   &msg,
+		}, nil
+	}
+
+	res := &RenameResult{
+		ID:      strconv.Itoa(s.ID),
+		OldPath: primaryFile.Path,
+		NewPath: fullNewPath,
+		DryRun:  dryRun,
+	}
+
+	if !dryRun {
+		fileStore := r.repository.File
+		folderStore := r.repository.Folder
+		mover := file.NewMover(fileStore, folderStore)
+		// RegisterHooks not accessible directly if we are inside a txn managed by withTxn?
+		// resolver's withTxn wraps DB txn.
+		// mover.RegisterHooks needs context? No, it takes ctx.
+		// It adds OnCommit hooks.
+		// Execute Move
+		dir := filepath.Dir(fullNewPath)
+		base := filepath.Base(fullNewPath)
+
+		// Ensure physical directory exists
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			logger.Errorf("RenameScenes: Failed to create physical directory %s: %v", dir, err)
+			msg := fmt.Sprintf("failed to create directory: %v", err)
+			res.Error = &msg
+			return res, nil
+		}
+
+		// GetOrCreate Folder
+		logger.Debugf("RenameScenes: Requesting/Creating folder: %s", dir)
+		folder, err := file.GetOrCreateFolderHierarchy(ctx, folderStore, dir)
+		if err != nil {
+			logger.Errorf("RenameScenes: GetOrCreateFolderHierarchy error for scene %d: %v", s.ID, err)
+			msg := err.Error()
+			res.Error = &msg
+			return res, nil
+		}
+
+		if err := mover.Move(ctx, primaryFile, folder, base); err != nil {
+			logger.Errorf("RenameScenes: Mover.Move error for scene %d: %v", s.ID, err)
+			msg := err.Error()
+			res.Error = &msg
+			return res, nil
+		}
+
+		// Update Organized flag if requested
+		if setOrganized != nil {
+			s.Organized = *setOrganized
+			if err := r.repository.Scene.Update(ctx, s); err != nil {
+				msg := fmt.Sprintf("File renamed, but failed to update organized: %v", err)
+				res.Error = &msg
+			}
+		}
+	}
+
+	return res, nil
 }

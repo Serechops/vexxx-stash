@@ -604,6 +604,29 @@ func (r *mutationResolver) ConfigureScraping(ctx context.Context, input ConfigSc
 	return makeConfigScrapingResult(), nil
 }
 
+func (r *mutationResolver) ConfigureRenamer(ctx context.Context, input ConfigRenamerInput) (*ConfigRenamerResult, error) {
+	c := config.GetInstance()
+
+	if input.Enabled != nil {
+		c.SetRenamerEnabled(*input.Enabled)
+	}
+	if input.Template != nil {
+		c.SetRenamerTemplate(*input.Template)
+	}
+	if input.PerformerLimit != nil {
+		c.SetRenamerPerformerLimit(*input.PerformerLimit)
+	}
+	if input.MoveFiles != nil {
+		c.SetRenamerMoveFiles(*input.MoveFiles)
+	}
+
+	if err := c.Write(); err != nil {
+		return makeConfigRenamerResult(), err
+	}
+
+	return makeConfigRenamerResult(), nil
+}
+
 func (r *mutationResolver) ConfigureDefaults(ctx context.Context, input ConfigDefaultSettingsInput) (*ConfigDefaultSettingsResult, error) {
 	c := config.GetInstance()
 

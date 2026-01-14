@@ -32,6 +32,11 @@ const _FolderSelect: React.FC<IProps> = ({
   const [showBrowser, setShowBrowser] = useState(false);
   const [path, setPath] = useState(currentDirectory);
 
+  // Sync internal state with prop changes
+  React.useEffect(() => {
+    setPath(currentDirectory);
+  }, [currentDirectory]);
+
   const normalizedPath = quotePath ? TextUtils.stripQuotes(path) : path;
   const { directories, parent, error, loading } = useDirectoryPaths(
     normalizedPath,

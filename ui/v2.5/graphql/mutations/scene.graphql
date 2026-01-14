@@ -123,3 +123,13 @@ mutation SceneMerge($input: SceneMergeInput!) {
     id
   }
 }
+
+mutation RenameScenes($input: RenameFilesInput!) {
+  renameScenes(input: $input) {
+    id
+    old_path
+    new_path
+    dry_run
+    error
+  }
+}

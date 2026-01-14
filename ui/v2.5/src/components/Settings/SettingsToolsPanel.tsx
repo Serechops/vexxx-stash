@@ -54,6 +54,13 @@ export const SettingsToolsPanel: React.FC = () => {
               </Link>
             }
           />
+          <Setting
+            heading={
+              <Link to="/renamer">
+                <Button>Renamer</Button>
+              </Link>
+            }
+          />
         </SettingsToolsSection>
       </SettingSection>
     </>

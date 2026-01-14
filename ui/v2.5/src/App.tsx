@@ -87,6 +87,9 @@ const SceneDuplicateChecker = lazyComponent(
 const MovieFy = lazyComponent(
   () => import("./components/MovieFy/MovieFy")
 );
+const Renamer = lazyComponent(
+  () => import("./components/Renamer/Renamer")
+);
 
 const appleRendering = isPlatformUniquelyRenderedByApple();
 
@@ -275,6 +278,7 @@ export const App: React.FC = () => {
               component={SceneDuplicateChecker}
             />
             <Route path="/moviefy" component={MovieFy} />
+            <Route path="/renamer" component={Renamer} />
             <Route path="/setup" component={Setup} />
             <Route path="/migrate" component={Migrate} />
             <PluginRoutes />

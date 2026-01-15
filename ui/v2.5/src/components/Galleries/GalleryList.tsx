@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Box } from "@mui/material";
 import { useIntl } from "react-intl";
 import cloneDeep from "lodash-es/cloneDeep";
 import { useHistory } from "react-router-dom";
@@ -157,13 +158,26 @@ export const GalleryList: React.FC<IGalleryList> = PatchComponent(
         }
         if (filter.displayMode === DisplayMode.Wall) {
           return (
-            <div className="row">
-              <div className={`GalleryWall zoom-${filter.zoomIndex}`}>
+            <Box className="row">
+              <Box
+                className={`GalleryWall zoom-${filter.zoomIndex}`}
+                sx={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  listStyle: "none",
+                  margin: 0,
+                  padding: 0,
+                  "&.zoom-0": { height: "20vh" },
+                  "&.zoom-1": { height: "25vh" },
+                  "&.zoom-2": { height: "33vh" },
+                  "&.zoom-3": { height: "50vh" }
+                }}
+              >
                 {result.data.findGalleries.galleries.map((gallery) => (
                   <GalleryWallCard key={gallery.id} gallery={gallery} />
                 ))}
-              </div>
-            </div>
+              </Box>
+            </Box>
           );
         }
       }

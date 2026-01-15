@@ -1,4 +1,5 @@
 import React, { PropsWithChildren } from "react";
+import { Box } from "@mui/material";
 import { useIntl } from "react-intl";
 import { TagLink } from "src/components/Shared/TagLink";
 import * as GQL from "src/core/generated-graphql";
@@ -24,7 +25,19 @@ interface IPerformerDetails {
 
 const PerformerDetailGroup: React.FC<PropsWithChildren<IPerformerDetails>> =
   PatchComponent("PerformerDetailsPanel.DetailGroup", ({ children }) => {
-    return <div className="detail-group">{children}</div>;
+    return (
+      <Box
+        className="detail-group"
+        sx={{
+          display: "flex",
+          flexDirection: "row",
+          flexWrap: "wrap",
+          py: 2
+        }}
+      >
+        {children}
+      </Box>
+    );
   });
 
 export const PerformerDetailsPanel: React.FC<IPerformerDetails> =
@@ -90,9 +103,9 @@ export const PerformerDetailsPanel: React.FC<IPerformerDetails> =
           title={
             !fullWidth
               ? TextUtils.formatFuzzyDate(
-                  intl,
-                  performer.birthdate ?? undefined
-                )
+                intl,
+                performer.birthdate ?? undefined
+              )
               : ""
           }
           fullWidth={fullWidth}
@@ -162,30 +175,32 @@ export const PerformerDetailsPanel: React.FC<IPerformerDetails> =
           value={performer?.fake_tits}
           fullWidth={fullWidth}
         />
-        <DetailItem
-          id="tattoos"
-          value={performer?.tattoos}
-          fullWidth={fullWidth}
-        />
-        <DetailItem
-          id="piercings"
-          value={performer?.piercings}
-          fullWidth={fullWidth}
-        />
-        <DetailItem
-          id="career_length"
-          value={performer?.career_length}
-          fullWidth={fullWidth}
-        />
-        <DetailItem id="details" value={details} fullWidth={fullWidth} />
-        <DetailItem id="tags" value={renderTagsField()} fullWidth={fullWidth} />
-        <DetailItem
-          id="stash_ids"
-          value={renderStashIDs()}
-          fullWidth={fullWidth}
-        />
-        {(fullWidth || !collapsed) && (
-          <CustomFields values={performer.custom_fields} />
+        {(!collapsed || fullWidth) && (
+          <>
+            <DetailItem
+              id="tattoos"
+              value={performer?.tattoos}
+              fullWidth={fullWidth}
+            />
+            <DetailItem
+              id="piercings"
+              value={performer?.piercings}
+              fullWidth={fullWidth}
+            />
+            <DetailItem
+              id="career_length"
+              value={performer?.career_length}
+              fullWidth={fullWidth}
+            />
+            <DetailItem id="details" value={details} fullWidth={fullWidth} />
+            <DetailItem id="tags" value={renderTagsField()} fullWidth={fullWidth} />
+            <DetailItem
+              id="stash_ids"
+              value={renderStashIDs()}
+              fullWidth={fullWidth}
+            />
+            <CustomFields values={performer.custom_fields} />
+          </>
         )}
       </PerformerDetailGroup>
     );
@@ -201,8 +216,39 @@ export const CompressedPerformerDetailsPanel: React.FC<IPerformerDetails> =
     }
 
     return (
-      <div className="sticky detail-header">
-        <div className="sticky detail-header-group">
+      <Box
+        className="sticky detail-header"
+        sx={{
+          display: { xs: "none", sm: "block" },
+          minHeight: "50px",
+          position: "fixed",
+          top: "48.75px",
+          zIndex: 10,
+          bgcolor: "background.paper",
+          width: "100%"
+        }}
+      >
+        <Box
+          className="sticky detail-header-group"
+          sx={{
+            padding: "1rem 2.5rem",
+            "& a.performer-name": {
+              color: "#f5f8fa",
+              cursor: "pointer",
+              fontWeight: 800,
+            },
+            "& a, & span": {
+              color: "#d7d9db",
+              fontWeight: 600,
+              pr: 1
+            },
+            "& .detail-divider": {
+              fontSize: "1rem",
+              fontWeight: 400,
+              opacity: 0.6
+            }
+          }}
+        >
           <a className="performer-name" onClick={() => scrollToTop()}>
             {performer.name}
           </a>
@@ -246,7 +292,7 @@ export const CompressedPerformerDetailsPanel: React.FC<IPerformerDetails> =
           ) : (
             ""
           )}
-        </div>
-      </div>
+        </Box>
+      </Box>
     );
   });

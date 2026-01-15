@@ -1,5 +1,6 @@
 import cloneDeep from "lodash-es/cloneDeep";
 import React, { useState } from "react";
+import { Box } from "@mui/material";
 import { useIntl } from "react-intl";
 import { useHistory } from "react-router-dom";
 import Mousetrap from "mousetrap";
@@ -43,15 +44,24 @@ export const FormatHeight = (height?: number | null) => {
   const [feet, inches] = cmToImperial(height);
 
   return (
-    <span className="performer-height">
-      <span className="height-metric">
+    <Box component="span" className="performer-height">
+      <Box component="span" className="height-metric" sx={{ pr: 0.5 }}>
         {intl.formatNumber(height, {
           style: "unit",
           unit: "centimeter",
           unitDisplay: "short",
         })}
-      </span>
-      <span className="height-imperial">
+      </Box>
+      <Box
+        component="span"
+        className="height-imperial"
+        sx={{
+          color: "text.secondary",
+          fontSize: "0.875em",
+          "&::before": { content: '" ("' },
+          "&::after": { content: '")"' }
+        }}
+      >
         {intl.formatNumber(feet, {
           style: "unit",
           unit: "foot",
@@ -62,8 +72,8 @@ export const FormatHeight = (height?: number | null) => {
           unit: "inch",
           unitDisplay: "narrow",
         })}
-      </span>
-    </span>
+      </Box>
+    </Box>
   );
 };
 
@@ -77,10 +87,10 @@ export const FormatAge = (
   const age = TextUtils.age(birthdate, deathdate);
 
   return (
-    <span className="performer-age">
-      <span className="age">{age}</span>
-      <span className="birthdate"> ({birthdate})</span>
-    </span>
+    <Box component="span" className="performer-age">
+      <Box component="span" className="age">{age}</Box>
+      <Box component="span" className="birthdate" sx={{ color: "text.secondary", fontSize: "0.875em" }}> ({birthdate})</Box>
+    </Box>
   );
 };
 
@@ -93,22 +103,31 @@ export const FormatWeight = (weight?: number | null) => {
   const lbs = kgToLbs(weight);
 
   return (
-    <span className="performer-weight">
-      <span className="weight-metric">
+    <Box component="span" className="performer-weight">
+      <Box component="span" className="weight-metric" sx={{ pr: 0.5 }}>
         {intl.formatNumber(weight, {
           style: "unit",
           unit: "kilogram",
           unitDisplay: "short",
         })}
-      </span>
-      <span className="weight-imperial">
+      </Box>
+      <Box
+        component="span"
+        className="weight-imperial"
+        sx={{
+          color: "text.secondary",
+          fontSize: "0.875em",
+          "&::before": { content: '" ("' },
+          "&::after": { content: '")"' }
+        }}
+      >
         {intl.formatNumber(lbs, {
           style: "unit",
           unit: "pound",
           unitDisplay: "short",
         })}
-      </span>
-    </span>
+      </Box>
+    </Box>
   );
 };
 
@@ -119,11 +138,17 @@ export const FormatCircumcised = (circumcised?: GQL.CircumisedEnum | null) => {
   }
 
   return (
-    <span className="penis-circumcised">
+    <Box
+      component="span"
+      className="penis-circumcised"
+      sx={{
+        "&::before": { content: '" "' }
+      }}
+    >
       {intl.formatMessage({
         id: "circumcised_types." + circumcised,
       })}
-    </span>
+    </Box>
   );
 };
 
@@ -136,24 +161,33 @@ export const FormatPenisLength = (penis_length?: number | null) => {
   const inches = cmToInches(penis_length);
 
   return (
-    <span className="performer-penis-length">
-      <span className="penis-length-metric">
+    <Box component="span" className="performer-penis-length">
+      <Box component="span" className="penis-length-metric" sx={{ pr: 0.5 }}>
         {intl.formatNumber(penis_length, {
           style: "unit",
           unit: "centimeter",
           unitDisplay: "short",
           maximumFractionDigits: 2,
         })}
-      </span>
-      <span className="penis-length-imperial">
+      </Box>
+      <Box
+        component="span"
+        className="penis-length-imperial"
+        sx={{
+          color: "text.secondary",
+          fontSize: "0.875em",
+          "&::before": { content: '" ("' },
+          "&::after": { content: '")"' }
+        }}
+      >
         {intl.formatNumber(inches, {
           style: "unit",
           unit: "inch",
           unitDisplay: "narrow",
           maximumFractionDigits: 2,
         })}
-      </span>
-    </span>
+      </Box>
+    </Box>
   );
 };
 

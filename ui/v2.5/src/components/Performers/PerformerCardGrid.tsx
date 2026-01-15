@@ -1,4 +1,5 @@
 import React from "react";
+import { Box } from "@mui/material";
 import * as GQL from "src/core/generated-graphql";
 import { IPerformerCardExtraCriteria, PerformerCard } from "./PerformerCard";
 import { PerformerCardSkeleton } from "../Shared/Skeletons/PerformerCardSkeleton";
@@ -30,7 +31,18 @@ export const PerformerCardGrid: React.FC<IPerformerCardGrid> = ({
   const cardWidth = useCardWidth(containerWidth, zoomIndex, zoomWidths);
 
   return (
-    <div className="row justify-content-center" ref={componentRef}>
+    <Box
+      ref={componentRef}
+      sx={{
+        display: "flex",
+        flexWrap: "wrap",
+        justifyContent: "center",
+        mx: -1,
+        "& > *": {
+          m: 1
+        }
+      }}
+    >
       {loading && performers.length === 0 ? (
         Array.from({ length: 20 }).map((_, i) => (
           <PerformerCardSkeleton key={i} cardWidth={cardWidth} zoomIndex={zoomIndex} />
@@ -51,6 +63,6 @@ export const PerformerCardGrid: React.FC<IPerformerCardGrid> = ({
           />
         ))
       )}
-    </div>
+    </Box>
   );
 };

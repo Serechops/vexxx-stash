@@ -1,4 +1,4 @@
-import { Tabs, Tab, Box, Menu, MenuItem, IconButton } from "@mui/material";
+import { Tabs, Tab, Box, Menu, MenuItem, IconButton, Typography } from "@mui/material";
 import React, { useEffect, useMemo, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { useHistory, Link, RouteComponentProps } from "react-router-dom";
@@ -290,17 +290,51 @@ const ImagePage: React.FC<IProps> = ({ image }) => {
   }, [file?.width, file?.height]);
 
   return (
-    <div className="row">
+    <Box sx={{ display: "flex", flexWrap: "wrap", mx: -1.75 }}>
       <Helmet>
         <title>{title}</title>
       </Helmet>
 
       {maybeRenderDeleteDialog()}
-      <div className="image-tabs order-xl-first order-last">
-        <div>
-          <div className="image-header-container">
+      <Box
+        className="image-tabs"
+        sx={{
+          flex: { xl: "0 0 450px" },
+          maxWidth: { xl: "450px" },
+          maxHeight: "calc(100vh - 4rem)",
+          overflow: "auto",
+          overflowWrap: "break-word",
+          wordWrap: "break-word",
+          order: { xs: 2, xl: 1 },
+          pl: "15px",
+          pr: "15px",
+          position: "relative",
+          width: "100%",
+        }}
+      >
+        <Box>
+          <Box
+            className="image-header-container"
+            sx={{
+              display: { lg: "flex" },
+              alignItems: { lg: "center" },
+              justifyContent: { lg: "space-between" },
+            }}
+          >
             {image.studio && (
-              <h1 className="text-center image-studio-image">
+              <Typography
+                variant="h1"
+                sx={{
+                  textAlign: "center",
+                  flex: { lg: "0 0 25%" },
+                  order: { lg: 2 },
+                  "& img": {
+                    maxHeight: "100%",
+                    maxWidth: "100%",
+                    objectFit: "contain"
+                  }
+                }}
+              >
                 <Link to={`/studios/${image.studio.id}`}>
                   <img
                     src={image.studio.image_path ?? ""}
@@ -308,74 +342,143 @@ const ImagePage: React.FC<IProps> = ({ image }) => {
                     className="studio-logo"
                   />
                 </Link>
-              </h1>
+              </Typography>
             )}
-            <h3 className={cx("image-header", { "no-studio": !image.studio })}>
+            <Typography
+              variant="h3"
+              className={cx("image-header", { "no-studio": !image.studio })}
+              sx={{
+                flex: { lg: "0 0 75%" },
+                order: { lg: 1 },
+                fontSize: { xs: "1.5rem", xl: "1.75rem" },
+                mt: "30px",
+                mb: 0
+              }}
+            >
               <TruncatedText lineCount={2} text={title} />
-            </h3>
-          </div>
+            </Typography>
+          </Box>
 
-          <div className="image-subheader">
-            <span className="date" data-value={image.date}>
+          <Box
+            className="image-subheader"
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              mt: 1
+            }}
+          >
+            <Box
+              component="span"
+              className="date"
+              sx={{ color: "text.secondary" }}
+              data-value={image.date}
+            >
               {!!image.date && <FormattedDate value={image.date} />}
-            </span>
+            </Box>
             {resolution ? (
-              <span className="resolution" data-value={resolution}>
+              <Typography
+                variant="body2"
+                className="resolution"
+                sx={{ fontWeight: "bold" }}
+                data-value={resolution}
+              >
                 {resolution}
-              </span>
+              </Typography>
             ) : undefined}
-          </div>
-        </div>
+          </Box>
+        </Box>
 
-        <div className="image-toolbar">
-          <span className="image-toolbar-group">
+        <Box
+          className="image-toolbar"
+          sx={{
+            alignItems: "center",
+            display: "flex",
+            justifyContent: "space-between",
+            mb: 1,
+            mt: 1,
+            pb: 1,
+            width: "100%",
+          }}
+        >
+          <Box
+            component="span"
+            className="image-toolbar-group"
+            sx={{
+              alignItems: "center",
+              columnGap: 1,
+              display: "flex",
+              width: "100%",
+            }}
+          >
             <RatingSystem
               value={image.rating100}
               onSetRating={setRating}
               clickToRate
               withoutContext
             />
-          </span>
-          <span className="image-toolbar-group">
-            <span>
+          </Box>
+          <Box
+            component="span"
+            className="image-toolbar-group"
+            sx={{
+              alignItems: "center",
+              columnGap: 1,
+              display: "flex",
+              width: "100%",
+              justifyContent: "flex-end",
+            }}
+          >
+            <Box component="span">
               <OCounterButton
                 value={image.o_counter || 0}
                 onIncrement={onIncrementClick}
                 onDecrement={onDecrementClick}
                 onReset={onResetClick}
               />
-            </span>
-            <span>
+            </Box>
+            <Box component="span">
               <OrganizedButton
                 loading={organizedLoading}
                 organized={image.organized}
                 onClick={onOrganizedClick}
               />
-            </span>
-            <span>{renderOperations()}</span>
-          </span>
-        </div>
+            </Box>
+            <Box component="span">{renderOperations()}</Box>
+          </Box>
+        </Box>
         {renderTabs()}
-      </div>
-      <div className="image-container">
+      </Box>
+      <Box
+        className="image-container"
+        sx={{
+          display: "flex",
+          flex: { xl: "0 0 calc(100% - 450px)" },
+          height: { xl: "calc(100vh - 4rem)" },
+          maxWidth: { xl: "calc(100% - 450px)" },
+          pl: "15px",
+          pr: "15px",
+          position: "relative",
+          width: "100%",
+          order: { xs: 1, xl: 2 }
+        }}
+      >
         {image.visual_files.length > 0 && (
-          <ImageView
-            loop={image.visual_files[0].__typename == "VideoFile"}
-            autoPlay={image.visual_files[0].__typename == "VideoFile"}
-            playsInline={image.visual_files[0].__typename == "VideoFile"}
-            controls={image.visual_files[0].__typename == "VideoFile"}
+          <Box
+            component={ImageView}
+            {...(image.visual_files[0].__typename == "VideoFile" ? { loop: true, autoPlay: true, playsInline: true, controls: true } : {})}
             className="m-sm-auto no-gutter image-image"
-            style={
-              image.visual_files[0].__typename == "VideoFile"
-                ? { width: "100%", height: "100%" }
-                : {}
-            }
             alt={title}
             src={image.paths.image ?? ""}
+            sx={{
+              maxHeight: "calc(100vh - 4rem)",
+              maxWidth: "100%",
+              objectFit: "contain",
+              ...(image.visual_files[0].__typename == "VideoFile" ? { width: "100%", height: "100%" } : {})
+            }}
           />
         )}
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 };
 

@@ -228,7 +228,7 @@ export const EditPerformersDialog: React.FC<IListOperationProps> = (
 
     return (
       <ModalComponent
-        dialogClassName={cx("edit-performers-dialog", {
+        dialogClassName={cx({
           "sfw-content-mode": sfwContentMode,
         })}
         show
@@ -248,156 +248,158 @@ export const EditPerformersDialog: React.FC<IListOperationProps> = (
         }}
         isRunning={isUpdating}
       >
-        <Box mb={2} data-field="rating">
-          <Grid container alignItems="center">
-            <Grid size={{ xs: 3 }}>
-              <Typography variant="body1">{intl.formatMessage({ id: "rating" })}</Typography>
+        <Box sx={{ maxHeight: "calc(100vh - 12rem)", overflowY: "auto", pr: 2 }}>
+          <Box mb={2} data-field="rating">
+            <Grid container alignItems="center">
+              <Grid size={{ xs: 3 }}>
+                <Typography variant="body1">{intl.formatMessage({ id: "rating" })}</Typography>
+              </Grid>
+              <Grid size={{ xs: 9 }}>
+                <RatingSystem
+                  value={updateInput.rating100}
+                  onSetRating={(value) =>
+                    setUpdateField({ rating100: value ?? undefined })
+                  }
+                  disabled={isUpdating}
+                />
+              </Grid>
             </Grid>
-            <Grid size={{ xs: 9 }}>
-              <RatingSystem
-                value={updateInput.rating100}
-                onSetRating={(value) =>
-                  setUpdateField({ rating100: value ?? undefined })
-                }
-                disabled={isUpdating}
+          </Box>
+
+          <Box component="form">
+            <Box mb={2}>
+              <IndeterminateCheckbox
+                setChecked={(checked) => setUpdateField({ favorite: checked })}
+                checked={updateInput.favorite ?? undefined}
+                label={intl.formatMessage({ id: "favourite" })}
               />
-            </Grid>
-          </Grid>
-        </Box>
+            </Box>
 
-        <Box component="form">
-          <Box mb={2}>
-            <IndeterminateCheckbox
-              setChecked={(checked) => setUpdateField({ favorite: checked })}
-              checked={updateInput.favorite ?? undefined}
-              label={intl.formatMessage({ id: "favourite" })}
-            />
-          </Box>
+            <Box mb={2}>
+              <InputLabel shrink>
+                <FormattedMessage id="gender" />
+              </InputLabel>
+              <FormControl fullWidth size="small" variant="outlined">
+                <Select
+                  native
+                  className="input-control"
+                  value={genderToString(updateInput.gender)}
+                  onChange={(event) =>
+                    setUpdateField({
+                      gender: stringToGender(event.target.value as string),
+                    })
+                  }
+                >
+                  {genderOptions.map((opt) => (
+                    <option value={opt} key={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
 
-          <Box mb={2}>
-            <InputLabel shrink>
-              <FormattedMessage id="gender" />
-            </InputLabel>
-            <FormControl fullWidth size="small" variant="outlined">
-              <Select
-                native
-                className="input-control"
-                value={genderToString(updateInput.gender)}
-                onChange={(event) =>
-                  setUpdateField({
-                    gender: stringToGender(event.target.value as string),
-                  })
+            {renderTextField("disambiguation", updateInput.disambiguation, (v) =>
+              setUpdateField({ disambiguation: v })
+            )}
+            {renderTextField("birthdate", updateInput.birthdate, (v) =>
+              setUpdateField({ birthdate: v })
+            )}
+            {renderTextField("death_date", updateInput.death_date, (v) =>
+              setUpdateField({ death_date: v })
+            )}
+
+            <Box mb={2}>
+              <InputLabel shrink>
+                <FormattedMessage id="country" />
+              </InputLabel>
+              <CountrySelect
+                value={updateInput.country ?? ""}
+                onChange={(v) => setUpdateField({ country: v })}
+                showFlag
+              />
+            </Box>
+
+            {renderTextField("ethnicity", updateInput.ethnicity, (v) =>
+              setUpdateField({ ethnicity: v })
+            )}
+            {renderTextField("hair_color", updateInput.hair_color, (v) =>
+              setUpdateField({ hair_color: v })
+            )}
+            {renderTextField("eye_color", updateInput.eye_color, (v) =>
+              setUpdateField({ eye_color: v })
+            )}
+            {renderTextField("height", height, (v) => setHeight(v))}
+            {renderTextField("weight", weight, (v) => setWeight(v))}
+            {renderTextField("measurements", updateInput.measurements, (v) =>
+              setUpdateField({ measurements: v })
+            )}
+            {renderTextField("penis_length", penis_length, (v) =>
+              setPenisLength(v)
+            )}
+
+            <Box mb={2} data-field="circumcised">
+              <InputLabel shrink>
+                <FormattedMessage id="circumcised" />
+              </InputLabel>
+              <FormControl fullWidth size="small" variant="outlined">
+                <Select
+                  native
+                  className="input-control"
+                  value={circumcisedToString(updateInput.circumcised)}
+                  onChange={(event) =>
+                    setUpdateField({
+                      circumcised: stringToCircumcised(event.target.value as string),
+                    })
+                  }
+                >
+                  {circumcisedOptions.map((opt) => (
+                    <option value={opt} key={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+
+            {renderTextField("fake_tits", updateInput.fake_tits, (v) =>
+              setUpdateField({ fake_tits: v })
+            )}
+            {renderTextField("tattoos", updateInput.tattoos, (v) =>
+              setUpdateField({ tattoos: v })
+            )}
+            {renderTextField("piercings", updateInput.piercings, (v) =>
+              setUpdateField({ piercings: v })
+            )}
+            {renderTextField("career_length", updateInput.career_length, (v) =>
+              setUpdateField({ career_length: v })
+            )}
+
+            <Box mb={2}>
+              <InputLabel shrink>
+                <FormattedMessage id="tags" />
+              </InputLabel>
+              <MultiSet
+                type="tags"
+                disabled={isUpdating}
+                onUpdate={(itemIDs) => setTagIds({ ...tagIds, ids: itemIDs })}
+                onSetMode={(newMode) => setTagIds({ ...tagIds, mode: newMode })}
+                existingIds={existingTagIds ?? []}
+                ids={tagIds.ids ?? []}
+                mode={tagIds.mode}
+                menuPortalTarget={document.body}
+              />
+            </Box>
+
+            <Box mb={2}>
+              <IndeterminateCheckbox
+                label={intl.formatMessage({ id: "ignore_auto_tag" })}
+                setChecked={(checked) =>
+                  setUpdateField({ ignore_auto_tag: checked })
                 }
-              >
-                {genderOptions.map((opt) => (
-                  <option value={opt} key={opt}>
-                    {opt}
-                  </option>
-                ))}
-              </Select>
-            </FormControl>
-          </Box>
-
-          {renderTextField("disambiguation", updateInput.disambiguation, (v) =>
-            setUpdateField({ disambiguation: v })
-          )}
-          {renderTextField("birthdate", updateInput.birthdate, (v) =>
-            setUpdateField({ birthdate: v })
-          )}
-          {renderTextField("death_date", updateInput.death_date, (v) =>
-            setUpdateField({ death_date: v })
-          )}
-
-          <Box mb={2}>
-            <InputLabel shrink>
-              <FormattedMessage id="country" />
-            </InputLabel>
-            <CountrySelect
-              value={updateInput.country ?? ""}
-              onChange={(v) => setUpdateField({ country: v })}
-              showFlag
-            />
-          </Box>
-
-          {renderTextField("ethnicity", updateInput.ethnicity, (v) =>
-            setUpdateField({ ethnicity: v })
-          )}
-          {renderTextField("hair_color", updateInput.hair_color, (v) =>
-            setUpdateField({ hair_color: v })
-          )}
-          {renderTextField("eye_color", updateInput.eye_color, (v) =>
-            setUpdateField({ eye_color: v })
-          )}
-          {renderTextField("height", height, (v) => setHeight(v))}
-          {renderTextField("weight", weight, (v) => setWeight(v))}
-          {renderTextField("measurements", updateInput.measurements, (v) =>
-            setUpdateField({ measurements: v })
-          )}
-          {renderTextField("penis_length", penis_length, (v) =>
-            setPenisLength(v)
-          )}
-
-          <Box mb={2} data-field="circumcised">
-            <InputLabel shrink>
-              <FormattedMessage id="circumcised" />
-            </InputLabel>
-            <FormControl fullWidth size="small" variant="outlined">
-              <Select
-                native
-                className="input-control"
-                value={circumcisedToString(updateInput.circumcised)}
-                onChange={(event) =>
-                  setUpdateField({
-                    circumcised: stringToCircumcised(event.target.value as string),
-                  })
-                }
-              >
-                {circumcisedOptions.map((opt) => (
-                  <option value={opt} key={opt}>
-                    {opt}
-                  </option>
-                ))}
-              </Select>
-            </FormControl>
-          </Box>
-
-          {renderTextField("fake_tits", updateInput.fake_tits, (v) =>
-            setUpdateField({ fake_tits: v })
-          )}
-          {renderTextField("tattoos", updateInput.tattoos, (v) =>
-            setUpdateField({ tattoos: v })
-          )}
-          {renderTextField("piercings", updateInput.piercings, (v) =>
-            setUpdateField({ piercings: v })
-          )}
-          {renderTextField("career_length", updateInput.career_length, (v) =>
-            setUpdateField({ career_length: v })
-          )}
-
-          <Box mb={2}>
-            <InputLabel shrink>
-              <FormattedMessage id="tags" />
-            </InputLabel>
-            <MultiSet
-              type="tags"
-              disabled={isUpdating}
-              onUpdate={(itemIDs) => setTagIds({ ...tagIds, ids: itemIDs })}
-              onSetMode={(newMode) => setTagIds({ ...tagIds, mode: newMode })}
-              existingIds={existingTagIds ?? []}
-              ids={tagIds.ids ?? []}
-              mode={tagIds.mode}
-              menuPortalTarget={document.body}
-            />
-          </Box>
-
-          <Box mb={2}>
-            <IndeterminateCheckbox
-              label={intl.formatMessage({ id: "ignore_auto_tag" })}
-              setChecked={(checked) =>
-                setUpdateField({ ignore_auto_tag: checked })
-              }
-              checked={updateInput.ignore_auto_tag ?? undefined}
-            />
+                checked={updateInput.ignore_auto_tag ?? undefined}
+              />
+            </Box>
           </Box>
         </Box>
       </ModalComponent>

@@ -1,4 +1,5 @@
 import React from "react";
+import { Box } from "@mui/material";
 import {
   faVenus,
   faTransgenderAlt,
@@ -20,14 +21,31 @@ const GenderIcon: React.FC<IIconProps> = ({ gender, className }) => {
       gender === GQL.GenderEnum.Male
         ? faMars
         : gender === GQL.GenderEnum.Female
-        ? faVenus
-        : faTransgenderAlt;
+          ? faVenus
+          : faTransgenderAlt;
+    const color =
+      gender === GQL.GenderEnum.Male
+        ? "#89cff0"
+        : gender === GQL.GenderEnum.Female
+          ? "#f38cac"
+          : "#c8a2c8";
+
     return (
-      <FontAwesomeIcon
-        title={intl.formatMessage({ id: "gender_types." + gender })}
+      <Box
+        component="span"
         className={className}
-        icon={icon}
-      />
+        sx={{
+          display: "inline-flex",
+          alignItems: "center",
+          color: color,
+          verticalAlign: "middle"
+        }}
+      >
+        <FontAwesomeIcon
+          title={intl.formatMessage({ id: "gender_types." + gender })}
+          icon={icon}
+        />
+      </Box>
     );
   }
   return null;

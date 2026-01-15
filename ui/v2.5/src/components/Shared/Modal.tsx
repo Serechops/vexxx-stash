@@ -1,4 +1,4 @@
-import { Button, Dialog, DialogTitle, DialogContent, DialogActions, Box, IconButton, Tooltip, CircularProgress } from "@mui/material";
+import { Button, Dialog, DialogTitle, DialogContent, DialogActions, Box, IconButton, Tooltip, CircularProgress, SxProps, Theme } from "@mui/material";
 import { Breakpoint } from "@mui/material/styles";
 import { Icon } from "./Icon";
 import { IconDefinition } from "@fortawesome/fontawesome-svg-core";
@@ -25,6 +25,7 @@ interface IModal {
   leftFooterButtons?: React.ReactNode;
   hideAccept?: boolean;
   modalProps?: any; // Shim for backward compatibility
+  sx?: SxProps<Theme>;
 }
 
 const defaultOnHide = () => { };
@@ -45,6 +46,7 @@ export const ModalComponent: React.FC<IModal> = ({
   leftFooterButtons,
   hideAccept,
   modalProps,
+  sx,
 }) => {
   // Map RB size to MUI maxWidth
   let calculatedMaxWidth = maxWidth;
@@ -61,6 +63,7 @@ export const ModalComponent: React.FC<IModal> = ({
       maxWidth={calculatedMaxWidth}
       fullWidth
       className={combinedClassName}
+      sx={sx}
       {...modalProps}
     >
       <DialogTitle>

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Box } from "@mui/material";
 import { useIntl } from "react-intl";
 import { Link } from "react-router-dom";
 import * as GQL from "src/core/generated-graphql";
@@ -70,54 +71,111 @@ const GalleryWallCard: React.FC<IProps> = ({ gallery }) => {
     imageOrientation !== coverOrientation ? CLASSNAME_IMG_CONTAIN : "";
 
   return (
-    <>
-      <section
-        className={`${CLASSNAME} ${CLASSNAME}-${coverOrientation}`}
-        onClick={showLightboxStart}
-        onKeyPress={showLightboxStart}
-        role="button"
-        tabIndex={0}
+    <Box
+      component="section"
+      className={`${CLASSNAME} ${CLASSNAME}-${coverOrientation}`}
+      onClick={showLightboxStart}
+      onKeyPress={showLightboxStart}
+      role="button"
+      tabIndex={0}
+      sx={{
+        height: "auto",
+        padding: "2px",
+        position: "relative",
+        flexGrow: coverOrientation === "landscape" ? 2 : 1,
+        width: "96vw",
+        "& .rating-stars, & .rating-number": {
+          position: "absolute",
+          right: "1rem",
+          textShadow: "1px 1px 3px black",
+          top: "1rem",
+          zIndex: 2
+        }
+      }}
+    >
+      <RatingSystem value={gallery.rating100} disabled withoutContext />
+      <Box
+        component="img"
+        loading="lazy"
+        src={imgSrc}
+        alt=""
+        className={cx(CLASSNAME_IMG, imgClassname)}
+        // set orientation based on cover only
+        onLoad={imgSrc === cover ? onCoverLoad : onNonCoverLoad}
+        sx={{
+          height: "100%",
+          objectFit: imgClassname ? "contain" : "cover",
+          objectPosition: imgClassname ? "initial" : "center 20%",
+          width: "100%",
+          "&.GalleryWallCard-img-contain": {
+            objectFit: "contain",
+            objectPosition: "initial"
+          }
+        }}
+      />
+      <Box
+        className="lineargradient"
+        sx={{
+          backgroundImage: "linear-gradient(rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.3))",
+          bottom: "100px",
+          height: "100px",
+          position: "relative"
+        }}
       >
-        <RatingSystem value={gallery.rating100} disabled withoutContext />
-        <img
-          loading="lazy"
-          src={imgSrc}
-          alt=""
-          className={cx(CLASSNAME_IMG, imgClassname)}
-          // set orientation based on cover only
-          onLoad={imgSrc === cover ? onCoverLoad : onNonCoverLoad}
+        <Box
+          component="footer"
+          className={CLASSNAME_FOOTER}
+          sx={{
+            bottom: "20px",
+            padding: "1rem",
+            position: "absolute",
+            textShadow: "1px 1px 3px black",
+            transition: "0s opacity",
+            width: "100%",
+            zIndex: 2,
+            opacity: { xs: 1, md: 0 },
+            "& .TruncatedText": {
+              fontWeight: "bold"
+            },
+            "&:hover": {
+              "& .GalleryWallCard-title": {
+                textDecoration: "underline"
+              },
+              opacity: 1,
+              transition: "1s opacity",
+              transitionDelay: "500ms"
+            }
+          }}
+        >
+          <Link
+            to={`/galleries/${gallery.id}`}
+            onClick={(e) => e.stopPropagation()}
+            style={{ color: "white", textDecoration: "none" }}
+          >
+            {title && (
+              <TruncatedText
+                text={title}
+                lineCount={1}
+                className={CLASSNAME_TITLE}
+              />
+            )}
+            <TruncatedText text={performers.join(", ")} />
+            <Box>
+              {gallery.date && TextUtils.formatFuzzyDate(intl, gallery.date)}
+            </Box>
+          </Link>
+        </Box>
+        <GalleryPreviewScrubber
+          previewPath={gallery.paths.preview}
+          defaultPath={cover ?? ""}
+          imageCount={gallery.image_count}
+          onClick={(i) => {
+            showLightbox(i);
+          }}
+          onPathChanged={setImgSrc}
         />
-        <div className="lineargradient">
-          <footer className={CLASSNAME_FOOTER}>
-            <Link
-              to={`/galleries/${gallery.id}`}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {title && (
-                <TruncatedText
-                  text={title}
-                  lineCount={1}
-                  className={CLASSNAME_TITLE}
-                />
-              )}
-              <TruncatedText text={performers.join(", ")} />
-              <div>
-                {gallery.date && TextUtils.formatFuzzyDate(intl, gallery.date)}
-              </div>
-            </Link>
-          </footer>
-          <GalleryPreviewScrubber
-            previewPath={gallery.paths.preview}
-            defaultPath={cover ?? ""}
-            imageCount={gallery.image_count}
-            onClick={(i) => {
-              showLightbox(i);
-            }}
-            onPathChanged={setImgSrc}
-          />
-        </div>
-      </section>
-    </>
+      </Box>
+    </Box>
   );
 };
 

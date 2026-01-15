@@ -1,7 +1,7 @@
-// Button, ButtonGroup, OverlayTrigger, Tooltip removed
 import React, { useState } from "react";
 import * as GQL from "src/core/generated-graphql";
 import { GridCard } from "../Shared/GridCard/GridCard";
+import { Box, Typography } from "@mui/material";
 import { HoverPopover } from "../Shared/HoverPopover";
 import { Icon } from "../Shared/Icon";
 import { SceneLink, TagLink } from "../Shared/TagLink";
@@ -48,18 +48,34 @@ export const GalleryPreview: React.FC<IGalleryPreviewProps> = ({
   };
 
   return (
-    <div
-      className={cx("gallery-card-cover")}
-      style={aspectRatio ? { aspectRatio: `${aspectRatio}` } : undefined}
+    <Box
+      className="gallery-card-cover"
+      sx={{
+        position: "relative",
+        overflow: "hidden",
+        width: "100%",
+        height: "100%",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        ...(aspectRatio ? { aspectRatio: `${aspectRatio}` } : {})
+      }}
     >
       {!!imgSrc && (
-        <img
+        <Box
+          component="img"
           loading="lazy"
           className="gallery-card-image"
           alt={gallery.title ?? ""}
           src={imgSrc}
           onLoad={handleImageLoad}
-          style={aspectRatio ? { position: "absolute", width: "100%", height: "100%", top: 0, left: 0 } : undefined}
+          sx={{
+            height: "100%",
+            width: "100%",
+            objectFit: "contain",
+            objectPosition: "top",
+            ...(aspectRatio ? { position: "absolute", top: 0, left: 0 } : {})
+          }}
         />
       )}
       {gallery.image_count > 0 && (
@@ -71,7 +87,7 @@ export const GalleryPreview: React.FC<IGalleryPreviewProps> = ({
           onPathChanged={setImgSrc}
         />
       )}
-    </div>
+    </Box>
   );
 };
 
@@ -101,37 +117,69 @@ const GalleryCardOverlays = PatchComponent(
   "GalleryCard.Overlays",
   (props: IGalleryCardProps) => {
     return (
-      <div className="absolute inset-0 flex flex-col justify-between p-2 pointer-events-none">
+      <Box
+        sx={{
+          position: "absolute",
+          inset: 0,
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "between",
+          p: 1,
+          pointerEvents: "none",
+          zIndex: 1
+        }}
+      >
         {/* Top Section: Rating & Studio */}
-        <div className="flex justify-between items-start pointer-events-auto">
-          <div className="flex gap-1">
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", pointerEvents: "auto" }}>
+          <Box sx={{ display: "flex", gap: 0.5 }}>
             <RatingBanner rating={props.gallery.rating100} />
-          </div>
+          </Box>
           <StudioOverlay studio={props.gallery.studio} />
-        </div>
+        </Box>
 
         {/* Bottom Section: Meta Overlay */}
-        <div className="mt-auto pointer-events-auto relative">
+        <Box sx={{ mt: "auto", pointerEvents: "auto", position: "relative" }}>
           {/* Gradient Background */}
-          <div className="absolute inset-x-[-8px] bottom-[-8px] pt-20 bg-gradient-to-t from-black via-black/80 to-transparent -z-10" />
+          <Box
+            sx={{
+              position: "absolute",
+              insetX: "-8px",
+              bottom: "-8px",
+              pt: 10,
+              backgroundImage: "linear-gradient(to top, rgba(0,0,0,1), rgba(0,0,0,0.8) 40%, transparent)",
+              zIndex: -1,
+              left: "-8px",
+              right: "-8px"
+            }}
+          />
 
-          <div className="flex flex-col gap-0.5 text-white pb-0">
-            <div className="font-bold text-md leading-tight truncate drop-shadow-sm">
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25, color: "#fff" }}>
+            <Typography
+              variant="subtitle1"
+              sx={{
+                fontWeight: "bold",
+                lineHeight: "1.2",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                textShadow: "0 1px 2px rgba(0,0,0,0.5)"
+              }}
+            >
               {galleryTitle(props.gallery)}
-            </div>
+            </Typography>
 
-            <div className="flex items-center gap-2 text-xs text-gray-300 font-medium">
-              <span>{props.gallery.date}</span>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, fontSize: "0.75rem", color: "grey.400", fontWeight: "medium" }}>
+              <Typography variant="caption" sx={{ color: "inherit" }}>{props.gallery.date}</Typography>
               {props.gallery.image_count > 0 && (
                 <>
-                  <span className="w-1 h-1 bg-gray-500 rounded-full" />
-                  <span>{props.gallery.image_count} images</span>
+                  <Box sx={{ width: 4, height: 4, bgcolor: "grey.600", borderRadius: "50%" }} />
+                  <Typography variant="caption" sx={{ color: "inherit" }}>{props.gallery.image_count} images</Typography>
                 </>
               )}
-            </div>
-          </div>
-        </div>
-      </div>
+            </Box>
+          </Box>
+        </Box>
+      </Box>
     );
   }
 );
@@ -169,23 +217,45 @@ export const GalleryCard = PatchComponent(
         : "";
 
     return (
-      <GridCard
+      <Box
         className={cx(
-          `gallery-card group zoom-${props.zoomIndex} [&_.card-section]:hidden !rounded-xl overflow-hidden shadow-md hover:shadow-xl !border-none !bg-gray-900 !p-0 hover:!scale-100 !transition-none`,
+          "gallery-card",
           orientationClass
         )}
-        url={`/galleries/${props.gallery.id}`}
-        width={props.cardWidth}
-        title={undefined}
-        image={<GalleryCardImage {...props} />}
-        overlays={<GalleryCardOverlays {...props} />}
-        details={undefined}
-        popovers={undefined}
-        selected={props.selected}
-        selecting={props.selecting}
-        onSelectedChanged={props.onSelectedChanged}
-        thumbnailSectionClassName="h-full w-full relative !p-0 !m-0"
-      />
+        sx={{
+          "& .card-section": { display: "none" },
+          borderRadius: "12px",
+          overflow: "hidden",
+          boxShadow: 1,
+          "&:hover": {
+            boxShadow: 3
+          },
+          border: "none",
+          bgcolor: "grey.900",
+          p: 0,
+          transition: "none",
+          "&.gallery-card-landscape": {
+            gridColumn: { md: "span 2" }
+          },
+          "&.gallery-card-portrait": {
+            gridColumn: "span 1"
+          }
+        }}
+      >
+        <GridCard
+          url={`/galleries/${props.gallery.id}`}
+          width={props.cardWidth}
+          title={undefined}
+          image={<GalleryCardImage {...props} />}
+          overlays={<GalleryCardOverlays {...props} />}
+          details={undefined}
+          popovers={undefined}
+          selected={props.selected}
+          selecting={props.selecting}
+          onSelectedChanged={props.onSelectedChanged}
+          thumbnailSectionClassName="h-full w-full relative !p-0 !m-0"
+        />
+      </Box>
     );
   }
 );

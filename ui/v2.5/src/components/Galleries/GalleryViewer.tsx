@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo } from "react";
+import { Box } from "@mui/material";
 import { useLightbox } from "src/hooks/Lightbox/hooks";
 import { LoadingIndicator } from "src/components/Shared/LoadingIndicator";
 import Gallery, { PhotoClickHandler } from "react-photo-gallery";
@@ -80,9 +81,16 @@ export const GalleryViewer: React.FC<IProps> = ({ galleryId }) => {
   });
 
   return (
-    <div className="gallery">
+    <Box
+      className="gallery"
+      sx={{
+        "& .gallery-image": {
+          cursor: "pointer"
+        }
+      }}
+    >
       <Gallery photos={photos} onClick={showLightboxOnClick} margin={2.5} />
-    </div>
+    </Box>
   );
 };
 

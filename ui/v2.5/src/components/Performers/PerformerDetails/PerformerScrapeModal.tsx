@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Button, TextField } from "@mui/material";
+import { Box, Button, TextField } from "@mui/material";
 import { useIntl } from "react-intl";
 
 import * as GQL from "src/core/generated-graphql";
@@ -8,8 +8,7 @@ import { LoadingIndicator } from "src/components/Shared/LoadingIndicator";
 import { useScrapePerformerList } from "src/core/StashService";
 import { useDebounce } from "src/hooks/debounce";
 
-const CLASSNAME = "PerformerScrapeModal";
-const CLASSNAME_LIST = `${CLASSNAME}-list`;
+
 
 interface IProps {
   scraper: GQL.Scraper;
@@ -48,23 +47,42 @@ const PerformerScrapeModal: React.FC<IProps> = ({
         variant: "secondary",
       }}
     >
-      <div className={CLASSNAME}>
+      <Box>
         <TextField
           onChange={(e) => onInputChange(e.target.value)}
           defaultValue={name ?? ""}
           placeholder="Performer name..."
-          className="text-input mb-4"
+          sx={{ mb: 2 }}
           inputRef={inputRef}
           fullWidth
+          size="small"
         />
         {loading ? (
-          <div className="m-4 text-center">
+          <Box sx={{ m: 4, textAlign: "center" }}>
             <LoadingIndicator inline />
-          </div>
+          </Box>
         ) : (
-          <ul className={CLASSNAME_LIST}>
+          <Box
+            component="ul"
+            sx={{
+              listStyle: "none",
+              maxHeight: "50vh",
+              overflowX: "hidden",
+              overflowY: "auto",
+              p: 0,
+              m: 0,
+              "& li": {
+                width: "100%"
+              },
+              "& button": {
+                width: "100%",
+                justifyContent: "flex-start",
+                textAlign: "left"
+              }
+            }}
+          >
             {performers.map((p, i) => (
-              <li key={i}>
+              <Box component="li" key={i}>
                 <Button
                   variant="text"
                   onClick={() => onSelectPerformer(p, scraper)}
@@ -72,11 +90,11 @@ const PerformerScrapeModal: React.FC<IProps> = ({
                   {p.name}
                   {p.disambiguation && ` (${p.disambiguation})`}
                 </Button>
-              </li>
+              </Box>
             ))}
-          </ul>
+          </Box>
         )}
-      </div>
+      </Box>
     </ModalComponent>
   );
 };

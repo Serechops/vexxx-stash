@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useIntl } from "react-intl";
-import { IconButton } from "@mui/material";
+import { Box, IconButton } from "@mui/material";
 import { Link } from "react-router-dom";
 import * as GQL from "src/core/generated-graphql";
 import { Icon } from "../Shared/Icon";
@@ -65,34 +65,65 @@ export const PerformerListTable: React.FC<IPerformerListTableProps> = (
 
   const ImageCell = (performer: GQL.PerformerDataFragment) => (
     <Link to={`/performers/${performer.id}`}>
-      <img
+      <Box
+        component="img"
         loading="lazy"
         className="image-thumbnail"
         alt={performer.name ?? ""}
         src={performer.image_path ?? ""}
+        sx={{
+          height: "auto",
+          maxWidth: "64px",
+          objectFit: "cover"
+        }}
       />
     </Link>
   );
 
   const NameCell = (performer: GQL.PerformerDataFragment) => (
     <Link to={`/performers/${performer.id}`}>
-      <div className="ellips-data" title={performer.name}>
+      <Box
+        className="ellips-data"
+        title={performer.name}
+        sx={{
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap"
+        }}
+      >
         {performer.name}
         {performer.disambiguation && (
-          <span className="performer-disambiguation">
+          <Box
+            component="span"
+            className="performer-disambiguation"
+            sx={{
+              color: "text.secondary",
+              fontSize: "0.875em"
+            }}
+          >
             {` (${performer.disambiguation})`}
-          </span>
+          </Box>
         )}
-      </div>
+      </Box>
     </Link>
   );
 
   const AliasesCell = (performer: GQL.PerformerDataFragment) => {
     let aliases = performer.alias_list ? performer.alias_list.join(", ") : "";
     return (
-      <span className="ellips-data" title={aliases}>
+      <Box
+        component="span"
+        className="ellips-data"
+        title={aliases}
+        sx={{
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+          display: "block"
+        }}
+      >
         {aliases}
-      </span>
+      </Box>
     );
   };
 
@@ -132,10 +163,13 @@ export const PerformerListTable: React.FC<IPerformerListTableProps> = (
 
   const FavoriteCell = (performer: GQL.PerformerDataFragment) => (
     <IconButton
-      className={cx(
-        "minimal",
-        performer.favorite ? "favorite" : "not-favorite"
-      )}
+      size="small"
+      sx={{
+        color: performer.favorite ? "#ff7373" : "rgba(191, 204, 214, 0.5)",
+        "&:hover": {
+          color: performer.favorite ? "#ff7373" : "text.primary"
+        }
+      }}
       onClick={() => setFavorite(!performer.favorite, performer.id)}
     >
       <Icon icon={faHeart} />
@@ -145,9 +179,18 @@ export const PerformerListTable: React.FC<IPerformerListTableProps> = (
   const CountryCell = (performer: GQL.PerformerDataFragment) => {
     const { locale } = useIntl();
     return (
-      <span className="ellips-data">
+      <Box
+        component="span"
+        className="ellips-data"
+        sx={{
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+          display: "block"
+        }}
+      >
         {getCountryByISO(performer.country, locale)}
-      </span>
+      </Box>
     );
   };
 

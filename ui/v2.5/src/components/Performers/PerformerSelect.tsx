@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { Box } from "@mui/material";
 import {
   OptionProps,
   components as reactSelectComponents,
@@ -147,50 +148,52 @@ const _PerformerSelect: React.FC<
     thisOptionProps = {
       ...optionProps,
       children: (
-        <span className="performer-select-option">
-          <span className="performer-select-row">
+        <Box component="span" className="performer-select-option">
+          <Box component="span" className="performer-select-row" sx={{ display: "flex", alignItems: "center", width: "100%" }}>
             <Link
               to={`/performers/${object.id}`}
               target="_blank"
               className="performer-select-image-link"
             >
-              <img
+              <Box
+                component="img"
                 className="performer-select-image"
                 src={object.image_path ?? ""}
                 loading="lazy"
+                sx={{ mr: 1, maxHeight: "50px", maxWidth: "50px" }}
               />
             </Link>
-            <span className="performer-select-details">
+            <Box component="span" className="performer-select-details" sx={{ display: "flex", flexDirection: "column", justifyContent: "flex-start", maxHeight: "4.1rem", overflow: "hidden" }}>
               <TruncatedText
                 className="performer-select-name"
                 text={
-                  <span>
+                  <Box component="span">
                     {name}
                     {alias && (
-                      <span className="performer-select-alias">
+                      <Box component="span" className="performer-select-alias" sx={{ fontSize: "0.8rem", fontWeight: "bold" }}>
                         &nbsp;({alias})
-                      </span>
+                      </Box>
                     )}
-                  </span>
+                  </Box>
                 }
                 lineCount={1}
               />
 
               {object.disambiguation && (
-                <span className="performer-select-disambiguation">
+                <Box component="span" className="performer-select-disambiguation" sx={{ color: "text.secondary", fontSize: "0.9rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {object.disambiguation}
-                </span>
+                </Box>
               )}
 
               {object.birthdate && (
-                <span className="performer-select-birthdate">
+                <Box component="span" className="performer-select-birthdate" sx={{ color: "text.secondary", fontSize: "0.9rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {object.birthdate}
-                  <span className="performer-select-age">{` (${ageString})`}</span>
-                </span>
+                  <Box component="span" className="performer-select-age">{` (${ageString})`}</Box>
+                </Box>
               )}
-            </span>
-          </span>
-        </span>
+            </Box>
+          </Box>
+        </Box>
       ),
     };
 
@@ -211,12 +214,12 @@ const _PerformerSelect: React.FC<
           id={object.id}
           placement={props.hoverPlacementLabel ?? "top"}
         >
-          <span className="performer-select-value">
-            <span>{object.name}</span>
+          <Box component="span" className="performer-select-value">
+            <Box component="span">{object.name}</Box>
             {object.disambiguation && (
-              <span className="performer-disambiguation">{` (${object.disambiguation})`}</span>
+              <Box component="span" className="performer-disambiguation" sx={{ color: "inherit", opacity: 0.6, fontSize: "0.875em" }}>{` (${object.disambiguation})`}</Box>
             )}
-          </span>
+          </Box>
         </PerformerPopover>
       ),
     };
@@ -234,12 +237,12 @@ const _PerformerSelect: React.FC<
     thisOptionProps = {
       ...optionProps,
       children: (
-        <span className="performer-select-value">
+        <Box component="span" className="performer-select-value">
           {object.name}
           {object.disambiguation && (
-            <span className="performer-disambiguation">{` (${object.disambiguation})`}</span>
+            <Box component="span" className="performer-disambiguation" sx={{ color: "inherit", opacity: 0.6, fontSize: "0.875em" }}>{` (${object.disambiguation})`}</Box>
           )}
-        </span>
+        </Box>
       ),
     };
 

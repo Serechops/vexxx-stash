@@ -1,4 +1,5 @@
 import React from "react";
+import { Box, Typography } from "@mui/material";
 import { Link } from "react-router-dom";
 import { useIntl } from "react-intl";
 import * as GQL from "src/core/generated-graphql";
@@ -105,53 +106,84 @@ const PerformerCardOverlays: React.FC<IPerformerCardProps> = PatchComponent(
     );
 
     return (
-      <div className="absolute inset-0 flex flex-col justify-between p-2 pointer-events-none">
+      <Box
+        sx={{
+          position: "absolute",
+          inset: 0,
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "between",
+          p: 1,
+          pointerEvents: "none",
+          zIndex: 1
+        }}
+      >
         {/* Top Section: Favorite & Rating */}
-        <div className="flex justify-between items-start pointer-events-auto">
-          <div className="flex gap-1">
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", pointerEvents: "auto" }}>
+          <Box sx={{ display: "flex", gap: 0.5 }}>
             {performer.rating100 && (
-              <div className="text-xs px-1.5 py-0.5 rounded bg-black/50 backdrop-blur-sm">
+              <Box sx={{ fontSize: "0.75rem", px: 0.75, py: 0.25, borderRadius: "4px", bgcolor: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)" }}>
                 <RatingBanner rating={performer.rating100} />
-              </div>
+              </Box>
             )}
-          </div>
+          </Box>
           <FavoriteIcon
             favorite={performer.favorite}
             onToggleFavorite={onToggleFavorite}
             size="1x"
             className={cx("transition-colors drop-shadow-md", { "text-red-500": performer.favorite, "text-white/50 hover:text-white": !performer.favorite })}
           />
-        </div>
+        </Box>
 
         {/* Bottom Section: Meta Overlay */}
-        <div className="mt-auto pointer-events-auto">
-          {/* Gradient Background is handled by parent or this container? 
-                Better to have a separate gradient layer so text doesn't need bg. 
-                I will add a gradient div to the Image component or here.
-                Let's add a gradient div BEHIND this text but inside the overlay container.
-            */}
-          <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black via-black/80 to-transparent -z-10" />
+        <Box sx={{ mt: "auto", pointerEvents: "auto", position: "relative" }}>
+          {/* Gradient Background */}
+          <Box
+            sx={{
+              position: "absolute",
+              insetX: "-8px",
+              bottom: "-8px",
+              height: "66%",
+              backgroundImage: "linear-gradient(to top, rgba(0,0,0,1), rgba(0,0,0,0.8) 40%, transparent)",
+              zIndex: -1,
+              left: "-8px",
+              right: "-8px"
+            }}
+          />
 
-          <div className="flex flex-col gap-0.5 text-white pb-1">
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-lg leading-tight truncate drop-shadow-sm">{performer.name}</span>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25, color: "#fff", pb: 0.5 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Typography
+                variant="subtitle1"
+                sx={{
+                  fontWeight: "bold",
+                  fontSize: "1.125rem",
+                  lineHeight: "1.2",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  textShadow: "0 1px 2px rgba(0,0,0,0.5)"
+                }}
+              >
+                {performer.name}
+              </Typography>
               {performer.country && (
                 <CountryFlag country={performer.country} className="opacity-90 w-4 h-auto shadow-sm" />
               )}
-            </div>
+            </Box>
 
-            <div className="flex items-center gap-2 text-xs text-gray-300 font-medium">
-              {age !== 0 && <span>{age} years</span>}
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, fontSize: "0.75rem", color: "grey.400", fontWeight: "medium" }}>
+              {age !== 0 && <Typography variant="caption" sx={{ color: "inherit" }}>{age} years</Typography>}
               {performer.scene_count > 0 && (
                 <>
-                  <span className="w-1 h-1 bg-gray-500 rounded-full" />
-                  <span>{performer.scene_count} scenes</span>
+                  <Box sx={{ width: 4, height: 4, bgcolor: "grey.600", borderRadius: "50%" }} />
+                  <Typography variant="caption" sx={{ color: "inherit" }}>{performer.scene_count} scenes</Typography>
                 </>
               )}
-            </div>
-          </div>
-        </div>
-      </div>
+            </Box>
+          </Box>
+        </Box>
+      </Box>
     );
   }
 );
@@ -164,22 +196,51 @@ const PerformerCardImage: React.FC<IPerformerCardProps> = PatchComponent(
   "PerformerCard.Image",
   ({ performer }) => {
     return (
-      <div className="w-full h-full bg-gray-900 relative group overflow-hidden">
-        {/* Enforce 2/3 Aspect Ratio Container independently if needed, though GridCard handles width */}
-        <div className="relative w-full pb-[150%]">
-          <div className="absolute inset-0">
-            <img
+      <Box
+        sx={{
+          width: "100%",
+          height: "100%",
+          bgcolor: "grey.900",
+          position: "relative",
+          overflow: "hidden",
+          "&:hover img": {
+            transform: "scale(1.05)"
+          }
+        }}
+      >
+        <Box sx={{ position: "relative", width: "100%", pb: "150%" }}>
+          <Box sx={{ position: "absolute", inset: 0 }}>
+            <Box
+              component="img"
               loading="lazy"
-              className="w-full h-full object-cover transition-transform duration-700"
               alt={performer.name ?? ""}
               src={performer.image_path ?? ""}
+              sx={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                objectPosition: "top",
+                transition: "transform 0.7s"
+              }}
             />
-          </div>
-        </div>
+          </Box>
+        </Box>
 
         {/* Hover Highlight Overlay */}
-        <div className="absolute inset-0 bg-white/0 group-hover:bg-white/5 transition-colors duration-300 pointer-events-none" />
-      </div>
+        <Box
+          className="hover-highlight"
+          sx={{
+            position: "absolute",
+            inset: 0,
+            bgcolor: "rgba(255, 255, 255, 0)",
+            transition: "background-color 0.3s",
+            pointerEvents: "none",
+            "&:hover": {
+              bgcolor: "rgba(255, 255, 255, 0.05)"
+            }
+          }}
+        />
+      </Box>
     );
   }
 );
@@ -197,20 +258,37 @@ export const PerformerCard: React.FC<IPerformerCardProps> = PatchComponent(
     } = props;
 
     return (
-      <GridCard
-        className={`performer-card group zoom-${zoomIndex} [&_.card-section]:hidden !rounded-xl overflow-hidden shadow-md hover:shadow-xl !border-none !bg-gray-900 !p-0 hover:!scale-100 !transition-none`}
-        url={`/performers/${performer.id}`}
-        width={cardWidth}
-        title={undefined}
-        image={<PerformerCardImage {...props} />}
-        overlays={<PerformerCardOverlays {...props} />}
-        details={undefined}
-        popovers={undefined}
-        selected={selected}
-        selecting={selecting}
-        onSelectedChanged={onSelectedChanged}
-        thumbnailSectionClassName="h-full w-full relative !p-0 !m-0"
-      />
+      <Box
+        className={`performer-card zoom-${zoomIndex}`}
+        sx={{
+          "& .card-section": { display: "none" },
+          borderRadius: "12px",
+          overflow: "hidden",
+          boxShadow: 1,
+          "&:hover": {
+            boxShadow: 3
+          },
+          border: "none",
+          bgcolor: "grey.900",
+          p: 0,
+          transition: "none",
+          width: cardWidth
+        }}
+      >
+        <GridCard
+          url={`/performers/${performer.id}`}
+          width={cardWidth}
+          title={undefined}
+          image={<PerformerCardImage {...props} />}
+          overlays={<PerformerCardOverlays {...props} />}
+          details={undefined}
+          popovers={undefined}
+          selected={selected}
+          selecting={selecting}
+          onSelectedChanged={onSelectedChanged}
+          thumbnailSectionClassName="h-full w-full relative !p-0 !m-0"
+        />
+      </Box>
     );
   }
 );

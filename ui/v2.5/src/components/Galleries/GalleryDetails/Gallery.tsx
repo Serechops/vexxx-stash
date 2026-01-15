@@ -1,4 +1,4 @@
-import { Menu, MenuItem, IconButton } from "@mui/material";
+import { Menu, MenuItem, IconButton, Typography } from "@mui/material";
 import { Tabs, Tab, Box } from "@mui/material";
 import Button from "@mui/material/Button";
 import { Row, Col } from "src/components/Shared/Layouts";
@@ -399,11 +399,45 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
         <title>{title}</title>
       </Helmet>
       {maybeRenderDeleteDialog()}
-      <div className={`gallery-tabs ${collapsed ? "collapsed" : ""}`}>
-        <div>
-          <div className="gallery-header-container">
+      <Box
+        className="gallery-tabs"
+        sx={{
+          maxHeight: "calc(100vh - 4rem)",
+          overflow: "auto",
+          overflowWrap: "break-word",
+          wordWrap: "break-word",
+          pl: "15px",
+          pr: "15px",
+          position: "relative",
+          width: "100%",
+          display: collapsed ? "none" : "block",
+          flex: { xl: "0 0 450px" },
+          maxWidth: { xl: "450px" },
+        }}
+      >
+        <Box>
+          <Box
+            className="gallery-header-container"
+            sx={{
+              display: { lg: "flex" },
+              alignItems: { lg: "center" },
+              justifyContent: { lg: "space-between" },
+            }}
+          >
             {gallery.studio && (
-              <h1 className="text-center gallery-studio-image">
+              <Typography
+                variant="h1"
+                sx={{
+                  textAlign: "center",
+                  flex: { lg: "0 0 25%" },
+                  order: { lg: 2 },
+                  "& img": {
+                    maxHeight: "100%",
+                    maxWidth: "100%",
+                    objectFit: "contain"
+                  }
+                }}
+              >
                 <Link to={`/studios/${gallery.studio.id}`}>
                   <img
                     src={gallery.studio.image_path ?? ""}
@@ -411,54 +445,141 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
                     className="studio-logo"
                   />
                 </Link>
-              </h1>
+              </Typography>
             )}
-            <h3
+            <Typography
+              variant="h3"
               className={cx("gallery-header", { "no-studio": !gallery.studio })}
+              sx={{
+                flex: { lg: "0 0 75%" },
+                order: { lg: 1 },
+                fontSize: { xs: "1.5rem", xl: "1.75rem" },
+                mt: "30px",
+                mb: 0
+              }}
             >
               <TruncatedText lineCount={2} text={title} />
-            </h3>
-          </div>
+            </Typography>
+          </Box>
 
-          <div className="gallery-subheader">
+          <Box
+            className="gallery-subheader"
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              mt: 1
+            }}
+          >
             {!!gallery.date && (
-              <span className="date" data-value={gallery.date}>
+              <Box
+                component="span"
+                className="date"
+                sx={{ color: "text.secondary" }}
+                data-value={gallery.date}
+              >
                 <FormattedDate value={gallery.date} />
-              </span>
+              </Box>
             )}
-          </div>
+          </Box>
 
-          <div className="gallery-toolbar">
-            <span className="gallery-toolbar-group">
+          <Box
+            className="gallery-toolbar"
+            sx={{
+              alignItems: "center",
+              display: "flex",
+              justifyContent: "space-between",
+              mb: 0.5,
+              mt: 1,
+              pb: 0.5,
+              width: "100%",
+            }}
+          >
+            <Box
+              component="span"
+              className="gallery-toolbar-group"
+              sx={{
+                alignItems: "center",
+                columnGap: 1,
+                display: "flex",
+                width: "100%",
+              }}
+            >
               <RatingSystem
                 value={gallery.rating100}
                 onSetRating={setRating}
                 clickToRate
                 withoutContext
               />
-            </span>
-            <span className="gallery-toolbar-group">
-              <span>
+            </Box>
+            <Box
+              component="span"
+              className="gallery-toolbar-group"
+              sx={{
+                alignItems: "center",
+                columnGap: 1,
+                display: "flex",
+                width: "100%",
+                justifyContent: "flex-end",
+              }}
+            >
+              <Box component="span">
                 <OrganizedButton
                   loading={organizedLoading}
                   organized={gallery.organized}
                   onClick={onOrganizedClick}
                 />
-              </span>
-              <span>{renderOperations()}</span>
-            </span>
-          </div>
-        </div>
+              </Box>
+              <Box component="span">{renderOperations()}</Box>
+            </Box>
+          </Box>
+        </Box>
         {renderTabs()}
-      </div>
-      <div className="gallery-divider d-none d-xl-block">
+      </Box>
+      <Box
+        className="gallery-divider"
+        sx={{
+          display: { xs: "none", xl: "flex" },
+          flex: "0 0 15px",
+          maxWidth: "15px",
+          "& button": {
+            backgroundColor: "transparent",
+            border: 0,
+            color: "primary.main",
+            cursor: "pointer",
+            fontSize: "10px",
+            fontWeight: 800,
+            height: "100%",
+            lineHeight: "100%",
+            padding: 0,
+            textAlign: "center",
+            width: "100%",
+            "&:active, &:focus": {
+              backgroundColor: "transparent",
+              border: 0,
+              boxShadow: "none",
+            },
+          },
+        }}
+      >
         <Button variant="text" onClick={() => setCollapsed(!collapsed)}>
           <Icon className="fa-fw" icon={getCollapseButtonIcon()} />
         </Button>
-      </div>
-      <div className={`gallery-container ${collapsed ? "expanded" : ""}`}>
+      </Box>
+      <Box
+        className="gallery-container"
+        sx={{
+          flex: { xl: collapsed ? "0 0 calc(100% - 15px)" : "0 0 calc(100% - 450px - 15px)" },
+          height: { xl: "calc(100vh - 4rem)" },
+          maxWidth: { xl: collapsed ? "calc(100% - 15px)" : "calc(100% - 450px - 15px)" },
+          overflow: "auto",
+          pl: "15px",
+          pr: "15px",
+          position: "relative",
+          width: "100%",
+        }}
+      >
         {renderRightTabs()}
-      </div>
+      </Box>
     </Row>
   );
 };

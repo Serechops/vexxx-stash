@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from "react";
+import { Box } from "@mui/material";
 import * as GQL from "src/core/generated-graphql";
 import { GalleryCard } from "./GalleryCard";
 import {
@@ -43,12 +44,14 @@ export const GalleryCardGrid: React.FC<IGalleryCardGrid> = ({
 
   if (isMasonry) {
     return (
-      <div
+      <Box
         className="gallery-magazine-grid"
-        style={{
+        sx={{
           columnWidth: `${columnWidth}px`,
           columnGap: "1rem",
           display: "block",
+          px: 2,
+          width: "100%"
         }}
       >
         {galleries.map((gallery) => (
@@ -66,16 +69,16 @@ export const GalleryCardGrid: React.FC<IGalleryCardGrid> = ({
             isMasonry={isMasonry}
           />
         ))}
-      </div>
+      </Box>
     );
   }
 
   // Standard Grid Layout
   return (
-    <div
+    <Box
       className="gallery-grid"
       ref={componentRef}
-      style={{
+      sx={{
         display: "grid",
         gridTemplateColumns: `repeat(auto-fill, minmax(${cardWidth ?? zoomWidths[zoomIndex] ?? 280}px, 1fr))`,
         gap: "1rem",
@@ -100,6 +103,6 @@ export const GalleryCardGrid: React.FC<IGalleryCardGrid> = ({
           isMasonry={isMasonry}
         />
       ))}
-    </div>
+    </Box>
   );
 };

@@ -1,4 +1,5 @@
 import React from "react";
+import { Box } from "@mui/material";
 import { ErrorMessage } from "../Shared/ErrorMessage";
 import { LoadingIndicator } from "../Shared/LoadingIndicator";
 import { HoverPopover } from "../Shared/HoverPopover";
@@ -17,9 +18,9 @@ export const PerformerPopoverCard: React.FC<IPeromerPopoverCardProps> = ({
 
   if (loading)
     return (
-      <div className="tag-popover-card-placeholder">
+      <Box className="tag-popover-card-placeholder" sx={{ minWidth: "20rem", minHeight: "10rem", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <LoadingIndicator card={true} message={""} />
-      </div>
+      </Box>
     );
   if (error) return <ErrorMessage error={error.message} />;
   if (!data?.findPerformer)
@@ -28,9 +29,9 @@ export const PerformerPopoverCard: React.FC<IPeromerPopoverCardProps> = ({
   const performer = data.findPerformer;
 
   return (
-    <div className="tag-popover-card">
+    <Box className="tag-popover-card">
       <PerformerCard performer={performer} zoomIndex={0} />
-    </div>
+    </Box>
   );
 };
 

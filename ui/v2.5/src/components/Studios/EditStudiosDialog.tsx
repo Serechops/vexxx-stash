@@ -161,85 +161,94 @@ export const EditStudiosDialog: React.FC<IListOperationProps> = (
         }}
         isRunning={isUpdating}
       >
-        <Box mb={2} data-field="parent-studio">
-          <Grid container alignItems="center">
-            <Grid size={{ xs: 3 }}>
-              <Typography variant="body1">{intl.formatMessage({ id: "parent_studio" })}</Typography>
+        <Box
+          sx={{
+            maxHeight: "70vh",
+            overflowY: "auto",
+            overflowX: "hidden",
+            px: 1
+          }}
+        >
+          <Box mb={2} data-field="parent-studio">
+            <Grid container alignItems="center">
+              <Grid size={{ xs: 3 }}>
+                <Typography variant="body1">{intl.formatMessage({ id: "parent_studio" })}</Typography>
+              </Grid>
+              <Grid size={{ xs: 9 }}>
+                <StudioSelect
+                  onSelect={(items) =>
+                    setUpdateField({
+                      parent_id: items.length > 0 ? items[0]?.id : undefined,
+                    })
+                  }
+                  ids={updateInput.parent_id ? [updateInput.parent_id] : []}
+                  isDisabled={isUpdating}
+                  menuPortalTarget={document.body}
+                />
+              </Grid>
             </Grid>
-            <Grid size={{ xs: 9 }}>
-              <StudioSelect
-                onSelect={(items) =>
-                  setUpdateField({
-                    parent_id: items.length > 0 ? items[0]?.id : undefined,
-                  })
+          </Box>
+
+          <Box mb={2} data-field="rating">
+            <Grid container alignItems="center">
+              <Grid size={{ xs: 3 }}>
+                <Typography variant="body1">{intl.formatMessage({ id: "rating" })}</Typography>
+              </Grid>
+              <Grid size={{ xs: 9 }}>
+                <RatingSystem
+                  value={updateInput.rating100}
+                  onSetRating={(value) =>
+                    setUpdateField({ rating100: value ?? undefined })
+                  }
+                  disabled={isUpdating}
+                />
+              </Grid>
+            </Grid>
+          </Box>
+
+          <Box component="form">
+            <Box mb={2} data-field="favorite">
+              <IndeterminateCheckbox
+                setChecked={(checked) => setUpdateField({ favorite: checked })}
+                checked={updateInput.favorite ?? undefined}
+                label={intl.formatMessage({ id: "favourite" })}
+              />
+            </Box>
+
+            <Box mb={2} data-field="tags">
+              <InputLabel shrink>
+                <FormattedMessage id="tags" />
+              </InputLabel>
+              <MultiSet
+                type="tags"
+                disabled={isUpdating}
+                onUpdate={(itemIDs) => setTagIds((v) => ({ ...v, ids: itemIDs }))}
+                onSetMode={(newMode) =>
+                  setTagIds((v) => ({ ...v, mode: newMode }))
                 }
-                ids={updateInput.parent_id ? [updateInput.parent_id] : []}
-                isDisabled={isUpdating}
+                existingIds={aggregateState.tagIds ?? []}
+                ids={tagIds.ids ?? []}
+                mode={tagIds.mode}
                 menuPortalTarget={document.body}
               />
-            </Grid>
-          </Grid>
-        </Box>
+            </Box>
 
-        <Box mb={2} data-field="rating">
-          <Grid container alignItems="center">
-            <Grid size={{ xs: 3 }}>
-              <Typography variant="body1">{intl.formatMessage({ id: "rating" })}</Typography>
-            </Grid>
-            <Grid size={{ xs: 9 }}>
-              <RatingSystem
-                value={updateInput.rating100}
-                onSetRating={(value) =>
-                  setUpdateField({ rating100: value ?? undefined })
+            {renderTextField(
+              "details",
+              updateInput.details,
+              (newValue) => setUpdateField({ details: newValue }),
+              true
+            )}
+
+            <Box mb={2} data-field="ignore_auto_tag">
+              <IndeterminateCheckbox
+                label={intl.formatMessage({ id: "ignore_auto_tag" })}
+                setChecked={(checked) =>
+                  setUpdateField({ ignore_auto_tag: checked })
                 }
-                disabled={isUpdating}
+                checked={updateInput.ignore_auto_tag ?? undefined}
               />
-            </Grid>
-          </Grid>
-        </Box>
-
-        <Box component="form">
-          <Box mb={2} data-field="favorite">
-            <IndeterminateCheckbox
-              setChecked={(checked) => setUpdateField({ favorite: checked })}
-              checked={updateInput.favorite ?? undefined}
-              label={intl.formatMessage({ id: "favourite" })}
-            />
-          </Box>
-
-          <Box mb={2} data-field="tags">
-            <InputLabel shrink>
-              <FormattedMessage id="tags" />
-            </InputLabel>
-            <MultiSet
-              type="tags"
-              disabled={isUpdating}
-              onUpdate={(itemIDs) => setTagIds((v) => ({ ...v, ids: itemIDs }))}
-              onSetMode={(newMode) =>
-                setTagIds((v) => ({ ...v, mode: newMode }))
-              }
-              existingIds={aggregateState.tagIds ?? []}
-              ids={tagIds.ids ?? []}
-              mode={tagIds.mode}
-              menuPortalTarget={document.body}
-            />
-          </Box>
-
-          {renderTextField(
-            "details",
-            updateInput.details,
-            (newValue) => setUpdateField({ details: newValue }),
-            true
-          )}
-
-          <Box mb={2} data-field="ignore_auto_tag">
-            <IndeterminateCheckbox
-              label={intl.formatMessage({ id: "ignore_auto_tag" })}
-              setChecked={(checked) =>
-                setUpdateField({ ignore_auto_tag: checked })
-              }
-              checked={updateInput.ignore_auto_tag ?? undefined}
-            />
+            </Box>
           </Box>
         </Box>
       </ModalComponent>

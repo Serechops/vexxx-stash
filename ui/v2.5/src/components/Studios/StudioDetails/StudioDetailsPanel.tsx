@@ -1,10 +1,11 @@
 import React from "react";
-import { TagLink } from "src/components/Shared/TagLink";
-import * as GQL from "src/core/generated-graphql";
-import { DetailItem } from "src/components/Shared/DetailItem";
-import { StashIDPill } from "src/components/Shared/StashID";
-import { PatchComponent } from "src/patch";
 import { Link } from "react-router-dom";
+import { Box } from "@mui/material";
+import * as GQL from "src/core/generated-graphql";
+import { PatchComponent } from "src/patch";
+import { TagLink } from "src/components/Shared/TagLink";
+import { StashIDPill } from "src/components/Shared/StashID";
+import { DetailItem } from "src/components/Shared/DetailItem";
 
 interface IStudioDetailsPanel {
   studio: GQL.StudioDataFragment;
@@ -14,17 +15,17 @@ interface IStudioDetailsPanel {
 
 export const StudioDetailsPanel: React.FC<IStudioDetailsPanel> = PatchComponent(
   "StudioDetailsPanel",
-  ({ studio, fullWidth }) => {
+  ({ studio, fullWidth, collapsed }) => {
     function renderTagsField() {
       if (!studio.tags.length) {
         return;
       }
       return (
-        <ul className="pl-0">
+        <Box component="ul" sx={{ pl: 0, mb: 0, listStyle: "none" }}>
           {(studio.tags ?? []).map((tag) => (
             <TagLink key={tag.id} linkType="studio" tag={tag} />
           ))}
-        </ul>
+        </Box>
       );
     }
 
@@ -34,15 +35,15 @@ export const StudioDetailsPanel: React.FC<IStudioDetailsPanel> = PatchComponent(
       }
 
       return (
-        <ul className="pl-0">
+        <Box component="ul" sx={{ pl: 0, mb: 0, listStyle: "none" }}>
           {studio.stash_ids.map((stashID) => {
             return (
-              <li key={stashID.stash_id} className="row no-gutters">
+              <Box component="li" key={stashID.stash_id} sx={{ display: "flex", flexWrap: "nowrap" }}>
                 <StashIDPill stashID={stashID} linkType="studios" />
-              </li>
+              </Box>
             );
           })}
-        </ul>
+        </Box>
       );
     }
 
@@ -52,20 +53,28 @@ export const StudioDetailsPanel: React.FC<IStudioDetailsPanel> = PatchComponent(
       }
 
       return (
-        <ul className="pl-0">
+        <Box component="ul" sx={{ pl: 0, mb: 0, listStyle: "none" }}>
           {studio.urls.map((url) => (
-            <li key={url}>
+            <Box component="li" key={url}>
               <a href={url} target="_blank" rel="noreferrer">
                 {url}
               </a>
-            </li>
+            </Box>
           ))}
-        </ul>
+        </Box>
       );
     }
 
     return (
-      <div className="detail-group">
+      <Box
+        className="detail-group"
+        sx={{
+          display: "flex",
+          flexDirection: "row",
+          flexWrap: "wrap",
+          py: 2
+        }}
+      >
         <DetailItem id="details" value={studio.details} fullWidth={fullWidth} />
         <DetailItem id="urls" value={renderURLs()} fullWidth={fullWidth} />
         <DetailItem
@@ -82,12 +91,14 @@ export const StudioDetailsPanel: React.FC<IStudioDetailsPanel> = PatchComponent(
           fullWidth={fullWidth}
         />
         <DetailItem id="tags" value={renderTagsField()} fullWidth={fullWidth} />
-        <DetailItem
-          id="stash_ids"
-          value={renderStashIDs()}
-          fullWidth={fullWidth}
-        />
-      </div>
+        {!collapsed && (
+          <DetailItem
+            id="stash_ids"
+            value={renderStashIDs()}
+            fullWidth={fullWidth}
+          />
+        )}
+      </Box>
     );
   }
 );
@@ -100,8 +111,39 @@ export const CompressedStudioDetailsPanel: React.FC<IStudioDetailsPanel> = ({
   }
 
   return (
-    <div className="sticky detail-header">
-      <div className="sticky detail-header-group">
+    <Box
+      className="sticky detail-header"
+      sx={{
+        display: { xs: "none", sm: "block" },
+        minHeight: "50px",
+        position: "fixed",
+        top: "48.75px",
+        zIndex: 10,
+        bgcolor: "background.paper",
+        width: "100%"
+      }}
+    >
+      <Box
+        className="sticky detail-header-group"
+        sx={{
+          padding: "1rem 2.5rem",
+          "& a.studio-name": {
+            color: "#f5f8fa",
+            cursor: "pointer",
+            fontWeight: 800,
+          },
+          "& a, & span": {
+            color: "#d7d9db",
+            fontWeight: 600,
+            pr: 1
+          },
+          "& .detail-divider": {
+            fontSize: "1rem",
+            fontWeight: 400,
+            opacity: 0.6
+          }
+        }}
+      >
         <a className="studio-name" onClick={() => scrollToTop()}>
           {studio.name}
         </a>
@@ -113,7 +155,7 @@ export const CompressedStudioDetailsPanel: React.FC<IStudioDetailsPanel> = ({
         ) : (
           ""
         )}
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 };

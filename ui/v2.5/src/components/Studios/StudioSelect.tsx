@@ -5,6 +5,9 @@ import {
   MultiValueGenericProps,
   SingleValueProps,
 } from "react-select";
+import {
+  Box,
+} from "@mui/material";
 import cx from "classnames";
 
 import * as GQL from "src/core/generated-graphql";
@@ -114,10 +117,24 @@ const _StudioSelect: React.FC<
     thisOptionProps = {
       ...optionProps,
       children: (
-        <span className="react-select-image-option">
-          <span>{name}</span>
-          {alias && <span className="alias">&nbsp;({alias})</span>}
-        </span>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            "& .alias": {
+              ml: 1,
+              opacity: 0.6,
+              fontStyle: "italic",
+            },
+          }}
+        >
+          <Box component="span">{name}</Box>
+          {alias && (
+            <Box component="span" className="alias">
+              &nbsp;({alias})
+            </Box>
+          )}
+        </Box>
       ),
     };
 

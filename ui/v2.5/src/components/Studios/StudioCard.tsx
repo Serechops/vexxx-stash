@@ -1,5 +1,5 @@
-import React from "react";
 import { Link } from "react-router-dom";
+import { Box, Button, ButtonGroup, Typography } from "@mui/material";
 import * as GQL from "src/core/generated-graphql";
 import NavUtils from "src/utils/navigation";
 import { GridCard } from "src/components/Shared/GridCard/GridCard";
@@ -7,7 +7,6 @@ import { PatchComponent } from "src/patch";
 import { HoverPopover } from "../Shared/HoverPopover";
 import { Icon } from "../Shared/Icon";
 import { TagLink } from "../Shared/TagLink";
-import { Button, ButtonGroup } from "@mui/material";
 import { FormattedMessage } from "react-intl";
 import { PopoverCountButton } from "../Shared/PopoverCountButton";
 import { RatingBanner } from "../Shared/RatingBanner";
@@ -32,7 +31,7 @@ function maybeRenderParent(
 ) {
   if (!hideParent && studio.parent_studio) {
     return (
-      <div className="studio-parent-studios">
+      <Box sx={{ mt: 0.5, fontSize: "0.875rem" }}>
         <FormattedMessage
           id="part_of"
           values={{
@@ -43,7 +42,7 @@ function maybeRenderParent(
             ),
           }}
         />
-      </div>
+      </Box>
     );
   }
 }
@@ -51,7 +50,7 @@ function maybeRenderParent(
 function maybeRenderChildren(studio: GQL.StudioDataFragment) {
   if (studio.child_studios.length > 0) {
     return (
-      <div className="studio-child-studios">
+      <Box sx={{ mt: 0.5, fontSize: "0.875rem" }}>
         <FormattedMessage
           id="parent_of"
           values={{
@@ -66,7 +65,7 @@ function maybeRenderChildren(studio: GQL.StudioDataFragment) {
             ),
           }}
         />
-      </div>
+      </Box>
     );
   }
 }
@@ -171,7 +170,18 @@ export const StudioCard: React.FC<IProps> = PatchComponent(
 
       return (
         <HoverPopover placement="bottom" content={popoverContent}>
-          <Button className="minimal tag-count" variant="text" size="small">
+          <Button
+            variant="text"
+            size="small"
+            sx={{
+              minWidth: 0,
+              px: 1,
+              color: "text.primary",
+              "& span": {
+                ml: 0.5
+              }
+            }}
+          >
             <Icon icon={faTag} />
             <span>{studio.tags.length}</span>
           </Button>
@@ -213,40 +223,68 @@ export const StudioCard: React.FC<IProps> = PatchComponent(
     }
 
     return (
-      <GridCard
-        className={`studio-card zoom-${zoomIndex} hover:!scale-100 !transition-none`}
-        url={`/studios/${studio.id}`}
-        width={cardWidth}
-        title={studio.name}
-        linkClassName="studio-card-header"
-        image={
-          <img
-            loading="lazy"
-            className="studio-card-image"
-            alt={studio.name}
-            src={studio.image_path ?? ""}
-          />
-        }
-        details={
-          <div className="studio-card__details">
-            {maybeRenderParent(studio, hideParent)}
-            {maybeRenderChildren(studio)}
-            <RatingBanner rating={studio.rating100} />
-          </div>
-        }
-        overlays={
-          <FavoriteIcon
-            favorite={studio.favorite}
-            onToggleFavorite={(v) => onToggleFavorite(v)}
-            size="2x"
-            className="hide-not-favorite"
-          />
-        }
-        popovers={maybeRenderPopoverButtonGroup()}
-        selected={selected}
-        selecting={selecting}
-        onSelectedChanged={onSelectedChanged}
-      />
+      <Box
+        className={`studio-card zoom-${zoomIndex}`}
+        sx={{
+          "& .favorite-button": {
+            position: "absolute",
+            top: 10,
+            right: 5,
+            p: 0,
+            zIndex: 1,
+            "&.not-favorite": {
+              opacity: 0,
+              transition: "opacity 0.2s"
+            }
+          },
+          "&:hover .favorite-button.not-favorite": {
+            opacity: 1
+          }
+        }}
+      >
+        <GridCard
+          className="hover:!scale-100 !transition-none"
+          url={`/studios/${studio.id}`}
+          width={cardWidth}
+          title={studio.name}
+          linkClassName="studio-card-header"
+          image={
+            <Box
+              component="img"
+              loading="lazy"
+              alt={studio.name}
+              src={studio.image_path ?? ""}
+              sx={{
+                width: "100%",
+                height: "100%",
+                objectFit: "contain",
+                p: 1
+              }}
+            />
+          }
+          details={
+            <Box>
+              {maybeRenderParent(studio, hideParent)}
+              {maybeRenderChildren(studio)}
+              <Box sx={{ mt: 1 }}>
+                <RatingBanner rating={studio.rating100} />
+              </Box>
+            </Box>
+          }
+          overlays={
+            <FavoriteIcon
+              favorite={studio.favorite}
+              onToggleFavorite={(v) => onToggleFavorite(v)}
+              size="2x"
+              className="favorite-button"
+            />
+          }
+          popovers={maybeRenderPopoverButtonGroup()}
+          selected={selected}
+          selecting={selecting}
+          onSelectedChanged={onSelectedChanged}
+        />
+      </Box>
     );
   }
 );

@@ -499,28 +499,83 @@ const StudioPage: React.FC<IProps> = ({ studio, tabKey }) => {
   });
 
   return (
-    <div id="studio-page" className="row">
+    <Box
+      id="studio-page"
+      sx={{
+        display: "flex",
+        flexWrap: "wrap",
+        mx: -1.5,
+      }}
+    >
       <Helmet>
         <title>{studio.name ?? intl.formatMessage({ id: "studio" })}</title>
       </Helmet>
 
-      <div className={headerClassName}>
+      <Box
+        className={headerClassName}
+        sx={{
+          width: "100%",
+          position: "relative",
+          mb: 4,
+          "&.collapsed": {
+            "& .logo": {
+              maxHeight: "200px",
+            },
+          },
+          "&.full-width": {
+            maxWidth: "100%",
+          },
+        }}
+      >
         <BackgroundImage
           imagePath={studio.image_path ?? undefined}
           show={enableBackgroundImage && !isEditing}
         />
-        <div className="detail-container">
+        <Box
+          className="detail-container"
+          sx={{
+            px: { xs: 2, sm: 4, md: 5 },
+            py: 4,
+          }}
+        >
           <HeaderImage encodingImage={encodingImage}>
             {studioImage && (
-              <DetailImage
-                className="logo"
-                alt={studio.name}
-                src={studioImage}
-              />
+              <Box
+                sx={{
+                  mb: 4,
+                  "& .logo": {
+                    maxHeight: "50vh",
+                    maxWidth: "100%",
+                    objectFit: "contain",
+                  },
+                }}
+              >
+                <DetailImage
+                  className="logo"
+                  alt={studio.name}
+                  src={studioImage}
+                />
+              </Box>
             )}
           </HeaderImage>
-          <div className="row">
-            <div className="studio-head col">
+          <Box className="row">
+            <Box
+              className="studio-head col"
+              sx={{
+                "& .name-icons": {
+                  display: "inline-flex",
+                  alignItems: "center",
+                  ml: 2,
+                  verticalAlign: "middle",
+                  "& .not-favorite": {
+                    color: "rgba(191, 204, 214, 0.5)",
+                  },
+                  "& .favorite": {
+                    color: "#ff7373",
+                  },
+                },
+              }}
+            >
               <DetailTitle name={studio.name ?? ""} classNamePrefix="studio">
                 {!isEditing && (
                   <ExpandCollapseButton
@@ -538,7 +593,23 @@ const StudioPage: React.FC<IProps> = ({ studio, tabKey }) => {
               </DetailTitle>
 
               <AliasList aliases={studio.aliases} />
-              <div className="quality-group">
+              <Box
+                className="quality-group"
+                sx={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  mt: 0.5,
+                  "& .rating-stars-precision-full .star-rating-number": {
+                    minWidth: "0.75rem",
+                  },
+                  "& .rating-stars-precision-half .star-rating-number, & .rating-stars-precision-tenth .star-rating-number": {
+                    minWidth: "1.45rem",
+                  },
+                  "& .rating-stars-precision-quarter .star-rating-number": {
+                    minWidth: "2rem",
+                  },
+                }}
+              >
                 <RatingSystem
                   value={studio.rating100}
                   onSetRating={(value) => setRating(value)}
@@ -548,7 +619,7 @@ const StudioPage: React.FC<IProps> = ({ studio, tabKey }) => {
                 {!!studio.o_counter && (
                   <OCounterButton value={studio.o_counter} />
                 )}
-              </div>
+              </Box>
               {!isEditing && (
                 <StudioDetailsPanel
                   studio={studio}
@@ -581,18 +652,18 @@ const StudioPage: React.FC<IProps> = ({ studio, tabKey }) => {
                   onDelete={onDelete}
                 />
               )}
-            </div>
-          </div>
-        </div>
-      </div>
+            </Box>
+          </Box>
+        </Box>
+      </Box>
 
       {!isEditing && loadStickyHeader && (
         <CompressedStudioDetailsPanel studio={studio} />
       )}
 
-      <div className="detail-body">
-        <div className="studio-body">
-          <div className="studio-tabs">
+      <Box className="detail-body" sx={{ width: "100%", px: { xs: 2, sm: 4, md: 5 } }}>
+        <Box className="studio-body">
+          <Box className="studio-tabs">
             {!isEditing && (
               <StudioTabs
                 studio={studio}
@@ -601,11 +672,11 @@ const StudioPage: React.FC<IProps> = ({ studio, tabKey }) => {
                 showAllCounts={showAllCounts}
               />
             )}
-          </div>
-        </div>
-      </div>
+          </Box>
+        </Box>
+      </Box>
       {renderDeleteAlert()}
-    </div>
+    </Box>
   );
 };
 

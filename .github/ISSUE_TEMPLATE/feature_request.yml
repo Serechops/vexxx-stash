@@ -1,0 +1,120 @@
+name: "💡 Feature Request"
+description: Share feedback or suggest an improvement based on your usage
+title: "[Feature]: "
+labels:
+  - enhancement
+  - user-feedback
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to share feedback!
+        This form is focused on **user experience, workflows, and pain points**.
+        You don't need to propose a perfect solution — describing the problem clearly is most important.
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Usage Context
+      description: |
+        What were you doing when you noticed this?
+        Describe your typical workflow or scenario.
+      placeholder: |
+        Example:
+        While tagging large batches of scenes after a scrape...
+    validations:
+      required: true
+
+  - type: textarea
+    id: pain_point
+    attributes:
+      label: Pain Point / Limitation
+      description: |
+        What feels slow, confusing, repetitive, or missing?
+        Focus on the problem rather than the solution.
+      placeholder: |
+        Example:
+        I have to repeat the same search input across multiple fields...
+    validations:
+      required: true
+
+  - type: textarea
+    id: desired_outcome
+    attributes:
+      label: Desired Outcome
+      description: |
+        What would a better experience look like for you?
+        Describe the end result, not necessarily how to build it.
+      placeholder: |
+        Example:
+        I want to complete tagging with fewer steps and less manual input.
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggested_idea
+    attributes:
+      label: Optional Idea or Suggestion
+      description: |
+        If you have an idea for how this *might* be improved, share it here.
+        This is optional and does not need to be technical.
+      placeholder: |
+        Example:
+        A single input that applies to all related fields.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: How Often Do You Encounter This?
+      description: This helps prioritize impact.
+      options:
+        - Every session
+        - Frequently
+        - Occasionally
+        - Rare edge case
+    validations:
+      required: true
+
+  - type: dropdown
+    id: impact
+    attributes:
+      label: Impact Level
+      description: How much does this affect your overall experience?
+      options:
+        - Low (minor annoyance)
+        - Medium (slows me down)
+        - High (breaks or heavily disrupts my workflow)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected Area
+      description: Where does this feedback apply?
+      options:
+        - UI / UX
+        - Scene Tagger
+        - Search
+        - Performers
+        - Studios
+        - Tasks / Scheduling
+        - Performance
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Notes
+      description: |
+        Screenshots, examples, comparisons, or related issues.
+        This field is optional.
+      placeholder: |
+        Any extra context that might help understand the feedback.
+    validations:
+      required: false

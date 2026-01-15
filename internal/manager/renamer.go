@@ -156,7 +156,7 @@ func RenameSceneFile(ctx context.Context, repo models.Repository, s *models.Scen
 		}
 
 		if err := mover.Move(ctx, primaryFile, folder, base); err != nil {
-			logger.Errorf("RenameScenes: Mover.Move error for scene %d: %v", s.ID, err)
+			logger.Warnf("RenameScenes: Mover.Move error for scene %d: %v", s.ID, err)
 			res.Error = err.Error()
 			return res, nil
 		}

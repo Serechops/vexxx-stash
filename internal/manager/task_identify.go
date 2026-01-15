@@ -24,8 +24,9 @@ type IdentifyJob struct {
 	postHookExecutor identify.SceneUpdatePostHookExecutor
 	input            identify.Options
 
-	stashBoxes []*models.StashBox
-	progress   *job.Progress
+	stashBoxes     []*models.StashBox
+	progress       *job.Progress
+	scenesToRename []int
 }
 
 func CreateIdentifyJob(input identify.Options) *IdentifyJob {
@@ -87,6 +88,8 @@ func (j *IdentifyJob) Execute(ctx context.Context, progress *job.Progress) error
 	}); err != nil {
 		return fmt.Errorf("error encountered while identifying scenes: %w", err)
 	}
+
+	j.processRenames(ctx)
 
 	return nil
 }
@@ -153,18 +156,7 @@ func (j *IdentifyJob) identifyScene(ctx context.Context, s *models.Scene, source
 				if cfg.GetRenamerEnabled() {
 					template := cfg.GetRenamerTemplate()
 					if template != "" {
-						// reload the scene to get the latest metadata
-						s, err := r.Scene.Find(ctx, scene.ID)
-						if err != nil {
-							return fmt.Errorf("error reloading scene: %w", err)
-						}
-
-						res, err := RenameSceneFile(ctx, r, s, template, false, nil, nil, nil)
-						if err != nil {
-							return err
-						} else if res.Error != "" {
-							return fmt.Errorf("renamer error: %s", res.Error)
-						}
+						j.scenesToRename = append(j.scenesToRename, scene.ID)
 					}
 				}
 				return nil
@@ -350,4 +342,42 @@ func (s scraperSource) ScrapeScenes(ctx context.Context, sceneID int) ([]*models
 
 func (s scraperSource) String() string {
 	return fmt.Sprintf("scraper %s", s.scraperID)
+}
+
+func (j *IdentifyJob) processRenames(ctx context.Context) {
+	if len(j.scenesToRename) == 0 {
+		return
+	}
+
+	j.progress.ExecuteTask("Renaming scenes", func() {
+		r := instance.Repository
+		cfg := instance.Config
+		template := cfg.GetRenamerTemplate()
+
+		for _, id := range j.scenesToRename {
+			if job.IsCancelled(ctx) {
+				return
+			}
+
+			if err := txn.WithTxn(ctx, r.TxnManager, func(ctx context.Context) error {
+				// reload the scene to get the latest metadata
+				s, err := r.Scene.Find(ctx, id)
+				if err != nil {
+					return fmt.Errorf("error reloading scene %d: %v", id, err)
+				}
+
+				res, err := RenameSceneFile(ctx, r, s, template, false, nil, nil, nil)
+				if err != nil {
+					logger.Warnf("RenameSceneFile returned error for scene %d: %v", id, err)
+					return nil // don't return error to continue batch
+				} else if res.Error != "" {
+					logger.Warnf("renamer error for scene %d: %s", id, res.Error)
+					return nil
+				}
+				return nil
+			}); err != nil {
+				logger.Errorf("transaction error renaming scene %d: %v", id, err)
+			}
+		}
+	})
 }

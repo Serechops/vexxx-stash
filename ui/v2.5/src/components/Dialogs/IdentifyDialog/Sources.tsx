@@ -56,7 +56,6 @@ export const SourcesEditor: React.FC<ISourceEditor> = ({
 
   return (
     <ModalComponent
-      dialogClassName="identify-source-editor"
       modalProps={{ animation: false, size: "lg" }}
       show
       icon={isNew ? faPlus : faPencilAlt}
@@ -83,7 +82,7 @@ export const SourcesEditor: React.FC<ISourceEditor> = ({
     >
       <Box>
         {isNew && (
-          <Box mb={2}>
+          <Box sx={{ mb: 2 }}>
             <Typography variant="h6">
               <FormattedMessage id="config.tasks.identify.source" />
             </Typography>
@@ -94,8 +93,8 @@ export const SourcesEditor: React.FC<ISourceEditor> = ({
                 className="input-control"
                 onChange={handleSourceSelect}
                 inputProps={{
-                  name: 'source-id',
-                  id: 'source-select',
+                  name: "source-id",
+                  id: "source-select",
                 }}
               >
                 {availableSources.map((i) => (
@@ -178,15 +177,23 @@ export const SourcesList: React.FC<ISourcesList> = ({
   }
 
   return (
-    <Box className="scraper-sources" onDragOver={onDragOverDefault}>
+    <Box onDragOver={onDragOverDefault}>
       <Typography variant="h5" gutterBottom>
         <FormattedMessage id="config.tasks.identify.sources" />
       </Typography>
-      <List className="scraper-source-list">
+      <List>
         {tempSources.map((s, index) => (
           <ListItem
             key={s.id}
-            sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              backgroundColor: "background.paper", // Equivalent to $textfield-bg in many places
+              mb: 0.5,
+              borderRadius: 1,
+              padding: "0.25em",
+            }}
             draggable={mouseOverIndex === index}
             onDragStart={(e) => onDragStart(e, index)}
             onDragEnter={(e) => onDragOver(e, index)}
@@ -195,8 +202,14 @@ export const SourcesList: React.FC<ISourcesList> = ({
           >
             <Box display="flex" alignItems="center">
               <Box
-                className="minimal drag-handle"
-                sx={{ mr: 2, cursor: "grab", color: "text.secondary" }}
+                sx={{
+                  mr: 2,
+                  cursor: "grab",
+                  color: "text.secondary",
+                  display: "inline-block",
+                  padding: "0.25em 0.5em",
+                  "&:hover": { color: "text.primary" }
+                }}
                 onMouseEnter={() => setMouseOverIndex(index)}
                 onMouseLeave={() => setMouseOverIndex(undefined)}
               >
@@ -223,9 +236,10 @@ export const SourcesList: React.FC<ISourcesList> = ({
       {canAdd && (
         <Box textAlign="right" mt={2}>
           <IconButton
-            className="minimal add-scraper-source-button"
+            className="minimal"
             onClick={() => editSource()}
             size="large"
+            sx={{ mr: "0.25em" }}
           >
             <Icon icon={faPlus} />
           </IconButton>

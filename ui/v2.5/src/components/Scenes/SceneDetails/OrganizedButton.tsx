@@ -27,13 +27,14 @@ export const OrganizedButton: React.FC<IOrganizedButtonProps> = (
   return (
     <Button
       variant="text"
-      color="secondary"
       title={intl.formatMessage(messages.organized)}
-      className={cx(
-        "minimal",
-        "organized-button",
-        props.organized ? "organized" : "not-organized"
-      )}
+      sx={{
+        minWidth: "auto",
+        color: props.organized ? "#664c3f" : "rgba(191, 204, 214, 0.5)",
+        "&:hover": {
+          backgroundColor: "rgba(138, 155, 168, 0.15)"
+        }
+      }}
       onClick={props.onClick}
       size="small"
     >

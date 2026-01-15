@@ -129,11 +129,11 @@ const VideoFrameRateResolution: React.FC<{
   }, [resolution, frameRateDisplay]);
 
   return (
-    <span>
+    <Box component="span" sx={{ fontSize: "0.875rem", color: "text.secondary" }}>
       {frameRateDisplay}
       {divider}
       {resolution}
-    </span>
+    </Box>
   );
 };
 
@@ -639,83 +639,160 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
       {maybeRenderSceneGenerateDialog()}
       {maybeRenderMergeDialog()}
       {maybeRenderDeleteDialog()}
-      <div
-        className={`scene-tabs order-xl-first order-last ${collapsed ? "collapsed" : ""
-          }`}
+      <Box
+        className={cx("scene-tabs", { collapsed })}
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          maxHeight: "calc(100vh - 4rem)",
+          wordBreak: "break-word",
+          order: { xs: 2, xl: 1 }, // order-last and order-xl-first
+          "&.collapsed": {
+            display: "none", // Assuming collapsed behavior from styles.scss
+          }
+        }}
       >
-        <div>
-          <div className="scene-header-container">
+        <Box>
+          <Box
+            className="scene-header-container"
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              mb: 2,
+              "@media (min-width: 960px)": { // lg
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }
+            }}
+          >
             {scene.studio && (
-              <h1 className="text-center scene-studio-image">
+              <Box
+                className="scene-studio-image"
+                sx={{
+                  flex: { lg: "0 0 25%" },
+                  order: { lg: 2 },
+                  display: "flex",
+                  justifyContent: "center",
+                  mb: { xs: 2, lg: 0 }
+                }}
+              >
                 <Link to={`/studios/${scene.studio.id}`}>
-                  <img
+                  <Box
+                    component="img"
                     src={scene.studio.image_path ?? ""}
                     alt={`${scene.studio.name} logo`}
                     className="studio-logo"
+                    sx={{
+                      maxHeight: "8rem",
+                      maxWidth: "100%",
+                      mt: 2
+                    }}
                   />
                 </Link>
-              </h1>
+              </Box>
             )}
-            <h3 className={cx("scene-header", { "no-studio": !scene.studio })}>
+            <Box
+              className={cx("scene-header", { "no-studio": !scene.studio })}
+              sx={{
+                flex: { lg: "0 0 75%" },
+                order: { lg: 1 },
+                fontSize: { xs: "1.75rem", xl: "1.5rem" },
+                mt: 4,
+                width: "100%",
+                textAlign: { xs: "center", lg: "left" }
+              }}
+            >
               <TruncatedText lineCount={2} text={title} />
-            </h3>
-          </div>
+            </Box>
+          </Box>
 
-          <div className="scene-subheader">
-            <span className="date" data-value={scene.date}>
+          <Box
+            className="scene-subheader"
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              mt: 1,
+              mb: 2
+            }}
+          >
+            <Box component="span" className="date" data-value={scene.date} sx={{ color: "text.secondary" }}>
               {!!scene.date && <FormattedDate value={scene.date} />}
-            </span>
+            </Box>
             <VideoFrameRateResolution
               width={file?.width}
               height={file?.height}
               frameRate={file?.frame_rate}
             />
-          </div>
+          </Box>
 
-          <div className="scene-toolbar">
-            <span className="scene-toolbar-group">
+          <Box
+            className="scene-toolbar"
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              mt: 1,
+              mb: 1,
+              pb: 0.5,
+              width: "100%",
+              borderBottom: "1px solid rgba(255, 255, 255, 0.05)"
+            }}
+          >
+            <Box component="span" className="scene-toolbar-group" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
               <RatingSystem
                 value={scene.rating100}
                 onSetRating={setRating}
                 clickToRate
                 withoutContext
               />
-            </span>
-            <span className="scene-toolbar-group">
-              <span>
+            </Box>
+            <Box component="span" className="scene-toolbar-group" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+              <Box component="span">
                 <ExternalPlayerButton scene={scene} />
-              </span>
-              <span>
+              </Box>
+              <Box component="span">
                 <ViewCountButton
                   value={scene.play_count ?? 0}
                   onIncrement={() => incrementPlayCount()}
                 />
-              </span>
-              <span>
+              </Box>
+              <Box component="span">
                 <OCounterButton
                   value={scene.o_counter ?? 0}
                   onIncrement={() => onIncrementOClick()}
                 />
-              </span>
-              <span>
+              </Box>
+              <Box component="span">
                 <OrganizedButton
                   loading={organizedLoading}
                   organized={scene.organized}
                   onClick={onOrganizedClick}
                 />
-              </span>
-              <span>{renderOperations()}</span>
-            </span>
-          </div>
-        </div>
+              </Box>
+              <Box component="span">{renderOperations()}</Box>
+            </Box>
+          </Box>
+        </Box>
         {renderTabs()}
-      </div>
+      </Box>
 
-      <div className="scene-divider d-none d-xl-block">
+      <Box
+        className="scene-divider"
+        sx={{
+          display: { xs: "none", xl: "flex" },
+          alignItems: "center",
+          justifyContent: "center",
+          my: 1
+        }}
+      >
         <IconButton onClick={() => setCollapsed(!collapsed)}>
           <Icon className="fa-fw" icon={getCollapseButtonIcon()} />
         </IconButton>
-      </div>
+      </Box>
       <SubmitStashBoxDraft
         type="scene"
         boxes={boxes}

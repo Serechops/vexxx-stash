@@ -78,45 +78,160 @@ export const QueueViewer: React.FC<IPlaylistViewer> = ({
 
   function renderPlaylistEntry(scene: QueuedScene) {
     return (
-      <li
-        className={cx("my-2", { current: isCurrentScene(scene) })}
+      <Box
+        component="li"
         key={scene.id}
+        sx={{
+          my: 1,
+          backgroundColor: isCurrentScene(scene) ? "secondary.main" : "transparent",
+          "&:hover": {
+            backgroundColor: "action.hover"
+          }
+        }}
       >
         <Link
           to={`/scenes/${scene.id}`}
           onClick={(e: React.MouseEvent<HTMLAnchorElement, MouseEvent>) => handleSceneClick(e, scene.id)}
-          style={{ textDecoration: 'none', color: 'inherit', width: '100%' }}
+          style={{ textDecoration: 'none', color: 'inherit', width: '100%', display: 'block' }}
         >
-          <div className="ml-1 d-flex align-items-center">
-            <div className="thumbnail-container">
+          <Box sx={{ ml: 1, display: "flex", alignItems: "center" }}>
+            <Box
+              className="thumbnail-container"
+              sx={{
+                height: "80px",
+                mb: "5px",
+                mr: "0.75rem",
+                mt: "5px",
+                minWidth: "142px",
+                width: "142px",
+                "& img": {
+                  height: "100%",
+                  objectFit: "contain",
+                  objectPosition: "center",
+                  width: "100%",
+                }
+              }}
+            >
               <img
                 loading="lazy"
                 alt={scene.title ?? ""}
                 src={scene.paths.screenshot ?? ""}
               />
-            </div>
-            <div className="queue-scene-details">
-              <span className="queue-scene-title">{objectTitle(scene)}</span>
-              <span className="queue-scene-studio">{scene?.studio?.name}</span>
-              <span className="queue-scene-performers">
+            </Box>
+            <Box
+              className="queue-scene-details"
+              sx={{
+                display: "grid",
+                overflow: "hidden",
+                position: "relative",
+                width: { lg: "245px" }
+              }}
+            >
+              <Box
+                component="span"
+                className="queue-scene-title"
+                sx={{
+                  fontSize: { xs: "1rem", sm: "1.2rem" },
+                  mr: "auto",
+                  minWidth: { lg: "245px" },
+                  overflow: "hidden",
+                  position: "relative",
+                  whiteSpace: "nowrap",
+                  transition: "2s",
+                  "&:hover": {
+                    transform: { lg: "translateX(calc(245px - 100%))" }
+                  }
+                }}
+              >
+                {objectTitle(scene)}
+              </Box>
+              <Box
+                component="span"
+                className="queue-scene-studio"
+                sx={{
+                  color: "#d3d0d0",
+                  fontWeight: 600,
+                  mr: "auto",
+                  minWidth: { lg: "245px" },
+                  overflow: "hidden",
+                  position: "relative",
+                  whiteSpace: "nowrap",
+                  transition: "2s",
+                  "&:hover": {
+                    transform: { lg: "translateX(calc(245px - 100%))" }
+                  }
+                }}
+              >
+                {scene?.studio?.name}
+              </Box>
+              <Box
+                component="span"
+                className="queue-scene-performers"
+                sx={{
+                  color: "#d3d0d0",
+                  fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                  fontWeight: 400,
+                  mr: "auto",
+                  minWidth: { lg: "245px" },
+                  overflow: "hidden",
+                  position: "relative",
+                  whiteSpace: "nowrap",
+                  transition: "2s",
+                  "&:hover": {
+                    transform: { lg: "translateX(calc(245px - 100%))" }
+                  }
+                }}
+              >
                 {scene?.performers
                   ?.map(function (performer) {
                     return performer.name;
                   })
                   .join(", ")}
-              </span>
-              <span className="queue-scene-date">{scene?.date}</span>
-            </div>
-          </div>
+              </Box>
+              <Box
+                component="span"
+                className="queue-scene-date"
+                sx={{
+                  color: "#d3d0d0",
+                  fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                  fontWeight: 400,
+                  mr: "auto",
+                  minWidth: { lg: "245px" },
+                  overflow: "hidden",
+                  position: "relative",
+                  whiteSpace: "nowrap",
+                  transition: "2s",
+                  "&:hover": {
+                    transform: { lg: "translateX(calc(245px - 100%))" }
+                  }
+                }}
+              >
+                {scene?.date}
+              </Box>
+            </Box>
+          </Box>
         </Link>
-      </li>
+      </Box>
     );
   }
 
   return (
-    <div id="queue-viewer">
-      <div className="queue-controls">
-        <div>
+    <Box className="queue-viewer">
+      <Box
+        className="queue-controls"
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          backgroundColor: "#202b33", // $body-bg
+          flex: "0 1 auto",
+          height: "30px",
+          justifyContent: "space-between",
+          position: "sticky",
+          top: 0,
+          zIndex: 100,
+        }}
+      >
+        <Box>
           <FormControlLabel
             control={
               <Checkbox
@@ -127,8 +242,8 @@ export const QueueViewer: React.FC<IPlaylistViewer> = ({
             }
             label={intl.formatMessage({ id: "actions.continue" })}
           />
-        </div>
-        <div>
+        </Box>
+        <Box>
           {currentIndex > 0 || start > 1 ? (
             <IconButton
               onClick={() => onPrevious()}
@@ -155,11 +270,11 @@ export const QueueViewer: React.FC<IPlaylistViewer> = ({
           >
             <Icon icon={faRandom} />
           </IconButton>
-        </div>
-      </div>
-      <div id="queue-content">
+        </Box>
+      </Box>
+      <Box className="queue-content">
         {start > 1 ? (
-          <div className="d-flex justify-content-center">
+          <Box sx={{ display: "flex", justifyContent: "center" }}>
             <Button onClick={() => lessClicked()} disabled={lessLoading}>
               {!lessLoading ? (
                 <Icon icon={faChevronUp} />
@@ -167,11 +282,11 @@ export const QueueViewer: React.FC<IPlaylistViewer> = ({
                 <CircularProgress size={20} />
               )}
             </Button>
-          </div>
+          </Box>
         ) : undefined}
-        <ol start={start}>{scenes.map(renderPlaylistEntry)}</ol>
+        <Box component="ol" start={start} sx={{ pl: "20px" }}>{scenes.map(renderPlaylistEntry)}</Box>
         {hasMoreScenes ? (
-          <div className="d-flex justify-content-center">
+          <Box sx={{ display: "flex", justifyContent: "center" }}>
             <Button onClick={() => moreClicked()} disabled={moreLoading}>
               {!moreLoading ? (
                 <Icon icon={faChevronDown} />
@@ -179,10 +294,10 @@ export const QueueViewer: React.FC<IPlaylistViewer> = ({
                 <CircularProgress size={20} />
               )}
             </Button>
-          </div>
+          </Box>
         ) : undefined}
-      </div>
-    </div>
+      </Box>
+    </Box >
   );
 };
 

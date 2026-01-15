@@ -19,7 +19,6 @@ $sidebar-width: 250px;
 @import "src/components/Groups/styles.scss";
 @import "src/components/Performers/styles.scss";
 @import "src/components/FrontPage/styles.scss";
-@import "src/components/Scenes/styles.scss";
 @import "src/components/SceneDuplicateChecker/styles.scss";
 @import "src/components/SceneFilenameParser/styles.scss";
 @import "src/components/ScenePlayer/styles.scss";
@@ -35,8 +34,8 @@ $sidebar-width: 250px;
 @import "src/components/Tagger/styles.scss";
 @import "src/hooks/Lightbox/lightbox.scss";
 @import "src/hooks/Interactive/interactive.scss";
-@import "src/components/Dialogs/IdentifyDialog/styles.scss";
-@import "src/components/Dialogs/styles.scss";
+
+
 @import "flag-icons/css/flag-icons.min.css";
 
 /* stylelint-disable */

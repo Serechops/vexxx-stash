@@ -9,6 +9,7 @@ import { useSpriteInfo } from "src/hooks/sprite";
 import { useThrottle } from "src/hooks/throttle";
 import TextUtils from "src/utils/text";
 import { HoverScrubber } from "../Shared/HoverScrubber";
+import { Box } from "@mui/material";
 
 interface IScenePreviewProps {
   vttPath: string | undefined;
@@ -34,7 +35,7 @@ export const PreviewScrubber: React.FC<IScenePreviewProps> = ({
   onClick,
 }) => {
   const imageParentRef = useRef<HTMLDivElement>(null);
-  const [style, setStyle] = useState({});
+  const [style, setStyle] = useState<React.CSSProperties>({});
 
   const [activeIndex, setActiveIndex] = useState<number>();
 
@@ -97,14 +98,50 @@ export const PreviewScrubber: React.FC<IScenePreviewProps> = ({
   if (spriteInfo === null || !vttPath) return null;
 
   return (
-    <div className="preview-scrubber">
+    <Box
+      className="preview-scrubber"
+      sx={{
+        height: "100%",
+        position: "absolute",
+        top: 0,
+        left: 0,
+        width: "100%",
+        zIndex: 10,
+      }}
+    >
       {sprite && (
-        <div className="scene-card-preview-image" ref={imageParentRef}>
-          <div className="scrubber-image" style={style}></div>
+        <Box
+          className="scene-card-preview-image"
+          ref={imageParentRef}
+          sx={{
+            height: "100%",
+            width: "100%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            overflow: "hidden",
+            position: "relative",
+          }}
+        >
+          <Box className="scrubber-image" sx={{ height: "100%", width: "100%", ...style }} />
           {currentTime !== undefined && (
-            <div className="scrubber-timestamp">{currentTime}</div>
+            <Box
+              className="scrubber-timestamp"
+              sx={{
+                bottom: "calc(20px + 0.25rem)",
+                fontWeight: 400,
+                opacity: 0.75,
+                position: "absolute",
+                right: "0.7rem",
+                textShadow: "0 0 3px #000",
+                color: "#fff",
+                fontSize: "0.75rem",
+              }}
+            >
+              {currentTime}
+            </Box>
           )}
-        </div>
+        </Box>
       )}
       <HoverScrubber
         totalSprites={spriteInfo?.length ?? defaultSprites}
@@ -112,6 +149,6 @@ export const PreviewScrubber: React.FC<IScenePreviewProps> = ({
         setActiveIndex={(i) => debounceSetActiveIndex(i)}
         onClick={onScrubberClick}
       />
-    </div>
+    </Box>
   );
 };

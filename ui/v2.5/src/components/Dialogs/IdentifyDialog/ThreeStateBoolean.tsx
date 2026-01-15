@@ -54,10 +54,9 @@ export const ThreeStateBoolean: React.FC<IThreeStateBoolean> = ({
     if (v === undefined) {
       const defaultVal =
         defaultValue !== undefined ? (
-          <span className="default-value">
-            {" "}
+          <Box component="span" sx={{ color: "text.secondary", fontStyle: "italic", ml: 0.5 }}>
             ({getBooleanText(defaultValue)})
-          </span>
+          </Box>
         ) : (
           ""
         );

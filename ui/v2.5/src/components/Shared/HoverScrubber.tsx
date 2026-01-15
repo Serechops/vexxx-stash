@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
 import cx from "classnames";
+import { Box } from "@mui/material";
 
 // #5231: TouchEvent is not defined on all browsers
 const touchEventDefined = window.TouchEvent !== undefined;
@@ -99,12 +100,24 @@ export const HoverScrubber: React.FC<IHoverScrubber> = ({
   }, [activeIndex, totalSprites]);
 
   return (
-    <div
+    <Box
       className={cx("hover-scrubber", {
         "hover-scrubber-inactive": !totalSprites,
       })}
+      sx={{
+        bottom: 0,
+        height: "20px",
+        overflow: "hidden",
+        position: "absolute",
+        width: "100%",
+        "&.hover-scrubber-inactive": {
+          "& .hover-scrubber-area": {
+            cursor: "inherit"
+          }
+        }
+      }}
     >
-      <div
+      <Box
         className="hover-scrubber-area"
         onMouseMove={onMove}
         onTouchMove={onMove}
@@ -112,15 +125,35 @@ export const HoverScrubber: React.FC<IHoverScrubber> = ({
         onTouchEnd={onLeave}
         onTouchCancel={onLeave}
         onClick={onScrubberClick}
+        sx={{
+          cursor: "col-resize",
+          height: "100%",
+          position: "absolute",
+          width: "100%",
+          zIndex: 1
+        }}
       />
-      <div className="hover-scrubber-indicator">
+      <Box
+        className="hover-scrubber-indicator"
+        sx={{
+          bottom: 0,
+          height: "4px",
+          position: "absolute",
+          width: "100%"
+        }}
+      >
         {activeIndex !== undefined && (
-          <div
+          <Box
             className="hover-scrubber-indicator-marker"
             style={indicatorStyle}
-          ></div>
+            sx={{
+              backgroundColor: "primary.main",
+              height: "100%",
+              transition: "width 0.1s"
+            }}
+          />
         )}
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 };

@@ -121,11 +121,11 @@ export const SubmitStashBoxDraft: React.FC<IProps> = ({
       );
     } else {
       return (
-        <Box className="form-row align-items-end" sx={{ display: 'flex', gap: 2 }}>
-          <Typography className="col-6">
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-end' }}>
+          <Typography sx={{ flex: 1 }}>
             <FormattedMessage id="stashbox.selected_stash_box" />:
           </Typography>
-          <FormControl size="small" className="col-6">
+          <FormControl size="small" sx={{ flex: 1 }}>
             <Select
               value={selectedBoxIndex}
               onChange={(e) => setSelectedBoxIndex(Number(e.target.value))}

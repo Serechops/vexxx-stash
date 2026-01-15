@@ -131,7 +131,7 @@ export const GenerateDialog: React.FC<ISceneGenerateDialog> = ({
     );
 
     return (
-      <Box className="dialog-selected-folders" sx={{ mb: 2 }}>
+      <Box sx={{ mb: 2, display: "flex", justifyContent: "space-between" }}>
         <div>{message}</div>
       </Box>
     );

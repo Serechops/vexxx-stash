@@ -1,4 +1,5 @@
 import React from "react";
+import { Box, Typography } from "@mui/material";
 import { ModalComponent } from "../Shared/Modal";
 import { faCogs } from "@fortawesome/free-solid-svg-icons";
 import { useIntl } from "react-intl";
@@ -26,13 +27,13 @@ export const ReleaseNotesDialog: React.FC<IReleaseNotesDialog> = ({
         text: intl.formatMessage({ id: "actions.close" }),
       }}
     >
-      <div className="m-n3">
+      <Box sx={{ m: -3 }}>
         {notes
           .map((n, i) => (
-            <div key={i} className="m-3">
-              <h3>{n.version}</h3>
+            <Box key={i} sx={{ m: 3 }}>
+              <Typography variant="h4">{n.version}</Typography>
               <MarkdownPage page={n.content} />
-            </div>
+            </Box>
           ))
           .reduce((accu, curr) => (
             <>
@@ -41,7 +42,7 @@ export const ReleaseNotesDialog: React.FC<IReleaseNotesDialog> = ({
               {curr}
             </>
           ))}
-      </div>
+      </Box>
     </ModalComponent>
   );
 };

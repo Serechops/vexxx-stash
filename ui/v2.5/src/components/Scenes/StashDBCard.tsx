@@ -15,13 +15,10 @@ import { objectTitle } from "src/core/files";
 import { SceneQueue } from "src/models/sceneQueue";
 import { useConfigurationContext } from "src/hooks/Config";
 import TextUtils from "src/utils/text";
-import Tooltip from "@mui/material/Tooltip";
-import IconButton from "@mui/material/IconButton";
-import Chip from "@mui/material/Chip";
+import { Box, Tooltip, IconButton, Chip } from "@mui/material";
 import { useSceneIncrementO } from "src/core/StashService";
 import { useToast } from "src/hooks/Toast";
 
-import "./scene-card-variants.scss";
 
 interface ISceneCardProps {
     scene: GQL.SlimSceneDataFragment;
@@ -97,15 +94,58 @@ export const StashDBCard: React.FC<ISceneCardProps> = ({
     };
 
     return (
-        <div
+        <Box
             className={cx("scene-card-modern", { "selected": selected })}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
             onClick={handleCardClick}
-            style={{ width: width ? width : "100%" }}
+            sx={{
+                position: "relative",
+                borderRadius: "8px",
+                overflow: "hidden",
+                backgroundColor: "background.paper",
+                border: "1px solid rgba(255, 255, 255, 0.05)",
+                transition: "transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease",
+                height: "100%",
+                display: "flex",
+                flexDirection: "column",
+                width: width ? width : "100%",
+                "&:hover": {
+                    transform: "translateY(-4px)",
+                    boxShadow: "0 12px 24px rgba(0, 0, 0, 0.4)",
+                    borderColor: "primary.main",
+                    zIndex: 10,
+                },
+                "&.selected": {
+                    borderColor: "primary.main",
+                    boxShadow: (theme: any) => `0 0 0 2px ${theme.palette.primary.main}4d`, // 0.3 opacity
+                }
+            }}
         >
-            <Link to={selecting ? "#" : sceneLink} className="scene-card-link" onClick={e => selecting && e.preventDefault()}>
-                <div className="scene-card-preview">
+            <Link to={selecting ? "#" : sceneLink} className="scene-card-link" onClick={e => selecting && e.preventDefault()} style={{ textDecoration: 'none', color: 'inherit', display: 'flex', flexDirection: 'column', height: '100%' }}>
+                <Box
+                    className="scene-card-preview"
+                    sx={{
+                        position: "relative",
+                        aspectRatio: "16 / 9",
+                        overflow: "hidden",
+                        backgroundColor: "#000",
+                        "& .scene-card-preview-image": {
+                            transition: "opacity 0.2s",
+                            "&.hidden": { opacity: 0 }
+                        },
+                        "& .scene-card-preview-video": {
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "contain",
+                            background: "#000",
+                            "&.hidden": { display: "none" }
+                        }
+                    }}
+                >
                     <HoverVideoPreview
                         image={scene.paths.screenshot ?? undefined}
                         video={scene.paths.preview ?? undefined}
@@ -114,47 +154,119 @@ export const StashDBCard: React.FC<ISceneCardProps> = ({
                         isPortrait={false}
                         vttPath={scene.paths.vtt ?? undefined}
                     />
-                    <div className="modern-overlay"></div>
-                    {duration && <div className="duration-badge">{duration}</div>}
+                    <Box
+                        className="modern-overlay"
+                        sx={{
+                            position: "absolute",
+                            bottom: 0,
+                            left: 0,
+                            right: 0,
+                            height: "50px",
+                            background: "linear-gradient(to top, rgba(0, 0, 0, 0.6), transparent)",
+                            pointerEvents: "none",
+                        }}
+                    />
+                    {duration && (
+                        <Box
+                            className="duration-badge"
+                            sx={{
+                                position: "absolute",
+                                bottom: "6px",
+                                right: "6px",
+                                backgroundColor: "rgba(0, 0, 0, 0.7)",
+                                color: "#fff",
+                                fontSize: "0.7rem",
+                                fontWeight: 700,
+                                padding: "2px 5px",
+                                borderRadius: "4px",
+                                backdropFilter: "blur(2px)",
+                            }}
+                        >
+                            {duration}
+                        </Box>
+                    )}
 
                     {/* Selection Checkbox Overlay */}
                     {selecting && (
-                        <div className="absolute top-2 left-2 z-20">
+                        <Box sx={{ position: "absolute", top: "0.5rem", left: "0.5rem", zIndex: 20 }}>
                             <input
                                 type="checkbox"
                                 checked={selected}
                                 readOnly
-                                className="form-checkbox h-5 w-5 text-primary"
-                                style={{ cursor: "pointer" }}
+                                style={{ cursor: "pointer", height: "1.25rem", width: "1.25rem" }}
                             />
-                        </div>
+                        </Box>
                     )}
-                </div>
+                </Box>
 
-                <div className="modern-content">
-                    <div className="modern-title" title={objectTitle(scene)}>
+                <Box
+                    className="modern-content"
+                    sx={{
+                        padding: "10px 12px",
+                        flexGrow: 1,
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "4px",
+                    }}
+                >
+                    <Box
+                        className="modern-title"
+                        title={objectTitle(scene)}
+                        sx={{
+                            fontSize: "0.95rem",
+                            fontWeight: 700,
+                            lineHeight: 1.25,
+                            mb: "2px",
+                            color: "text.primary",
+                            display: "-webkit-box",
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: "vertical",
+                            overflow: "hidden",
+                        }}
+                    >
                         {objectTitle(scene)}
-                    </div>
+                    </Box>
 
-                    <div className="modern-meta-row">
+                    <Box
+                        className="modern-meta-row"
+                        sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                            fontSize: "0.75rem",
+                            color: "text.secondary",
+                            mb: "4px",
+                        }}
+                    >
                         {scene.date && <span>{scene.date}</span>}
                         {resolution && (
                             <>
                                 <span>•</span>
-                                <span>•</span>
-                                <Chip label={resolution} size="small" variant="outlined" />
+                                <Chip label={resolution} size="small" variant="outlined" sx={{ fontSize: "0.65rem", height: "18px" }} />
                             </>
                         )}
                         {rating && (
-                            <span className="ml-auto text-warning font-weight-bold">
+                            <Box
+                                component="span"
+                                sx={{ ml: "auto", color: "warning.main", fontWeight: "bold", display: "flex", alignItems: "center", gap: "2px" }}
+                            >
                                 <Icon icon={faStar} /> {rating}
-                            </span>
+                            </Box>
                         )}
-                    </div>
+                    </Box>
 
-                    <div className="modern-performers">
+                    <Box
+                        className="modern-performers"
+                        sx={{
+                            display: "flex",
+                            flexWrap: "wrap",
+                            gap: "6px",
+                            mt: "auto",
+                        }}
+                    >
                         {scene.performers.map(p => (
-                            <span
+                            <Box
+                                component="span"
                                 key={p.id}
                                 className="performer-tag"
                                 onClick={(e) => {
@@ -162,40 +274,72 @@ export const StashDBCard: React.FC<ISceneCardProps> = ({
                                     e.stopPropagation();
                                     history.push(`/performers/${p.id}`);
                                 }}
+                                sx={{
+                                    fontSize: "0.8rem",
+                                    fontWeight: 500,
+                                    color: "text.primary",
+                                    cursor: "pointer",
+                                    transition: "color 0.15s",
+                                    "&:hover": {
+                                        color: "primary.main",
+                                    }
+                                }}
                             >
                                 {p.name}
-                            </span>
+                            </Box>
                         ))}
-                    </div>
+                    </Box>
 
-                    <div className="modern-studio d-flex justify-content-between align-items-center">
+                    <Box
+                        className="modern-studio"
+                        sx={{
+                            mt: "8px",
+                            pt: "8px",
+                            borderTop: "1px solid rgba(255, 255, 255, 0.05)",
+                            fontSize: "0.8rem",
+                            fontWeight: 600,
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                        }}
+                    >
                         {scene.studio && (
-                            <div
+                            <Box
                                 className="text-muted small cursor-pointer"
                                 onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
                                     history.push(`/studios/${scene.studio?.id}`);
                                 }}
+                                sx={{
+                                    color: "text.secondary",
+                                    fontSize: "0.8125rem",
+                                    cursor: "pointer",
+                                    "&:hover": { textDecoration: "underline" }
+                                }}
                             >
                                 {scene.studio.name}
-                            </div>
+                            </Box>
                         )}
 
                         {/* O-Counter Quick Action */}
                         <Tooltip title="Increment O-Counter" arrow>
                             <IconButton
                                 size="small"
-                                className="p-0 text-muted hover-text-danger"
+                                sx={{
+                                    p: 0,
+                                    color: "text.secondary",
+                                    "&:hover": { color: "error.main" }
+                                }}
                                 onClick={onIncrementO}
                             >
                                 <Icon icon={faBolt} className={scene.o_counter ? "text-danger" : ""} />
-                                {scene.o_counter ? <span className="ml-1 small">{scene.o_counter}</span> : null}
+                                {scene.o_counter ? <Box component="span" sx={{ ml: 0.5, fontSize: "0.75rem" }}>{scene.o_counter}</Box> : null}
                             </IconButton>
                         </Tooltip>
-                    </div>
-                </div>
+                    </Box>
+                </Box>
             </Link>
-        </div>
+        </Box>
     );
 };

@@ -1,6 +1,6 @@
 import { faBan, faMinus, faThumbsUp, faChevronDown } from "@fortawesome/free-solid-svg-icons";
 import React, { useState } from "react";
-import { Button, ButtonGroup, Menu, MenuItem } from "@mui/material";
+import { Button, ButtonGroup, Menu, MenuItem, Box } from "@mui/material";
 import { useIntl } from "react-intl";
 import { Icon } from "src/components/Shared/Icon";
 import { LoadingIndicator } from "src/components/Shared/LoadingIndicator";
@@ -58,30 +58,27 @@ export const OCounterButton: React.FC<IOCounterButtonProps> = (
 
   if (loading) return <LoadingIndicator message="" inline small />;
 
-  const renderButton = () => (
-    <Button
-      className="minimal pr-1"
-      onClick={increment}
-      variant="text"
-      color="secondary"
-      title={intl.formatMessage({ id: messageID })}
-      size="small"
-    >
-      {icon}
-      <span className="ml-2">{props.value}</span>
-    </Button>
-  );
-
-  const maybeRenderDropdown = () => {
-    if (props.value) {
-      return (
+  return (
+    <ButtonGroup size="small" sx={{ "& .MuiButton-root": { minWidth: "auto" } }}>
+      <Button
+        onClick={increment}
+        variant="text"
+        color="secondary"
+        title={intl.formatMessage({ id: messageID })}
+        size="small"
+        sx={{ pr: 1 }}
+      >
+        {icon}
+        <Box component="span" sx={{ ml: 1 }}>{props.value}</Box>
+      </Button>
+      {props.value ? (
         <>
           <Button
             variant="text"
             color="secondary"
-            className="pl-0 show-carat"
             onClick={handleClick}
             size="small"
+            sx={{ pl: 0 }}
           >
             <Icon icon={faChevronDown} size="xs" />
           </Button>
@@ -91,23 +88,16 @@ export const OCounterButton: React.FC<IOCounterButtonProps> = (
             onClose={handleClose}
           >
             <MenuItem onClick={decrement}>
-              <Icon icon={faMinus} />
+              <Icon icon={faMinus} className="mr-2" />
               <span>Decrement</span>
             </MenuItem>
             <MenuItem onClick={reset}>
-              <Icon icon={faBan} />
+              <Icon icon={faBan} className="mr-2" />
               <span>Reset</span>
             </MenuItem>
           </Menu>
         </>
-      );
-    }
-  };
-
-  return (
-    <ButtonGroup className="o-counter" size="small">
-      {renderButton()}
-      {maybeRenderDropdown()}
+      ) : null}
     </ButtonGroup>
   );
 };

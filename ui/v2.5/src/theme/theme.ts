@@ -65,6 +65,10 @@ const theme = createTheme({
                         color: "#fafafa",
                     },
                 },
+                ".form-group h6[title]:not([title='']), .form-group label[title]:not([title=''])": {
+                    cursor: "help",
+                    textDecoration: "underline dotted",
+                },
             },
         },
         MuiCard: {

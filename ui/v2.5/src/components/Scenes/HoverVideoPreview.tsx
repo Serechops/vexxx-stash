@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import cx from "classnames";
+import { Box } from "@mui/material";
 import { PreviewScrubber } from "./PreviewScrubber";
 
 interface IHoverVideoPreviewProps {
@@ -47,14 +48,40 @@ export const HoverVideoPreview: React.FC<IHoverVideoPreviewProps> = ({
     }, [soundActive]);
 
     return (
-        <div className={cx("scene-card-preview", { portrait: isPortrait })}>
-            <img
+        <Box
+            className={cx("scene-card-preview", { portrait: isPortrait })}
+            sx={{
+                position: "relative",
+                width: "100%",
+                aspectRatio: "16 / 9",
+                overflow: "hidden",
+                backgroundColor: "#000",
+                display: "flex",
+                justifyContent: "center",
+                "&.portrait": {
+                    "& .scene-card-preview-image, & .scene-card-preview-video": {
+                        objectFit: "contain"
+                    }
+                }
+            }}
+        >
+            <Box
+                component="img"
                 className={cx("scene-card-preview-image", { hidden: isHovered && video })}
                 loading="lazy"
                 src={image}
                 alt=""
+                sx={{
+                    height: "100%",
+                    width: "100%",
+                    objectFit: "cover",
+                    objectPosition: "top",
+                    transition: "opacity 0.2s",
+                    "&.hidden": { opacity: 0 }
+                }}
             />
-            <video
+            <Box
+                component="video"
                 disableRemotePlayback
                 playsInline
                 muted={!soundActive}
@@ -63,9 +90,22 @@ export const HoverVideoPreview: React.FC<IHoverVideoPreviewProps> = ({
                 preload="none"
                 ref={videoEl}
                 src={video}
+                sx={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    height: "100%",
+                    width: "100%",
+                    objectFit: "cover",
+                    objectPosition: "top",
+                    opacity: 0,
+                    transition: "opacity 0.2s",
+                    "&.hidden": { display: "none" },
+                    ...(isHovered && { opacity: 1 })
+                }}
             />
             {/* Show scrubber when video is playing/hovered */}
             {isHovered && vttPath && <PreviewScrubber vttPath={vttPath} onClick={onScrubberClick} />}
-        </div>
+        </Box>
     );
 };

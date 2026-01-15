@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef } from "react";
-// Button, ButtonGroup, OverlayTrigger, Tooltip removed
+import { Box, Typography } from "@mui/material";
 import { useHistory } from "react-router-dom";
 import cx from "classnames";
 import * as GQL from "src/core/generated-graphql";
@@ -73,17 +73,52 @@ export const ScenePreview: React.FC<IScenePreviewProps> = ({
   }, [soundActive]);
 
   return (
-    <div className={cx("scene-card-preview", { portrait: isPortrait })}>
-      <img
+    <Box
+      sx={{
+        aspectRatio: "16/9",
+        display: "flex",
+        justifyContent: "center",
+        mb: "5px",
+        position: "relative",
+        "&.portrait": {
+          "& .scene-card-preview-image, & .scene-card-preview-video": {
+            objectFit: "contain",
+          },
+        },
+      }}
+      className={cx("scene-card-preview", { portrait: isPortrait })}
+    >
+      <Box
+        component="img"
+        sx={{
+          height: "100%",
+          objectFit: "cover",
+          objectPosition: "top",
+          width: "100%",
+        }}
         className="scene-card-preview-image"
         loading="lazy"
         src={image}
         alt=""
       />
-      <video
+      <Box
+        component="video"
         disableRemotePlayback
         playsInline
         muted={!soundActive}
+        sx={{
+          height: "100%",
+          objectFit: "cover",
+          objectPosition: "top",
+          width: "100%",
+          position: "absolute",
+          top: "-9999px",
+          transition: "top 0s",
+          transitionDelay: "0s",
+          // The hover logic to show video is in styles.scss (top: 0 on hover)
+          // We can migrate that to sx or stay as is.
+          // Since it's a CSS transition on hover of the parent .scene-card-preview or .scene-card
+        }}
         className="scene-card-preview-video"
         loop
         preload="none"
@@ -91,7 +126,7 @@ export const ScenePreview: React.FC<IScenePreviewProps> = ({
         src={video}
       />
       <PreviewScrubber vttPath={vttPath} onClick={onScrubberClick} />
-    </div>
+    </Box>
   );
 };
 
@@ -203,122 +238,169 @@ const FlipCard = PatchComponent(
     const resolution = file?.width && file?.height ? TextUtils.resolution(file.width, file.height) : null;
 
     return (
-      <div className="scene-card-flip-container group perspective-1000 relative h-full w-full">
-        <div
-          className={cx(
-            "scene-card-inner relative w-full h-full transition-transform duration-500 transform-style-3d bg-card rounded-lg shadow-sm border-none",
-            isFlipped ? "rotate-y-180" : ""
-          )}
+      <Box
+        className="scene-card-flip-container group"
+        sx={{
+          perspective: "1000px",
+          position: "relative",
+          height: "100%",
+          width: "100%",
+        }}
+      >
+        <Box
+          className={cx("scene-card-inner", isFlipped ? "flipped" : "")}
+          sx={{
+            position: "relative",
+            width: "100%",
+            height: "100%",
+            transition: "transform 0.5s",
+            transformStyle: "preserve-3d",
+            backgroundColor: "background.paper", // $card-bg
+            borderRadius: "8px",
+            boxShadow: 1,
+            border: "none",
+            "&.flipped": {
+              transform: "rotateY(180deg)",
+            }
+          }}
         >
           {/* FRONT FACE */}
-          <div className="scene-card-front relative w-full h-full backface-hidden top-0 left-0">
-            <GridCard
+          <Box
+            className="scene-card-front"
+            sx={{
+              position: "relative",
+              width: "100%",
+              height: "100%",
+              backfaceVisibility: "hidden",
+              top: 0,
+              left: 0,
+            }}
+          >
+            <Box
+              sx={{
+                height: "100%",
+                backgroundColor: "background.paper",
+                borderRadius: "8px",
+                overflow: "hidden",
+                transition: "none",
+                "&.selected": {
+                  boxShadow: (theme: any) => `0 0 0 2px ${theme.palette.primary.main}`,
+                }
+              }}
               className={cx(
-                "scene-card h-full !bg-card rounded-lg overflow-hidden hover:!scale-100 !transition-none",
-                // Removed hover styling from GridCard itself to rely on container or just keeping it simple
-                props.selected ? "ring-2 ring-primary" : ""
+                "scene-card",
+                props.selected ? "selected" : ""
               )}
-              url={sceneLink}
-              title={null}
-              width={props.width}
-              linkClassName="block relative aspect-video"
-              thumbnailSectionClassName="w-full h-full"
-              image={<SceneCardImage {...props} />}
-              overlays={
-                <>
-                  {props.extraActions && (
-                    <div className="absolute top-2 left-2 z-20" onClick={e => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                    }}>
-                      {props.extraActions}
-                    </div>
-                  )}
-                  {/* Info Button for Flip - Top Right */}
-                  <div className="absolute top-2 right-2 z-20 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      className="p-1.5 rounded-full bg-black/60 hover:bg-black/80 text-white backdrop-blur-sm transition-colors"
-                      onClick={(e) => {
-                        e.stopPropagation();
+            >
+              <GridCard
+                url={sceneLink}
+                title={null}
+                width={props.width}
+                linkClassName="block relative aspect-video"
+                thumbnailSectionClassName="w-full h-full"
+                image={<SceneCardImage {...props} />}
+                overlays={
+                  <>
+                    {props.extraActions && (
+                      <Box sx={{ position: "absolute", top: "0.5rem", left: "0.5rem", zIndex: 20 }} onClick={e => {
                         e.preventDefault();
-                        setIsFlipped(true);
-                      }}
-                      title="View Details"
-                    >
-                      <Icon icon={faInfoCircle} className="h-4 w-4" />
-                      <span className="sr-only">Info</span>
-                    </button>
-                  </div>
-                </>
-              }
-              details={
-                <div className="p-4 space-y-3 !bg-card h-full flex flex-col text-card-foreground">
-                  {/* Header: Studio Logo, Date, and Badges Row */}
-                  <div className="flex justify-between items-center text-xs text-muted-foreground font-medium h-8">
-                    {/* Studio Logo (Left) */}
-                    <div className="flex items-center gap-2">
-                      {props.scene.studio?.image_path ? (
-                        <div
-                          className="cursor-pointer opacity-80 hover:opacity-100 transition-all"
-                          title={props.scene.studio.name ?? "Studio"}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            e.preventDefault();
-                            history.push(`/studios/${props.scene.studio?.id}`);
-                          }}
-                        >
-                          <img src={props.scene.studio.image_path} alt="Studio" className="h-6 w-auto object-contain" />
-                        </div>
-                      ) : (
-                        props.scene.studio && <span className="truncate">{props.scene.studio.name}</span>
-                      )}
-                      {/* Fallback Date if no studio or next to it */}
-                      {!props.scene.studio?.image_path && <span>{props.scene.date}</span>}
-                    </div>
-
-                    {/* Specs Badges (Right) */}
-                    <div className="flex gap-1.5">
-                      {resolution && <span className="px-1.5 py-0.5 text-[10px] font-bold bg-secondary/50 border border-border/50 rounded">{resolution}</span>}
-                      {duration && <span className="px-1.5 py-0.5 text-[10px] font-bold bg-secondary/50 border border-border/50 rounded">{duration}</span>}
-                    </div>
-                  </div>
-
-                  {/* Title */}
-                  <div className="font-semibold text-base line-clamp-2 leading-tight text-foreground group-hover:text-primary transition-colors">
-                    {objectTitle(props.scene)}
-                  </div>
-
-                  {/* Date if Studio Image present (Secondary meta row) */}
-                  {props.scene.studio?.image_path && (
-                    <div className="text-xs text-muted-foreground font-medium">
-                      {props.scene.date}
-                    </div>
-                  )}
-
-                  {/* Rating Only (Performers moved to back) */}
-                  <div className="flex justify-end items-end pt-2">
-                    {props.scene.rating100 !== null && props.scene.rating100 !== undefined && (
-                      <div className="flex items-center gap-1 text-sm font-bold text-yellow-500 mb-2">
-                        <span>★</span>
-                        <span>{Math.round(props.scene.rating100 / 20 * 10) / 10}</span>
-                      </div>
+                        e.stopPropagation();
+                      }}>
+                        {props.extraActions}
+                      </Box>
                     )}
-                  </div>
+                    {/* Info Button for Flip - Top Right */}
+                    <Box sx={{ position: "absolute", top: "0.5rem", right: "0.5rem", zIndex: 20, opacity: 0, ".group:hover &": { opacity: 1 }, transition: "opacity 0.2s" }}>
+                      <button
+                        style={{
+                          padding: "0.375rem",
+                          borderRadius: "9999px",
+                          backgroundColor: "rgba(0, 0, 0, 0.6)",
+                          color: "#fff",
+                          backdropFilter: "blur(4px)",
+                          border: "none",
+                          cursor: "pointer",
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          setIsFlipped(true);
+                        }}
+                        title="View Details"
+                      >
+                        <Icon icon={faInfoCircle} style={{ height: "1rem", width: "1rem" }} />
+                        <span style={{ position: "absolute", width: "1px", height: "1px", padding: 0, margin: "-1px", overflow: "hidden", clip: "rect(0, 0, 0, 0)", whiteSpace: "nowrap", border: 0 }}>Info</span>
+                      </button>
+                    </Box>
+                  </>
+                }
+                details={
+                  <Box sx={{ p: 2, display: "flex", flexDirection: "column", gap: 1.5, height: "100%", backgroundColor: "background.paper", color: "text.primary" }}>
+                    {/* Header: Studio Logo, Date, and Badges Row */}
+                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.75rem", color: "text.secondary", fontWeight: 500, height: "2rem" }}>
+                      {/* Studio Logo (Left) */}
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        {props.scene.studio?.image_path ? (
+                          <Box
+                            component="div"
+                            title={props.scene.studio.name ?? "Studio"}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
+                              history.push(`/studios/${props.scene.studio?.id}`);
+                            }}
+                            sx={{ cursor: "pointer", opacity: 0.8, "&:hover": { opacity: 1 }, transition: "opacity 0.2s" }}
+                          >
+                            <img src={props.scene.studio.image_path} alt="Studio" style={{ height: "1.5rem", width: "auto", objectFit: "contain" }} />
+                          </Box>
+                        ) : (
+                          props.scene.studio && <Box component="span" sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{props.scene.studio.name}</Box>
+                        )}
+                        {/* Fallback Date if no studio or next to it */}
+                        {!props.scene.studio?.image_path && <span>{props.scene.date}</span>}
+                      </Box>
 
-                  {/* Tags REMOVED from front face */}
-                </div>
-              }
-              selected={props.selected}
-              selecting={props.selecting}
-              onSelectedChanged={props.onSelectedChanged}
-              // Passthrough props for DnD that GridCard expects
-              objectId={props.scene.id}
-            />
-          </div>
+                      {/* Specs Badges (Right) */}
+                      <Box sx={{ display: "flex", gap: "0.375rem" }}>
+                        {resolution && <Box component="span" sx={{ px: "0.375rem", py: "0.125rem", fontSize: "10px", fontWeight: "bold", backgroundColor: "rgba(138, 155, 168, 0.25)", border: "1px solid rgba(138, 155, 168, 0.25)", borderRadius: "4px" }}>{resolution}</Box>}
+                        {duration && <Box component="span" sx={{ px: "0.375rem", py: "0.125rem", fontSize: "10px", fontWeight: "bold", backgroundColor: "rgba(138, 155, 168, 0.25)", border: "1px solid rgba(138, 155, 168, 0.25)", borderRadius: "4px" }}>{duration}</Box>}
+                      </Box>
+                    </Box>
+
+                    {/* Title */}
+                    <Box sx={{ fontWeight: 600, fontSize: "1rem", lineHeight: 1.25, color: "text.primary", overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", "&:hover": { color: "primary.main" }, transition: "color 0.2s" }}>
+                      {objectTitle(props.scene)}
+                    </Box>
+
+                    {/* Date if Studio Image present (Secondary meta row) */}
+                    {props.scene.studio?.image_path && (
+                      <Box sx={{ fontSize: "0.75rem", color: "text.secondary", fontWeight: 500 }}>
+                        {props.scene.date}
+                      </Box>
+                    )}
+
+                    {/* Rating Only (Performers moved to back) */}
+                    <Box sx={{ flexGrow: 1, display: "flex", justifyContent: "flex-end", alignItems: "flex-end" }}>
+                      {props.scene.rating100 !== null && props.scene.rating100 !== undefined && (
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, fontSize: "0.875rem", fontWeight: "bold", color: "warning.main" }}>
+                          <span>★</span>
+                          <span>{Math.round(props.scene.rating100 / 20 * 10) / 10}</span>
+                        </Box>
+                      )}
+                    </Box>
+                  </Box>
+                }
+                selected={props.selected}
+                selecting={props.selecting}
+                onSelectedChanged={props.onSelectedChanged}
+                objectId={props.scene.id}
+              />
+            </Box>
+          </Box>
 
           {/* BACK FACE */}
-          <div
-            className="scene-card-back absolute w-full h-full backface-hidden rotate-y-180 top-0 left-0 bg-card rounded-lg overflow-hidden border border-border/10 shadow-xl flex flex-col p-4 cursor-default"
+          <Box
+            className="scene-card-back"
             onClick={(e) => {
               e.stopPropagation();
               e.nativeEvent.stopImmediatePropagation();
@@ -332,12 +414,38 @@ const FlipCard = PatchComponent(
               e.nativeEvent.stopImmediatePropagation();
             }}
             onDoubleClick={(e) => e.stopPropagation()}
+            sx={{
+              position: "absolute",
+              width: "100%",
+              height: "100%",
+              backfaceVisibility: "hidden",
+              transform: "rotateY(180deg)",
+              top: 0,
+              left: 0,
+              backgroundColor: "background.paper",
+              borderRadius: "8px",
+              overflow: "hidden",
+              border: "1px solid rgba(255, 255, 255, 0.1)",
+              boxShadow: 3,
+              display: "flex",
+              flexDirection: "column",
+              p: 2,
+              cursor: "default",
+            }}
           >
             {/* Back Header: Return Button */}
-            <div className="flex justify-between items-start mb-2 flex-shrink-0">
-              <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Details</h3>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 1, flexShrink: 0 }}>
+              <Typography variant="caption" sx={{ fontWeight: "bold", color: "text.secondary", textTransform: "uppercase", letterSpacing: "0.05rem" }}>Details</Typography>
               <button
-                className="p-1.5 rounded-full hover:bg-secondary text-foreground transition-colors"
+                style={{
+                  padding: "0.375rem",
+                  borderRadius: "9999px",
+                  backgroundColor: "transparent",
+                  color: "inherit",
+                  border: "none",
+                  cursor: "pointer",
+                }}
+                className="hover-bg-secondary" // We'll use theme colors in sx if possible, but keep it simple
                 onClick={(e) => {
                   e.stopPropagation();
                   e.preventDefault();
@@ -346,64 +454,79 @@ const FlipCard = PatchComponent(
                 }}
                 title="Back to Preview"
               >
-                <Icon icon={faCopy} className="h-4 w-4 transform rotate-180" />
-                <span className="font-bold text-lg leading-none ml-1">✕</span>
+                <Icon icon={faCopy} style={{ height: "1rem", width: "1rem", transform: "rotate(180deg)" }} />
+                <span style={{ fontWeight: "bold", fontSize: "1.125rem", lineHeight: 1, marginLeft: "0.25rem" }}>✕</span>
               </button>
-            </div>
+            </Box>
 
             {/* Description (Fixed/Limited Height) */}
-            <div className="mb-3 flex-shrink-0 max-h-[40%] overflow-y-auto scrollbar-thin scrollbar-thumb-secondary scrollbar-track-transparent pr-1 overscroll-contain">
-              <p className="text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap font-medium">
-                {props.scene.details || <span className="text-muted-foreground italic">No description available.</span>}
-              </p>
-            </div>
+            <Box sx={{ mb: 1.5, flexShrink: 0, maxHeight: "40%", overflowY: "auto", overscrollBehavior: "contain", pr: 0.5 }}>
+              <Typography variant="body2" sx={{ lineHeight: 1.6, whiteSpace: "pre-wrap", fontWeight: 500 }}>
+                {props.scene.details || <Box component="span" sx={{ color: "text.secondary", fontStyle: "italic" }}>No description available.</Box>}
+              </Typography>
+            </Box>
 
             {/* Performers (Moved from Front) */}
-            <div className="mb-3 flex-shrink-0">
-              <h4 className="w-full text-xs font-bold text-muted-foreground uppercase mb-2">Performers</h4>
-              <div className="flex -space-x-3 overflow-hidden pl-1">
-                {props.scene.performers.slice(0, 5).map(p => (
-                  <div
+            <Box sx={{ mb: 1.5, flexShrink: 0 }}>
+              <Typography variant="caption" sx={{ display: "block", fontWeight: "bold", color: "text.secondary", textTransform: "uppercase", mb: 1 }}>Performers</Typography>
+              <Box sx={{ display: "flex", ml: 0.5 }}>
+                {props.scene.performers.slice(0, 5).map((p, i) => (
+                  <Box
                     key={p.id}
-                    className="inline-block h-12 w-12 rounded-full ring-2 ring-card bg-secondary flex items-center justify-center overflow-hidden shadow-md cursor-pointer hover:scale-110 hover:z-10 transition-transform"
                     title={p.name}
                     onClick={(e) => {
                       e.stopPropagation();
                       e.nativeEvent.stopImmediatePropagation(); // Prevent flip
                       history.push(`/performers/${p.id}`);
                     }}
+                    sx={{
+                      display: "inline-flex",
+                      height: "3.5rem",
+                      width: "3.5rem",
+                      borderRadius: "50%",
+                      border: (theme) => `2px solid ${theme.palette.background.paper}`,
+                      backgroundColor: "secondary.main",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      overflow: "hidden",
+                      boxShadow: 2,
+                      cursor: "pointer",
+                      "&:hover": { transform: "scale(1.1)", zIndex: 10 },
+                      transition: "transform 0.2s",
+                      ml: i === 0 ? 0 : "-0.75rem"
+                    }}
                   >
                     {p.image_path ? (
-                      <img src={p.image_path} alt={p.name} className="h-full w-full object-cover" />
+                      <img src={p.image_path} alt={p.name} style={{ height: "100%", width: "100%", objectFit: "cover" }} />
                     ) : (
-                      <span className="text-xs uppercase font-bold text-muted-foreground">{p.name.charAt(0)}</span>
+                      <Typography variant="caption" sx={{ fontWeight: "bold", color: "text.secondary", textTransform: "uppercase" }}>{p.name.charAt(0)}</Typography>
                     )}
-                  </div>
+                  </Box>
                 ))}
                 {props.scene.performers.length > 5 && (
-                  <div className="flex items-center justify-center h-12 w-12 rounded-full ring-2 ring-card bg-muted text-xs font-bold z-10">
+                  <Box sx={{ display: "flex", alignItems: "center", justifyItems: "center", height: "3.5rem", width: "3.5rem", borderRadius: "50%", border: (theme) => `2px solid ${theme.palette.background.paper}`, backgroundColor: "action.selected", fontSize: "0.75rem", fontWeight: "bold", zIndex: 10, ml: "-0.75rem" }}>
                     +{props.scene.performers.length - 5}
-                  </div>
+                  </Box>
                 )}
-                {props.scene.performers.length === 0 && <span className="text-sm text-muted-foreground italic">No performers</span>}
-              </div>
-            </div>
+                {props.scene.performers.length === 0 && <Typography variant="caption" sx={{ color: "text.secondary", fontStyle: "italic" }}>No performers</Typography>}
+              </Box>
+            </Box>
 
             {/* Tags (Scrollable, takes remaining space) */}
-            <div className="flex-grow overflow-y-auto border-t border-border/20 pt-3 scrollbar-thin scrollbar-thumb-secondary scrollbar-track-transparent overscroll-contain">
-              <div className="flex flex-wrap gap-1.5 content-start">
-                <h4 className="w-full text-xs font-bold text-muted-foreground uppercase mb-1">Tags</h4>
+            <Box sx={{ flexGrow: 1, overflowY: "auto", borderTop: (theme) => `1px solid ${theme.palette.divider}`, pt: 1.5, overscrollBehavior: "contain" }}>
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, alignItems: "flex-start" }}>
+                <Typography variant="caption" sx={{ width: "100%", fontWeight: "bold", color: "text.secondary", textTransform: "uppercase", mb: 0.5 }}>Tags</Typography>
                 {props.scene.tags.map(tag => (
-                  <span key={tag.id} className="px-2 py-0.5 bg-secondary hover:bg-primary/20 text-secondary-foreground hover:text-primary text-[10px] uppercase font-bold tracking-wide rounded-sm transition-colors cursor-default">
+                  <Box key={tag.id} component="span" sx={{ px: 1, py: 0.5, backgroundColor: "secondary.main", "&:hover": { backgroundColor: "rgba(138, 155, 168, 0.2)", color: "primary.main" }, color: "text.primary", fontSize: "10px", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.025rem", borderRadius: "2px", transition: "all 0.2s" }}>
                     {tag.name}
-                  </span>
+                  </Box>
                 ))}
-                {props.scene.tags.length === 0 && <span className="text-xs text-muted-foreground">No tags</span>}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+                {props.scene.tags.length === 0 && <Typography variant="caption" sx={{ color: "text.secondary" }}>No tags</Typography>}
+              </Box>
+            </Box>
+          </Box>
+        </Box>
+      </Box>
     );
   }
 );

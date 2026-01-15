@@ -185,7 +185,7 @@ export const IdentifyDialog: React.FC<IIdentifyDialogProps> = ({
     }
 
     return (
-      <Box className="dialog-selected-folders">
+      <Box sx={{ display: "flex", justifyContent: "space-between" }}>
         <Box sx={{ mb: 3 }}>
           {message}
           <div>

@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Button, ButtonGroup } from "@mui/material";
+import { Button, ButtonGroup, Box, Typography } from "@mui/material";
 import * as GQL from "src/core/generated-graphql";
 import { Icon } from "../Shared/Icon";
 import { TagLink } from "../Shared/TagLink";
@@ -76,8 +76,23 @@ const SceneMarkerCardPopovers = PatchComponent(
       if (!props.compact) {
         return (
           <>
-            <hr />
-            <ButtonGroup className="card-popovers">
+            <Box component="hr" sx={{ my: 1, borderColor: "rgba(255, 255, 255, 0.05)" }} />
+            <ButtonGroup
+              className="card-popovers"
+              sx={{
+                display: "flex",
+                flexWrap: "wrap",
+                justifyContent: "center",
+                mb: "10px",
+                "& .MuiButton-root": {
+                  pb: "3px",
+                  pt: "3px",
+                },
+                "& .fa-icon": {
+                  mr: "7px",
+                }
+              }}
+            >
               {maybeRenderPerformerPopoverButton()}
               {renderTagPopoverButton()}
             </ButtonGroup>
@@ -94,13 +109,27 @@ const SceneMarkerCardDetails = PatchComponent(
   "SceneMarkerCard.Details",
   (props: ISceneMarkerCardProps) => {
     return (
-      <div className="scene-marker-card__details">
-        <span className="scene-marker-card__time">
+      <Box
+        className="scene-marker-card__details"
+        sx={{
+          mb: "1rem"
+        }}
+      >
+        <Box
+          component="span"
+          className="scene-marker-card__time"
+          sx={{
+            color: "text.secondary",
+            fontSize: "0.875rem",
+            display: "block",
+            mb: 0.5
+          }}
+        >
           {TextUtils.formatTimestampRange(
             props.marker.seconds,
             props.marker.end_seconds ?? undefined
           )}
-        </span>
+        </Box>
         <TruncatedText
           className="scene-marker-card__scene"
           lineCount={3}
@@ -110,7 +139,7 @@ const SceneMarkerCardDetails = PatchComponent(
             </Link>
           }
         />
-      </div>
+      </Box>
     );
   }
 );
@@ -136,15 +165,32 @@ const SceneMarkerCardImage = PatchComponent(
 
     function maybeRenderSceneSpecsOverlay() {
       return (
-        <div className="scene-specs-overlay">
+        <Box
+          className="scene-specs-overlay"
+          sx={{
+            bottom: "0.5rem",
+            color: "#fff",
+            display: "block",
+            fontWeight: 400,
+            letterSpacing: "-0.03rem",
+            position: "absolute",
+            right: "0.5rem",
+            textShadow: "0 0 3px #000",
+            fontSize: "0.75rem",
+            backgroundColor: "rgba(0, 0, 0, 0.6)",
+            px: 0.5,
+            borderRadius: "2px",
+            zIndex: 5
+          }}
+        >
           {props.marker.end_seconds && (
-            <span className="overlay-duration">
+            <Box component="span" className="overlay-duration">
               {TextUtils.secondsToTimestamp(
                 props.marker.end_seconds - props.marker.seconds
               )}
-            </span>
+            </Box>
           )}
-        </div>
+        </Box>
       );
     }
 

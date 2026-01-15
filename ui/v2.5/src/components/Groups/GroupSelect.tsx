@@ -1,3 +1,4 @@
+import { Box } from "@mui/material";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   OptionProps,
@@ -116,42 +117,90 @@ export const GroupSelect: React.FC<
     thisOptionProps = {
       ...optionProps,
       children: (
-        <span className="group-select-option">
-          <span className="group-select-row">
-            {object.front_image_path && (
-              <img
-                className="group-select-image"
-                src={object.front_image_path}
-                loading="lazy"
-              />
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            width: "100%",
+          }}
+        >
+          {object.front_image_path && (
+            <Box
+              component="img"
+              src={object.front_image_path}
+              loading="lazy"
+              sx={{
+                bgcolor: "background.default",
+                mr: 1,
+                maxHeight: "50px",
+                maxWidth: "89px",
+                objectFit: "contain",
+                objectPosition: "center",
+              }}
+            />
+          )}
+
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "flex-start",
+              maxHeight: "4.1rem",
+              overflow: "hidden",
+            }}
+          >
+            <TruncatedText
+              className="group-select-title"
+              text={
+                <Box component="span">
+                  {title}
+                  {alias && (
+                    <Box
+                      component="span"
+                      sx={{
+                        fontSize: "0.8rem",
+                        fontWeight: "bold",
+                      }}
+                    >
+                      {` (${alias})`}
+                    </Box>
+                  )}
+                </Box>
+              }
+              lineCount={1}
+            />
+
+            {object.studio?.name && (
+              <Box
+                component="span"
+                sx={{
+                  color: "text.secondary",
+                  fontSize: "0.9rem",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {object.studio?.name}
+              </Box>
             )}
 
-            <span className="group-select-details">
-              <TruncatedText
-                className="group-select-title"
-                text={
-                  <span>
-                    {title}
-                    {alias && (
-                      <span className="group-select-alias">{` (${alias})`}</span>
-                    )}
-                  </span>
-                }
-                lineCount={1}
-              />
-
-              {object.studio?.name && (
-                <span className="group-select-studio">
-                  {object.studio?.name}
-                </span>
-              )}
-
-              {object.date && (
-                <span className="group-select-date">{object.date}</span>
-              )}
-            </span>
-          </span>
-        </span>
+            {object.date && (
+              <Box
+                component="span"
+                sx={{
+                  color: "text.secondary",
+                  fontSize: "0.9rem",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {object.date}
+              </Box>
+            )}
+          </Box>
+        </Box>
       ),
     };
 

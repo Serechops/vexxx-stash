@@ -14,7 +14,7 @@ interface IStudioCardGrid {
   onSelectChange: (id: string, selected: boolean, shiftKey: boolean) => void;
 }
 
-const zoomWidths = [280, 340, 420, 560];
+const zoomWidths = [280, 340, 420, 560, 800];
 
 export const StudioCardGrid: React.FC<IStudioCardGrid> = ({
   studios,

@@ -17,7 +17,7 @@ interface IPerformerCardGrid {
   loading?: boolean;
 }
 
-const zoomWidths = [240, 300, 375, 470];
+const zoomWidths = [280, 340, 420, 560, 800];
 
 export const PerformerCardGrid: React.FC<IPerformerCardGrid> = ({
   performers,

@@ -1,3 +1,4 @@
+import { Box } from "@mui/material";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   OptionProps,
@@ -114,29 +115,24 @@ const _TagSelect: React.FC<TagSelectProps> = (props) => {
       ...optionProps,
       children: (
         <TagPopover id={object.id} placement={props.hoverPlacement ?? "right"}>
-          <span className="react-select-image-option">
-            {/* the following code causes re-rendering issues when selecting tags */}
-            {/* <TagPopover
-              id={object.id}
-              placement={props.hoverPlacement}
-              target={targetRef}
-            >
-              <a
-                href={`/tags/${object.id}`}
-                target="_blank"
-                rel="noreferrer"
-                className="tag-select-image-link"
-              >
-                <img
-                  className="tag-select-image"
-                  src={object.image_path ?? ""}
-                  loading="lazy"
-                />
-              </a>
-            </TagPopover> */}
-            <span>{name}</span>
-            {alias && <span className="alias">&nbsp;({alias})</span>}
-          </span>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              "& .alias": {
+                ml: 1,
+                opacity: 0.6,
+                fontStyle: "italic",
+              }
+            }}
+          >
+            <Box component="span">{name}</Box>
+            {alias && (
+              <Box component="span" className="alias">
+                &nbsp;({alias})
+              </Box>
+            )}
+          </Box>
         </TagPopover>
       ),
     };

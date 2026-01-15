@@ -37,7 +37,7 @@ interface IImageWallProps {
   zoomIndex: number;
 }
 
-const zoomWidths = [280, 340, 480, 640];
+const zoomWidths = [280, 340, 420, 560, 800];
 const breakpointZoomHeights = [
   { minWidth: 576, heights: [100, 120, 240, 360] },
   { minWidth: 768, heights: [120, 160, 240, 480] },

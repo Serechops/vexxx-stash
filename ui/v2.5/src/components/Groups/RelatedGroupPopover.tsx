@@ -4,7 +4,7 @@ import {
   faArrowDownLong,
 } from "@fortawesome/free-solid-svg-icons";
 import React, { useMemo } from "react";
-import { Button, Tooltip } from "@mui/material";
+import { Box, Button, Tooltip } from "@mui/material";
 import { Count } from "../Shared/PopoverCountButton";
 import { Icon } from "../Shared/Icon";
 import { HoverPopover } from "../Shared/HoverPopover";
@@ -96,12 +96,24 @@ const SubGroupCount: React.FC<IProps> = ({ group }) => {
 
 export const RelatedGroupPopoverButton: React.FC<IProps> = ({ group }) => {
   return (
-    <span className="related-group-popover-button">
+    <Box
+      className="related-group-popover-button"
+      sx={{
+        "& .containing-group-count": {
+          display: "inline-block",
+        },
+        "& .related-group-count .fa-icon": {
+          color: "text.secondary",
+          ml: 0,
+          mr: 0.5,
+        },
+      }}
+    >
       <Button className="minimal" variant="text" size="small">
         <Icon icon={faFilm} />
         <ContainingGroupsCount group={group} />
         <SubGroupCount group={group} />
       </Button>
-    </span>
+    </Box>
   );
 };

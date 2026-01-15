@@ -1,3 +1,4 @@
+import { Box } from "@mui/material";
 import React from "react";
 import { ErrorMessage } from "../Shared/ErrorMessage";
 import { LoadingIndicator } from "../Shared/LoadingIndicator";
@@ -15,9 +16,17 @@ export const TagPopoverCard: React.FC<ITagPopoverCardProps> = ({ id }) => {
 
   if (loading)
     return (
-      <div className="tag-popover-card-placeholder">
+      <Box
+        className="tag-popover-card-placeholder"
+        sx={{
+          display: "flex",
+          maxWidth: "240px",
+          minHeight: "314px",
+          width: "calc(100vw - 2rem)",
+        }}
+      >
         <LoadingIndicator card={true} message={""} />
-      </div>
+      </Box>
     );
   if (error) return <ErrorMessage error={error.message} />;
   if (!data?.findTag)
@@ -26,9 +35,15 @@ export const TagPopoverCard: React.FC<ITagPopoverCardProps> = ({ id }) => {
   const tag = data.findTag;
 
   return (
-    <div className="tag-popover-card">
+    <Box
+      className="tag-popover-card"
+      sx={{
+        p: 1,
+        textAlign: "left",
+      }}
+    >
       <TagCard tag={tag} zoomIndex={0} />
-    </div>
+    </Box>
   );
 };
 

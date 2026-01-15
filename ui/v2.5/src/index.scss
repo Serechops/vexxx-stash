@@ -11,10 +11,6 @@ $sidebar-width: 250px;
 @import "styles/range";
 @import "styles/scrollbars";
 @import "sfw-mode.scss";
-@import "src/components/Changelog/styles.scss";
-@import "src/components/Help/styles.scss";
-
-@import "src/components/Groups/styles.scss";
 @import "src/components/FrontPage/styles.scss";
 @import "src/components/SceneDuplicateChecker/styles.scss";
 @import "src/components/SceneFilenameParser/styles.scss";
@@ -25,7 +21,6 @@ $sidebar-width: 250px;
 @import "src/components/Shared/GridCard/styles.scss";
 
 @import "src/components/Shared/PackageManager/styles.scss";
-@import "src/components/Tags/styles.scss";
 @import "src/components/Wall/styles.scss";
 @import "src/components/Tagger/styles.scss";
 @import "src/hooks/Lightbox/lightbox.scss";

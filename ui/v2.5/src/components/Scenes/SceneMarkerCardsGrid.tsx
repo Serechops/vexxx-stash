@@ -13,7 +13,7 @@ interface ISceneMarkerCardsGrid {
   onSelectChange: (id: string, selected: boolean, shiftKey: boolean) => void;
 }
 
-const zoomWidths = [240, 340, 480, 640];
+const zoomWidths = [280, 340, 420, 560, 800];
 
 export const SceneMarkerCardsGrid: React.FC<ISceneMarkerCardsGrid> = ({
   markers,

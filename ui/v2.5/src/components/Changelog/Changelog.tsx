@@ -1,3 +1,4 @@
+import { Box, Typography } from "@mui/material";
 import React from "react";
 import { useChangelogStorage } from "src/hooks/LocalForage";
 import Version from "./Version";
@@ -255,8 +256,19 @@ const Changelog: React.FC = () => {
   ];
 
   return (
-    <div className="changelog">
-      <h1 className="mb-4">Changelog:</h1>
+    <Box
+      className="changelog"
+      sx={{
+        mb: 8,
+        "& ul": {
+          listStyleType: "none",
+          pl: 1,
+        },
+      }}
+    >
+      <Typography variant="h4" sx={{ mb: 4 }}>
+        Changelog:
+      </Typography>
       {releases.map((r) => (
         <Version
           key={r.version}
@@ -267,18 +279,18 @@ const Changelog: React.FC = () => {
           defaultOpen={r.defaultOpen}
         >
           {r.releaseNotes && (
-            <div>
-              <h3 className="mt-0">
+            <Box>
+              <Typography variant="h5" sx={{ mt: 0 }}>
                 <FormattedMessage id="release_notes" />
-              </h3>
+              </Typography>
               <MarkdownPage page={r.releaseNotes} />
               <hr />
-            </div>
+            </Box>
           )}
           <MarkdownPage page={r.page} />
         </Version>
       ))}
-    </div>
+    </Box>
   );
 };
 

@@ -1,5 +1,4 @@
 import React from "react";
-import { Grid } from "@mui/material";
 import * as GQL from "src/core/generated-graphql";
 import {
   useCardWidth,
@@ -14,7 +13,7 @@ interface ITagCardGrid {
   onSelectChange: (id: string, selected: boolean, shiftKey: boolean) => void;
 }
 
-const zoomWidths = [280, 340, 480, 640];
+const zoomWidths = [280, 340, 420, 560, 800];
 
 export const TagCardGrid: React.FC<ITagCardGrid> = ({
   tags,
@@ -26,21 +25,20 @@ export const TagCardGrid: React.FC<ITagCardGrid> = ({
   const cardWidth = useCardWidth(containerWidth, zoomIndex, zoomWidths);
 
   return (
-    <Grid container justifyContent="center" ref={componentRef} spacing={2}>
+    <div className="row justify-content-center" ref={componentRef}>
       {tags.map((tag) => (
-        <Grid key={tag.id}>
-          <TagCard
-            cardWidth={cardWidth}
-            tag={tag}
-            zoomIndex={zoomIndex}
-            selecting={selectedIds.size > 0}
-            selected={selectedIds.has(tag.id)}
-            onSelectedChanged={(selected: boolean, shiftKey: boolean) =>
-              onSelectChange(tag.id, selected, shiftKey)
-            }
-          />
-        </Grid>
+        <TagCard
+          key={tag.id}
+          cardWidth={cardWidth}
+          tag={tag}
+          zoomIndex={zoomIndex}
+          selecting={selectedIds.size > 0}
+          selected={selectedIds.has(tag.id)}
+          onSelectedChanged={(selected: boolean, shiftKey: boolean) =>
+            onSelectChange(tag.id, selected, shiftKey)
+          }
+        />
       ))}
-    </Grid>
+    </div>
   );
 };

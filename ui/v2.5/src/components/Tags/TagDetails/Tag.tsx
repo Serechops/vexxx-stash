@@ -518,24 +518,79 @@ const TagPage: React.FC<IProps> = ({ tag, tabKey }) => {
   });
 
   return (
-    <Row id="tag-page">
+    <Box
+      id="tag-page"
+      sx={{
+        display: "flex",
+        flexWrap: "wrap",
+        mx: -1.5,
+      }}
+    >
       <Helmet>
         <title>{tag.name}</title>
       </Helmet>
 
-      <div className={headerClassName}>
+      <Box
+        className={headerClassName}
+        sx={{
+          width: "100%",
+          position: "relative",
+          mb: 4,
+          "&.collapsed": {
+            "& .logo": {
+              maxHeight: "200px",
+            },
+          },
+          "&.full-width": {
+            maxWidth: "100%",
+          },
+        }}
+      >
         <BackgroundImage
           imagePath={tag.image_path ?? undefined}
           show={enableBackgroundImage && !isEditing}
         />
-        <div className="detail-container">
+        <Box
+          className="detail-container"
+          sx={{
+            px: { xs: 2, sm: 4, md: 5 },
+            py: 4,
+          }}
+        >
           <HeaderImage encodingImage={encodingImage}>
             {tagImage && (
-              <DetailImage className="logo" alt={tag.name} src={tagImage} />
+              <Box
+                sx={{
+                  mb: 4,
+                  "& .logo": {
+                    maxHeight: "50vh",
+                    maxWidth: "100%",
+                    objectFit: "contain",
+                  },
+                }}
+              >
+                <DetailImage className="logo" alt={tag.name} src={tagImage} />
+              </Box>
             )}
           </HeaderImage>
-          <Row>
-            <Col className="tag-head">
+          <Box className="row">
+            <Box
+              className="tag-head col"
+              sx={{
+                "& .name-icons": {
+                  display: "inline-flex",
+                  alignItems: "center",
+                  ml: 2,
+                  verticalAlign: "middle",
+                  "& .not-favorite": {
+                    color: "rgba(191, 204, 214, 0.5)",
+                  },
+                  "& .favorite": {
+                    color: "#ff7373",
+                  },
+                },
+              }}
+            >
               <DetailTitle name={tag.name} classNamePrefix="tag">
                 {!isEditing && (
                   <ExpandCollapseButton
@@ -555,6 +610,7 @@ const TagPage: React.FC<IProps> = ({ tag, tabKey }) => {
               {!isEditing && (
                 <TagDetailsPanel
                   tag={tag}
+                  collapsed={collapsed}
                   fullWidth={!collapsed && !compactExpandedDetails}
                 />
               )}
@@ -583,20 +639,18 @@ const TagPage: React.FC<IProps> = ({ tag, tabKey }) => {
                   customButtons={renderMergeButton()}
                 />
               )}
-            </Col>
-          </Row>
-        </div>
-      </div>
+            </Box>
+          </Box>
+        </Box>
+      </Box>
 
-      {
-        !isEditing && loadStickyHeader && (
-          <CompressedTagDetailsPanel tag={tag} />
-        )
-      }
+      {!isEditing && loadStickyHeader && (
+        <CompressedTagDetailsPanel tag={tag} />
+      )}
 
-      <div className="detail-body">
-        <div className="tag-body">
-          <div className="tag-tabs">
+      <Box className="detail-body" sx={{ width: "100%", px: { xs: 2, sm: 4, md: 5 } }}>
+        <Box className="tag-body">
+          <Box className="tag-tabs">
             {!isEditing && (
               <TagTabs
                 tabKey={tabKey}
@@ -605,12 +659,12 @@ const TagPage: React.FC<IProps> = ({ tag, tabKey }) => {
                 showAllCounts={showAllCounts}
               />
             )}
-          </div>
-        </div>
-      </div>
+          </Box>
+        </Box>
+      </Box>
       {renderDeleteAlert()}
       {renderMergeDialog()}
-    </Row>
+    </Box>
   );
 };
 

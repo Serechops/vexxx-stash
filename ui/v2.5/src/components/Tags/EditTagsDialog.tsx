@@ -190,45 +190,54 @@ export const EditTagsDialog: React.FC<IListOperationProps> = (
       }}
       isRunning={isUpdating}
     >
-      <Box component="form">
-        <Box mb={2} id="favorite">
-          <IndeterminateCheckbox
-            setChecked={(checked) => setUpdateField({ favorite: checked })}
-            checked={updateInput.favorite ?? undefined}
-            label={intl.formatMessage({ id: "favourite" })}
+      <Box
+        sx={{
+          maxHeight: "70vh",
+          overflowY: "auto",
+          overflowX: "hidden",
+          px: 1
+        }}
+      >
+        <Box component="form">
+          <Box mb={2} id="favorite">
+            <IndeterminateCheckbox
+              setChecked={(checked) => setUpdateField({ favorite: checked })}
+              checked={updateInput.favorite ?? undefined}
+              label={intl.formatMessage({ id: "favourite" })}
+            />
+          </Box>
+
+          {renderTextField("description", updateInput.description, (v) =>
+            setUpdateField({ description: v })
+          )}
+
+          <Tags
+            isUpdating={isUpdating}
+            controlId="parent-tags"
+            messageId="parent_tags"
+            existingTagIds={existingParentTagIds}
+            tagIDs={parentTagIDs}
+            setTagIDs={setParentTagIDs}
           />
-        </Box>
 
-        {renderTextField("description", updateInput.description, (v) =>
-          setUpdateField({ description: v })
-        )}
-
-        <Tags
-          isUpdating={isUpdating}
-          controlId="parent-tags"
-          messageId="parent_tags"
-          existingTagIds={existingParentTagIds}
-          tagIDs={parentTagIDs}
-          setTagIDs={setParentTagIDs}
-        />
-
-        <Tags
-          isUpdating={isUpdating}
-          controlId="sub-tags"
-          messageId="sub_tags"
-          existingTagIds={existingChildTagIds}
-          tagIDs={childTagIDs}
-          setTagIDs={setChildTagIDs}
-        />
-
-        <Box mb={2} id="ignore-auto-tags">
-          <IndeterminateCheckbox
-            label={intl.formatMessage({ id: "ignore_auto_tag" })}
-            setChecked={(checked) =>
-              setUpdateField({ ignore_auto_tag: checked })
-            }
-            checked={updateInput.ignore_auto_tag ?? undefined}
+          <Tags
+            isUpdating={isUpdating}
+            controlId="sub-tags"
+            messageId="sub_tags"
+            existingTagIds={existingChildTagIds}
+            tagIDs={childTagIDs}
+            setTagIDs={setChildTagIDs}
           />
+
+          <Box mb={2} id="ignore-auto-tags">
+            <IndeterminateCheckbox
+              label={intl.formatMessage({ id: "ignore_auto_tag" })}
+              setChecked={(checked) =>
+                setUpdateField({ ignore_auto_tag: checked })
+              }
+              checked={updateInput.ignore_auto_tag ?? undefined}
+            />
+          </Box>
         </Box>
       </Box>
     </ModalComponent>

@@ -249,21 +249,33 @@ export const StudioCard: React.FC<IProps> = PatchComponent(
           title={studio.name}
           linkClassName="studio-card-header"
           image={
-            <Box
-              component="img"
-              loading="lazy"
-              alt={studio.name}
-              src={studio.image_path ?? ""}
-              sx={{
-                width: "100%",
-                height: "100%",
-                objectFit: "contain",
-                p: 1
-              }}
-            />
+            <Box sx={{ position: "relative", width: "100%", pb: "50%" }}>
+              <Box
+                sx={{
+                  position: "absolute",
+                  inset: 0,
+                  p: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Box
+                  component="img"
+                  loading="lazy"
+                  alt={studio.name}
+                  src={studio.image_path ?? ""}
+                  sx={{
+                    maxWidth: "100%",
+                    maxHeight: "100%",
+                    objectFit: "contain",
+                  }}
+                />
+              </Box>
+            </Box>
           }
           details={
-            <Box>
+            <Box sx={{ minHeight: "3.5rem" }}>
               {maybeRenderParent(studio, hideParent)}
               {maybeRenderChildren(studio)}
               <Box sx={{ mt: 1 }}>

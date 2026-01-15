@@ -15,7 +15,7 @@ interface IGalleryCardGrid {
   isMasonry?: boolean;
 }
 
-const zoomWidths = [280, 340, 480, 640];
+const zoomWidths = [280, 340, 420, 560, 800];
 
 export const GalleryCardGrid: React.FC<IGalleryCardGrid> = ({
   galleries,

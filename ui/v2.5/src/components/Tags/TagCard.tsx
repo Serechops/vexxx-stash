@@ -1,7 +1,7 @@
 import { PatchComponent } from "src/patch";
-import { Button, ButtonGroup, IconButton } from "@mui/material";
 import React from "react";
 import { Link } from "react-router-dom";
+import { Box, Button, ButtonGroup, IconButton, Typography } from "@mui/material";
 import * as GQL from "src/core/generated-graphql";
 import NavUtils from "src/utils/navigation";
 import { FormattedMessage } from "react-intl";
@@ -12,6 +12,7 @@ import { Icon } from "../Shared/Icon";
 import { faHeart } from "@fortawesome/free-solid-svg-icons";
 import cx from "classnames";
 import { useTagUpdate } from "src/core/StashService";
+import { RatingBanner } from "../Shared/RatingBanner";
 
 interface IProps {
   tag: GQL.TagDataFragment | GQL.TagListDataFragment;
@@ -144,20 +145,20 @@ const TagCardDetails: React.FC<IProps> = PatchComponent(
       if (tag.parents.length === 1) {
         const parent = tag.parents[0];
         return (
-          <div className="tag-parent-tags">
+          <Box sx={{ mt: 0.5, fontSize: "0.875rem" }}>
             <FormattedMessage
               id="sub_tag_of"
               values={{
                 parent: <Link to={`/tags/${parent.id}`}>{parent.name}</Link>,
               }}
             />
-          </div>
+          </Box>
         );
       }
 
       if (tag.parents.length > 1) {
         return (
-          <div className="tag-parent-tags">
+          <Box sx={{ mt: 0.5, fontSize: "0.875rem" }}>
             <FormattedMessage
               id="sub_tag_of"
               values={{
@@ -172,7 +173,7 @@ const TagCardDetails: React.FC<IProps> = PatchComponent(
                 ),
               }}
             />
-          </div>
+          </Box>
         );
       }
     }
@@ -180,7 +181,7 @@ const TagCardDetails: React.FC<IProps> = PatchComponent(
     function maybeRenderChildren() {
       if (tag.children.length > 0) {
         return (
-          <div className="tag-sub-tags">
+          <Box sx={{ mt: 0.5, fontSize: "0.875rem" }}>
             <FormattedMessage
               id="parent_of"
               values={{
@@ -195,33 +196,24 @@ const TagCardDetails: React.FC<IProps> = PatchComponent(
                 ),
               }}
             />
-          </div>
+          </Box>
         );
       }
     }
 
     return (
-      <>
+      <Box
+        sx={{
+          minHeight: "4rem",
+          "& .tag-description": {
+            mb: 1
+          }
+        }}
+      >
         {maybeRenderDescription()}
         {maybeRenderParents()}
         {maybeRenderChildren()}
-      </>
-    );
-  }
-);
-
-const TagCardImage: React.FC<IProps> = PatchComponent(
-  "TagCard.Image",
-  ({ tag }) => {
-    return (
-      <>
-        <img
-          loading="lazy"
-          className="tag-card-image"
-          alt={tag.name}
-          src={tag.image_path ?? ""}
-        />
-      </>
+      </Box>
     );
   }
 );
@@ -238,19 +230,64 @@ export const TagCard: React.FC<IProps> = PatchComponent("TagCard", (props) => {
     props;
 
   return (
-    <GridCard
-      className={`tag-card zoom-${zoomIndex} hover:!scale-100 !transition-none`}
-      url={`/tags/${tag.id}`}
-      width={cardWidth}
-      title={<TagCardTitle {...props} />}
-      linkClassName="tag-card-header"
-      image={<TagCardImage {...props} />}
-      details={<TagCardDetails {...props} />}
-      overlays={<TagCardOverlays {...props} />}
-      popovers={<TagCardPopovers {...props} />}
-      selected={selected}
-      selecting={selecting}
-      onSelectedChanged={onSelectedChanged}
-    />
+    <Box
+      className={`tag-card zoom-${zoomIndex}`}
+      sx={{
+        "& .favorite-button": {
+          position: "absolute",
+          top: 10,
+          right: 5,
+          p: 0,
+          zIndex: 1,
+          "&.not-favorite": {
+            opacity: 0,
+            transition: "opacity 0.2s"
+          }
+        },
+        "&:hover .favorite-button.not-favorite": {
+          opacity: 1
+        }
+      }}
+    >
+      <GridCard
+        className="hover:!scale-100 !transition-none"
+        url={`/tags/${tag.id}`}
+        width={cardWidth}
+        title={<TagCardTitle {...props} />}
+        linkClassName="tag-card-header"
+        image={
+          <Box sx={{ position: "relative", width: "100%", pb: "50%" }}>
+            <Box
+              sx={{
+                position: "absolute",
+                inset: 0,
+                p: 1,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Box
+                component="img"
+                loading="lazy"
+                alt={tag.name}
+                src={tag.image_path ?? ""}
+                sx={{
+                  maxWidth: "100%",
+                  maxHeight: "100%",
+                  objectFit: "contain",
+                }}
+              />
+            </Box>
+          </Box>
+        }
+        details={<TagCardDetails {...props} />}
+        overlays={<TagCardOverlays {...props} />}
+        popovers={<TagCardPopovers {...props} />}
+        selected={selected}
+        selecting={selecting}
+        onSelectedChanged={onSelectedChanged}
+      />
+    </Box>
   );
 });

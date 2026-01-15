@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import cx from "classnames";
-import { Chip, Button, FormControlLabel, Checkbox, Box, Stack, Typography } from "@mui/material";
+import { Chip, Button, FormControlLabel, Checkbox, Box, Stack, Typography, Grid } from "@mui/material";
 import { FormattedMessage, useIntl } from "react-intl";
 import uniq from "lodash-es/uniq";
 import { blobToBase64 } from "base64-blob";
@@ -37,17 +37,18 @@ import { Row, Col } from "src/components/Shared/Layouts";
 const getDurationIcon = (matchPercentage: number) => {
   if (matchPercentage > 65)
     return (
-      <Icon className="SceneTaggerIcon text-success" icon={faCheckCircle} />
+      <Icon className="SceneTaggerIcon" color="success" icon={faCheckCircle} />
     );
   if (matchPercentage > 35)
     return (
       <Icon
-        className="SceneTaggerIcon text-warning"
+        className="SceneTaggerIcon"
+        color="warning"
         icon={faTriangleExclamation}
       />
     );
 
-  return <Icon className="SceneTaggerIcon text-danger" icon={faXmark} />;
+  return <Icon className="SceneTaggerIcon" color="error" icon={faXmark} />;
 };
 
 const getDurationStatus = (
@@ -80,10 +81,10 @@ const getDurationStatus = (
 
   if (match)
     return (
-      <div className="font-weight-bold">
+      <Typography fontWeight="bold">
         {getDurationIcon(matchPercentage)}
         {match}
-      </div>
+      </Typography>
     );
 
   let minDiff = Math.min(...durations);
@@ -153,7 +154,7 @@ const getFingerprintStatus = (
   const phashMatches = matchPhashes(allPhashes, scene.fingerprints ?? []);
 
   const phashList = (
-    <div className="m-2">
+    <Box m={2}>
       {phashMatches.map((fp: [string, number]) => {
         const hash = fp[0];
         const d = fp[1];
@@ -164,14 +165,14 @@ const getFingerprintStatus = (
           </div>
         );
       })}
-    </div>
+    </Box>
   );
 
   if (checksumMatch || phashMatches.length > 0)
     return (
-      <div>
+      <Box>
         {phashMatches.length > 0 && (
-          <div className="font-weight-bold">
+          <Typography fontWeight="bold" component="div">
             <SuccessIcon className="SceneTaggerIcon" />
             <HoverPopover
               placement="bottom"
@@ -194,20 +195,22 @@ const getFingerprintStatus = (
                 />
               )}
             </HoverPopover>
-          </div>
+          </Typography>
         )}
         {checksumMatch && (
-          <div className="font-weight-bold">
-            <SuccessIcon className="mr-2" />
+          <Typography fontWeight="bold" component="div">
+            <span style={{ marginRight: "0.5rem" }}>
+              <SuccessIcon />
+            </span>
             <FormattedMessage
               id="component_tagger.results.hash_matches"
               values={{
                 hash_type: <FormattedMessage id="media_info.checksum" />,
               }}
             />
-          </div>
+          </Typography>
         )}
-      </div>
+      </Box>
     );
 };
 
@@ -548,9 +551,9 @@ const StashSearchResult: React.FC<IStashSearchResultProps> = ({
   const renderTitle = () => {
     if (!scene.title) {
       return (
-        <h4 className="text-muted">
+        <Typography variant="h4" color="text.secondary">
           <FormattedMessage id="component_tagger.results.unnamed" />
-        </h4>
+        </Typography>
       );
     }
 
@@ -565,14 +568,14 @@ const StashSearchResult: React.FC<IStashSearchResultProps> = ({
     );
 
     return (
-      <h4>
+      <Typography variant="h4">
         <OptionalField
           exclude={excludedFields[fields.title]}
           setExclude={(v) => setExcludedField(fields.title, v)}
         >
           {sceneTitleEl}
         </OptionalField>
-      </h4>
+      </Typography>
     );
   };
 
@@ -583,7 +586,7 @@ const StashSearchResult: React.FC<IStashSearchResultProps> = ({
         : `${scene.studio?.name ?? scene.date ?? ""}`;
 
     if (text) {
-      return <h5>{text}</h5>;
+      return <Typography variant="h5">{text}</Typography>;
     }
   }
 
@@ -759,13 +762,13 @@ const StashSearchResult: React.FC<IStashSearchResultProps> = ({
     const createTags = scene.tags?.filter((t) => !t.stored_id);
 
     return (
-      <div className="mt-2">
-        <div>
-          <Row>
+      <Box mt={2}>
+        <Box>
+          <Grid container>
             {FormUtils.renderLabel({
               title: `${intl.formatMessage({ id: "tags" })}:`,
             })}
-            <Col sm={9} xl={12}>
+            <Grid size={{ sm: 9, xl: 12 }}>
               <TagSelect
                 isMulti
                 onSelect={(items) => {
@@ -773,9 +776,9 @@ const StashSearchResult: React.FC<IStashSearchResultProps> = ({
                 }}
                 ids={tagIDs}
               />
-            </Col>
-          </Row>
-        </div>
+            </Grid>
+          </Grid>
+        </Box>
         {createTags?.map((t) => (
           <Chip
             className="tag-item"
@@ -815,7 +818,7 @@ const StashSearchResult: React.FC<IStashSearchResultProps> = ({
             onDelete={() => { }}
           />
         ))}
-      </div>
+      </Box>
     );
   }
 
@@ -828,10 +831,10 @@ const StashSearchResult: React.FC<IStashSearchResultProps> = ({
 
   return (
     <>
-      <div className={isActive ? "col-lg-6" : ""}>
-        <div className="row mx-0">
+      <Grid size={isActive ? { lg: 6 } : {}} sx={{ width: "100%" }}>
+        <Grid container spacing={0}>
           {maybeRenderCoverImage()}
-          <div className="d-flex flex-column justify-content-center scene-metadata">
+          <Box className="scene-metadata" display="flex" flexDirection="column" justifyContent="center">
             {renderTitle()}
 
             {!isActive && (
@@ -845,29 +848,29 @@ const StashSearchResult: React.FC<IStashSearchResultProps> = ({
             {maybeRenderDateField()}
             {getDurationStatus(scene, stashSceneFile?.duration)}
             {getFingerprintStatus(scene, stashScene)}
-          </div>
-        </div>
+          </Box>
+        </Grid>
         {isActive && (
-          <div className="d-flex flex-column">
+          <Box display="flex" flexDirection="column">
             {maybeRenderStashBoxID()}
             {maybeRenderDirector()}
             {maybeRenderURL()}
             {maybeRenderDetails()}
-          </div>
+          </Box>
         )}
-      </div>
+      </Grid>
       {isActive && (
-        <div className="col-lg-6">
+        <Grid size={{ lg: 6 }}>
           {maybeRenderStudioField()}
           {renderPerformerField()}
           {maybeRenderTagsField()}
 
-          <div className="row no-gutters mt-2 align-items-center justify-content-end">
+          <Box display="flex" mt={2} alignItems="center" justifyContent="flex-end">
             <OperationButton operation={handleSave}>
               <FormattedMessage id="actions.save" />
             </OperationButton>
-          </div>
-        </div>
+          </Box>
+        </Grid>
       )}
     </>
   );
@@ -905,31 +908,46 @@ export const SceneSearchResults: React.FC<ISceneSearchResults> = ({
     }
   }, [scenes, selectedResult]);
 
-  function getClassName(i: number) {
-    return cx("row mx-0 mt-2 search-result", {
-      "selected-result active": i === selectedResult,
-    });
+  function getSx(i: number) {
+    return {
+      mt: 2,
+      mx: 0,
+      cursor: "pointer",
+      ...(i === selectedResult
+        ? {
+          backgroundColor: "action.selected",
+          border: "1px solid",
+          borderColor: "primary.main",
+        }
+        : {}),
+    };
   }
 
   return (
-    <ul className="pl-0 mt-3 mb-0">
+    <Box component="ul" sx={{ p: 0, m: 0, mt: 3, listStyle: "none" }}>
       {scenes.map((s, i) => (
         // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions, react/no-array-index-key
-        <li
+        <Box
+          component="li"
           // eslint-disable-next-line react/no-array-index-key
           key={i}
           onClick={() => setSelectedResult(i)}
-          className={getClassName(i)}
+          sx={getSx(i)}
+          className={cx("search-result", {
+            "selected-result active": i === selectedResult,
+          })}
         >
-          <StashSearchResult
-            index={i}
-            isActive={i === selectedResult}
-            scene={s}
-            stashScene={target}
-          />
-        </li>
+          <Grid container>
+            <StashSearchResult
+              index={i}
+              isActive={i === selectedResult}
+              scene={s}
+              stashScene={target}
+            />
+          </Grid>
+        </Box>
       ))}
-    </ul>
+    </Box>
   );
 };
 

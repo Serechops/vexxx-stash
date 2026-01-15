@@ -43,9 +43,6 @@ const SelectedItem: React.FC<ISelectedItem> = ({
   modifier = false,
 }) => {
   const iconClassName = excluded ? "exclude-icon" : "include-button";
-  const spanClassName = excluded
-    ? "excluded-object-label"
-    : "selected-object-label";
   const [hovered, setHovered] = useState(false);
 
   const icon = useMemo(() => {
@@ -56,32 +53,52 @@ const SelectedItem: React.FC<ISelectedItem> = ({
     return faTimesCircleRegular;
   }, [hovered, excluded]);
 
-  function onMouseOver() {
-    setHovered(true);
-  }
-
-  function onMouseOut() {
-    setHovered(false);
-  }
-
   return (
-    <li className={cx("selected-object", { "modifier-object": modifier })}>
-      <a
+    <Box
+      component="li"
+      sx={{
+        cursor: "pointer",
+        height: "2em",
+        mb: 0.5,
+        fontStyle: modifier ? "italic" : "normal",
+        "&:hover .include-button, &:hover .exclude-icon": {
+          color: "common.white",
+        },
+      }}
+    >
+      <Box
+        component="a"
         onClick={() => onClick()}
         onKeyDown={keyboardClickHandler(onClick)}
-        onMouseEnter={() => onMouseOver()}
-        onMouseLeave={() => onMouseOut()}
-        onFocus={() => onMouseOver()}
-        onBlur={() => onMouseOut()}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        onFocus={() => setHovered(true)}
+        onBlur={() => setHovered(false)}
         tabIndex={0}
+        sx={{
+          alignItems: "center",
+          display: "flex",
+          height: "2em",
+          justifyContent: "space-between",
+          outline: "none",
+          color: "text.primary",
+          textDecoration: "none",
+          "&:hover, &:focus-visible": {
+            backgroundColor: "action.hover",
+          },
+        }}
       >
-        <div>
-          <Icon className={`fa-fw ${iconClassName}`} icon={icon} />
-          <span className={spanClassName}>{label}</span>
-        </div>
-        <div></div>
-      </a>
-    </li>
+        <Box sx={{ display: "flex", alignItems: "center", overflow: "hidden" }}>
+          <Box component="span" sx={{ mr: 1, color: excluded ? "error.main" : "success.main" }}>
+            <Icon className={`fa-fw ${iconClassName}`} icon={icon} />
+          </Box>
+          <Box component="span" sx={{ opacity: modifier ? 0.6 : 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <span className={excluded ? "excluded-object-label" : "selected-object-label"}>{label}</span>
+          </Box>
+        </Box>
+        <Box></Box>
+      </Box>
+    </Box>
   );
 };
 
@@ -92,21 +109,44 @@ const UnselectedItem: React.FC<{
   // true if the object is a special modifier value
   modifier?: boolean;
 }> = ({ onSelect, label, canExclude, modifier = false }) => {
-  const includeIcon = <Icon className="fa-fw include-button" icon={faPlus} />;
-  const excludeIcon = <Icon className="fa-fw exclude-icon" icon={faMinus} />;
-
   return (
-    <li className={cx("unselected-object", { "modifier-object": modifier })}>
-      <a
+    <Box
+      component="li"
+      sx={{
+        cursor: "pointer",
+        height: "2em",
+        mb: 0.5,
+        opacity: 0.8,
+        fontStyle: modifier ? "italic" : "normal",
+      }}
+    >
+      <Box
+        component="a"
         onClick={() => onSelect(false)}
         onKeyDown={keyboardClickHandler(() => onSelect(false))}
         tabIndex={0}
+        sx={{
+          alignItems: "center",
+          display: "flex",
+          height: "2em",
+          justifyContent: "space-between",
+          outline: "none",
+          color: "text.primary",
+          textDecoration: "none",
+          "&:hover, &:focus-visible": {
+            backgroundColor: "action.hover",
+          },
+        }}
       >
-        <div>
-          {includeIcon}
-          <span className="unselected-object-label">{label}</span>
-        </div>
-        <div>
+        <Box sx={{ display: "flex", alignItems: "center", overflow: "hidden" }}>
+          <Box component="span" sx={{ mr: 1, color: "success.main" }}>
+            <Icon className="fa-fw include-button" icon={faPlus} />
+          </Box>
+          <Box component="span" sx={{ opacity: modifier ? 0.6 : 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <span className="unselected-object-label">{label}</span>
+          </Box>
+        </Box>
+        <Box>
           {/* TODO item count */}
           {/* <span className="object-count">{p.id}</span> */}
           {canExclude && (
@@ -118,15 +158,38 @@ const UnselectedItem: React.FC<{
               onKeyDown={(e) => e.stopPropagation()}
               size="small"
               variant="text"
-              sx={{ minWidth: 'auto', padding: '2px 4px' }}
+              sx={{
+                minWidth: "auto",
+                padding: "2px 4px",
+                color: "text.primary",
+                "&:hover": {
+                  backgroundColor: "inherit",
+                  "& .exclude-button-text": { display: "inline" }
+                },
+                "&:focus .exclude-button-text": { display: "inline" }
+              }}
             >
-              <span className="exclude-button-text">exclude</span>
-              {excludeIcon}
+              <Box
+                component="span"
+                className="exclude-button-text"
+                sx={{
+                  color: "error.main",
+                  display: "none",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  mr: 0.5
+                }}
+              >
+                exclude
+              </Box>
+              <Box component="span" sx={{ color: "error.main" }}>
+                <Icon className="fa-fw exclude-icon" icon={faMinus} />
+              </Box>
             </Button>
           )}
-        </div>
-      </a>
-    </li>
+        </Box>
+      </Box>
+    </Box>
   );
 };
 
@@ -243,14 +306,25 @@ const SelectableFilter: React.FC<ISelectableFilter> = ({
   }
 
   return (
-    <div className="selectable-filter">
+    <Box className="selectable-filter">
       <ClearableInput
         focus={inputFocus}
         value={query}
         setValue={(v) => onQueryChange(v)}
         placeholder={`${intl.formatMessage({ id: "actions.search" })}…`}
       />
-      <ul>
+      <Box
+        component="ul"
+        sx={{
+          listStyleType: "none",
+          mt: 0.5,
+          mb: 0.25,
+          maxHeight: 300,
+          overflowY: "auto",
+          pb: 0.15,
+          paddingInlineStart: 0,
+        }}
+      >
         {Object.entries(modifierValues).map(([key, value]) => {
           if (!value) {
             return null;
@@ -276,13 +350,13 @@ const SelectableFilter: React.FC<ISelectableFilter> = ({
           />
         ))}
         {excluded.map((p) => (
-          <li key={p.id} className="excluded-object">
+          <Box component="li" key={p.id} className="excluded-object">
             <SelectedItem
               label={p.label}
               excluded
               onClick={() => onUnselect(p)}
             />
-          </li>
+          </Box>
         ))}
         {showModifierValues && (
           <>
@@ -313,8 +387,8 @@ const SelectableFilter: React.FC<ISelectableFilter> = ({
             canExclude={canExclude && !includingOnly && !excludingOnly}
           />
         ))}
-      </ul>
-    </div>
+      </Box>
+    </Box>
   );
 };
 

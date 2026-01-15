@@ -6,6 +6,7 @@ import {
   Collapse,
   TextField,
   Box,
+  Grid,
   InputAdornment,
   IconButton,
   Typography,
@@ -55,10 +56,12 @@ const TaggerSceneDetails: React.FC<ITaggerSceneDetails> = ({ scene }) => {
           <Box sx={{ flex: { xs: '1 1 100%', lg: '1 1 48%' } }}>
             <div>
               {sorted.map((performer) => (
-                <div className="performer-tag-container row" key={performer.id}>
-                  <Link
+                <Grid container key={performer.id} className="performer-tag-container">
+                  <Grid
+                    className="performer-tag zoom-2"
+                    component={Link}
                     to={`/performers/${performer.id}`}
-                    className="performer-tag col m-auto zoom-2"
+                    sx={{ m: "auto" }}
                   >
                     <img
                       loading="lazy"
@@ -66,13 +69,14 @@ const TaggerSceneDetails: React.FC<ITaggerSceneDetails> = ({ scene }) => {
                       alt={performer.name ?? ""}
                       src={performer.image_path ?? ""}
                     />
-                  </Link>
-                  <PerformerLink
-                    key={performer.id}
-                    performer={performer}
-                    className="d-block"
-                  />
-                </div>
+                  </Grid>
+                  <Box display="block">
+                    <PerformerLink
+                      key={performer.id}
+                      performer={performer}
+                    />
+                  </Box>
+                </Grid>
               ))}
             </div>
             <div>
@@ -112,7 +116,7 @@ const StashIDs: React.FC<{ stashIDs: StashID[] }> = ({ stashIDs }) => {
     return <div key={stashID.stash_id}>{link}</div>;
   });
 
-  return <div className="mt-2 sub-content text-right">{stashLinks}</div>;
+  return <Box className="sub-content" textAlign="right" mt={2}>{stashLinks}</Box>;
 };
 
 interface ITaggerScene {
@@ -257,10 +261,13 @@ export const TaggerScene: React.FC<PropsWithChildren<ITaggerScene>> = ({
   }
 
   return (
-    <div key={scene.id} className="mt-3 search-item">
-      <div className="row">
-        <div className="col col-lg-6 overflow-hidden align-items-center d-flex flex-column flex-sm-row">
-          <div className="scene-card mr-3">
+    <Box key={scene.id} mt={3} className="search-item">
+      <Grid container spacing={2}>
+        <Grid
+          size={{ xs: 12, sm: "grow", lg: 6 }}
+          sx={{ overflow: "hidden", alignItems: "center", display: "flex", flexDirection: { xs: "column", sm: "row" } }}
+        >
+          <Box className="scene-card" mr={3}>
             <Link to={url}>
               <ScenePreview
                 image={scene.paths.screenshot ?? undefined}
@@ -272,20 +279,20 @@ export const TaggerScene: React.FC<PropsWithChildren<ITaggerScene>> = ({
               />
               {maybeRenderSpriteIcon()}
             </Link>
-          </div>
-          <Link to={url} className="scene-link overflow-hidden">
+          </Box>
+          <Box className="scene-link" sx={{ overflow: "hidden" }} component={Link} to={url}>
             <TruncatedText text={objectTitle(scene)} lineCount={2} />
-          </Link>
+          </Box>
           {/* Full file path for identification */}
-          <div className="text-muted small mt-1" style={{ wordBreak: 'break-all' }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1, wordBreak: 'break-all' }}>
             {objectPath(scene)}
-          </div>
-        </div>
-        <div className="col-md-6 my-1">
-          <div>
+          </Typography>
+        </Grid>
+        <Grid size={{ xs: 12, md: 6 }} sx={{ my: 1 }}>
+          <Box>
             {renderQueryForm()}
             {scrapeSceneFragment ? (
-              <div className="mt-2 text-right">
+              <Box mt={2} textAlign="right">
                 <OperationButton
                   disabled={loading}
                   operation={async () => {
@@ -294,17 +301,19 @@ export const TaggerScene: React.FC<PropsWithChildren<ITaggerScene>> = ({
                 >
                   <FormattedMessage id="actions.scrape_scene_fragment" />
                 </OperationButton>
-              </div>
+              </Box>
             ) : undefined}
-          </div>
+          </Box>
           {errorMessage ? (
-            <div className="text-danger font-weight-bold">{errorMessage}</div>
+            <Typography color="error" fontWeight="bold">
+              {errorMessage}
+            </Typography>
           ) : undefined}
           <StashIDs stashIDs={scene.stash_ids} />
-        </div>
+        </Grid>
         <TaggerSceneDetails scene={scene} />
-      </div>
+      </Grid>
       {children}
-    </div>
+    </Box>
   );
 };

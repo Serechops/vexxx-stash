@@ -1,7 +1,6 @@
 import React, { useMemo } from "react";
-import { Table, TableHead, TableBody, TableRow, TableCell, Checkbox } from "@mui/material";
+import { Table, TableHead, TableBody, TableRow, TableCell, Checkbox, Box } from "@mui/material";
 import { CheckBoxSelect } from "../Shared/Select";
-import cx from "classnames";
 
 export interface IColumn {
   label: string;
@@ -74,7 +73,7 @@ export const ListTable = <T extends { id: string }>(
 
     return (
       <TableRow key={item.id}>
-        <TableCell className="select-col" padding="checkbox">
+        <TableCell padding="checkbox" sx={{ width: 20 }}>
           <Checkbox
             checked={selectedIds.has(item.id)}
             onChange={() =>
@@ -106,11 +105,17 @@ export const ListTable = <T extends { id: string }>(
   }, [visibleColumns]);
 
   return (
-    <div className={cx("table-list", className)}>
-      <Table size="small">
+    <Box className={className} sx={{
+      display: "grid",
+      marginBottom: 2,
+      maxHeight: "78vh",
+      overflowX: "auto",
+      position: "relative",
+    }}>
+      <Table size="small" stickyHeader>
         <TableHead>
           <TableRow>
-            <TableCell className="select-col" padding="checkbox">
+            <TableCell padding="checkbox" sx={{ width: 20 }}>
               <div
                 className="d-inline-block"
                 data-toggle="popover"
@@ -126,12 +131,9 @@ export const ListTable = <T extends { id: string }>(
 
             {columnHeaders}
           </TableRow>
-          <TableRow>
-            <TableCell className="border-row" colSpan={100}></TableCell>
-          </TableRow>
         </TableHead>
         <TableBody>{items.map(renderObjectRow)}</TableBody>
       </Table>
-    </div>
+    </Box>
   );
 };

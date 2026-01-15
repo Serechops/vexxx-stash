@@ -186,7 +186,7 @@ export const IdentifyDialog: React.FC<IIdentifyDialogProps> = ({
 
     return (
       <Box className="dialog-selected-folders">
-        <div className="mb-3">
+        <Box sx={{ mb: 3 }}>
           {message}
           <div>
             <IconButton
@@ -197,7 +197,7 @@ export const IdentifyDialog: React.FC<IIdentifyDialogProps> = ({
               <Icon icon={faFolderOpen} />
             </IconButton>
           </div>
-        </div>
+        </Box>
       </Box>
     );
   }, [selectedIds, intl, paths]);

@@ -52,20 +52,30 @@ const ExistingSavedFilterList: React.FC<{
   }, [existing, name]);
 
   return (
-    <ul className="existing-filter-list">
+    <Box component="ul" sx={{ listStyle: "none", p: 0, m: 0, maxHeight: "200px", overflowY: "auto" }}>
       {filtered.map((f) => (
-        <li key={f.id}>
+        <Box component="li" key={f.id}>
           <Button
             variant="text"
             size="small"
             onClick={() => onSelect(f)}
             disabled={disabled}
+            sx={{
+              justifyContent: "flex-start",
+              textAlign: "left",
+              width: "100%",
+              padding: "2px 8px",
+              color: "text.primary",
+              "&:hover": {
+                backgroundColor: "action.hover",
+              }
+            }}
           >
             {f.name}
           </Button>
-        </li>
+        </Box>
       ))}
-    </ul>
+    </Box>
   );
 };
 
@@ -87,7 +97,7 @@ export const SaveFilterDialog: React.FC<{
   }, [data?.findSavedFilters, filterName]);
 
   return (
-    <Dialog open className="save-filter-dialog">
+    <Dialog open maxWidth="sm" fullWidth>
       <DialogTitle>
         <FormattedMessage id="actions.save_filter" />
       </DialogTitle>
@@ -113,14 +123,14 @@ export const SaveFilterDialog: React.FC<{
         />
 
         {!!overwritingFilter && (
-          <span className="saved-filter-overwrite-warning">
+          <Typography variant="body2" color="error" fontWeight="bold">
             <FormattedMessage
               id="dialogs.overwrite_filter_warning"
               values={{
                 entityName: overwritingFilter.name,
               }}
             />
-          </span>
+          </Typography>
         )}
       </DialogContent>
       <DialogActions>
@@ -154,7 +164,7 @@ export const LoadFilterDialog: React.FC<{
   const { data } = useFindSavedFilters(mode);
 
   return (
-    <Dialog open className="load-filter-dialog">
+    <Dialog open maxWidth="sm" fullWidth>
       <DialogTitle>
         <FormattedMessage id="actions.load_filter" />
       </DialogTitle>
@@ -391,13 +401,12 @@ export const SavedFilterList: React.FC<ISavedFilterListProps> = ({
   }
   const SavedFilterItem: React.FC<ISavedFilterItem> = ({ item }) => {
     return (
-      <div className="dropdown-item-container">
-        <MenuItem onClick={() => filterClicked(item)} title={item.name}>
-          <span>{item.name}</span>
+      <Box display="flex" justifyContent="space-between" alignItems="center">
+        <MenuItem onClick={() => filterClicked(item)} title={item.name} sx={{ flexGrow: 1, overflow: 'hidden' }}>
+          <Typography noWrap>{item.name}</Typography>
         </MenuItem>
         <ButtonGroup size="small">
           <IconButton
-            className="save-button"
             size="small"
             title={intl.formatMessage({ id: "actions.overwrite" })}
             onClick={(e) => {
@@ -408,8 +417,8 @@ export const SavedFilterList: React.FC<ISavedFilterListProps> = ({
             <Icon icon={faSave} />
           </IconButton>
           <IconButton
-            className="delete-button"
             size="small"
+            color="error"
             title={intl.formatMessage({ id: "actions.delete" })}
             onClick={(e) => {
               setDeletingFilter(item);
@@ -419,23 +428,23 @@ export const SavedFilterList: React.FC<ISavedFilterListProps> = ({
             <Icon icon={faTimes} />
           </IconButton>
         </ButtonGroup>
-      </div>
+      </Box>
     );
   };
 
   function renderSavedFilters() {
-    if (error) return <h6 className="text-center">{error.message}</h6>;
+    if (error) return <Typography variant="h6" align="center">{error.message}</Typography>;
 
     if (loading || saving) {
       return (
-        <div className="loading">
+        <Box display="flex" justifyContent="center" p={2}>
           <LoadingIndicator message="" />
-        </div>
+        </Box>
       );
     }
 
     return (
-      <ul className="saved-filter-list">
+      <Box component="ul" sx={{ listStyle: "none", p: 0, m: 0, mb: 1, maxHeight: "230px", overflowY: "auto" }}>
         {savedFilters
           .filter(
             (f) =>
@@ -445,25 +454,25 @@ export const SavedFilterList: React.FC<ISavedFilterListProps> = ({
           .map((f) => (
             <SavedFilterItem key={f.name} item={f} />
           ))}
-      </ul>
+      </Box>
     );
   }
 
   function maybeRenderSetDefaultButton() {
     if (view) {
       return (
-        <div className="mt-1">
+        <Box mt={1}>
           <Button
             title={intl.formatMessage({ id: "actions.set_as_default" })}
-            className="set-as-default-button"
             variant="contained"
             color="secondary"
             size="small"
             onClick={() => onSetDefaultFilter()}
+            sx={{ float: "right" }}
           >
             {intl.formatMessage({ id: "actions.set_as_default" })}
           </Button>
-        </div>
+        </Box>
       );
     }
   }
@@ -536,18 +545,28 @@ const SavedFilterItem: React.FC<ISavedFilterItem> = ({
   const intl = useIntl();
 
   return (
-    <li className="saved-filter-item">
-      <a onClick={onClick}>
-        <div className="label-group">
+    <Box component="li" sx={{ mb: 0.5 }}>
+      <Box
+        onClick={onClick}
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          cursor: "pointer",
+          height: "2em",
+          "&:hover": { bgcolor: "action.hover" },
+        }}
+      >
+        <Box sx={{ display: "flex", alignItems: "center", overflow: "hidden", pl: "28.7px" }}>
           <TruncatedInlineText
-            className={cx("no-icon-margin", { selected })}
+            className={cx({ selected })}
             text={item.name}
           />
-        </div>
-        <div>
+        </Box>
+        <Box>
           <IconButton
-            className="delete-button"
             size="small"
+            color="error"
             title={intl.formatMessage({ id: "actions.delete" })}
             onClick={(e) => {
               onDelete();
@@ -556,9 +575,9 @@ const SavedFilterItem: React.FC<ISavedFilterItem> = ({
           >
             <Icon fixedWidth icon={faTimes} />
           </IconButton>
-        </div>
-      </a>
-    </li>
+        </Box>
+      </Box>
+    </Box>
   );
 };
 
@@ -579,18 +598,18 @@ const SavedFilters: React.FC<{
   onDeleteClicked,
   currentFilterID,
 }) => {
-    if (error) return <h6 className="text-center">{error}</h6>;
+    if (error) return <Typography variant="h6" align="center">{error}</Typography>;
 
     if (loading || saving) {
       return (
-        <div className="loading">
+        <Box display="flex" justifyContent="center" p={2}>
           <LoadingIndicator message="" />
-        </div>
+        </Box>
       );
     }
 
     return (
-      <ul className="saved-filter-list">
+      <Box component="ul" sx={{ listStyle: "none", p: 0, m: 0, mb: 0.5, maxHeight: "300px", overflowY: "auto" }}>
         {savedFilters.map((f) => (
           <SavedFilterItem
             key={f.name}
@@ -600,7 +619,7 @@ const SavedFilters: React.FC<{
             selected={currentFilterID === f.id}
           />
         ))}
-      </ul>
+      </Box>
     );
   };
 
@@ -614,6 +633,7 @@ export const SidebarSavedFilterList: React.FC<ISavedFilterListProps> = ({
 
   const [currentSavedFilter, setCurrentSavedFilter] = useState<{
     id: string;
+    name?: string;
     set: boolean;
   }>();
 
@@ -649,9 +669,9 @@ export const SidebarSavedFilterList: React.FC<ISavedFilterListProps> = ({
       if (!v) return v;
 
       if (v.set) {
-        setCurrentSavedFilter({ id: v.id, set: false });
+        return { ...v, set: false };
       } else {
-        setCurrentSavedFilter(undefined);
+        return undefined;
       }
     });
   }, [filter]);
@@ -759,12 +779,12 @@ export const SidebarSavedFilterList: React.FC<ISavedFilterListProps> = ({
     // #1507 - reset random seed when loaded
     newFilter.randomSeed = -1;
 
-    setCurrentSavedFilter({ id: f.id, set: true });
+    setCurrentSavedFilter({ id: f.id, name: f.name, set: true });
     onSetFilter(newFilter);
   }
 
   return (
-    <div className="sidebar-saved-filter-list-container">
+    <Box>
       <DeleteAlert
         deletingFilter={deletingFilter}
         onClose={(confirm) => {
@@ -793,46 +813,66 @@ export const SidebarSavedFilterList: React.FC<ISavedFilterListProps> = ({
         onCancel={() => setSettingDefault(false)}
       />
 
-      <div className="toolbar">
+      <Box display="flex" justifyContent="space-between" alignItems="center" p={1}>
         <Button
-          className="save-filter-button"
           variant="text"
           size="small"
           onClick={() => setShowSaveDialog(true)}
+          sx={{ fontWeight: "bold", color: "text.primary" }}
         >
-          <span>
-            <FormattedMessage id="actions.save_filter" />
-          </span>
+          <Icon icon={faBookmark} />
+          <FormattedMessage id="actions.save" />
         </Button>
-        <Button
-          className="set-as-default-button"
-          variant="contained"
-          color="secondary"
-          size="small"
-          onClick={() => setSettingDefault(true)}
-        >
-          <FormattedMessage id="actions.set_as_default" />
-        </Button>
-      </div>
+        <Box>
+          {view && (
+            <Button
+              variant="text"
+              size="small"
+              onClick={() => setSettingDefault(true)}
+              title={intl.formatMessage({ id: "actions.set_as_default" })}
+              sx={{ fontWeight: "bold", color: "text.primary" }}
+            >
+              <FormattedMessage id="default" />
+            </Button>
+          )}
+        </Box>
+      </Box>
 
-      <TextField
-        className="saved-filter-search-input"
-        size="small"
-        fullWidth
-        placeholder={`${intl.formatMessage({ id: "filter_name" })}…`}
-        value={filterName}
-        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFilterName(e.target.value)}
-      />
+      <Box mb={1}>
+        <TextField
+          value={filterName}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFilterName(e.target.value)}
+          size="small"
+          fullWidth
+          placeholder={intl.formatMessage({ id: "actions.search" })}
+        />
+      </Box>
+
+      {currentSavedFilter && (
+        <SavedFilters
+          savedFilters={[
+            {
+              id: currentSavedFilter.id,
+              name: currentSavedFilter.name ?? "",
+              mode: filter.mode,
+            },
+          ]}
+          onFilterClicked={() => setCurrentSavedFilter(undefined)}
+          onDeleteClicked={() => setCurrentSavedFilter(undefined)}
+          // always show the current filter as selected
+          currentFilterID={currentSavedFilter.id}
+        />
+      )}
+
       <SavedFilters
         error={error?.message}
         loading={loading}
         saving={saving}
         savedFilters={filteredFilters}
         onFilterClicked={filterClicked}
-        onDeleteClicked={setDeletingFilter}
-        currentFilterID={currentSavedFilter?.id}
+        onDeleteClicked={(f) => setDeletingFilter(f)}
       />
-    </div>
+    </Box>
   );
 };
 
@@ -853,7 +893,9 @@ export const SavedFilterDropdown: React.FC<ISavedFilterListProps> = (props) => {
       anchorEl={anchorEl}
       open={open}
       onClose={handleClose}
-      className="saved-filter-list-menu"
+      PaperProps={{
+        sx: { width: "300px", display: "flex", flexDirection: "column" }
+      }}
     >
       <Box p={1}>
         <SavedFilterList {...props} />
@@ -862,7 +904,7 @@ export const SavedFilterDropdown: React.FC<ISavedFilterListProps> = (props) => {
   );
 
   return (
-    <Box className="saved-filter-dropdown">
+    <Box>
       <Tooltip title={<FormattedMessage id="search_filter.saved_filters" />}>
         <Button
           variant="contained"

@@ -163,11 +163,16 @@ const CriterionOptionList: React.FC<ICriterionList> = ({
         key={c.type}
         expanded={isExpanded}
         onChange={() => onSelect(isExpanded ? null : c.type)}
-        sx={{ mb: 0.5 }}
+        sx={{ mb: 0.5, border: '1px solid rgba(16, 22, 26, 0.4)', boxShadow: 'none', '&:before': { display: 'none' } }}
       >
         <AccordionSummary
           expandIcon={<ExpandMoreIcon />}
-          className="filter-item-header"
+          sx={{
+            minHeight: '48px',
+            backgroundColor: 'background.paper',
+            '&.Mui-expanded': { minHeight: '48px' },
+            '& .MuiAccordionSummary-content': { margin: '12px 0', alignItems: 'center' }
+          }}
           ref={criteriaRefs[c.type] as any}
           data-type={c.type}
         >
@@ -189,10 +194,10 @@ const CriterionOptionList: React.FC<ICriterionList> = ({
             size="small"
             onClick={(e) => togglePin(e, c)}
           >
-            <Icon icon={faThumbtack} className={isPin ? "" : "tilted"} />
+            <Icon icon={faThumbtack} style={{ transform: isPin ? "" : "rotate(45deg)" }} />
           </IconButton>
         </AccordionSummary>
-        <AccordionDetails>
+        <AccordionDetails sx={{ p: 0 }}>
           {(type === c.type && currentCriterion) ||
             (prevType === c.type && prevCriterion) ? (
             <CriterionEditor
@@ -206,11 +211,11 @@ const CriterionOptionList: React.FC<ICriterionList> = ({
   }
 
   return (
-    <Box className="criterion-list">
+    <Box>
       {pinnedCriterionOptions.length !== 0 && (
         <>
           {pinnedCriterionOptions.map((c) => renderCard(c, true))}
-          <div className="pinned-criterion-divider" />
+          <Box sx={{ pb: 5 }} />
         </>
       )}
       {criterionOptions.map((c) => renderCard(c, false))}
@@ -545,39 +550,49 @@ export const EditFilterDialog: React.FC<IEditFilterProps> = ({
         onClose={() => onCancel()}
         maxWidth="sm"
         fullWidth
-        className={cx("edit-filter-dialog", {
+        className={cx({
           "sfw-content-mode": sfwContentMode,
         })}
+        sx={{
+          "& .MuiDialog-paper": {
+            // Ensure specific styling if needed, otherwise default is good
+          }
+        }}
       >
-        <DialogTitle>
-          <Box display="flex" justifyContent="space-between" alignItems="center">
-            <span><FormattedMessage id="search_filter.edit_filter" /></span>
-            <TextField
-              size="small"
-              variant="outlined"
-              className="search-input"
-              onChange={(e) => setSearchValue(e.target.value)}
-              value={searchValue}
-              placeholder={`${intl.formatMessage({ id: "actions.search" })}…`}
-              inputRef={searchRef}
-            />
-          </Box>
+        <DialogTitle sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", p: 2 }}>
+          <span><FormattedMessage id="search_filter.edit_filter" /></span>
+          <TextField
+            size="small"
+            variant="outlined"
+            onChange={(e) => setSearchValue(e.target.value)}
+            value={searchValue}
+            placeholder={`${intl.formatMessage({ id: "actions.search" })}…`}
+            inputRef={searchRef}
+            sx={{ width: "auto" }}
+          />
         </DialogTitle>
-        <DialogContent>
-          <div
-            className={cx("dialog-content", {
-              "criterion-selected": !!criterion,
-            })}
-          >
-            <div className="search-term-row">
+        <DialogContent sx={{ p: 0, maxHeight: "min(550px, calc(100vh - 12rem))" }}>
+          <Box className={cx({ "criterion-selected": !!criterion })}>
+            <Box sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              justifyContent: "space-between",
+              mb: 1,
+              mx: 3,
+              mt: 1,
+              flexWrap: { xs: "wrap", sm: "nowrap" }
+            }}>
               <span>
                 <FormattedMessage id="search_filter.search_term" />
               </span>
-              <SearchTermInput
-                filter={currentFilter}
-                onFilterUpdate={setCurrentFilter}
-              />
-            </div>
+              <Box sx={{ flexBasis: { xs: "100%", sm: "75%" } }}>
+                <SearchTermInput
+                  filter={currentFilter}
+                  onFilterUpdate={setCurrentFilter}
+                />
+              </Box>
+            </Box>
             <CriterionOptionList
               criteria={criteriaList}
               currentCriterion={criterion}
@@ -591,46 +606,44 @@ export const EditFilterDialog: React.FC<IEditFilterProps> = ({
               externallySelected={!!editingCriterion}
             />
             {criteria.length > 0 && (
-              <div>
+              <Box sx={{ borderTop: "1px solid rgba(16, 22, 26, 0.4)", pt: 2, px: 2 }}>
                 <FilterTags
                   criteria={criteria}
                   onEditCriterion={(c) => optionSelected(c.criterionOption)}
                   onRemoveCriterion={removeCriterion}
                   onRemoveAll={() => onClearAll()}
                 />
-              </div>
+              </Box>
             )}
-          </div>
+          </Box>
         </DialogContent>
-        <DialogActions>
-          <Box display="flex" justifyContent="space-between" width="100%">
-            <Box>
-              <Button
-                variant="contained"
-                color="secondary"
-                onClick={() => setShowLoadDialog(true)}
-                title={intl.formatMessage({ id: "actions.load_filter" })}
-                sx={{ mr: 1 }}
-              >
-                <FormattedMessage id="actions.load" />…
-              </Button>
-              <Button
-                variant="contained"
-                color="secondary"
-                onClick={() => setShowSaveDialog(true)}
-                title={intl.formatMessage({ id: "actions.save_filter" })}
-              >
-                <FormattedMessage id="actions.save" />…
-              </Button>
-            </Box>
-            <Box>
-              <Button variant="contained" color="secondary" onClick={() => onCancel()} sx={{ mr: 1 }}>
-                <FormattedMessage id="actions.cancel" />
-              </Button>
-              <Button variant="contained" color="primary" onClick={() => onApply(currentFilter)}>
-                <FormattedMessage id="actions.apply" />
-              </Button>
-            </Box>
+        <DialogActions sx={{ justifyContent: "space-between", px: 2, pb: 2 }}>
+          <Box>
+            <Button
+              variant="contained"
+              color="secondary"
+              onClick={() => setShowLoadDialog(true)}
+              title={intl.formatMessage({ id: "actions.load_filter" })}
+              sx={{ mr: 1 }}
+            >
+              <FormattedMessage id="actions.load" />…
+            </Button>
+            <Button
+              variant="contained"
+              color="secondary"
+              onClick={() => setShowSaveDialog(true)}
+              title={intl.formatMessage({ id: "actions.save_filter" })}
+            >
+              <FormattedMessage id="actions.save" />…
+            </Button>
+          </Box>
+          <Box>
+            <Button variant="contained" color="secondary" onClick={() => onCancel()} sx={{ mr: 1 }}>
+              <FormattedMessage id="actions.cancel" />
+            </Button>
+            <Button variant="contained" color="primary" onClick={() => onApply(currentFilter)}>
+              <FormattedMessage id="actions.apply" />
+            </Button>
           </Box>
         </DialogActions>
       </Dialog>

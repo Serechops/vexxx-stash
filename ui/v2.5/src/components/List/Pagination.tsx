@@ -8,6 +8,7 @@ import {
   TextField,
   Box,
   IconButton,
+  Typography,
 } from "@mui/material";
 import { FormattedMessage, FormattedNumber, useIntl } from "react-intl";
 import useFocus from "src/utils/focus";
@@ -75,14 +76,18 @@ const PageCount: React.FC<{
     };
 
     return (
-      <div className="page-count-container">
+      <Box display="flex">
         <ButtonGroup size="small">
           <Button
             variant="outlined"
             color="secondary"
-            className="page-count !bg-card hover:!bg-secondary !text-foreground"
-            ref={currentPageCtrl}
             onClick={(e) => setPopoverAnchor(e.currentTarget)}
+            sx={{
+              backgroundColor: "background.paper",
+              color: "text.primary",
+              "&:hover": { backgroundColor: "secondary.main" },
+              borderRight: "none",
+            }}
           >
             <FormattedMessage
               id="pagination.current_total"
@@ -95,9 +100,13 @@ const PageCount: React.FC<{
           <Button
             variant="outlined"
             color="secondary"
-            className="page-count-dropdown !bg-card hover:!bg-secondary !text-foreground"
             onClick={handleMenuOpen}
             size="small"
+            sx={{
+              backgroundColor: "background.paper",
+              color: "text.primary",
+              "&:hover": { backgroundColor: "secondary.main" },
+            }}
           >
             <Icon size="xs" icon={faChevronDown} />
           </Button>
@@ -134,7 +143,6 @@ const PageCount: React.FC<{
             <TextField
               type="number"
               inputProps={{ min: 1, max: totalPages }}
-              className="text-input"
               inputRef={pageInput}
               defaultValue={currentPage}
               onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -147,13 +155,14 @@ const PageCount: React.FC<{
                 e.target.select()
               }
               size="small"
+              sx={{ width: "80px" }}
             />
             <IconButton color="primary" onClick={() => onCustomChangePage()} size="small">
               <Icon icon={faCheck} />
             </IconButton>
           </Box>
         </Popover>
-      </div>
+      </Box>
     );
   };
 
@@ -191,6 +200,18 @@ export const Pagination: React.FC<IPaginationProps> = PatchComponent(
       [totalItems, itemsPerPage]
     );
 
+    const commonButtonSx = {
+      backgroundColor: "background.paper",
+      color: "text.primary",
+      borderColor: "secondary.main",
+      "&:hover": {
+        backgroundColor: "secondary.main",
+      },
+      "&.Mui-disabled": {
+        opacity: 0.5,
+      },
+    };
+
     const pageButtons = useMemo(() => {
       if (totalPages >= minPagesForCompact)
         return (
@@ -208,12 +229,15 @@ export const Pagination: React.FC<IPaginationProps> = PatchComponent(
         <Button
           variant={currentPage === page ? "contained" : "outlined"}
           color={currentPage === page ? "primary" : "secondary"}
-          className={cx(
-            "hover:!bg-secondary !text-foreground border-none font-bold",
-            currentPage === page
-              ? "!bg-primary !text-white !opacity-100 !bg-opacity-100 shadow-md transform scale-110 z-10"
-              : "!bg-card !opacity-90"
-          )}
+          sx={{
+            ...commonButtonSx,
+            ...(currentPage === page && {
+              backgroundColor: "primary.main",
+              color: "primary.contrastText",
+              "&:hover": { backgroundColor: "primary.dark" },
+              zIndex: 1,
+            }),
+          }}
           key={page}
           onClick={() => onChangePage(page)}
           size="small"
@@ -226,11 +250,11 @@ export const Pagination: React.FC<IPaginationProps> = PatchComponent(
     if (totalPages <= 1) return <div />;
 
     return (
-      <ButtonGroup className="pagination w-fit mx-auto" size="small">
+      <ButtonGroup size="small" sx={{ mx: "auto", width: "fit-content", display: "flex" }}>
         <Button
           variant="outlined"
           color="secondary"
-          className="!bg-card hover:!bg-secondary !text-foreground"
+          sx={commonButtonSx}
           disabled={currentPage === 1}
           onClick={() => onChangePage(1)}
           title={intl.formatMessage({ id: "pagination.first" })}
@@ -240,7 +264,7 @@ export const Pagination: React.FC<IPaginationProps> = PatchComponent(
         <Button
           variant="outlined"
           color="secondary"
-          className="!bg-card hover:!bg-secondary !text-foreground"
+          sx={commonButtonSx}
           disabled={currentPage === 1}
           onClick={() => onChangePage(currentPage - 1)}
           title={intl.formatMessage({ id: "pagination.previous" })}
@@ -251,7 +275,7 @@ export const Pagination: React.FC<IPaginationProps> = PatchComponent(
         <Button
           variant="outlined"
           color="secondary"
-          className="!bg-card hover:!bg-secondary !text-foreground"
+          sx={commonButtonSx}
           disabled={currentPage === totalPages}
           onClick={() => onChangePage(currentPage + 1)}
           title={intl.formatMessage({ id: "pagination.next" })}
@@ -261,7 +285,7 @@ export const Pagination: React.FC<IPaginationProps> = PatchComponent(
         <Button
           variant="outlined"
           color="secondary"
-          className="!bg-card hover:!bg-secondary !text-foreground"
+          sx={commonButtonSx}
           disabled={currentPage === totalPages}
           onClick={() => onChangePage(totalPages)}
           title={intl.formatMessage({ id: "pagination.last" })}
@@ -294,11 +318,13 @@ export const PaginationIndex: React.FC<IPaginationIndexProps> = PatchComponent(
     )}-${intl.formatNumber(lastItemCount)} of ${intl.formatNumber(totalItems)}`;
 
     return (
-      <span className="filter-container text-muted paginationIndex center-text">
-        {indexText}
+      <Box textAlign="center" color="text.secondary">
+        <Typography variant="body2" component="span">
+          {indexText}
+        </Typography>
         <br />
         {metadataByline}
-      </span>
+      </Box>
     );
   }
 );

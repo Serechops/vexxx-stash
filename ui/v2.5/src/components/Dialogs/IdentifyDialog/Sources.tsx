@@ -186,7 +186,7 @@ export const SourcesList: React.FC<ISourcesList> = ({
         {tempSources.map((s, index) => (
           <ListItem
             key={s.id}
-            className="d-flex justify-content-between align-items-center"
+            sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
             draggable={mouseOverIndex === index}
             onDragStart={(e) => onDragStart(e, index)}
             onDragEnter={(e) => onDragOver(e, index)}
@@ -195,10 +195,10 @@ export const SourcesList: React.FC<ISourcesList> = ({
           >
             <Box display="flex" alignItems="center">
               <Box
-                className="minimal text-muted drag-handle mr-2"
+                className="minimal drag-handle"
+                sx={{ mr: 2, cursor: "grab", color: "text.secondary" }}
                 onMouseEnter={() => setMouseOverIndex(index)}
                 onMouseLeave={() => setMouseOverIndex(undefined)}
-                style={{ cursor: 'grab' }}
               >
                 <Icon icon={faGripVertical} />
               </Box>
@@ -209,7 +209,8 @@ export const SourcesList: React.FC<ISourcesList> = ({
                 <Icon icon={faCog} />
               </IconButton>
               <IconButton
-                className="minimal text-danger"
+                className="minimal"
+                color="error" // Replaces text-danger
                 onClick={() => removeSource(index)}
                 size="small"
               >
@@ -220,7 +221,7 @@ export const SourcesList: React.FC<ISourcesList> = ({
         ))}
       </List>
       {canAdd && (
-        <Box className="text-right" mt={2}>
+        <Box textAlign="right" mt={2}>
           <IconButton
             className="minimal add-scraper-source-button"
             onClick={() => editSource()}

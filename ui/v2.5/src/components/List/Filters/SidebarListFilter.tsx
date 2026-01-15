@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Button } from "@mui/material";
+import { Button, Box } from "@mui/material";
 import { Icon } from "src/components/Shared/Icon";
 import {
   faCheckCircle,
@@ -35,9 +35,6 @@ const SelectedItem: React.FC<ISelectedItem> = ({
   modifier = false,
 }) => {
   const iconClassName = excluded ? "exclude-icon" : "include-button";
-  const spanClassName = excluded
-    ? "excluded-object-label"
-    : "selected-object-label";
   const [hovered, setHovered] = useState(false);
 
   const icon = useMemo(() => {
@@ -48,35 +45,58 @@ const SelectedItem: React.FC<ISelectedItem> = ({
     return faTimesCircleRegular;
   }, [hovered, excluded]);
 
-  function onMouseOver() {
-    setHovered(true);
-  }
-
-  function onMouseOut() {
-    setHovered(false);
-  }
-
   return (
-    <li
-      className={cx("selected-object", className, {
-        "modifier-object": modifier,
-      })}
+    <Box
+      component="li"
+      className={className}
+      sx={{
+        cursor: "pointer",
+        height: "2em",
+        mb: 0.5,
+        fontStyle: modifier ? "italic" : "normal",
+        "&:hover .include-button, &:hover .exclude-icon": {
+          color: "common.white",
+        },
+      }}
     >
-      <a
+      <Box
+        component="a"
         onClick={() => onClick()}
         onKeyDown={keyboardClickHandler(onClick)}
-        onMouseEnter={() => onMouseOver()}
-        onMouseLeave={() => onMouseOut()}
-        onFocus={() => onMouseOver()}
-        onBlur={() => onMouseOut()}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        onFocus={() => setHovered(true)}
+        onBlur={() => setHovered(false)}
         tabIndex={0}
+        sx={{
+          alignItems: "center",
+          display: "flex",
+          height: "2em",
+          justifyContent: "space-between",
+          outline: "none",
+          color: "text.primary",
+          textDecoration: "none",
+          "&:hover, &:focus-visible": {
+            backgroundColor: "action.hover",
+          },
+        }}
       >
-        <div className="label-group">
-          <Icon className={`fa-fw ${iconClassName}`} icon={icon} />
-          <TruncatedInlineText className={spanClassName} text={label} />
-        </div>
-      </a>
-    </li>
+        <Box className="label-group" sx={{ display: "flex", alignItems: "center", overflow: "hidden" }}>
+          <Box component="span" sx={{ mr: 1, color: excluded ? "error.main" : "success.main" }}>
+            <Icon
+              className={`fa-fw ${iconClassName}`}
+              icon={icon}
+            />
+          </Box>
+          <Box component="span" sx={{ opacity: modifier ? 0.6 : 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <TruncatedInlineText
+              text={label}
+              className={excluded ? "excluded-object-label" : "selected-object-label"}
+            />
+          </Box>
+        </Box>
+      </Box>
+    </Box>
   );
 };
 
@@ -95,38 +115,51 @@ const CandidateItem: React.FC<{
   singleValue = false,
   className,
 }) => {
-    const singleValueClass = singleValue ? "single-value" : "";
-    const includeIcon = (
-      <Icon
-        className={`fa-fw include-button ${singleValueClass}`}
-        icon={faPlus}
-      />
-    );
-    const excludeIcon = (
-      <Icon className={`fa-fw exclude-icon ${singleValueClass}`} icon={faMinus} />
-    );
-
     return (
-      <li
-        className={cx("unselected-object", className, {
-          "modifier-object": modifier,
-        })}
+      <Box
+        component="li"
+        className={className}
+        sx={{
+          cursor: "pointer",
+          height: "2em",
+          mb: 0.5,
+          opacity: 0.8,
+          fontStyle: modifier ? "italic" : "normal",
+        }}
       >
-        <a
+        <Box
+          component="a"
           onClick={() => onSelect(false)}
           onKeyDown={keyboardClickHandler(() => onSelect(false))}
           tabIndex={0}
+          sx={{
+            alignItems: "center",
+            display: "flex",
+            height: "2em",
+            justifyContent: "space-between",
+            outline: "none",
+            color: "text.primary",
+            textDecoration: "none",
+            "&:hover, &:focus-visible": {
+              backgroundColor: "action.hover",
+            },
+          }}
         >
-          <div className="label-group">
-            {includeIcon}
-            <TruncatedInlineText
-              className="unselected-object-label"
-              text={label}
-            />
-          </div>
-          <div>
-            {/* TODO item count */}
-            {/* <span className="object-count">{p.id}</span> */}
+          <Box className="label-group" sx={{ display: "flex", alignItems: "center", overflow: "hidden" }}>
+            <Box component="span" sx={{ mr: 1, color: "success.main", visibility: singleValue ? "hidden" : "visible" }}>
+              <Icon
+                className="fa-fw include-button"
+                icon={faPlus}
+              />
+            </Box>
+            <Box component="span" sx={{ opacity: modifier ? 0.6 : 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              <TruncatedInlineText
+                className="unselected-object-label"
+                text={label}
+              />
+            </Box>
+          </Box>
+          <Box>
             {canExclude && (
               <Button
                 onClick={(e) => {
@@ -136,15 +169,41 @@ const CandidateItem: React.FC<{
                 onKeyDown={(e) => e.stopPropagation()}
                 size="small"
                 variant="text"
-                sx={{ minWidth: 'auto', padding: '2px 4px' }}
+                sx={{
+                  minWidth: "auto",
+                  padding: "2px 4px",
+                  color: "text.primary",
+                  "&:hover": {
+                    backgroundColor: "inherit",
+                    "& .exclude-button-text": { display: "inline" }
+                  },
+                  "&:focus .exclude-button-text": { display: "inline" }
+                }}
               >
-                <span className="exclude-button-text">exclude</span>
-                {excludeIcon}
+                <Box
+                  component="span"
+                  className="exclude-button-text"
+                  sx={{
+                    color: "error.main",
+                    display: "none",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    mr: 0.5
+                  }}
+                >
+                  exclude
+                </Box>
+                <Box component="span" sx={{ color: "error.main" }}>
+                  <Icon
+                    className="fa-fw exclude-icon"
+                    icon={faMinus}
+                  />
+                </Box>
               </Button>
             )}
-          </div>
-        </a>
-      </li>
+          </Box>
+        </Box>
+      </Box>
     );
   };
 
@@ -166,7 +225,18 @@ export const SelectedList: React.FC<{
   }
 
   return (
-    <ul className={cx("selected-list", { "excluded-list": excluded })}>
+    <Box
+      component="ul"
+      sx={{
+        listStyleType: "none",
+        mt: 0.5,
+        mb: 0.25,
+        maxHeight: 300,
+        overflowY: "auto",
+        pb: 0.15,
+        paddingInlineStart: 0,
+      }}
+    >
       {items.map((p) => (
         <SelectedItem
           key={p.id}
@@ -176,10 +246,10 @@ export const SelectedList: React.FC<{
           onClick={() => onUnselect(p)}
         />
       ))}
-    </ul>
+    </Box>
   );
 };
-
+// ... QueryField ...
 const QueryField: React.FC<{
   focus: ReturnType<typeof useFocus>;
   value: string;
@@ -238,15 +308,27 @@ export const CandidateList: React.FC<
       inputFocus !== undefined && query !== undefined && setQuery !== undefined;
 
     return (
-      <div className="queryable-candidate-list">
+      <Box className="queryable-candidate-list">
         {showQueryField && (
-          <QueryField
-            focus={inputFocus}
-            value={query}
-            setValue={(v) => setQuery(v)}
-          />
+          <Box mb={0.5}>
+            <QueryField
+              focus={inputFocus}
+              value={query}
+              setValue={(v) => setQuery(v)}
+            />
+          </Box>
         )}
-        <ul>
+        <Box
+          component="ul"
+          sx={{
+            listStyleType: "none",
+            mb: 0.25,
+            maxHeight: 300,
+            overflowY: "auto",
+            pb: 0.15,
+            paddingInlineStart: 0,
+          }}
+        >
           {items.map((p) => (
             <CandidateItem
               key={p.id}
@@ -257,8 +339,8 @@ export const CandidateList: React.FC<
               singleValue={singleValue}
             />
           ))}
-        </ul>
-      </div>
+        </Box>
+      </Box>
     );
   };
 
@@ -328,12 +410,11 @@ export const SidebarListFilter: React.FC<{
 
     return (
       <SidebarSection
-        className="sidebar-list-filter"
         text={title}
         sectionID={sectionID}
         outsideCollapse={
           <>
-            {preSelected ? <div className="extra">{preSelected}</div> : null}
+            {preSelected ? <Box sx={{ pt: 0.25, minHeight: "2em" }}>{preSelected}</Box> : null}
             <SelectedList
               items={selected}
               onUnselect={(i) => unselectHook(i, false)}
@@ -345,12 +426,12 @@ export const SidebarListFilter: React.FC<{
                 excluded
               />
             )}
-            {postSelected ? <div className="extra">{postSelected}</div> : null}
+            {postSelected ? <Box sx={{ pt: 0.25, minHeight: "2em" }}>{postSelected}</Box> : null}
           </>
         }
         onOpen={onOpen}
       >
-        {preCandidates ? <div className="extra">{preCandidates}</div> : null}
+        {preCandidates ? <Box sx={{ pt: 0.25, minHeight: "2em" }}>{preCandidates}</Box> : null}
         <CandidateList
           items={candidates}
           onSelect={selectHook}
@@ -360,7 +441,7 @@ export const SidebarListFilter: React.FC<{
           setQuery={setQuery}
           singleValue={singleValue}
         />
-        {postCandidates ? <div className="extra">{postCandidates}</div> : null}
+        {postCandidates ? <Box sx={{ pt: 0.25, minHeight: "2em" }}>{postCandidates}</Box> : null}
       </SidebarSection>
     );
   };

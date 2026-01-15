@@ -69,7 +69,7 @@ import {
 } from "../List/Filters/FilterSidebar";
 import { PatchComponent, PatchContainerComponent } from "src/patch";
 import { Pagination, PaginationIndex } from "../List/Pagination";
-import { Button, ButtonGroup } from "@mui/material";
+import { Box, Button, ButtonGroup } from "@mui/material";
 import { Icon } from "../Shared/Icon";
 import useFocus from "src/utils/focus";
 import { useZoomKeybinds } from "../List/ZoomSlider";
@@ -700,8 +700,8 @@ export const FilteredSceneList = (props: IFilteredScenes) => {
                 />
 
                 {totalCount > filter.itemsPerPage && (
-                  <div className="d-flex justify-content-center mb-2">
-                    <div className="d-flex flex-column align-items-center">
+                  <Box display="flex" justifyContent="center" mb={2}>
+                    <Box display="flex" flexDirection="column" alignItems="center">
                       <Pagination
                         itemsPerPage={filter.itemsPerPage}
                         currentPage={filter.currentPage}
@@ -709,16 +709,16 @@ export const FilteredSceneList = (props: IFilteredScenes) => {
                         onChangePage={setPage}
                         pagePopupPlacement="bottom"
                       />
-                      <div className="text-center mt-1">
+                      <Box textAlign="center" mt={1}>
                         <PaginationIndex
                           itemsPerPage={filter.itemsPerPage}
                           currentPage={filter.currentPage}
                           totalItems={totalCount}
                           metadataByline={metadataByline}
                         />
-                      </div>
-                    </div>
-                  </div>
+                      </Box>
+                    </Box>
+                  </Box>
                 )}
               </>
 
@@ -743,7 +743,7 @@ export const FilteredSceneList = (props: IFilteredScenes) => {
               </LoadedContent>
 
               {totalCount > filter.itemsPerPage && (
-                <div className="d-flex justify-content-center mt-4">
+                <Box display="flex" justifyContent="center" mt={4}>
                   <div className="pagination-footer">
                     <Pagination
                       itemsPerPage={filter.itemsPerPage}
@@ -752,16 +752,16 @@ export const FilteredSceneList = (props: IFilteredScenes) => {
                       onChangePage={setPage}
                       pagePopupPlacement="top"
                     />
-                    <div className="text-center mt-1">
+                    <Box textAlign="center" mt={1}>
                       <PaginationIndex
                         itemsPerPage={filter.itemsPerPage}
                         currentPage={filter.currentPage}
                         totalItems={totalCount}
                         metadataByline={metadataByline}
                       />
-                    </div>
+                    </Box>
                   </div>
-                </div>
+                </Box>
               )}
             </SidebarPaneContent>
           </SidebarPane>

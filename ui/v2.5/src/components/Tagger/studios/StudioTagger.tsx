@@ -488,11 +488,11 @@ const StudioTaggerList: React.FC<IStudioTaggerListProps> = ({
       let mainContent;
       if (!isTagged && stashID !== undefined) {
         mainContent = (
-          <div className="text-left">
-            <h5 className="text-bold">
+          <Box textAlign="left">
+            <Typography variant="h5" fontWeight="bold">
               <FormattedMessage id="studio_tagger.studio_already_tagged" />
-            </h5>
-          </div>
+            </Typography>
+          </Box>
         );
       } else if (!isTagged && !stashID) {
         mainContent = (
@@ -529,11 +529,11 @@ const StudioTaggerList: React.FC<IStudioTaggerListProps> = ({
         );
       } else if (isTagged) {
         mainContent = (
-          <div className="d-flex flex-column text-left">
-            <h5>
+          <Box display="flex" flexDirection="column" textAlign="left">
+            <Typography variant="h5">
               <FormattedMessage id="studio_tagger.studio_successfully_tagged" />
-            </h5>
-          </div>
+            </Typography>
+          </Box>
         );
       }
 
@@ -541,18 +541,20 @@ const StudioTaggerList: React.FC<IStudioTaggerListProps> = ({
       if (stashID !== undefined) {
         const base = stashID.endpoint.match(/https?:\/\/.*?\//)?.[0];
         const link = base ? (
-          <ExternalLink
-            className="small d-block"
-            href={`${base}studios/${stashID.stash_id}`}
-          >
-            {stashID.stash_id}
-          </ExternalLink>
+          <Box fontSize="small">
+            <ExternalLink
+              href={`${base}studios/${stashID.stash_id}`}
+              style={{ display: "block" }}
+            >
+              {stashID.stash_id}
+            </ExternalLink>
+          </Box>
         ) : (
-          <div className="small">{stashID.stash_id}</div>
+          <Typography variant="body2">{stashID.stash_id}</Typography>
         );
 
         subContent = (
-          <div key={studio.id}>
+          <Box key={studio.id}>
             <Stack direction="row" spacing={1} className="StudioTagger-box-link" alignItems="center">
               <Box sx={{ flexGrow: 1 }}>{link}</Box>
               <Button
@@ -570,27 +572,27 @@ const StudioTaggerList: React.FC<IStudioTaggerListProps> = ({
               </Button>
             </Stack>
             {error[studio.id] && (
-              <div className="text-danger mt-1">
-                <strong>
-                  <span className="mr-2">Error:</span>
+              <Box color="error.main" mt={1}>
+                <Typography component="strong" fontWeight="bold">
+                  <span style={{ marginRight: "0.5rem" }}>Error:</span>
                   {error[studio.id]?.message}
-                </strong>
+                </Typography>
                 <div>{error[studio.id]?.details}</div>
-              </div>
+              </Box>
             )}
-          </div>
+          </Box>
         );
       } else if (searchErrors[studio.id]) {
         subContent = (
-          <div className="text-danger font-weight-bold">
+          <Typography color="error" fontWeight="bold">
             {searchErrors[studio.id]}
-          </div>
+          </Typography>
         );
       } else if (searchResults[studio.id]?.length === 0) {
         subContent = (
-          <div className="text-danger font-weight-bold">
+          <Typography color="error" fontWeight="bold">
             <FormattedMessage id="studio_tagger.no_results_found" />
-          </div>
+          </Typography>
         );
       }
 
@@ -670,14 +672,14 @@ const StudioTaggerList: React.FC<IStudioTaggerListProps> = ({
           setBatchAddParents={setBatchAddParents}
         />
       )}
-      <div className="ml-auto mb-3">
+      <Box ml="auto" mb={3}>
         <Button variant="outlined" onClick={() => setShowBatchAdd(true)}>
           <FormattedMessage id="studio_tagger.batch_add_studios" />
         </Button>
-        <Button variant="outlined" className="ml-3" onClick={() => setShowBatchUpdate(true)}>
+        <Button variant="outlined" sx={{ ml: 3 }} onClick={() => setShowBatchUpdate(true)}>
           <FormattedMessage id="studio_tagger.batch_update_studios" />
         </Button>
-      </div>
+      </Box>
       <div className={CLASSNAME}>{renderStudios()}</div>
     </Paper>
   );
@@ -830,19 +832,19 @@ export const StudioTagger: React.FC<ITaggerProps> = ({ studios }) => {
       <div className="tagger-container mx-md-auto">
         {selectedEndpointIndex !== -1 && selectedEndpoint ? (
           <>
-            <div className="row mb-2 no-gutters">
+            <Box display="flex" mb={2}>
               <Button onClick={() => setShowConfig(!showConfig)} variant="text">
                 {intl.formatMessage({ id: showHideConfigId })}
               </Button>
               <Button
-                className="ml-auto"
+                sx={{ ml: "auto" }}
                 onClick={() => setShowManual(true)}
                 title={intl.formatMessage({ id: "help" })}
                 variant="text"
               >
                 <FormattedMessage id="help" />
               </Button>
-            </div>
+            </Box>
 
             <StudioConfig
               config={config}
@@ -862,22 +864,9 @@ export const StudioTagger: React.FC<ITaggerProps> = ({ studios }) => {
             />
           </>
         ) : (
-          <div className="my-4">
-            <h3 className="text-center mt-4">
-              <FormattedMessage id="studio_tagger.to_use_the_studio_tagger" />
-            </h3>
-            <h5 className="text-center">
-              Please see{" "}
-              <HashLink
-                to="/settings?tab=metadata-providers#stash-boxes"
-                scroll={(el) =>
-                  el.scrollIntoView({ behavior: "smooth", block: "center" })
-                }
-              >
-                Settings.
-              </HashLink>
-            </h5>
-          </div>
+          <Typography variant="h4" align="center" sx={{ mt: 5 }}>
+            <FormattedMessage id="tagger.configure_endpoint" />
+          </Typography>
         )}
       </div>
     </>

@@ -40,7 +40,6 @@ export const ZoomSelect: React.FC<IZoomSelectProps> = ({
 }) => {
   return (
     <Slider
-      className="zoom-slider"
       min={minZoom}
       max={maxZoom}
       value={zoomIndex}

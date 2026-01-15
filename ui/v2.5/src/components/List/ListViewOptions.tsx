@@ -124,7 +124,6 @@ export const ListViewOptions: React.FC<IListViewOptionsProps> = ({
   return (
     <>
       <Button
-        className="display-mode-select"
         ref={overlayTarget}
         variant="outlined"
         color="secondary"
@@ -134,6 +133,11 @@ export const ListViewOptions: React.FC<IListViewOptionsProps> = ({
         )}
         onClick={handleClick}
         size="small"
+        sx={{
+          px: 1.5,
+          whiteSpace: "nowrap",
+          "& > span": { mr: 0 }
+        }}
       >
         <Icon icon={getIcon(displayMode)} />
         <Icon size="xs" icon={faChevronDown} />
@@ -146,19 +150,22 @@ export const ListViewOptions: React.FC<IListViewOptionsProps> = ({
           vertical: "bottom",
           horizontal: "left",
         }}
+        PaperProps={{
+          sx: { padding: 0 }
+        }}
       >
-        <Box className="display-mode-popover" sx={{ p: 1 }}>
-          <div className="display-mode-menu">
+        <Box sx={{ p: 1 }}>
+          <Box display="flex" flexDirection="column">
             {onSetZoom &&
               zoomIndex !== undefined &&
               (displayMode === DisplayMode.Grid ||
                 displayMode === DisplayMode.Wall) ? (
-              <div className="zoom-slider-container">
+              <Box display="flex" justifyContent="center" py={1} minHeight="1rem">
                 <ZoomSelect
                   zoomIndex={zoomIndex}
                   onChangeZoom={onChangeZoom}
                 />
-              </div>
+              </Box>
             ) : null}
             {displayModeOptions.map((option) => (
               <MenuItem
@@ -172,7 +179,7 @@ export const ListViewOptions: React.FC<IListViewOptionsProps> = ({
                 <Icon icon={getIcon(option)} /> {getLabel(intl, option)}
               </MenuItem>
             ))}
-          </div>
+          </Box>
         </Box>
       </Popover>
     </>
@@ -208,14 +215,14 @@ export const ListViewButtonGroup: React.FC<IListViewOptionsProps> = ({
           ))}
         </ButtonGroup>
       )}
-      <div className="zoom-slider-container">
+      <Box display={{ xs: 'none', sm: 'flex' }} justifyContent="center" mb={0.5} minHeight="1rem" pb={0.5} pt={0.25}>
         {onSetZoom &&
           zoomIndex !== undefined &&
           (displayMode === DisplayMode.Grid ||
             displayMode === DisplayMode.Wall) ? (
           <ZoomSelect zoomIndex={zoomIndex} onChangeZoom={onSetZoom} />
         ) : null}
-      </div>
+      </Box>
     </>
   );
 };

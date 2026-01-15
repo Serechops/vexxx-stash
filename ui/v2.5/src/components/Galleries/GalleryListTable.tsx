@@ -9,6 +9,8 @@ import { RatingSystem } from "../Shared/Rating/RatingSystem";
 import { useGalleryUpdate } from "src/core/StashService";
 import { IColumn, ListTable } from "../List/ListTable";
 import { useTableColumns } from "src/hooks/useTableColumns";
+import { CommaList, NewlineList } from "../Shared/CommaList";
+import { Box } from "@mui/material";
 
 interface IGalleryListTableProps {
   galleries: GQL.SlimGalleryDataFragment[];
@@ -84,27 +86,27 @@ export const GalleryListTable: React.FC<IGalleryListTableProps> = (
   };
 
   const TagCell = (gallery: GQL.SlimGalleryDataFragment) => (
-    <ul className="comma-list overflowable">
+    <CommaList className="overflowable">
       {gallery.tags.map((tag) => (
-        <li key={tag.id}>
+        <Box component="li" key={tag.id}>
           <Link to={NavUtils.makeTagGalleriesUrl(tag)}>
             <span>{tag.name}</span>
           </Link>
-        </li>
+        </Box>
       ))}
-    </ul>
+    </CommaList>
   );
 
   const PerformersCell = (gallery: GQL.SlimGalleryDataFragment) => (
-    <ul className="comma-list overflowable">
+    <CommaList className="overflowable">
       {gallery.performers.map((performer) => (
-        <li key={performer.id}>
+        <Box component="li" key={performer.id}>
           <Link to={NavUtils.makePerformerGalleriesUrl(performer)}>
             <span>{performer.name}</span>
           </Link>
-        </li>
+        </Box>
       ))}
-    </ul>
+    </CommaList>
   );
 
   const StudioCell = (gallery: GQL.SlimGalleryDataFragment) => {
@@ -121,25 +123,25 @@ export const GalleryListTable: React.FC<IGalleryListTableProps> = (
   };
 
   const SceneCell = (gallery: GQL.SlimGalleryDataFragment) => (
-    <ul className="comma-list">
+    <CommaList>
       {gallery.scenes.map((galleryScene) => (
-        <li key={galleryScene.id}>
+        <Box component="li" key={galleryScene.id}>
           <Link to={`/scenes/${galleryScene.id}`}>
             <span className="ellips-data">{objectTitle(galleryScene)}</span>
           </Link>
-        </li>
+        </Box>
       ))}
-    </ul>
+    </CommaList>
   );
 
   const PathCell = (scene: GQL.SlimGalleryDataFragment) => (
-    <ul className="newline-list overflowable TruncatedText">
+    <NewlineList className="overflowable TruncatedText">
       {scene.files.map((file) => (
-        <li key={file.id}>
+        <Box component="li" key={file.id}>
           <span>{file.path}</span>
-        </li>
+        </Box>
       ))}
-    </ul>
+    </NewlineList>
   );
 
   interface IColumnSpec {

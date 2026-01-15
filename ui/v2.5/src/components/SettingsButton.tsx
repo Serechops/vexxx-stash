@@ -57,7 +57,8 @@ export const SettingsButton: React.FC = () => {
 
   return (
     <IconButton
-      className="minimal d-flex align-items-center h-100"
+      className="minimal"
+      sx={{ display: "flex", alignItems: "center", height: "100%" }}
       title={intl.formatMessage({ id: "settings" })}
       color="inherit"
     >

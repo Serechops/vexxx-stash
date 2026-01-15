@@ -150,10 +150,10 @@ const FieldOptionsEditor: React.FC<IFieldOptionsEditor> = ({
           return intl.formatMessage({ id: "actions.use_default" });
         }
         if (value) {
-          return <Icon icon={faCheck} className="text-success" />;
+          return <Icon icon={faCheck} color="success" />;
         }
 
-        return <Icon icon={faTimes} className="text-danger" />;
+        return <Icon icon={faTimes} color="error" />;
       }
 
       const defaultVal = defaultOptions?.fieldOptions?.find(
@@ -214,18 +214,20 @@ const FieldOptionsEditor: React.FC<IFieldOptionsEditor> = ({
       <TableCell>{renderField()}</TableCell>
       <TableCell>{renderStrategy()}</TableCell>
       <TableCell>{maybeRenderCreateMissing()}</TableCell>
-      <TableCell className="text-right">
+      <TableCell align="right">
         {editing ? (
           <>
             <IconButton
-              className="minimal text-success"
+              className="minimal"
+              color="success"
               onClick={() => onEditOptions()}
               size="small"
             >
               <Icon icon={faCheck} />
             </IconButton>
             <IconButton
-              className="minimal text-danger"
+              className="minimal"
+              color="error"
               onClick={() => {
                 editOptions();
                 resetOptions();
@@ -314,24 +316,24 @@ export const FieldOptionsList: React.FC<IFieldOptionsList> = ({
   }
 
   return (
-    <Box className="scraper-sources mt-3">
+    <Box className="scraper-sources" sx={{ mt: 3 }}>
       <Typography variant="h5" gutterBottom>
         <FormattedMessage id="config.tasks.identify.field_options" />
       </Typography>
       <Table className="field-options-table" size="small">
         <TableHead>
           <TableRow>
-            <TableCell className="w-25">
+            <TableCell width="25%">
               <FormattedMessage id="config.tasks.identify.field" />
             </TableCell>
-            <TableCell className="w-25">
+            <TableCell width="25%">
               <FormattedMessage id="config.tasks.identify.strategy" />
             </TableCell>
-            <TableCell className="w-25">
+            <TableCell width="25%">
               <FormattedMessage id="config.tasks.identify.create_missing" />
             </TableCell>
             {/* eslint-disable-next-line jsx-a11y/control-has-associated-label */}
-            <TableCell className="w-25" />
+            <TableCell width="25%" />
           </TableRow>
         </TableHead>
         <TableBody>

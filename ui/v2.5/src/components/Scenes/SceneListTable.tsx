@@ -12,6 +12,8 @@ import { useSceneUpdate } from "src/core/StashService";
 import { IColumn, ListTable } from "../List/ListTable";
 import { useTableColumns } from "src/hooks/useTableColumns";
 import { FileSize } from "../Shared/FileSize";
+import { CommaList, NewlineList } from "../Shared/CommaList";
+import { Box } from "@mui/material";
 
 interface ISceneListTableProps {
   scenes: GQL.SlimSceneDataFragment[];
@@ -89,27 +91,27 @@ export const SceneListTable: React.FC<ISceneListTableProps> = (
   };
 
   const TagCell = (scene: GQL.SlimSceneDataFragment) => (
-    <ul className="comma-list overflowable">
+    <CommaList className="overflowable">
       {scene.tags.map((tag) => (
-        <li key={tag.id}>
+        <Box component="li" key={tag.id}>
           <Link to={NavUtils.makeTagScenesUrl(tag)}>
             <span>{tag.name}</span>
           </Link>
-        </li>
+        </Box>
       ))}
-    </ul>
+    </CommaList>
   );
 
   const PerformersCell = (scene: GQL.SlimSceneDataFragment) => (
-    <ul className="comma-list overflowable">
+    <CommaList className="overflowable">
       {scene.performers.map((performer) => (
-        <li key={performer.id}>
+        <Box component="li" key={performer.id}>
           <Link to={NavUtils.makePerformerScenesUrl(performer)}>
             <span>{performer.name}</span>
           </Link>
-        </li>
+        </Box>
       ))}
-    </ul>
+    </CommaList>
   );
 
   const StudioCell = (scene: GQL.SlimSceneDataFragment) => {
@@ -126,27 +128,27 @@ export const SceneListTable: React.FC<ISceneListTableProps> = (
   };
 
   const GroupCell = (scene: GQL.SlimSceneDataFragment) => (
-    <ul className="comma-list overflowable">
+    <CommaList className="overflowable">
       {scene.groups.map((sceneGroup) => (
-        <li key={sceneGroup.group.id}>
+        <Box component="li" key={sceneGroup.group.id}>
           <Link to={NavUtils.makeGroupScenesUrl(sceneGroup.group)}>
             <span className="ellips-data">{sceneGroup.group.name}</span>
           </Link>
-        </li>
+        </Box>
       ))}
-    </ul>
+    </CommaList>
   );
 
   const GalleriesCell = (scene: GQL.SlimSceneDataFragment) => (
-    <ul className="comma-list overflowable">
+    <CommaList className="overflowable">
       {scene.galleries.map((gallery) => (
-        <li key={gallery.id}>
+        <Box component="li" key={gallery.id}>
           <Link to={`/galleries/${gallery.id}`}>
             <span>{galleryTitle(gallery)}</span>
           </Link>
-        </li>
+        </Box>
       ))}
-    </ul>
+    </CommaList>
   );
 
   const PlayCountCell = (scene: GQL.SlimSceneDataFragment) => (
@@ -161,44 +163,44 @@ export const SceneListTable: React.FC<ISceneListTableProps> = (
   );
 
   const ResolutionCell = (scene: GQL.SlimSceneDataFragment) => (
-    <ul className="comma-list">
+    <CommaList>
       {scene.files.map((file) => (
-        <li key={file.id}>
+        <Box component="li" key={file.id}>
           <span> {TextUtils.resolution(file?.width, file?.height)}</span>
-        </li>
+        </Box>
       ))}
-    </ul>
+    </CommaList>
   );
 
   const FileSizeCell = (scene: GQL.SlimSceneDataFragment) => (
-    <ul className="comma-list">
+    <CommaList>
       {scene.files.map((file) => (
-        <li key={file.id}>
+        <Box component="li" key={file.id}>
           <FileSize size={file.size} />
-        </li>
+        </Box>
       ))}
-    </ul>
+    </CommaList>
   );
 
   const FrameRateCell = (scene: GQL.SlimSceneDataFragment) => (
-    <ul className="comma-list">
+    <CommaList>
       {scene.files.map((file) => (
-        <li key={file.id}>
+        <Box component="li" key={file.id}>
           <span>
             <FormattedMessage
               id="frames_per_second"
               values={{ value: intl.formatNumber(file.frame_rate ?? 0) }}
             />
           </span>
-        </li>
+        </Box>
       ))}
-    </ul>
+    </CommaList>
   );
 
   const BitRateCell = (scene: GQL.SlimSceneDataFragment) => (
-    <ul className="comma-list">
+    <CommaList>
       {scene.files.map((file) => (
-        <li key={file.id}>
+        <Box component="li" key={file.id}>
           <span>
             <FormattedMessage
               id="megabits_per_second"
@@ -209,39 +211,39 @@ export const SceneListTable: React.FC<ISceneListTableProps> = (
               }}
             />
           </span>
-        </li>
+        </Box>
       ))}
-    </ul>
+    </CommaList>
   );
 
   const AudioCodecCell = (scene: GQL.SlimSceneDataFragment) => (
-    <ul className="comma-list over">
+    <CommaList className="over">
       {scene.files.map((file) => (
-        <li key={file.id}>
+        <Box component="li" key={file.id}>
           <span>{file.audio_codec}</span>
-        </li>
+        </Box>
       ))}
-    </ul>
+    </CommaList>
   );
 
   const VideoCodecCell = (scene: GQL.SlimSceneDataFragment) => (
-    <ul className="comma-list">
+    <CommaList>
       {scene.files.map((file) => (
-        <li key={file.id}>
+        <Box component="li" key={file.id}>
           <span>{file.video_codec}</span>
-        </li>
+        </Box>
       ))}
-    </ul>
+    </CommaList>
   );
 
   const PathCell = (scene: GQL.SlimSceneDataFragment) => (
-    <ul className="newline-list overflowable TruncatedText">
+    <NewlineList className="overflowable TruncatedText">
       {scene.files.map((file) => (
-        <li key={file.id}>
+        <Box component="li" key={file.id}>
           <span>{file.path}</span>
-        </li>
+        </Box>
       ))}
-    </ul>
+    </NewlineList>
   );
 
   interface IColumnSpec {

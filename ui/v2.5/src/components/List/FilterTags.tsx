@@ -26,7 +26,7 @@ export const TagItem: React.FC<TagItemProps> = (props) => {
   const { className, children, onClick, ...others } = props;
   return (
     <Chip
-      className={cx("tag-item", className)}
+      className={className}
       label={children}
       onClick={onClick}
       size="small"
@@ -44,7 +44,7 @@ export const FilterTag: React.FC<{
 }> = ({ className, label, onClick, onRemove }) => {
   return (
     <Chip
-      className={cx("tag-item", className)}
+      className={className}
       label={label}
       onClick={onClick}
       onDelete={(e) => {
@@ -106,11 +106,14 @@ const MoreFilterTags: React.FC<{
         </Box>
       </Popover>
       <Chip
-        className="tag-item more-tags"
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         size="small"
         color="secondary"
+        sx={{
+          backgroundColor: "transparent",
+          color: (theme) => theme.palette.common.white,
+        }}
         label={
           <FormattedMessage
             id="search_filter.more_filter_criteria"
@@ -305,7 +308,7 @@ export const FilterTags: React.FC<IFilterTagsProps> = ({
     return null;
   }
 
-  const className = "wrap-tags filter-tags";
+  const className = "wrap-tags";
 
   const filterTags = criteria.map((c) => getFilterTags(c)).flat();
 
@@ -331,7 +334,26 @@ export const FilterTags: React.FC<IFilterTagsProps> = ({
   const hiddenCriteria = cutoff !== undefined ? filterTags.slice(cutoff) : [];
 
   return (
-    <div className={className} ref={ref}>
+    <Box
+      className={className}
+      ref={ref}
+      sx={{
+        display: "flex",
+        justifyContent: "center",
+        flexWrap: "wrap",
+        gap: 1,
+        marginBottom: 1,
+        "& .more-tags": {
+          backgroundColor: "transparent",
+          color: (theme) => theme.palette.common.white,
+        },
+        "& .clear-all-button": {
+          color: "text.primary",
+          lineHeight: "16px",
+          padding: 0,
+        },
+      }}
+    >
       {visibleCriteria}
       <MoreFilterTags tags={hiddenCriteria} />
       {filterTags.length >= 3 && (
@@ -344,6 +366,6 @@ export const FilterTags: React.FC<IFilterTagsProps> = ({
           <FormattedMessage id="actions.clear" />
         </Button>
       )}
-    </div>
+    </Box>
   );
 };

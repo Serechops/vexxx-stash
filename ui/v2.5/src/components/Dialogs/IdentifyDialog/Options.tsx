@@ -33,7 +33,6 @@ export const OptionsEditor: React.FC<IOptionsEditor> = ({
     : "config.tasks.identify.source_options";
   const checkboxProps = {
     allowUndefined: !!source,
-    indeterminateClassname: "text-muted",
   };
 
   function maybeRenderMultipleMatchesTag() {
@@ -42,7 +41,7 @@ export const OptionsEditor: React.FC<IOptionsEditor> = ({
     }
 
     return (
-      <Grid container spacing={2} className="ml-3 mt-1 mb-0" alignItems="center">
+      <Grid container spacing={2} sx={{ ml: 3, mt: 1, mb: 0 }} alignItems="center">
         <Grid size={{ sm: 4 }} offset={{ sm: 1 }}>
           <Typography
             title={intl.formatMessage({
@@ -76,7 +75,7 @@ export const OptionsEditor: React.FC<IOptionsEditor> = ({
     }
 
     return (
-      <Grid container spacing={2} className="ml-3 mt-1 mb-0" alignItems="center">
+      <Grid container spacing={2} sx={{ ml: 3, mt: 1, mb: 0 }} alignItems="center">
         <Grid size={{ sm: 4 }} offset={{ sm: 1 }}>
           <Typography
             title={intl.formatMessage({
@@ -107,7 +106,7 @@ export const OptionsEditor: React.FC<IOptionsEditor> = ({
   }
 
   return (
-    <Box className="mb-0">
+    <Box sx={{ mb: 0 }}>
       <Box>
         <Typography variant="h5" gutterBottom>
           <FormattedMessage
@@ -116,14 +115,14 @@ export const OptionsEditor: React.FC<IOptionsEditor> = ({
           />
         </Typography>
         {!source && (
-          <FormHelperText className="text-muted">
+          <FormHelperText sx={{ color: "text.secondary" }}>
             {intl.formatMessage({
               id: "config.tasks.identify.explicit_set_description",
             })}
           </FormHelperText>
         )}
       </Box>
-      <Box className="mb-0">
+      <Box sx={{ mb: 0 }}>
         <ThreeStateBoolean
           id="include-male-performers"
           value={

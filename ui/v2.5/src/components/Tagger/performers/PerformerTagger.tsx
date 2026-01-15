@@ -418,11 +418,11 @@ const PerformerTaggerList: React.FC<IPerformerTaggerListProps> = ({
       let mainContent;
       if (!isTagged && stashID !== undefined) {
         mainContent = (
-          <div className="text-left">
-            <h5 className="text-bold">
+          <Box textAlign="left">
+            <Typography variant="h5" fontWeight="bold">
               <FormattedMessage id="performer_tagger.performer_already_tagged" />
-            </h5>
-          </div>
+            </Typography>
+          </Box>
         );
       } else if (!isTagged && !stashID) {
         mainContent = (
@@ -462,16 +462,16 @@ const PerformerTaggerList: React.FC<IPerformerTaggerListProps> = ({
         );
       } else if (isTagged) {
         mainContent = (
-          <div className="d-flex flex-column text-left">
-            <h5>
+          <Box display="flex" flexDirection="column" textAlign="left">
+            <Typography variant="h5">
               <FormattedMessage id="performer_tagger.performer_successfully_tagged" />
-            </h5>
-            <h6>
+            </Typography>
+            <Typography variant="h6">
               <Link className="bold" to={`/performers/${performer.id}`}>
                 {taggedPerformers[performer.id].name}
               </Link>
-            </h6>
-          </div>
+            </Typography>
+          </Box>
         );
       }
 
@@ -479,14 +479,16 @@ const PerformerTaggerList: React.FC<IPerformerTaggerListProps> = ({
       if (stashID !== undefined) {
         const base = stashID.endpoint.match(/https?:\/\/.*?\//)?.[0];
         const link = base ? (
-          <ExternalLink
-            className="small d-block"
-            href={`${base}performers/${stashID.stash_id}`}
-          >
-            {stashID.stash_id}
-          </ExternalLink>
+          <Box fontSize="small">
+            <ExternalLink
+              href={`${base}performers/${stashID.stash_id}`}
+              style={{ display: "block" }}
+            >
+              {stashID.stash_id}
+            </ExternalLink>
+          </Box>
         ) : (
-          <div className="small">{stashID.stash_id}</div>
+          <Typography variant="body2">{stashID.stash_id}</Typography>
         );
 
         subContent = (
@@ -512,27 +514,27 @@ const PerformerTaggerList: React.FC<IPerformerTaggerListProps> = ({
               </Button>
             </Stack>
             {error[performer.id] && (
-              <div className="text-danger mt-1">
-                <strong>
-                  <span className="mr-2">Error:</span>
+              <Box color="error.main" mt={1}>
+                <Typography component="strong">
+                  <span style={{ marginRight: "0.5rem" }}>Error:</span>
                   {error[performer.id]?.message}
-                </strong>
+                </Typography>
                 <div>{error[performer.id]?.details}</div>
-              </div>
+              </Box>
             )}
           </div>
         );
       } else if (searchErrors[performer.id]) {
         subContent = (
-          <div className="text-danger font-weight-bold">
+          <Typography color="error" fontWeight="bold">
             {searchErrors[performer.id]}
-          </div>
+          </Typography>
         );
       } else if (searchResults[performer.id]?.length === 0) {
         subContent = (
-          <div className="text-danger font-weight-bold">
+          <Typography color="error" fontWeight="bold">
             <FormattedMessage id="performer_tagger.no_results_found" />
-          </div>
+          </Typography>
         );
       }
 
@@ -568,7 +570,7 @@ const PerformerTaggerList: React.FC<IPerformerTaggerListProps> = ({
               endpoint={selectedEndpoint.endpoint}
             />
           )}
-          <Paper className="performer-card p-0 m-0">
+          <Paper className="performer-card" sx={{ p: 0, m: 0 }}>
             <img src={performer.image_path ?? ""} alt="" />
           </Paper>
           <div className={`${CLASSNAME}-details`}>
@@ -586,7 +588,7 @@ const PerformerTaggerList: React.FC<IPerformerTaggerListProps> = ({
               </h2>
             </Link>
             {mainContent}
-            <div className="sub-content text-left">{subContent}</div>
+            <Box className="sub-content" textAlign="left">{subContent}</Box>
             {searchResult}
           </div>
         </div>
@@ -613,15 +615,15 @@ const PerformerTaggerList: React.FC<IPerformerTaggerListProps> = ({
         />
       )}
 
-      <div className="ml-auto mb-3">
+      <Box ml="auto" mb={3}>
         <Button variant="outlined" onClick={() => setShowBatchAdd(true)}>
           <FormattedMessage id="performer_tagger.batch_add_performers" />
         </Button>
-        <Button variant="outlined" className="ml-3" onClick={() => setShowBatchUpdate(true)}>
+        <Button variant="outlined" sx={{ ml: 3 }} onClick={() => setShowBatchUpdate(true)}>
           <FormattedMessage id="performer_tagger.batch_update_performers" />
         </Button>
-      </div>
-      <div className={CLASSNAME}>{renderPerformers()}</div>
+      </Box>
+      <Box className="tagger-container" sx={{ mx: { md: "auto" } }}>{renderPerformers()}</Box>
     </Paper>
   );
 };
@@ -765,22 +767,22 @@ export const PerformerTagger: React.FC<ITaggerProps> = ({ performers }) => {
         defaultActiveTab="Tagger.md"
       />
       {renderStatus()}
-      <div className="tagger-container mx-md-auto">
+      <Box className="tagger-container" sx={{ mx: { md: "auto" } }}>
         {selectedEndpointIndex !== -1 && selectedEndpoint ? (
           <>
-            <div className="row mb-2 no-gutters">
+            <Box display="flex" mb={2}>
               <Button onClick={() => setShowConfig(!showConfig)} variant="text">
                 {intl.formatMessage({ id: showHideConfigId })}
               </Button>
               <Button
-                className="ml-auto"
+                sx={{ ml: "auto" }}
                 onClick={() => setShowManual(true)}
                 title={intl.formatMessage({ id: "help" })}
                 variant="text"
               >
                 <FormattedMessage id="help" />
               </Button>
-            </div>
+            </Box>
 
             <PerformerConfig
               config={config}
@@ -800,11 +802,11 @@ export const PerformerTagger: React.FC<ITaggerProps> = ({ performers }) => {
             />
           </>
         ) : (
-          <div className="my-4">
-            <h3 className="text-center mt-4">
+          <Box my={4}>
+            <Typography variant="h3" align="center" mt={4}>
               <FormattedMessage id="performer_tagger.to_use_the_performer_tagger" />
-            </h3>
-            <h5 className="text-center">
+            </Typography>
+            <Typography variant="h5" align="center">
               Please see{" "}
               <HashLink
                 to="/settings?tab=metadata-providers#stash-boxes"
@@ -814,10 +816,10 @@ export const PerformerTagger: React.FC<ITaggerProps> = ({ performers }) => {
               >
                 Settings.
               </HashLink>
-            </h5>
-          </div>
+            </Typography>
+          </Box>
         )}
-      </div>
+      </Box>
     </>
   );
 };

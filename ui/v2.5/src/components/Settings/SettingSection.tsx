@@ -1,5 +1,5 @@
 import React, { PropsWithChildren } from "react";
-import { Card } from "@mui/material";
+import { Box, Card, Typography } from "@mui/material";
 import { useIntl } from "react-intl";
 import { useSettings } from "./context";
 
@@ -23,14 +23,30 @@ export const SettingSection: React.FC<PropsWithChildren<ISettingGroup>> = ({
   if (advanced && !advancedMode) return null;
 
   return (
-    <div className="setting-section" id={id}>
-      <h1>{headingID ? intl.formatMessage({ id: headingID }) : undefined}</h1>
+    <Box
+      component="section"
+      id={id}
+      sx={{
+        "&:not(:first-of-type)": {
+          marginTop: "1.5em",
+        },
+        "& .MuiCard-root": {
+          padding: 0,
+        },
+      }}
+    >
+      <Typography variant="h4" component="h1" sx={{ fontSize: "2rem" }}>
+        {headingID ? intl.formatMessage({ id: headingID }) : undefined}
+      </Typography>
       {subHeadingID ? (
-        <div className="sub-heading">
+        <Typography
+          variant="body2"
+          sx={{ fontSize: "0.8rem", marginTop: "0.5rem" }}
+        >
           {intl.formatMessage({ id: subHeadingID })}
-        </div>
+        </Typography>
       ) : undefined}
       <Card>{children}</Card>
-    </div>
+    </Box>
   );
 };

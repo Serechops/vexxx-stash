@@ -67,35 +67,49 @@ export const Setting: React.FC<PropsWithChildren<ISetting>> = PatchComponent(
     function renderSubHeading() {
       if (subHeadingID) {
         return (
-          <div className="sub-heading">
+          <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mt: 0.5 }}>
             {intl.formatMessage({ id: subHeadingID })}
-          </div>
+          </Typography>
         );
       }
       if (subHeading) {
-        return <div className="sub-heading">{subHeading}</div>;
+        return <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mt: 0.5 }}>{subHeading}</Typography>;
       }
     }
 
     const tooltip = tooltipID
       ? intl.formatMessage({ id: tooltipID })
       : undefined;
-    const disabledClassName = disabled ? "disabled" : "";
 
     if (advanced && !advancedMode) return null;
 
     return (
-      <div
-        className={`setting ${className ?? ""} ${disabledClassName}`}
+      <Box
         id={id}
         onClick={onClick}
+        sx={{
+          alignItems: "center",
+          display: "flex",
+          justifyContent: "space-between",
+          padding: "15px",
+          width: "100%",
+          borderBottom: "1px solid",
+          borderColor: "divider",
+          "&:last-child": {
+            borderBottom: "none",
+          },
+          opacity: disabled ? 0.5 : 1,
+          pointerEvents: disabled ? "none" : "auto",
+          ...(className?.includes('sub-setting') && { paddingLeft: "2rem" }),
+        }}
+        className={className}
       >
-        <div>
-          <h3 title={tooltip}>{renderHeading()}</h3>
+        <Box>
+          <Typography variant="h6" component="h3" title={tooltip} sx={{ fontSize: "1.25rem", margin: 0 }}>{renderHeading()}</Typography>
           {renderSubHeading()}
-        </div>
-        <div>{children}</div>
-      </div>
+        </Box>
+        <Box sx={{ flexGrow: 0, ...(className?.includes('setting') && { minWidth: "100px", textAlign: "right" }) }}>{children}</Box>
+      </Box>
     );
   }
 ) as React.FC<PropsWithChildren<ISetting>>;
@@ -118,9 +132,9 @@ export const SettingGroup: React.FC<PropsWithChildren<ISettingGroup>> =
 
         return (
           <IconButton
-            className="setting-group-collapse-button"
             size="small"
             onClick={() => setOpen(!open)}
+            sx={{ color: 'text.secondary', fontSize: '1.5rem', padding: 0 }}
           >
             <Icon className="fa-fw" icon={open ? faChevronUp : faChevronDown} />
           </IconButton>
@@ -147,15 +161,47 @@ export const SettingGroup: React.FC<PropsWithChildren<ISettingGroup>> =
       }
 
       return (
-        <div className={`setting-group ${collapsible ? "collapsible" : ""}`}>
-          <Setting {...settingProps} onClick={onDivClick}>
+        <Box
+          sx={{
+            paddingBottom: "15px",
+            width: "100%",
+            borderBottom: "1px solid",
+            borderColor: "divider",
+            "&:last-child": {
+              borderBottom: "none",
+            },
+            ...(collapsible && { cursor: "pointer" })
+          }}
+          onClick={onDivClick}
+        >
+          <Setting {...settingProps} onClick={() => { }} className={settingProps?.className ? `${settingProps.className} setting-group-header` : 'setting-group-header'}>
             {topLevel}
             {renderCollapseButton()}
           </Setting>
           <Collapse in={open}>
-            <div className="collapsible-section">{children}</div>
+            <Box
+              className="collapsible-section"
+              sx={{
+                "& .MuiBox-root.setting": {
+                  marginLeft: "2.5rem",
+                  marginRight: "1.5rem",
+                  paddingBottom: "10px",
+                  paddingLeft: 0,
+                  paddingTop: "10px",
+                  "& h3": {
+                    fontSize: "1rem",
+                  },
+                  "&.sub-setting": {
+                    paddingLeft: "2rem",
+                  }
+
+                }
+              }}
+            >
+              {children}
+            </Box>
           </Collapse>
-        </div>
+        </Box>
       );
     }
   );
@@ -213,6 +259,7 @@ export const SelectSetting: React.FC<PropsWithChildren<ISelectSetting>> =
               inputProps={{
                 className: "text-input",
               }}
+              sx={{ backgroundColor: "transparent" }}
             >
               {children}
             </Select>
@@ -248,32 +295,46 @@ const _ChangeButtonSetting = <T extends {}>(props: IDialogSetting<T>) => {
   const intl = useIntl();
 
   const tooltip = tooltipID ? intl.formatMessage({ id: tooltipID }) : undefined;
-  const disabledClassName = disabled ? "disabled" : "";
 
   return (
-    <div className={`setting ${className ?? ""} ${disabledClassName}`} id={id}>
-      <div>
-        <h3 title={tooltip}>
+    <Box
+      className={`setting ${className ?? ""}`}
+      id={id}
+      sx={{
+        alignItems: "center",
+        display: "flex",
+        justifyContent: "space-between",
+        padding: "15px",
+        width: "100%",
+        borderBottom: "1px solid",
+        borderColor: "divider",
+        "&:last-child": { borderBottom: "none" },
+        opacity: disabled ? 0.5 : 1,
+        pointerEvents: disabled ? "none" : "auto",
+      }}
+    >
+      <Box>
+        <Typography variant="h6" component="h3" title={tooltip} sx={{ fontSize: "1.25rem", margin: 0 }}>
           {headingID
             ? intl.formatMessage({ id: headingID })
             : heading
               ? heading
               : undefined}
-        </h3>
+        </Typography>
 
-        <div className="value">
+        <Box className="value" sx={{ fontFamily: '"Courier New", Courier, monospace', marginBottom: "0.5rem", marginTop: "0.5rem", overflowWrap: "anywhere" }}>
           {renderValue ? renderValue(value) : undefined}
-        </div>
+        </Box>
 
         {subHeadingID ? (
-          <div className="sub-heading">
+          <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>
             {intl.formatMessage({ id: subHeadingID })}
-          </div>
+          </Typography>
         ) : subHeading ? (
-          <div className="sub-heading">{subHeading}</div>
+          <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>{subHeading}</Typography>
         ) : undefined}
-      </div>
-      <div>
+      </Box>
+      <Box>
         <Button variant="contained" onClick={() => onChange()} disabled={disabled}>
           {buttonText ? (
             buttonText
@@ -281,8 +342,8 @@ const _ChangeButtonSetting = <T extends {}>(props: IDialogSetting<T>) => {
             <FormattedMessage id={buttonTextID ?? "actions.edit"} />
           )}
         </Button>
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 };
 
@@ -573,22 +634,35 @@ export const _ConstantSetting = <T extends {}>(props: IConstantSetting<T>) => {
   const intl = useIntl();
 
   return (
-    <div className="setting" id={id}>
-      <div>
-        <h3>{headingID ? intl.formatMessage({ id: headingID }) : undefined}</h3>
+    <Box
+      id={id}
+      sx={{
+        alignItems: "center",
+        display: "flex",
+        justifyContent: "space-between",
+        padding: "15px",
+        width: "100%",
+        borderBottom: "1px solid",
+        borderColor: "divider",
+        "&:last-child": { borderBottom: "none" }
+      }}
+      className="setting"
+    >
+      <Box>
+        <Typography variant="h6" component="h3" sx={{ fontSize: "1.25rem", margin: 0 }}>{headingID ? intl.formatMessage({ id: headingID }) : undefined}</Typography>
 
-        <div className="value">{renderValue ? renderValue(value) : value}</div>
+        <Box className="value" sx={{ fontFamily: '"Courier New", Courier, monospace', marginBottom: "0.5rem", marginTop: "0.5rem", overflowWrap: "anywhere" }}>{renderValue ? renderValue(value) : value}</Box>
 
         {subHeadingID ? (
-          <div className="sub-heading">
+          <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>
             {intl.formatMessage({ id: subHeadingID })}
-          </div>
+          </Typography>
         ) : subHeading ? (
-          <div className="sub-heading">{subHeading}</div>
+          <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>{subHeading}</Typography>
         ) : undefined}
-      </div>
-      <div />
-    </div>
+      </Box>
+      <Box />
+    </Box>
   );
 };
 

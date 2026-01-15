@@ -66,7 +66,28 @@ export const CustomFields: React.FC<ICustomFields> = PatchComponent(
 
     return (
       // according to linter rule CSS classes shouldn't use underscores
-      <div className="custom-fields">
+      // according to linter rule CSS classes shouldn't use underscores
+      <Box
+        className="custom-fields"
+        sx={{
+          width: "100%",
+          "& .detail-item": {
+            maxWidth: "100%",
+            "& .detail-item-title": {
+              maxWidth: "130px",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            },
+            "& .detail-item-value": {
+              wordBreak: "break-word",
+              "& .TruncatedText": {
+                whiteSpace: "pre-line",
+              }
+            }
+          }
+        }}
+      >
         <CollapseButton
           text={intl.formatMessage({ id: "custom_fields.title" })}
         >
@@ -74,7 +95,7 @@ export const CustomFields: React.FC<ICustomFields> = PatchComponent(
             <CustomField key={key} field={key} value={value} />
           ))}
         </CollapseButton>
-      </div>
+      </Box>
     );
   }
 );
@@ -128,6 +149,27 @@ const CustomFieldInput: React.FC<{
           spacing={1}
           className={cx("custom-fields-row", { "custom-fields-new": isNew })}
           alignItems="center"
+          sx={{
+            fontFamily: '"Courier New", Courier, monospace',
+            fontSize: "0.875rem",
+            "& .form-label": {
+              marginBottom: 0,
+              maxWidth: "100%",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              verticalAlign: "middle",
+              whiteSpace: "nowrap",
+              cursor: "inherit",
+              textDecoration: "inherit",
+            },
+            "&.custom-fields-new > div:not(:last-child)": {
+              paddingRight: 0,
+            },
+            // Helper styles from SCSS
+            "& .input-control": {
+              fontSize: "0.875rem"
+            }
+          }}
         >
           <Grid size={{ xs: 12, sm: 3, xl: 2 }} className="custom-fields-field">
             {isNew ? (
@@ -286,6 +328,11 @@ export const CustomFieldsInput: React.FC<ICustomFieldsInput> = PatchComponent(
       <CollapseButton
         className="custom-fields-input"
         text={intl.formatMessage({ id: "custom_fields.title" })}
+        sx={{
+          "& > .collapse-button": {
+            fontWeight: 700
+          }
+        }}
       >
         <Box>
           <Grid container spacing={1}>

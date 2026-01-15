@@ -81,10 +81,11 @@ const _FolderSelect: React.FC<IProps> = ({
   }
 
   const topDirectory = currentDirectory && parent && (
-    <ListItem disablePadding className="folder-list-parent" dense>
+    <ListItem disablePadding dense>
       <ListItemButton onClick={() => goUp()} disabled={loading}>
         <ListItemText
           primary={<FormattedMessage id="setup.folder.up_dir" />}
+          sx={{ fontWeight: 500 }}
         />
       </ListItemButton>
     </ListItem>
@@ -137,19 +138,50 @@ const _FolderSelect: React.FC<IProps> = ({
       )}
 
       <Collapse in={!collapsible || showBrowser}>
-        <List dense className="folder-list">
+        <List
+          dense
+          sx={{
+            listStyleType: "none",
+            margin: 0,
+            maxHeight: "30vw",
+            overflowX: "auto",
+            paddingBottom: "0.5rem",
+            paddingTop: "1rem",
+            scrollbarWidth: "none", // Hide scrollbar for standard look if desired, or keep default
+            "&::-webkit-scrollbar": {
+              height: "8px",
+            },
+            "&::-webkit-scrollbar-thumb": {
+              background: "#888",
+              borderRadius: "4px",
+            }
+          }}
+        >
           {topDirectory}
           {selectableDirectories.map((dir) => (
             <ListItem
               key={dir}
               disablePadding
-              className="folder-list-item"
             >
               <ListItemButton
                 onClick={() => setInstant(dir)}
                 disabled={loading}
+                sx={{
+                  whiteSpace: "nowrap",
+                  "& .MuiListItemText-primary": {
+                    "&::before": {
+                      content: '"├ \uD83D\uDCC1"',
+                      display: "inline-block",
+                      paddingRight: "1rem",
+                      transform: "scale(1.5)",
+                    }
+                  },
+                  "&:last-child .MuiListItemText-primary::before": {
+                    content: '"└ \uD83D\uDCC1"',
+                  }
+                }}
               >
-                <ListItemText primary={dir} />
+                <ListItemText primary={dir} sx={{ "& .MuiTypography-root": { color: "white", fontWeight: 400 } }} />
               </ListItemButton>
             </ListItem>
           ))}

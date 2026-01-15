@@ -72,16 +72,29 @@ export const DurationInput: React.FC<IProps> = ({
           <Button
             variant="outlined"
             color="secondary"
-            className="duration-button"
             onClick={() => increment()}
+            sx={{
+              padding: "1px 7px",
+              lineHeight: "10px",
+              minWidth: "3rem",
+              borderBottomLeftRadius: 0,
+              borderTopLeftRadius: 0,
+            }}
           >
             <Icon icon={faChevronUp} />
           </Button>
           <Button
             variant="outlined"
             color="secondary"
-            className="duration-button"
             onClick={() => decrement()}
+            sx={{
+              padding: "1px 7px",
+              lineHeight: "10px",
+              minWidth: "3rem",
+              borderBottomLeftRadius: 0,
+              borderTopLeftRadius: 0,
+              marginLeft: "0 !important", // Override ButtonGroup margin
+            }}
           >
             <Icon icon={faChevronDown} />
           </Button>
@@ -118,9 +131,9 @@ export const DurationInput: React.FC<IProps> = ({
   }
 
   return (
-    <Box className={`duration-input ${className}`} sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5 }}>
+    <Box className={className} sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5 }}>
       <TextField
-        className="duration-control text-input"
+        className="text-input"
         disabled={disabled}
         value={inputValue}
         onChange={onChange}
@@ -130,6 +143,11 @@ export const DurationInput: React.FC<IProps> = ({
         helperText={error}
         size="small"
         variant="outlined"
+        sx={{
+          "& .MuiInputBase-root": {
+            paddingRight: disabled ? undefined : 0,
+          }
+        }}
         InputProps={{
           endAdornment: (
             <InputAdornment position="end">

@@ -70,11 +70,51 @@ export const ScrapeDialog: React.FC<
         variant: "secondary",
       }}
       maxWidth="lg"
-      dialogClassName={`${props.className ?? ""} scrape-dialog ${sfwContentMode ? "sfw-mode" : ""}`}
+      dialogClassName={`${props.className ?? ""} ${sfwContentMode ? "sfw-mode" : ""}`}
       footerButtons={props.footerButtons}
       hideAccept={props.hideApply}
     >
-      <div className="dialog-container">
+      <Box
+        className="dialog-container" // Keep this className if needed for scrolling behavior managed by JS, otherwise replace with sx for containment
+        sx={{
+          maxHeight: 'calc(100vh - 14rem)',
+          overflowY: 'auto',
+          paddingRight: '15px',
+          "& .column-label": {
+            color: "text.secondary",
+            fontSize: "0.85em",
+          },
+          "& .string-list-input": {
+            width: "100%",
+          },
+          "& .image-selection-parent": {
+            minWidth: "100%",
+          },
+          "& .image-selection": {
+            "& .select-buttons": {
+              alignItems: "center",
+              display: "flex",
+              justifyContent: "space-between",
+              marginTop: "1rem",
+              "& .image-index": {
+                flexGrow: 1,
+                textAlign: "center",
+              }
+            },
+            "& .loading": {
+              opacity: 0.5,
+            },
+            "& .LoadingIndicator": { // This class might be internal to LoadingIndicator or used as wrapper if LoadingIndicator is not yet fully migrated? Wait, LoadingIndicator was migrated to not use this class internally but we might wrap it?
+              // Actually LoadingIndicator component doesn't emit this class anymore. So this style might be dead or needing update on usage site.
+              // If ScrapeDialog renders LoadingIndicator, we used to target it.
+              // Let's assume we need to style the container of the loader if it exists.
+              height: "100%",
+              position: "absolute",
+              top: 0,
+            }
+          }
+        }}
+      >
         <ScrapeDialogContext.Provider value={contextState}>
           <Box p={2}>
             <Grid container className="px-3 pt-3">
@@ -105,7 +145,7 @@ export const ScrapeDialog: React.FC<
             {props.children}
           </Box>
         </ScrapeDialogContext.Provider>
-      </div>
+      </Box>
     </ModalComponent>
   );
 };

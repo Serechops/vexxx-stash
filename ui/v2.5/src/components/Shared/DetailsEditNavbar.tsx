@@ -1,4 +1,4 @@
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText } from "@mui/material";
+import { Box, Button, Dialog, DialogActions, DialogContent, DialogContentText } from "@mui/material";
 import React, { useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { ImageInput } from "./ImageInput";
@@ -140,7 +140,25 @@ export const DetailsEditNavbar: React.FC<IProps> = (props: IProps) => {
   }
 
   return (
-    <div className={cx("details-edit", props.classNames)}>
+    <Box
+      className={cx(props.classNames)}
+      sx={{
+        display: "flex",
+        flexWrap: "wrap",
+        justifyContent: "left",
+        padding: 0,
+        rowGap: "0.5rem",
+        "& .MuiButton-root": {
+          marginRight: "0.5rem",
+          whiteSpace: "nowrap",
+        },
+        // Mimic the logic from SCSS .col-md-8 and .detail-header.edit
+        "& > div:nth-last-of-type(2)": {
+          flex: 1,
+          maxWidth: "100%",
+        }
+      }}
+    >
       {renderEditButton()}
       <ImageInput
         isEditing={props.isEditing}
@@ -154,7 +172,7 @@ export const DetailsEditNavbar: React.FC<IProps> = (props: IProps) => {
         acceptSVG={props.acceptSVG ?? false}
       />
       {props.isEditing && props.onClearImage ? (
-        <div>
+        <Box>
           <Button
             className="mr-2"
             variant="contained"
@@ -165,11 +183,11 @@ export const DetailsEditNavbar: React.FC<IProps> = (props: IProps) => {
               ? intl.formatMessage({ id: "actions.clear_front_image" })
               : intl.formatMessage({ id: "actions.clear_image" })}
           </Button>
-        </div>
+        </Box>
       ) : null}
       {renderBackImageInput()}
       {props.isEditing && props.onClearBackImage ? (
-        <div>
+        <Box>
           <Button
             className="mr-2"
             variant="contained"
@@ -178,13 +196,13 @@ export const DetailsEditNavbar: React.FC<IProps> = (props: IProps) => {
           >
             <FormattedMessage id="actions.clear_back_image" />
           </Button>
-        </div>
+        </Box>
       ) : null}
       {renderAutoTagButton()}
       {props.customButtons}
       {renderSaveButton()}
       {renderDeleteButton()}
       {renderDeleteAlert()}
-    </div>
+    </Box>
   );
 };

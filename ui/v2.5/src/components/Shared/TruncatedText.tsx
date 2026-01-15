@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { Tooltip } from "@mui/material";
+import { Box, Tooltip } from "@mui/material";
 import cx from "classnames";
 import { useDebounce } from "src/hooks/debounce";
 import { PatchComponent } from "src/patch";
@@ -48,9 +48,31 @@ export const TruncatedText: React.FC<ITruncatedTextProps> = PatchComponent(
         placement={placement}
         classes={{ tooltip: CLASSNAME_TOOLTIP }}
       >
-        <div
-          className={cx(CLASSNAME, className)}
-          style={{ WebkitLineClamp: lineCount }}
+        <Box
+          className={className} // Preserve custom classNames passed from usage sites if any, or migrate them too.
+          // Note: The original had CLASSNAME ("TruncatedText") which presumably had some base styles.
+          // We need to inline those base styles into sx.
+          // .TruncatedText {
+          //   -webkit-box-orient: vertical;
+          //   display: -webkit-box;
+          //   overflow: hidden;
+          //   white-space: pre-line;
+          // }
+          sx={{
+            display: "-webkit-box",
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+            whiteSpace: "pre-line",
+            WebkitLineClamp: lineCount,
+            // Also handle usage site styles if needed
+            "&.inline": { // Migrating .TruncatedText.inline logic
+              display: "inline",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              WebkitLineClamp: "unset", // Reset line clamp for inline
+              WebkitBoxOrient: "unset", // Reset box orient
+            }
+          }}
           ref={target}
           onMouseEnter={(e) => handleFocus(e.currentTarget)}
           onFocus={(e) => handleFocus(e.currentTarget)}
@@ -58,7 +80,7 @@ export const TruncatedText: React.FC<ITruncatedTextProps> = PatchComponent(
           onBlur={handleBlur}
         >
           {text}
-        </div>
+        </Box>
       </Tooltip>
     );
   }
@@ -98,8 +120,15 @@ export const TruncatedInlineText: React.FC<ITruncatedTextProps> = ({
       placement={placement}
       classes={{ tooltip: CLASSNAME_TOOLTIP }}
     >
-      <span
-        className={cx(CLASSNAME, "inline", className)}
+      <Box
+        component="span"
+        className={className} // Keep external class
+        sx={{
+          display: "inline",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+          overflow: "hidden" // Ensure overflow hidden is present for ellipsis
+        }}
         ref={target}
         onMouseEnter={(e) => handleFocus(e.currentTarget)}
         onFocus={(e) => handleFocus(e.currentTarget)}
@@ -107,7 +136,7 @@ export const TruncatedInlineText: React.FC<ITruncatedTextProps> = ({
         onBlur={handleBlur}
       >
         {text}
-      </span>
+      </Box>
     </Tooltip>
   );
 };

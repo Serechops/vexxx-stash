@@ -4,7 +4,7 @@ import {
   faChevronUp,
 } from "@fortawesome/free-solid-svg-icons";
 import React, { useEffect, useState } from "react";
-import { Button, Collapse, CollapseProps } from "@mui/material";
+import { Box, Button, Collapse, CollapseProps, SxProps, Theme } from "@mui/material";
 import { Icon } from "./Icon";
 
 interface IProps {
@@ -14,6 +14,7 @@ interface IProps {
   outsideCollapse?: React.ReactNode;
   onOpenChanged?: (o: boolean) => void;
   open?: boolean;
+  sx?: SxProps<Theme>;
 }
 
 export const CollapseButton: React.FC<React.PropsWithChildren<IProps>> = (
@@ -34,22 +35,32 @@ export const CollapseButton: React.FC<React.PropsWithChildren<IProps>> = (
   }, [props.open]);
 
   return (
-    <div className={props.className}>
-      <div className="collapse-header">
+    <Box className={props.className} sx={props.sx}>
+      <Box className="collapse-header" sx={{ padding: "0.25rem" }}>
         <Button
           onClick={() => toggleOpen()}
           className="minimal collapse-button"
           color="inherit"
+          sx={{
+            fontWeight: "bold",
+            textAlign: "left",
+            width: "100%",
+            justifyContent: "flex-start",
+            paddingLeft: 0,
+            textTransform: "none",
+            color: "text.primary",
+            "& .fa-icon": { marginLeft: 0, marginRight: "0.5rem" }
+          }}
         >
           <Icon icon={open ? faChevronDown : faChevronRight} fixedWidth />
           <span>{props.text}</span>
         </Button>
-      </div>
+      </Box>
       {props.outsideCollapse}
       <Collapse in={open} {...props.collapseProps}>
-        <div>{props.children}</div>
+        <Box sx={{ paddingTop: "0.25rem" }}>{props.children}</Box>
       </Collapse>
-    </div>
+    </Box>
   );
 };
 

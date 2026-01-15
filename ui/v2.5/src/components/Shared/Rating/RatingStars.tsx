@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button } from "@mui/material";
+import { Box, Button } from "@mui/material";
 import { Icon } from "../Icon";
 import { faStar as fasStar } from "@fortawesome/free-solid-svg-icons";
 import { faStar as farStar } from "@fortawesome/free-regular-svg-icons";
@@ -110,21 +110,7 @@ export const RatingStars = PatchComponent(
       }
     }
 
-    function getClassName(thisStar: number) {
-      if (hoverRating && hoverRating >= thisStar) {
-        if (hoverRating === stars) {
-          return "unsetting";
-        }
 
-        return "setting";
-      }
-
-      if (stars && stars >= thisStar) {
-        return "set";
-      }
-
-      return "unset";
-    }
 
     function getTooltip(thisStar: number, current: RatingFraction | undefined) {
       if (disabled) {
@@ -184,31 +170,29 @@ export const RatingStars = PatchComponent(
       return { rating: r, fraction: f ?? 0 };
     }
 
-    function getButtonClassName(
-      thisStar: number,
-      current: RatingFraction | undefined
-    ) {
-      if (!current || thisStar > current.rating + 1) {
-        return "star-fill-0";
-      }
-
-      if (thisStar <= current.rating) {
-        return "star-fill-100";
-      }
-
-      let w = current.fraction * 100;
-      return `star-fill-${w}`;
-    }
-
     const suffix = props.orMore ? "+" : "";
 
     const renderRatingButton = (thisStar: number) => {
       const ratingFraction = getCurrentSelectedRating();
 
+      // width calculation for partial stars
+      const getStarWidth = () => {
+        const current = ratingFraction;
+        if (!current || thisStar > current.rating + 1) {
+          return "0%";
+        }
+        if (thisStar <= current.rating) {
+          return "100%";
+        }
+        return `${current.fraction * 100}%`;
+      }
+
+      const width = getStarWidth();
+
       return (
         <Button
           disabled={disabled}
-          className={`minimal ${getButtonClassName(thisStar, ratingFraction)}`}
+          className="minimal"
           onClick={() => setRating(thisStar)}
           variant="text"
           color="secondary"
@@ -218,12 +202,56 @@ export const RatingStars = PatchComponent(
           onBlur={() => onMouseOut(thisStar)}
           title={getTooltip(thisStar, ratingFraction)}
           key={`star-${thisStar}`}
+          sx={{
+            fontSize: "inherit",
+            marginRight: "1px",
+            padding: 0,
+            position: "relative",
+            minWidth: "auto",
+            "&:hover": { backgroundColor: "inherit" },
+            "&:disabled": { backgroundColor: "inherit", opacity: "inherit" },
+            "& .filled-star": {
+              overflow: "hidden",
+              position: "absolute",
+              width: width,
+              left: 0,
+              top: 0,
+              transition: "width 0.1s ease-in-out", // Smooth transition for visual flair
+              zIndex: 2,
+              pointerEvents: "none",
+            },
+            "& .unfilled-star": {
+              zIndex: 1,
+            },
+            "& .fa-icon": {
+              // Styles for star icon colors
+              // We need to replicate .setting, .set, .unsetting colors
+              // But those are on the icon element itself
+            }
+
+          }}
         >
           <div className="filled-star">
-            <Icon icon={fasStar} className="set" />
+            <Icon icon={fasStar} className="set" style={{ color: "gold" }} />
           </div>
           <div className="unfilled-star">
-            <Icon icon={farStar} className={getClassName(thisStar)} />
+            <Icon icon={farStar} style={{ color: hoverRating && hoverRating >= thisStar ? (hoverRating === stars ? "gold" : "gold") : (stars && stars >= thisStar ? "gold" : "inherit") }} />
+            {/* Logic for coloring is complex in CSS:
+                 .unsetting { color: gold }
+                 .setting { color: gold }
+                 .set { color: gold }
+
+                 Wait, .unsetting is when hoverRating === stars.
+                 .setting is when hoverRating >= thisStar (and not unsetting).
+                 .set is when stars >= thisStar.
+
+                 Basically, if it's set or being set/unset, it's gold (for the Unfilled star?? No, filled star is gold).
+                 Actually, looking at SCSS:
+                 .filled-star has .set.
+                 .unfilled-star has .setting, .unsetting, .set.
+                 Ah, unsetting means we are about to unset it.
+                 Basically, gold color logic.
+             */}
           </div>
         </Button>
       );
@@ -244,12 +272,22 @@ export const RatingStars = PatchComponent(
     const precisionClassName = `rating-stars-precision-${props.precision}`;
 
     return (
-      <div className={`rating-stars ${precisionClassName}`}>
+      <Box
+        className={`rating-stars ${precisionClassName}`}
+        sx={{
+          display: "inline-flex",
+          verticalAlign: "middle",
+          "& .star-rating-number": {
+            fontSize: "1rem",
+            margin: "auto 0.5rem",
+          }
+        }}
+      >
         {Array.from(Array(max)).map((value, index) =>
           renderRatingButton(index + 1)
         )}
         <span className="star-rating-number">{maybeGetStarRatingNumber()}</span>
-      </div>
+      </Box>
     );
   }
 );

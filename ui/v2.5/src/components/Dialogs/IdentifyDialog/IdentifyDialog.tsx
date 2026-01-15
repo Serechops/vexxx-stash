@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Button, Form } from "react-bootstrap";
+import { Button, Box, IconButton } from "@mui/material";
 import {
   mutateMetadataIdentify,
   useConfiguration,
@@ -131,7 +131,7 @@ export const IdentifyDialog: React.FC<IIdentifyDialogProps> = ({
   const selectionStatus = useMemo(() => {
     if (selectedIds) {
       return (
-        <Form.Group id="selected-identify-ids">
+        <Box id="selected-identify-ids">
           <FormattedMessage
             id="config.tasks.identify.identifying_scenes"
             values={{
@@ -147,7 +147,7 @@ export const IdentifyDialog: React.FC<IIdentifyDialogProps> = ({
             }}
           />
           .
-        </Form.Group>
+        </Box>
       );
     }
     const message = paths.length ? (
@@ -185,19 +185,20 @@ export const IdentifyDialog: React.FC<IIdentifyDialogProps> = ({
     }
 
     return (
-      <Form.Group className="dialog-selected-folders">
-        <div>
+      <Box className="dialog-selected-folders">
+        <div className="mb-3">
           {message}
           <div>
-            <Button
+            <IconButton
               title={intl.formatMessage({ id: "actions.select_folders" })}
               onClick={() => onClick()}
+              size="large"
             >
               <Icon icon={faFolderOpen} />
-            </Button>
+            </IconButton>
           </div>
         </div>
-      </Form.Group>
+      </Box>
     );
   }, [selectedIds, intl, paths]);
 
@@ -451,16 +452,17 @@ export const IdentifyDialog: React.FC<IIdentifyDialogProps> = ({
         </OperationButton>
       }
       leftFooterButtons={
-        <Button
+        <IconButton
           title="Help"
           className="minimal help-button"
           onClick={() => onShowManual()}
+          size="large"
         >
           <Icon icon={faQuestionCircle} />
-        </Button>
+        </IconButton>
       }
     >
-      <Form>
+      <Box>
         {selectionStatus}
         <SourcesList
           sources={sources}
@@ -473,7 +475,7 @@ export const IdentifyDialog: React.FC<IIdentifyDialogProps> = ({
           setOptions={(o) => setOptions(o)}
           setEditingField={(v) => setEditingField(v)}
         />
-      </Form>
+      </Box>
     </ModalComponent>
   );
 };

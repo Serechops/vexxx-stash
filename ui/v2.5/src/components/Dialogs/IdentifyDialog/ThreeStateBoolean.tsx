@@ -1,5 +1,5 @@
 import React from "react";
-import { Form } from "react-bootstrap";
+import { Checkbox, FormControl, FormControlLabel, Radio, RadioGroup, Typography, Tooltip, Box } from "@mui/material";
 import { useIntl } from "react-intl";
 
 interface IThreeStateBoolean {
@@ -27,14 +27,19 @@ export const ThreeStateBoolean: React.FC<IThreeStateBoolean> = ({
 
   if (!allowUndefined) {
     return (
-      <Form.Check
-        id={id}
-        disabled={disabled}
-        checked={value}
-        label={label}
-        onChange={() => setValue(!value)}
-        title={tooltip}
-      />
+      <Tooltip title={tooltip ?? ""}>
+        <FormControlLabel
+          control={
+            <Checkbox
+              id={id}
+              disabled={disabled}
+              checked={value ?? false}
+              onChange={() => setValue(!value)}
+            />
+          }
+          label={label}
+        />
+      </Tooltip>
     );
   }
 
@@ -67,27 +72,31 @@ export const ThreeStateBoolean: React.FC<IThreeStateBoolean> = ({
     return getBooleanText(v);
   }
 
-  function renderModeButton(v: boolean | undefined) {
-    return (
-      <Form.Check
-        type="radio"
-        id={`${id}-value-${v ?? "undefined"}`}
-        checked={value === v}
-        onChange={() => setValue(v)}
-        disabled={disabled}
-        label={getButtonText(v)}
-      />
-    );
+  function handleChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const val = event.target.value;
+    if (val === "undefined") {
+      setValue(undefined);
+    } else {
+      setValue(val === "true");
+    }
   }
 
   return (
-    <Form.Group>
-      <h6 title={tooltip}>{label}</h6>
-      <Form.Group>
-        {renderModeButton(undefined)}
-        {renderModeButton(false)}
-        {renderModeButton(true)}
-      </Form.Group>
-    </Form.Group>
+    <Box>
+      <Tooltip title={tooltip ?? ""}>
+        <Typography variant="subtitle2" gutterBottom title={tooltip}>{label}</Typography>
+      </Tooltip>
+      <FormControl component="fieldset" disabled={disabled}>
+        <RadioGroup
+          name={id}
+          value={value === undefined ? "undefined" : value.toString()}
+          onChange={handleChange}
+        >
+          <FormControlLabel value="undefined" control={<Radio size="small" />} label={getButtonText(undefined)} />
+          <FormControlLabel value="false" control={<Radio size="small" />} label={getButtonText(false)} />
+          <FormControlLabel value="true" control={<Radio size="small" />} label={getButtonText(true)} />
+        </RadioGroup>
+      </FormControl>
+    </Box>
   );
 };

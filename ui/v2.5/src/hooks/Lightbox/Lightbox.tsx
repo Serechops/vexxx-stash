@@ -1,14 +1,21 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Button,
-  Col,
-  InputGroup,
-  Overlay,
+  FormControl,
+  InputLabel,
+  MenuItem,
+  Select,
+  TextField,
+  Typography,
+  Checkbox,
+  FormControlLabel,
+  FormHelperText,
   Popover,
-  Form,
-  Row,
-  Dropdown,
-} from "react-bootstrap";
+  Grid,
+  Box,
+  Menu,
+  IconButton,
+} from "@mui/material";
 import cx from "classnames";
 import Mousetrap from "mousetrap";
 
@@ -72,6 +79,7 @@ const CLASSNAME_CAROUSEL = `${CLASSNAME}-carousel`;
 const CLASSNAME_INSTANT = `${CLASSNAME_CAROUSEL}-instant`;
 const CLASSNAME_IMAGE = `${CLASSNAME_CAROUSEL}-image`;
 const CLASSNAME_NAVBUTTON = `${CLASSNAME}-navbutton`;
+const CLASSNAME_RIGHTBUTTON = `${CLASSNAME}-rightbutton`;
 const CLASSNAME_NAV = `${CLASSNAME}-nav`;
 const CLASSNAME_NAVIMAGE = `${CLASSNAME_NAV}-image`;
 const CLASSNAME_NAVSELECTED = `${CLASSNAME_NAV}-selected`;
@@ -550,30 +558,40 @@ export const LightboxComponent: React.FC<IProps> = ({
     return chapterTitle ?? "";
   }
 
+  const [anchorElChapters, setAnchorElChapters] = useState<null | HTMLElement>(null);
+
   const renderChapterMenu = () => {
     if (chapters.length <= 0) return;
 
-    const popoverContent = chapters.map(({ id, title, image_index }) => (
-      <Dropdown.Item key={id} onClick={() => gotoPage(image_index)}>
-        {" "}
-        {title}
-        {title.length > 0 ? " - #" : "#"}
-        {image_index}
-      </Dropdown.Item>
-    ));
+    const handleChapterClick = (imageIndex: number) => {
+      gotoPage(imageIndex);
+      setAnchorElChapters(null);
+    };
 
     return (
-      <Dropdown
-        show={showChapters}
-        onToggle={() => setShowChapters(!showChapters)}
-      >
-        <Dropdown.Toggle className={`minimal ${CLASSNAME_CHAPTER_BUTTON}`}>
+      <>
+        <IconButton
+          onClick={(e) => setAnchorElChapters(e.currentTarget)}
+          className={`minimal ${CLASSNAME_CHAPTER_BUTTON}`}
+          size="small"
+        >
           <Icon icon={showChapters ? faTimes : faBars} />
-        </Dropdown.Toggle>
-        <Dropdown.Menu className={`${CLASSNAME_CHAPTERS}`}>
-          {popoverContent}
-        </Dropdown.Menu>
-      </Dropdown>
+        </IconButton>
+        <Menu
+          anchorEl={anchorElChapters}
+          open={Boolean(anchorElChapters)}
+          onClose={() => setAnchorElChapters(null)}
+          className={`${CLASSNAME_CHAPTERS}`}
+        >
+          {chapters.map(({ id, title, image_index }) => (
+            <MenuItem key={id} onClick={() => handleChapterClick(image_index)}>
+              {title}
+              {title.length > 0 ? " - #" : "#"}
+              {image_index}
+            </MenuItem>
+          ))}
+        </Menu>
+      </>
     );
   };
 
@@ -582,98 +600,104 @@ export const LightboxComponent: React.FC<IProps> = ({
   // field lose focus on input. Use function instead.
   function renderOptionsForm() {
     return (
-      <>
+      <Box sx={{ p: 2, minWidth: 300 }}>
         {slideshowEnabled ? (
-          <Form.Group controlId="delay" as={Row} className="form-container">
-            <Col xs={4}>
-              <Form.Label className="col-form-label">
+          <Grid container spacing={2} alignItems="center" className="mb-2">
+            <Grid size={{ xs: 4 }}>
+              <Typography variant="body2">
                 <FormattedMessage id="dialogs.lightbox.delay" />
-              </Form.Label>
-            </Col>
-            <Col xs={8}>
-              <Form.Control
+              </Typography>
+            </Grid>
+            <Grid size={{ xs: 8 }}>
+              <TextField
                 type="number"
-                className="text-input"
-                min={1}
+                variant="outlined"
+                size="small"
+                inputProps={{ min: 1 }}
                 value={displayedSlideshowInterval ?? 0}
                 onChange={onDelayChange}
-                size="sm"
+                fullWidth
               />
-            </Col>
-          </Form.Group>
+            </Grid>
+          </Grid>
         ) : undefined}
 
-        <Form.Group controlId="displayMode" as={Row}>
-          <Col xs={4}>
-            <Form.Label className="col-form-label">
+        <Grid container spacing={2} alignItems="center" className="mb-2">
+          <Grid size={{ xs: 4 }}>
+            <Typography variant="body2">
               <FormattedMessage id="dialogs.lightbox.display_mode.label" />
-            </Form.Label>
-          </Col>
-          <Col xs={8}>
-            <Form.Control
-              as="select"
+            </Typography>
+          </Grid>
+          <Grid size={{ xs: 8 }}>
+            <TextField
+              select
+              size="small"
+              variant="outlined"
               onChange={(e) =>
                 setDisplayMode(e.target.value as GQL.ImageLightboxDisplayMode)
               }
               value={displayMode}
-              className="btn-secondary mx-1 mb-1"
+              fullWidth
             >
               {Array.from(imageLightboxDisplayModeIntlMap.entries()).map(
                 (v) => (
-                  <option key={v[0]} value={v[0]}>
+                  <MenuItem key={v[0]} value={v[0]}>
                     {intl.formatMessage({
                       id: v[1],
                     })}
-                  </option>
+                  </MenuItem>
                 )
               )}
-            </Form.Control>
-          </Col>
-        </Form.Group>
-        <Form.Group>
-          <Form.Group controlId="scaleUp" as={Row} className="mb-1">
-            <Col>
-              <Form.Check
-                type="checkbox"
-                label={intl.formatMessage({
-                  id: "dialogs.lightbox.scale_up.label",
-                })}
+            </TextField>
+          </Grid>
+        </Grid>
+
+        <Box mb={1}>
+          <FormControlLabel
+            control={
+              <Checkbox
                 checked={lightboxSettings?.scaleUp ?? false}
                 disabled={displayMode === GQL.ImageLightboxDisplayMode.Original}
-                onChange={(v) => setScaleUp(v.currentTarget.checked)}
+                onChange={(v) => setScaleUp(v.target.checked)}
               />
-            </Col>
-          </Form.Group>
-          <Form.Text className="text-muted">
+            }
+            label={intl.formatMessage({
+              id: "dialogs.lightbox.scale_up.label",
+            })}
+          />
+          <FormHelperText>
             {intl.formatMessage({
               id: "dialogs.lightbox.scale_up.description",
             })}
-          </Form.Text>
-        </Form.Group>
-        <Form.Group>
-          <Form.Group controlId="resetZoomOnNav" as={Row} className="mb-1">
-            <Col>
-              <Form.Check
-                type="checkbox"
-                label={intl.formatMessage({
-                  id: "dialogs.lightbox.reset_zoom_on_nav",
-                })}
+          </FormHelperText>
+        </Box>
+
+        <Box mb={1}>
+          <FormControlLabel
+            control={
+              <Checkbox
                 checked={lightboxSettings?.resetZoomOnNav ?? false}
-                onChange={(v) => setResetZoomOnNav(v.currentTarget.checked)}
+                onChange={(v) => setResetZoomOnNav(v.target.checked)}
               />
-            </Col>
-          </Form.Group>
-        </Form.Group>
-        <Form.Group controlId="scrollMode">
-          <Form.Group as={Row} className="mb-1">
-            <Col xs={4}>
-              <Form.Label className="col-form-label">
+            }
+            label={intl.formatMessage({
+              id: "dialogs.lightbox.reset_zoom_on_nav",
+            })}
+          />
+        </Box>
+
+        <Box>
+          <Grid container spacing={2} alignItems="center">
+            <Grid size={{ xs: 4 }}>
+              <Typography variant="body2">
                 <FormattedMessage id="dialogs.lightbox.scroll_mode.label" />
-              </Form.Label>
-            </Col>
-            <Col xs={8}>
-              <Form.Control
-                as="select"
+              </Typography>
+            </Grid>
+            <Grid size={{ xs: 8 }}>
+              <TextField
+                select
+                size="small"
+                variant="outlined"
                 onChange={(e) =>
                   setScrollMode(e.target.value as GQL.ImageLightboxScrollMode)
                 }
@@ -681,34 +705,34 @@ export const LightboxComponent: React.FC<IProps> = ({
                   lightboxSettings?.scrollMode ??
                   GQL.ImageLightboxScrollMode.Zoom
                 }
-                className="btn-secondary mx-1 mb-1"
+                fullWidth
               >
-                <option
+                <MenuItem
                   value={GQL.ImageLightboxScrollMode.Zoom}
                   key={GQL.ImageLightboxScrollMode.Zoom}
                 >
                   {intl.formatMessage({
                     id: "dialogs.lightbox.scroll_mode.zoom",
                   })}
-                </option>
-                <option
+                </MenuItem>
+                <MenuItem
                   value={GQL.ImageLightboxScrollMode.PanY}
                   key={GQL.ImageLightboxScrollMode.PanY}
                 >
                   {intl.formatMessage({
                     id: "dialogs.lightbox.scroll_mode.pan_y",
                   })}
-                </option>
-              </Form.Control>
-            </Col>
-          </Form.Group>
-          <Form.Text className="text-muted">
+                </MenuItem>
+              </TextField>
+            </Grid>
+          </Grid>
+          <FormHelperText>
             {intl.formatMessage({
               id: "dialogs.lightbox.scroll_mode.description",
             })}
-          </Form.Text>
-        </Form.Group>
-      </>
+          </FormHelperText>
+        </Box>
+      </Box>
     );
   }
 
@@ -784,92 +808,96 @@ export const LightboxComponent: React.FC<IProps> = ({
           <div className={CLASSNAME_RIGHT}>
             <div className={CLASSNAME_OPTIONS}>
               <div className={CLASSNAME_OPTIONS_ICON}>
-                <Button
+                <IconButton
                   ref={overlayTarget}
-                  variant="link"
                   title={intl.formatMessage({
                     id: "dialogs.lightbox.options",
                   })}
                   onClick={() => setShowOptions(!showOptions)}
+                  size="large"
+                  className="minimal"
                 >
                   <Icon icon={faCog} />
-                </Button>
-                <Overlay
-                  target={overlayTarget.current}
-                  show={showOptions}
-                  placement="bottom"
-                  container={containerRef}
-                  rootClose
-                  onHide={() => setShowOptions(false)}
+                </IconButton>
+                <Popover
+                  open={showOptions}
+                  anchorEl={overlayTarget.current}
+                  onClose={() => setShowOptions(false)}
+                  anchorOrigin={{
+                    vertical: 'top',
+                    horizontal: 'center',
+                  }}
+                  transformOrigin={{
+                    vertical: 'bottom',
+                    horizontal: 'center',
+                  }}
                 >
-                  {({ placement, arrowProps, show: _show, ...props }) => (
-                    <div
-                      className="popover"
-                      {...props}
-                      style={{ ...props.style }}
-                    >
-                      <Popover.Title>
-                        {intl.formatMessage({
-                          id: "dialogs.lightbox.options",
-                        })}
-                      </Popover.Title>
-                      <Popover.Content>{renderOptionsForm()}</Popover.Content>
-                    </div>
-                  )}
-                </Overlay>
+                  <Box p={2}>
+                    <Typography variant="h6" gutterBottom>
+                      {intl.formatMessage({
+                        id: "dialogs.lightbox.options",
+                      })}
+                    </Typography>
+                    {renderOptionsForm()}
+                  </Box>
+                </Popover>
               </div>
-              <InputGroup className={CLASSNAME_OPTIONS_INLINE}>
+              <Box className={CLASSNAME_OPTIONS_INLINE}>
                 {renderOptionsForm()}
-              </InputGroup>
+              </Box>
             </div>
             {slideshowEnabled && (
-              <Button
-                variant="link"
+              <IconButton
                 onClick={toggleSlideshow}
                 title="Toggle Slideshow"
+                size="large"
+                className="minimal"
               >
                 <Icon icon={slideshowInterval !== null ? faPause : faPlay} />
-              </Button>
+              </IconButton>
             )}
             {zoom !== 1 && (
-              <Button
-                variant="link"
+              <IconButton
                 onClick={() => {
                   setResetPosition(!resetPosition);
                   setZoom(1);
                 }}
                 title="Reset zoom"
+                size="large"
+                className="minimal"
               >
                 <Icon icon={faSearchMinus} />
-              </Button>
+              </IconButton>
             )}
             {document.fullscreenEnabled && (
-              <Button
-                variant="link"
+              <IconButton
                 onClick={toggleFullscreen}
                 title="Toggle Fullscreen"
+                size="large"
+                className="minimal"
               >
                 <Icon icon={faExpand} />
-              </Button>
+              </IconButton>
             )}
-            <Button
-              variant="link"
+            <IconButton
               onClick={() => close()}
               title="Close Lightbox"
+              size="large"
+              className="minimal"
             >
               <Icon icon={faTimes} />
-            </Button>
+            </IconButton>
           </div>
         </div>
         <div className={CLASSNAME_DISPLAY}>
           {allowNavigation && (
-            <Button
-              variant="link"
+            <IconButton
               onClick={handleLeft}
-              className={`${CLASSNAME_NAVBUTTON} d-none d-lg-block`}
+              className={`${CLASSNAME_NAVBUTTON} d-none d-lg-block minimal`}
+              size="large"
             >
               <Icon icon={faChevronLeft} />
-            </Button>
+            </IconButton>
           )}
 
           <div
@@ -911,32 +939,32 @@ export const LightboxComponent: React.FC<IProps> = ({
           </div>
 
           {allowNavigation && (
-            <Button
-              variant="link"
+            <IconButton
               onClick={handleRight}
-              className={`${CLASSNAME_NAVBUTTON} d-none d-lg-block`}
+              className={`${CLASSNAME_NAVBUTTON} ${CLASSNAME_RIGHTBUTTON} d-none d-lg-block minimal`}
+              size="large"
             >
               <Icon icon={faChevronRight} />
-            </Button>
+            </IconButton>
           )}
         </div>
         {showNavigation && !isFullscreen && images.length > 1 && (
           <div className={CLASSNAME_NAV} style={navOffset} ref={navRef}>
-            <Button
-              variant="link"
+            <IconButton
               onClick={() => setIndex(images.length - 1)}
-              className={CLASSNAME_NAVBUTTON}
+              className={`${CLASSNAME_NAVBUTTON} minimal`}
+              size="large"
             >
               <Icon icon={faArrowLeft} className="mr-4" />
-            </Button>
+            </IconButton>
             {navItems}
-            <Button
-              variant="link"
+            <IconButton
               onClick={() => setIndex(0)}
-              className={CLASSNAME_NAVBUTTON}
+              className={`${CLASSNAME_NAVBUTTON} minimal`}
+              size="large"
             >
               <Icon icon={faArrowRight} className="ml-4" />
-            </Button>
+            </IconButton>
           </div>
         )}
         <div className={CLASSNAME_FOOTER}>

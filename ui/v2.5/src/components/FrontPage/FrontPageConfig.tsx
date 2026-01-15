@@ -2,7 +2,17 @@ import React, { useEffect, useMemo, useState } from "react";
 import { FormattedMessage, IntlShape, useIntl } from "react-intl";
 import { useFindSavedFilters } from "src/core/StashService";
 import { LoadingIndicator } from "../Shared/LoadingIndicator";
-import { Button, Form, Modal } from "react-bootstrap";
+import {
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControl,
+  InputLabel,
+  MenuItem,
+  Select,
+} from "@mui/material";
 import * as GQL from "src/core/generated-graphql";
 import { useConfigurationContext } from "src/hooks/Config";
 import {
@@ -116,23 +126,24 @@ const AddContentModal: React.FC<IAddSavedFilterModalProps> = ({
       "front_page.types.saved_filter",
     ];
     return (
-      <Form.Group controlId="filter">
-        <Form.Label>
+      <FormControl fullWidth margin="normal">
+        <InputLabel id="type-label">
           <FormattedMessage id="type" />
-        </Form.Label>
-        <Form.Control
-          as="select"
+        </InputLabel>
+        <Select
+          labelId="type-label"
+          id="filter"
           value={contentType}
-          onChange={(e) => onTypeSelected(e.target.value)}
-          className="btn-secondary"
+          label={intl.formatMessage({ id: "type" })}
+          onChange={(e) => onTypeSelected(e.target.value as string)}
         >
           {options.map((c) => (
-            <option key={c} value={c}>
+            <MenuItem key={c} value={c}>
               {intl.formatMessage({ id: c })}
-            </option>
+            </MenuItem>
           ))}
-        </Form.Control>
-      </Form.Group>
+        </Select>
+      </FormControl>
     );
   }
 
@@ -140,46 +151,48 @@ const AddContentModal: React.FC<IAddSavedFilterModalProps> = ({
     if (contentType !== "front_page.types.premade_filter") return;
 
     return (
-      <Form.Group controlId="premade-filter">
-        <Form.Label>
+      <FormControl fullWidth margin="normal">
+        <InputLabel id="premade-filter-label">
           <FormattedMessage id="front_page.types.premade_filter" />
-        </Form.Label>
-        <Form.Control
-          as="select"
-          value={premadeFilterIndex}
-          onChange={(e) => setPremadeFilterIndex(parseInt(e.target.value))}
-          className="btn-secondary"
+        </InputLabel>
+        <Select
+          labelId="premade-filter-label"
+          id="premade-filter"
+          value={premadeFilterIndex ?? ""}
+          label={intl.formatMessage({ id: "front_page.types.premade_filter" })}
+          onChange={(e) => setPremadeFilterIndex(e.target.value as number)}
         >
           {premadeFilterOptions.map((c, i) => (
-            <option key={i} value={i}>
+            <MenuItem key={i} value={i}>
               {intl.formatMessage({ id: c.message!.id }, c.message!.values)}
-            </option>
+            </MenuItem>
           ))}
-        </Form.Control>
-      </Form.Group>
+        </Select>
+      </FormControl>
     );
   }
 
   function maybeRenderSavedFiltersSelect() {
     if (contentType !== "front_page.types.saved_filter") return;
     return (
-      <Form.Group controlId="filter">
-        <Form.Label>
+      <FormControl fullWidth margin="normal">
+        <InputLabel id="saved-filter-label">
           <FormattedMessage id="search_filter.name" />
-        </Form.Label>
-        <Form.Control
-          as="select"
-          value={savedFilter}
-          onChange={(e) => setSavedFilter(e.target.value)}
-          className="btn-secondary"
+        </InputLabel>
+        <Select
+          labelId="saved-filter-label"
+          id="filter"
+          value={savedFilter ?? ""}
+          label={intl.formatMessage({ id: "search_filter.name" })}
+          onChange={(e) => setSavedFilter(e.target.value as string)}
         >
           {savedFilterOptions.map((c) => (
-            <option key={c.value} value={c.value}>
+            <MenuItem key={c.value} value={c.value}>
               {c.text}
-            </option>
+            </MenuItem>
           ))}
-        </Form.Control>
-      </Form.Group>
+        </Select>
+      </FormControl>
     );
   }
 
@@ -200,26 +213,26 @@ const AddContentModal: React.FC<IAddSavedFilterModalProps> = ({
   }
 
   return (
-    <Modal show onHide={() => onClose()}>
-      <Modal.Header>
+    <Dialog open onClose={() => onClose()} maxWidth="sm" fullWidth>
+      <DialogTitle>
         <FormattedMessage id="actions.add" />
-      </Modal.Header>
-      <Modal.Body>
+      </DialogTitle>
+      <DialogContent>
         <div className="dialog-content">
           {renderTypeSelect()}
           {maybeRenderSavedFiltersSelect()}
           {maybeRenderPremadeFiltersSelect()}
         </div>
-      </Modal.Body>
-      <Modal.Footer>
-        <Button variant="secondary" onClick={() => onClose()}>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={() => onClose()} color="secondary">
           <FormattedMessage id="actions.cancel" />
         </Button>
         <Button onClick={() => doAdd()} disabled={!isValid()}>
           <FormattedMessage id="actions.add" />
         </Button>
-      </Modal.Footer>
-    </Modal>
+      </DialogActions>
+    </Dialog>
   );
 };
 
@@ -259,7 +272,8 @@ const ContentRow: React.FC<IFilterRowProps> = (props: IFilterRowProps) => {
           <h2>{title()}</h2>
         </div>
         <Button
-          variant="danger"
+          variant="contained"
+          color="error"
           title={intl.formatMessage({ id: "actions.delete" })}
           onClick={() => props.onDelete()}
         >
@@ -394,7 +408,7 @@ export const FrontPageConfig: React.FC<IFrontPageConfigProps> = ({
             <div className="recommendation-row-head">
               <Button
                 className="recommendations-add"
-                variant="primary"
+                variant="contained"
                 onClick={() => setIsAdd(true)}
               >
                 <FormattedMessage id="actions.add" />
@@ -403,10 +417,10 @@ export const FrontPageConfig: React.FC<IFrontPageConfigProps> = ({
           </div>
         </div>
         <div className="recommendations-footer">
-          <Button onClick={() => onClose()} variant="secondary">
+          <Button onClick={() => onClose()} color="secondary">
             <FormattedMessage id={"actions.cancel"} />
           </Button>
-          <Button onClick={() => onClose(currentContent)}>
+          <Button onClick={() => onClose(currentContent)} variant="contained" sx={{ ml: 1 }}>
             <FormattedMessage id={"actions.save"} />
           </Button>
         </div>

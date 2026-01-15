@@ -19,7 +19,7 @@ import { useConfigurationContext } from "src/hooks/Config";
 import { objectTitle } from "src/core/files";
 import { defaultMaxOptionsShown } from "src/core/config";
 import { useDebounce } from "src/hooks/debounce";
-// import { Placement } from "react-bootstrap/esm/Overlay";
+
 import { PerformerIDSelect } from "../Performers/PerformerSelect";
 import { Icon } from "./Icon";
 import { faTableColumns } from "@fortawesome/free-solid-svg-icons";

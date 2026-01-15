@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Form, Button, ListGroup } from "react-bootstrap";
+import { Box, IconButton, Select, MenuItem, FormControl, InputLabel, List, ListItem, ListItemText, Typography, SelectChangeEvent } from "@mui/material";
 import { ModalComponent } from "src/components/Shared/Modal";
 import { Icon } from "src/components/Shared/Icon";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -38,9 +38,10 @@ export const SourcesEditor: React.FC<ISourceEditor> = ({
   const headerMsgId = isNew ? "actions.add" : "dialogs.edit_entity_title";
   const acceptMsgId = isNew ? "actions.add" : "actions.confirm";
 
-  function handleSourceSelect(e: React.ChangeEvent<HTMLSelectElement>) {
+  function handleSourceSelect(e: SelectChangeEvent<string> | React.ChangeEvent<HTMLSelectElement>) {
+    const value = e.target.value;
     const selectedSource = availableSources.find(
-      (s) => s.id === e.currentTarget.value
+      (s) => s.id === value
     );
     if (!selectedSource) return;
 
@@ -80,25 +81,31 @@ export const SourcesEditor: React.FC<ISourceEditor> = ({
         (!source.scraper_id && !source.stash_box_endpoint) || editingField
       }
     >
-      <Form>
+      <Box>
         {isNew && (
-          <Form.Group>
-            <h5>
+          <Box mb={2}>
+            <Typography variant="h6">
               <FormattedMessage id="config.tasks.identify.source" />
-            </h5>
-            <Form.Control
-              as="select"
-              value={source.id}
-              className="input-control"
-              onChange={handleSourceSelect}
-            >
-              {availableSources.map((i) => (
-                <option value={i.id} key={i.id}>
-                  {i.displayName}
-                </option>
-              ))}
-            </Form.Control>
-          </Form.Group>
+            </Typography>
+            <FormControl fullWidth>
+              <Select
+                native
+                value={source.id}
+                className="input-control"
+                onChange={handleSourceSelect}
+                inputProps={{
+                  name: 'source-id',
+                  id: 'source-select',
+                }}
+              >
+                {availableSources.map((i) => (
+                  <option value={i.id} key={i.id}>
+                    {i.displayName}
+                  </option>
+                ))}
+              </Select>
+            </FormControl>
+          </Box>
         )}
         <OptionsEditor
           options={source.options ?? {}}
@@ -107,7 +114,7 @@ export const SourcesEditor: React.FC<ISourceEditor> = ({
           setEditingField={(v) => setEditingField(v)}
           defaultOptions={defaultOptions}
         />
-      </Form>
+      </Box>
     </ModalComponent>
   );
 };
@@ -171,55 +178,58 @@ export const SourcesList: React.FC<ISourcesList> = ({
   }
 
   return (
-    <Form.Group className="scraper-sources" onDragOver={onDragOverDefault}>
-      <h5>
+    <Box className="scraper-sources" onDragOver={onDragOverDefault}>
+      <Typography variant="h5" gutterBottom>
         <FormattedMessage id="config.tasks.identify.sources" />
-      </h5>
-      <ListGroup as="ul" className="scraper-source-list">
+      </Typography>
+      <List className="scraper-source-list">
         {tempSources.map((s, index) => (
-          <ListGroup.Item
-            as="li"
+          <ListItem
             key={s.id}
             className="d-flex justify-content-between align-items-center"
             draggable={mouseOverIndex === index}
             onDragStart={(e) => onDragStart(e, index)}
             onDragEnter={(e) => onDragOver(e, index)}
             onDrop={() => onDrop()}
+            divider
           >
-            <div>
-              <div
-                className="minimal text-muted drag-handle"
+            <Box display="flex" alignItems="center">
+              <Box
+                className="minimal text-muted drag-handle mr-2"
                 onMouseEnter={() => setMouseOverIndex(index)}
                 onMouseLeave={() => setMouseOverIndex(undefined)}
+                style={{ cursor: 'grab' }}
               >
                 <Icon icon={faGripVertical} />
-              </div>
-              {s.displayName}
-            </div>
-            <div>
-              <Button className="minimal" onClick={() => editSource(s)}>
+              </Box>
+              <ListItemText primary={s.displayName} />
+            </Box>
+            <Box>
+              <IconButton className="minimal" onClick={() => editSource(s)} size="small">
                 <Icon icon={faCog} />
-              </Button>
-              <Button
+              </IconButton>
+              <IconButton
                 className="minimal text-danger"
                 onClick={() => removeSource(index)}
+                size="small"
               >
                 <Icon icon={faMinus} />
-              </Button>
-            </div>
-          </ListGroup.Item>
+              </IconButton>
+            </Box>
+          </ListItem>
         ))}
-      </ListGroup>
+      </List>
       {canAdd && (
-        <div className="text-right">
-          <Button
+        <Box className="text-right" mt={2}>
+          <IconButton
             className="minimal add-scraper-source-button"
             onClick={() => editSource()}
+            size="large"
           >
             <Icon icon={faPlus} />
-          </Button>
-        </div>
+          </IconButton>
+        </Box>
       )}
-    </Form.Group>
+    </Box>
   );
 };

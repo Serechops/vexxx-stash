@@ -611,7 +611,6 @@ declare namespace PluginApi {
   }
   namespace libraries {
     const Apollo: typeof import("@apollo/client");
-    const Bootstrap: typeof import("react-bootstrap");
     const FontAwesomeRegular: typeof import("@fortawesome/free-regular-svg-icons");
     const FontAwesomeSolid: typeof import("@fortawesome/free-solid-svg-icons");
     const FontAwesomeBrands: typeof import("@fortawesome/free-brands-svg-icons");
@@ -983,14 +982,14 @@ declare namespace PluginApi {
     function useLoadComponents(toLoad: (() => Promise<unknown>)[]): boolean;
     function useSpriteInfo(vttPath: string | undefined):
       | {
-          url: string;
-          start: number;
-          end: number;
-          x: number;
-          y: number;
-          w: number;
-          h: number;
-        }
+        url: string;
+        start: number;
+        end: number;
+        x: number;
+        y: number;
+        w: number;
+        h: number;
+      }
       | undefined;
 
     function useToast(): {

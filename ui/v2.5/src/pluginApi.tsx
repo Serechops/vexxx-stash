@@ -7,7 +7,6 @@ import NavUtils from "./utils/navigation";
 import * as GQL from "src/core/generated-graphql";
 import * as StashService from "src/core/StashService";
 import * as Apollo from "@apollo/client";
-import * as Bootstrap from "react-bootstrap";
 import * as Intl from "react-intl";
 import * as FontAwesomeSolid from "@fortawesome/free-solid-svg-icons";
 import * as FontAwesomeRegular from "@fortawesome/free-regular-svg-icons";
@@ -70,7 +69,6 @@ export const PluginApi = {
   GQL,
   libraries: {
     ReactRouterDOM,
-    Bootstrap,
     Apollo,
     Intl,
     FontAwesomeRegular,

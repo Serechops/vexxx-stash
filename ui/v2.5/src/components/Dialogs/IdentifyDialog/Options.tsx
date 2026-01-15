@@ -1,5 +1,5 @@
 import React from "react";
-import { Col, Form, Row } from "react-bootstrap";
+import { FormHelperText, Box, Typography, Grid } from "@mui/material";
 import * as GQL from "src/core/generated-graphql";
 import { FormattedMessage, useIntl } from "react-intl";
 import { IScraperSource } from "./constants";
@@ -42,17 +42,17 @@ export const OptionsEditor: React.FC<IOptionsEditor> = ({
     }
 
     return (
-      <Form.Group controlId="match_tags" className="ml-3 mt-1 mb-0" as={Row}>
-        <Form.Label
-          column
-          sm={{ span: 4, offset: 1 }}
-          title={intl.formatMessage({
-            id: "config.tasks.identify.tag_skipped_matches_tooltip",
-          })}
-        >
-          <FormattedMessage id="config.tasks.identify.tag_skipped_matches" />
-        </Form.Label>
-        <Col sm>
+      <Grid container spacing={2} className="ml-3 mt-1 mb-0" alignItems="center">
+        <Grid size={{ sm: 4 }} offset={{ sm: 1 }}>
+          <Typography
+            title={intl.formatMessage({
+              id: "config.tasks.identify.tag_skipped_matches_tooltip",
+            })}
+          >
+            <FormattedMessage id="config.tasks.identify.tag_skipped_matches" />
+          </Typography>
+        </Grid>
+        <Grid size="grow">
           <TagSelect
             onSelect={(tags) =>
               setOptions({
@@ -65,8 +65,8 @@ export const OptionsEditor: React.FC<IOptionsEditor> = ({
             noSelectionString="Select/create tag..."
             menuPortalTarget={document.body}
           />
-        </Col>
-      </Form.Group>
+        </Grid>
+      </Grid>
     );
   }
 
@@ -76,17 +76,17 @@ export const OptionsEditor: React.FC<IOptionsEditor> = ({
     }
 
     return (
-      <Form.Group controlId="match_tags" className="ml-3 mt-1 mb-0" as={Row}>
-        <Form.Label
-          column
-          sm={{ span: 4, offset: 1 }}
-          title={intl.formatMessage({
-            id: "config.tasks.identify.tag_skipped_performer_tooltip",
-          })}
-        >
-          <FormattedMessage id="config.tasks.identify.tag_skipped_performers" />
-        </Form.Label>
-        <Col sm>
+      <Grid container spacing={2} className="ml-3 mt-1 mb-0" alignItems="center">
+        <Grid size={{ sm: 4 }} offset={{ sm: 1 }}>
+          <Typography
+            title={intl.formatMessage({
+              id: "config.tasks.identify.tag_skipped_performer_tooltip",
+            })}
+          >
+            <FormattedMessage id="config.tasks.identify.tag_skipped_performers" />
+          </Typography>
+        </Grid>
+        <Grid size="grow">
           <TagSelect
             onSelect={(tags) =>
               setOptions({
@@ -101,29 +101,29 @@ export const OptionsEditor: React.FC<IOptionsEditor> = ({
             noSelectionString="Select/create tag..."
             menuPortalTarget={document.body}
           />
-        </Col>
-      </Form.Group>
+        </Grid>
+      </Grid>
     );
   }
 
   return (
-    <Form.Group className="mb-0">
-      <Form.Group>
-        <h5>
+    <Box className="mb-0">
+      <Box>
+        <Typography variant="h5" gutterBottom>
           <FormattedMessage
             id={headingID}
             values={{ source: source?.displayName }}
           />
-        </h5>
+        </Typography>
         {!source && (
-          <Form.Text className="text-muted">
+          <FormHelperText className="text-muted">
             {intl.formatMessage({
               id: "config.tasks.identify.explicit_set_description",
             })}
-          </Form.Text>
+          </FormHelperText>
         )}
-      </Form.Group>
-      <Form.Group className="mb-0">
+      </Box>
+      <Box className="mb-0">
         <ThreeStateBoolean
           id="include-male-performers"
           value={
@@ -174,7 +174,7 @@ export const OptionsEditor: React.FC<IOptionsEditor> = ({
           defaultValue={defaultOptions?.setOrganized ?? undefined}
           {...checkboxProps}
         />
-      </Form.Group>
+      </Box>
       <ThreeStateBoolean
         id="skip-multiple-match"
         value={
@@ -227,6 +227,6 @@ export const OptionsEditor: React.FC<IOptionsEditor> = ({
         allowSetDefault={!!source}
         defaultOptions={defaultOptions}
       />
-    </Form.Group>
+    </Box>
   );
 };

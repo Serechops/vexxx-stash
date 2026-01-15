@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Form, Button, Table } from "react-bootstrap";
+import { Box, Table, TableBody, TableCell, TableHead, TableRow, IconButton, Radio, RadioGroup, FormControlLabel, FormControl, Typography } from "@mui/material";
 import { Icon } from "src/components/Shared/Icon";
 import * as GQL from "src/core/generated-graphql";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -97,41 +97,37 @@ const FieldOptionsEditor: React.FC<IFieldOptionsEditor> = ({
     }
 
     return (
-      <Form.Group>
-        {allowSetDefault ? (
-          <Form.Check
-            type="radio"
-            id={`${field}-strategy-default`}
-            checked={strategy === undefined}
-            onChange={() =>
-              setLocalOptions({
-                ...localOptions,
-                strategy: undefined,
-              })
-            }
-            disabled={!editing}
-            label={intl.formatMessage({ id: "actions.use_default" })}
-          />
-        ) : undefined}
-        {strategies.map((f) => (
-          <Form.Check
-            type="radio"
-            key={f[0]}
-            id={`${field}-strategy-${f[0]}`}
-            checked={strategy === f[1]}
-            onChange={() =>
-              setLocalOptions({
-                ...localOptions,
-                strategy: f[1],
-              })
-            }
-            disabled={!editing}
-            label={intl.formatMessage({
-              id: `actions.${f[0].toLowerCase()}`,
-            })}
-          />
-        ))}
-      </Form.Group>
+      <FormControl component="fieldset">
+        <RadioGroup
+          name={`${field}-strategy`}
+          value={strategy === undefined ? "default" : strategy}
+          onChange={(e) => {
+            const val = e.target.value;
+            setLocalOptions({
+              ...localOptions,
+              strategy: val === "default" ? undefined : (val as GQL.IdentifyFieldStrategy),
+            });
+          }}
+        >
+          {allowSetDefault && (
+            <FormControlLabel
+              value="default"
+              control={<Radio size="small" />}
+              label={intl.formatMessage({ id: "actions.use_default" })}
+              disabled={!editing}
+            />
+          )}
+          {strategies.map((f) => (
+            <FormControlLabel
+              key={f[0]}
+              value={f[1]}
+              control={<Radio size="small" />}
+              label={intl.formatMessage({ id: `actions.${f[0].toLowerCase()}` })}
+              disabled={!editing}
+            />
+          ))}
+        </RadioGroup>
+      </FormControl>
     );
   }
 
@@ -214,38 +210,40 @@ const FieldOptionsEditor: React.FC<IFieldOptionsEditor> = ({
   }
 
   return (
-    <tr>
-      <td>{renderField()}</td>
-      <td>{renderStrategy()}</td>
-      <td>{maybeRenderCreateMissing()}</td>
-      <td className="text-right">
+    <TableRow>
+      <TableCell>{renderField()}</TableCell>
+      <TableCell>{renderStrategy()}</TableCell>
+      <TableCell>{maybeRenderCreateMissing()}</TableCell>
+      <TableCell className="text-right">
         {editing ? (
           <>
-            <Button
+            <IconButton
               className="minimal text-success"
               onClick={() => onEditOptions()}
+              size="small"
             >
               <Icon icon={faCheck} />
-            </Button>
-            <Button
+            </IconButton>
+            <IconButton
               className="minimal text-danger"
               onClick={() => {
                 editOptions();
                 resetOptions();
               }}
+              size="small"
             >
               <Icon icon={faTimes} />
-            </Button>
+            </IconButton>
           </>
         ) : (
           <>
-            <Button className="minimal" onClick={() => editField()}>
+            <IconButton className="minimal" onClick={() => editField()} size="small">
               <Icon icon={faPencilAlt} />
-            </Button>
+            </IconButton>
           </>
         )}
-      </td>
-    </tr>
+      </TableCell>
+    </TableRow>
   );
 };
 
@@ -316,27 +314,27 @@ export const FieldOptionsList: React.FC<IFieldOptionsList> = ({
   }
 
   return (
-    <Form.Group className="scraper-sources mt-3">
-      <h5>
+    <Box className="scraper-sources mt-3">
+      <Typography variant="h5" gutterBottom>
         <FormattedMessage id="config.tasks.identify.field_options" />
-      </h5>
-      <Table responsive className="field-options-table">
-        <thead>
-          <tr>
-            <th className="w-25">
+      </Typography>
+      <Table className="field-options-table" size="small">
+        <TableHead>
+          <TableRow>
+            <TableCell className="w-25">
               <FormattedMessage id="config.tasks.identify.field" />
-            </th>
-            <th className="w-25">
+            </TableCell>
+            <TableCell className="w-25">
               <FormattedMessage id="config.tasks.identify.strategy" />
-            </th>
-            <th className="w-25">
+            </TableCell>
+            <TableCell className="w-25">
               <FormattedMessage id="config.tasks.identify.create_missing" />
-            </th>
+            </TableCell>
             {/* eslint-disable-next-line jsx-a11y/control-has-associated-label */}
-            <th className="w-25" />
-          </tr>
-        </thead>
-        <tbody>
+            <TableCell className="w-25" />
+          </TableRow>
+        </TableHead>
+        <TableBody>
           {sceneFields.map((f) => (
             <FieldOptionsEditor
               key={f}
@@ -349,8 +347,8 @@ export const FieldOptionsList: React.FC<IFieldOptionsList> = ({
               defaultOptions={defaultOptions}
             />
           ))}
-        </tbody>
+        </TableBody>
       </Table>
-    </Form.Group>
+    </Box>
   );
 };

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Form } from "react-bootstrap";
+import { Box, FormControl, InputLabel, Select, MenuItem, Typography } from "@mui/material";
 import { mutateImportObjects } from "src/core/StashService";
 import { ModalComponent } from "src/components/Shared/Modal";
 import * as GQL from "src/core/generated-graphql";
@@ -132,45 +132,49 @@ export const ImportDialog: React.FC<IImportDialogProps> = (
       disabled={!file}
       isRunning={isRunning}
     >
-      <div className="dialog-container">
-        <Form>
-          <Form.Group id="import-file">
-            <h6>Import zip file</h6>
-            <Form.File onChange={onFileChange} accept=".zip" />
-          </Form.Group>
-          <Form.Group id="duplicate-handling">
-            <h6>Duplicate object handling</h6>
-            <Form.Control
-              className="w-auto input-control"
-              as="select"
+      <Box className="dialog-container">
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="subtitle1" gutterBottom>Import zip file</Typography>
+          <input
+            id="import-file"
+            type="file"
+            accept=".zip"
+            onChange={onFileChange}
+            style={{ width: '100%' }}
+          />
+        </Box>
+        <Box sx={{ mb: 3 }}>
+          <FormControl fullWidth variant="outlined">
+            <InputLabel id="duplicate-handling-label">Duplicate object handling</InputLabel>
+            <Select
+              labelId="duplicate-handling-label"
               value={duplicateBehaviour}
-              onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-                setDuplicateBehaviour(e.currentTarget.value)
-              }
+              onChange={(e) => setDuplicateBehaviour(e.target.value as string)}
+              label="Duplicate object handling"
             >
               {Object.values(GQL.ImportDuplicateEnum).map((p) => (
-                <option key={p}>{duplicateHandlingToString(p)}</option>
+                <MenuItem key={p} value={p}>{duplicateHandlingToString(p)}</MenuItem>
               ))}
-            </Form.Control>
-          </Form.Group>
+            </Select>
+          </FormControl>
+        </Box>
 
-          <Form.Group id="missing-ref-handling">
-            <h6>Missing reference handling</h6>
-            <Form.Control
-              className="w-auto input-control"
-              as="select"
+        <Box sx={{ mb: 3 }}>
+          <FormControl fullWidth variant="outlined">
+            <InputLabel id="missing-ref-handling-label">Missing reference handling</InputLabel>
+            <Select
+              labelId="missing-ref-handling-label"
               value={missingRefBehaviour}
-              onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-                setMissingRefBehaviour(e.currentTarget.value)
-              }
+              onChange={(e) => setMissingRefBehaviour(e.target.value as string)}
+              label="Missing reference handling"
             >
               {Object.values(GQL.ImportMissingRefEnum).map((p) => (
-                <option key={p}>{missingRefHandlingToString(p)}</option>
+                <MenuItem key={p} value={p}>{missingRefHandlingToString(p)}</MenuItem>
               ))}
-            </Form.Control>
-          </Form.Group>
-        </Form>
-      </div>
+            </Select>
+          </FormControl>
+        </Box>
+      </Box>
     </ModalComponent>
   );
 };

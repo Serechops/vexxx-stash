@@ -17,7 +17,7 @@ import {
   VideoPreviewSettingsInput,
 } from "./GeneratePreviewOptions";
 import { FormattedMessage, useIntl } from "react-intl";
-import { Button } from "react-bootstrap";
+import { Button } from "@mui/material";
 import { useToast } from "src/hooks/Toast";
 import { useHistory } from "react-router-dom";
 
@@ -202,7 +202,7 @@ export const SettingsConfigurationPanel: React.FC = () => {
           }
           subHeadingID="config.general.ffmpeg.download_ffmpeg.description"
         >
-          <Button variant="secondary" onClick={() => onDownloadFFMpeg()}>
+          <Button variant="outlined" onClick={() => onDownloadFFMpeg()}>
             <FormattedMessage id="config.general.ffmpeg.download_ffmpeg.heading" />
           </Button>
         </Setting>

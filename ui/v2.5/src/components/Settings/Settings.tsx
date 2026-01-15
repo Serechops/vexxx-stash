@@ -1,9 +1,20 @@
 import React from "react";
-import { Tab, Nav, Row, Col, Form } from "react-bootstrap";
-import { Redirect, useLocation } from "react-router-dom";
-import { LinkContainer } from "react-router-bootstrap";
+import { Link, Redirect, useLocation } from "react-router-dom";
 import { FormattedMessage } from "react-intl";
 import { Helmet } from "react-helmet";
+import {
+  Box,
+  Container,
+  FormControlLabel,
+  Grid,
+  Switch,
+  Tab,
+  Tabs,
+  Typography,
+  useMediaQuery,
+  useTheme
+} from "@mui/material";
+
 import { useTitleProps } from "src/hooks/title";
 import { SettingsAboutPanel } from "./SettingsAboutPanel";
 import { SettingsConfigurationPanel } from "./SettingsSystemPanel";
@@ -43,161 +54,141 @@ function isTabKey(tab: string | null): tab is TabKey {
 
 const SettingTabs: React.FC<{ tab: TabKey }> = ({ tab }) => {
   const { advancedMode, setAdvancedMode } = useSettings();
+  const theme = useTheme();
+  // Responsive sidebar: on small screens, tabs could be horizontal or simpler.
+  // Original bootstrap used Col sm={3} md={3} xl={2} for sidebar.
+  const isSmallScreen = useMediaQuery(theme.breakpoints.down('sm'));
 
   const titleProps = useTitleProps({ id: "settings" });
 
+  const renderContent = () => {
+    switch (tab) {
+      case "library": return <SettingsLibraryPanel />;
+      case "interface": return <SettingsInterfacePanel />;
+      case "security": return <SettingsSecurityPanel />;
+      case "tasks": return <SettingsTasksPanel />;
+      case "services": return <SettingsServicesPanel />;
+      case "tools": return <SettingsToolsPanel />;
+      case "metadata-providers": return <SettingsScrapingPanel />;
+      case "system": return <SettingsConfigurationPanel />;
+      case "plugins": return <SettingsPluginsPanel />;
+      case "logs": return <SettingsLogsPanel />;
+      case "changelog": return <Changelog />;
+      case "about": return <SettingsAboutPanel />;
+      default: return null;
+    }
+  };
+
   return (
-    <Tab.Container activeKey={tab} id="configuration-tabs">
+    <Container maxWidth="xl" sx={{ mt: 3 }}>
       <Helmet {...titleProps} />
-      <Row>
-        <Col id="settings-menu-container" sm={3} md={3} xl={2}>
-          <Nav variant="pills" className="flex-column">
-            <Nav.Item>
-              <LinkContainer to="/settings?tab=tasks">
-                <Nav.Link eventKey="tasks">
-                  <FormattedMessage id="config.categories.tasks" />
-                </Nav.Link>
-              </LinkContainer>
-            </Nav.Item>
-            <Nav.Item>
-              <LinkContainer to="/settings?tab=library">
-                <Nav.Link eventKey="library">
-                  <FormattedMessage id="library" />
-                </Nav.Link>
-              </LinkContainer>
-            </Nav.Item>
-            <Nav.Item>
-              <LinkContainer to="/settings?tab=interface">
-                <Nav.Link eventKey="interface">
-                  <FormattedMessage id="config.categories.interface" />
-                </Nav.Link>
-              </LinkContainer>
-            </Nav.Item>
-            <Nav.Item>
-              <LinkContainer to="/settings?tab=security">
-                <Nav.Link eventKey="security">
-                  <FormattedMessage id="config.categories.security" />
-                </Nav.Link>
-              </LinkContainer>
-            </Nav.Item>
-            <Nav.Item>
-              <LinkContainer to="/settings?tab=metadata-providers">
-                <Nav.Link eventKey="metadata-providers">
-                  <FormattedMessage id="config.categories.metadata_providers" />
-                </Nav.Link>
-              </LinkContainer>
-            </Nav.Item>
-            <Nav.Item>
-              <LinkContainer to="/settings?tab=services">
-                <Nav.Link eventKey="services">
-                  <FormattedMessage id="config.categories.services" />
-                </Nav.Link>
-              </LinkContainer>
-            </Nav.Item>
-            <Nav.Item>
-              <LinkContainer to="/settings?tab=system">
-                <Nav.Link eventKey="system">
-                  <FormattedMessage id="config.categories.system" />
-                </Nav.Link>
-              </LinkContainer>
-            </Nav.Item>
-            <Nav.Item>
-              <LinkContainer to="/settings?tab=plugins">
-                <Nav.Link eventKey="plugins">
-                  <FormattedMessage id="config.categories.plugins" />
-                </Nav.Link>
-              </LinkContainer>
-            </Nav.Item>
-            <Nav.Item>
-              <LinkContainer to="/settings?tab=logs">
-                <Nav.Link eventKey="logs">
-                  <FormattedMessage id="config.categories.logs" />
-                </Nav.Link>
-              </LinkContainer>
-            </Nav.Item>
-            <Nav.Item>
-              <LinkContainer to="/settings?tab=tools">
-                <Nav.Link eventKey="tools">
-                  <FormattedMessage id="config.categories.tools" />
-                </Nav.Link>
-              </LinkContainer>
-            </Nav.Item>
-            <Nav.Item>
-              <LinkContainer to="/settings?tab=changelog">
-                <Nav.Link eventKey="changelog">
-                  <FormattedMessage id="config.categories.changelog" />
-                </Nav.Link>
-              </LinkContainer>
-            </Nav.Item>
-            <Nav.Item>
-              <LinkContainer to="/settings?tab=about">
-                <Nav.Link eventKey="about">
-                  <FormattedMessage id="config.categories.about" />
-                </Nav.Link>
-              </LinkContainer>
-            </Nav.Item>
-            <Nav.Item>
-              <div className="advanced-switch">
-                <Form.Label htmlFor="advanced-settings">
-                  <FormattedMessage id="config.advanced_mode" />
-                </Form.Label>
-                <Form.Switch
-                  id="advanced-settings"
+      <Grid container spacing={3}>
+        <Grid size={{ xs: 12, sm: 3, md: 3, xl: 2 }}>
+          <Tabs
+            orientation={isSmallScreen ? "horizontal" : "vertical"}
+            variant="scrollable"
+            value={tab}
+            sx={{
+              borderRight: isSmallScreen ? 0 : 1,
+              borderBottom: isSmallScreen ? 1 : 0,
+              borderColor: 'divider',
+              mb: isSmallScreen ? 2 : 0
+            }}
+          >
+            <Tab
+              label={<FormattedMessage id="config.categories.tasks" />}
+              value="tasks"
+              component={Link}
+              to="/settings?tab=tasks"
+            />
+            <Tab
+              label={<FormattedMessage id="library" />}
+              value="library"
+              component={Link}
+              to="/settings?tab=library"
+            />
+            <Tab
+              label={<FormattedMessage id="config.categories.interface" />}
+              value="interface"
+              component={Link}
+              to="/settings?tab=interface"
+            />
+            <Tab
+              label={<FormattedMessage id="config.categories.security" />}
+              value="security"
+              component={Link}
+              to="/settings?tab=security"
+            />
+            <Tab
+              label={<FormattedMessage id="config.categories.metadata_providers" />}
+              value="metadata-providers"
+              component={Link}
+              to="/settings?tab=metadata-providers"
+            />
+            <Tab
+              label={<FormattedMessage id="config.categories.services" />}
+              value="services"
+              component={Link}
+              to="/settings?tab=services"
+            />
+            <Tab
+              label={<FormattedMessage id="config.categories.system" />}
+              value="system"
+              component={Link}
+              to="/settings?tab=system"
+            />
+            <Tab
+              label={<FormattedMessage id="config.categories.plugins" />}
+              value="plugins"
+              component={Link}
+              to="/settings?tab=plugins"
+            />
+            <Tab
+              label={<FormattedMessage id="config.categories.logs" />}
+              value="logs"
+              component={Link}
+              to="/settings?tab=logs"
+            />
+            <Tab
+              label={<FormattedMessage id="config.categories.tools" />}
+              value="tools"
+              component={Link}
+              to="/settings?tab=tools"
+            />
+            <Tab
+              label={<FormattedMessage id="config.categories.changelog" />}
+              value="changelog"
+              component={Link}
+              to="/settings?tab=changelog"
+            />
+            <Tab
+              label={<FormattedMessage id="config.categories.about" />}
+              value="about"
+              component={Link}
+              to="/settings?tab=about"
+            />
+          </Tabs>
+
+          <Box sx={{ mt: 2, px: 2 }}>
+            <FormControlLabel
+              control={
+                <Switch
                   checked={advancedMode}
                   onChange={() => setAdvancedMode(!advancedMode)}
                 />
-              </div>
-            </Nav.Item>
-            <hr className="d-sm-none" />
-          </Nav>
-        </Col>
-        <Col
-          id="settings-container"
-          sm={{ offset: 3 }}
-          md={{ offset: 3 }}
-          xl={{ offset: 2 }}
-        >
-          <Tab.Content className="mx-auto">
-            <Tab.Pane eventKey="library">
-              <SettingsLibraryPanel />
-            </Tab.Pane>
-            <Tab.Pane eventKey="interface">
-              <SettingsInterfacePanel />
-            </Tab.Pane>
-            <Tab.Pane eventKey="security">
-              <SettingsSecurityPanel />
-            </Tab.Pane>
-            <Tab.Pane eventKey="tasks">
-              <SettingsTasksPanel />
-            </Tab.Pane>
-            <Tab.Pane eventKey="services" unmountOnExit>
-              <SettingsServicesPanel />
-            </Tab.Pane>
-            <Tab.Pane eventKey="tools" unmountOnExit>
-              <SettingsToolsPanel />
-            </Tab.Pane>
-            <Tab.Pane eventKey="metadata-providers" unmountOnExit>
-              <SettingsScrapingPanel />
-            </Tab.Pane>
-            <Tab.Pane eventKey="system">
-              <SettingsConfigurationPanel />
-            </Tab.Pane>
-            <Tab.Pane eventKey="plugins" unmountOnExit>
-              <SettingsPluginsPanel />
-            </Tab.Pane>
-            <Tab.Pane eventKey="logs" unmountOnExit>
-              <SettingsLogsPanel />
-            </Tab.Pane>
-            <Tab.Pane eventKey="changelog" unmountOnExit>
-              <Changelog />
-            </Tab.Pane>
-            <Tab.Pane eventKey="about" unmountOnExit>
-              <SettingsAboutPanel />
-            </Tab.Pane>
-          </Tab.Content>
-        </Col>
-      </Row>
-    </Tab.Container>
+              }
+              label={<FormattedMessage id="config.advanced_mode" />}
+            />
+          </Box>
+        </Grid>
+
+        <Grid size={{ xs: 12, sm: 9, md: 9, xl: 10 }}>
+          <Box sx={{ p: 0 }}>
+            {renderContent()}
+          </Box>
+        </Grid>
+      </Grid>
+    </Container>
   );
 };
 

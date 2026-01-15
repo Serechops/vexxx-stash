@@ -2,7 +2,7 @@ import React from "react";
 import { ModalSetting, NumberSetting } from "./Inputs";
 import { SettingSection } from "./SettingSection";
 import * as GQL from "src/core/generated-graphql";
-import { Button, Form } from "react-bootstrap";
+import { Button, TextField, Box } from "@mui/material";
 import { useIntl } from "react-intl";
 import { useSettings } from "./context";
 import { LoadingIndicator } from "../Shared/LoadingIndicator";
@@ -35,35 +35,29 @@ const AuthenticationInput: React.FC<IAuthenticationInput> = ({
   const { username, password } = value;
 
   return (
-    <div>
-      <Form.Group id="username">
-        <h6>{intl.formatMessage({ id: "config.general.auth.username" })}</h6>
-        <Form.Control
-          className="text-input"
+    <Box>
+      <Box id="username" sx={{ mb: 2 }}>
+        <TextField
+          fullWidth
+          variant="outlined"
+          label={intl.formatMessage({ id: "config.general.auth.username" })}
           value={username ?? ""}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-            set({ username: e.currentTarget.value })
-          }
+          onChange={(e) => set({ username: e.target.value })}
+          helperText={intl.formatMessage({ id: "config.general.auth.username_desc" })}
         />
-        <Form.Text className="text-muted">
-          {intl.formatMessage({ id: "config.general.auth.username_desc" })}
-        </Form.Text>
-      </Form.Group>
-      <Form.Group id="password">
-        <h6>{intl.formatMessage({ id: "config.general.auth.password" })}</h6>
-        <Form.Control
-          className="text-input"
+      </Box>
+      <Box id="password" sx={{ mb: 2 }}>
+        <TextField
+          fullWidth
+          variant="outlined"
           type="password"
+          label={intl.formatMessage({ id: "config.general.auth.password" })}
           value={password ?? ""}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-            set({ password: e.currentTarget.value })
-          }
+          onChange={(e) => set({ password: e.target.value })}
+          helperText={intl.formatMessage({ id: "config.general.auth.password_desc" })}
         />
-        <Form.Text className="text-muted">
-          {intl.formatMessage({ id: "config.general.auth.password_desc" })}
-        </Form.Text>
-      </Form.Group>
-    </div>
+      </Box>
+    </Box>
   );
 };
 
@@ -143,12 +137,13 @@ export const SettingsSecurityPanel: React.FC = () => {
             <Button
               disabled={!general.username || !general.password}
               onClick={() => onGenerateAPIKey()}
+              variant="contained"
             >
               {intl.formatMessage({
                 id: "config.general.auth.generate_api_key",
               })}
             </Button>
-            <Button variant="danger" onClick={() => onClearAPIKey()}>
+            <Button variant="contained" color="error" onClick={() => onClearAPIKey()}>
               {intl.formatMessage({
                 id: "config.general.auth.clear_api_key",
               })}

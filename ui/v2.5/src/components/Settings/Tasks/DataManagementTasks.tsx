@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
-import { Button, Col, Form, Row } from "react-bootstrap";
+import { Button, Grid, Typography, Box } from "@mui/material";
 import {
   mutateMigrateHashNaming,
   mutateMetadataExport,
@@ -87,22 +87,22 @@ const CleanDialog: React.FC<ICleanDialog> = ({
       <div className="dialog-container">
         <div className="mb-3">
           {paths.map((p) => (
-            <Row className="align-items-center mb-1" key={p}>
-              <Form.Label column xs={10}>
-                {p}
-              </Form.Label>
-              <Col xs={2} className="d-flex justify-content-end">
+            <Grid container spacing={1} alignItems="center" key={p} sx={{ mb: 1 }}>
+              <Grid size={{ xs: 10 }}>
+                <Typography>{p}</Typography>
+              </Grid>
+              <Grid size={{ xs: 2 }} sx={{ display: 'flex', justifyContent: 'flex-end' }}>
                 <Button
-                  className="ml-auto"
-                  size="sm"
-                  variant="danger"
+                  size="small"
+                  variant="contained"
+                  color="error"
                   title={intl.formatMessage({ id: "actions.delete" })}
                   onClick={() => removePath(p)}
                 >
                   <Icon icon={faMinus} />
                 </Button>
-              </Col>
-            </Row>
+              </Grid>
+            </Grid>
           ))}
 
           {pathSelection ? (
@@ -112,7 +112,7 @@ const CleanDialog: React.FC<ICleanDialog> = ({
               defaultDirectories={libraryPaths}
               appendButton={
                 <Button
-                  variant="secondary"
+                  variant="outlined"
                   onClick={() => addPath(currentDirectory)}
                 >
                   <Icon icon={faPlus} />
@@ -403,7 +403,7 @@ export const DataManagementTasks: React.FC<IDataManagementTasks> = ({
   }
 
   return (
-    <Form.Group>
+    <Box>
       {renderImportAlert()}
       {renderImportDialog()}
       {dialogOpen.cleanAlert || dialogOpen.clean ? (
@@ -456,14 +456,16 @@ export const DataManagementTasks: React.FC<IDataManagementTasks> = ({
             subHeadingID="config.tasks.cleanup_desc"
           >
             <Button
-              variant="danger"
+              variant="contained"
+              color="error"
               type="submit"
               onClick={() => setDialogOpen({ cleanAlert: true })}
             >
               <FormattedMessage id="actions.clean" />…
             </Button>
             <Button
-              variant="danger"
+              variant="contained"
+              color="error"
               type="submit"
               onClick={() => setDialogOpen({ clean: true })}
             >
@@ -482,7 +484,8 @@ export const DataManagementTasks: React.FC<IDataManagementTasks> = ({
             subHeadingID="config.tasks.clean_generated.description"
           >
             <Button
-              variant="danger"
+              variant="contained"
+              color="error"
               type="submit"
               onClick={() => setDialogOpen({ cleanGenerated: true })}
             >
@@ -503,7 +506,8 @@ export const DataManagementTasks: React.FC<IDataManagementTasks> = ({
         >
           <Button
             id="optimiseDatabase"
-            variant="danger"
+            variant="contained"
+            color="error"
             onClick={() => onOptimiseDatabase()}
           >
             <FormattedMessage id="actions.optimise_database" />
@@ -518,7 +522,7 @@ export const DataManagementTasks: React.FC<IDataManagementTasks> = ({
         >
           <Button
             id="export"
-            variant="secondary"
+            variant="outlined"
             type="submit"
             onClick={() => onExport()}
           >
@@ -532,7 +536,8 @@ export const DataManagementTasks: React.FC<IDataManagementTasks> = ({
         >
           <Button
             id="import"
-            variant="danger"
+            variant="contained"
+            color="error"
             type="submit"
             onClick={() => setDialogOpen({ importAlert: true })}
           >
@@ -546,7 +551,8 @@ export const DataManagementTasks: React.FC<IDataManagementTasks> = ({
         >
           <Button
             id="partial-import"
-            variant="danger"
+            variant="contained"
+            color="error"
             type="submit"
             onClick={() => setDialogOpen({ import: true })}
           >
@@ -571,7 +577,7 @@ export const DataManagementTasks: React.FC<IDataManagementTasks> = ({
         >
           <Button
             id="backup"
-            variant="secondary"
+            variant="outlined"
             type="submit"
             onClick={() => onBackup()}
           >
@@ -585,7 +591,7 @@ export const DataManagementTasks: React.FC<IDataManagementTasks> = ({
         >
           <Button
             id="backupDownload"
-            variant="secondary"
+            variant="outlined"
             type="submit"
             onClick={() => onBackup(true)}
           >
@@ -610,7 +616,7 @@ export const DataManagementTasks: React.FC<IDataManagementTasks> = ({
         >
           <Button
             id="anonymise"
-            variant="secondary"
+            variant="outlined"
             type="submit"
             onClick={() => onAnonymise()}
           >
@@ -624,7 +630,7 @@ export const DataManagementTasks: React.FC<IDataManagementTasks> = ({
         >
           <Button
             id="anonymiseDownload"
-            variant="secondary"
+            variant="outlined"
             type="submit"
             onClick={() => onAnonymise(true)}
           >
@@ -641,7 +647,8 @@ export const DataManagementTasks: React.FC<IDataManagementTasks> = ({
         >
           <Button
             id="migrateHashNaming"
-            variant="danger"
+            variant="contained"
+            color="error"
             onClick={() => onMigrateHashNaming()}
           >
             <FormattedMessage id="actions.rename_gen_files" />
@@ -655,7 +662,8 @@ export const DataManagementTasks: React.FC<IDataManagementTasks> = ({
           >
             <Button
               id="migrateBlobs"
-              variant="danger"
+              variant="contained"
+              color="error"
               onClick={() => onMigrateBlobs()}
             >
               <FormattedMessage id="actions.migrate_blobs" />
@@ -679,7 +687,8 @@ export const DataManagementTasks: React.FC<IDataManagementTasks> = ({
           >
             <Button
               id="migrateSceneScreenshots"
-              variant="danger"
+              variant="contained"
+              color="error"
               onClick={() => onMigrateSceneScreenshots()}
             >
               <FormattedMessage id="actions.migrate_scene_screenshots" />
@@ -711,6 +720,6 @@ export const DataManagementTasks: React.FC<IDataManagementTasks> = ({
           />
         </div>
       </SettingSection>
-    </Form.Group>
+    </Box>
   );
 };

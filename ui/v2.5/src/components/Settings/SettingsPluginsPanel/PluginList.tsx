@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { Button, ModalProps } from "react-bootstrap";
+import { Button, Typography, Box } from "@mui/material";
 import { FormattedMessage, useIntl } from "react-intl";
 import * as GQL from "src/core/generated-graphql";
 import {
@@ -27,7 +27,7 @@ interface IPluginSettingProps {
     setting: GQL.PluginSetting;
     value: unknown;
     onChange: (value: unknown) => void;
-    modalProps?: ModalProps;
+    modalProps?: any;
 }
 
 const PluginSetting: React.FC<IPluginSettingProps> = ({
@@ -76,7 +76,7 @@ const PluginSetting: React.FC<IPluginSettingProps> = ({
 const PluginSettings: React.FC<{
     pluginID: string;
     settings: GQL.PluginSetting[];
-    modalProps?: ModalProps;
+    modalProps?: any;
 }> = PatchComponent("PluginSettings", ({ pluginID, settings, modalProps }) => {
     const { plugins, savePluginSettings } = useSettings();
     const pluginSettings = plugins[pluginID] ?? {};
@@ -104,7 +104,7 @@ const PluginSettings: React.FC<{
 
 
 interface IPluginListProps {
-    modalProps?: ModalProps;
+    modalProps?: any;
 }
 
 export const PluginList: React.FC<IPluginListProps> = ({ modalProps }) => {
@@ -119,7 +119,7 @@ export const PluginList: React.FC<IPluginListProps> = ({ modalProps }) => {
             if (url) {
                 return (
                     <Button
-                        as={ExternalLink}
+                        component={ExternalLink}
                         href={TextUtils.sanitiseURL(url)}
                         className="minimal link"
                     >
@@ -141,7 +141,7 @@ export const PluginList: React.FC<IPluginListProps> = ({ modalProps }) => {
             }
 
             return (
-                <Button size="sm" onClick={onClick}>
+                <Button size="small" onClick={onClick} variant="outlined">
                     <FormattedMessage
                         id={enabled ? "actions.disable" : "actions.enable"}
                     />
@@ -156,7 +156,7 @@ export const PluginList: React.FC<IPluginListProps> = ({ modalProps }) => {
         function maybeRenderReloadUI(pluginID: string) {
             if (pluginID === changedPluginID) {
                 return (
-                    <Button size="sm" onClick={() => onReloadUI()}>
+                    <Button size="small" onClick={() => onReloadUI()} variant="outlined">
                         Reload UI
                     </Button>
                 );
@@ -202,13 +202,13 @@ export const PluginList: React.FC<IPluginListProps> = ({ modalProps }) => {
 
             return (
                 <div className="setting">
-                    <div>
-                        <h5>
+                    <Box>
+                        <Typography variant="h6" gutterBottom>
                             <FormattedMessage id="config.plugins.hooks" />
-                        </h5>
+                        </Typography>
                         {hooks.map((h) => (
-                            <div key={`${h.name}`}>
-                                <h6>{h.name}</h6>
+                            <Box key={`${h.name}`} sx={{ mb: 2 }}>
+                                <Typography variant="subtitle1" gutterBottom>{h.name}</Typography>
                                 <CollapseButton
                                     text={intl.formatMessage({
                                         id: "config.plugins.triggers_on",
@@ -222,10 +222,10 @@ export const PluginList: React.FC<IPluginListProps> = ({ modalProps }) => {
                                         ))}
                                     </ul>
                                 </CollapseButton>
-                                <small className="text-muted">{h.description}</small>
-                            </div>
+                                <Typography variant="caption" color="textSecondary">{h.description}</Typography>
+                            </Box>
                         ))}
-                    </div>
+                    </Box>
                     <div />
                 </div>
             );

@@ -1,5 +1,5 @@
 import React from "react";
-import { Button } from "react-bootstrap";
+import { Button } from "@mui/material";
 import { FormattedMessage } from "react-intl";
 import { Link } from "react-router-dom";
 import { Setting } from "./Inputs";
@@ -17,7 +17,7 @@ export const SettingsToolsPanel: React.FC = () => {
           <Setting
             heading={
               <ExternalLink href="/playground">
-                <Button>
+                <Button variant="contained">
                   <FormattedMessage id="config.tools.graphql_playground" />
                 </Button>
               </ExternalLink>
@@ -30,7 +30,7 @@ export const SettingsToolsPanel: React.FC = () => {
           <Setting
             heading={
               <Link to="/sceneFilenameParser">
-                <Button>
+                <Button variant="contained">
                   <FormattedMessage id="config.tools.scene_filename_parser.title" />
                 </Button>
               </Link>
@@ -40,7 +40,7 @@ export const SettingsToolsPanel: React.FC = () => {
           <Setting
             heading={
               <Link to="/sceneDuplicateChecker">
-                <Button>
+                <Button variant="contained">
                   <FormattedMessage id="config.tools.scene_duplicate_checker" />
                 </Button>
               </Link>
@@ -50,14 +50,14 @@ export const SettingsToolsPanel: React.FC = () => {
           <Setting
             heading={
               <Link to="/moviefy">
-                <Button>MovieFy</Button>
+                <Button variant="contained">MovieFy</Button>
               </Link>
             }
           />
           <Setting
             heading={
               <Link to="/renamer">
-                <Button>Renamer</Button>
+                <Button variant="contained">Renamer</Button>
               </Link>
             }
           />

@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { Button, Form, ModalProps } from "react-bootstrap";
+import { Button, TextField, Box, Typography } from "@mui/material";
 import { FormattedMessage, useIntl } from "react-intl";
 import { SettingSection } from "./SettingSection";
 import * as GQL from "src/core/generated-graphql";
@@ -8,7 +8,7 @@ import { SettingModal } from "./Inputs";
 export interface IStashBoxModal {
   value: GQL.StashBoxInput;
   close: (v?: GQL.StashBoxInput) => void;
-  modalProps?: ModalProps;
+  modalProps?: any;
 }
 
 const defaultMaxRequestsPerMinute = 240;
@@ -40,104 +40,107 @@ export const StashBoxModal: React.FC<IStashBoxModal> = ({ value, close, modalPro
       value={value}
       renderField={(v, setValue) => (
         <>
-          <Form.Group id="stashbox-name">
-            <h6>
+          <Box id="stashbox-name" sx={{ mb: 2 }}>
+            <Typography variant="subtitle1" gutterBottom>
               {intl.formatMessage({
                 id: "config.stashbox.name",
               })}
-            </h6>
-            <Form.Control
+            </Typography>
+            <TextField
               placeholder={intl.formatMessage({ id: "config.stashbox.name" })}
-              className="text-input stash-box-name"
+              fullWidth
+              variant="outlined"
+              className="stash-box-name"
               value={v?.name}
-              isValid={(v?.name?.length ?? 0) > 0}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                setValue({ ...v!, name: e.currentTarget.value })
+              error={!((v?.name?.length ?? 0) > 0)}
+              onChange={(e) =>
+                setValue({ ...v!, name: e.target.value })
               }
             />
-          </Form.Group>
+          </Box>
 
-          <Form.Group id="stashbox-name">
-            <h6>
+          <Box id="stashbox-endpoint" sx={{ mb: 2 }}>
+            <Typography variant="subtitle1" gutterBottom>
               {intl.formatMessage({
                 id: "config.stashbox.graphql_endpoint",
               })}
-            </h6>
-            <Form.Control
+            </Typography>
+            <TextField
               placeholder={intl.formatMessage({
                 id: "config.stashbox.graphql_endpoint",
               })}
-              className="text-input stash-box-endpoint"
+              fullWidth
+              variant="outlined"
+              className="stash-box-endpoint"
               value={v?.endpoint}
-              isValid={(v?.endpoint?.length ?? 0) > 0}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                setValue({ ...v!, endpoint: e.currentTarget.value.trim() })
+              error={!((v?.endpoint?.length ?? 0) > 0)}
+              onChange={(e) =>
+                setValue({ ...v!, endpoint: e.target.value.trim() })
               }
-              ref={endpoint}
+              inputRef={endpoint}
             />
-          </Form.Group>
+          </Box>
 
-          <Form.Group id="stashbox-name">
-            <h6>
+          <Box id="stashbox-apikey" sx={{ mb: 2 }}>
+            <Typography variant="subtitle1" gutterBottom>
               {intl.formatMessage({
                 id: "config.stashbox.api_key",
               })}
-            </h6>
-            <Form.Control
+            </Typography>
+            <TextField
               placeholder={intl.formatMessage({
                 id: "config.stashbox.api_key",
               })}
-              className="text-input stash-box-apikey"
+              fullWidth
+              variant="outlined"
+              className="stash-box-apikey"
               value={v?.api_key}
-              isValid={(v?.api_key?.length ?? 0) > 0}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                setValue({ ...v!, api_key: e.currentTarget.value.trim() })
+              error={!((v?.api_key?.length ?? 0) > 0)}
+              onChange={(e) =>
+                setValue({ ...v!, api_key: e.target.value.trim() })
               }
-              ref={apiKey}
+              inputRef={apiKey}
             />
-          </Form.Group>
+          </Box>
 
-          <Form.Group>
+          <Box sx={{ mb: 2 }}>
             <Button
               disabled={loading}
               onClick={handleValidate}
-              className="mr-3"
+              sx={{ mr: 3 }}
+              variant="contained"
             >
               Test Credentials
             </Button>
             {data && (
-              <b
-                className={
-                  data.validateStashBoxCredentials?.valid
-                    ? "text-success"
-                    : "text-danger"
-                }
+              <Typography
+                component="b"
+                color={data.validateStashBoxCredentials?.valid ? "success.main" : "error.main"}
               >
                 {data.validateStashBoxCredentials?.status}
-              </b>
+              </Typography>
             )}
-          </Form.Group>
+          </Box>
 
-          <Form.Group id="stashbox-max-requests-per-minute">
-            <h6>
+          <Box id="stashbox-max-requests-per-minute" sx={{ mb: 2 }}>
+            <Typography variant="subtitle1" gutterBottom>
               {intl.formatMessage({
                 id: "config.stashbox.max_requests_per_minute",
               })}
-            </h6>
-            <Form.Control
+            </Typography>
+            <TextField
               placeholder={intl.formatMessage({
                 id: "config.stashbox.max_requests_per_minute",
               })}
-              className="text-input"
+              fullWidth
+              variant="outlined"
               value={v?.max_requests_per_minute ?? defaultMaxRequestsPerMinute}
-              isValid={
-                (v?.max_requests_per_minute ?? defaultMaxRequestsPerMinute) >= 0
-              }
+              error={!((v?.max_requests_per_minute ?? defaultMaxRequestsPerMinute) >= 0)}
               type="number"
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              onChange={(e) =>
                 setValue({
                   ...v!,
-                  max_requests_per_minute: parseInt(e.currentTarget.value),
+                  max_requests_per_minute: parseInt(e.target.value),
                 })
               }
             />
@@ -147,7 +150,7 @@ export const StashBoxModal: React.FC<IStashBoxModal> = ({ value, close, modalPro
                 values={{ defaultValue: defaultMaxRequestsPerMinute }}
               />
             </div>
-          </Form.Group>
+          </Box>
         </>
       )}
       close={close}
@@ -159,7 +162,7 @@ export const StashBoxModal: React.FC<IStashBoxModal> = ({ value, close, modalPro
 interface IStashBoxSetting {
   value: GQL.StashBoxInput[];
   onChange: (v: GQL.StashBoxInput[]) => void;
-  modalProps?: ModalProps;
+  modalProps?: any;
 }
 
 export const StashBoxSetting: React.FC<IStashBoxSetting> = ({
@@ -230,10 +233,10 @@ export const StashBoxSetting: React.FC<IStashBoxSetting> = ({
             <div className="value">{b.endpoint ?? ""}</div>
           </div>
           <div>
-            <Button onClick={() => onEdit(index)}>
+            <Button onClick={() => onEdit(index)} variant="contained" sx={{ mr: 1 }}>
               <FormattedMessage id="actions.edit" />
             </Button>
-            <Button variant="danger" onClick={() => onDelete(index)}>
+            <Button variant="contained" color="error" onClick={() => onDelete(index)}>
               <FormattedMessage id="actions.delete" />
             </Button>
           </div>
@@ -242,7 +245,7 @@ export const StashBoxSetting: React.FC<IStashBoxSetting> = ({
       <div className="setting">
         <div />
         <div>
-          <Button onClick={() => onNew()}>
+          <Button onClick={() => onNew()} variant="contained">
             <FormattedMessage id="actions.add" />
           </Button>
         </div>

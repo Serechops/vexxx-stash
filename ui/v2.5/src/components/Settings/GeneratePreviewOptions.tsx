@@ -1,6 +1,6 @@
 import React from "react";
 import { useIntl } from "react-intl";
-import { Form } from "react-bootstrap";
+import { Box, Typography, TextField, FormHelperText } from "@mui/material";
 import * as GQL from "src/core/generated-graphql";
 import { NumberField } from "src/utils/form";
 
@@ -38,13 +38,13 @@ export const VideoPreviewInput: React.FC<IVideoPreviewInput> = ({
   } = value;
 
   return (
-    <div>
-      <Form.Group id="preview-segments">
-        <h6>
+    <Box>
+      <Box id="preview-segments" sx={{ mb: 2 }}>
+        <Typography variant="subtitle1" gutterBottom>
           {intl.formatMessage({
             id: "dialogs.scene_gen.preview_seg_count_head",
           })}
-        </h6>
+        </Typography>
         <NumberField
           className="text-input"
           value={previewSegments?.toString() ?? 1}
@@ -58,19 +58,19 @@ export const VideoPreviewInput: React.FC<IVideoPreviewInput> = ({
             })
           }
         />
-        <Form.Text className="text-muted">
+        <FormHelperText>
           {intl.formatMessage({
             id: "dialogs.scene_gen.preview_seg_count_desc",
           })}
-        </Form.Text>
-      </Form.Group>
+        </FormHelperText>
+      </Box>
 
-      <Form.Group id="preview-segment-duration">
-        <h6>
+      <Box id="preview-segment-duration" sx={{ mb: 2 }}>
+        <Typography variant="subtitle1" gutterBottom>
           {intl.formatMessage({
             id: "dialogs.scene_gen.preview_seg_duration_head",
           })}
-        </h6>
+        </Typography>
         <NumberField
           className="text-input"
           value={previewSegmentDuration?.toString() ?? 0}
@@ -82,52 +82,56 @@ export const VideoPreviewInput: React.FC<IVideoPreviewInput> = ({
             })
           }
         />
-        <Form.Text className="text-muted">
+        <FormHelperText>
           {intl.formatMessage({
             id: "dialogs.scene_gen.preview_seg_duration_desc",
           })}
-        </Form.Text>
-      </Form.Group>
+        </FormHelperText>
+      </Box>
 
-      <Form.Group id="preview-exclude-start">
-        <h6>
+      <Box id="preview-exclude-start" sx={{ mb: 2 }}>
+        <Typography variant="subtitle1" gutterBottom>
           {intl.formatMessage({
             id: "dialogs.scene_gen.preview_exclude_start_time_head",
           })}
-        </h6>
-        <Form.Control
+        </Typography>
+        <TextField
+          fullWidth
+          variant="outlined"
           className="text-input"
           value={previewExcludeStart ?? ""}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-            set({ previewExcludeStart: e.currentTarget.value })
+          onChange={(e) =>
+            set({ previewExcludeStart: e.target.value })
           }
         />
-        <Form.Text className="text-muted">
+        <FormHelperText>
           {intl.formatMessage({
             id: "dialogs.scene_gen.preview_exclude_start_time_desc",
           })}
-        </Form.Text>
-      </Form.Group>
+        </FormHelperText>
+      </Box>
 
-      <Form.Group id="preview-exclude-start">
-        <h6>
+      <Box id="preview-exclude-end" sx={{ mb: 2 }}>
+        <Typography variant="subtitle1" gutterBottom>
           {intl.formatMessage({
             id: "dialogs.scene_gen.preview_exclude_end_time_head",
           })}
-        </h6>
-        <Form.Control
+        </Typography>
+        <TextField
+          fullWidth
+          variant="outlined"
           className="text-input"
           value={previewExcludeEnd ?? ""}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-            set({ previewExcludeEnd: e.currentTarget.value })
+          onChange={(e) =>
+            set({ previewExcludeEnd: e.target.value })
           }
         />
-        <Form.Text className="text-muted">
+        <FormHelperText>
           {intl.formatMessage({
             id: "dialogs.scene_gen.preview_exclude_end_time_desc",
           })}
-        </Form.Text>
-      </Form.Group>
-    </div>
+        </FormHelperText>
+      </Box>
+    </Box>
   );
 };

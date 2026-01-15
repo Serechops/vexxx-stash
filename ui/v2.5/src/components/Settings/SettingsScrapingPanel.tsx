@@ -1,6 +1,6 @@
 import React, { PropsWithChildren, useMemo, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
-import { Button } from "react-bootstrap";
+import { Button } from "@mui/material";
 import {
   mutateReloadScrapers,
   useListGroupScrapers,
@@ -242,7 +242,7 @@ const ScrapersSection: React.FC = () => {
           setValue={(v) => setFilter(v)}
         />
 
-        <Button onClick={() => onReloadScrapers()}>
+        <Button onClick={() => onReloadScrapers()} variant="contained">
           <span className="fa-icon">
             <Icon icon={faSyncAlt} />
           </span>

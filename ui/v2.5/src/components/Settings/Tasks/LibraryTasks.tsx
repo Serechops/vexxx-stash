@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
-import { Button, Form } from "react-bootstrap";
+import { Button, Box } from "@mui/material";
 import {
   mutateMetadataScan,
   mutateMetadataAutoTag,
@@ -306,7 +306,7 @@ export const LibraryTasks: React.FC = () => {
   }
 
   return (
-    <Form.Group>
+    <Box>
       {renderScanDialog()}
       {renderAutoTagDialog()}
       {maybeRenderIdentifyDialog()}
@@ -327,18 +327,18 @@ export const LibraryTasks: React.FC = () => {
           topLevel={
             <>
               <Button
-                variant="secondary"
+                variant="outlined"
                 type="submit"
-                className="mr-2"
+                sx={{ mr: 2 }}
                 onClick={() => runScan()}
               >
                 <FormattedMessage id="actions.scan" />
               </Button>
 
               <Button
-                variant="secondary"
+                variant="outlined"
                 type="submit"
-                className="mr-2"
+                sx={{ mr: 2 }}
                 onClick={() => setDialogOpen({ scan: true })}
               >
                 <FormattedMessage id="actions.selective_scan" />…
@@ -364,7 +364,7 @@ export const LibraryTasks: React.FC = () => {
           subHeadingID="config.tasks.identify.description"
         >
           <Button
-            variant="secondary"
+            variant="outlined"
             type="submit"
             onClick={() => setDialogOpen({ identify: true })}
           >
@@ -389,15 +389,15 @@ export const LibraryTasks: React.FC = () => {
           topLevel={
             <>
               <Button
-                variant="secondary"
+                variant="outlined"
                 type="submit"
-                className="mr-2"
+                sx={{ mr: 2 }}
                 onClick={() => runAutoTag()}
               >
                 <FormattedMessage id="actions.auto_tag" />
               </Button>
               <Button
-                variant="secondary"
+                variant="outlined"
                 type="submit"
                 onClick={() => setDialogOpen({ autoTag: true })}
               >
@@ -429,7 +429,7 @@ export const LibraryTasks: React.FC = () => {
           }}
           topLevel={
             <Button
-              variant="secondary"
+              variant="outlined"
               type="submit"
               onClick={() => onGenerateClicked()}
             >
@@ -444,6 +444,6 @@ export const LibraryTasks: React.FC = () => {
           />
         </SettingGroup>
       </SettingSection>
-    </Form.Group>
+    </Box>
   );
 };

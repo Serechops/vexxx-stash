@@ -1,11 +1,10 @@
 import React from "react";
-import { ModalProps } from "react-bootstrap";
 import { LoadingIndicator } from "../../Shared/LoadingIndicator";
 import { StashBoxSetting } from "../StashBoxConfiguration";
 import { useSettings } from "../context";
 
 interface IProps {
-    modalProps?: ModalProps;
+    modalProps?: any;
 }
 
 export const StashBoxSettings: React.FC<IProps> = ({ modalProps }) => {

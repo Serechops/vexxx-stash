@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo } from "react";
-import { Button, Form } from "react-bootstrap";
+import { Button } from "@mui/material";
 import { FormattedMessage, useIntl } from "react-intl";
 import { DurationInput } from "src/components/Shared/DurationInput";
 import { PercentInput } from "src/components/Shared/PercentInput";
@@ -850,6 +850,7 @@ export const SettingsInterfacePanel: React.FC = PatchComponent(
                 <div>
                   {!interactiveInitialised && (
                     <Button
+                      variant="contained"
                       disabled={
                         interactiveState === ConnectionState.Connecting ||
                         interactiveState === ConnectionState.Syncing
@@ -878,6 +879,7 @@ export const SettingsInterfacePanel: React.FC = PatchComponent(
                 <div>
                   {interactiveInitialised && (
                     <Button
+                      variant="contained"
                       disabled={
                         !interactiveInitialised ||
                         interactiveState === ConnectionState.Syncing

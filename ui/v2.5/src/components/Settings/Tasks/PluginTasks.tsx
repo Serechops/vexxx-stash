@@ -1,6 +1,6 @@
 import React from "react";
 import { useIntl } from "react-intl";
-import { Button, Form } from "react-bootstrap";
+import { Button, Box } from "@mui/material";
 import { mutateRunPluginTask, usePlugins } from "src/core/StashService";
 import { useToast } from "src/hooks/Toast";
 import * as GQL from "src/core/generated-graphql";
@@ -22,8 +22,8 @@ export const PluginTasks: React.FC = () => {
         <Setting heading={o.name} subHeading={o.description} key={o.name}>
           <Button
             onClick={() => onPluginTaskClicked(plugin, o)}
-            variant="secondary"
-            size="sm"
+            variant="outlined"
+            size="small"
           >
             {o.name}
           </Button>
@@ -55,7 +55,7 @@ export const PluginTasks: React.FC = () => {
   }
 
   return (
-    <Form.Group>
+    <Box>
       <SettingSection headingID="config.tasks.plugin_tasks">
         {taskPlugins.map((o) => {
           return (
@@ -71,6 +71,6 @@ export const PluginTasks: React.FC = () => {
           );
         })}
       </SettingSection>
-    </Form.Group>
+    </Box>
   );
 };

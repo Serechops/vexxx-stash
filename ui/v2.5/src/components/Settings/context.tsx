@@ -4,7 +4,7 @@ import {
   faTimesCircle,
 } from "@fortawesome/free-solid-svg-icons";
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { Spinner } from "react-bootstrap";
+import { CircularProgress } from "@mui/material";
 import { IUIConfig } from "src/core/config";
 import * as GQL from "src/core/generated-graphql";
 import {
@@ -52,7 +52,7 @@ export interface ISettingsContextState {
   refetch: () => void;
 }
 
-function noop() {}
+function noop() { }
 
 const emptyState: ISettingsContextState = {
   loading: false,
@@ -551,9 +551,7 @@ export const SettingsContext: React.FC = ({ children }) => {
     ) {
       return (
         <div className="loading-indicator">
-          <Spinner animation="border" role="status">
-            <span className="sr-only">Loading...</span>
-          </Spinner>
+          <CircularProgress />
         </div>
       );
     }

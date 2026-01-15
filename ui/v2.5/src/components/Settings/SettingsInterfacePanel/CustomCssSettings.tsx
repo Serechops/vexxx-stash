@@ -1,12 +1,12 @@
 import React from "react";
-import { Form } from "react-bootstrap";
+import { TextField } from "@mui/material";
 import { SettingSection } from "../SettingSection";
 import { BooleanSetting, ModalSetting } from "../Inputs";
-import { ModalProps } from "react-bootstrap";
+
 import { useSettings } from "../context";
 
 interface IProps {
-    modalProps?: ModalProps;
+    modalProps?: any;
 }
 
 export const CustomCssSettings: React.FC<IProps> = ({ modalProps }) => {
@@ -29,13 +29,13 @@ export const CustomCssSettings: React.FC<IProps> = ({ modalProps }) => {
                 onChange={(v) => saveInterface({ css: v })}
                 modalProps={modalProps}
                 renderField={(value, setValue) => (
-                    <Form.Control
-                        as="textarea"
+                    <TextField
+                        multiline
+                        fullWidth
+                        variant="outlined"
                         value={value}
-                        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-                            setValue(e.currentTarget.value)
-                        }
-                        rows={16}
+                        onChange={(e) => setValue(e.target.value)}
+                        minRows={16}
                         className="text-input code"
                     />
                 )}

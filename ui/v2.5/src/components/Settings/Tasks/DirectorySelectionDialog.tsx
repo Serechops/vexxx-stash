@@ -4,7 +4,7 @@ import {
   faPlus,
 } from "@fortawesome/free-solid-svg-icons";
 import React, { useState } from "react";
-import { Button, Col, Form, Row } from "react-bootstrap";
+import { Button, Grid, Typography } from "@mui/material";
 import { useIntl } from "react-intl";
 import { Icon } from "src/components/Shared/Icon";
 import { ModalComponent } from "src/components/Shared/Modal";
@@ -60,22 +60,22 @@ export const DirectorySelectionDialog: React.FC<
     >
       <div className="dialog-container">
         {paths.map((p) => (
-          <Row className="align-items-center mb-1" key={p}>
-            <Form.Label column xs={10}>
-              {p}
-            </Form.Label>
-            <Col xs={2} className="d-flex justify-content-end">
+          <Grid container alignItems="center" spacing={2} key={p} sx={{ mb: 1 }}>
+            <Grid size={{ xs: 10 }}>
+              <Typography>{p}</Typography>
+            </Grid>
+            <Grid size={{ xs: 2 }} sx={{ display: 'flex', justifyContent: 'flex-end' }}>
               <Button
-                className="ml-auto"
-                size="sm"
-                variant="danger"
+                size="small"
+                variant="contained"
+                color="error"
                 title={intl.formatMessage({ id: "actions.delete" })}
                 onClick={() => removePath(p)}
               >
                 <Icon icon={faMinus} />
               </Button>
-            </Col>
-          </Row>
+            </Grid>
+          </Grid>
         ))}
 
         <FolderSelect
@@ -84,8 +84,9 @@ export const DirectorySelectionDialog: React.FC<
           defaultDirectories={libraryPaths}
           appendButton={
             <Button
-              variant="secondary"
+              variant="outlined"
               onClick={() => addPath(currentDirectory)}
+              sx={{ minWidth: 'auto', px: 2 }}
             >
               <Icon icon={faPlus} />
             </Button>

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Button, Form } from "react-bootstrap";
+import { Button, FormControlLabel, Checkbox, TextField, Box, Typography, FormHelperText } from "@mui/material";
 import { FormattedMessage, useIntl } from "react-intl";
 import {
   useDisableDLNA,
@@ -167,14 +167,14 @@ export const SettingsServicesPanel: React.FC = () => {
     // if disabled by default, then show enable temporarily
     if (dlna.enabled) {
       return (
-        <Button onClick={() => setEnableDisable(false)} className="mr-1">
+        <Button onClick={() => setEnableDisable(false)} sx={{ mr: 1 }} variant="contained">
           <FormattedMessage id="actions.temp_disable" />
         </Button>
       );
     }
 
     return (
-      <Button onClick={() => setEnableDisable(true)} className="mr-1">
+      <Button onClick={() => setEnableDisable(true)} sx={{ mr: 1 }} variant="contained">
         <FormattedMessage id="actions.temp_enable" />
       </Button>
     );
@@ -229,7 +229,7 @@ export const SettingsServicesPanel: React.FC = () => {
     }
 
     return (
-      <Button onClick={() => cancelTempBehaviour()} variant="danger">
+      <Button onClick={() => cancelTempBehaviour()} variant="contained" color="error">
         Cancel temporary behaviour
       </Button>
     );
@@ -255,24 +255,28 @@ export const SettingsServicesPanel: React.FC = () => {
         }}
       >
         <h4>{capitalised} temporarily</h4>
-        <Form.Group>
-          <Form.Check
-            checked={enableUntilRestart}
+        <Box sx={{ mb: 2 }}>
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={enableUntilRestart}
+                onChange={() => setEnableUntilRestart(!enableUntilRestart)}
+              />
+            }
             label={intl.formatMessage({ id: "config.dlna.until_restart" })}
-            onChange={() => setEnableUntilRestart(!enableUntilRestart)}
           />
-        </Form.Group>
+        </Box>
 
-        <Form.Group id="temp-enable-duration">
+        <Box id="temp-enable-duration" sx={{ mb: 2 }}>
           <DurationInput
             value={enableDuration}
             setValue={(v) => setEnableDuration(v ?? 0)}
             disabled={enableUntilRestart}
           />
-          <Form.Text className="text-muted">
+          <FormHelperText>
             Duration to {text} for - in minutes.
-          </Form.Text>
-        </Form.Group>
+          </FormHelperText>
+        </Box>
       </ModalComponent>
     );
   }
@@ -297,24 +301,28 @@ export const SettingsServicesPanel: React.FC = () => {
         }}
       >
         <h4>{`Allow ${tempIP} temporarily`}</h4>
-        <Form.Group>
-          <Form.Check
-            checked={enableUntilRestart}
+        <Box sx={{ mb: 2 }}>
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={enableUntilRestart}
+                onChange={() => setEnableUntilRestart(!enableUntilRestart)}
+              />
+            }
             label={intl.formatMessage({ id: "config.dlna.until_restart" })}
-            onChange={() => setEnableUntilRestart(!enableUntilRestart)}
           />
-        </Form.Group>
+        </Box>
 
-        <Form.Group id="temp-enable-duration">
+        <Box id="temp-enable-duration" sx={{ mb: 2 }}>
           <DurationInput
             value={enableDuration}
             setValue={(v) => setEnableDuration(v ?? 0)}
             disabled={enableUntilRestart}
           />
-          <Form.Text className="text-muted">
+          <FormHelperText>
             Duration to allow for - in minutes.
-          </Form.Text>
-        </Form.Group>
+          </FormHelperText>
+        </Box>
       </ModalComponent>
     );
   }
@@ -326,10 +334,10 @@ export const SettingsServicesPanel: React.FC = () => {
 
     const { allowedIPAddresses } = statusData.dlnaStatus;
     return (
-      <Form.Group className="content">
-        <h6>
+      <Box className="content" sx={{ mb: 2 }}>
+        <Typography variant="h6" gutterBottom>
           {intl.formatMessage({ id: "config.dlna.allowed_ip_addresses" })}
-        </h6>
+        </Typography>
 
         <ul className="addresses">
           {allowedIPAddresses.map((a) => (
@@ -342,9 +350,10 @@ export const SettingsServicesPanel: React.FC = () => {
 
               <div className="buttons">
                 <Button
-                  size="sm"
+                  size="small"
                   title={intl.formatMessage({ id: "actions.disallow" })}
-                  variant="danger"
+                  variant="contained"
+                  color="error"
                   onClick={() => onDisallowTempIP(a.ipAddress)}
                 >
                   <Icon icon={faTimes} />
@@ -353,7 +362,7 @@ export const SettingsServicesPanel: React.FC = () => {
             </li>
           ))}
         </ul>
-      </Form.Group>
+      </Box>
     );
   }
 
@@ -368,11 +377,12 @@ export const SettingsServicesPanel: React.FC = () => {
         {recentIPAddresses.map((a) => (
           <li key={a}>
             <div className="address">
-              <code>{a}</code>
+              <Typography component="code">{a}</Typography>
             </div>
             <div>
               <Button
-                size="sm"
+                size="small"
+                variant="outlined"
                 title={intl.formatMessage({ id: "actions.allow_temporarily" })}
                 onClick={() => setTempIP(a)}
               >
@@ -383,17 +393,20 @@ export const SettingsServicesPanel: React.FC = () => {
         ))}
         <li>
           <div className="address">
-            <Form.Control
+            <TextField
               className="text-input"
               value={ipEntry}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              onChange={(e) =>
                 setIPEntry(e.currentTarget.value)
               }
+              variant="outlined"
+              size="small"
             />
           </div>
           <div className="buttons">
             <Button
-              size="sm"
+              size="small"
+              variant="outlined"
               title={intl.formatMessage({ id: "actions.allow_temporarily" })}
               onClick={() => setTempIP(ipEntry)}
               disabled={!ipEntry}
@@ -483,31 +496,31 @@ export const SettingsServicesPanel: React.FC = () => {
 
       <h4>DLNA</h4>
 
-      <Form.Group>
-        <h5>
+      <Box sx={{ mb: 2 }}>
+        <Typography variant="h5">
           {intl.formatMessage({ id: "status" }, { statusText: renderStatus() })}
-        </h5>
-      </Form.Group>
+        </Typography>
+      </Box>
 
       <SettingSection headingID="actions_name">
-        <Form.Group className="content">
+        <Box className="content" sx={{ mb: 2 }}>
           {renderEnableButton()}
           {renderTempCancelButton()}
-        </Form.Group>
+        </Box>
 
         {renderAllowedIPs()}
 
-        <Form.Group className="content">
-          <h6>
+        <Box className="content" sx={{ mb: 2 }}>
+          <Typography variant="subtitle1" gutterBottom>
             {intl.formatMessage({ id: "config.dlna.recent_ip_addresses" })}
-          </h6>
-          <Form.Group>{renderRecentIPs()}</Form.Group>
-          <Form.Group>
-            <Button onClick={() => statusRefetch()}>
+          </Typography>
+          <Box>{renderRecentIPs()}</Box>
+          <Box sx={{ mt: 1 }}>
+            <Button onClick={() => statusRefetch()} variant="outlined">
               <FormattedMessage id="actions.refresh" />
             </Button>
-          </Form.Group>
-        </Form.Group>
+          </Box>
+        </Box>
       </SettingSection>
 
       <DLNASettingsForm />

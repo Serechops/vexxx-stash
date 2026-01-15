@@ -1,5 +1,5 @@
 import React from "react";
-import { Button } from "react-bootstrap";
+import { Button } from "@mui/material";
 import { useIntl } from "react-intl";
 import { useLatestVersion } from "src/core/StashService";
 import { ExternalLink } from "../Shared/ExternalLink";
@@ -64,12 +64,10 @@ export const SettingsAboutPanel: React.FC = () => {
               <div className="value">{hashString}</div>
             </div>
             <div>
-              <a href={dataLatest.latestversion.url}>
-                <Button>
-                  {intl.formatMessage({ id: "actions.download" })}
-                </Button>
-              </a>
-              <Button onClick={() => refetch()}>
+              <Button href={dataLatest.latestversion.url} variant="contained">
+                {intl.formatMessage({ id: "actions.download" })}
+              </Button>
+              <Button onClick={() => refetch()} variant="outlined" sx={{ ml: 1 }}>
                 {intl.formatMessage({
                   id: "config.about.check_for_new_version",
                 })}

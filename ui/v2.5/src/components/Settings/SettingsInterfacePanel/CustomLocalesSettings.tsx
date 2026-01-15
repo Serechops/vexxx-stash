@@ -1,5 +1,5 @@
 import React from "react";
-import { Form } from "react-bootstrap";
+import { TextField, FormHelperText } from "@mui/material";
 import { useIntl } from "react-intl";
 import { SettingSection } from "../SettingSection";
 import { BooleanSetting, ModalSetting } from "../Inputs";
@@ -43,19 +43,19 @@ export const CustomLocalesSettings: React.FC = () => {
                 validateChange={validateLocaleString}
                 renderField={(value, setValue, err) => (
                     <>
-                        <Form.Control
-                            as="textarea"
+                        <TextField
+                            multiline
+                            fullWidth
+                            variant="outlined"
                             value={value}
-                            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-                                setValue(e.currentTarget.value)
-                            }
-                            rows={16}
+                            onChange={(e) => setValue(e.target.value)}
+                            minRows={16}
                             className="text-input code"
-                            isInvalid={!!err}
+                            error={!!err}
                         />
-                        <Form.Control.Feedback type="invalid">
+                        <FormHelperText error>
                             {err}
-                        </Form.Control.Feedback>
+                        </FormHelperText>
                     </>
                 )}
                 renderValue={() => {

@@ -2,12 +2,31 @@ import React, { useState, useEffect } from "react";
 import { useIntl } from "react-intl";
 import {
     Button,
-    Form,
-    Modal,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
     Table,
-    Badge,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
+    Paper,
+    Chip,
     ButtonGroup,
-} from "react-bootstrap";
+    TextField,
+    MenuItem,
+    Select,
+    FormControl,
+    InputLabel,
+    FormControlLabel,
+    Switch,
+    Box,
+    Typography,
+    Divider,
+    IconButton
+} from "@mui/material";
 import { Icon } from "src/components/Shared/Icon";
 import {
     faPlus,
@@ -270,51 +289,50 @@ export const ScheduledTasks: React.FC = () => {
 
                 return (
                     <div className="plugin-task-options">
-                        <Form.Group className="mb-3">
-                            <Form.Label>Plugin</Form.Label>
-                            <Form.Control
-                                as="select"
+                        <FormControl fullWidth variant="outlined" sx={{ mb: 3 }}>
+                            <InputLabel id="plugin-label">Plugin</InputLabel>
+                            <Select
+                                labelId="plugin-label"
                                 value={selectedPluginId}
                                 onChange={(e) => {
-                                    setSelectedPluginId(e.target.value);
+                                    setSelectedPluginId(e.target.value as string);
                                     setSelectedPluginTask("");
                                 }}
+                                label="Plugin"
                             >
-                                <option value="">Select a plugin...</option>
+                                <MenuItem value=""><em>Select a plugin...</em></MenuItem>
                                 {taskPlugins.map(p => (
-                                    <option key={p.id} value={p.id}>{p.name}</option>
+                                    <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>
                                 ))}
-                            </Form.Control>
-                        </Form.Group>
+                            </Select>
+                        </FormControl>
 
-                        <Form.Group className="mb-3">
-                            <Form.Label>Task</Form.Label>
-                            <Form.Control
-                                as="select"
+                        <FormControl fullWidth variant="outlined" sx={{ mb: 3 }}>
+                            <InputLabel id="task-label">Task</InputLabel>
+                            <Select
+                                labelId="task-label"
                                 value={selectedPluginTask}
-                                onChange={(e) => setSelectedPluginTask(e.target.value)}
+                                onChange={(e) => setSelectedPluginTask(e.target.value as string)}
+                                label="Task"
                                 disabled={!selectedPlugin}
                             >
-                                <option value="">Select a task...</option>
+                                <MenuItem value=""><em>Select a task...</em></MenuItem>
                                 {selectedPlugin?.tasks?.map(t => (
-                                    <option key={t.name} value={t.name}>{t.name}</option>
+                                    <MenuItem key={t.name} value={t.name}>{t.name}</MenuItem>
                                 ))}
-                            </Form.Control>
+                            </Select>
                             {selectedPlugin && selectedPluginTask && (
-                                <Form.Text className="text-muted">
+                                <Typography variant="caption" color="textSecondary" sx={{ mt: 1 }}>
                                     {selectedPlugin.tasks?.find(t => t.name === selectedPluginTask)?.description}
-                                </Form.Text>
+                                </Typography>
                             )}
-                        </Form.Group>
+                        </FormControl>
                     </div>
                 )
             default:
                 return <div>Select a task type to configure options.</div>;
         }
     };
-
-    // Filter types if needed
-    const AVAILABLE_TYPES = TASK_TYPES;
 
     if (loading) {
         return <div>Loading scheduled tasks...</div>;
@@ -326,168 +344,170 @@ export const ScheduledTasks: React.FC = () => {
 
     return (
         <div className="scheduled-tasks">
-            <div className="d-flex justify-content-between align-items-center mb-3">
-                <h1>
+            <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+                <Typography variant="h4">
                     <Icon icon={faClock} className="mr-2" />
                     Scheduled Tasks
-                </h1>
-                <Button variant="primary" onClick={openCreateModal}>
-                    <Icon icon={faPlus} className="mr-1" />
+                </Typography>
+                <Button variant="contained" onClick={openCreateModal} startIcon={<Icon icon={faPlus} />}>
                     Add Schedule
                 </Button>
-            </div>
+            </Box>
 
             {tasks.length === 0 ? (
-                <div className="text-muted text-center py-4">
+                <Typography color="textSecondary" align="center" py={4}>
                     No scheduled tasks configured. Click "Add Schedule" to create one.
-                </div>
+                </Typography>
             ) : (
-                <Table striped hover responsive className="scheduled-tasks-table">
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Type</th>
-                            <th>Schedule</th>
-                            <th>Status</th>
-                            <th>Last Run</th>
-                            <th>Next Run</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {tasks.map((task) => (
-                            <tr key={task.id}>
-                                <td>
-                                    <strong>{task.name}</strong>
-                                </td>
-                                <td>
-                                    <Badge variant="info">{getTaskTypeLabel(task.task_type)}</Badge>
-                                </td>
-                                <td>
-                                    <code>{task.cron_schedule}</code>
-                                </td>
-                                <td>
-                                    <Button
-                                        variant={task.enabled ? "success" : "secondary"}
-                                        size="sm"
-                                        onClick={() => handleToggleEnabled(task)}
-                                        title={task.enabled ? "Click to disable" : "Click to enable"}
-                                    >
-                                        <Icon icon={task.enabled ? faCheck : faTimes} />
-                                        {task.enabled ? " Enabled" : " Disabled"}
-                                    </Button>
-                                </td>
-                                <td className="text-muted">{formatDate(task.last_run)}</td>
-                                <td className="text-muted">{formatDate(task.next_run)}</td>
-                                <td>
-                                    <ButtonGroup size="sm">
+                <TableContainer component={Paper}>
+                    <Table size="small">
+                        <TableHead>
+                            <TableRow>
+                                <TableCell>Name</TableCell>
+                                <TableCell>Type</TableCell>
+                                <TableCell>Schedule</TableCell>
+                                <TableCell>Status</TableCell>
+                                <TableCell>Last Run</TableCell>
+                                <TableCell>Next Run</TableCell>
+                                <TableCell>Actions</TableCell>
+                            </TableRow>
+                        </TableHead>
+                        <TableBody>
+                            {tasks.map((task) => (
+                                <TableRow key={task.id}>
+                                    <TableCell>
+                                        <strong>{task.name}</strong>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Chip label={getTaskTypeLabel(task.task_type)} color="default" variant="outlined" size="small" />
+                                    </TableCell>
+                                    <TableCell>
+                                        <code>{task.cron_schedule}</code>
+                                    </TableCell>
+                                    <TableCell>
                                         <Button
-                                            variant="outline-primary"
-                                            onClick={() => handleRun(task.id)}
-                                            title="Run now"
+                                            variant={task.enabled ? "contained" : "outlined"}
+                                            color={task.enabled ? "success" : "inherit"}
+                                            size="small"
+                                            onClick={() => handleToggleEnabled(task)}
+                                            title={task.enabled ? "Click to disable" : "Click to enable"}
+                                            startIcon={<Icon icon={task.enabled ? faCheck : faTimes} />}
                                         >
-                                            <Icon icon={faPlay} />
+                                            {task.enabled ? "Enabled" : "Disabled"}
                                         </Button>
-                                        <Button
-                                            variant="outline-secondary"
-                                            onClick={() => openEditModal(task)}
-                                            title="Edit"
-                                        >
-                                            <Icon icon={faEdit} />
-                                        </Button>
-                                        <Button
-                                            variant="outline-danger"
-                                            onClick={() => handleDelete(task.id)}
-                                            title="Delete"
-                                        >
-                                            <Icon icon={faTrash} />
-                                        </Button>
-                                    </ButtonGroup>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </Table>
+                                    </TableCell>
+                                    <TableCell className="text-muted">{formatDate(task.last_run)}</TableCell>
+                                    <TableCell className="text-muted">{formatDate(task.next_run)}</TableCell>
+                                    <TableCell>
+                                        <ButtonGroup size="small">
+                                            <IconButton
+                                                color="primary"
+                                                onClick={() => handleRun(task.id)}
+                                                title="Run now"
+                                            >
+                                                <Icon icon={faPlay} />
+                                            </IconButton>
+                                            <IconButton
+                                                onClick={() => openEditModal(task)}
+                                                title="Edit"
+                                            >
+                                                <Icon icon={faEdit} />
+                                            </IconButton>
+                                            <IconButton
+                                                color="error"
+                                                onClick={() => handleDelete(task.id)}
+                                                title="Delete"
+                                            >
+                                                <Icon icon={faTrash} />
+                                            </IconButton>
+                                        </ButtonGroup>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
             )}
 
             {/* Create/Edit Modal */}
-            <Modal show={showModal} onHide={() => setShowModal(false)} size="lg">
-                <Modal.Header closeButton>
-                    <Modal.Title>
-                        {editingTask ? "Edit Scheduled Task" : "Create Scheduled Task"}
-                    </Modal.Title>
-                </Modal.Header>
-                <Modal.Body style={{ maxHeight: '80vh', overflowY: 'auto' }}>
-                    <Form>
-                        <Form.Group className="mb-3">
-                            <Form.Label>Task Name</Form.Label>
-                            <Form.Control
-                                type="text"
-                                placeholder="e.g., Nightly Scan"
-                                value={formData.name}
-                                onChange={(e) =>
-                                    setFormData({ ...formData, name: e.target.value })
-                                }
-                            />
-                        </Form.Group>
+            <Dialog open={showModal} onClose={() => setShowModal(false)} maxWidth="md" fullWidth>
+                <DialogTitle>
+                    {editingTask ? "Edit Scheduled Task" : "Create Scheduled Task"}
+                </DialogTitle>
+                <DialogContent>
+                    <Box component="form" noValidate autoComplete="off" sx={{ mt: 2 }}>
+                        <TextField
+                            fullWidth
+                            label="Task Name"
+                            placeholder="e.g., Nightly Scan"
+                            value={formData.name}
+                            onChange={(e) =>
+                                setFormData({ ...formData, name: e.target.value })
+                            }
+                            margin="normal"
+                            variant="outlined"
+                        />
 
-                        <Form.Group className="mb-3">
-                            <Form.Label>Task Type</Form.Label>
-                            <Form.Control
-                                as="select"
+                        <FormControl fullWidth margin="normal" variant="outlined">
+                            <InputLabel id="task-type-label">Task Type</InputLabel>
+                            <Select
+                                labelId="task-type-label"
                                 value={formData.taskType}
                                 onChange={(e) =>
                                     setFormData({ ...formData, taskType: e.target.value as GQL.ScheduledTaskType })
                                 }
+                                label="Task Type"
                             >
-                                {AVAILABLE_TYPES.map((type) => (
-                                    <option key={type.value} value={type.value}>
+                                {TASK_TYPES.map((type) => (
+                                    <MenuItem key={type.value} value={type.value}>
                                         {type.label}
-                                    </option>
+                                    </MenuItem>
                                 ))}
-                            </Form.Control>
-                        </Form.Group>
+                            </Select>
+                        </FormControl>
 
-                        <Form.Group className="mb-3">
-                            <Form.Label>Schedule</Form.Label>
+                        <Box mt={2} mb={2}>
+                            <Typography variant="subtitle2" gutterBottom>Schedule</Typography>
                             <CronInput
                                 value={formData.cronSchedule}
                                 onChange={(v) => setFormData({ ...formData, cronSchedule: v })}
                             />
-                        </Form.Group>
+                        </Box>
 
-                        <Form.Group className="mb-3">
-                            <Form.Check
-                                type="switch"
-                                id="enabled-switch"
-                                label="Enabled"
-                                checked={formData.enabled}
-                                onChange={(e) =>
-                                    setFormData({ ...formData, enabled: e.target.checked })
-                                }
-                            />
-                        </Form.Group>
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    checked={formData.enabled}
+                                    onChange={(e) =>
+                                        setFormData({ ...formData, enabled: e.target.checked })
+                                    }
+                                    color="primary"
+                                />
+                            }
+                            label="Enabled"
+                        />
 
-                        <hr />
-                        <h5>Task Options</h5>
+                        <Divider sx={{ my: 3 }} />
+                        <Typography variant="h6" gutterBottom>Task Options</Typography>
                         <div className="task-options-container">
                             {renderOptionsForm()}
                         </div>
-                    </Form>
-                </Modal.Body>
-                <Modal.Footer>
-                    <Button variant="secondary" onClick={() => setShowModal(false)}>
+                    </Box>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setShowModal(false)} color="inherit">
                         Cancel
                     </Button>
                     <Button
-                        variant="primary"
                         onClick={editingTask ? handleUpdate : handleCreate}
+                        color="primary"
+                        variant="contained"
                         disabled={!formData.name || !formData.cronSchedule}
                     >
                         {editingTask ? "Update" : "Create"}
                     </Button>
-                </Modal.Footer>
-            </Modal>
+                </DialogActions>
+            </Dialog>
         </div>
     );
 };

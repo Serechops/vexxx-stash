@@ -1,5 +1,17 @@
 import React, { useState, useEffect } from "react";
-import { Form, Row, Col, Nav, Tab } from "react-bootstrap";
+import {
+    Box,
+    FormControl,
+    FormHelperText,
+    InputLabel,
+    MenuItem,
+    Select,
+    Tab,
+    Tabs,
+    TextField,
+    Typography,
+    Grid
+} from "@mui/material";
 
 interface CronInputProps {
     value: string;
@@ -59,7 +71,7 @@ export const CronInput: React.FC<CronInputProps> = ({ value, onChange }) => {
         const dailyMatch = value.match(/^0 (\d+) (\d+) \* \* \*$/);
         if (dailyMatch) {
             setActiveTab("daily");
-            setDailyTime(`${dailyMatch[2].padStart(2, '0')}:${dailyMatch[1].padStart(2, '0')}`);
+            setDailyTime(`${dailyMatch[2].padStart(2, '0')}:${dailyMatch[1].padStart(2, '0')} `);
             return;
         }
 
@@ -67,7 +79,7 @@ export const CronInput: React.FC<CronInputProps> = ({ value, onChange }) => {
         const weeklyMatch = value.match(/^0 (\d+) (\d+) \* \* (\d+)$/);
         if (weeklyMatch) {
             setActiveTab("weekly");
-            setWeeklyTime(`${weeklyMatch[2].padStart(2, '0')}:${weeklyMatch[1].padStart(2, '0')}`);
+            setWeeklyTime(`${weeklyMatch[2].padStart(2, '0')}:${weeklyMatch[1].padStart(2, '0')} `);
             setWeeklyDay(parseInt(weeklyMatch[3]));
             return;
         }
@@ -75,7 +87,7 @@ export const CronInput: React.FC<CronInputProps> = ({ value, onChange }) => {
         // Default to advanced/current if not matched
     }, []);
 
-    const handlePresetChange = (e: React.ChangeEvent<any>) => {
+    const handlePresetChange = (e: any) => {
         onChange(e.target.value);
     };
 
@@ -100,127 +112,125 @@ export const CronInput: React.FC<CronInputProps> = ({ value, onChange }) => {
 
     return (
         <div className="cron-input">
-            <Tab.Container activeKey={activeTab} onSelect={(k) => setActiveTab(k || "advanced")}>
-                <Nav variant="tabs" className="mb-3">
-                    <Nav.Item>
-                        <Nav.Link eventKey="presets">Presets</Nav.Link>
-                    </Nav.Item>
-                    <Nav.Item>
-                        <Nav.Link eventKey="interval">Interval</Nav.Link>
-                    </Nav.Item>
-                    <Nav.Item>
-                        <Nav.Link eventKey="daily">Daily</Nav.Link>
-                    </Nav.Item>
-                    <Nav.Item>
-                        <Nav.Link eventKey="weekly">Weekly</Nav.Link>
-                    </Nav.Item>
-                    <Nav.Item>
-                        <Nav.Link eventKey="advanced">Advanced</Nav.Link>
-                    </Nav.Item>
-                </Nav>
+            <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
+                <Tabs value={activeTab} onChange={(e, v) => setActiveTab(v)} aria-label="cron input tabs">
+                    <Tab label="Presets" value="presets" />
+                    <Tab label="Interval" value="interval" />
+                    <Tab label="Daily" value="daily" />
+                    <Tab label="Weekly" value="weekly" />
+                    <Tab label="Advanced" value="advanced" />
+                </Tabs>
+            </Box>
 
-                <Tab.Content>
-                    <Tab.Pane eventKey="presets">
-                        <Form.Group>
-                            <Form.Label>Frequency</Form.Label>
-                            <Form.Control as="select" value={value} onChange={handlePresetChange}>
-                                <option value="">Select a preset...</option>
-                                {PRESETS.map((p) => (
-                                    <option key={p.value} value={p.value}>
-                                        {p.label}
-                                    </option>
+            {activeTab === "presets" && (
+                <FormControl fullWidth variant="outlined">
+                    <InputLabel id="preset-label">Frequency</InputLabel>
+                    <Select
+                        labelId="preset-label"
+                        value={value}
+                        onChange={handlePresetChange}
+                        label="Frequency"
+                        native={false}
+                    >
+                        <MenuItem value=""><em>Select a preset...</em></MenuItem>
+                        {PRESETS.map((p) => (
+                            <MenuItem key={p.value} value={p.value}>
+                                {p.label}
+                            </MenuItem>
+                        ))}
+                    </Select>
+                </FormControl>
+            )}
+
+            {activeTab === "interval" && (
+                <Box>
+                    <Typography variant="subtitle2" gutterBottom>Run every X minutes</Typography>
+                    <Grid container spacing={2} alignItems="center">
+                        <Grid>
+                            <Typography>Every</Typography>
+                        </Grid>
+                        <Grid size={{ xs: 3 }}>
+                            <TextField
+                                type="number"
+                                variant="outlined"
+                                size="small"
+                                inputProps={{ min: 1 }}
+                                value={intervalMinutes}
+                                onChange={(e) => updateInterval(parseInt(e.target.value) || 1)}
+                            />
+                        </Grid>
+                        <Grid>
+                            <Typography>minutes</Typography>
+                        </Grid>
+                    </Grid>
+                    <FormHelperText>
+                        Task will run at 0 seconds past every {intervalMinutes}th minute.
+                    </FormHelperText>
+                </Box>
+            )}
+
+            {activeTab === "daily" && (
+                <FormControl component="fieldset">
+                    <Typography variant="subtitle2" gutterBottom>Time of Day</Typography>
+                    <TextField
+                        type="time"
+                        variant="outlined"
+                        value={dailyTime}
+                        onChange={(e) => updateDaily(e.target.value)}
+                    />
+                </FormControl>
+            )}
+
+            {activeTab === "weekly" && (
+                <Grid container spacing={2}>
+                    <Grid size={{ xs: 6 }}>
+                        <FormControl fullWidth variant="outlined">
+                            <InputLabel id="dow-label">Day of Week</InputLabel>
+                            <Select
+                                labelId="dow-label"
+                                value={weeklyDay}
+                                onChange={(e) => updateWeekly(e.target.value as number, weeklyTime)}
+                                label="Day of Week"
+                            >
+                                {DAYS.map(d => (
+                                    <MenuItem key={d.value} value={d.value}>{d.label}</MenuItem>
                                 ))}
-                            </Form.Control>
-                        </Form.Group>
-                    </Tab.Pane>
+                            </Select>
+                        </FormControl>
+                    </Grid>
+                    <Grid size={{ xs: 6 }}>
+                        <TextField
+                            fullWidth
+                            label="Time"
+                            type="time"
+                            variant="outlined"
+                            value={weeklyTime}
+                            onChange={(e) => updateWeekly(weeklyDay, e.target.value)}
+                            InputLabelProps={{ shrink: true }}
+                        />
+                    </Grid>
+                </Grid>
+            )}
 
-                    <Tab.Pane eventKey="interval">
-                        <Form.Group>
-                            <Form.Label>Run every X minutes</Form.Label>
-                            <Form.Group as={Row} className="align-items-center">
-                                <Col xs="auto">
-                                    <Form.Label className="visually-hidden">Minutes</Form.Label>
-                                    Every
-                                </Col>
-                                <Col xs={3}>
-                                    <Form.Control
-                                        type="number"
-                                        min="1"
-                                        value={intervalMinutes}
-                                        onChange={(e) => updateInterval(parseInt(e.target.value) || 1)}
-                                    />
-                                </Col>
-                                <Col xs="auto">
-                                    minutes
-                                </Col>
-                            </Form.Group>
-                            <Form.Text className="text-muted">
-                                Task will run at 0 seconds past every {intervalMinutes}th minute.
-                            </Form.Text>
-                        </Form.Group>
-                    </Tab.Pane>
-
-                    <Tab.Pane eventKey="daily">
-                        <Form.Group>
-                            <Form.Label>Time of Day</Form.Label>
-                            <Form.Control
-                                type="time"
-                                value={dailyTime}
-                                onChange={(e) => updateDaily(e.target.value)}
-                            />
-                        </Form.Group>
-                    </Tab.Pane>
-
-                    <Tab.Pane eventKey="weekly">
-                        <Row>
-                            <Col>
-                                <Form.Group>
-                                    <Form.Label>Day of Week</Form.Label>
-                                    <Form.Control
-                                        as="select"
-                                        value={weeklyDay}
-                                        onChange={(e) => updateWeekly(parseInt(e.target.value), weeklyTime)}
-                                    >
-                                        {DAYS.map(d => (
-                                            <option key={d.value} value={d.value}>{d.label}</option>
-                                        ))}
-                                    </Form.Control>
-                                </Form.Group>
-                            </Col>
-                            <Col>
-                                <Form.Group>
-                                    <Form.Label>Time</Form.Label>
-                                    <Form.Control
-                                        type="time"
-                                        value={weeklyTime}
-                                        onChange={(e) => updateWeekly(weeklyDay, e.target.value)}
-                                    />
-                                </Form.Group>
-                            </Col>
-                        </Row>
-                    </Tab.Pane>
-
-                    <Tab.Pane eventKey="advanced">
-                        <Form.Group>
-                            <Form.Label>Cron Expression</Form.Label>
-                            <Form.Control
-                                type="text"
-                                value={value}
-                                onChange={(e) => onChange(e.target.value)}
-                                placeholder="0 0 3 * * *"
-                            />
-                            <Form.Text className="text-muted">
-                                Format: Seconds Minutes Hours DayOfMonth Month DayOfWeek
-                            </Form.Text>
-                        </Form.Group>
-                    </Tab.Pane>
-                </Tab.Content>
-            </Tab.Container>
+            {activeTab === "advanced" && (
+                <Box>
+                    <TextField
+                        fullWidth
+                        label="Cron Expression"
+                        value={value}
+                        onChange={(e) => onChange(e.target.value)}
+                        placeholder="0 0 3 * * *"
+                        helperText="Format: Seconds Minutes Hours DayOfMonth Month DayOfWeek"
+                    />
+                </Box>
+            )}
 
             {activeTab !== "advanced" && (
-                <div className="mt-2">
-                    <small className="text-muted">Resulting Cron: <code>{value}</code></small>
-                </div>
+                <Box mt={2}>
+                    <Typography variant="caption" color="textSecondary">
+                        Resulting Cron: <code>{value}</code>
+                    </Typography>
+                </Box>
             )}
         </div>
     );

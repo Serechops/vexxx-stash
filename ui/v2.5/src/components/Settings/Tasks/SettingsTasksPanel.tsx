@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useIntl } from "react-intl";
+import { Box, Divider, Typography } from "@mui/material";
 import { LoadingIndicator } from "src/components/Shared/LoadingIndicator";
 import { LibraryTasks } from "./LibraryTasks";
 import { DataManagementTasks } from "./DataManagementTasks";
@@ -31,24 +32,24 @@ export const SettingsTasksPanel: React.FC = () => {
   }
 
   return (
-    <div id="tasks-panel">
-      <div className="tasks-panel-queue">
-        <h1>{intl.formatMessage({ id: "config.tasks.job_queue" })}</h1>
+    <Box id="tasks-panel">
+      <Box className="tasks-panel-queue">
+        <Typography variant="h4" gutterBottom>{intl.formatMessage({ id: "config.tasks.job_queue" })}</Typography>
         <JobTable />
-      </div>
+      </Box>
 
-      <div className="tasks-panel-tasks">
+      <Box className="tasks-panel-tasks" sx={{ mt: 3 }}>
         <ScheduledTasks />
-        <hr />
+        <Divider sx={{ my: 3 }} />
         <LibraryTasks />
-        <hr />
+        <Divider sx={{ my: 3 }} />
         <DataManagementTasks
           setIsBackupRunning={setIsBackupRunning}
           setIsAnonymiseRunning={setIsAnonymiseRunning}
         />
-        <hr />
+        <Divider sx={{ my: 3 }} />
         <PluginTasks />
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 };

@@ -1,5 +1,5 @@
 import React from "react";
-import { Button } from "react-bootstrap";
+import { Button } from "@mui/material";
 import { FormattedMessage } from "react-intl";
 import {
   mutateReloadPlugins,
@@ -40,7 +40,7 @@ export const SettingsPluginsPanel: React.FC = () => {
 
       <SettingSection headingID="config.categories.plugins">
         <Setting headingID="actions.reload_plugins">
-          <Button onClick={() => onReloadPlugins()}>
+          <Button onClick={() => onReloadPlugins()} variant="contained">
             <span className="fa-icon">
               <Icon icon={faSyncAlt} />
             </span>

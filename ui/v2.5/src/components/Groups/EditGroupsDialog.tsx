@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { Form, Col, Row } from "react-bootstrap";
+import { Box, Typography, TextField } from "@mui/material";
+import { Row, Col } from "src/components/Shared/Layouts";
 import { FormattedMessage, useIntl } from "react-intl";
 import { useBulkGroupUpdate } from "src/core/StashService";
 import * as GQL from "src/core/generated-graphql";
@@ -203,8 +204,8 @@ export const EditGroupsDialog: React.FC<IListOperationProps> = (
         }}
         isRunning={isUpdating}
       >
-        <Form>
-          <Form.Group controlId="rating" as={Row}>
+        <Box component="form">
+          <Row>
             {FormUtils.renderLabel({
               title: intl.formatMessage({ id: "rating" }),
             })}
@@ -215,8 +216,8 @@ export const EditGroupsDialog: React.FC<IListOperationProps> = (
                 disabled={isUpdating}
               />
             </Col>
-          </Form.Group>
-          <Form.Group controlId="studio" as={Row}>
+          </Row>
+          <Row>
             {FormUtils.renderLabel({
               title: intl.formatMessage({ id: "studio" }),
             })}
@@ -230,11 +231,11 @@ export const EditGroupsDialog: React.FC<IListOperationProps> = (
                 menuPortalTarget={document.body}
               />
             </Col>
-          </Form.Group>
-          <Form.Group controlId="containing-groups">
-            <Form.Label>
+          </Row>
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="body2" sx={{ mb: 1 }}>
               <FormattedMessage id="containing_groups" />
-            </Form.Label>
+            </Typography>
             <ContainingGroupsMultiSet
               disabled={isUpdating}
               onUpdate={(v) => setGroups(v)}
@@ -244,23 +245,25 @@ export const EditGroupsDialog: React.FC<IListOperationProps> = (
               mode={containingGroupsMode}
               menuPortalTarget={document.body}
             />
-          </Form.Group>
-          <Form.Group controlId="director">
-            <Form.Label>
+          </Box>
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="body2" sx={{ mb: 1 }}>
               <FormattedMessage id="director" />
-            </Form.Label>
-            <Form.Control
+            </Typography>
+            <TextField
+              fullWidth
+              size="small"
               className="input-control"
               type="text"
-              value={director}
-              onChange={(event) => setDirector(event.currentTarget.value)}
+              value={director ?? ""}
+              onChange={(event) => setDirector(event.target.value)}
               placeholder={intl.formatMessage({ id: "director" })}
             />
-          </Form.Group>
-          <Form.Group controlId="tags">
-            <Form.Label>
+          </Box>
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="body2" sx={{ mb: 1 }}>
               <FormattedMessage id="tags" />
-            </Form.Label>
+            </Typography>
             <MultiSet
               type="tags"
               disabled={isUpdating}
@@ -271,8 +274,8 @@ export const EditGroupsDialog: React.FC<IListOperationProps> = (
               mode={tagMode}
               menuPortalTarget={document.body}
             />
-          </Form.Group>
-        </Form>
+          </Box>
+        </Box>
       </ModalComponent>
     );
   }

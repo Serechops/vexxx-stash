@@ -1,5 +1,5 @@
 import React from "react";
-import { Button, Form } from "react-bootstrap";
+import { Button, FormControl, Select, MenuItem, Box } from "@mui/material";
 import { CriterionModifier } from "src/core/generated-graphql";
 import { ModifierCriterion } from "src/models/list-filter/criteria/criterion";
 import cx from "classnames";
@@ -32,7 +32,7 @@ export const ModifierSelectorButtons: React.FC<IModifierSelect> = ({
   const intl = useIntl();
 
   return (
-    <Form.Group className="modifier-options">
+    <Box className="modifier-options" sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
       {options.map((m) => (
         <Button
           className={cx("modifier-option", {
@@ -40,11 +40,19 @@ export const ModifierSelectorButtons: React.FC<IModifierSelect> = ({
           })}
           key={m}
           onClick={() => onChanged(m)}
+          variant={value === m ? "contained" : "outlined"}
+          size="small"
+          sx={{
+            fontSize: '0.7rem',
+            padding: '2px 6px',
+            minWidth: 'auto',
+            textTransform: 'none'
+          }}
         >
           {ModifierCriterion.getModifierLabel(intl, m)}
         </Button>
       ))}
-    </Form.Group>
+    </Box>
   );
 };
 
@@ -56,17 +64,18 @@ export const ModifierSelect: React.FC<IModifierSelect> = ({
   const intl = useIntl();
 
   return (
-    <Form.Control
-      as="select"
-      onChange={(e) => onChanged(e.target.value as CriterionModifier)}
-      value={value}
-      className="btn-secondary modifier-selector"
-    >
-      {options.map((m) => (
-        <option key={m} value={m}>
-          {ModifierCriterion.getModifierLabel(intl, m)}
-        </option>
-      ))}
-    </Form.Control>
+    <FormControl size="small">
+      <Select
+        value={value}
+        onChange={(e) => onChanged(e.target.value as CriterionModifier)}
+        className="modifier-selector"
+      >
+        {options.map((m) => (
+          <MenuItem key={m} value={m}>
+            {ModifierCriterion.getModifierLabel(intl, m)}
+          </MenuItem>
+        ))}
+      </Select>
+    </FormControl>
   );
 };

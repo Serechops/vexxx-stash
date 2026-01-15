@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { Form, Col, Row } from "react-bootstrap";
+import { Box, Typography, FormControlLabel, Checkbox } from "@mui/material";
+import { Row, Col } from "src/components/Shared/Layouts";
 import { FormattedMessage, useIntl } from "react-intl";
 import isEqual from "lodash-es/isEqual";
 import { useBulkGalleryUpdate } from "src/core/StashService";
@@ -250,8 +251,8 @@ export const EditGalleriesDialog: React.FC<IListOperationProps> = (
         }}
         isRunning={isUpdating}
       >
-        <Form>
-          <Form.Group controlId="rating" as={Row}>
+        <Box component="form">
+          <Row>
             {FormUtils.renderLabel({
               title: intl.formatMessage({ id: "rating" }),
             })}
@@ -262,8 +263,8 @@ export const EditGalleriesDialog: React.FC<IListOperationProps> = (
                 disabled={isUpdating}
               />
             </Col>
-          </Form.Group>
-          <Form.Group controlId="studio" as={Row}>
+          </Row>
+          <Row>
             {FormUtils.renderLabel({
               title: intl.formatMessage({ id: "studio" }),
             })}
@@ -277,32 +278,36 @@ export const EditGalleriesDialog: React.FC<IListOperationProps> = (
                 menuPortalTarget={document.body}
               />
             </Col>
-          </Form.Group>
+          </Row>
 
-          <Form.Group controlId="performers">
-            <Form.Label>
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="body2" sx={{ mb: 1 }}>
               <FormattedMessage id="performers" />
-            </Form.Label>
+            </Typography>
             {renderMultiSelect("performers", performerIds)}
-          </Form.Group>
+          </Box>
 
-          <Form.Group controlId="tags">
-            <Form.Label>
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="body2" sx={{ mb: 1 }}>
               <FormattedMessage id="tags" />
-            </Form.Label>
+            </Typography>
             {renderMultiSelect("tags", tagIds)}
-          </Form.Group>
+          </Box>
 
-          <Form.Group controlId="organized">
-            <Form.Check
-              type="checkbox"
+          <Box sx={{ mb: 2 }}>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={organized ?? false}
+                  indeterminate={organized === undefined}
+                  onChange={() => cycleOrganized()}
+                  inputRef={checkboxRef}
+                />
+              }
               label={intl.formatMessage({ id: "organized" })}
-              checked={organized}
-              ref={checkboxRef}
-              onChange={() => cycleOrganized()}
             />
-          </Form.Group>
-        </Form>
+          </Box>
+        </Box>
       </ModalComponent>
     );
   }

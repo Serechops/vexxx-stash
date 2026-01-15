@@ -1,4 +1,4 @@
-import { Tabs, Tab, Form } from "react-bootstrap";
+import { Tabs, Tab, Box, FormControlLabel, Switch } from "@mui/material";
 import React, { useEffect, useMemo, useState } from "react";
 import { useHistory, Redirect, RouteComponentProps } from "react-router-dom";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -137,15 +137,18 @@ const StudioTabs: React.FC<{
     }
 
     return (
-      <div className="item-list-header">
-        <Form.Check
-          id="showSubContent"
-          checked={showAllDetails}
-          onChange={() => setShowAllDetails(!showAllDetails)}
-          type="switch"
+      <Box className="item-list-header">
+        <FormControlLabel
+          control={
+            <Switch
+              checked={showAllDetails}
+              onChange={() => setShowAllDetails(!showAllDetails)}
+              id="showSubContent"
+            />
+          }
           label={<FormattedMessage id="include_sub_studio_content" />}
         />
-      </div>
+      </Box>
     );
   }, [showAllDetails, studio.child_studios.length]);
 
@@ -166,129 +169,159 @@ const StudioTabs: React.FC<{
   }, [potentialData]);
 
   return (
-    <Tabs
-      id="studio-tabs"
-      mountOnEnter
-      unmountOnExit
-      activeKey={tabKey}
-      onSelect={setTabKey}
-    >
-      <Tab
-        eventKey="scenes"
-        title={
-          <TabTitleCounter
-            messageID="scenes"
-            count={sceneCount}
-            abbreviateCounter={abbreviateCounter}
-          />
-        }
+    <>
+      <Tabs
+        id="studio-tabs"
+        value={tabKey}
+        onChange={(_, k) => setTabKey(k as TabKey)}
+        variant="scrollable"
+        scrollButtons="auto"
       >
-        {contentSwitch}
-        <StudioScenesPanel
-          active={tabKey === "scenes"}
-          studio={studio}
-          showChildStudioContent={showAllDetails}
+        <Tab
+          value="scenes"
+          label={
+            <TabTitleCounter
+              messageID="scenes"
+              count={sceneCount}
+              abbreviateCounter={abbreviateCounter}
+            />
+          }
         />
-      </Tab>
-      <Tab
-        eventKey="galleries"
-        title={
-          <TabTitleCounter
-            messageID="galleries"
-            count={galleryCount}
-            abbreviateCounter={abbreviateCounter}
+        <Tab
+          value="galleries"
+          label={
+            <TabTitleCounter
+              messageID="galleries"
+              count={galleryCount}
+              abbreviateCounter={abbreviateCounter}
+            />
+          }
+        />
+        <Tab
+          value="images"
+          label={
+            <TabTitleCounter
+              messageID="images"
+              count={imageCount}
+              abbreviateCounter={abbreviateCounter}
+            />
+          }
+        />
+        <Tab
+          value="performers"
+          label={
+            <TabTitleCounter
+              messageID="performers"
+              count={performerCount}
+              abbreviateCounter={abbreviateCounter}
+            />
+          }
+        />
+        <Tab
+          value="groups"
+          label={
+            <TabTitleCounter
+              messageID="groups"
+              count={groupCount}
+              abbreviateCounter={abbreviateCounter}
+            />
+          }
+        />
+        <Tab
+          value="childstudios"
+          label={
+            <TabTitleCounter
+              messageID="subsidiary_studios"
+              count={studio.child_studios.length}
+              abbreviateCounter={abbreviateCounter}
+            />
+          }
+        />
+        <Tab
+          value="missing"
+          label={
+            <TabTitleCounter
+              messageID="Missing Scenes"
+              count={missingSceneCount}
+              abbreviateCounter={abbreviateCounter}
+            />
+          }
+        />
+      </Tabs>
+
+      {tabKey === "scenes" && (
+        <Box>
+          {contentSwitch}
+          <StudioScenesPanel
+            active={true}
+            studio={studio}
+            showChildStudioContent={showAllDetails}
           />
-        }
-      >
-        {contentSwitch}
-        <StudioGalleriesPanel
-          active={tabKey === "galleries"}
-          studio={studio}
-          showChildStudioContent={showAllDetails}
-        />
-      </Tab>
-      <Tab
-        eventKey="images"
-        title={
-          <TabTitleCounter
-            messageID="images"
-            count={imageCount}
-            abbreviateCounter={abbreviateCounter}
+        </Box>
+      )}
+
+      {tabKey === "galleries" && (
+        <Box>
+          {contentSwitch}
+          <StudioGalleriesPanel
+            active={true}
+            studio={studio}
+            showChildStudioContent={showAllDetails}
           />
-        }
-      >
-        {contentSwitch}
-        <StudioImagesPanel
-          active={tabKey === "images"}
-          studio={studio}
-          showChildStudioContent={showAllDetails}
-        />
-      </Tab>
-      <Tab
-        eventKey="performers"
-        title={
-          <TabTitleCounter
-            messageID="performers"
-            count={performerCount}
-            abbreviateCounter={abbreviateCounter}
+        </Box>
+      )}
+
+      {tabKey === "images" && (
+        <Box>
+          {contentSwitch}
+          <StudioImagesPanel
+            active={true}
+            studio={studio}
+            showChildStudioContent={showAllDetails}
           />
-        }
-      >
-        {contentSwitch}
-        <StudioPerformersPanel
-          active={tabKey === "performers"}
-          studio={studio}
-          showChildStudioContent={showAllDetails}
-        />
-      </Tab>
-      <Tab
-        eventKey="groups"
-        title={
-          <TabTitleCounter
-            messageID="groups"
-            count={groupCount}
-            abbreviateCounter={abbreviateCounter}
+        </Box>
+      )}
+
+      {tabKey === "performers" && (
+        <Box>
+          {contentSwitch}
+          <StudioPerformersPanel
+            active={true}
+            studio={studio}
+            showChildStudioContent={showAllDetails}
           />
-        }
-      >
-        {contentSwitch}
-        <StudioGroupsPanel
-          active={tabKey === "groups"}
-          studio={studio}
-          showChildStudioContent={showAllDetails}
-        />
-      </Tab>
-      <Tab
-        eventKey="childstudios"
-        title={
-          <TabTitleCounter
-            messageID="subsidiary_studios"
-            count={studio.child_studios.length}
-            abbreviateCounter={abbreviateCounter}
+        </Box>
+      )}
+
+      {tabKey === "groups" && (
+        <Box>
+          {contentSwitch}
+          <StudioGroupsPanel
+            active={true}
+            studio={studio}
+            showChildStudioContent={showAllDetails}
           />
-        }
-      >
-        <StudioChildrenPanel
-          active={tabKey === "childstudios"}
-          studio={studio}
-        />
-      </Tab>
-      <Tab
-        eventKey="missing"
-        title={
-          <TabTitleCounter
-            messageID="Missing Scenes"
-            count={missingSceneCount}
-            abbreviateCounter={abbreviateCounter}
+        </Box>
+      )}
+
+      {tabKey === "childstudios" && (
+        <Box>
+          <StudioChildrenPanel
+            active={true}
+            studio={studio}
           />
-        }
-      >
-        <StudioMissingScenesPanel
-          active={tabKey === "missing"}
-          studio={studio}
-        />
-      </Tab>
-    </Tabs>
+        </Box>
+      )}
+
+      {tabKey === "missing" && (
+        <Box>
+          <StudioMissingScenesPanel
+            active={true}
+            studio={studio}
+          />
+        </Box>
+      )}
+    </>
   );
 };
 

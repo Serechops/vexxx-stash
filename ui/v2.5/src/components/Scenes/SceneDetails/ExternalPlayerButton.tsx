@@ -1,6 +1,6 @@
 import { faExternalLinkAlt } from "@fortawesome/free-solid-svg-icons";
 import React from "react";
-import { Button } from "react-bootstrap";
+import { Button } from "@mui/material";
 import { useIntl } from "react-intl";
 import { Icon } from "src/components/Shared/Icon";
 import { objectTitle } from "src/core/files";
@@ -52,8 +52,10 @@ export const ExternalPlayerButton: React.FC<IExternalPlayerButtonProps> = ({
   return (
     <Button
       className="minimal px-0 px-sm-2 pt-2"
-      variant="secondary"
+      variant="text"
+      color="secondary"
       title={intl.formatMessage({ id: "actions.open_in_external_player" })}
+      size="small"
     >
       <a href={url}>
         <Icon icon={faExternalLinkAlt} color="white" />

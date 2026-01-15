@@ -1,32 +1,21 @@
 import React, { useContext, useState } from "react";
 import {
-  Form,
-  Col,
-  Row,
-  InputGroup,
-  Button,
-  FormControl,
-} from "react-bootstrap";
+  Grid,
+  Typography,
+  IconButton,
+  TextField,
+  Stack,
+  Box,
+} from "@mui/material";
 import { Icon } from "../Icon";
 import clone from "lodash-es/clone";
 import { faCheck, faTimes } from "@fortawesome/free-solid-svg-icons";
-import { getCountryByISO } from "src/utils/country";
+import { getCountryByISO, getCountries } from "src/utils/country";
 import { CountrySelect } from "../CountrySelect";
 import { StringListInput } from "../StringListInput";
 import { ImageSelector } from "../ImageSelector";
 import { ScrapeResult } from "./scrapeResult";
 import { ScrapeDialogContext } from "./ScrapeDialog";
-
-function renderButtonIcon(selected: boolean) {
-  const className = selected ? "text-success" : "text-muted";
-
-  return (
-    <Icon
-      className={`fa-fw ${className}`}
-      icon={selected ? faCheck : faTimes}
-    />
-  );
-}
 
 interface IScrapedFieldProps<T> {
   result: ScrapeResult<T>;
@@ -55,54 +44,87 @@ export const ScrapeDialogRow = <T,>(props: IScrapedRowProps<T>) => {
     return <></>;
   }
 
+  function renderButtonIcon(selected: boolean) {
+    return (
+      <Icon
+        className={`fa-fw`}
+        icon={selected ? faCheck : faTimes}
+      />
+    );
+  }
+
   return (
-    <Row
+    <Grid
+      container
+      spacing={2}
       className={`px-3 pt-3 ${props.className ?? ""}`}
       data-field={props.field}
+      alignItems="flex-start"
     >
-      <Form.Label column lg="3">
-        {props.title}
-      </Form.Label>
+      <Grid size={{ xs: 12, lg: 3 }}>
+        <Typography variant="subtitle2" sx={{ pt: 1 }}>{props.title}</Typography>
+      </Grid>
 
-      <Col lg="9">
-        <Row>
-          <Form.Label column className="d-lg-none column-label">
-            {existingLabel}
-          </Form.Label>
-          <Col lg="6">
-            <InputGroup>
-              <InputGroup.Prepend className="bg-secondary text-white border-secondary">
-                <Button
-                  variant="secondary"
+      <Grid size={{ xs: 12, lg: 9 }}>
+        <Grid container spacing={2}>
+          {/* Mobile labels handled differently in MUI? We can use direct labels */}
+          <Grid size={{ xs: 12, lg: 6 }}>
+            <Box sx={{ display: { lg: 'none' }, mb: 1 }}>
+              <Typography variant="caption" color="textSecondary">{existingLabel}</Typography>
+            </Box>
+            <Stack direction="row" spacing={1} alignItems="flex-start">
+              <Box>
+                <IconButton
+                  size="small"
                   onClick={() => handleSelectClick(false)}
+                  sx={{
+                    bgcolor: 'action.hover',
+                    borderRadius: 1,
+                    mt: 0.5,
+                    color: !props.result.useNewValue ? 'success.main' : 'text.disabled'
+                  }}
                 >
                   {renderButtonIcon(!props.result.useNewValue)}
-                </Button>
-              </InputGroup.Prepend>
-              {props.originalField}
-            </InputGroup>
-          </Col>
+                </IconButton>
+              </Box>
+              <Box flexGrow={1}>
+                {props.originalField}
+              </Box>
+            </Stack>
+          </Grid>
 
-          <Form.Label column className="d-lg-none column-label">
-            {scrapedLabel}
-          </Form.Label>
-          <Col lg="6">
-            <InputGroup>
-              <InputGroup.Prepend>
-                <Button
-                  variant="secondary"
+          <Grid size={{ xs: 12, lg: 6 }}>
+            <Box sx={{ display: { lg: 'none' }, mb: 1 }}>
+              <Typography variant="caption" color="textSecondary">{scrapedLabel}</Typography>
+            </Box>
+            <Stack direction="row" spacing={1} alignItems="flex-start">
+              <Box>
+                <IconButton
+                  size="small"
                   onClick={() => handleSelectClick(true)}
+                  sx={{
+                    bgcolor: 'action.hover',
+                    borderRadius: 1,
+                    mt: 0.5,
+                    color: props.result.useNewValue ? 'success.main' : 'text.disabled'
+                  }}
                 >
                   {renderButtonIcon(props.result.useNewValue)}
-                </Button>
-              </InputGroup.Prepend>
-              {props.newField}
-            </InputGroup>
-            {props.newValues}
-          </Col>
-        </Row>
-      </Col>
-    </Row>
+                </IconButton>
+              </Box>
+              <Box flexGrow={1}>
+                {props.newField}
+              </Box>
+            </Stack>
+            {props.newValues && (
+              <Box mt={1}>
+                {props.newValues}
+              </Box>
+            )}
+          </Grid>
+        </Grid>
+      </Grid>
+    </Grid>
   );
 };
 
@@ -116,15 +138,20 @@ interface IScrapedInputGroupProps {
 
 const ScrapedInputGroup: React.FC<IScrapedInputGroupProps> = (props) => {
   return (
-    <FormControl
+    <TextField
       placeholder={props.placeholder}
       value={props.isNew ? props.result.newValue : props.result.originalValue}
-      readOnly={!props.isNew || props.locked}
+      InputProps={{
+        readOnly: !props.isNew || props.locked,
+      }}
       onChange={(e) => {
         if (props.isNew && props.onChange) {
           props.onChange(e.target.value);
         }
       }}
+      variant="outlined"
+      size="small"
+      fullWidth
       className="bg-secondary text-white border-secondary"
     />
   );
@@ -240,16 +267,21 @@ export const ScrapedStringListRow: React.FC<IScrapedStringListRowProps> = (
 
 const ScrapedTextArea: React.FC<IScrapedInputGroupProps> = (props) => {
   return (
-    <FormControl
-      as="textarea"
+    <TextField
+      multiline
+      minRows={3}
       placeholder={props.placeholder}
       value={props.isNew ? props.result.newValue : props.result.originalValue}
-      readOnly={!props.isNew}
+      InputProps={{
+        readOnly: !props.isNew,
+      }}
       onChange={(e) => {
         if (props.isNew && props.onChange) {
           props.onChange(e.target.value);
         }
       }}
+      variant="outlined"
+      fullWidth
       className="bg-secondary text-white border-secondary scene-description"
     />
   );
@@ -406,11 +438,17 @@ export const ScrapedCountryRow: React.FC<IScrapedCountryRowProps> = ({
     field={field}
     result={result}
     originalField={
-      <FormControl
+      <TextField
         value={
-          getCountryByISO(result.originalValue, locale) ?? result.originalValue
+          getCountries(locale).find((c) => c.value === result.originalValue)
+            ?.label ?? result.originalValue
         }
-        readOnly
+        InputProps={{
+          readOnly: true
+        }}
+        variant="outlined"
+        size="small"
+        fullWidth
         className="bg-secondary text-white border-secondary"
       />
     }

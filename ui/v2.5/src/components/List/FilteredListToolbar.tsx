@@ -8,7 +8,7 @@ import {
   IListFilterOperation,
   ListOperationButtons,
 } from "./ListOperationButtons";
-import { Button, ButtonGroup, ButtonToolbar } from "react-bootstrap";
+import { Button, ButtonGroup, Box } from "@mui/material";
 import { View } from "./views";
 import { IListSelect, useFilterOperations } from "./util";
 import { SavedFilterDropdown } from "./SavedFilterList";
@@ -31,8 +31,9 @@ const SelectionSection: React.FC<{
   return (
     <div className="selected-items-info">
       <Button
-        variant="secondary"
-        className="minimal"
+        variant="text"
+        color="secondary"
+        size="small"
         onClick={() => onSelectNone()}
         title={intl.formatMessage({ id: "actions.select_none" })}
       >
@@ -40,8 +41,9 @@ const SelectionSection: React.FC<{
       </Button>
       <span className="selected-count">{selected}</span>
       <Button
-        variant="secondary"
-        className="minimal"
+        variant="text"
+        color="secondary"
+        size="small"
         onClick={() => onSelectAll()}
         title={intl.formatMessage({ id: "actions.select_all" })}
       >
@@ -125,8 +127,11 @@ export const FilteredListToolbar: React.FC<IFilteredListToolbar> = ({
   );
 
   return (
-    <ButtonToolbar
+    <Box
       className={cx("filtered-list-toolbar !bg-card text-card-foreground rounded-md shadow-sm p-2 mb-4 flex items-center gap-2 !justify-center w-fit mx-auto", { "has-selection": hasSelection })}
+      display="flex"
+      alignItems="center"
+      gap={1}
     >
       {hasSelection ? (
         <SelectionSection
@@ -180,6 +185,6 @@ export const FilteredListToolbar: React.FC<IFilteredListToolbar> = ({
         zoomIndex={contextZoomIndex}
         onSetZoom={zoomable ? handleSetZoom : undefined}
       />
-    </ButtonToolbar>
+    </Box>
   );
 };

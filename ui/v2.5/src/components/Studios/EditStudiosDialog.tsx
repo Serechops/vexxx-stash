@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Col, Form, Row } from "react-bootstrap";
+import { Grid, Typography, Box, InputLabel } from "@mui/material";
 import { FormattedMessage, useIntl } from "react-intl";
 import { useBulkStudioUpdate } from "src/core/StashService";
 import * as GQL from "src/core/generated-graphql";
@@ -15,7 +15,6 @@ import {
 import { IndeterminateCheckbox } from "../Shared/IndeterminateCheckbox";
 import { BulkUpdateTextInput } from "../Shared/BulkUpdateTextInput";
 import { faPencilAlt } from "@fortawesome/free-solid-svg-icons";
-import * as FormUtils from "src/utils/form";
 import { StudioSelect } from "../Shared/Select";
 
 interface IListOperationProps {
@@ -127,17 +126,17 @@ export const EditStudiosDialog: React.FC<IListOperationProps> = (
     area: boolean = false
   ) {
     return (
-      <Form.Group controlId={name}>
-        <Form.Label>
+      <Box className="form-group" data-field={name} mb={2}>
+        <InputLabel shrink>
           <FormattedMessage id={name} />
-        </Form.Label>
+        </InputLabel>
         <BulkUpdateTextInput
           value={value === null ? "" : value ?? undefined}
           valueChanged={(newValue) => setter(newValue)}
           unsetDisabled={props.selected.length < 2}
           as={area ? "textarea" : undefined}
         />
-      </Form.Group>
+      </Box>
     );
   }
 
@@ -162,50 +161,56 @@ export const EditStudiosDialog: React.FC<IListOperationProps> = (
         }}
         isRunning={isUpdating}
       >
-        <Form.Group controlId="parent-studio" as={Row}>
-          {FormUtils.renderLabel({
-            title: intl.formatMessage({ id: "parent_studio" }),
-          })}
-          <Col xs={9}>
-            <StudioSelect
-              onSelect={(items) =>
-                setUpdateField({
-                  parent_id: items.length > 0 ? items[0]?.id : undefined,
-                })
-              }
-              ids={updateInput.parent_id ? [updateInput.parent_id] : []}
-              isDisabled={isUpdating}
-              menuPortalTarget={document.body}
-            />
-          </Col>
-        </Form.Group>
-        <Form.Group controlId="rating" as={Row}>
-          {FormUtils.renderLabel({
-            title: intl.formatMessage({ id: "rating" }),
-          })}
-          <Col xs={9}>
-            <RatingSystem
-              value={updateInput.rating100}
-              onSetRating={(value) =>
-                setUpdateField({ rating100: value ?? undefined })
-              }
-              disabled={isUpdating}
-            />
-          </Col>
-        </Form.Group>
-        <Form>
-          <Form.Group controlId="favorite">
+        <Box mb={2} data-field="parent-studio">
+          <Grid container alignItems="center">
+            <Grid size={{ xs: 3 }}>
+              <Typography variant="body1">{intl.formatMessage({ id: "parent_studio" })}</Typography>
+            </Grid>
+            <Grid size={{ xs: 9 }}>
+              <StudioSelect
+                onSelect={(items) =>
+                  setUpdateField({
+                    parent_id: items.length > 0 ? items[0]?.id : undefined,
+                  })
+                }
+                ids={updateInput.parent_id ? [updateInput.parent_id] : []}
+                isDisabled={isUpdating}
+                menuPortalTarget={document.body}
+              />
+            </Grid>
+          </Grid>
+        </Box>
+
+        <Box mb={2} data-field="rating">
+          <Grid container alignItems="center">
+            <Grid size={{ xs: 3 }}>
+              <Typography variant="body1">{intl.formatMessage({ id: "rating" })}</Typography>
+            </Grid>
+            <Grid size={{ xs: 9 }}>
+              <RatingSystem
+                value={updateInput.rating100}
+                onSetRating={(value) =>
+                  setUpdateField({ rating100: value ?? undefined })
+                }
+                disabled={isUpdating}
+              />
+            </Grid>
+          </Grid>
+        </Box>
+
+        <Box component="form">
+          <Box mb={2} data-field="favorite">
             <IndeterminateCheckbox
               setChecked={(checked) => setUpdateField({ favorite: checked })}
               checked={updateInput.favorite ?? undefined}
               label={intl.formatMessage({ id: "favourite" })}
             />
-          </Form.Group>
+          </Box>
 
-          <Form.Group controlId="tags">
-            <Form.Label>
+          <Box mb={2} data-field="tags">
+            <InputLabel shrink>
               <FormattedMessage id="tags" />
-            </Form.Label>
+            </InputLabel>
             <MultiSet
               type="tags"
               disabled={isUpdating}
@@ -218,7 +223,7 @@ export const EditStudiosDialog: React.FC<IListOperationProps> = (
               mode={tagIds.mode}
               menuPortalTarget={document.body}
             />
-          </Form.Group>
+          </Box>
 
           {renderTextField(
             "details",
@@ -227,7 +232,7 @@ export const EditStudiosDialog: React.FC<IListOperationProps> = (
             true
           )}
 
-          <Form.Group controlId="ignore-auto-tags">
+          <Box mb={2} data-field="ignore_auto_tag">
             <IndeterminateCheckbox
               label={intl.formatMessage({ id: "ignore_auto_tag" })}
               setChecked={(checked) =>
@@ -235,8 +240,8 @@ export const EditStudiosDialog: React.FC<IListOperationProps> = (
               }
               checked={updateInput.ignore_auto_tag ?? undefined}
             />
-          </Form.Group>
-        </Form>
+          </Box>
+        </Box>
       </ModalComponent>
     );
   }

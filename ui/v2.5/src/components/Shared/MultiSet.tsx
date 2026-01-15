@@ -2,7 +2,7 @@ import React from "react";
 import { IntlShape, useIntl } from "react-intl";
 
 import * as GQL from "src/core/generated-graphql";
-import { Button, ButtonGroup } from "react-bootstrap";
+import { Button, ButtonGroup } from "@mui/material";
 import { FilterSelect, SelectObject } from "./Select";
 import {
   GalleryIDSelect,
@@ -132,9 +132,9 @@ export const MultiSetModeButton: React.FC<{
   return (
     <Button
       key={mode}
-      variant="primary"
-      active={active}
-      size="sm"
+      variant={active ? "contained" : "outlined"}
+      color="primary"
+      size="small"
       onClick={onClick}
       disabled={disabled}
     >

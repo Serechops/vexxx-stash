@@ -1,10 +1,10 @@
 import React, { useMemo } from "react";
 import { useIntl } from "react-intl";
 import * as GQL from "src/core/generated-graphql";
-import { Form, Row, Col } from "react-bootstrap";
+import { Box, Typography, TextField } from "@mui/material";
+import { Row, Col } from "src/components/Shared/Layouts";
 import { Group, GroupSelect } from "src/components/Groups/GroupSelect";
 import cx from "classnames";
-import { NumberField } from "src/utils/form";
 
 export type GroupSceneIndexMap = Map<string, number | undefined>;
 
@@ -93,7 +93,7 @@ export const SceneGroupTable: React.FC<IProps> = (props) => {
               />
             </Col>
             <Col xs={3}>
-              <NumberField
+              <TextField
                 className="text-input"
                 value={m.scene_index ?? ""}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
@@ -104,6 +104,9 @@ export const SceneGroupTable: React.FC<IProps> = (props) => {
                       : Number.parseInt(e.currentTarget.value, 10)
                   );
                 }}
+                type="number"
+                size="small"
+                variant="outlined"
               />
             </Col>
           </Row>
@@ -125,9 +128,11 @@ export const SceneGroupTable: React.FC<IProps> = (props) => {
     <div className={cx("group-table", { "no-groups": !value.length })}>
       <Row className="group-table-header">
         <Col xs={9}></Col>
-        <Form.Label column xs={3} className="group-scene-number-header">
-          {intl.formatMessage({ id: "group_scene_number" })}
-        </Form.Label>
+        <Col xs={3} className="group-scene-number-header">
+          <Typography variant="body2" component="label">
+            {intl.formatMessage({ id: "group_scene_number" })}
+          </Typography>
+        </Col>
       </Row>
       {renderTableData()}
     </div>

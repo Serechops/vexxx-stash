@@ -1,5 +1,5 @@
 import React from "react";
-import { Badge } from "react-bootstrap";
+import { Chip } from "@mui/material";
 import { FormattedNumber, useIntl } from "react-intl";
 import TextUtils from "src/utils/text";
 
@@ -24,29 +24,31 @@ export const Counter: React.FC<IProps> = ({
   if (abbreviateCounter) {
     const formatted = TextUtils.abbreviateCounter(count);
     return (
-      <Badge
+      <Chip
         className="left-spacing"
-        pill
-        variant="secondary"
+        size="small"
+        color="secondary"
         data-value={intl.formatNumber(count)}
-      >
-        <FormattedNumber
-          value={formatted.size}
-          maximumFractionDigits={formatted.digits}
-        />
-        {formatted.unit}
-      </Badge>
+        label={
+          <>
+            <FormattedNumber
+              value={formatted.size}
+              maximumFractionDigits={formatted.digits}
+            />
+            {formatted.unit}
+          </>
+        }
+      />
     );
   } else {
     return (
-      <Badge
+      <Chip
         className="left-spacing"
-        pill
-        variant="secondary"
+        size="small"
+        color="secondary"
         data-value={intl.formatNumber(count)}
-      >
-        {intl.formatNumber(count)}
-      </Badge>
+        label={intl.formatNumber(count)}
+      />
     );
   }
 };

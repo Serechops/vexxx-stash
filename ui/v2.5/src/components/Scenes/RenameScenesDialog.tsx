@@ -1,5 +1,21 @@
 import React, { useState } from "react";
-import { Form, Table, Button, Alert } from "react-bootstrap";
+import {
+    Button,
+    Alert,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
+    Paper,
+    Box,
+    Typography,
+    TextField,
+    FormControlLabel,
+    Checkbox,
+    FormHelperText
+} from "@mui/material";
 import { FormattedMessage, useIntl } from "react-intl";
 import * as GQL from "src/core/generated-graphql";
 import { useRenameScenes } from "src/core/StashService";
@@ -88,19 +104,19 @@ export const RenameScenesDialog: React.FC<IRenameScenesProps> = (props) => {
         if (!previewResults || previewResults.length === 0) return null;
 
         return (
-            <div className="rename-preview mt-3" style={{ maxHeight: "300px", overflowY: "auto" }}>
-                <Table striped bordered hover size="sm">
-                    <thead>
-                        <tr>
-                            <th>Old Path</th>
-                            <th>New Path</th>
-                        </tr>
-                    </thead>
-                    <tbody>
+            <TableContainer component={Paper} className="rename-preview mt-3" sx={{ maxHeight: 300 }}>
+                <Table size="small" stickyHeader>
+                    <TableHead>
+                        <TableRow>
+                            <TableCell>Old Path</TableCell>
+                            <TableCell>New Path</TableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
                         {previewResults.map((Res) => (
-                            <tr key={Res.id}>
-                                <td className="text-break" style={{ width: "50%" }}>{Res.old_path}</td>
-                                <td className="text-break" style={{ width: "50%" }}>
+                            <TableRow key={Res.id}>
+                                <TableCell className="text-break" sx={{ width: "50%" }}>{Res.old_path}</TableCell>
+                                <TableCell className="text-break" sx={{ width: "50%" }}>
                                     {Res.error ? (
                                         <span className="text-danger">{Res.error}</span>
                                     ) : (
@@ -108,12 +124,12 @@ export const RenameScenesDialog: React.FC<IRenameScenesProps> = (props) => {
                                             {Res.new_path}
                                         </span>
                                     )}
-                                </td>
-                            </tr>
+                                </TableCell>
+                            </TableRow>
                         ))}
-                    </tbody>
+                    </TableBody>
                 </Table>
-            </div>
+            </TableContainer>
         );
     }
 
@@ -135,38 +151,45 @@ export const RenameScenesDialog: React.FC<IRenameScenesProps> = (props) => {
             isRunning={executing}
             modalProps={{ size: "lg" }}
         >
-            <Form>
-                <Form.Group controlId="template">
-                    <Form.Label>Renaming Template</Form.Label>
-                    <div className="d-flex">
-                        <Form.Control
-                            type="text"
+            <Box component="form">
+                <Box mb={2}>
+                    <Typography component="label" htmlFor="template" variant="body2">Renaming Template</Typography>
+                    <Box display="flex">
+                        <TextField
+                            id="template"
+                            fullWidth
+                            size="small"
+                            variant="outlined"
                             value={template}
                             onChange={(e) => setTemplate(e.target.value)}
                             placeholder="{studio}/{date} - {title}.{ext}"
                         />
-                        <Button variant="info" className="ml-2" onClick={onPreview} disabled={loading}>
+                        <Button variant="contained" color="info" className="ml-2" onClick={onPreview} disabled={loading}>
                             {loading ? "Previewing..." : "Preview"}
                         </Button>
-                    </div>
-                    <Form.Text className="text-muted">
+                    </Box>
+                    <FormHelperText>
                         Available tokens: <code>{`{title}, {date}, {year}, {studio}, {performers}, {rating}, {id}, {ext}`}</code>
-                    </Form.Text>
-                </Form.Group>
+                    </FormHelperText>
+                </Box>
 
-                <Form.Group controlId="organized">
-                    <Form.Check
-                        type="checkbox"
+                <Box mb={2}>
+                    <FormControlLabel
+                        control={
+                            <Checkbox
+                                id="organized"
+                                checked={setOrganized}
+                                onChange={(e) => setSetOrganized(e.target.checked)}
+                            />
+                        }
                         label={intl.formatMessage({ id: "component_tagger.config.mark_organized_label" })}
-                        checked={setOrganized}
-                        onChange={(e) => setSetOrganized(e.target.checked)}
                     />
-                </Form.Group>
+                </Box>
 
-                {error && <Alert variant="danger">{error}</Alert>}
+                {error && <Alert severity="error">{error}</Alert>}
 
                 {renderPreview()}
-            </Form>
+            </Box>
         </ModalComponent>
     );
 };

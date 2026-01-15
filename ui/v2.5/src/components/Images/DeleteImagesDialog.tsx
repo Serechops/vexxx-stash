@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Form } from "react-bootstrap";
+import { FormControlLabel, Checkbox, Box } from "@mui/material";
 import { useImagesDestroy } from "src/core/StashService";
 import * as GQL from "src/core/generated-graphql";
 import { ModalComponent } from "src/components/Shared/Modal";
@@ -135,22 +135,30 @@ export const DeleteImagesDialog: React.FC<IDeleteImageDialogProps> = (
     >
       <p>{message}</p>
       {maybeRenderDeleteFileAlert()}
-      <Form>
-        <Form.Check
-          id="delete-image"
-          checked={deleteFile}
+      <Box>
+        <FormControlLabel
+          control={
+            <Checkbox
+              id="delete-image"
+              checked={deleteFile}
+              onChange={() => setDeleteFile(!deleteFile)}
+            />
+          }
           label={intl.formatMessage({ id: "actions.delete_file" })}
-          onChange={() => setDeleteFile(!deleteFile)}
         />
-        <Form.Check
-          id="delete-image-generated"
-          checked={deleteGenerated}
+        <FormControlLabel
+          control={
+            <Checkbox
+              id="delete-image-generated"
+              checked={deleteGenerated}
+              onChange={() => setDeleteGenerated(!deleteGenerated)}
+            />
+          }
           label={intl.formatMessage({
             id: "actions.delete_generated_supporting_files",
           })}
-          onChange={() => setDeleteGenerated(!deleteGenerated)}
         />
-      </Form>
+      </Box>
     </ModalComponent>
   );
 };

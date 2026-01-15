@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useIntl } from "react-intl";
-import { Button } from "react-bootstrap";
+import { IconButton } from "@mui/material";
 import { Link } from "react-router-dom";
 import * as GQL from "src/core/generated-graphql";
 import { Icon } from "../Shared/Icon";
@@ -131,7 +131,7 @@ export const PerformerListTable: React.FC<IPerformerListTableProps> = (
   );
 
   const FavoriteCell = (performer: GQL.PerformerDataFragment) => (
-    <Button
+    <IconButton
       className={cx(
         "minimal",
         performer.favorite ? "favorite" : "not-favorite"
@@ -139,7 +139,7 @@ export const PerformerListTable: React.FC<IPerformerListTableProps> = (
       onClick={() => setFavorite(!performer.favorite, performer.id)}
     >
       <Icon icon={faHeart} />
-    </Button>
+    </IconButton>
   );
 
   const CountryCell = (performer: GQL.PerformerDataFragment) => {

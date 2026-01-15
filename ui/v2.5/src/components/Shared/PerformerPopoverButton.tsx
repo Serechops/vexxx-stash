@@ -1,6 +1,6 @@
 import { faUser } from "@fortawesome/free-solid-svg-icons";
 import React from "react";
-import { Button } from "react-bootstrap";
+import { Button } from "@mui/material";
 import { Link } from "react-router-dom";
 import * as GQL from "src/core/generated-graphql";
 import { sortPerformers } from "src/core/performers";
@@ -48,7 +48,7 @@ export const PerformerPopoverButton: React.FC<IProps> = ({
       placement="bottom"
       content={popoverContent}
     >
-      <Button className="minimal">
+      <Button className="minimal" variant="text" size="small">
         <Icon icon={faUser} />
         <span>{performers.length}</span>
       </Button>

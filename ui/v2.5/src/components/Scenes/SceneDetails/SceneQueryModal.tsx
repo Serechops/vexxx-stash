@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Badge, Button, Col, Form, InputGroup, Row } from "react-bootstrap";
+import { Chip, Button, TextField, InputAdornment, IconButton, Box, Grid } from "@mui/material";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import * as GQL from "src/core/generated-graphql";
@@ -21,19 +21,19 @@ const SceneSearchResultDetails: React.FC<ISceneSearchResultDetailsProps> = ({
   function renderPerformers() {
     if (scene.performers) {
       return (
-        <Row>
-          <Col>
+        <Grid container spacing={1}>
+          <Grid size={{ xs: 12 }}>
             {scene.performers?.map((performer) => (
-              <Badge
-                className="tag-item"
-                variant="secondary"
+              <Chip
                 key={performer.name}
-              >
-                {performer.name}
-              </Badge>
+                label={performer.name}
+                size="small"
+                className="tag-item"
+                sx={{ mr: 0.5, mb: 0.5 }}
+              />
             ))}
-          </Col>
-        </Row>
+          </Grid>
+        </Grid>
       );
     }
   }
@@ -41,15 +41,19 @@ const SceneSearchResultDetails: React.FC<ISceneSearchResultDetailsProps> = ({
   function renderTags() {
     if (scene.tags) {
       return (
-        <Row>
-          <Col>
+        <Grid container spacing={1}>
+          <Grid size={{ xs: 12 }}>
             {scene.tags?.map((tag) => (
-              <Badge className="tag-item" variant="secondary" key={tag.name}>
-                {tag.name}
-              </Badge>
+              <Chip
+                key={tag.name}
+                label={tag.name}
+                size="small"
+                className="tag-item"
+                sx={{ mr: 0.5, mb: 0.5 }}
+              />
             ))}
-          </Col>
-        </Row>
+          </Grid>
+        </Grid>
       );
     }
   }
@@ -70,22 +74,26 @@ const SceneSearchResultDetails: React.FC<ISceneSearchResultDetailsProps> = ({
 
   return (
     <div className="scene-details">
-      <Row>
-        {renderImage()}
-        <div className="col flex-column">
-          <h4>{scene.title}</h4>
-          <h5>
-            {scene.studio?.name}
-            {scene.studio?.name && scene.date && ` • `}
-            {scene.date}
-          </h5>
-        </div>
-      </Row>
-      <Row>
-        <Col>
+      <Grid container spacing={2}>
+        <Grid>
+          {renderImage()}
+        </Grid>
+        <Grid size="grow">
+          <div className="col flex-column">
+            <h4>{scene.title}</h4>
+            <h5>
+              {scene.studio?.name}
+              {scene.studio?.name && scene.date && ` • `}
+              {scene.date}
+            </h5>
+          </div>
+        </Grid>
+      </Grid>
+      <Grid container>
+        <Grid size={{ xs: 12 }}>
           <TruncatedText text={scene.details ?? ""} lineCount={3} />
-        </Col>
-      </Row>
+        </Grid>
+      </Grid>
       {renderPerformers()}
       {renderTags()}
     </div>
@@ -99,9 +107,9 @@ export interface ISceneSearchResult {
 export const SceneSearchResult: React.FC<ISceneSearchResult> = ({ scene }) => {
   return (
     <div className="mt-3 search-item">
-      <div className="row">
+      <Box p={1}>
         <SceneSearchResultDetails scene={scene} />
-      </div>
+      </Box>
     </div>
   );
 };
@@ -196,28 +204,32 @@ export const SceneQueryModal: React.FC<IProps> = ({
       }}
     >
       <div className={CLASSNAME}>
-        <InputGroup>
-          <Form.Control
-            defaultValue={name ?? ""}
-            placeholder={`${intl.formatMessage({ id: "name" })}...`}
-            className="text-input"
-            ref={inputRef}
-            onKeyPress={(e: React.KeyboardEvent<HTMLInputElement>) =>
-              e.key === "Enter" && doQuery(inputRef.current?.value ?? "")
-            }
-          />
-          <InputGroup.Append>
-            <Button
-              onClick={() => {
-                doQuery(inputRef.current?.value ?? "");
-              }}
-              variant="primary"
-              title={intl.formatMessage({ id: "actions.search" })}
-            >
-              <Icon icon={faSearch} />
-            </Button>
-          </InputGroup.Append>
-        </InputGroup>
+        <TextField
+          defaultValue={name ?? ""}
+          placeholder={`${intl.formatMessage({ id: "name" })}...`}
+          className="text-input"
+          inputRef={inputRef}
+          fullWidth
+          variant="outlined"
+          onKeyPress={(e: React.KeyboardEvent<HTMLDivElement>) =>
+            e.key === "Enter" && doQuery(inputRef.current?.value ?? "")
+          }
+          InputProps={{
+            endAdornment: (
+              <InputAdornment position="end">
+                <IconButton
+                  onClick={() => {
+                    doQuery(inputRef.current?.value ?? "");
+                  }}
+                  title={intl.formatMessage({ id: "actions.search" })}
+                  edge="end"
+                >
+                  <Icon icon={faSearch} />
+                </IconButton>
+              </InputAdornment>
+            ),
+          }}
+        />
 
         {loading ? (
           <div className="m-4 text-center">

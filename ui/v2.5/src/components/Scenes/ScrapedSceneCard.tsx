@@ -1,5 +1,5 @@
 import React from "react";
-import { Button, Card } from "react-bootstrap";
+import { Button, Card, CardContent, Box } from "@mui/material";
 import { faPlus, faCheck, faExternalLinkAlt } from "@fortawesome/free-solid-svg-icons";
 import { Icon } from "src/components/Shared/Icon";
 import * as GQL from "src/core/generated-graphql";
@@ -64,8 +64,9 @@ export const ScrapedSceneCard: React.FC<IScrapedSceneCardProps> = ({
                 {duration && <div className="absolute bottom-1 left-1 px-1.5 py-0.5 bg-black/60 rounded text-xs text-white font-medium">{duration}</div>}
                 <div className="absolute top-1 right-1 flex gap-1">
                     <Button
-                        variant={tracked ? "success" : "secondary"}
-                        size="sm"
+                        variant="contained"
+                        color={tracked ? "success" : "secondary"}
+                        size="small"
                         onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();

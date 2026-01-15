@@ -1,6 +1,6 @@
-import { faBan, faMinus, faThumbsUp } from "@fortawesome/free-solid-svg-icons";
+import { faBan, faMinus, faThumbsUp, faChevronDown } from "@fortawesome/free-solid-svg-icons";
 import React, { useState } from "react";
-import { Button, ButtonGroup, Dropdown, DropdownButton } from "react-bootstrap";
+import { Button, ButtonGroup, Menu, MenuItem } from "@mui/material";
 import { useIntl } from "react-intl";
 import { Icon } from "src/components/Shared/Icon";
 import { LoadingIndicator } from "src/components/Shared/LoadingIndicator";
@@ -25,6 +25,16 @@ export const OCounterButton: React.FC<IOCounterButtonProps> = (
   const messageID = !sfwContentMode ? "o_count" : "o_count_sfw";
 
   const [loading, setLoading] = useState(false);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const open = Boolean(anchorEl);
+
+  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
 
   async function increment() {
     setLoading(true);
@@ -33,12 +43,14 @@ export const OCounterButton: React.FC<IOCounterButtonProps> = (
   }
 
   async function decrement() {
+    handleClose();
     setLoading(true);
     await props.onDecrement();
     setLoading(false);
   }
 
   async function reset() {
+    handleClose();
     setLoading(true);
     await props.onReset();
     setLoading(false);
@@ -50,8 +62,10 @@ export const OCounterButton: React.FC<IOCounterButtonProps> = (
     <Button
       className="minimal pr-1"
       onClick={increment}
-      variant="secondary"
+      variant="text"
+      color="secondary"
       title={intl.formatMessage({ id: messageID })}
+      size="small"
     >
       {icon}
       <span className="ml-2">{props.value}</span>
@@ -61,27 +75,37 @@ export const OCounterButton: React.FC<IOCounterButtonProps> = (
   const maybeRenderDropdown = () => {
     if (props.value) {
       return (
-        <DropdownButton
-          as={ButtonGroup}
-          title=" "
-          variant="secondary"
-          className="pl-0 show-carat"
-        >
-          <Dropdown.Item onClick={decrement}>
-            <Icon icon={faMinus} />
-            <span>Decrement</span>
-          </Dropdown.Item>
-          <Dropdown.Item onClick={reset}>
-            <Icon icon={faBan} />
-            <span>Reset</span>
-          </Dropdown.Item>
-        </DropdownButton>
+        <>
+          <Button
+            variant="text"
+            color="secondary"
+            className="pl-0 show-carat"
+            onClick={handleClick}
+            size="small"
+          >
+            <Icon icon={faChevronDown} size="xs" />
+          </Button>
+          <Menu
+            anchorEl={anchorEl}
+            open={open}
+            onClose={handleClose}
+          >
+            <MenuItem onClick={decrement}>
+              <Icon icon={faMinus} />
+              <span>Decrement</span>
+            </MenuItem>
+            <MenuItem onClick={reset}>
+              <Icon icon={faBan} />
+              <span>Reset</span>
+            </MenuItem>
+          </Menu>
+        </>
       );
     }
   };
 
   return (
-    <ButtonGroup className="o-counter">
+    <ButtonGroup className="o-counter" size="small">
       {renderButton()}
       {maybeRenderDropdown()}
     </ButtonGroup>

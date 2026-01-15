@@ -1,7 +1,8 @@
 import React, { useMemo } from "react";
 import { useIntl } from "react-intl";
 import * as GQL from "src/core/generated-graphql";
-import { Form, Row, Col } from "react-bootstrap";
+import { Typography } from "@mui/material";
+import { Row, Col } from "src/components/Shared/Layouts";
 import { Scene, SceneSelect } from "src/components/Scenes/SceneSelect";
 import cx from "classnames";
 import { NumberField } from "src/utils/form";
@@ -133,9 +134,11 @@ export const GroupSceneTable: React.FC<IProps> = (props) => {
         <div className={cx("group-table", { "no-groups": !value.length })}>
             <Row className="group-table-header">
                 <Col xs={9}></Col>
-                <Form.Label column xs={3} className="group-scene-number-header">
-                    {intl.formatMessage({ id: "group_scene_number" })}
-                </Form.Label>
+                <Col xs={3}>
+                    <Typography variant="body2" className="group-scene-number-header">
+                        {intl.formatMessage({ id: "group_scene_number" })}
+                    </Typography>
+                </Col>
             </Row>
             {renderTableData()}
         </div>

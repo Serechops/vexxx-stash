@@ -1,5 +1,20 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Button, Card, Form, InputGroup, ProgressBar } from "react-bootstrap";
+import {
+  Button,
+  Paper,
+  Box,
+  TextField,
+  LinearProgress,
+  InputAdornment,
+  Typography,
+  FormControlLabel,
+  Radio,
+  RadioGroup,
+  FormControl,
+  FormHelperText,
+  Checkbox,
+  Stack,
+} from "@mui/material";
 import { FormattedMessage, useIntl } from "react-intl";
 import { Link } from "react-router-dom";
 import { HashLink } from "react-router-hash-link";
@@ -87,10 +102,10 @@ const StudioBatchUpdateModal: React.FC<IStudioBatchUpdateModal> = ({
     return queryAll
       ? allStudios?.findStudios.count
       : filteredStashIDs.filter((s) =>
-          // if refresh, then we filter out the studios without a stash id
-          // otherwise, we want untagged studios, filtering out those with a stash id
-          refresh ? s.length > 0 : s.length === 0
-        ).length;
+        // if refresh, then we filter out the studios without a stash id
+        // otherwise, we want untagged studios, filtering out those with a stash id
+        refresh ? s.length > 0 : s.length === 0
+      ).length;
   }, [queryAll, refresh, studios, allStudios, selectedEndpoint.endpoint]);
 
   return (
@@ -113,82 +128,82 @@ const StudioBatchUpdateModal: React.FC<IStudioBatchUpdateModal> = ({
       }}
       disabled={!isIdle}
     >
-      <Form.Group>
-        <Form.Label>
-          <h6>
-            <FormattedMessage id="studio_tagger.studio_selection" />
-          </h6>
-        </Form.Label>
-        <Form.Check
-          id="query-page"
-          type="radio"
+      <FormControl component="fieldset" sx={{ mb: 2 }}>
+        <Typography variant="subtitle1" gutterBottom>
+          <FormattedMessage id="studio_tagger.studio_selection" />
+        </Typography>
+        <RadioGroup
           name="studio-query"
-          label={<FormattedMessage id="studio_tagger.current_page" />}
-          checked={!queryAll}
-          onChange={() => setQueryAll(false)}
-        />
-        <Form.Check
-          id="query-all"
-          type="radio"
-          name="studio-query"
-          label={intl.formatMessage({
-            id: "studio_tagger.query_all_studios_in_the_database",
-          })}
-          checked={queryAll}
-          onChange={() => setQueryAll(true)}
-        />
-      </Form.Group>
-      <Form.Group>
-        <Form.Label>
-          <h6>
-            <FormattedMessage id="studio_tagger.tag_status" />
-          </h6>
-        </Form.Label>
-        <Form.Check
-          id="untagged-studios"
-          type="radio"
+          value={queryAll ? "all" : "page"}
+          onChange={(e) => setQueryAll(e.target.value === "all")}
+        >
+          <FormControlLabel
+            value="page"
+            control={<Radio />}
+            label={<FormattedMessage id="studio_tagger.current_page" />}
+          />
+          <FormControlLabel
+            value="all"
+            control={<Radio />}
+            label={intl.formatMessage({
+              id: "studio_tagger.query_all_studios_in_the_database",
+            })}
+          />
+        </RadioGroup>
+      </FormControl>
+      <FormControl component="fieldset" sx={{ mb: 2 }}>
+        <Typography variant="subtitle1" gutterBottom>
+          <FormattedMessage id="studio_tagger.tag_status" />
+        </Typography>
+        <RadioGroup
           name="studio-refresh"
-          label={intl.formatMessage({
-            id: "studio_tagger.untagged_studios",
-          })}
-          checked={!refresh}
-          onChange={() => setRefresh(false)}
-        />
-        <Form.Text>
-          <FormattedMessage id="studio_tagger.updating_untagged_studios_description" />
-        </Form.Text>
-        <Form.Check
-          id="tagged-studios"
-          type="radio"
-          name="studio-refresh"
-          label={intl.formatMessage({
-            id: "studio_tagger.refresh_tagged_studios",
-          })}
-          checked={refresh}
-          onChange={() => setRefresh(true)}
-        />
-        <Form.Text>
-          <FormattedMessage id="studio_tagger.refreshing_will_update_the_data" />
-        </Form.Text>
-        <div className="mt-4">
-          <Form.Check
-            id="add-parent"
-            checked={batchAddParents}
+          value={refresh ? "tagged" : "untagged"}
+          onChange={(e) => setRefresh(e.target.value === "tagged")}
+        >
+          <FormControlLabel
+            value="untagged"
+            control={<Radio />}
+            label={intl.formatMessage({
+              id: "studio_tagger.untagged_studios",
+            })}
+          />
+          <FormHelperText>
+            <FormattedMessage id="studio_tagger.updating_untagged_studios_description" />
+          </FormHelperText>
+          <FormControlLabel
+            value="tagged"
+            control={<Radio />}
+            label={intl.formatMessage({
+              id: "studio_tagger.refresh_tagged_studios",
+            })}
+          />
+          <FormHelperText>
+            <FormattedMessage id="studio_tagger.refreshing_will_update_the_data" />
+          </FormHelperText>
+        </RadioGroup>
+        <Box sx={{ mt: 2 }}>
+          <FormControlLabel
+            control={
+              <Checkbox
+                id="add-parent"
+                checked={batchAddParents}
+                onChange={() => setBatchAddParents(!batchAddParents)}
+              />
+            }
             label={intl.formatMessage({
               id: "studio_tagger.create_or_tag_parent_studios",
             })}
-            onChange={() => setBatchAddParents(!batchAddParents)}
           />
-        </div>
-      </Form.Group>
-      <b>
+        </Box>
+      </FormControl>
+      <Typography fontWeight="bold">
         <FormattedMessage
           id="studio_tagger.number_of_studios_will_be_processed"
           values={{
             studio_count: studioCount,
           }}
         />
-      </b>
+      </Typography>
     </ModalComponent>
   );
 };
@@ -238,28 +253,33 @@ const StudioBatchAddModal: React.FC<IStudioBatchAddModal> = ({
       }}
       disabled={!isIdle}
     >
-      <Form.Control
+      <TextField
         className="text-input"
-        as="textarea"
-        ref={studioInput}
+        multiline
+        inputRef={studioInput}
         placeholder={intl.formatMessage({
           id: "studio_tagger.studio_names_or_stashids_separated_by_comma",
         })}
         rows={6}
+        fullWidth
       />
-      <Form.Text>
+      <FormHelperText>
         <FormattedMessage id="studio_tagger.any_names_entered_will_be_queried" />
-      </Form.Text>
-      <div className="mt-2">
-        <Form.Check
-          id="add-parent"
-          checked={batchAddParents}
+      </FormHelperText>
+      <Box sx={{ mt: 1 }}>
+        <FormControlLabel
+          control={
+            <Checkbox
+              id="add-parent"
+              checked={batchAddParents}
+              onChange={() => setBatchAddParents(!batchAddParents)}
+            />
+          }
           label={intl.formatMessage({
             id: "studio_tagger.create_or_tag_parent_studios",
           })}
-          onChange={() => setBatchAddParents(!batchAddParents)}
         />
-      </div>
+      </Box>
     </ModalComponent>
   );
 };
@@ -400,8 +420,8 @@ const StudioTaggerList: React.FC<IStudioTaggerListProps> = ({
         details:
           message === "UNIQUE constraint failed: studios.name"
             ? intl.formatMessage({
-                id: "studio_tagger.name_already_exists",
-              })
+              id: "studio_tagger.name_already_exists",
+            })
             : message,
       },
     });
@@ -476,35 +496,36 @@ const StudioTaggerList: React.FC<IStudioTaggerListProps> = ({
         );
       } else if (!isTagged && !stashID) {
         mainContent = (
-          <InputGroup>
-            <Form.Control
+          <Stack direction="row" spacing={1}>
+            <TextField
+              size="small"
               className="text-input"
               defaultValue={studio.name ?? ""}
-              onChange={(e) =>
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                 setQueries({
                   ...queries,
-                  [studio.id]: e.currentTarget.value,
+                  [studio.id]: e.target.value,
                 })
               }
               onKeyPress={(e: React.KeyboardEvent<HTMLInputElement>) =>
                 e.key === "Enter" &&
                 doBoxSearch(studio.id, queries[studio.id] ?? studio.name ?? "")
               }
+              sx={{ flexGrow: 1 }}
             />
-            <InputGroup.Append>
-              <Button
-                disabled={loading}
-                onClick={() =>
-                  doBoxSearch(
-                    studio.id,
-                    queries[studio.id] ?? studio.name ?? ""
-                  )
-                }
-              >
-                <FormattedMessage id="actions.search" />
-              </Button>
-            </InputGroup.Append>
-          </InputGroup>
+            <Button
+              variant="outlined"
+              disabled={loading}
+              onClick={() =>
+                doBoxSearch(
+                  studio.id,
+                  queries[studio.id] ?? studio.name ?? ""
+                )
+              }
+            >
+              <FormattedMessage id="actions.search" />
+            </Button>
+          </Stack>
         );
       } else if (isTagged) {
         mainContent = (
@@ -532,23 +553,22 @@ const StudioTaggerList: React.FC<IStudioTaggerListProps> = ({
 
         subContent = (
           <div key={studio.id}>
-            <InputGroup className="StudioTagger-box-link">
-              <InputGroup.Text>{link}</InputGroup.Text>
-              <InputGroup.Append>
-                <Button
-                  onClick={() =>
-                    doBoxUpdate(studio.id, stashID.stash_id, stashID.endpoint)
-                  }
-                  disabled={!!loadingUpdate}
-                >
-                  {loadingUpdate === stashID.stash_id ? (
-                    <LoadingIndicator inline small message="" />
-                  ) : (
-                    <FormattedMessage id="actions.refresh" />
-                  )}
-                </Button>
-              </InputGroup.Append>
-            </InputGroup>
+            <Stack direction="row" spacing={1} className="StudioTagger-box-link" alignItems="center">
+              <Box sx={{ flexGrow: 1 }}>{link}</Box>
+              <Button
+                variant="outlined"
+                onClick={() =>
+                  doBoxUpdate(studio.id, stashID.stash_id, stashID.endpoint)
+                }
+                disabled={!!loadingUpdate}
+              >
+                {loadingUpdate === stashID.stash_id ? (
+                  <LoadingIndicator inline small message="" />
+                ) : (
+                  <FormattedMessage id="actions.refresh" />
+                )}
+              </Button>
+            </Stack>
             {error[studio.id] && (
               <div className="text-danger mt-1">
                 <strong>
@@ -607,9 +627,9 @@ const StudioTaggerList: React.FC<IStudioTaggerListProps> = ({
           <div className={`${CLASSNAME}-details`}>
             <div></div>
             <div>
-              <Card className="studio-card">
+              <Paper className="studio-card">
                 <img loading="lazy" src={studio.image_path ?? ""} alt="" />
-              </Card>
+              </Paper>
             </div>
             <div className={`${CLASSNAME}-details-text`}>
               <Link
@@ -628,7 +648,7 @@ const StudioTaggerList: React.FC<IStudioTaggerListProps> = ({
     });
 
   return (
-    <Card>
+    <Paper sx={{ p: 2 }}>
       {showBatchUpdate && (
         <StudioBatchUpdateModal
           close={() => setShowBatchUpdate(false)}
@@ -651,15 +671,15 @@ const StudioTaggerList: React.FC<IStudioTaggerListProps> = ({
         />
       )}
       <div className="ml-auto mb-3">
-        <Button onClick={() => setShowBatchAdd(true)}>
+        <Button variant="outlined" onClick={() => setShowBatchAdd(true)}>
           <FormattedMessage id="studio_tagger.batch_add_studios" />
         </Button>
-        <Button className="ml-3" onClick={() => setShowBatchUpdate(true)}>
+        <Button variant="outlined" className="ml-3" onClick={() => setShowBatchUpdate(true)}>
           <FormattedMessage id="studio_tagger.batch_update_studios" />
         </Button>
       </div>
       <div className={CLASSNAME}>{renderStudios()}</div>
-    </Card>
+    </Paper>
   );
 };
 
@@ -770,28 +790,27 @@ export const StudioTagger: React.FC<ITaggerProps> = ({ studios }) => {
           ? batchJob.progress * 100
           : undefined;
       return (
-        <Form.Group className="px-4">
-          <h5>
+        <Box sx={{ px: 2 }}>
+          <Typography variant="h6">
             <FormattedMessage id="studio_tagger.status_tagging_studios" />
-          </h5>
+          </Typography>
           {progress !== undefined && (
-            <ProgressBar
-              animated
-              now={progress}
-              label={`${progress.toFixed(0)}%`}
+            <LinearProgress
+              variant="determinate"
+              value={progress}
             />
           )}
-        </Form.Group>
+        </Box>
       );
     }
 
     if (batchJobID !== undefined) {
       return (
-        <Form.Group className="px-4">
-          <h5>
+        <Box sx={{ px: 2 }}>
+          <Typography variant="h6">
             <FormattedMessage id="studio_tagger.status_tagging_job_queued" />
-          </h5>
-        </Form.Group>
+          </Typography>
+        </Box>
       );
     }
   }
@@ -812,14 +831,14 @@ export const StudioTagger: React.FC<ITaggerProps> = ({ studios }) => {
         {selectedEndpointIndex !== -1 && selectedEndpoint ? (
           <>
             <div className="row mb-2 no-gutters">
-              <Button onClick={() => setShowConfig(!showConfig)} variant="link">
+              <Button onClick={() => setShowConfig(!showConfig)} variant="text">
                 {intl.formatMessage({ id: showHideConfigId })}
               </Button>
               <Button
                 className="ml-auto"
                 onClick={() => setShowManual(true)}
                 title={intl.formatMessage({ id: "help" })}
-                variant="link"
+                variant="text"
               >
                 <FormattedMessage id="help" />
               </Button>

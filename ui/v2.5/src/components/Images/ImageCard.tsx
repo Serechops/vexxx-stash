@@ -1,5 +1,5 @@
 import React, { MouseEvent, useMemo } from "react";
-import { Button, ButtonGroup } from "react-bootstrap";
+import { Button, ButtonGroup } from "@mui/material";
 import cx from "classnames";
 import * as GQL from "src/core/generated-graphql";
 import { Icon } from "src/components/Shared/Icon";
@@ -191,7 +191,7 @@ export const ImageCard: React.FC<IImageCardProps> = PatchComponent(
               />
               {props.onPreview ? (
                 <div className="preview-button">
-                  <Button onClick={props.onPreview}>
+                  <Button onClick={props.onPreview} variant="contained" size="small">
                     <Icon icon={faSearch} />
                   </Button>
                 </div>

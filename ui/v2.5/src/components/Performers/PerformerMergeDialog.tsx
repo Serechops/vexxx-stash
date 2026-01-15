@@ -1,4 +1,4 @@
-import { Form, Col, Row, Button } from "react-bootstrap";
+import { Box, Grid, Button, Typography } from "@mui/material";
 import React, { useEffect, useMemo, useState } from "react";
 import * as GQL from "src/core/generated-graphql";
 import { Icon } from "../Shared/Icon";
@@ -375,7 +375,7 @@ const PerformerMergeDetails: React.FC<IPerformerMergeDetailsProps> = ({
               new ScrapeResult(
                 dest.custom_fields?.[field],
                 sources.find((s) => s.custom_fields?.[field])?.custom_fields?.[
-                  field
+                field
                 ],
                 dest.custom_fields?.[field] === undefined
               ),
@@ -816,61 +816,58 @@ export const PerformerMergeModal: React.FC<IPerformerMergeModalProps> = ({
       }}
       isRunning={running}
     >
-      <div className="form-container row px-3">
-        <div className="col-12 col-lg-6 col-xl-12">
-          <Form.Group controlId="source" as={Row}>
-            {FormUtils.renderLabel({
-              title: intl.formatMessage({ id: "dialogs.merge.source" }),
-              labelProps: {
-                column: true,
-                sm: 3,
-                xl: 12,
-              },
-            })}
-            <Col sm={9} xl={12}>
-              <PerformerSelect
-                isMulti
-                onSelect={(items) => setSourcePerformers(items)}
-                values={sourcePerformers}
-                menuPortalTarget={document.body}
-              />
-            </Col>
-          </Form.Group>
-          <Form.Group
-            controlId="switch"
-            as={Row}
-            className="justify-content-center"
-          >
-            <Button
-              variant="secondary"
-              onClick={() => switchPerformers()}
-              disabled={!sourcePerformers.length || !destPerformer.length}
-              title={intl.formatMessage({ id: "actions.swap" })}
-            >
-              <Icon className="fa-fw" icon={faExchangeAlt} />
-            </Button>
-          </Form.Group>
-          <Form.Group controlId="destination" as={Row}>
-            {FormUtils.renderLabel({
-              title: intl.formatMessage({
-                id: "dialogs.merge.destination",
-              }),
-              labelProps: {
-                column: true,
-                sm: 3,
-                xl: 12,
-              },
-            })}
-            <Col sm={9} xl={12}>
-              <PerformerSelect
-                onSelect={(items) => setDestPerformer(items)}
-                values={destPerformer}
-                menuPortalTarget={document.body}
-              />
-            </Col>
-          </Form.Group>
-        </div>
-      </div>
+      <Box className="form-container px-3">
+        <Grid container spacing={2}>
+          <Grid size={{ xs: 12, lg: 6, xl: 12 }}>
+            <Box mb={2}>
+              <Grid container alignItems="center" spacing={2}>
+                <Grid size={{ xs: 12, sm: 3, xl: 12 }}>
+                  <Typography variant="body1" fontWeight="bold">
+                    {intl.formatMessage({ id: "dialogs.merge.source" })}:
+                  </Typography>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 9, xl: 12 }}>
+                  <PerformerSelect
+                    isMulti
+                    onSelect={(items) => setSourcePerformers(items)}
+                    values={sourcePerformers}
+                    menuPortalTarget={document.body}
+                  />
+                </Grid>
+              </Grid>
+            </Box>
+
+            <Box display="flex" justifyContent="center" mb={2}>
+              <Button
+                variant="contained"
+                color="secondary"
+                onClick={() => switchPerformers()}
+                disabled={!sourcePerformers.length || !destPerformer.length}
+                title={intl.formatMessage({ id: "actions.swap" })}
+              >
+                <Icon className="fa-fw" icon={faExchangeAlt} />
+              </Button>
+            </Box>
+
+            <Box mb={2}>
+              <Grid container alignItems="center" spacing={2}>
+                <Grid size={{ xs: 12, sm: 3, xl: 12 }}>
+                  <Typography variant="body1" fontWeight="bold">
+                    {intl.formatMessage({ id: "dialogs.merge.destination" })}:
+                  </Typography>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 9, xl: 12 }}>
+                  <PerformerSelect
+                    onSelect={(items) => setDestPerformer(items)}
+                    values={destPerformer}
+                    menuPortalTarget={document.body}
+                  />
+                </Grid>
+              </Grid>
+            </Box>
+          </Grid>
+        </Grid>
+      </Box>
     </ModalComponent>
   );
 };

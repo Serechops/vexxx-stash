@@ -1,5 +1,20 @@
 import React, { useState, useEffect } from "react";
-import { Modal, Container, Row, Col, Nav, Tab } from "react-bootstrap";
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  Container,
+  Grid,
+  Tabs,
+  Tab,
+  Box,
+  Typography,
+  IconButton,
+  useTheme,
+  useMediaQuery,
+} from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
+
 import Introduction from "src/docs/en/Manual/Introduction.md";
 import Tasks from "src/docs/en/Manual/Tasks.md";
 import AutoTagging from "src/docs/en/Manual/AutoTagging.md";
@@ -26,14 +41,13 @@ import Browsing from "src/docs/en/Manual/Browsing.md";
 import { MarkdownPage } from "../Shared/MarkdownPage";
 
 interface IManualProps {
-  animation?: boolean;
+  animation?: boolean; // Unused in MUI Dialog but kept for compatibility
   show: boolean;
   onClose: () => void;
   defaultActiveTab?: string;
 }
 
 export const Manual: React.FC<IManualProps> = ({
-  animation,
   show,
   onClose,
   defaultActiveTab,
@@ -164,10 +178,12 @@ export const Manual: React.FC<IManualProps> = ({
     },
   ];
 
-  const [activeTab, setActiveTab] = useState<string>();
+  const [activeTab, setActiveTab] = useState<string>(content[0].key);
 
   useEffect(() => {
-    setActiveTab(defaultActiveTab);
+    if (defaultActiveTab) {
+      setActiveTab(defaultActiveTab);
+    }
   }, [defaultActiveTab]);
 
   // links to other manual pages are specified as "/help/page.md"
@@ -185,58 +201,73 @@ export const Manual: React.FC<IManualProps> = ({
     }
   }
 
+  const handleTabChange = (event: React.SyntheticEvent, newValue: string) => {
+    setActiveTab(newValue);
+  };
+
+  const theme = useTheme();
+  // Responsive check if needed, though dialog handles a lot.
+  // For vertical tabs, we generally want enough width.
+  const isSmallScreen = useMediaQuery(theme.breakpoints.down('md'));
+
+  const activeContent = content.find((c) => c.key === activeTab);
+
   return (
-    <Modal
-      animation={animation}
-      show={show}
-      onHide={onClose}
-      dialogClassName="modal-dialog-scrollable manual modal-xl"
+    <Dialog
+      open={show}
+      onClose={onClose}
+      maxWidth="xl"
+      fullWidth
+      scroll="paper"
+      aria-labelledby="manual-dialog-title"
     >
-      <Modal.Header closeButton>
-        <Modal.Title>Help</Modal.Title>
-      </Modal.Header>
-      <Modal.Body>
-        <Container className="manual-container">
-          <Tab.Container
-            activeKey={activeTab ?? content[0].key}
-            onSelect={(k) => k && setActiveTab(k)}
-            id="manual-tabs"
-          >
-            <Row>
-              <Col lg={3} className="mb-3 mb-lg-0 manual-toc">
-                <Nav variant="pills" className="flex-column">
-                  {content.map((c) => {
-                    return (
-                      <Nav.Item key={`${c.key}-nav`}>
-                        <Nav.Link className={c.className} eventKey={c.key}>
-                          {c.title}
-                        </Nav.Link>
-                      </Nav.Item>
-                    );
-                  })}
-                  <hr className="d-sm-none" />
-                </Nav>
-              </Col>
-              <Col lg={9} className="manual-content">
-                <Tab.Content>
-                  {content.map((c) => {
-                    return (
-                      <Tab.Pane
-                        eventKey={c.key}
-                        key={`${c.key}-pane`}
-                        onClick={interceptLinkClick}
-                      >
-                        <MarkdownPage page={c.content} />
-                      </Tab.Pane>
-                    );
-                  })}
-                </Tab.Content>
-              </Col>
-            </Row>
-          </Tab.Container>
-        </Container>
-      </Modal.Body>
-    </Modal>
+      <DialogTitle id="manual-dialog-title">
+        <Box display="flex" alignItems="center" justifyContent="space-between">
+          <Typography variant="h6">Help</Typography>
+          <IconButton edge="end" color="inherit" onClick={onClose} aria-label="close">
+            <CloseIcon />
+          </IconButton>
+        </Box>
+      </DialogTitle>
+      <DialogContent dividers sx={{ p: 0, height: '80vh' }}>
+        <Grid container sx={{ height: '100%' }}>
+          <Grid size={{ xs: 12, md: 3 }} sx={{ borderRight: 1, borderColor: 'divider', overflowY: 'auto' }}>
+            <Tabs
+              orientation="vertical"
+              variant="scrollable"
+              value={activeTab}
+              onChange={handleTabChange}
+              aria-label="Manual navigation"
+              sx={{
+                '& .MuiTab-root': {
+                  alignItems: 'flex-start',
+                  textAlign: 'left',
+                  textTransform: 'none',
+                },
+              }}
+            >
+              {content.map((c) => (
+                <Tab
+                  key={c.key}
+                  label={c.title}
+                  value={c.key}
+                  sx={{
+                    pl: c.className === 'indent-1' ? 4 : 2
+                  }}
+                />
+              ))}
+            </Tabs>
+          </Grid>
+          <Grid size={{ xs: 12, md: 9 }} sx={{ overflowY: 'auto', p: 3 }} onClick={interceptLinkClick}>
+            {activeContent && (
+              <Box>
+                <MarkdownPage page={activeContent.content} />
+              </Box>
+            )}
+          </Grid>
+        </Grid>
+      </DialogContent>
+    </Dialog>
   );
 };
 

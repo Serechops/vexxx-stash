@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Form } from "react-bootstrap";
+import { Box, FormControlLabel, Checkbox } from "@mui/material";
 import { useScenesDestroy } from "src/core/StashService";
 import * as GQL from "src/core/generated-graphql";
 import { ModalComponent } from "src/components/Shared/Modal";
@@ -149,24 +149,32 @@ export const DeleteScenesDialog: React.FC<IDeleteSceneDialogProps> = (
     >
       <p>{message}</p>
       {maybeRenderDeleteFileAlert()}
-      <Form>
-        <Form.Check
-          id="delete-file"
-          checked={deleteFile}
+      <Box component="form">
+        <FormControlLabel
+          control={
+            <Checkbox
+              id="delete-file"
+              checked={deleteFile}
+              onChange={() => setDeleteFile(!deleteFile)}
+            />
+          }
           label={intl.formatMessage({
             id: "actions.delete_file_and_funscript",
           })}
-          onChange={() => setDeleteFile(!deleteFile)}
         />
-        <Form.Check
-          id="delete-generated"
-          checked={deleteGenerated}
+        <FormControlLabel
+          control={
+            <Checkbox
+              id="delete-generated"
+              checked={deleteGenerated}
+              onChange={() => setDeleteGenerated(!deleteGenerated)}
+            />
+          }
           label={intl.formatMessage({
             id: "actions.delete_generated_supporting_files",
           })}
-          onChange={() => setDeleteGenerated(!deleteGenerated)}
         />
-      </Form>
+      </Box>
     </ModalComponent>
   );
 };

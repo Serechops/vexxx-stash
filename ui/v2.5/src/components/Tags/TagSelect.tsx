@@ -26,7 +26,6 @@ import {
 } from "../Shared/FilterSelect";
 import { useCompare } from "src/hooks/state";
 import { TagPopover } from "./TagPopover";
-import { Placement } from "react-bootstrap/esm/Overlay";
 import { sortByRelevance } from "src/utils/query";
 import { PatchComponent, PatchFunction } from "src/patch";
 
@@ -59,8 +58,8 @@ const tagSelectSort = PatchFunction("TagSelect.sort", sortTagsByRelevance);
 
 export type TagSelectProps = IFilterProps &
   IFilterValueProps<Tag> & {
-    hoverPlacement?: Placement;
-    hoverPlacementLabel?: Placement;
+    hoverPlacement?: "top" | "bottom" | "left" | "right";
+    hoverPlacementLabel?: "top" | "bottom" | "left" | "right";
     excludeIds?: string[];
   };
 

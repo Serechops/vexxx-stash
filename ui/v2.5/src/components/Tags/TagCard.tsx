@@ -1,5 +1,5 @@
 import { PatchComponent } from "src/patch";
-import { Button, ButtonGroup } from "react-bootstrap";
+import { Button, ButtonGroup, IconButton } from "@mui/material";
 import React from "react";
 import { Link } from "react-router-dom";
 import * as GQL from "src/core/generated-graphql";
@@ -28,7 +28,7 @@ const TagCardPopovers: React.FC<IProps> = PatchComponent(
     return (
       <>
         <hr />
-        <ButtonGroup className="card-popovers">
+        <ButtonGroup className="card-popovers" variant="contained" size="small">
           <PopoverCountButton
             className="scene-count"
             type="scene"
@@ -92,7 +92,7 @@ const TagCardOverlays: React.FC<IProps> = PatchComponent(
     function renderFavoriteIcon() {
       return (
         <Link to="" onClick={(e) => e.preventDefault()}>
-          <Button
+          <IconButton
             className={cx(
               "minimal",
               "mousetrap",
@@ -100,9 +100,10 @@ const TagCardOverlays: React.FC<IProps> = PatchComponent(
               tag.favorite ? "favorite" : "not-favorite"
             )}
             onClick={() => onToggleFavorite!(!tag.favorite)}
+            color={tag.favorite ? "error" : "default"}
           >
             <Icon icon={faHeart} size="2x" />
-          </Button>
+          </IconButton>
         </Link>
       );
     }

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Form, Button, Row, Col, Badge, InputGroup } from "react-bootstrap";
+import { Button, Chip, TextField, Select, MenuItem, InputAdornment, FormControl, InputLabel, Box } from "@mui/material";
+import { Row, Col } from "src/components/Shared/Layouts";
 import { FormattedMessage, useIntl } from "react-intl";
 import { faSearch } from "@fortawesome/free-solid-svg-icons";
 import * as GQL from "src/core/generated-graphql";
@@ -65,11 +66,9 @@ const SearchResultTags: React.FC<{
 
   return (
     <Row>
-      <Col>
+      <Col xs={12}>
         {tags.map((tag) => (
-          <Badge className="tag-item" variant="secondary" key={tag.stored_id}>
-            {tag.name}
-          </Badge>
+          <Chip className="tag-item" label={tag.name} key={tag.stored_id} size="small" style={{ marginRight: 4 }} />
         ))}
       </Col>
     </Row>
@@ -92,7 +91,7 @@ const PerformerSearchResultDetails: React.FC<IPerformerResultProps> = ({
     <div className="performer-result">
       <Row>
         <SearchResultImage imageUrl={performer.images?.[0]} />
-        <div className="col flex-column">
+        <Col className="flex-column">
           <h4 className="performer-name">
             <span>{performer.name}</span>
             {performer.disambiguation && (
@@ -125,10 +124,10 @@ const PerformerSearchResultDetails: React.FC<IPerformerResultProps> = ({
               />
             </span>
           )}
-        </div>
+        </Col>
       </Row>
       <Row>
-        <Col>
+        <Col xs={12}>
           <TruncatedText text={performer.details ?? ""} lineCount={3} />
         </Col>
       </Row>
@@ -157,7 +156,7 @@ const SceneSearchResultDetails: React.FC<ISceneResultProps> = ({ scene }) => {
     <div className="scene-result">
       <Row>
         <SearchResultImage imageUrl={scene.image} />
-        <div className="col flex-column">
+        <Col className="flex-column">
           <h4 className="scene-title">
             <span>{scene.title}</span>
             {scene.code && (
@@ -175,10 +174,10 @@ const SceneSearchResultDetails: React.FC<ISceneResultProps> = ({ scene }) => {
               {scene.performers.map((p) => p.name).join(", ")}
             </div>
           )}
-        </div>
+        </Col>
       </Row>
       <Row>
-        <Col>
+        <Col xs={12}>
           <TruncatedText text={scene.details ?? ""} lineCount={3} />
         </Col>
       </Row>
@@ -207,7 +206,7 @@ const StudioSearchResultDetails: React.FC<IStudioResultProps> = ({
     <div className="studio-result">
       <Row>
         <SearchResultImage imageUrl={studio.image} />
-        <div className="col flex-column">
+        <Col className="flex-column">
           <h4 className="studio-name">
             <span>{studio.name}</span>
           </h4>
@@ -219,7 +218,7 @@ const StudioSearchResultDetails: React.FC<IStudioResultProps> = ({
           {studio.urls && studio.urls.length > 0 && (
             <div className="studio-url text-muted small">{studio.urls[0]}</div>
           )}
-        </div>
+        </Col>
       </Row>
     </div>
   );
@@ -245,11 +244,11 @@ export const TagSearchResult: React.FC<ITagResultProps> = ({ tag }) => {
     <div className="mt-3 search-item" style={{ cursor: "pointer" }}>
       <div className="tag-result">
         <Row>
-          <div className="col flex-column">
+          <Col className="flex-column">
             <h4 className="tag-name">
               <span>{tag.name}</span>
             </h4>
-          </div>
+          </Col>
         </Row>
       </div>
     </div>
@@ -444,18 +443,17 @@ export const StashBoxIDSearchModal: React.FC<IProps> = ({
       }}
     >
       <div className={CLASSNAME}>
-        <Form.Group className="d-flex align-items-center mb-3">
-          <Form.Label className="mb-0 mr-2" style={{ flexShrink: 0 }}>
+        <FormControl fullWidth margin="normal">
+          <InputLabel id="stashbox-source-label">
             <FormattedMessage id="stashbox.source" />
-          </Form.Label>
-          <Form.Control
-            as="select"
-            className="input-control"
-            style={{ flex: "0 1 auto" }}
+          </InputLabel>
+          <Select
+            labelId="stashbox-source-label"
             value={selectedStashBox?.endpoint ?? ""}
+            label={<FormattedMessage id="stashbox.source" />}
             onChange={(e) => {
               const box = stashBoxes.find(
-                (b) => b.endpoint === e.currentTarget.value
+                (b) => b.endpoint === e.target.value
               );
               if (box) {
                 setSelectedStashBox(box);
@@ -463,12 +461,12 @@ export const StashBoxIDSearchModal: React.FC<IProps> = ({
             }}
           >
             {stashBoxes.map((box, index) => (
-              <option key={box.endpoint} value={box.endpoint}>
+              <MenuItem key={box.endpoint} value={box.endpoint}>
                 {stashboxDisplayName(box.name, index)}
-              </option>
+              </MenuItem>
             ))}
-          </Form.Control>
-        </Form.Group>
+          </Select>
+        </FormControl>
 
         {selectedStashBox &&
           excludedStashBoxEndpoints.includes(selectedStashBox.endpoint) && (
@@ -477,31 +475,35 @@ export const StashBoxIDSearchModal: React.FC<IProps> = ({
             </span>
           )}
 
-        <InputGroup>
-          <Form.Control
-            onChange={(e) => setQuery(e.currentTarget.value)}
-            value={query}
-            placeholder={intl.formatMessage(
-              { id: "stashbox_search.placeholder_name_or_id" },
-              { entityType: entityTypeDisplayName }
-            )}
-            className="text-input"
-            ref={inputRef}
-            onKeyPress={(e: React.KeyboardEvent<HTMLInputElement>) =>
-              e.key === "Enter" && doSearch()
-            }
-          />
-          <InputGroup.Append>
-            <Button
-              onClick={doSearch}
-              variant="primary"
-              disabled={!selectedStashBox}
-              title={intl.formatMessage({ id: "actions.search" })}
-            >
-              <Icon icon={faSearch} />
-            </Button>
-          </InputGroup.Append>
-        </InputGroup>
+        <TextField
+          fullWidth
+          variant="outlined"
+          onChange={(e) => setQuery(e.currentTarget.value)}
+          value={query}
+          placeholder={intl.formatMessage(
+            { id: "stashbox_search.placeholder_name_or_id" },
+            { entityType: entityTypeDisplayName }
+          )}
+          inputRef={inputRef}
+          onKeyPress={(e: React.KeyboardEvent<HTMLDivElement>) =>
+            e.key === "Enter" && doSearch()
+          }
+          InputProps={{
+            endAdornment: (
+              <InputAdornment position="end">
+                <Button
+                  onClick={doSearch}
+                  variant="contained"
+                  color="primary"
+                  disabled={!selectedStashBox}
+                  title={intl.formatMessage({ id: "actions.search" })}
+                >
+                  <Icon icon={faSearch} />
+                </Button>
+              </InputAdornment>
+            ),
+          }}
+        />
 
         {loading ? (
           <div className="m-4 text-center">

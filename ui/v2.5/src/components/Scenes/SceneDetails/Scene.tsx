@@ -1,4 +1,5 @@
-import { Tab, Nav, Dropdown, Button } from "react-bootstrap";
+import { Tabs, Tab, Box, Menu, MenuItem } from "@mui/material";
+import IconButton from "@mui/material/IconButton";
 import React, {
   useEffect,
   useState,
@@ -393,224 +394,230 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
     }
   }
 
+  const [operationsAnchorEl, setOperationsAnchorEl] = React.useState<null | HTMLElement>(null);
+  const operationsMenuOpen = Boolean(operationsAnchorEl);
+
+  const handleOperationsClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    setOperationsAnchorEl(event.currentTarget);
+  };
+
+  const handleOperationsClose = () => {
+    setOperationsAnchorEl(null);
+  };
+
   const renderOperations = () => (
-    <Dropdown>
-      <Dropdown.Toggle
-        variant="secondary"
-        id="operation-menu"
-        className="minimal"
+    <>
+      <IconButton
+        onClick={handleOperationsClick}
         title={intl.formatMessage({ id: "operations" })}
+        size="small"
       >
         <Icon icon={faEllipsisV} />
-      </Dropdown.Toggle>
-      <Dropdown.Menu className="bg-secondary text-white">
+      </IconButton>
+      <Menu
+        anchorEl={operationsAnchorEl}
+        open={operationsMenuOpen}
+        onClose={handleOperationsClose}
+      >
         {!!scene.files.length && (
-          <Dropdown.Item
-            key="rescan"
-            className="bg-secondary text-white"
-            onClick={() => onRescan()}
+          <MenuItem
+            onClick={() => {
+              onRescan();
+              handleOperationsClose();
+            }}
           >
             <FormattedMessage id="actions.rescan" />
-          </Dropdown.Item>
+          </MenuItem>
         )}
-        <Dropdown.Item
-          key="generate"
-          className="bg-secondary text-white"
-          onClick={() => setIsGenerateDialogOpen(true)}
+        <MenuItem
+          onClick={() => {
+            setIsGenerateDialogOpen(true);
+            handleOperationsClose();
+          }}
         >
           <FormattedMessage id="actions.generate" />
-        </Dropdown.Item>
-        <Dropdown.Item
-          key="generate-screenshot"
-          className="bg-secondary text-white"
-          onClick={() => onGenerateScreenshot(getPlayerPosition())}
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            onGenerateScreenshot(getPlayerPosition());
+            handleOperationsClose();
+          }}
         >
           <FormattedMessage id="actions.generate_thumb_from_current" />
-        </Dropdown.Item>
-        <Dropdown.Item
-          key="generate-default"
-          className="bg-secondary text-white"
-          onClick={() => onGenerateScreenshot()}
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            onGenerateScreenshot();
+            handleOperationsClose();
+          }}
         >
           <FormattedMessage id="actions.generate_thumb_default" />
-        </Dropdown.Item>
+        </MenuItem>
         {boxes.length > 0 && (
-          <Dropdown.Item
-            key="submit"
-            className="bg-secondary text-white"
-            onClick={() => setShowDraftModal(true)}
+          <MenuItem
+            onClick={() => {
+              setShowDraftModal(true);
+              handleOperationsClose();
+            }}
           >
             <FormattedMessage id="actions.submit_stash_box" />
-          </Dropdown.Item>
+          </MenuItem>
         )}
-        <Dropdown.Item
-          key="merge-scene"
-          className="bg-secondary text-white"
-          onClick={() => setIsMerging(true)}
+        <MenuItem
+          onClick={() => {
+            setIsMerging(true);
+            handleOperationsClose();
+          }}
         >
           <FormattedMessage id="actions.merge" />
           ...
-        </Dropdown.Item>
-        <Dropdown.Item
-          key="delete-scene"
-          className="bg-secondary text-white"
-          onClick={() => setIsDeleteAlertOpen(true)}
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            setIsDeleteAlertOpen(true);
+            handleOperationsClose();
+          }}
         >
           <FormattedMessage
             id="actions.delete"
             values={{ entityType: intl.formatMessage({ id: "scene" }) }}
           />
-        </Dropdown.Item>
-      </Dropdown.Menu>
-    </Dropdown>
+        </MenuItem>
+      </Menu>
+    </>
   );
 
   const renderTabs = () => (
-    <Tab.Container
-      activeKey={activeTabKey}
-      onSelect={(k) => k && setActiveTabKey(k)}
-    >
-      <div>
-        <Nav variant="tabs" className="mr-auto">
-          <ScenePageTabs {...props}>
-            <Nav.Item>
-              <Nav.Link eventKey="scene-details-panel">
-                <FormattedMessage id="details" />
-              </Nav.Link>
-            </Nav.Item>
-            {queueScenes.length > 0 ? (
-              <Nav.Item>
-                <Nav.Link eventKey="scene-queue-panel">
-                  <FormattedMessage id="queue" />
-                </Nav.Link>
-              </Nav.Item>
-            ) : (
-              ""
-            )}
-            <Nav.Item>
-              <Nav.Link eventKey="scene-markers-panel">
-                <FormattedMessage id="markers" />
-              </Nav.Link>
-            </Nav.Item>
-            {scene.groups.length > 0 ? (
-              <Nav.Item>
-                <Nav.Link eventKey="scene-group-panel">
-                  <FormattedMessage
-                    id="countables.groups"
-                    values={{ count: scene.groups.length }}
-                  />
-                </Nav.Link>
-              </Nav.Item>
-            ) : (
-              ""
-            )}
-            {scene.galleries.length >= 1 ? (
-              <Nav.Item>
-                <Nav.Link eventKey="scene-galleries-panel">
-                  <FormattedMessage
-                    id="countables.galleries"
-                    values={{ count: scene.galleries.length }}
-                  />
-                </Nav.Link>
-              </Nav.Item>
-            ) : undefined}
-            {scene.files.length > 0 && (
-              <Nav.Item>
-                <Nav.Link eventKey="scene-segments-panel">
-                  <FormattedMessage id="segments" defaultMessage="Segments" />
-                </Nav.Link>
-              </Nav.Item>
-            )}
-            <Nav.Item>
-              <Nav.Link eventKey="scene-video-filter-panel">
-                <FormattedMessage id="effect_filters.name" />
-              </Nav.Link>
-            </Nav.Item>
-            <Nav.Item>
-              <Nav.Link eventKey="scene-file-info-panel">
+    <Box>
+      <ScenePageTabs {...props}>
+        <Tabs
+          value={activeTabKey}
+          onChange={(_, newValue: string) => setActiveTabKey(newValue)}
+          variant="scrollable"
+          scrollButtons="auto"
+          className="mr-auto"
+          sx={{
+            ml: -1.5,
+            '& .MuiTabs-flexContainer': {
+              justifyContent: 'flex-start',
+            },
+            '& .MuiTabs-scroller': {
+              marginLeft: 0,
+              paddingLeft: 0,
+            },
+            '& .MuiButtonBase-root:first-of-type': {
+              paddingLeft: 0,
+              marginLeft: 0,
+            },
+          }}
+        >
+          <Tab
+            value="scene-details-panel"
+            label={<FormattedMessage id="details" />}
+            sx={{
+              pl: 0,
+              ml: 0,
+              minWidth: 'auto',
+              '&.Mui-selected': { pl: 0 }
+            }}
+          />
+          {queueScenes.length > 0 && (
+            <Tab value="scene-queue-panel" label={<FormattedMessage id="queue" />} />
+          )}
+          <Tab value="scene-markers-panel" label={<FormattedMessage id="markers" />} />
+          {scene.groups.length > 0 && (
+            <Tab
+              value="scene-group-panel"
+              label={<FormattedMessage id="countables.groups" values={{ count: scene.groups.length }} />}
+            />
+          )}
+          {scene.galleries.length >= 1 && (
+            <Tab
+              value="scene-galleries-panel"
+              label={<FormattedMessage id="countables.galleries" values={{ count: scene.galleries.length }} />}
+            />
+          )}
+          {scene.files.length > 0 && (
+            <Tab
+              value="scene-segments-panel"
+              label={<FormattedMessage id="segments" defaultMessage="Segments" />}
+            />
+          )}
+          <Tab value="scene-video-filter-panel" label={<FormattedMessage id="effect_filters.name" />} />
+          <Tab
+            value="scene-file-info-panel"
+            label={
+              <>
                 <FormattedMessage id="file_info" />
                 <Counter count={scene.files.length} hideZero hideOne />
-              </Nav.Link>
-            </Nav.Item>
-            <Nav.Item>
-              <Nav.Link eventKey="scene-history-panel">
-                <FormattedMessage id="history" />
-              </Nav.Link>
-            </Nav.Item>
-            <Nav.Item>
-              <Nav.Link eventKey="scene-edit-panel">
-                <FormattedMessage id="actions.edit" />
-              </Nav.Link>
-            </Nav.Item>
-          </ScenePageTabs>
-        </Nav>
-      </div>
+              </>
+            }
+          />
+          <Tab value="scene-history-panel" label={<FormattedMessage id="history" />} />
+          <Tab value="scene-edit-panel" label={<FormattedMessage id="actions.edit" />} />
+        </Tabs>
+      </ScenePageTabs>
 
-      <Tab.Content>
-        <ScenePageTabContent {...props}>
-          <Tab.Pane eventKey="scene-details-panel">
-            <SceneDetailPanel scene={scene} />
-          </Tab.Pane>
-          <Tab.Pane eventKey="scene-queue-panel">
-            <QueueViewer
-              scenes={queueScenes}
-              currentID={scene.id}
-              continue={continuePlaylist}
-              setContinue={setContinuePlaylist}
-              onSceneClicked={onQueueSceneClicked}
-              onNext={onQueueNext}
-              onPrevious={onQueuePrevious}
-              onRandom={onQueueRandom}
-              start={queueStart}
-              hasMoreScenes={queueHasMoreScenes}
-              onLessScenes={onQueueLessScenes}
-              onMoreScenes={onQueueMoreScenes}
-            />
-          </Tab.Pane>
-          <Tab.Pane eventKey="scene-markers-panel">
-            <SceneMarkersPanel
-              sceneId={scene.id}
-              onClickMarker={onClickMarker}
-              isVisible={activeTabKey === "scene-markers-panel"}
-            />
-          </Tab.Pane>
-          <Tab.Pane eventKey="scene-group-panel">
-            <SceneGroupPanel scene={scene} />
-          </Tab.Pane>
-          {scene.galleries.length >= 1 && (
-            <Tab.Pane eventKey="scene-galleries-panel">
-              <SceneGalleriesPanel galleries={scene.galleries} />
-              {scene.galleries.length === 1 && (
-                <GalleryViewer galleryId={scene.galleries[0].id} />
-              )}
-            </Tab.Pane>
-          )}
-          <Tab.Pane eventKey="scene-video-filter-panel">
-            <SceneVideoFilterPanel scene={scene} />
-          </Tab.Pane>
-          <Tab.Pane eventKey="scene-segments-panel">
-            <SceneSegmentsPanel scene={scene} />
-          </Tab.Pane>
-          <Tab.Pane
-            className="file-info-panel"
-            eventKey="scene-file-info-panel"
-          >
-            <SceneFileInfoPanel scene={scene} />
-          </Tab.Pane>
-          <Tab.Pane eventKey="scene-edit-panel" mountOnEnter>
-            <SceneEditPanel
-              isVisible={activeTabKey === "scene-edit-panel"}
-              scene={scene}
-              onSubmit={onSave}
-              onDelete={() => setIsDeleteAlertOpen(true)}
-            />
-          </Tab.Pane>
-          <Tab.Pane eventKey="scene-history-panel">
-            <SceneHistoryPanel scene={scene} />
-          </Tab.Pane>
-        </ScenePageTabContent>
-      </Tab.Content>
-    </Tab.Container>
+      <ScenePageTabContent {...props}>
+        <Box hidden={activeTabKey !== "scene-details-panel"}>
+          <SceneDetailPanel scene={scene} />
+        </Box>
+        <Box hidden={activeTabKey !== "scene-queue-panel"}>
+          <QueueViewer
+            scenes={queueScenes}
+            currentID={scene.id}
+            continue={continuePlaylist}
+            setContinue={setContinuePlaylist}
+            onSceneClicked={onQueueSceneClicked}
+            onNext={onQueueNext}
+            onPrevious={onQueuePrevious}
+            onRandom={onQueueRandom}
+            start={queueStart}
+            hasMoreScenes={queueHasMoreScenes}
+            onLessScenes={onQueueLessScenes}
+            onMoreScenes={onQueueMoreScenes}
+          />
+        </Box>
+        <Box hidden={activeTabKey !== "scene-markers-panel"}>
+          <SceneMarkersPanel
+            sceneId={scene.id}
+            onClickMarker={onClickMarker}
+            isVisible={activeTabKey === "scene-markers-panel"}
+          />
+        </Box>
+        <Box hidden={activeTabKey !== "scene-group-panel"}>
+          <SceneGroupPanel scene={scene} />
+        </Box>
+        {scene.galleries.length >= 1 && (
+          <Box hidden={activeTabKey !== "scene-galleries-panel"}>
+            <SceneGalleriesPanel galleries={scene.galleries} />
+            {scene.galleries.length === 1 && (
+              <GalleryViewer galleryId={scene.galleries[0].id} />
+            )}
+          </Box>
+        )}
+        <Box hidden={activeTabKey !== "scene-video-filter-panel"}>
+          <SceneVideoFilterPanel scene={scene} />
+        </Box>
+        <Box hidden={activeTabKey !== "scene-segments-panel"}>
+          <SceneSegmentsPanel scene={scene} />
+        </Box>
+        <Box hidden={activeTabKey !== "scene-file-info-panel"} className="file-info-panel">
+          <SceneFileInfoPanel scene={scene} />
+        </Box>
+        <Box hidden={activeTabKey !== "scene-edit-panel"}>
+          <SceneEditPanel
+            isVisible={activeTabKey === "scene-edit-panel"}
+            scene={scene}
+            onSubmit={onSave}
+            onDelete={() => setIsDeleteAlertOpen(true)}
+          />
+        </Box>
+        <Box hidden={activeTabKey !== "scene-history-panel"}>
+          <SceneHistoryPanel scene={scene} />
+        </Box>
+      </ScenePageTabContent>
+    </Box>
   );
 
   function getCollapseButtonIcon() {
@@ -703,10 +710,11 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
         </div>
         {renderTabs()}
       </div>
+
       <div className="scene-divider d-none d-xl-block">
-        <Button onClick={() => setCollapsed(!collapsed)}>
+        <IconButton onClick={() => setCollapsed(!collapsed)}>
           <Icon className="fa-fw" icon={getCollapseButtonIcon()} />
-        </Button>
+        </IconButton>
       </div>
       <SubmitStashBoxDraft
         type="scene"

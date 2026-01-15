@@ -10,7 +10,7 @@ import { HoverPopover } from "../Shared/HoverPopover";
 import { Icon } from "../Shared/Icon";
 import cx from "classnames";
 import { TagLink } from "../Shared/TagLink";
-import { Button, ButtonGroup } from "react-bootstrap";
+// Button, ButtonGroup removed
 import {
   ModifierCriterion,
   CriterionValue,

@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from "react";
-import { Button } from "react-bootstrap";
+import { Button } from "@mui/material";
 import * as GQL from "src/core/generated-graphql";
 import { Icon } from "src/components/Shared/Icon";
 import {
@@ -158,7 +158,7 @@ export const SegmentPlayer: React.FC<ISegmentPlayerProps> = ({ scene }) => {
                     zIndex: 10,
                     height: 'auto'
                 }}>
-                    <Button variant="link" onClick={togglePlay} className="text-light mr-3 p-0">
+                    <Button variant="text" onClick={togglePlay} className="text-light mr-3 p-0">
                         <Icon icon={playing ? faPause : faPlay} size="lg" />
                     </Button>
 
@@ -184,7 +184,7 @@ export const SegmentPlayer: React.FC<ISegmentPlayerProps> = ({ scene }) => {
 
                     <div className="d-flex align-items-center">
                         <div className="volume-control d-flex align-items-center ml-2">
-                            <Button variant="link" onClick={toggleMute} className="text-light p-0">
+                            <Button variant="text" onClick={toggleMute} className="text-light p-0">
                                 <Icon icon={muted || volume === 0 ? faVolumeMute : faVolumeUp} />
                             </Button>
                             <input
@@ -198,7 +198,7 @@ export const SegmentPlayer: React.FC<ISegmentPlayerProps> = ({ scene }) => {
                             />
                         </div>
 
-                        <Button variant="link" onClick={toggleFullscreen} className="text-light ml-3 p-0">
+                        <Button variant="text" onClick={toggleFullscreen} className="text-light ml-3 p-0">
                             <Icon icon={fullscreen ? faCompress : faExpand} />
                         </Button>
                     </div>

@@ -1,6 +1,15 @@
 import React from "react";
-import { Table } from "react-bootstrap";
-import { FormattedMessage } from "react-intl";
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
+    Paper,
+    Typography,
+    Box,
+} from "@mui/material";
 import { Icon } from "src/components/Shared/Icon";
 import { faCheck, faTimes, faArrowRight } from "@fortawesome/free-solid-svg-icons";
 
@@ -16,50 +25,52 @@ export const RenamerPreview: React.FC<RenamerPreviewProps> = ({ results }) => {
     }
 
     return (
-        <div className="mt-4">
-            <h4>Preview Changes</h4>
-            <Table striped bordered hover size="sm" className="mt-2">
-                <thead>
-                    <tr>
-                        <th>Current Path</th>
-                        <th></th>
-                        <th>New Path</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {results.map((result) => (
-                        <tr key={result.id}>
-                            <td className="text-break">{result.old_path}</td>
-                            <td style={{ width: "20px" }} className="text-center align-middle">
-                                <Icon icon={faArrowRight} color="gray" />
-                            </td>
-                            <td className="text-break">
-                                {result.error && result.error.includes("missing data") ? (
-                                    <span className="text-danger font-italic">
-                                        Scene skipped due to failing template validation
-                                    </span>
-                                ) : result.error && result.error === "Destination matches current path" ? (
-                                    <span className="text-muted font-italic">
-                                        No changes needed
-                                    </span>
-                                ) : (
-                                    result.new_path
-                                )}
-                            </td>
-                            <td style={{ width: "50px" }} className="text-center align-middle">
-                                {result.error ? (
-                                    <div title={result.error}>
-                                        <Icon icon={faTimes} color="red" />
-                                    </div>
-                                ) : (
-                                    <Icon icon={faCheck} color="green" />
-                                )}
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </Table>
-        </div>
+        <Box mt={4}>
+            <Typography variant="h6" gutterBottom>Preview Changes</Typography>
+            <TableContainer component={Paper} sx={{ mt: 2, border: "1px solid #dee2e6" }}>
+                <Table size="small">
+                    <TableHead>
+                        <TableRow>
+                            <TableCell>Current Path</TableCell>
+                            <TableCell></TableCell>
+                            <TableCell>New Path</TableCell>
+                            <TableCell>Status</TableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {results.map((result) => (
+                            <TableRow key={result.id} hover>
+                                <TableCell sx={{ wordBreak: 'break-all' }}>{result.old_path}</TableCell>
+                                <TableCell style={{ width: "20px" }} align="center">
+                                    <Icon icon={faArrowRight} color="gray" />
+                                </TableCell>
+                                <TableCell sx={{ wordBreak: 'break-all' }}>
+                                    {result.error && result.error.includes("missing data") ? (
+                                        <Typography variant="body2" color="error" sx={{ fontStyle: 'italic' }}>
+                                            Scene skipped due to failing template validation
+                                        </Typography>
+                                    ) : result.error && result.error === "Destination matches current path" ? (
+                                        <Typography variant="body2" color="textSecondary" sx={{ fontStyle: 'italic' }}>
+                                            No changes needed
+                                        </Typography>
+                                    ) : (
+                                        result.new_path
+                                    )}
+                                </TableCell>
+                                <TableCell style={{ width: "50px" }} align="center">
+                                    {result.error ? (
+                                        <div title={result.error}>
+                                            <Icon icon={faTimes} color="red" />
+                                        </div>
+                                    ) : (
+                                        <Icon icon={faCheck} color="green" />
+                                    )}
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </TableContainer>
+        </Box>
     );
 };

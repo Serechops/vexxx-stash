@@ -1,8 +1,8 @@
-import { Button, Form, Col, Row } from "react-bootstrap";
+import { Button, FormLabel, Box } from "@mui/material";
+import { Row, Col } from "src/components/Shared/Layouts";
 import React, { useEffect, useState } from "react";
 import { Icon } from "../Shared/Icon";
 import { ModalComponent } from "src/components/Shared/Modal";
-import * as FormUtils from "src/utils/form";
 import { useTagsMerge } from "src/core/StashService";
 import { useIntl } from "react-intl";
 import { useToast } from "src/hooks/Toast";
@@ -94,64 +94,57 @@ export const TagMergeModal: React.FC<ITagMergeModalProps> = ({
       }}
       isRunning={running}
     >
-      <div className="form-container row px-3">
-        <div className="col-12 col-lg-6 col-xl-12">
-          <Form.Group controlId="source" as={Row}>
-            {FormUtils.renderLabel({
-              title: intl.formatMessage({ id: "dialogs.merge.source" }),
-              labelProps: {
-                column: true,
-                sm: 3,
-                xl: 12,
-              },
-            })}
-            <Col sm={9} xl={12}>
-              <TagSelect
-                isMulti
-                creatable={false}
-                onSelect={(items) => setSrc(items)}
-                values={src}
-                menuPortalTarget={document.body}
-              />
-            </Col>
-          </Form.Group>
-          <Form.Group
-            controlId="switch"
-            as={Row}
-            className="justify-content-center"
-          >
-            <Button
-              variant="secondary"
-              onClick={() => switchTags()}
-              disabled={!src.length || !dest}
-              title={intl.formatMessage({ id: "actions.swap" })}
-            >
-              <Icon className="fa-fw" icon={faExchangeAlt} />
-            </Button>
-          </Form.Group>
-          <Form.Group controlId="destination" as={Row}>
-            {FormUtils.renderLabel({
-              title: intl.formatMessage({
-                id: "dialogs.merge.destination",
-              }),
-              labelProps: {
-                column: true,
-                sm: 3,
-                xl: 12,
-              },
-            })}
-            <Col sm={9} xl={12}>
-              <TagSelect
-                isMulti={false}
-                creatable={false}
-                onSelect={(items) => setDest(items[0])}
-                values={dest ? [dest] : undefined}
-                menuPortalTarget={document.body}
-              />
-            </Col>
-          </Form.Group>
-        </div>
-      </div>
+      <Box className="form-container" px={3}>
+        <Row>
+          <Col xs={12} lg={6} xl={12}>
+            <Row className="mb-3">
+              <Col sm={3} xl={12} className="align-self-center">
+                <FormLabel>
+                  {intl.formatMessage({ id: "dialogs.merge.source" })}
+                </FormLabel>
+              </Col>
+              <Col sm={9} xl={12}>
+                <TagSelect
+                  isMulti
+                  creatable={false}
+                  onSelect={(items) => setSrc(items)}
+                  values={src}
+                  menuPortalTarget={document.body}
+                />
+              </Col>
+            </Row>
+
+            <Row className="justify-content-center mb-3">
+              <Button
+                variant="contained"
+                color="secondary"
+                onClick={() => switchTags()}
+                disabled={!src.length || !dest}
+                title={intl.formatMessage({ id: "actions.swap" })}
+              >
+                <Icon className="fa-fw" icon={faExchangeAlt} />
+              </Button>
+            </Row>
+
+            <Row className="mb-3">
+              <Col sm={3} xl={12} className="align-self-center">
+                <FormLabel>
+                  {intl.formatMessage({ id: "dialogs.merge.destination" })}
+                </FormLabel>
+              </Col>
+              <Col sm={9} xl={12}>
+                <TagSelect
+                  isMulti={false}
+                  creatable={false}
+                  onSelect={(items) => setDest(items[0])}
+                  values={dest ? [dest] : undefined}
+                  menuPortalTarget={document.body}
+                />
+              </Col>
+            </Row>
+          </Col>
+        </Row>
+      </Box>
     </ModalComponent>
   );
 };

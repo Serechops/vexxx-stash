@@ -57,6 +57,9 @@ import { PatchFunction } from "./patch";
 import moment from "moment/min/moment-with-locales";
 import { ErrorMessage } from "./components/Shared/ErrorMessage";
 import cx from "classnames";
+import { ThemeProvider } from "@mui/material/styles";
+import CssBaseline from "@mui/material/CssBaseline";
+import theme from "./theme/theme";
 
 const Performers = lazyComponent(
   () => import("./components/Performers/Performers")
@@ -362,32 +365,35 @@ export const App: React.FC = () => {
         messages={messages}
         formats={intlFormats}
       >
-        <ToastProvider>
-          <PluginsLoader>
-            <AppContainer>
-              <ConfigurationProvider configuration={config.data!.configuration}>
-                {maybeRenderReleaseNotes()}
-                <ConnectionMonitor />
-                <Suspense fallback={<LoadingIndicator />}>
-                  <ZoomProvider>
-                    <LightboxProvider>
-                      <ManualProvider>
-                        <InteractiveProvider>
-                          <SettingsContext>
-                            <Helmet {...titleProps} />
-                            <GlobalSearch />
-                            {maybeRenderNavbar()}
-                            <MainContainer>{renderContent()}</MainContainer>
-                          </SettingsContext>
-                        </InteractiveProvider>
-                      </ManualProvider>
-                    </LightboxProvider>
-                  </ZoomProvider>
-                </Suspense>
-              </ConfigurationProvider>
-            </AppContainer>
-          </PluginsLoader>
-        </ToastProvider>
+        <ThemeProvider theme={theme}>
+          <CssBaseline />
+          <ToastProvider>
+            <PluginsLoader>
+              <AppContainer>
+                <ConfigurationProvider configuration={config.data!.configuration}>
+                  {maybeRenderReleaseNotes()}
+                  <ConnectionMonitor />
+                  <Suspense fallback={<LoadingIndicator />}>
+                    <ZoomProvider>
+                      <LightboxProvider>
+                        <ManualProvider>
+                          <InteractiveProvider>
+                            <SettingsContext>
+                              <Helmet {...titleProps} />
+                              <GlobalSearch />
+                              {maybeRenderNavbar()}
+                              <MainContainer>{renderContent()}</MainContainer>
+                            </SettingsContext>
+                          </InteractiveProvider>
+                        </ManualProvider>
+                      </LightboxProvider>
+                    </ZoomProvider>
+                  </Suspense>
+                </ConfigurationProvider>
+              </AppContainer>
+            </PluginsLoader>
+          </ToastProvider>
+        </ThemeProvider>
       </IntlProvider>
     </ErrorBoundary>
   );

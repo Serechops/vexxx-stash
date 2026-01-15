@@ -13,7 +13,7 @@ import { objectTitle } from "src/core/files";
 import { SceneQueue } from "src/models/sceneQueue";
 import { useConfigurationContext } from "src/hooks/Config";
 import TextUtils from "src/utils/text";
-import { Button, Tooltip, OverlayTrigger, Badge } from "react-bootstrap";
+// Button, Tooltip, OverlayTrigger, Badge removed
 import { useSceneIncrementO } from "src/core/StashService";
 import { useToast } from "src/hooks/Toast";
 
@@ -152,8 +152,8 @@ export const OverlayCard: React.FC<ISceneCardProps> = ({
                                 </span>
                             )}
                             <div className="ml-2 flex gap-1">
-                                {resolution && <Badge variant="secondary" className="bg-white/20 hover:bg-white/30 text-white backdrop-blur-md border-0">{resolution}</Badge>}
-                                {duration && <Badge variant="secondary" className="bg-white/20 hover:bg-white/30 text-white backdrop-blur-md border-0">{duration}</Badge>}
+                                {resolution && <span className="badge badge-secondary bg-white/20 hover:bg-white/30 text-white backdrop-blur-md border-0">{resolution}</span>}
+                                {duration && <span className="badge badge-secondary bg-white/20 hover:bg-white/30 text-white backdrop-blur-md border-0">{duration}</span>}
                             </div>
                         </div>
                         <div>

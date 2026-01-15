@@ -24,7 +24,6 @@ import {
   Option as SelectOption,
 } from "../Shared/FilterSelect";
 import { useCompare } from "src/hooks/state";
-import { Placement } from "react-bootstrap/esm/Overlay";
 import { sortByRelevance } from "src/utils/query";
 import { objectTitle } from "src/core/files";
 import { PatchComponent, PatchFunction } from "src/patch";
@@ -43,7 +42,7 @@ export type Scene = Pick<GQL.Scene, "id" | "title" | "date" | "code"> & {
 type Option = SelectOption<Scene>;
 
 type ExtraSceneProps = {
-  hoverPlacement?: Placement;
+  hoverPlacement?: "top" | "bottom" | "left" | "right";
   excludeIds?: string[];
   extraCriteria?: Array<ModifierCriterion<CriterionValue>>;
 };

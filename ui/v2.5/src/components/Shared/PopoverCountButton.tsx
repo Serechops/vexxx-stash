@@ -8,7 +8,7 @@ import {
   faMapMarkerAlt,
 } from "@fortawesome/free-solid-svg-icons";
 import React from "react";
-import { Button, OverlayTrigger, Tooltip } from "react-bootstrap";
+import { Button, Tooltip } from "@mui/material";
 import { FormattedNumber, useIntl } from "react-intl";
 import { Link } from "react-router-dom";
 import { useConfigurationContext } from "src/hooks/Config";
@@ -146,17 +146,23 @@ export const PopoverCountButton: React.FC<IProps> = ({
 
   return (
     <>
-      <OverlayTrigger
-        overlay={<Tooltip id={`${type}-count-tooltip`}>{getTitle()}</Tooltip>}
-        placement="bottom"
-      >
-        <Link className={className} to={url}>
-          <Button className="minimal">
-            <Icon icon={getIcon()} />
-            <Count count={count} />
-          </Button>
-        </Link>
-      </OverlayTrigger>
+      <>
+        <Tooltip title={getTitle()} placement="bottom" arrow>
+          <span>
+            <Link className={className} to={url}>
+              <Button
+                variant="text"
+                color="inherit" // or primary? Minimal usually means text/outlined
+                className="minimal"
+                style={{ minWidth: "auto", padding: "4px 8px" }} // Adjust styling to match minimal
+              >
+                <Icon icon={getIcon()} />
+                <Count count={count} />
+              </Button>
+            </Link>
+          </span>
+        </Tooltip>
+      </>
     </>
   );
 };

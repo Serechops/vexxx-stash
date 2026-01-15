@@ -5,7 +5,6 @@ import { HoverPopover } from "../Shared/HoverPopover";
 import { useFindTag } from "../../core/StashService";
 import { TagCard } from "./TagCard";
 import { useConfigurationContext } from "../../hooks/Config";
-import { Placement } from "react-bootstrap/esm/Overlay";
 
 interface ITagPopoverCardProps {
   id: string;
@@ -36,7 +35,7 @@ export const TagPopoverCard: React.FC<ITagPopoverCardProps> = ({ id }) => {
 interface ITagPopoverProps {
   id: string;
   hide?: boolean;
-  placement?: Placement;
+  placement?: "top" | "bottom" | "left" | "right";
   target?: React.RefObject<HTMLElement>;
 }
 

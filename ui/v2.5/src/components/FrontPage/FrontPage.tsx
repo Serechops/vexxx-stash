@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { useConfigureUI } from "src/core/StashService";
 import { LoadingIndicator } from "../Shared/LoadingIndicator";
-import { Button } from "react-bootstrap";
+import { Button } from "@mui/material";
 import { FrontPageConfig } from "./FrontPageConfig";
 import { LandingHero } from "./LandingHero";
 import { useToast } from "src/hooks/Toast";
@@ -78,7 +78,7 @@ const FrontPage: React.FC = PatchComponent("FrontPage", () => {
         ))}
       </div>
       <div className="recommendations-footer">
-        <Button onClick={() => setIsEditing(true)}>
+        <Button variant="outlined" onClick={() => setIsEditing(true)}>
           <FormattedMessage id={"actions.customise"} />
         </Button>
       </div>

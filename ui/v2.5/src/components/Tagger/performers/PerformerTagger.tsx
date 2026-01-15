@@ -1,5 +1,20 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Button, Card, Form, InputGroup, ProgressBar } from "react-bootstrap";
+import {
+  Button,
+  Paper,
+  Box,
+  TextField,
+  LinearProgress,
+  InputAdornment,
+  Typography,
+  FormControlLabel,
+  Radio,
+  RadioGroup,
+  FormControl,
+  FormHelperText,
+  Checkbox,
+  Stack,
+} from "@mui/material";
 import { FormattedMessage, useIntl } from "react-intl";
 import { Link } from "react-router-dom";
 import { HashLink } from "react-router-hash-link";
@@ -81,10 +96,10 @@ const PerformerBatchUpdateModal: React.FC<IPerformerBatchUpdateModal> = ({
     return queryAll
       ? allPerformers?.findPerformers.count
       : filteredStashIDs.filter((s) =>
-          // if refresh, then we filter out the performers without a stash id
-          // otherwise, we want untagged performers, filtering out those with a stash id
-          refresh ? s.length > 0 : s.length === 0
-        ).length;
+        // if refresh, then we filter out the performers without a stash id
+        // otherwise, we want untagged performers, filtering out those with a stash id
+        refresh ? s.length > 0 : s.length === 0
+      ).length;
   }, [queryAll, refresh, performers, allPerformers, selectedEndpoint.endpoint]);
 
   return (
@@ -107,72 +122,68 @@ const PerformerBatchUpdateModal: React.FC<IPerformerBatchUpdateModal> = ({
       }}
       disabled={!isIdle}
     >
-      <Form.Group>
-        <Form.Label>
-          <h6>
-            <FormattedMessage id="performer_tagger.performer_selection" />
-          </h6>
-        </Form.Label>
-        <Form.Check
-          id="query-page"
-          type="radio"
+      <FormControl component="fieldset" sx={{ mb: 2 }}>
+        <Typography variant="subtitle1" gutterBottom>
+          <FormattedMessage id="performer_tagger.performer_selection" />
+        </Typography>
+        <RadioGroup
           name="performer-query"
-          label={<FormattedMessage id="performer_tagger.current_page" />}
-          checked={!queryAll}
-          onChange={() => setQueryAll(false)}
-        />
-        <Form.Check
-          id="query-all"
-          type="radio"
-          name="performer-query"
-          label={intl.formatMessage({
-            id: "performer_tagger.query_all_performers_in_the_database",
-          })}
-          checked={queryAll}
-          onChange={() => setQueryAll(true)}
-        />
-      </Form.Group>
-      <Form.Group>
-        <Form.Label>
-          <h6>
-            <FormattedMessage id="performer_tagger.tag_status" />
-          </h6>
-        </Form.Label>
-        <Form.Check
-          id="untagged-performers"
-          type="radio"
+          value={queryAll ? "all" : "page"}
+          onChange={(e) => setQueryAll(e.target.value === "all")}
+        >
+          <FormControlLabel
+            value="page"
+            control={<Radio />}
+            label={<FormattedMessage id="performer_tagger.current_page" />}
+          />
+          <FormControlLabel
+            value="all"
+            control={<Radio />}
+            label={intl.formatMessage({
+              id: "performer_tagger.query_all_performers_in_the_database",
+            })}
+          />
+        </RadioGroup>
+      </FormControl>
+      <FormControl component="fieldset" sx={{ mb: 2 }}>
+        <Typography variant="subtitle1" gutterBottom>
+          <FormattedMessage id="performer_tagger.tag_status" />
+        </Typography>
+        <RadioGroup
           name="performer-refresh"
-          label={intl.formatMessage({
-            id: "performer_tagger.untagged_performers",
-          })}
-          checked={!refresh}
-          onChange={() => setRefresh(false)}
-        />
-        <Form.Text>
-          <FormattedMessage id="performer_tagger.updating_untagged_performers_description" />
-        </Form.Text>
-        <Form.Check
-          id="tagged-performers"
-          type="radio"
-          name="performer-refresh"
-          label={intl.formatMessage({
-            id: "performer_tagger.refresh_tagged_performers",
-          })}
-          checked={refresh}
-          onChange={() => setRefresh(true)}
-        />
-        <Form.Text>
-          <FormattedMessage id="performer_tagger.refreshing_will_update_the_data" />
-        </Form.Text>
-      </Form.Group>
-      <b>
+          value={refresh ? "tagged" : "untagged"}
+          onChange={(e) => setRefresh(e.target.value === "tagged")}
+        >
+          <FormControlLabel
+            value="untagged"
+            control={<Radio />}
+            label={intl.formatMessage({
+              id: "performer_tagger.untagged_performers",
+            })}
+          />
+          <FormHelperText>
+            <FormattedMessage id="performer_tagger.updating_untagged_performers_description" />
+          </FormHelperText>
+          <FormControlLabel
+            value="tagged"
+            control={<Radio />}
+            label={intl.formatMessage({
+              id: "performer_tagger.refresh_tagged_performers",
+            })}
+          />
+          <FormHelperText>
+            <FormattedMessage id="performer_tagger.refreshing_will_update_the_data" />
+          </FormHelperText>
+        </RadioGroup>
+      </FormControl>
+      <Typography fontWeight="bold">
         <FormattedMessage
           id="performer_tagger.number_of_performers_will_be_processed"
           values={{
             performer_count: performerCount,
           }}
         />
-      </b>
+      </Typography>
     </ModalComponent>
   );
 };
@@ -218,18 +229,19 @@ const PerformerBatchAddModal: React.FC<IPerformerBatchAddModal> = ({
       }}
       disabled={!isIdle}
     >
-      <Form.Control
+      <TextField
         className="text-input"
-        as="textarea"
-        ref={performerInput}
+        multiline
+        inputRef={performerInput}
         placeholder={intl.formatMessage({
           id: "performer_tagger.performer_names_or_stashids_separated_by_comma",
         })}
         rows={6}
+        fullWidth
       />
-      <Form.Text>
+      <FormHelperText>
         <FormattedMessage id="performer_tagger.any_names_entered_will_be_queried" />
-      </Form.Text>
+      </FormHelperText>
     </ModalComponent>
   );
 };
@@ -361,8 +373,8 @@ const PerformerTaggerList: React.FC<IPerformerTaggerListProps> = ({
         details:
           message === "UNIQUE constraint failed: performers.name"
             ? intl.formatMessage({
-                id: "performer_tagger.name_already_exists",
-              })
+              id: "performer_tagger.name_already_exists",
+            })
             : message,
       },
     });
@@ -414,14 +426,15 @@ const PerformerTaggerList: React.FC<IPerformerTaggerListProps> = ({
         );
       } else if (!isTagged && !stashID) {
         mainContent = (
-          <InputGroup>
-            <Form.Control
+          <Stack direction="row" spacing={1}>
+            <TextField
+              size="small"
               className="text-input"
               defaultValue={performer.name ?? ""}
-              onChange={(e) =>
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                 setQueries({
                   ...queries,
-                  [performer.id]: e.currentTarget.value,
+                  [performer.id]: e.target.value,
                 })
               }
               onKeyPress={(e: React.KeyboardEvent<HTMLInputElement>) =>
@@ -431,21 +444,21 @@ const PerformerTaggerList: React.FC<IPerformerTaggerListProps> = ({
                   queries[performer.id] ?? performer.name ?? ""
                 )
               }
+              sx={{ flexGrow: 1 }}
             />
-            <InputGroup.Append>
-              <Button
-                disabled={loading}
-                onClick={() =>
-                  doBoxSearch(
-                    performer.id,
-                    queries[performer.id] ?? performer.name ?? ""
-                  )
-                }
-              >
-                <FormattedMessage id="actions.search" />
-              </Button>
-            </InputGroup.Append>
-          </InputGroup>
+            <Button
+              variant="outlined"
+              disabled={loading}
+              onClick={() =>
+                doBoxSearch(
+                  performer.id,
+                  queries[performer.id] ?? performer.name ?? ""
+                )
+              }
+            >
+              <FormattedMessage id="actions.search" />
+            </Button>
+          </Stack>
         );
       } else if (isTagged) {
         mainContent = (
@@ -478,27 +491,26 @@ const PerformerTaggerList: React.FC<IPerformerTaggerListProps> = ({
 
         subContent = (
           <div key={performer.id}>
-            <InputGroup className="PerformerTagger-box-link">
-              <InputGroup.Text>{link}</InputGroup.Text>
-              <InputGroup.Append>
-                <Button
-                  onClick={() =>
-                    doBoxUpdate(
-                      performer.id,
-                      stashID.stash_id,
-                      stashID.endpoint
-                    )
-                  }
-                  disabled={!!loadingUpdate}
-                >
-                  {loadingUpdate === stashID.stash_id ? (
-                    <LoadingIndicator inline small message="" />
-                  ) : (
-                    <FormattedMessage id="actions.refresh" />
-                  )}
-                </Button>
-              </InputGroup.Append>
-            </InputGroup>
+            <Stack direction="row" spacing={1} className="PerformerTagger-box-link" alignItems="center">
+              <Box sx={{ flexGrow: 1 }}>{link}</Box>
+              <Button
+                variant="outlined"
+                onClick={() =>
+                  doBoxUpdate(
+                    performer.id,
+                    stashID.stash_id,
+                    stashID.endpoint
+                  )
+                }
+                disabled={!!loadingUpdate}
+              >
+                {loadingUpdate === stashID.stash_id ? (
+                  <LoadingIndicator inline small message="" />
+                ) : (
+                  <FormattedMessage id="actions.refresh" />
+                )}
+              </Button>
+            </Stack>
             {error[performer.id] && (
               <div className="text-danger mt-1">
                 <strong>
@@ -556,9 +568,9 @@ const PerformerTaggerList: React.FC<IPerformerTaggerListProps> = ({
               endpoint={selectedEndpoint.endpoint}
             />
           )}
-          <Card className="performer-card p-0 m-0">
+          <Paper className="performer-card p-0 m-0">
             <img src={performer.image_path ?? ""} alt="" />
-          </Card>
+          </Paper>
           <div className={`${CLASSNAME}-details`}>
             <Link
               to={`/performers/${performer.id}`}
@@ -582,7 +594,7 @@ const PerformerTaggerList: React.FC<IPerformerTaggerListProps> = ({
     });
 
   return (
-    <Card>
+    <Paper sx={{ p: 2 }}>
       {showBatchUpdate && (
         <PerformerBatchUpdateModal
           close={() => setShowBatchUpdate(false)}
@@ -602,15 +614,15 @@ const PerformerTaggerList: React.FC<IPerformerTaggerListProps> = ({
       )}
 
       <div className="ml-auto mb-3">
-        <Button onClick={() => setShowBatchAdd(true)}>
+        <Button variant="outlined" onClick={() => setShowBatchAdd(true)}>
           <FormattedMessage id="performer_tagger.batch_add_performers" />
         </Button>
-        <Button className="ml-3" onClick={() => setShowBatchUpdate(true)}>
+        <Button variant="outlined" className="ml-3" onClick={() => setShowBatchUpdate(true)}>
           <FormattedMessage id="performer_tagger.batch_update_performers" />
         </Button>
       </div>
       <div className={CLASSNAME}>{renderPerformers()}</div>
-    </Card>
+    </Paper>
   );
 };
 
@@ -716,28 +728,27 @@ export const PerformerTagger: React.FC<ITaggerProps> = ({ performers }) => {
           ? batchJob.progress * 100
           : undefined;
       return (
-        <Form.Group className="px-4">
-          <h5>
+        <Box sx={{ px: 2 }}>
+          <Typography variant="h6">
             <FormattedMessage id="performer_tagger.status_tagging_performers" />
-          </h5>
+          </Typography>
           {progress !== undefined && (
-            <ProgressBar
-              animated
-              now={progress}
-              label={`${progress.toFixed(0)}%`}
+            <LinearProgress
+              variant="determinate"
+              value={progress}
             />
           )}
-        </Form.Group>
+        </Box>
       );
     }
 
     if (batchJobID !== undefined) {
       return (
-        <Form.Group className="px-4">
-          <h5>
+        <Box sx={{ px: 2 }}>
+          <Typography variant="h6">
             <FormattedMessage id="performer_tagger.status_tagging_job_queued" />
-          </h5>
-        </Form.Group>
+          </Typography>
+        </Box>
       );
     }
   }
@@ -758,14 +769,14 @@ export const PerformerTagger: React.FC<ITaggerProps> = ({ performers }) => {
         {selectedEndpointIndex !== -1 && selectedEndpoint ? (
           <>
             <div className="row mb-2 no-gutters">
-              <Button onClick={() => setShowConfig(!showConfig)} variant="link">
+              <Button onClick={() => setShowConfig(!showConfig)} variant="text">
                 {intl.formatMessage({ id: showHideConfigId })}
               </Button>
               <Button
                 className="ml-auto"
                 onClick={() => setShowManual(true)}
                 title={intl.formatMessage({ id: "help" })}
-                variant="link"
+                variant="text"
               >
                 <FormattedMessage id="help" />
               </Button>

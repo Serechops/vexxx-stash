@@ -10,7 +10,7 @@ import {
   useRemoveSubGroups,
   useReorderSubGroupsMutation,
 } from "src/core/StashService";
-import { ButtonToolbar } from "react-bootstrap";
+import { Stack } from "@mui/material";
 import { ListOperationButtons } from "src/components/List/ListOperationButtons";
 import { useListContext } from "src/components/List/ListProvider";
 import {
@@ -80,7 +80,7 @@ const Toolbar: React.FC<IFilteredListToolbar> = ({
   const { filter, setFilter } = useFilter();
 
   return (
-    <ButtonToolbar className="filtered-list-toolbar">
+    <Stack direction="row" spacing={1} className="filtered-list-toolbar" alignItems="center">
       <div>
         <SearchTermInput filter={filter} onFilterUpdate={setFilter} />
       </div>
@@ -96,7 +96,7 @@ const Toolbar: React.FC<IFilteredListToolbar> = ({
         onEdit={onEdit}
         onDelete={onDelete}
       />
-    </ButtonToolbar>
+    </Stack>
   );
 };
 

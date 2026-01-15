@@ -1,5 +1,5 @@
 import React from "react";
-import { Form } from "react-bootstrap";
+import { Box, FormControlLabel, Checkbox } from "@mui/material";
 import { defineMessages, MessageDescriptor, useIntl } from "react-intl";
 import { FilterSelect, SelectObject } from "src/components/Shared/Select";
 import { ModifierCriterion } from "src/models/list-filter/criteria/criterion";
@@ -84,7 +84,7 @@ export const HierarchicalLabelValueFilter: React.FC<
 
   return (
     <>
-      <Form.Group>
+      <Box mb={1}>
         <FilterSelect
           type={inputType}
           isMulti
@@ -92,19 +92,24 @@ export const HierarchicalLabelValueFilter: React.FC<
           ids={criterion.value.items.map((labeled) => labeled.id)}
           menuPortalTarget={document.body}
         />
-      </Form.Group>
+      </Box>
 
-      <Form.Group>
-        <Form.Check
-          id={criterionOptionTypeToIncludeID()}
-          checked={criterion.value.depth !== 0}
+      <Box mb={1}>
+        <FormControlLabel
+          control={
+            <Checkbox
+              id={criterionOptionTypeToIncludeID()}
+              checked={criterion.value.depth !== 0}
+              onChange={() => onDepthChanged(criterion.value.depth !== 0 ? 0 : -1)}
+              size="small"
+            />
+          }
           label={intl.formatMessage(criterionOptionTypeToIncludeUIString())}
-          onChange={() => onDepthChanged(criterion.value.depth !== 0 ? 0 : -1)}
         />
-      </Form.Group>
+      </Box>
 
       {criterion.value.depth !== 0 && (
-        <Form.Group>
+        <Box mb={1}>
           <NumberField
             className="btn-secondary"
             placeholder={intl.formatMessage(messages.studio_depth)}
@@ -118,7 +123,7 @@ export const HierarchicalLabelValueFilter: React.FC<
             }
             min="1"
           />
-        </Form.Group>
+        </Box>
       )}
     </>
   );

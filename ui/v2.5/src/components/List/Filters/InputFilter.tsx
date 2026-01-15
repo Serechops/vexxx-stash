@@ -1,5 +1,5 @@
 import React from "react";
-import { Form } from "react-bootstrap";
+import { TextField } from "@mui/material";
 import {
   ModifierCriterion,
   CriterionValue,
@@ -19,15 +19,13 @@ export const InputFilter: React.FC<IInputFilterProps> = ({
   }
 
   return (
-    <>
-      <Form.Group>
-        <Form.Control
-          className="btn-secondary"
-          type={criterion.modifierCriterionOption().inputType}
-          onChange={onChanged}
-          value={criterion.value ? criterion.value.toString() : ""}
-        />
-      </Form.Group>
-    </>
+    <TextField
+      fullWidth
+      size="small"
+      type={criterion.modifierCriterionOption().inputType}
+      onChange={onChanged}
+      value={criterion.value ? criterion.value.toString() : ""}
+      variant="outlined"
+    />
   );
 };

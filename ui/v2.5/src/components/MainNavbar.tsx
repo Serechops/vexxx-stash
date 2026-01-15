@@ -1,6 +1,5 @@
 import React, {
   useEffect,
-  useRef,
   useState,
   useCallback,
   useMemo,
@@ -11,9 +10,23 @@ import {
   MessageDescriptor,
   useIntl,
 } from "react-intl";
-import { Nav, Navbar, Button } from "react-bootstrap";
+import {
+  AppBar,
+  Toolbar,
+  Button,
+  IconButton,
+  Box,
+  Drawer,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  useMediaQuery,
+  useTheme,
+  Tooltip
+} from "@mui/material";
 import { IconDefinition } from "@fortawesome/fontawesome-svg-core";
-import { LinkContainer } from "react-router-bootstrap";
 import { Link, NavLink, useLocation, useHistory } from "react-router-dom";
 import Mousetrap from "mousetrap";
 
@@ -33,7 +46,6 @@ import {
   faQuestionCircle,
   faSignOutAlt,
   faTag,
-  faTimes,
   faUser,
   faVideo,
 } from "@fortawesome/free-solid-svg-icons";
@@ -167,14 +179,14 @@ const newPathsList = allMenuItems
 const MainNavbarMenuItems = PatchComponent(
   "MainNavBar.MenuItems",
   (props: React.PropsWithChildren<{}>) => {
-    return <Nav>{props.children}</Nav>;
+    return <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' } }}>{props.children}</Box>;
   }
 );
 
 const MainNavbarUtilityItems = PatchComponent(
   "MainNavBar.UtilityItems",
   (props: React.PropsWithChildren<{}>) => {
-    return <>{props.children}</>;
+    return <Box sx={{ display: 'flex', alignItems: 'center' }}>{props.children}</Box>;
   }
 );
 
@@ -183,6 +195,8 @@ export const MainNavbar: React.FC = () => {
   const location = useLocation();
   const { configuration } = useConfigurationContext();
   const { openManual } = React.useContext(ManualStateContext);
+  const theme = useTheme();
+  const isDesktop = useMediaQuery(theme.breakpoints.up('lg'));
 
   const [expanded, setExpanded] = useState(false);
 
@@ -206,33 +220,7 @@ export const MainNavbar: React.FC = () => {
     );
   }, [configuration]);
 
-  // react-bootstrap typing bug
-  const navbarRef = useRef<HTMLElement | null>(null);
   const intl = useIntl();
-
-  const maybeCollapse = useCallback(
-    (event: Event) => {
-      if (
-        navbarRef.current &&
-        event.target instanceof Node &&
-        !navbarRef.current.contains(event.target)
-      ) {
-        setExpanded(false);
-      }
-    },
-    [setExpanded]
-  );
-
-  useEffect(() => {
-    if (expanded) {
-      document.addEventListener("click", maybeCollapse);
-      document.addEventListener("touchstart", maybeCollapse);
-    }
-    return () => {
-      document.removeEventListener("click", maybeCollapse);
-      document.removeEventListener("touchstart", maybeCollapse);
-    };
-  }, [expanded, maybeCollapse]);
 
   const goto = useCallback(
     (page: string) => {
@@ -280,13 +268,15 @@ export const MainNavbar: React.FC = () => {
   function maybeRenderLogout() {
     if (SessionUtils.isLoggedIn()) {
       return (
-        <Button
-          className="minimal logout-button d-flex align-items-center"
-          href={`${baseURL}logout`}
-          title={intl.formatMessage({ id: "actions.logout" })}
-        >
-          <Icon icon={faSignOutAlt} />
-        </Button>
+        <Tooltip title={intl.formatMessage({ id: "actions.logout" })}>
+          <IconButton
+            className="minimal logout-button"
+            href={`${baseURL}logout`}
+            color="inherit"
+          >
+            <Icon icon={faSignOutAlt} />
+          </IconButton>
+        </Tooltip>
       );
     }
   }
@@ -296,127 +286,167 @@ export const MainNavbar: React.FC = () => {
   function renderUtilityButtons() {
     return (
       <>
-        <Nav.Link
-          className="nav-utility"
-          href="https://www.patreon.com/c/Creat1veB1te"
-          target="_blank"
-          onClick={handleDismiss}
-        >
-          <Button
-            className="minimal donate"
-            title={intl.formatMessage({ id: "donate" })}
+        <Tooltip title={intl.formatMessage({ id: "donate" })}>
+          <IconButton
+            component="a"
+            href="https://www.patreon.com/c/Creat1veB1te"
+            target="_blank"
+            onClick={handleDismiss}
+            color="inherit"
           >
             <img
               src="/patreon.png"
               alt="Patreon"
-              style={{ height: "1.5em", width: "auto", marginRight: "0.5rem" }}
+              style={{ height: "1.5em", width: "auto" }}
             />
-            <span className="d-none d-sm-inline">
-              {intl.formatMessage(messages.donate)}
-            </span>
-          </Button>
-        </Nav.Link>
-        <NavLink
-          className="nav-utility"
-          exact
-          to="/stats"
-          onClick={handleDismiss}
-        >
-          <Button
-            className="minimal d-flex align-items-center h-100"
-            title={intl.formatMessage({ id: "statistics" })}
+          </IconButton>
+        </Tooltip>
+
+        <Tooltip title={intl.formatMessage({ id: "statistics" })}>
+          <IconButton
+            component={NavLink}
+            to="/stats"
+            onClick={handleDismiss}
+            color="inherit"
           >
             <Icon icon={faChartColumn} />
-          </Button>
-        </NavLink>
+          </IconButton>
+        </Tooltip>
+
         <NavLink
-          className="nav-utility"
-          exact
           to="/settings"
           onClick={handleDismiss}
+          style={{ display: 'flex', alignItems: 'center' }}
         >
           <SettingsButton />
         </NavLink>
-        <Button
-          className="nav-utility minimal"
-          onClick={() => openManual()}
-          title={intl.formatMessage({ id: "help" })}
-        >
-          <Icon icon={faQuestionCircle} />
-        </Button>
+
+        <Tooltip title={intl.formatMessage({ id: "help" })}>
+          <IconButton
+            className="nav-utility minimal"
+            onClick={() => openManual()}
+            color="inherit"
+          >
+            <Icon icon={faQuestionCircle} />
+          </IconButton>
+        </Tooltip>
         {maybeRenderLogout()}
       </>
     );
   }
 
+  const renderMenuItems = (isDrawer: boolean) => (
+    <MainNavbarMenuItems>
+      {menuItems.map(({ href, icon, message }) => (
+        isDrawer ? (
+          <ListItem key={href} disablePadding>
+            <ListItemButton component={NavLink} to={href} onClick={handleDismiss}>
+              <ListItemIcon>
+                <Icon icon={icon} />
+              </ListItemIcon>
+              <ListItemText primary={intl.formatMessage(message)} />
+            </ListItemButton>
+          </ListItem>
+        ) : (
+          <Button
+            key={href}
+            component={NavLink}
+            to={href}
+            color="inherit"
+            startIcon={<Icon icon={icon} />}
+            sx={{
+              textTransform: 'none',
+              mx: 0.5,
+              '&.active': {
+                backgroundColor: 'rgba(255, 255, 255, 0.08)',
+              }
+            }}
+            activeClassName="active" // NavLink prop
+          >
+            {intl.formatMessage(message)}
+          </Button>
+        )
+      ))}
+    </MainNavbarMenuItems>
+  );
+
   return (
     <>
-      <Navbar
-        collapseOnSelect
-        fixed="top"
-        variant="dark"
+      <AppBar
+        position="fixed"
+        color="default"
         className="top-nav !bg-background/90 backdrop-blur-md border-b border-white/5 shadow-sm transition-all duration-300"
-        expand="lg"
-        expanded={expanded}
-        onToggle={setExpanded}
-        ref={navbarRef}
+        elevation={0}
       >
-        <Navbar.Collapse className="order-sm-1 bg-background/95 lg:bg-transparent border-t lg:border-t-0 border-white/5">
-          <MainNavbarMenuItems>
-            {menuItems.map(({ href, icon, message }) => (
-              <Nav.Link
-                eventKey={href}
-                as="div"
-                key={href}
-                className="col-4 col-sm-3 col-md-2 col-lg-auto"
-              >
-                <LinkContainer activeClassName="active" exact to={href}>
-                  <Button className="minimal p-4 p-lg-2 d-flex d-lg-inline-block flex-column justify-content-between align-items-center text-muted-foreground hover:text-primary hover:bg-white/5 [&.active]:text-primary [&.active]:bg-primary/10 transition-colors duration-200">
-                    <Icon
-                      {...{ icon }}
-                      className="nav-menu-icon d-block d-lg-inline mb-2 mb-lg-0"
-                    />
-                    <span>{intl.formatMessage(message)}</span>
-                  </Button>
-                </LinkContainer>
-              </Nav.Link>
-            ))}
-          </MainNavbarMenuItems>
-          <Nav>
-            <MainNavbarUtilityItems>
-              {renderUtilityButtons()}
-            </MainNavbarUtilityItems>
-          </Nav>
-        </Navbar.Collapse>
+        <Toolbar variant="dense">
+          {/* Mobile Drawer Toggle */}
+          <IconButton
+            color="inherit"
+            aria-label="open drawer"
+            edge="start"
+            onClick={() => setExpanded(!expanded)}
+            sx={{ mr: 2, display: { lg: 'none' } }}
+          >
+            <Icon icon={faBars} />
+          </IconButton>
 
-        <Navbar.Brand as="div" onClick={handleDismiss}>
-          <Link to="/" className="no-underline hover:no-underline">
+          {/* Brand */}
+          <Box
+            component={Link}
+            to="/"
+            onClick={handleDismiss}
+            sx={{ display: 'flex', alignItems: 'center', mr: 2, textDecoration: 'none' }}
+          >
             <img
               src="/vexxx.png"
               alt="Vexxx"
-              className="h-16 w-auto object-contain drop-shadow-sm hover:opacity-90 transition-opacity"
+              className="h-10 w-auto object-contain drop-shadow-sm hover:opacity-90 transition-opacity"
             />
-          </Link>
-        </Navbar.Brand>
+          </Box>
 
-        <Nav className="navbar-buttons flex-row ml-auto order-lg-2">
-          {!!newPath && (
-            <div className="mr-2">
-              <Link to={newPath}>
-                <Button className="bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 border-none rounded-full px-4 py-1.5 shadow-md hover:shadow-pink-500/25 transition-all duration-300 font-bold text-white text-sm">
+          {/* Desktop Menu */}
+          <Box sx={{ display: { xs: 'none', lg: 'flex' }, flexGrow: 1 }}>
+            {renderMenuItems(false)}
+          </Box>
+
+          {/* Spacer for Mobile/Tablet to push utils to right */}
+          <Box sx={{ flexGrow: { xs: 1, lg: 0 } }} />
+
+          {/* Right Side Buttons */}
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            {!!newPath && (
+              <Box mr={2}>
+                <Button
+                  component={Link}
+                  to={newPath}
+                  variant="contained"
+                  className="bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 border-none rounded-full px-4 py-1.5 shadow-md hover:shadow-pink-500/25 transition-all duration-300 font-bold text-white text-sm"
+                >
                   <FormattedMessage id="new" defaultMessage="New" />
                 </Button>
-              </Link>
-            </div>
-          )}
-          <MainNavbarUtilityItems>
-            {renderUtilityButtons()}
-          </MainNavbarUtilityItems>
-          <Navbar.Toggle className="nav-menu-toggle ml-sm-2">
-            <Icon icon={expanded ? faTimes : faBars} />
-          </Navbar.Toggle>
-        </Nav>
-      </Navbar>
+              </Box>
+            )}
+
+            <MainNavbarUtilityItems>
+              {renderUtilityButtons()}
+            </MainNavbarUtilityItems>
+          </Box>
+        </Toolbar>
+      </AppBar>
+
+      {/* Mobile Drawer */}
+      <Drawer
+        anchor="left"
+        open={expanded}
+        onClose={() => setExpanded(false)}
+        sx={{ display: { lg: 'none' } }}
+      >
+        <Box width={250} role="presentation">
+          <List>
+            {renderMenuItems(true)}
+          </List>
+        </Box>
+      </Drawer>
     </>
   );
 };

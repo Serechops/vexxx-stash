@@ -10,14 +10,17 @@ import { SortDirectionEnum } from "src/core/generated-graphql";
 import {
   Button,
   ButtonGroup,
-  Dropdown,
-  Form,
-  OverlayTrigger,
+  Menu,
+  MenuItem,
+  FormControl,
+  Select,
   Tooltip,
-  InputGroup,
   Popover,
-  Overlay,
-} from "react-bootstrap";
+  Box,
+  TextField,
+  InputAdornment,
+  IconButton,
+} from "@mui/material";
 
 import { Icon } from "../Shared/Icon";
 import { ListFilterModel } from "src/models/list-filter/filter";
@@ -168,62 +171,63 @@ export const PageSizeSelector: React.FC<{
     setPageSize(pp);
   }
 
+  const [anchorEl, setAnchorEl] = React.useState<HTMLElement | null>(null);
+
   return (
     <div className="page-size-selector">
-      <Form.Control
-        as="select"
-        ref={perPageSelect}
-        onChange={(e) => onChangePageSize(e.target.value)}
-        value={pageSize.toString()}
-        className="btn-secondary"
+      <FormControl size="small">
+        <Select
+          ref={perPageSelect}
+          onChange={(e) => onChangePageSize(e.target.value as string)}
+          value={pageSize.toString()}
+          variant="outlined"
+          size="small"
+        >
+          {pageSizeOptions.map((s) => (
+            <MenuItem value={s.value} key={s.value}>
+              {s.label}
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+      <Popover
+        open={customPageSizeShowing}
+        anchorEl={perPageSelect.current}
+        onClose={() => setCustomPageSizeShowing(false)}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'left',
+        }}
       >
-        {pageSizeOptions.map((s) => (
-          <option value={s.value} key={s.value}>
-            {s.label}
-          </option>
-        ))}
-      </Form.Control>
-      <Overlay
-        target={perPageSelect.current}
-        show={customPageSizeShowing}
-        placement="bottom"
-        rootClose
-        onHide={() => setCustomPageSizeShowing(false)}
-      >
-        <Popover id="custom_pagesize_popover">
-          <Form inline>
-            <InputGroup>
-              {/* can't use NumberField because of the ref */}
-              <Form.Control
-                type="number"
-                min={1}
-                className="text-input"
-                ref={perPageInput}
-                onKeyPress={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                  if (e.key === "Enter") {
-                    onChangePageSize(
-                      (perPageInput.current as HTMLInputElement)?.value ?? ""
-                    );
-                    e.preventDefault();
-                  }
-                }}
-              />
-              <InputGroup.Append>
-                <Button
-                  variant="primary"
-                  onClick={() =>
-                    onChangePageSize(
-                      (perPageInput.current as HTMLInputElement)?.value ?? ""
-                    )
-                  }
-                >
-                  <Icon icon={faCheck} />
-                </Button>
-              </InputGroup.Append>
-            </InputGroup>
-          </Form>
-        </Popover>
-      </Overlay>
+        <Box p={1} display="flex" alignItems="center" gap={1}>
+          <TextField
+            type="number"
+            inputProps={{ min: 1 }}
+            size="small"
+            inputRef={perPageInput}
+            onKeyPress={(e: React.KeyboardEvent<HTMLInputElement>) => {
+              if (e.key === "Enter") {
+                onChangePageSize(
+                  (perPageInput.current as HTMLInputElement)?.value ?? ""
+                );
+                e.preventDefault();
+              }
+            }}
+          />
+          <Button
+            variant="contained"
+            color="primary"
+            size="small"
+            onClick={() =>
+              onChangePageSize(
+                (perPageInput.current as HTMLInputElement)?.value ?? ""
+              )
+            }
+          >
+            <Icon icon={faCheck} />
+          </Button>
+        </Box>
+      </Popover>
     </div>
   );
 };
@@ -245,84 +249,95 @@ export const SortBySelect: React.FC<{
   onChangeSortDirection,
   onReshuffleRandomSort,
 }) => {
-  const intl = useIntl();
-  const { configuration } = useConfigurationContext();
-  const { sfwContentMode } = configuration.interface;
+    const intl = useIntl();
+    const { configuration } = useConfigurationContext();
+    const { sfwContentMode } = configuration.interface;
 
-  const currentSortBy = options.find((o) => o.value === sortBy);
-  const currentSortByMessageID = currentSortBy
-    ? !sfwContentMode
-      ? currentSortBy.messageID
-      : currentSortBy.sfwMessageID ?? currentSortBy.messageID
-    : "";
+    const currentSortBy = options.find((o) => o.value === sortBy);
+    const currentSortByMessageID = currentSortBy
+      ? !sfwContentMode
+        ? currentSortBy.messageID
+        : currentSortBy.sfwMessageID ?? currentSortBy.messageID
+      : "";
 
-  function renderSortByOptions() {
-    return options
-      .map((o) => {
-        const messageID = !sfwContentMode
-          ? o.messageID
-          : o.sfwMessageID ?? o.messageID;
-        return {
-          message: intl.formatMessage({ id: messageID }),
-          value: o.value,
-        };
-      })
-      .sort((a, b) => a.message.localeCompare(b.message))
-      .map((option) => (
-        <Dropdown.Item
-          onSelect={onChangeSortBy}
-          key={option.value}
-          className="bg-secondary text-white"
-          eventKey={option.value}
-          data-value={option.value}
+    const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
+    const open = Boolean(anchorEl);
+
+    const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+      setAnchorEl(event.currentTarget);
+    };
+
+    const handleClose = () => {
+      setAnchorEl(null);
+    };
+
+    const handleMenuItemClick = (value: string) => {
+      onChangeSortBy(value);
+      handleClose();
+    };
+
+    function renderSortByOptions() {
+      return options
+        .map((o) => {
+          const messageID = !sfwContentMode
+            ? o.messageID
+            : o.sfwMessageID ?? o.messageID;
+          return {
+            message: intl.formatMessage({ id: messageID }),
+            value: o.value,
+          };
+        })
+        .sort((a, b) => a.message.localeCompare(b.message))
+        .map((option) => (
+          <MenuItem
+            key={option.value}
+            onClick={() => handleMenuItemClick(option.value)}
+          >
+            {option.message}
+          </MenuItem>
+        ));
+    }
+
+    return (
+      <ButtonGroup className={`${className ?? ""} sort-by-select`}>
+        <Button
+          variant="contained"
+          color="secondary"
+          onClick={handleClick}
         >
-          {option.message}
-        </Dropdown.Item>
-      ));
-  }
-
-  return (
-    <Dropdown as={ButtonGroup} className={`${className ?? ""} sort-by-select`}>
-      <InputGroup.Prepend>
-        <Dropdown.Toggle variant="secondary">
           {currentSortBy
             ? intl.formatMessage({ id: currentSortByMessageID })
             : ""}
-        </Dropdown.Toggle>
-      </InputGroup.Prepend>
-      <Dropdown.Menu className="bg-secondary text-white">
-        {renderSortByOptions()}
-      </Dropdown.Menu>
-      <OverlayTrigger
-        overlay={
-          <Tooltip id="sort-direction-tooltip">
-            {sortDirection === SortDirectionEnum.Asc
-              ? intl.formatMessage({ id: "ascending" })
-              : intl.formatMessage({ id: "descending" })}
-          </Tooltip>
-        }
-      >
-        <Button variant="secondary" onClick={onChangeSortDirection}>
-          <Icon
-            icon={
-              sortDirection === SortDirectionEnum.Asc ? faCaretUp : faCaretDown
-            }
-          />
         </Button>
-      </OverlayTrigger>
-      {sortBy === "random" && (
-        <OverlayTrigger
-          overlay={
-            <Tooltip id="sort-reshuffle-tooltip">
-              {intl.formatMessage({ id: "actions.reshuffle" })}
-            </Tooltip>
+        <Menu
+          anchorEl={anchorEl}
+          open={open}
+          onClose={handleClose}
+        >
+          {renderSortByOptions()}
+        </Menu>
+        <Tooltip
+          title={
+            sortDirection === SortDirectionEnum.Asc
+              ? intl.formatMessage({ id: "ascending" })
+              : intl.formatMessage({ id: "descending" })
           }
         >
-          <Button variant="secondary" onClick={onReshuffleRandomSort}>
-            <Icon icon={faRandom} />
+          <Button variant="contained" color="secondary" onClick={onChangeSortDirection}>
+            <Icon
+              icon={
+                sortDirection === SortDirectionEnum.Asc ? faCaretUp : faCaretDown
+              }
+            />
           </Button>
-        </OverlayTrigger>
-      )}
-    </Dropdown>
-  );
-};
+        </Tooltip>
+        {sortBy === "random" && (
+          <Tooltip title={intl.formatMessage({ id: "actions.reshuffle" })}>
+            <Button variant="contained" color="secondary" onClick={onReshuffleRandomSort}>
+              <Icon icon={faRandom} />
+            </Button>
+          </Tooltip>
+        )}
+      </ButtonGroup>
+    );
+  };

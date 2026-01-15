@@ -31,7 +31,6 @@ import { PatchComponent, PatchFunction } from "src/patch";
 import { TruncatedText } from "../Shared/TruncatedText";
 import TextUtils from "src/utils/text";
 import { PerformerPopover } from "./PerformerPopover";
-import { Placement } from "react-bootstrap/esm/Overlay";
 
 export type SelectObject = {
   id: string;
@@ -74,11 +73,11 @@ const performerSelectSort = PatchFunction(
 
 const _PerformerSelect: React.FC<
   IFilterProps &
-    IFilterValueProps<Performer> & {
-      ageFromDate?: string | null;
-      hoverPlacementLabel?: Placement;
-      hoverPlacementOptions?: Placement;
-    }
+  IFilterValueProps<Performer> & {
+    ageFromDate?: string | null;
+    hoverPlacementLabel?: "top" | "bottom" | "left" | "right";
+    hoverPlacementOptions?: "top" | "bottom" | "left" | "right";
+  }
 > = (props) => {
   const [createPerformer] = usePerformerCreate();
 

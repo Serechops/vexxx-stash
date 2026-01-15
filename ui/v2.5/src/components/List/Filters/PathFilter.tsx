@@ -1,5 +1,5 @@
 import React from "react";
-import { Form } from "react-bootstrap";
+import { Box, TextField } from "@mui/material";
 import { FolderSelect } from "src/components/Shared/FolderSelect/FolderSelect";
 import { CriterionModifier } from "src/core/generated-graphql";
 import { useConfigurationContext } from "src/hooks/Config";
@@ -26,13 +26,15 @@ export const PathFilter: React.FC<IInputFilterProps> = ({
     criterion.modifier === CriterionModifier.NotMatchesRegex;
 
   return (
-    <Form.Group>
+    <Box mb={1}>
       {regex ? (
-        <Form.Control
-          className="btn-secondary"
+        <TextField
+          fullWidth
+          size="small"
           type={criterion.modifierCriterionOption().inputType}
           onChange={(v) => onValueChanged(v.target.value)}
           value={criterion.value ? criterion.value.toString() : ""}
+          variant="outlined"
         />
       ) : (
         <FolderSelect
@@ -44,6 +46,6 @@ export const PathFilter: React.FC<IInputFilterProps> = ({
           defaultDirectories={libraryPaths}
         />
       )}
-    </Form.Group>
+    </Box>
   );
 };

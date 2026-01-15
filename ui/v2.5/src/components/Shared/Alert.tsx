@@ -1,10 +1,10 @@
-import { Button, Modal } from "react-bootstrap";
+import { Button, Dialog, DialogActions, DialogContent, DialogContentText } from "@mui/material";
 import { FormattedMessage } from "react-intl";
 import { PatchComponent } from "src/patch";
 
 export interface IAlertModalProps {
   text: JSX.Element | string;
-  confirmVariant?: string;
+  confirmVariant?: "inherit" | "primary" | "secondary" | "success" | "error" | "info" | "warning";
   show?: boolean;
   confirmButtonText?: string;
   onConfirm: () => void;
@@ -16,23 +16,25 @@ export const AlertModal: React.FC<IAlertModalProps> = PatchComponent(
   ({
     text,
     show,
-    confirmVariant = "danger",
+    confirmVariant = "error",
     confirmButtonText,
     onConfirm,
     onCancel,
   }) => {
     return (
-      <Modal show={show}>
-        <Modal.Body>{text}</Modal.Body>
-        <Modal.Footer>
-          <Button variant={confirmVariant} onClick={() => onConfirm()}>
+      <Dialog open={!!show} onClose={onCancel}>
+        <DialogContent>
+          <DialogContentText>{text}</DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button variant="contained" color={confirmVariant} onClick={() => onConfirm()}>
             {confirmButtonText ?? <FormattedMessage id="actions.confirm" />}
           </Button>
-          <Button variant="secondary" onClick={() => onCancel()}>
+          <Button variant="text" onClick={() => onCancel()}>
             <FormattedMessage id="actions.cancel" />
           </Button>
-        </Modal.Footer>
-      </Modal>
+        </DialogActions>
+      </Dialog>
     );
   }
 );

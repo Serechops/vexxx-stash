@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Button, ButtonProps } from "react-bootstrap";
+import Button, { ButtonProps } from "@mui/material/Button";
 import { LoadingIndicator } from "./LoadingIndicator";
 
-interface IOperationButton extends ButtonProps {
+export interface IOperationButton extends ButtonProps {
   operation?: () => Promise<void>;
   loading?: boolean;
   hideChildrenWhenLoading?: boolean;
@@ -32,7 +32,7 @@ export const OperationButton: React.FC<IOperationButton> = (props) => {
   const loading =
     externalLoading !== undefined ? externalLoading : internalLoading;
 
-  async function handleClick() {
+  async function handleClick(event: React.MouseEvent<HTMLButtonElement>) {
     if (operation && !loading) {
       setLoading(true);
       await operation();
@@ -41,12 +41,20 @@ export const OperationButton: React.FC<IOperationButton> = (props) => {
         setLoading(false);
       }
     }
+    if (props.onClick) {
+      props.onClick(event);
+    }
   }
 
   return (
-    <Button onClick={handleClick} {...withoutExtras}>
+    <Button
+      variant="contained"
+      onClick={handleClick}
+      disabled={loading || props.disabled}
+      {...withoutExtras}
+    >
       {loading && (
-        <span className="mr-2">
+        <span style={{ marginRight: "8px", display: "flex", alignItems: "center" }}>
           <LoadingIndicator message="" inline small />
         </span>
       )}

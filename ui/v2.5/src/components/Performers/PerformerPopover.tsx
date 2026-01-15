@@ -5,7 +5,6 @@ import { HoverPopover } from "../Shared/HoverPopover";
 import { useFindPerformer } from "../../core/StashService";
 import { PerformerCard } from "./PerformerCard";
 import { useConfigurationContext } from "../../hooks/Config";
-import { Placement } from "react-bootstrap/esm/Overlay";
 
 interface IPeromerPopoverCardProps {
   id: string;
@@ -38,7 +37,7 @@ export const PerformerPopoverCard: React.FC<IPeromerPopoverCardProps> = ({
 interface IPeroformerPopoverProps {
   id: string;
   hide?: boolean;
-  placement?: Placement;
+  placement?: "top" | "bottom" | "left" | "right";
   target?: React.RefObject<HTMLElement>;
 }
 

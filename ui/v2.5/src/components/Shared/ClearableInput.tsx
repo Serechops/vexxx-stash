@@ -1,5 +1,5 @@
 import React from "react";
-import { Button, FormControl } from "react-bootstrap";
+import { TextField, IconButton, InputAdornment } from "@mui/material";
 import { faTimes } from "@fortawesome/free-solid-svg-icons";
 import { useIntl } from "react-intl";
 import { Icon } from "./Icon";
@@ -30,7 +30,7 @@ export const ClearableInput: React.FC<IClearableInput> = ({
   ];
   const queryClearShowing = !!value;
 
-  function onChangeQuery(event: React.FormEvent<HTMLInputElement>) {
+  function onChangeQuery(event: React.ChangeEvent<HTMLInputElement>) {
     setValue(event.currentTarget.value);
   }
 
@@ -47,24 +47,31 @@ export const ClearableInput: React.FC<IClearableInput> = ({
 
   return (
     <div className={cx("clearable-input-group", className)}>
-      <FormControl
-        ref={queryRef}
+      <TextField
+        inputRef={queryRef}
         placeholder={placeholder}
         value={value}
-        onInput={onChangeQuery}
+        onChange={onChangeQuery}
         onKeyDown={onInputKeyDown}
         className="clearable-text-field"
+        variant="outlined"
+        size="small"
+        fullWidth
+        InputProps={{
+          endAdornment: queryClearShowing ? (
+            <InputAdornment position="end">
+              <IconButton
+                onClick={onClearQuery}
+                title={intl.formatMessage({ id: "actions.clear" })}
+                size="small"
+                edge="end"
+              >
+                <Icon icon={faTimes} />
+              </IconButton>
+            </InputAdornment>
+          ) : null,
+        }}
       />
-      {queryClearShowing && (
-        <Button
-          variant="secondary"
-          onClick={onClearQuery}
-          title={intl.formatMessage({ id: "actions.clear" })}
-          className="clearable-text-field-clear"
-        >
-          <Icon icon={faTimes} />
-        </Button>
-      )}
     </div>
   );
 };

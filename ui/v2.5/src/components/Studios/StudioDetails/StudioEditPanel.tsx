@@ -1,3 +1,4 @@
+import { Box, Button } from "@mui/material";
 import React, { useEffect, useState } from "react";
 import { useIntl } from "react-intl";
 import * as GQL from "src/core/generated-graphql";
@@ -5,7 +6,6 @@ import * as yup from "yup";
 import Mousetrap from "mousetrap";
 import { LoadingIndicator } from "src/components/Shared/LoadingIndicator";
 import { DetailsEditNavbar } from "src/components/Shared/DetailsEditNavbar";
-import { Button, Form } from "react-bootstrap";
 import { faPlus } from "@fortawesome/free-solid-svg-icons";
 import ImageUtils from "src/utils/image";
 import { addUpdateStashID, getStashIDs } from "src/utils/stashIds";
@@ -103,10 +103,10 @@ export const StudioEditPanel: React.FC<IStudioEditPanel> = ({
     setParentStudio(
       studio.parent_studio
         ? {
-            id: studio.parent_studio.id,
-            name: studio.parent_studio.name,
-            aliases: [],
-          }
+          id: studio.parent_studio.id,
+          name: studio.parent_studio.name,
+          aliases: [],
+        }
         : null
     );
   }, [studio.parent_studio]);
@@ -215,7 +215,7 @@ export const StudioEditPanel: React.FC<IStudioEditPanel> = ({
         }}
       />
 
-      <Form noValidate onSubmit={formik.handleSubmit} id="studio-edit">
+      <Box component="form" noValidate onSubmit={formik.handleSubmit} id="studio-edit">
         {renderInputField("name")}
         {renderStringListField("aliases")}
         {renderStringListField("urls")}
@@ -228,8 +228,9 @@ export const StudioEditPanel: React.FC<IStudioEditPanel> = ({
           "stash_ids",
           undefined,
           <Button
-            variant="success"
-            className="mr-2 py-0"
+            variant="contained"
+            color="success"
+            sx={{ mr: 2, py: 0 }}
             onClick={() => setIsStashIDSearchOpen(true)}
             disabled={!stashConfig?.general.stashBoxes?.length}
             title={intl.formatMessage({ id: "actions.add_stash_id" })}
@@ -239,7 +240,7 @@ export const StudioEditPanel: React.FC<IStudioEditPanel> = ({
         )}
         <hr />
         {renderInputField("ignore_auto_tag", "checkbox")}
-      </Form>
+      </Box>
 
       <DetailsEditNavbar
         objectName={studio?.name ?? intl.formatMessage({ id: "studio" })}

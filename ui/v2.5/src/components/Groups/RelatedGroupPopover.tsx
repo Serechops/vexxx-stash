@@ -4,7 +4,7 @@ import {
   faArrowDownLong,
 } from "@fortawesome/free-solid-svg-icons";
 import React, { useMemo } from "react";
-import { Button, OverlayTrigger, Tooltip } from "react-bootstrap";
+import { Button, Tooltip } from "@mui/material";
 import { Count } from "../Shared/PopoverCountButton";
 import { Icon } from "../Shared/Icon";
 import { HoverPopover } from "../Shared/HoverPopover";
@@ -82,10 +82,7 @@ const SubGroupCount: React.FC<IProps> = ({ group }) => {
   }
 
   return (
-    <OverlayTrigger
-      overlay={<Tooltip id={`sub-group-count-tooltip`}>{getTitle()}</Tooltip>}
-      placement="bottom"
-    >
+    <Tooltip title={getTitle()} placement="bottom">
       <Link
         to={NavUtils.makeSubGroupsUrl(group)}
         className="related-group-count"
@@ -93,14 +90,14 @@ const SubGroupCount: React.FC<IProps> = ({ group }) => {
         <Count count={count} />
         <Icon icon={faArrowDownLong} transform="shrink-4" />
       </Link>
-    </OverlayTrigger>
+    </Tooltip>
   );
 };
 
 export const RelatedGroupPopoverButton: React.FC<IProps> = ({ group }) => {
   return (
     <span className="related-group-popover-button">
-      <Button className="minimal">
+      <Button className="minimal" variant="text" size="small">
         <Icon icon={faFilm} />
         <ContainingGroupsCount group={group} />
         <SubGroupCount group={group} />

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Tab, Tabs } from "react-bootstrap";
+import { Tabs, Tab, Box } from "@mui/material";
 import { FormattedMessage } from "react-intl";
 import style from "./GlobalSearch.module.scss";
 import { CustomCssSettings } from "../Settings/SettingsInterfacePanel/CustomCssSettings";
@@ -24,17 +24,24 @@ export const QuickSettings: React.FC<QuickSettingsProps> = ({ onClose }) => {
     return (
         <div className={style.quickSettings}>
             <Tabs
-                activeKey={activeTab}
-                onSelect={(k) => setActiveTab(k ?? "interface")}
+                value={activeTab}
+                onChange={(_e, newValue) => setActiveTab(newValue)}
                 className="nav-tabs"
             >
-                <Tab eventKey="interface" title={<FormattedMessage id="UI Settings" />}>
+                <Tab value="interface" label={<FormattedMessage id="UI Settings" />} />
+                <Tab value="plugins" label={<FormattedMessage id="Plugins" />} />
+                <Tab value="library" label={<FormattedMessage id="Library Settings" />} />
+                <Tab value="stashbox" label={<FormattedMessage id="Stash Box Settings" />} />
+            </Tabs>
+
+            <Box sx={{ mt: 2 }}>
+                {activeTab === "interface" && (
                     <div className={style.settingList}>
                         <CustomCssSettings modalProps={modalProps} />
                         <CustomJavascriptSettings modalProps={modalProps} />
                     </div>
-                </Tab>
-                <Tab eventKey="plugins" title={<FormattedMessage id="Plugins" />}>
+                )}
+                {activeTab === "plugins" && (
                     <div className={style.settingList}>
                         <div className={style.pluginItem}>
                             <PluginList modalProps={modalProps} />
@@ -44,18 +51,18 @@ export const QuickSettings: React.FC<QuickSettingsProps> = ({ onClose }) => {
                             </div>
                         </div>
                     </div>
-                </Tab>
-                <Tab eventKey="library" title={<FormattedMessage id="Library Settings" />}>
+                )}
+                {activeTab === "library" && (
                     <div className={style.settingList}>
                         <LibrarySettings modalProps={modalProps} />
                     </div>
-                </Tab>
-                <Tab eventKey="stashbox" title={<FormattedMessage id="Stash Box Settings" />}>
+                )}
+                {activeTab === "stashbox" && (
                     <div className={style.settingList}>
                         <StashBoxSettings modalProps={modalProps} />
                     </div>
-                </Tab>
-            </Tabs>
+                )}
+            </Box>
         </div>
     );
 };

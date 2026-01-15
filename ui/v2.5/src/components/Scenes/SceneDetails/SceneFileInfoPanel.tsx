@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
-import { Accordion, Button, Card } from "react-bootstrap";
+import { Accordion, AccordionSummary, AccordionDetails, Button, Card, CardContent, Typography, Box } from "@mui/material";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import {
   FormattedMessage,
   FormattedNumber,
@@ -126,7 +127,7 @@ const FileInfoPanel: React.FC<IFileInfoPanelProps> = (
         />
       </dl>
       {props.ofMany && props.onSetPrimaryFile && !props.primary && (
-        <div>
+        <Box display="flex" gap={1} flexWrap="wrap">
           <Button
             className="edit-button"
             disabled={props.loading}
@@ -145,13 +146,14 @@ const FileInfoPanel: React.FC<IFileInfoPanelProps> = (
             <FormattedMessage id="actions.split" />
           </Button>
           <Button
-            variant="danger"
+            variant="contained"
+            color="error"
             disabled={props.loading}
             onClick={props.onDeleteFile}
           >
             <FormattedMessage id="actions.delete_file" />
           </Button>
-        </div>
+        </Box>
       )}
     </div>
   );
@@ -242,26 +244,26 @@ const _SceneFileInfoPanel: React.FC<ISceneFileInfoPanelProps> = (
     }
 
     return (
-      <Accordion defaultActiveKey={props.scene.files[0].id}>
+      <Box>
         {deletingFile && (
           <DeleteFilesDialog
             onClose={() => setDeletingFile(undefined)}
-            selected={[deletingFile]}
+            selected={[{ id: deletingFile.id, path: deletingFile.path }]}
           />
         )}
         {reassigningFile && (
           <ReassignFilesDialog
             onClose={() => setReassigningFile(undefined)}
-            selected={reassigningFile}
+            selected={{ id: reassigningFile.id, path: reassigningFile.path }}
           />
         )}
         {props.scene.files.map((file, index) => (
-          <Card key={file.id} className="scene-file-card">
-            <Accordion.Toggle as={Card.Header} eventKey={file.id}>
+          <Accordion key={file.id} defaultExpanded={index === 0}>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
               <TruncatedText text={TextUtils.fileNameFromPath(file.path)} />
-            </Accordion.Toggle>
-            <Accordion.Collapse eventKey={file.id}>
-              <Card.Body>
+            </AccordionSummary>
+            <AccordionDetails>
+              <Box width="100%">
                 <FileInfoPanel
                   sceneID={props.scene.id}
                   file={file}
@@ -272,11 +274,11 @@ const _SceneFileInfoPanel: React.FC<ISceneFileInfoPanelProps> = (
                   onReassign={() => setReassigningFile(file)}
                   loading={loading}
                 />
-              </Card.Body>
-            </Accordion.Collapse>
-          </Card>
+              </Box>
+            </AccordionDetails>
+          </Accordion>
         ))}
-      </Accordion>
+      </Box>
     );
   }, [props.scene, loading, Toast, deletingFile, reassigningFile]);
 

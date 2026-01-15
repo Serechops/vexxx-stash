@@ -1,5 +1,20 @@
 import React, { useState } from "react";
-import { Modal, Button, Form, Col } from "react-bootstrap";
+import {
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    Button,
+    TextField,
+    Grid,
+    Box,
+    FormControlLabel,
+    Checkbox,
+    Typography,
+    List,
+    ListItem,
+    ListItemText,
+} from "@mui/material";
 import { useIntl } from "react-intl";
 import * as GQL from "src/core/generated-graphql";
 import { useToast } from "src/hooks/Toast";
@@ -187,135 +202,137 @@ export const CreateSceneSegmentDialog: React.FC<IProps> = ({
         }
     };
 
-    return (
-        // ... (main modal content same) ...
-        <>
-            <Modal show onHide={onClose}>
-                {/* ... existing modal body ... */}
-                <Modal.Header closeButton>
-                    <Modal.Title>Create Scene Segment</Modal.Title>
-                </Modal.Header>
-                <Modal.Body>
-                    <Form>
-                        <Form.Group controlId="segmentTitle">
-                            <Form.Label>Title</Form.Label>
-                            <Form.Control
-                                type="text"
-                                value={title}
-                                onChange={(e) => setTitle(e.target.value)}
-                                placeholder="Enter title"
-                            />
-                        </Form.Group>
-                        <Form.Row>
-                            <Col>
-                                <Form.Group controlId="startPoint">
-                                    <Form.Label>Start Point (MM:SS)</Form.Label>
-                                    <Form.Control
-                                        type="text"
-                                        value={startPointStr}
-                                        onChange={(e) => setStartPointStr(e.target.value)}
-                                        placeholder="0"
-                                    />
-                                </Form.Group>
-                            </Col>
-                            <Col>
-                                <Form.Group controlId="endPoint">
-                                    <Form.Label>End Point (MM:SS)</Form.Label>
-                                    <Form.Control
-                                        type="text"
-                                        value={endPointStr}
-                                        onChange={(e) => setEndPointStr(e.target.value)}
-                                        placeholder="MM:SS"
-                                    />
-                                </Form.Group>
-                            </Col>
-                        </Form.Row>
 
-                        <div className="d-flex align-items-center mb-2">
-                            <Form.Check
-                                type="checkbox"
-                                id="batch-scan-toggle"
+    return (
+        <>
+            <Dialog open onClose={onClose} maxWidth="sm" fullWidth>
+                <DialogTitle>Create Scene Segment</DialogTitle>
+                <DialogContent>
+                    <Box component="form" sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+                        <TextField
+                            label="Title"
+                            value={title}
+                            onChange={(e) => setTitle(e.target.value)}
+                            placeholder="Enter title"
+                            fullWidth
+                        />
+                        <Grid container spacing={2}>
+                            <Grid size={{ xs: 6 }}>
+                                <TextField
+                                    label="Start Point (MM:SS)"
+                                    value={startPointStr}
+                                    onChange={(e) => setStartPointStr(e.target.value)}
+                                    placeholder="0"
+                                    fullWidth
+                                />
+                            </Grid>
+                            <Grid size={{ xs: 6 }}>
+                                <TextField
+                                    label="End Point (MM:SS)"
+                                    value={endPointStr}
+                                    onChange={(e) => setEndPointStr(e.target.value)}
+                                    placeholder="MM:SS"
+                                    fullWidth
+                                />
+                            </Grid>
+                        </Grid>
+
+                        <Box display="flex" alignItems="center">
+                            <FormControlLabel
+                                control={
+                                    <Checkbox
+                                        checked={isBatchScan}
+                                        onChange={(e) => setIsBatchScan(e.target.checked)}
+                                        id="batch-scan-toggle"
+                                    />
+                                }
                                 label="Fuzzy Scan"
-                                checked={isBatchScan}
-                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setIsBatchScan(e.target.checked)}
-                                className="mr-3"
                             />
-                        </div>
+                        </Box>
 
                         {isBatchScan && (
-                            <Form.Row className="mb-2">
-                                <Col>
-                                    <Form.Group controlId="scanWindow">
-                                        <Form.Label>Window (+/- sec)</Form.Label>
-                                        <Form.Control
-                                            type="number"
-                                            value={scanWindowStr}
-                                            onChange={(e) => setScanWindowStr(e.target.value)}
-                                        />
-                                    </Form.Group>
-                                </Col>
-                                <Col>
-                                    <Form.Group controlId="scanIncrement">
-                                        <Form.Label>Increment (sec)</Form.Label>
-                                        <Form.Control
-                                            type="number"
-                                            value={scanIncrementStr}
-                                            onChange={(e) => setScanIncrementStr(e.target.value)}
-                                        />
-                                    </Form.Group>
-                                </Col>
-                            </Form.Row>
+                            <Grid container spacing={2}>
+                                <Grid size={{ xs: 6 }}>
+                                    <TextField
+                                        label="Window (+/- sec)"
+                                        type="number"
+                                        value={scanWindowStr}
+                                        onChange={(e) => setScanWindowStr(e.target.value)}
+                                        fullWidth
+                                    />
+                                </Grid>
+                                <Grid size={{ xs: 6 }}>
+                                    <TextField
+                                        label="Increment (sec)"
+                                        type="number"
+                                        value={scanIncrementStr}
+                                        onChange={(e) => setScanIncrementStr(e.target.value)}
+                                        fullWidth
+                                    />
+                                </Grid>
+                            </Grid>
                         )}
 
                         <Button
-                            variant="outline-secondary"
-                            size="sm"
+                            variant="outlined"
+                            size="small"
                             onClick={handleCheckMatches}
                             disabled={checking}
+                            sx={{ alignSelf: 'flex-start' }}
                         >
                             {checking ? `Scanning ${progress}/${totalProgress}...` : "Check Matches"}
                         </Button>
-                    </Form>
-                </Modal.Body>
-                <Modal.Footer>
-                    <Button variant="secondary" onClick={onClose}>
+                    </Box>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={onClose} color="inherit">
                         Cancel
                     </Button>
-                    <Button variant="primary" onClick={handleSave}>
+                    <Button onClick={handleSave} variant="contained" color="primary">
                         Create
                     </Button>
-                </Modal.Footer>
-            </Modal>
+                </DialogActions>
+            </Dialog>
 
-            <Modal show={showMatches} onHide={() => setShowMatches(false)} size="lg">
-                <Modal.Header closeButton>
-                    <Modal.Title>Potential Matches</Modal.Title>
-                </Modal.Header>
-                <Modal.Body>
+            <Dialog open={showMatches} onClose={() => setShowMatches(false)} maxWidth="lg" fullWidth>
+                <DialogTitle>Potential Matches</DialogTitle>
+                <DialogContent>
                     {matches.length === 0 ? (
-                        <p>No matches found.</p>
+                        <Typography>No matches found.</Typography>
                     ) : (
-                        <div className="list-group mb-3">
+                        <List>
                             {matches.map((m, idx) => (
-                                <div key={idx} className="list-group-item">
-                                    <div className="d-flex justify-content-between">
-                                        <div>
-                                            <h5>{m.title}</h5>
-                                            <p className="mb-1">{m.details?.substring(0, 100)}...</p>
-                                            <small>{m.date} - {m.studio?.name}</small>
-                                        </div>
-                                        {m.image && <img src={m.image} alt="thumb" style={{ height: 60 }} />}
-                                    </div>
-                                    <Button variant="link" size="sm" onClick={() => setTitle(m.title || "")}>Use Title</Button>
-                                </div>
+                                <ListItem key={idx} divider alignItems="flex-start">
+                                    <ListItemText
+                                        primary={
+                                            <Box display="flex" justifyContent="space-between">
+                                                <Typography variant="h6">{m.title}</Typography>
+                                                {m.image && <img src={m.image} alt="thumb" style={{ height: 60 }} />}
+                                            </Box>
+                                        }
+                                        secondary={
+                                            <React.Fragment>
+                                                <Typography variant="body2" color="textPrimary" display="block">
+                                                    {m.details?.substring(0, 100)}...
+                                                </Typography>
+                                                <Typography variant="caption" display="block">
+                                                    {m.date} - {m.studio?.name}
+                                                </Typography>
+                                                <Button size="small" onClick={() => setTitle(m.title || "")}>
+                                                    Use Title
+                                                </Button>
+                                            </React.Fragment>
+                                        }
+                                    />
+                                </ListItem>
                             ))}
-                        </div>
+                        </List>
                     )}
-                </Modal.Body>
-                <Modal.Footer>
-                    <Button variant="secondary" onClick={() => setShowMatches(false)}>Close</Button>
-                </Modal.Footer>
-            </Modal>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setShowMatches(false)}>Close</Button>
+                </DialogActions>
+            </Dialog>
         </>
     );
 

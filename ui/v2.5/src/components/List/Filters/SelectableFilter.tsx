@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Button, Form } from "react-bootstrap";
+import { Button, Box, FormControlLabel, Checkbox } from "@mui/material";
 import { Icon } from "src/components/Shared/Icon";
 import {
   faCheckCircle,
@@ -116,7 +116,9 @@ const UnselectedItem: React.FC<{
                 onSelect(true);
               }}
               onKeyDown={(e) => e.stopPropagation()}
-              className="minimal exclude-button"
+              size="small"
+              variant="text"
+              sx={{ minWidth: 'auto', padding: '2px 4px' }}
             >
               <span className="exclude-button-text">exclude</span>
               {excludeIcon}
@@ -451,7 +453,7 @@ export const ObjectsFilter = <
 };
 
 interface IHierarchicalObjectsFilter<T extends IHierarchicalLabeledIdCriterion>
-  extends IObjectsFilter<T> {}
+  extends IObjectsFilter<T> { }
 
 export const HierarchicalObjectsFilter = <
   T extends IHierarchicalLabeledIdCriterion
@@ -489,30 +491,35 @@ export const HierarchicalObjectsFilter = <
       criterion.criterionOption.type === "studios"
         ? "include_sub_studios"
         : criterion.criterionOption.type === "children"
-        ? "include_parent_tags"
-        : "include_sub_tags";
+          ? "include_parent_tags"
+          : "include_sub_tags";
     return {
       id: optionType,
     };
   }
 
   return (
-    <Form>
-      <Form.Group>
-        <Form.Check
-          id={criterionOptionTypeToIncludeID()}
-          checked={
-            criterion.modifier !== CriterionModifier.Equals &&
-            criterion.value.depth !== 0
+    <Box>
+      <Box mb={1}>
+        <FormControlLabel
+          control={
+            <Checkbox
+              id={criterionOptionTypeToIncludeID()}
+              checked={
+                criterion.modifier !== CriterionModifier.Equals &&
+                criterion.value.depth !== 0
+              }
+              onChange={() => onDepthChanged(criterion.value.depth !== 0 ? 0 : -1)}
+              disabled={criterion.modifier === CriterionModifier.Equals}
+              size="small"
+            />
           }
           label={intl.formatMessage(criterionOptionTypeToIncludeUIString())}
-          onChange={() => onDepthChanged(criterion.value.depth !== 0 ? 0 : -1)}
-          disabled={criterion.modifier === CriterionModifier.Equals}
         />
-      </Form.Group>
+      </Box>
 
       {criterion.value.depth !== 0 && (
-        <Form.Group>
+        <Box mb={1}>
           <NumberField
             className="btn-secondary"
             placeholder={intl.formatMessage(messages.studio_depth)}
@@ -526,9 +533,9 @@ export const HierarchicalObjectsFilter = <
             }
             min="1"
           />
-        </Form.Group>
+        </Box>
       )}
       <ObjectsFilter {...props} />
-    </Form>
+    </Box>
   );
 };

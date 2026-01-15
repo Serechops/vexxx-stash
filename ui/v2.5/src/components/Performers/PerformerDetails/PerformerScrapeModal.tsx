@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Button, Form } from "react-bootstrap";
+import { Button, TextField } from "@mui/material";
 import { useIntl } from "react-intl";
 
 import * as GQL from "src/core/generated-graphql";
@@ -49,12 +49,13 @@ const PerformerScrapeModal: React.FC<IProps> = ({
       }}
     >
       <div className={CLASSNAME}>
-        <Form.Control
-          onChange={(e) => onInputChange(e.currentTarget.value)}
+        <TextField
+          onChange={(e) => onInputChange(e.target.value)}
           defaultValue={name ?? ""}
           placeholder="Performer name..."
           className="text-input mb-4"
-          ref={inputRef}
+          inputRef={inputRef}
+          fullWidth
         />
         {loading ? (
           <div className="m-4 text-center">
@@ -65,7 +66,7 @@ const PerformerScrapeModal: React.FC<IProps> = ({
             {performers.map((p, i) => (
               <li key={i}>
                 <Button
-                  variant="link"
+                  variant="text"
                   onClick={() => onSelectPerformer(p, scraper)}
                 >
                   {p.name}

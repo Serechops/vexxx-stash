@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
-import { Button, Form, Col, Row } from "react-bootstrap";
+import { Button, Box } from "@mui/material";
+import { Row, Col } from "src/components/Shared/Layouts";
 import Mousetrap from "mousetrap";
 import * as GQL from "src/core/generated-graphql";
 import * as yup from "yup";
@@ -323,16 +324,16 @@ export const ImageEditPanel: React.FC<IProps> = ({
   const urlProps = isNew
     ? splitProps
     : {
-        labelProps: {
-          column: true,
-          md: 3,
-          lg: 12,
-        },
-        fieldProps: {
-          md: 9,
-          lg: 12,
-        },
-      };
+      labelProps: {
+        column: true,
+        md: 3,
+        lg: 12,
+      },
+      fieldProps: {
+        md: 9,
+        lg: 12,
+      },
+    };
   const { renderField, renderInputField, renderDateField, renderURLListField } =
     formikUtils(intl, formik, splitProps);
 
@@ -437,12 +438,13 @@ export const ImageEditPanel: React.FC<IProps> = ({
       />
 
       {maybeRenderScrapeDialog()}
-      <Form noValidate onSubmit={formik.handleSubmit}>
+      <Box component="form" noValidate onSubmit={formik.handleSubmit}>
         <Row className="form-container edit-buttons-container px-3 pt-3">
           <div className="edit-buttons mb-3 pl-0">
             <Button
               className="edit-button"
-              variant="primary"
+              variant="contained"
+              color="primary"
               disabled={
                 (!isNew && !formik.dirty) || !isEqual(formik.errors, {})
               }
@@ -452,7 +454,8 @@ export const ImageEditPanel: React.FC<IProps> = ({
             </Button>
             <Button
               className="edit-button"
-              variant="danger"
+              variant="outlined"
+              color="error"
               onClick={() => onDelete()}
             >
               <FormattedMessage id="actions.delete" />
@@ -494,7 +497,7 @@ export const ImageEditPanel: React.FC<IProps> = ({
             {renderDetailsField()}
           </Col>
         </Row>
-      </Form>
+      </Box>
     </div>
   );
 };

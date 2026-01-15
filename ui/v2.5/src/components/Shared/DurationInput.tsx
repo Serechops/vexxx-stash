@@ -4,7 +4,7 @@ import {
   faClock,
 } from "@fortawesome/free-solid-svg-icons";
 import React, { useMemo, useState } from "react";
-import { Button, ButtonGroup, InputGroup, Form } from "react-bootstrap";
+import { Button, ButtonGroup, TextField, InputAdornment, Box, FormHelperText } from "@mui/material";
 import { Icon } from "./Icon";
 import TextUtils from "src/utils/text";
 
@@ -68,16 +68,18 @@ export const DurationInput: React.FC<IProps> = ({
   function renderButtons() {
     if (!disabled) {
       return (
-        <ButtonGroup vertical>
+        <ButtonGroup orientation="vertical" size="small">
           <Button
-            variant="secondary"
+            variant="outlined"
+            color="secondary"
             className="duration-button"
             onClick={() => increment()}
           >
             <Icon icon={faChevronUp} />
           </Button>
           <Button
-            variant="secondary"
+            variant="outlined"
+            color="secondary"
             className="duration-button"
             onClick={() => decrement()}
           >
@@ -91,7 +93,7 @@ export const DurationInput: React.FC<IProps> = ({
   function maybeRenderReset() {
     if (onReset) {
       return (
-        <Button variant="secondary" onClick={() => onReset()}>
+        <Button variant="outlined" color="secondary" onClick={() => onReset()} size="small">
           <Icon icon={faClock} />
         </Button>
       );
@@ -104,6 +106,7 @@ export const DurationInput: React.FC<IProps> = ({
     } else if (value !== null && value !== undefined) {
       return TextUtils.secondsToTimestamp(value, includeMS);
     }
+    return "";
   }, [value, tmpValue]);
 
   const format = "hh:mm:ss.ms";
@@ -115,22 +118,27 @@ export const DurationInput: React.FC<IProps> = ({
   }
 
   return (
-    <div className={`duration-input ${className}`}>
-      <InputGroup>
-        <Form.Control
-          className="duration-control text-input"
-          disabled={disabled}
-          value={inputValue}
-          onChange={onChange}
-          onBlur={onBlur}
-          placeholder={placeholder}
-        />
-        <InputGroup.Append>
-          {maybeRenderReset()}
-          {renderButtons()}
-        </InputGroup.Append>
-        <Form.Control.Feedback type="invalid">{error}</Form.Control.Feedback>
-      </InputGroup>
-    </div>
+    <Box className={`duration-input ${className}`} sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5 }}>
+      <TextField
+        className="duration-control text-input"
+        disabled={disabled}
+        value={inputValue}
+        onChange={onChange}
+        onBlur={onBlur}
+        placeholder={placeholder}
+        error={!!error}
+        helperText={error}
+        size="small"
+        variant="outlined"
+        InputProps={{
+          endAdornment: (
+            <InputAdornment position="end">
+              {maybeRenderReset()}
+            </InputAdornment>
+          ),
+        }}
+      />
+      {renderButtons()}
+    </Box>
   );
 };

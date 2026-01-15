@@ -12,7 +12,7 @@ import {
   faExternalLinkAlt,
   faTimes,
 } from "@fortawesome/free-solid-svg-icons";
-import { Button, Form } from "react-bootstrap";
+import { Button, FormControlLabel, Checkbox, Box, Stack } from "@mui/material";
 import { TruncatedText } from "src/components/Shared/TruncatedText";
 import { excludeFields } from "src/utils/data";
 import { ExternalLink } from "src/components/Shared/ExternalLink";
@@ -41,11 +41,9 @@ const StudioDetails: React.FC<IStudioDetailsProps> = ({
           <div className="studio-image">
             <Button
               onClick={() => toggleField("image")}
-              variant="secondary"
-              className={cx(
-                "studio-image-exclude",
-                excluded.image ? "text-muted" : "text-success"
-              )}
+              variant="outlined"
+              color={excluded.image ? "inherit" : "success"}
+              className="studio-image-exclude"
             >
               <Icon icon={excluded.image ? faTimes : faCheck} />
             </Button>
@@ -69,8 +67,8 @@ const StudioDetails: React.FC<IStudioDetailsProps> = ({
           {isSelectable && (
             <Button
               onClick={() => toggleField(id)}
-              variant="secondary"
-              className={excluded[id] ? "text-muted" : "text-success"}
+              variant="outlined"
+              color={excluded[id] ? "inherit" : "success"}
             >
               <Icon icon={excluded[id] ? faTimes : faCheck} />
             </Button>
@@ -97,8 +95,8 @@ const StudioDetails: React.FC<IStudioDetailsProps> = ({
           {!isNew && (
             <Button
               onClick={() => toggleField(name)}
-              variant="secondary"
-              className={excluded[name] ? "text-muted" : "text-success"}
+              variant="outlined"
+              color={excluded[name] ? "inherit" : "success"}
             >
               <Icon icon={excluded[name] ? faTimes : faCheck} />
             </Button>
@@ -318,13 +316,17 @@ const StudioModal: React.FC<IStudioModalProps> = ({
     return (
       <div>
         <div className="mb-4 mt-4">
-          <Form.Check
-            id="create-parent"
-            checked={createParentStudio}
+          <FormControlLabel
+            control={
+              <Checkbox
+                id="create-parent"
+                checked={createParentStudio}
+                onChange={() => setCreateParentStudio(!createParentStudio)}
+              />
+            }
             label={intl.formatMessage({
               id: parentStudioCreateText(),
             })}
-            onChange={() => setCreateParentStudio(!createParentStudio)}
           />
         </div>
         {maybeRenderParentStudioDetails()}

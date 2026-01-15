@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Form } from "react-bootstrap";
+import { FormControlLabel, Checkbox, Box } from "@mui/material";
 import { mutateExportObjects } from "src/core/StashService";
 import { ModalComponent } from "./Modal";
 import { useToast } from "src/hooks/Toast";
@@ -61,18 +61,20 @@ export const ExportDialog: React.FC<IExportDialogProps> = (
       }}
       isRunning={isRunning}
     >
-      <Form>
-        <Form.Group>
-          <Form.Check
-            id="include-dependencies"
-            checked={includeDependencies}
-            label={intl.formatMessage({
-              id: "dialogs.export_include_related_objects",
-            })}
-            onChange={() => setIncludeDependencies(!includeDependencies)}
-          />
-        </Form.Group>
-      </Form>
+      <Box>
+        <FormControlLabel
+          control={
+            <Checkbox
+              id="include-dependencies"
+              checked={includeDependencies}
+              onChange={() => setIncludeDependencies(!includeDependencies)}
+            />
+          }
+          label={intl.formatMessage({
+            id: "dialogs.export_include_related_objects",
+          })}
+        />
+      </Box>
     </ModalComponent>
   );
 };

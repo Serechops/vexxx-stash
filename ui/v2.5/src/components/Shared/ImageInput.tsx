@@ -1,17 +1,19 @@
 import React, { useState } from "react";
 import {
   Button,
-  Col,
-  Form,
-  OverlayTrigger,
+  TextField,
   Popover,
-  Row,
-} from "react-bootstrap";
+  Box,
+  Stack,
+  InputLabel,
+  Grid,
+} from "@mui/material";
 import { useIntl } from "react-intl";
 import { ModalComponent } from "./Modal";
 import { Icon } from "./Icon";
 import { faFile, faLink } from "@fortawesome/free-solid-svg-icons";
 import { PatchComponent } from "src/patch";
+import { styled } from "@mui/material/styles";
 
 interface IImageInput {
   isEditing: boolean;
@@ -25,11 +27,17 @@ function acceptExtensions(acceptSVG: boolean = false) {
   return `.jpg,.jpeg,.png,.webp,.gif${acceptSVG ? ",.svg" : ""}`;
 }
 
+const HiddenInput = styled('input')({
+  display: 'none',
+});
+
 export const ImageInput: React.FC<IImageInput> = PatchComponent(
   "ImageInput",
   ({ isEditing, text, onImageChange, onImageURL, acceptSVG = false }) => {
     const [isShowDialog, setIsShowDialog] = useState(false);
     const [url, setURL] = useState("");
+    const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
+
     const intl = useIntl();
 
     if (!isEditing) return <div />;
@@ -37,22 +45,24 @@ export const ImageInput: React.FC<IImageInput> = PatchComponent(
     if (!onImageURL) {
       // just return the file input
       return (
-        <Form.Label className="image-input">
-          <Button variant="secondary">
-            {text ?? intl.formatMessage({ id: "actions.browse_for_image" })}
-          </Button>
-          <Form.Control
+        <label htmlFor="simple-image-input" className="image-input">
+          <HiddenInput
+            accept={acceptExtensions(acceptSVG)}
+            id="simple-image-input"
             type="file"
             onChange={onImageChange}
-            accept={acceptExtensions(acceptSVG)}
           />
-        </Form.Label>
+          <Button variant="outlined" component="span" color="secondary">
+            {text ?? intl.formatMessage({ id: "actions.browse_for_image" })}
+          </Button>
+        </label>
       );
     }
 
     function showDialog() {
       setURL("");
       setIsShowDialog(true);
+      setAnchorEl(null);
     }
 
     function onConfirmURL() {
@@ -63,6 +73,17 @@ export const ImageInput: React.FC<IImageInput> = PatchComponent(
       setIsShowDialog(false);
       onImageURL(url);
     }
+
+    const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+      setAnchorEl(event.currentTarget);
+    };
+
+    const handleClose = () => {
+      setAnchorEl(null);
+    };
+
+    const open = Boolean(anchorEl);
+    const id = open ? "set-image-popover" : undefined;
 
     function renderDialog() {
       return (
@@ -76,67 +97,92 @@ export const ImageInput: React.FC<IImageInput> = PatchComponent(
           }}
         >
           <div className="dialog-content">
-            <Form.Group controlId="url" as={Row}>
-              <Form.Label column xs={3}>
-                {intl.formatMessage({ id: "url" })}
-              </Form.Label>
-              <Col xs={9}>
-                <Form.Control
-                  className="text-input"
+            <Grid container spacing={2} alignItems="center">
+              <Grid size={{ xs: 3 }}>
+                <InputLabel>
+                  {intl.formatMessage({ id: "url" })}
+                </InputLabel>
+              </Grid>
+              <Grid size={{ xs: 9 }}>
+                <TextField
+                  fullWidth
+                  variant="outlined"
+                  size="small"
                   onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
                     setURL(event.currentTarget.value)
                   }
                   value={url}
                   placeholder={intl.formatMessage({ id: "url" })}
                 />
-              </Col>
-            </Form.Group>
+              </Grid>
+            </Grid>
           </div>
         </ModalComponent>
       );
     }
 
-    const popover = (
-      <Popover id="set-image-popover">
-        <Popover.Content>
-          <>
-            <div>
-              <Form.Label className="image-input">
-                <Button variant="secondary">
-                  <Icon icon={faFile} className="fa-fw" />
-                  <span>{intl.formatMessage({ id: "actions.from_file" })}</span>
-                </Button>
-                <Form.Control
-                  type="file"
-                  onChange={onImageChange}
-                  accept={acceptExtensions(acceptSVG)}
-                />
-              </Form.Label>
-            </div>
-            <div>
-              <Button className="minimal" onClick={showDialog}>
-                <Icon icon={faLink} className="fa-fw" />
-                <span>{intl.formatMessage({ id: "actions.from_url" })}</span>
-              </Button>
-            </div>
-          </>
-        </Popover.Content>
-      </Popover>
+    const popoverContent = (
+      <Box p={2}>
+        <Stack spacing={2} direction="column">
+          <label htmlFor="popover-image-input">
+            <HiddenInput
+              accept={acceptExtensions(acceptSVG)}
+              id="popover-image-input"
+              type="file"
+              onChange={onImageChange}
+            />
+            <Button
+              variant="outlined"
+              color="secondary"
+              component="span"
+              fullWidth
+              startIcon={<Icon icon={faFile} className="fa-fw" />}
+            >
+              <span style={{ marginLeft: 8 }}>{intl.formatMessage({ id: "actions.from_file" })}</span>
+            </Button>
+          </label>
+
+          <Button
+            variant="text"
+            onClick={showDialog}
+            fullWidth
+            startIcon={<Icon icon={faLink} className="fa-fw" />}
+            color="inherit"
+            style={{ justifyContent: 'flex-start' }}
+          >
+            <span style={{ marginLeft: 8 }}>{intl.formatMessage({ id: "actions.from_url" })}</span>
+          </Button>
+        </Stack>
+      </Box>
     );
 
     return (
       <>
         {renderDialog()}
-        <OverlayTrigger
-          trigger="click"
-          placement="top"
-          overlay={popover}
-          rootClose
+        <Button
+          variant="contained"
+          color="secondary"
+          className="mr-2"
+          onClick={handleClick}
         >
-          <Button variant="secondary" className="mr-2">
-            {text ?? intl.formatMessage({ id: "actions.set_image" })}
-          </Button>
-        </OverlayTrigger>
+          {text ?? intl.formatMessage({ id: "actions.set_image" })}
+        </Button>
+        <Popover
+          id={id}
+          open={open}
+          anchorEl={anchorEl}
+          onClose={handleClose}
+          anchorOrigin={{
+            vertical: "bottom",
+            horizontal: "left",
+          }}
+          transformOrigin={{
+            vertical: "top",
+            horizontal: "left",
+          }}
+        >
+          {popoverContent}
+        </Popover>
       </>
     );
   }

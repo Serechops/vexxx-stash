@@ -5,6 +5,7 @@ import { useToast } from "src/hooks/Toast";
 import { ConfigurationContext } from "src/hooks/Config";
 import { FormattedMessage, useIntl } from "react-intl";
 import { faTrashAlt } from "@fortawesome/free-solid-svg-icons";
+import { Alert, Typography } from "@mui/material";
 
 interface IFile {
   id: string;
@@ -66,8 +67,8 @@ export const DeleteFilesDialog: React.FC<IDeleteSceneDialogProps> = (
       : "dialogs.delete_alert";
 
     return (
-      <div className="delete-dialog alert alert-danger text-break">
-        <p className="font-weight-bold">
+      <Alert severity="error" className="delete-dialog text-break">
+        <Typography fontWeight="bold">
           <FormattedMessage
             values={{
               count: props.selected.length,
@@ -76,7 +77,7 @@ export const DeleteFilesDialog: React.FC<IDeleteSceneDialogProps> = (
             }}
             id={deleteAlertId}
           />
-        </p>
+        </Typography>
         <ul>
           {deletedFiles.slice(0, 5).map((s) => (
             <li key={s}>{s}</li>
@@ -92,7 +93,7 @@ export const DeleteFilesDialog: React.FC<IDeleteSceneDialogProps> = (
             />
           )}
         </ul>
-      </div>
+      </Alert>
     );
   }
 

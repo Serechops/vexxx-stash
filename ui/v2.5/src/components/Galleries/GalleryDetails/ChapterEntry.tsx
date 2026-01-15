@@ -1,7 +1,7 @@
 import React from "react";
 import { FormattedMessage } from "react-intl";
 import * as GQL from "src/core/generated-graphql";
-import { Button } from "react-bootstrap";
+import { Button } from "@mui/material";
 
 interface IChapterEntries {
   galleryChapters: GQL.GalleryChapterDataFragment[];
@@ -22,7 +22,7 @@ export const ChapterEntries: React.FC<IChapterEntries> = ({
         <hr />
         <div className="row">
           <Button
-            variant="link"
+            variant="text"
             onClick={() => onClickChapter(chapter.image_index)}
           >
             <div className="row">
@@ -32,7 +32,7 @@ export const ChapterEntries: React.FC<IChapterEntries> = ({
             </div>
           </Button>
           <Button
-            variant="link"
+            variant="text"
             className="ml-auto"
             onClick={() => onEdit(chapter)}
           >

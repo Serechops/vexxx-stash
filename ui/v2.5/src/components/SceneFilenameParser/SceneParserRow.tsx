@@ -1,7 +1,14 @@
 import React from "react";
 import isEqual from "lodash-es/isEqual";
 import clone from "lodash-es/clone";
-import { Form } from "react-bootstrap";
+import {
+  Checkbox,
+  TextField,
+  MenuItem,
+  Stack,
+  Box,
+  TableCell,
+} from "@mui/material";
 import {
   ParseSceneFilenamesQuery,
   SlimSceneDataFragment,
@@ -112,31 +119,41 @@ function SceneParserStringField(props: ISceneParserFieldProps<string>) {
 
   return (
     <>
-      <td>
-        <Form.Check
+      <TableCell padding="checkbox">
+        <Checkbox
           checked={props.parserResult.isSet}
           onChange={() => {
             props.onSetChanged(!props.parserResult.isSet);
           }}
+          size="small"
         />
-      </td>
-      <td>
-        <Form.Group>
-          <Form.Control
+      </TableCell>
+      <TableCell sx={{ verticalAlign: 'top' }}>
+        <Stack spacing={1}>
+          <TextField
+            fullWidth
             disabled
+            variant="outlined"
+            size="small"
             className={props.className}
-            defaultValue={result.originalValue || ""}
+            value={result.originalValue || ""}
+            slotProps={{
+              htmlInput: { readOnly: true }
+            }}
           />
-          <Form.Control
-            readOnly={!props.parserResult.isSet}
+          <TextField
+            fullWidth
+            variant="outlined"
+            size="small"
+            disabled={!props.parserResult.isSet}
             className={props.className}
             value={props.parserResult.value || ""}
             onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
               maybeValueChanged(event.currentTarget.value)
             }
           />
-        </Form.Group>
-      </td>
+        </Stack>
+      </TableCell>
     </>
   );
 }
@@ -155,42 +172,52 @@ function SceneParserRatingField(
 
   return (
     <>
-      <td>
-        <Form.Check
+      <TableCell padding="checkbox">
+        <Checkbox
           checked={props.parserResult.isSet}
           onChange={() => {
             props.onSetChanged(!props.parserResult.isSet);
           }}
+          size="small"
         />
-      </td>
-      <td>
-        <Form.Group>
-          <Form.Control
+      </TableCell>
+      <TableCell sx={{ verticalAlign: 'top' }}>
+        <Stack spacing={1}>
+          <TextField
+            fullWidth
             disabled
+            variant="outlined"
+            size="small"
             className={cx("input-control text-input", props.className)}
-            defaultValue={result.originalValue || ""}
+            value={result.originalValue || ""}
+            slotProps={{
+              htmlInput: { readOnly: true }
+            }}
           />
-          <Form.Control
-            as="select"
+          <TextField
+            select
+            fullWidth
+            variant="outlined"
+            size="small"
             className={cx("input-control", props.className)}
             disabled={!props.parserResult.isSet}
-            value={props.parserResult.value?.toString()}
-            onChange={(event: React.ChangeEvent<HTMLSelectElement>) =>
+            value={props.parserResult.value?.toString() || ""}
+            onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
               maybeValueChanged(
-                event.currentTarget.value === ""
+                event.target.value === ""
                   ? undefined
-                  : Number.parseInt(event.currentTarget.value, 10)
+                  : Number.parseInt(event.target.value, 10)
               )
             }
           >
             {options.map((opt) => (
-              <option value={opt} key={opt}>
+              <MenuItem value={opt} key={opt}>
                 {opt}
-              </option>
+              </MenuItem>
             ))}
-          </Form.Control>
-        </Form.Group>
-      </td>
+          </TextField>
+        </Stack>
+      </TableCell>
     </>
   );
 }
@@ -208,16 +235,17 @@ function SceneParserPerformerField(props: ISceneParserFieldProps<string[]>) {
 
   return (
     <>
-      <td>
-        <Form.Check
+      <TableCell padding="checkbox">
+        <Checkbox
           checked={props.parserResult.isSet}
           onChange={() => {
             props.onSetChanged(!props.parserResult.isSet);
           }}
+          size="small"
         />
-      </td>
-      <td>
-        <Form.Group className={props.className}>
+      </TableCell>
+      <TableCell sx={{ verticalAlign: 'top', minWidth: 200 }}>
+        <Stack spacing={1} className={props.className}>
           <PerformerSelect
             isDisabled
             isMulti
@@ -233,8 +261,8 @@ function SceneParserPerformerField(props: ISceneParserFieldProps<string[]>) {
             }}
             ids={newPerformers}
           />
-        </Form.Group>
-      </td>
+        </Stack>
+      </TableCell>
     </>
   );
 }
@@ -251,16 +279,17 @@ function SceneParserTagField(props: ISceneParserFieldProps<string[]>) {
 
   return (
     <>
-      <td>
-        <Form.Check
+      <TableCell padding="checkbox">
+        <Checkbox
           checked={props.parserResult.isSet}
           onChange={() => {
             props.onSetChanged(!props.parserResult.isSet);
           }}
+          size="small"
         />
-      </td>
-      <td>
-        <Form.Group className={props.className}>
+      </TableCell>
+      <TableCell sx={{ verticalAlign: 'top', minWidth: 200 }}>
+        <Stack spacing={1} className={props.className}>
           <TagSelect
             isDisabled
             isMulti
@@ -276,8 +305,8 @@ function SceneParserTagField(props: ISceneParserFieldProps<string[]>) {
             }}
             ids={newTags}
           />
-        </Form.Group>
-      </td>
+        </Stack>
+      </TableCell>
     </>
   );
 }
@@ -296,16 +325,17 @@ function SceneParserStudioField(props: ISceneParserFieldProps<string>) {
 
   return (
     <>
-      <td>
-        <Form.Check
+      <TableCell padding="checkbox">
+        <Checkbox
           checked={props.parserResult.isSet}
           onChange={() => {
             props.onSetChanged(!props.parserResult.isSet);
           }}
+          size="small"
         />
-      </td>
-      <td>
-        <Form.Group className={props.className}>
+      </TableCell>
+      <TableCell sx={{ verticalAlign: 'top', minWidth: 200 }}>
+        <Stack spacing={1} className={props.className}>
           <StudioSelect
             isDisabled
             ids={originalStudio}
@@ -319,8 +349,8 @@ function SceneParserStudioField(props: ISceneParserFieldProps<string>) {
             }}
             ids={newStudio}
           />
-        </Form.Group>
-      </td>
+        </Stack>
+      </TableCell>
     </>
   );
 }
@@ -377,9 +407,9 @@ export const SceneParserRow = (props: ISceneParserRowProps) => {
 
   return (
     <tr className="scene-parser-row">
-      <td className="text-left parser-field-filename">
+      <TableCell className="text-left parser-field-filename" sx={{ verticalAlign: 'top' }}>
         {props.scene.filename}
-      </td>
+      </TableCell>
       {props.showFields.get("Title") && (
         <SceneParserStringField
           key="title"

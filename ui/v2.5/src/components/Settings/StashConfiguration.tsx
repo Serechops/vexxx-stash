@@ -1,6 +1,6 @@
 import { faEllipsisV } from "@fortawesome/free-solid-svg-icons";
 import React, { useState } from "react";
-import { Button, Form, Row, Col, Dropdown } from "react-bootstrap";
+import { Button, Grid, IconButton, Menu, MenuItem, Box, Typography } from "@mui/material";
 import { FormattedMessage } from "react-intl";
 import { Icon } from "src/components/Shared/Icon";
 import * as GQL from "src/core/generated-graphql";
@@ -32,69 +32,86 @@ const Stash: React.FC<IStashProps> = ({
     onSave(newObj);
   };
 
-  const classAdd = index % 2 === 1 ? "bg-dark" : "";
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const open = Boolean(anchorEl);
+
+  const handleClick = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
+
+  const bgcolor = index % 2 === 1 ? 'action.hover' : 'inherit';
 
   return (
-    <Row className={`stash-row align-items-center ${classAdd}`}>
-      <Form.Label column md={7}>
-        {stash.path}
-      </Form.Label>
-      <Col md={2} xs={4} className="col form-label">
-        {/* NOTE - language is opposite to meaning:
-        internally exclude flags, displayed as include */}
-        <div>
-          <h6 className="d-md-none">
+    <Grid container alignItems="center" sx={{ p: 1, bgcolor }}>
+      <Grid size={{ xs: 12, md: 7 }}>
+        <Typography variant="body2" sx={{ wordBreak: 'break-all' }}>
+          {stash.path}
+        </Typography>
+      </Grid>
+      <Grid size={{ xs: 4, md: 2 }}>
+        <Box>
+          <Typography variant="subtitle2" sx={{ display: { md: 'none' } }}>
             <FormattedMessage id="videos" />
-          </h6>
+          </Typography>
           <BooleanSetting
             id={`stash-exclude-video-${index}`}
             checked={!stash.excludeVideo}
             onChange={(v) => handleInput("excludeVideo", !v)}
           />
-        </div>
-      </Col>
-
-      <Col md={2} xs={4} className="col-form-label">
-        <div>
-          <h6 className="d-md-none">
+        </Box>
+      </Grid>
+      <Grid size={{ xs: 4, md: 2 }}>
+        <Box>
+          <Typography variant="subtitle2" sx={{ display: { md: 'none' } }}>
             <FormattedMessage id="images" />
-          </h6>
+          </Typography>
           <BooleanSetting
             id={`stash-exclude-image-${index}`}
             checked={!stash.excludeImage}
             onChange={(v) => handleInput("excludeImage", !v)}
           />
-        </div>
-      </Col>
-      <Col className="justify-content-end" xs={4} md={1}>
-        <Dropdown className="text-right">
-          <Dropdown.Toggle
-            variant="minimal"
-            id={`stash-menu-${index}`}
-            className="minimal"
-          >
-            <Icon icon={faEllipsisV} />
-          </Dropdown.Toggle>
-          <Dropdown.Menu className="bg-secondary text-white">
-            <Dropdown.Item onClick={() => onEdit()}>
-              <FormattedMessage id="actions.edit" />
-            </Dropdown.Item>
-            <Dropdown.Item onClick={() => onDelete()}>
-              <FormattedMessage id="actions.delete" />
-            </Dropdown.Item>
-          </Dropdown.Menu>
-        </Dropdown>
-      </Col>
-    </Row>
+        </Box>
+      </Grid>
+      <Grid size={{ xs: 4, md: 1 }} display="flex" justifyContent="flex-end">
+        <IconButton
+          id={`stash-menu-${index}`}
+          aria-controls={open ? 'stash-menu' : undefined}
+          aria-haspopup="true"
+          aria-expanded={open ? 'true' : undefined}
+          onClick={handleClick}
+          size="small"
+        >
+          <Icon icon={faEllipsisV} />
+        </IconButton>
+        <Menu
+          id="stash-menu"
+          anchorEl={anchorEl}
+          open={open}
+          onClose={handleClose}
+          MenuListProps={{
+            'aria-labelledby': `stash-menu-${index}`,
+          }}
+        >
+          <MenuItem onClick={() => { handleClose(); onEdit(); }}>
+            <FormattedMessage id="actions.edit" />
+          </MenuItem>
+          <MenuItem onClick={() => { handleClose(); onDelete(); }}>
+            <FormattedMessage id="actions.delete" />
+          </MenuItem>
+        </Menu>
+      </Grid>
+    </Grid>
   );
 };
-
-import { ModalProps } from "react-bootstrap";
 
 interface IStashConfigurationProps {
   stashes: GQL.StashConfig[];
   setStashes: (v: GQL.StashConfig[]) => void;
-  modalProps?: ModalProps;
+  modalProps?: any;
 }
 
 const StashConfiguration: React.FC<IStashConfigurationProps> = ({
@@ -164,29 +181,29 @@ const StashConfiguration: React.FC<IStashConfigurationProps> = ({
 
       <div className="content" id="stash-table">
         {stashes.length > 0 && (
-          <Row className="d-none d-md-flex">
-            <h6 className="col-md-7">
-              <FormattedMessage id="path" />
-            </h6>
-            <h6 className="col-md-2 col-4">
-              <FormattedMessage id="videos" />
-            </h6>
-            <h6 className="col-md-2 col-4">
-              <FormattedMessage id="images" />
-            </h6>
-          </Row>
+          <Grid container sx={{ display: { xs: 'none', md: 'flex' }, borderBottom: 1, borderColor: 'divider', pb: 1, mb: 1 }}>
+            <Grid size={{ md: 7 }}>
+              <Typography variant="subtitle2"><FormattedMessage id="path" /></Typography>
+            </Grid>
+            <Grid size={{ md: 2 }}>
+              <Typography variant="subtitle2"><FormattedMessage id="videos" /></Typography>
+            </Grid>
+            <Grid size={{ md: 2 }}>
+              <Typography variant="subtitle2"><FormattedMessage id="images" /></Typography>
+            </Grid>
+          </Grid>
         )}
         {stashes.map((stash, index) => (
           <Stash
+            key={stash.path}
             index={index}
             stash={stash}
             onSave={(s) => handleSave(index, s)}
             onEdit={() => onEdit(index)}
             onDelete={() => onDelete(index)}
-            key={stash.path}
           />
         ))}
-        <Button className="mt-2" variant="secondary" onClick={() => onNew()}>
+        <Button className="mt-2" variant="contained" color="secondary" onClick={() => onNew()}>
           <FormattedMessage id="actions.add_directory" />
         </Button>
       </div>
@@ -197,7 +214,7 @@ const StashConfiguration: React.FC<IStashConfigurationProps> = ({
 interface IStashSetting {
   value: GQL.StashConfigInput[];
   onChange: (v: GQL.StashConfigInput[]) => void;
-  modalProps?: ModalProps;
+  modalProps?: any;
 }
 
 export const StashSetting: React.FC<IStashSetting> = ({

@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from "react";
 import { Link, useHistory } from "react-router-dom";
-import { Button } from "react-bootstrap";
 import * as GQL from "src/core/generated-graphql";
 import { PatchComponent } from "src/patch";
 import { GridCard } from "../Shared/GridCard/GridCard";

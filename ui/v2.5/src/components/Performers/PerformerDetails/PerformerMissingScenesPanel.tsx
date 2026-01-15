@@ -1,6 +1,19 @@
 import React, { useState, useMemo } from "react";
 import Select from "react-select";
-import { Button, Form, InputGroup, Dropdown, DropdownButton, ButtonGroup } from "react-bootstrap";
+import {
+    Button,
+    TextField,
+    InputAdornment,
+    Box,
+    Chip,
+    IconButton,
+    Select as MuiSelect,
+    MenuItem,
+    FormControl,
+    InputLabel,
+    Stack,
+    Typography
+} from "@mui/material";
 import { FormattedMessage, useIntl } from "react-intl";
 import * as GQL from "src/core/generated-graphql";
 import { useToast } from "src/hooks/Toast";
@@ -390,43 +403,56 @@ export const PerformerMissingScenesPanel: React.FC<IPerformerMissingScenesPanelP
     return (
         <>
             {/* Action Buttons */}
-            <div className="my-3 d-flex align-items-center flex-wrap gap-2">
-                <Button variant="primary" onClick={onScan} disabled={scanning}>
+            <Box className="my-3" display="flex" alignItems="center" flexWrap="wrap" gap={2}>
+                <Button variant="contained" color="primary" onClick={onScan} disabled={scanning}>
                     <Icon icon={faSearch} className="mr-2" />
                     <FormattedMessage id="scan_missing_scenes" defaultMessage="Scan for Missing Scenes (StashBox)" />
                 </Button>
 
-                <Button variant="secondary" onClick={onScanBackground} disabled={scanning}>
+                <Button variant="contained" color="secondary" onClick={onScanBackground} disabled={scanning}>
                     <Icon icon={faSearch} className="mr-2" />
                     <FormattedMessage id="scan_missing_scenes_bg" defaultMessage="Scan in Background" />
                 </Button>
 
                 {!scanning && filteredAndSortedScenes.filter(s => s.remote_site_id && !trackedStatus[s.remote_site_id]).length > 0 && (
-                    <Button variant="success" onClick={onTrackAll}>
+                    <Button variant="contained" color="success" onClick={onTrackAll}>
                         <Icon icon={faPlus} className="mr-2" />
                         <FormattedMessage id="track_all" defaultMessage="Track All" />
                     </Button>
                 )}
-            </div>
+            </Box>
 
             {/* Filter/Sort Toolbar */}
             {missingScenes.length > 0 && (
-                <div className="mb-3 d-flex flex-wrap align-items-center gap-2 p-2 bg-secondary text-white rounded">
+                <Box
+                    className="mb-3 rounded"
+                    sx={{
+                        p: 2,
+                        bgcolor: 'background.paper',
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        alignItems: 'center',
+                        gap: 2
+                    }}
+                >
                     {/* Search */}
-                    <InputGroup style={{ maxWidth: "250px" }}>
-                        <InputGroup.Prepend>
-                            <InputGroup.Text><Icon icon={faSearch} /></InputGroup.Text>
-                        </InputGroup.Prepend>
-                        <Form.Control
-                            className="text-input"
-                            placeholder="Search..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                    </InputGroup>
+                    <TextField
+                        size="small"
+                        placeholder="Search..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        InputProps={{
+                            startAdornment: (
+                                <InputAdornment position="start">
+                                    <Icon icon={faSearch} />
+                                </InputAdornment>
+                            ),
+                        }}
+                        sx={{ maxWidth: 250 }}
+                    />
 
                     {/* Studio Filter */}
-                    <div style={{ width: "200px" }}>
+                    <Box width={200}>
                         <Select
                             className="react-select"
                             classNamePrefix="react-select"
@@ -440,10 +466,10 @@ export const PerformerMissingScenesPanel: React.FC<IPerformerMissingScenesPanelP
                                 menuPortal: base => ({ ...base, zIndex: 9999 }),
                             }}
                         />
-                    </div>
+                    </Box>
 
                     {/* Performer Filter */}
-                    <div style={{ width: "200px" }}>
+                    <Box width={200}>
                         <Select
                             className="react-select"
                             classNamePrefix="react-select"
@@ -457,10 +483,10 @@ export const PerformerMissingScenesPanel: React.FC<IPerformerMissingScenesPanelP
                                 menuPortal: base => ({ ...base, zIndex: 9999 }),
                             }}
                         />
-                    </div>
+                    </Box>
 
                     {/* Tag Filter */}
-                    <div style={{ width: "200px" }}>
+                    <Box width={200}>
                         <Select
                             className="react-select"
                             classNamePrefix="react-select"
@@ -474,63 +500,71 @@ export const PerformerMissingScenesPanel: React.FC<IPerformerMissingScenesPanelP
                                 menuPortal: base => ({ ...base, zIndex: 9999 }),
                             }}
                         />
-                    </div>
+                    </Box>
 
                     {/* Status Filter */}
-                    <DropdownButton
-                        as={ButtonGroup}
-                        variant="outline-light"
-                        title={<><Icon icon={faFilter} className="mr-1" /> {statusFilterLabel[statusFilter]}</>}
-                    >
-                        {(["all", "untracked", "tracked", "owned"] as StatusFilter[]).map(status => (
-                            <Dropdown.Item
-                                key={status}
-                                active={statusFilter === status}
-                                onClick={() => setStatusFilter(status)}
-                            >
-                                {statusFilterLabel[status]}
-                            </Dropdown.Item>
-                        ))}
-                    </DropdownButton>
+                    <FormControl size="small">
+                        <InputLabel>Status</InputLabel>
+                        <MuiSelect
+                            value={statusFilter}
+                            label="Status"
+                            onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+                            sx={{ minWidth: 120 }}
+                        >
+                            {(["all", "untracked", "tracked", "owned"] as StatusFilter[]).map(status => (
+                                <MenuItem key={status} value={status}>
+                                    {statusFilterLabel[status]}
+                                </MenuItem>
+                            ))}
+                        </MuiSelect>
+                    </FormControl>
 
                     {/* Sort */}
-                    <DropdownButton
-                        as={ButtonGroup}
-                        variant="outline-light"
-                        title={<>Sort: {sortFieldLabel[sortField]}</>}
-                    >
-                        {(["date", "title", "studio"] as SortField[]).map(field => (
-                            <Dropdown.Item
-                                key={field}
-                                active={sortField === field}
-                                onClick={() => setSortField(field)}
-                            >
-                                {sortFieldLabel[field]}
-                            </Dropdown.Item>
-                        ))}
-                    </DropdownButton>
+                    <FormControl size="small">
+                        <InputLabel>Sort</InputLabel>
+                        <MuiSelect
+                            value={sortField}
+                            label="Sort"
+                            onChange={(e) => setSortField(e.target.value as SortField)}
+                            sx={{ minWidth: 120 }}
+                        >
+                            {(["date", "title", "studio"] as SortField[]).map(field => (
+                                <MenuItem key={field} value={field}>
+                                    {sortFieldLabel[field]}
+                                </MenuItem>
+                            ))}
+                        </MuiSelect>
+                    </FormControl>
 
-                    <Button
-                        variant="outline-light"
+                    <IconButton
                         onClick={toggleSortDirection}
                         title={sortDirection === "asc" ? "Ascending" : "Descending"}
+                        size="small"
                     >
                         <Icon icon={sortDirection === "asc" ? faSortAmountUp : faSortAmountDown} />
-                    </Button>
+                    </IconButton>
 
                     {/* Stats Summary */}
-                    <div className="ml-auto d-flex align-items-center gap-2">
-                        <span className="badge bg-info text-white px-2 py-1" title="Owned (in library)">
-                            {Object.keys(ownedStatus).length} Owned
-                        </span>
-                        <span className="badge bg-success text-white px-2 py-1" title="Missing (not in library)">
-                            {Object.keys(trackedStatus).filter(k => trackedStatus[k] && !ownedStatus[k]).length} Missing
-                        </span>
-                        <span className="badge bg-secondary text-white px-2 py-1" title="Total scenes">
-                            {missingScenes.length} Total
-                        </span>
-                    </div>
-                </div>
+                    <Box ml="auto" display="flex" alignItems="center" gap={1}>
+                        <Chip
+                            label={`${Object.keys(ownedStatus).length} Owned`}
+                            color="info"
+                            size="small"
+                            title="Owned (in library)"
+                        />
+                        <Chip
+                            label={`${Object.keys(trackedStatus).filter(k => trackedStatus[k] && !ownedStatus[k]).length} Missing`}
+                            color="success"
+                            size="small"
+                            title="Missing (not in library)"
+                        />
+                        <Chip
+                            label={`${missingScenes.length} Total`}
+                            size="small"
+                            title="Total scenes"
+                        />
+                    </Box>
+                </Box>
             )}
 
             {scanning && <LoadingIndicator />}
@@ -547,14 +581,14 @@ export const PerformerMissingScenesPanel: React.FC<IPerformerMissingScenesPanelP
 
                     {/* Pagination */}
                     {filteredAndSortedScenes.length > itemsPerPage && (
-                        <div className="d-flex justify-content-center mt-4">
+                        <Box display="flex" justifyContent="center" mt={4}>
                             <Pagination
                                 itemsPerPage={itemsPerPage}
                                 currentPage={currentPage}
                                 totalItems={filteredAndSortedScenes.length}
                                 onChangePage={setCurrentPage}
                             />
-                        </div>
+                        </Box>
                     )}
                 </>
             )}

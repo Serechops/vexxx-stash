@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Button, Form } from "react-bootstrap";
+import { Button } from "@mui/material";
 import { useIntl } from "react-intl";
 import * as GQL from "src/core/generated-graphql";
 import {
@@ -239,7 +239,8 @@ export const GroupScrapeDialog: React.FC<IGroupScrapeDialogProps> = ({
         onMovieFyQueue && (
           <Button
             className="ml-2"
-            variant="success"
+            variant="contained"
+            color="success"
             onClick={() => onMovieFyQueue(makeNewScrapedItem())}
           >
             Add to Queue

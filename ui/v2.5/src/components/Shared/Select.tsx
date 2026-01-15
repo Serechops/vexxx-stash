@@ -19,7 +19,7 @@ import { useConfigurationContext } from "src/hooks/Config";
 import { objectTitle } from "src/core/files";
 import { defaultMaxOptionsShown } from "src/core/config";
 import { useDebounce } from "src/hooks/debounce";
-import { Placement } from "react-bootstrap/esm/Overlay";
+// import { Placement } from "react-bootstrap/esm/Overlay";
 import { PerformerIDSelect } from "../Performers/PerformerSelect";
 import { Icon } from "./Icon";
 import { faTableColumns } from "@fortawesome/free-solid-svg-icons";
@@ -38,14 +38,14 @@ type Option = { value: string; label: string };
 
 interface ITypeProps {
   type?:
-    | "performers"
-    | "studios"
-    | "tags"
-    | "scene_tags"
-    | "performer_tags"
-    | "scenes"
-    | "groups"
-    | "galleries";
+  | "performers"
+  | "studios"
+  | "tags"
+  | "scene_tags"
+  | "performer_tags"
+  | "scenes"
+  | "groups"
+  | "galleries";
 }
 interface IFilterProps {
   ids?: string[];
@@ -189,11 +189,11 @@ const SelectComponent = <T extends boolean>({
 
   const options = groupHeader
     ? [
-        {
-          label: groupHeader,
-          options: items,
-        },
-      ]
+      {
+        label: groupHeader,
+        options: items,
+      },
+    ]
     : items;
 
   const styles: StylesConfig<Option, T> = {
@@ -369,7 +369,10 @@ export const GroupSelect: React.FC<IFilterProps> = (props) => {
 };
 
 export const TagSelect: React.FC<
-  IFilterProps & { excludeIds?: string[]; hoverPlacement?: Placement }
+  IFilterProps & {
+    excludeIds?: string[];
+    hoverPlacement?: "top" | "bottom" | "left" | "right";
+  }
 > = (props) => {
   return <TagIDSelect {...props} />;
 };

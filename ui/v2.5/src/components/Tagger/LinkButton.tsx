@@ -13,7 +13,7 @@ export const LinkButton: React.FC<{
 
   return (
     <OperationButton
-      variant="secondary"
+      color="secondary"
       disabled={disabled}
       operation={onLink}
       hideChildrenWhenLoading

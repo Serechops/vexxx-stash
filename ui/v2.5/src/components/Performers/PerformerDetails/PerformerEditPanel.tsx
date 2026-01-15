@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { Button, Form, Dropdown } from "react-bootstrap";
+import Button from "@mui/material/Button";
+import { Box, Menu, MenuItem } from "@mui/material";
 import { FormattedMessage, useIntl } from "react-intl";
 import Mousetrap from "mousetrap";
 import * as GQL from "src/core/generated-graphql";
@@ -91,6 +92,17 @@ export const PerformerEditPanel: React.FC<IPerformerDetails> = ({
   const [isScraperModalOpen, setIsScraperModalOpen] = useState<boolean>(false);
   const [isStashIDSearchOpen, setIsStashIDSearchOpen] =
     useState<boolean>(false);
+  const [scraperMenuAnchor, setScraperMenuAnchor] = useState<null | HTMLElement>(
+    null
+  );
+
+  const openScraperMenu = (event: React.MouseEvent<HTMLElement>) => {
+    setScraperMenuAnchor(event.currentTarget);
+  };
+
+  const closeScraperMenu = () => {
+    setScraperMenuAnchor(null);
+  };
 
   // Network state
   const [isLoading, setIsLoading] = useState(false);
@@ -483,52 +495,61 @@ export const PerformerEditPanel: React.FC<IPerformerDetails> = ({
     }
     const stashBoxes = stashConfig?.general.stashBoxes ?? [];
 
-    const popover = (
-      <Dropdown.Menu id="performer-scraper-popover">
-        {stashBoxes.map((s, index) => (
-          <Dropdown.Item
-            as={Button}
-            key={s.endpoint}
-            className="minimal"
-            onClick={() => onScraperSelected({ ...s, index })}
-          >
-            {stashboxDisplayName(s.name, index)}
-          </Dropdown.Item>
-        ))}
-        {queryableScrapers
-          ? queryableScrapers.map((s) => (
-              <Dropdown.Item
-                as={Button}
+    return (
+      <Box display="inline-block" mr={2}>
+        <Button
+          variant="contained"
+          color="secondary"
+          onClick={openScraperMenu}
+        >
+          <FormattedMessage id="actions.scrape_with" />
+        </Button>
+        <Menu
+          id="performer-scraper-menu"
+          anchorEl={scraperMenuAnchor}
+          keepMounted
+          open={Boolean(scraperMenuAnchor)}
+          onClose={closeScraperMenu}
+        >
+          {stashBoxes.map((s, index) => (
+            <MenuItem
+              key={s.endpoint}
+              onClick={() => {
+                onScraperSelected({ ...s, index });
+                closeScraperMenu();
+              }}
+            >
+              {stashboxDisplayName(s.name, index)}
+            </MenuItem>
+          ))}
+          {queryableScrapers
+            ? queryableScrapers.map((s) => (
+              <MenuItem
                 key={s.name}
-                className="minimal"
-                onClick={() => onScraperSelected(s)}
+                onClick={() => {
+                  onScraperSelected(s);
+                  closeScraperMenu();
+                }}
               >
                 {s.name}
-              </Dropdown.Item>
+              </MenuItem>
             ))
-          : ""}
-        <Dropdown.Item
-          as={Button}
-          className="minimal"
-          onClick={() => onReloadScrapers()}
-        >
-          <span className="fa-icon">
-            <Icon icon={faSyncAlt} />
-          </span>
-          <span>
-            <FormattedMessage id="actions.reload_scrapers" />
-          </span>
-        </Dropdown.Item>
-      </Dropdown.Menu>
-    );
-
-    return (
-      <Dropdown className="d-inline-block">
-        <Dropdown.Toggle variant="secondary" className="mr-2">
-          <FormattedMessage id="actions.scrape_with" />
-        </Dropdown.Toggle>
-        {popover}
-      </Dropdown>
+            : ""}
+          <MenuItem
+            onClick={() => {
+              onReloadScrapers();
+              closeScraperMenu();
+            }}
+          >
+            <Box display="flex" alignItems="center">
+              <Box mr={1} display="flex">
+                <Icon icon={faSyncAlt} />
+              </Box>
+              <FormattedMessage id="actions.reload_scrapers" />
+            </Box>
+          </MenuItem>
+        </Menu>
+      </Box>
     );
   }
 
@@ -584,7 +605,7 @@ export const PerformerEditPanel: React.FC<IPerformerDetails> = ({
     return (
       <div className={cx("details-edit", "col-xl-9", classNames)}>
         {!isNew && onCancel ? (
-          <Button className="mr-2" variant="primary" onClick={onCancel}>
+          <Button className="mr-2" variant="contained" color="primary" onClick={onCancel}>
             <FormattedMessage id="actions.cancel" />
           </Button>
         ) : null}
@@ -597,14 +618,16 @@ export const PerformerEditPanel: React.FC<IPerformerDetails> = ({
         <div>
           <Button
             className="mr-2"
-            variant="danger"
+            variant="contained"
+            color="error"
             onClick={() => formik.setFieldValue("image", null)}
           >
             <FormattedMessage id="actions.clear_image" />
           </Button>
         </div>
         <Button
-          variant="success"
+          variant="contained"
+          color="success"
           disabled={
             (!isNew && !formik.dirty) ||
             !isEqual(formik.errors, {}) ||
@@ -691,7 +714,7 @@ export const PerformerEditPanel: React.FC<IPerformerDetails> = ({
       />
       {renderButtons("mb-3")}
 
-      <Form noValidate onSubmit={formik.handleSubmit} id="performer-edit">
+      <Box component="form" noValidate onSubmit={formik.handleSubmit} id="performer-edit">
         {renderInputField("name")}
         {renderInputField("disambiguation")}
 
@@ -732,7 +755,8 @@ export const PerformerEditPanel: React.FC<IPerformerDetails> = ({
           "stash_ids",
           undefined,
           <Button
-            variant="success"
+            variant="contained"
+            color="success"
             className="mr-2 py-0"
             onClick={() => setIsStashIDSearchOpen(true)}
             disabled={!stashConfig?.general.stashBoxes?.length}
@@ -756,7 +780,7 @@ export const PerformerEditPanel: React.FC<IPerformerDetails> = ({
         />
 
         {renderButtons("mt-3")}
-      </Form>
+      </Box>
     </>
   );
 };

@@ -1,6 +1,6 @@
 import { faCheck, faList, faTimes } from "@fortawesome/free-solid-svg-icons";
 import React, { useState } from "react";
-import { Button, Row, Col } from "react-bootstrap";
+import { Button, Grid, Typography } from "@mui/material";
 import { useIntl } from "react-intl";
 
 import { ModalComponent } from "../../Shared/Modal";
@@ -33,16 +33,18 @@ const StudioFieldSelect: React.FC<IProps> = ({
     });
 
   const renderField = (field: string) => (
-    <Col xs={6} className="mb-1" key={field}>
+    <Grid size={{ xs: 6 }} key={field} sx={{ mb: 1 }}>
       <Button
         onClick={() => toggleField(field)}
-        variant="secondary"
-        className={excluded[field] ? "text-muted" : "text-success"}
+        variant="outlined"
+        color={excluded[field] ? "inherit" : "success"}
+        size="small"
+        sx={{ mr: 1.5 }}
       >
         <Icon icon={excluded[field] ? faTimes : faCheck} />
       </Button>
-      <span className="ml-3">{intl.formatMessage({ id: field })}</span>
-    </Col>
+      <span>{intl.formatMessage({ id: field })}</span>
+    </Grid>
   );
 
   return (
@@ -56,11 +58,11 @@ const StudioFieldSelect: React.FC<IProps> = ({
           onSelect(Object.keys(excluded).filter((f) => excluded[f])),
       }}
     >
-      <h4>Select tagged fields</h4>
-      <div className="mb-2">
+      <Typography variant="h6" gutterBottom>Select tagged fields</Typography>
+      <Typography variant="body2" sx={{ mb: 2 }}>
         These fields will be tagged by default. Click the button to toggle.
-      </div>
-      <Row>{STUDIO_FIELDS.map((f) => renderField(f))}</Row>
+      </Typography>
+      <Grid container>{STUDIO_FIELDS.map((f) => renderField(f))}</Grid>
     </ModalComponent>
   );
 };

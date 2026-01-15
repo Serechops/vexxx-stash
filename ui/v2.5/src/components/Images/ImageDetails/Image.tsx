@@ -1,4 +1,4 @@
-import { Tab, Nav, Dropdown } from "react-bootstrap";
+import { Tabs, Tab, Box, Menu, MenuItem, IconButton } from "@mui/material";
 import React, { useEffect, useMemo, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { useHistory, Link, RouteComponentProps } from "react-router-dom";
@@ -59,9 +59,11 @@ const ImagePage: React.FC<IProps> = ({ image }) => {
 
   const [organizedLoading, setOrganizedLoading] = useState(false);
 
-  const [activeTabKey, setActiveTabKey] = useState("image-details-panel");
+  const [activeTabKey, setActiveTabKey] = useState(0);
 
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState<boolean>(false);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const menuOpen = Boolean(anchorEl);
 
   async function onSave(input: GQL.ImageUpdateInput) {
     await updateImage({
@@ -172,35 +174,40 @@ const ImagePage: React.FC<IProps> = ({ image }) => {
 
   function renderOperations() {
     return (
-      <Dropdown>
-        <Dropdown.Toggle
-          variant="secondary"
-          id="operation-menu"
-          className="minimal"
+      <>
+        <IconButton
+          onClick={(e) => setAnchorEl(e.currentTarget)}
           title="Operations"
+          size="small"
         >
           <Icon icon={faEllipsisV} />
-        </Dropdown.Toggle>
-        <Dropdown.Menu className="bg-secondary text-white">
-          <Dropdown.Item
-            key="rescan"
-            className="bg-secondary text-white"
-            onClick={() => onRescan()}
+        </IconButton>
+        <Menu
+          anchorEl={anchorEl}
+          open={menuOpen}
+          onClose={() => setAnchorEl(null)}
+        >
+          <MenuItem
+            onClick={() => {
+              onRescan();
+              setAnchorEl(null);
+            }}
           >
             <FormattedMessage id="actions.rescan" />
-          </Dropdown.Item>
-          <Dropdown.Item
-            key="delete-image"
-            className="bg-secondary text-white"
-            onClick={() => setIsDeleteAlertOpen(true)}
+          </MenuItem>
+          <MenuItem
+            onClick={() => {
+              setIsDeleteAlertOpen(true);
+              setAnchorEl(null);
+            }}
           >
             <FormattedMessage
               id="actions.delete"
               values={{ entityType: intl.formatMessage({ id: "image" }) }}
             />
-          </Dropdown.Item>
-        </Dropdown.Menu>
-      </Dropdown>
+          </MenuItem>
+        </Menu>
+      </>
     );
   }
 
@@ -210,59 +217,49 @@ const ImagePage: React.FC<IProps> = ({ image }) => {
     }
 
     return (
-      <Tab.Container
-        activeKey={activeTabKey}
-        onSelect={(k) => k && setActiveTabKey(k)}
-      >
-        <div>
-          <Nav variant="tabs" className="mr-auto">
-            <Nav.Item>
-              <Nav.Link eventKey="image-details-panel">
-                <FormattedMessage id="details" />
-              </Nav.Link>
-            </Nav.Item>
-            <Nav.Item>
-              <Nav.Link eventKey="image-file-info-panel">
+      <Box>
+        <Tabs
+          value={activeTabKey}
+          onChange={(_e, newValue) => setActiveTabKey(newValue)}
+          className="mr-auto"
+        >
+          <Tab label={<FormattedMessage id="details" />} />
+          <Tab
+            label={
+              <>
                 <FormattedMessage id="file_info" />
                 <Counter count={image.visual_files.length} hideZero hideOne />
-              </Nav.Link>
-            </Nav.Item>
-            <Nav.Item>
-              <Nav.Link eventKey="image-edit-panel">
-                <FormattedMessage id="actions.edit" />
-              </Nav.Link>
-            </Nav.Item>
-          </Nav>
-        </div>
+              </>
+            }
+          />
+          <Tab label={<FormattedMessage id="actions.edit" />} />
+        </Tabs>
 
-        <Tab.Content>
-          <Tab.Pane eventKey="image-details-panel">
-            <ImageDetailPanel image={image} />
-          </Tab.Pane>
-          <Tab.Pane
-            className="file-info-panel"
-            eventKey="image-file-info-panel"
-          >
-            <ImageFileInfoPanel image={image} />
-          </Tab.Pane>
-          <Tab.Pane eventKey="image-edit-panel" mountOnEnter>
+        <Box sx={{ mt: 2 }}>
+          {activeTabKey === 0 && <ImageDetailPanel image={image} />}
+          {activeTabKey === 1 && (
+            <Box className="file-info-panel">
+              <ImageFileInfoPanel image={image} />
+            </Box>
+          )}
+          {activeTabKey === 2 && (
             <ImageEditPanel
-              isVisible={activeTabKey === "image-edit-panel"}
+              isVisible={activeTabKey === 2}
               image={image}
               onSubmit={onSave}
               onDelete={() => setIsDeleteAlertOpen(true)}
             />
-          </Tab.Pane>
-        </Tab.Content>
-      </Tab.Container>
+          )}
+        </Box>
+      </Box>
     );
   }
 
   // set up hotkeys
   useEffect(() => {
-    Mousetrap.bind("a", () => setActiveTabKey("image-details-panel"));
-    Mousetrap.bind("e", () => setActiveTabKey("image-edit-panel"));
-    Mousetrap.bind("f", () => setActiveTabKey("image-file-info-panel"));
+    Mousetrap.bind("a", () => setActiveTabKey(0));
+    Mousetrap.bind("e", () => setActiveTabKey(2));
+    Mousetrap.bind("f", () => setActiveTabKey(1));
     Mousetrap.bind("o", () => {
       onIncrementClick();
     });

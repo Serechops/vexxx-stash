@@ -42,7 +42,7 @@ import {
 import { SceneInteractiveStatus } from "src/hooks/Interactive/status";
 import { languageMap } from "src/utils/caption";
 import { VIDEO_PLAYER_ID } from "./util";
-import { Button } from "react-bootstrap";
+import { Button } from "@mui/material";
 
 // @ts-ignore
 import airplay from "@silvermine/videojs-airplay";

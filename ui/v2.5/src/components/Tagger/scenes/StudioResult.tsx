@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { Button, ButtonGroup } from "react-bootstrap";
+import { Button, ButtonGroup } from "@mui/material";
 import { FormattedMessage } from "react-intl";
 import cx from "classnames";
 
@@ -134,12 +134,12 @@ const StudioResult: React.FC<IStudioResultProps> = ({
           />
         </b>
       </div>
-      <ButtonGroup>
-        <Button variant="secondary" onClick={() => onCreate()}>
+      <ButtonGroup size="small">
+        <Button variant="outlined" onClick={() => onCreate()}>
           <FormattedMessage id="actions.create" />
         </Button>
         <Button
-          variant={selectedSource === "skip" ? "primary" : "secondary"}
+          variant={selectedSource === "skip" ? "contained" : "outlined"}
           onClick={() => handleSkip()}
         >
           <FormattedMessage id="actions.skip" />

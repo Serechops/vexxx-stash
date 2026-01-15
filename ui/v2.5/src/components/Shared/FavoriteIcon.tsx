@@ -1,6 +1,6 @@
 import React from "react";
 import { Icon } from "../Shared/Icon";
-import { Button } from "react-bootstrap";
+import { IconButton } from "@mui/material";
 import { faHeart } from "@fortawesome/free-solid-svg-icons";
 import cx from "classnames";
 import { SizeProp } from "@fortawesome/fontawesome-svg-core";
@@ -12,7 +12,7 @@ export const FavoriteIcon: React.FC<{
   className?: string;
 }> = ({ favorite, onToggleFavorite, size, className }) => {
   return (
-    <Button
+    <IconButton
       className={cx(
         "minimal",
         "mousetrap",
@@ -21,8 +21,9 @@ export const FavoriteIcon: React.FC<{
         favorite ? "favorite" : "not-favorite"
       )}
       onClick={() => onToggleFavorite!(!favorite)}
+      size="small"
     >
       <Icon icon={faHeart} size={size} />
-    </Button>
+    </IconButton>
   );
 };

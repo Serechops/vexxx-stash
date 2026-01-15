@@ -1,5 +1,16 @@
 import React, { Dispatch, useState } from "react";
-import { Badge, Button, Card, Collapse, Form } from "react-bootstrap";
+import {
+  Chip,
+  Button,
+  Paper,
+  Collapse,
+  TextField,
+  Typography,
+  Box,
+  FormHelperText,
+  MenuItem,
+  Stack,
+} from "@mui/material";
 import { FormattedMessage } from "react-intl";
 import { useConfigurationContext } from "src/hooks/Config";
 
@@ -18,8 +29,8 @@ const Config: React.FC<IConfigProps> = ({ show, config, setConfig }) => {
 
   const excludedFields = config.excludedPerformerFields ?? [];
 
-  const handleInstanceSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const selectedEndpoint = e.currentTarget.value;
+  const handleInstanceSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedEndpoint = e.target.value;
     setConfig({
       ...config,
       selectedEndpoint,
@@ -36,67 +47,68 @@ const Config: React.FC<IConfigProps> = ({ show, config, setConfig }) => {
   return (
     <>
       <Collapse in={show}>
-        <Card>
-          <div className="row">
-            <h4 className="col-12">
+        <Paper sx={{ p: 2, mt: 2 }}>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+            <Typography variant="h5" sx={{ width: '100%' }}>
               <FormattedMessage id="configuration" />
-            </h4>
-            <hr className="w-100" />
-            <div className="col-md-6">
-              <Form.Group controlId="excluded-performer-fields">
-                <h6>
+            </Typography>
+            <Box sx={{ flexBasis: { xs: '100%', md: '48%' } }}>
+              <Box mb={3}>
+                <Typography variant="h6" gutterBottom>
                   <FormattedMessage id="performer_tagger.config.excluded_fields" />
-                </h6>
-                <span>
+                </Typography>
+                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 1 }}>
                   {excludedFields.length > 0 ? (
                     excludedFields.map((f) => (
-                      <Badge variant="secondary" className="tag-item" key={f}>
-                        <FormattedMessage id={f} />
-                      </Badge>
+                      <Chip key={f} size="small" label={<FormattedMessage id={f} />} />
                     ))
                   ) : (
-                    <FormattedMessage id="performer_tagger.config.no_fields_are_excluded" />
+                    <Typography variant="body2" color="textSecondary">
+                      <FormattedMessage id="performer_tagger.config.no_fields_are_excluded" />
+                    </Typography>
                   )}
-                </span>
-                <Form.Text>
+                </Stack>
+                <FormHelperText>
                   <FormattedMessage id="performer_tagger.config.these_fields_will_not_be_changed_when_updating_performers" />
-                </Form.Text>
+                </FormHelperText>
                 <Button
                   onClick={() => setShowExclusionModal(true)}
-                  className="mt-2"
+                  variant="outlined"
+                  sx={{ mt: 1 }}
                 >
                   <FormattedMessage id="performer_tagger.config.edit_excluded_fields" />
                 </Button>
-              </Form.Group>
-              <Form.Group
-                controlId="stash-box-endpoint"
-                className="align-items-center row no-gutters mt-4"
-              >
-                <Form.Label className="mr-4">
-                  <FormattedMessage id="performer_tagger.config.active_stash-box_instance" />
-                </Form.Label>
-                <Form.Control
-                  as="select"
-                  value={config.selectedEndpoint}
-                  className="col-md-4 col-6 input-control"
-                  disabled={!stashBoxes.length}
-                  onChange={handleInstanceSelect}
-                >
-                  {!stashBoxes.length && (
-                    <option>
-                      <FormattedMessage id="performer_tagger.config.no_instances_found" />
-                    </option>
-                  )}
-                  {stashConfig?.general.stashBoxes.map((i) => (
-                    <option value={i.endpoint} key={i.endpoint}>
-                      {i.endpoint}
-                    </option>
-                  ))}
-                </Form.Control>
-              </Form.Group>
-            </div>
-          </div>
-        </Card>
+              </Box>
+
+              <Box mb={3}>
+                <Stack direction="row" alignItems="center" spacing={2} sx={{ mt: 2 }}>
+                  <Typography>
+                    <FormattedMessage id="performer_tagger.config.active_stash-box_instance" />
+                  </Typography>
+                  <TextField
+                    select
+                    size="small"
+                    value={config.selectedEndpoint || ""}
+                    disabled={!stashBoxes.length}
+                    onChange={handleInstanceSelect}
+                    sx={{ minWidth: 250 }}
+                  >
+                    {!stashBoxes.length && (
+                      <MenuItem value="">
+                        <FormattedMessage id="performer_tagger.config.no_instances_found" />
+                      </MenuItem>
+                    )}
+                    {stashConfig?.general.stashBoxes.map((i) => (
+                      <MenuItem value={i.endpoint} key={i.endpoint}>
+                        {i.endpoint}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </Stack>
+              </Box>
+            </Box>
+          </Box>
+        </Paper>
       </Collapse>
       <PerformerFieldSelector
         show={showExclusionModal}

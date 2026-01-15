@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import cx from "classnames";
 import { LoadingIndicator } from "./LoadingIndicator";
-import { Button } from "react-bootstrap";
+import { Button } from "@mui/material";
 import { faArrowLeft, faArrowRight } from "@fortawesome/free-solid-svg-icons";
 import { Icon } from "./Icon";
 import { FormattedMessage } from "react-intl";

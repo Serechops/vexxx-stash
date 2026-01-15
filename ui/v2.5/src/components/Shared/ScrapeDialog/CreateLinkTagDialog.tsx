@@ -4,8 +4,16 @@ import { FormattedMessage, useIntl } from "react-intl";
 import * as GQL from "src/core/generated-graphql";
 import { ModalComponent } from "src/components/Shared/Modal";
 import { faLink } from "@fortawesome/free-solid-svg-icons";
-import { Form } from "react-bootstrap";
 import { Tag, TagSelect } from "../../Tags/TagSelect";
+import {
+  Box,
+  Radio,
+  RadioGroup,
+  FormControlLabel,
+  Checkbox,
+  TextField,
+  Typography
+} from "@mui/material";
 
 export const CreateLinkTagDialog: React.FC<{
   tag: GQL.ScrapedTag;
@@ -49,9 +57,9 @@ export const CreateLinkTagDialog: React.FC<{
         stash_ids:
           endpoint && tag.remote_site_id
             ? [
-                ...(existingTag.stash_ids || []),
-                { endpoint: endpoint!, stash_id: tag.remote_site_id },
-              ]
+              ...(existingTag.stash_ids || []),
+              { endpoint: endpoint!, stash_id: tag.remote_site_id },
+            ]
             : undefined,
       };
       onClose({ update: updateInput });
@@ -76,39 +84,44 @@ export const CreateLinkTagDialog: React.FC<{
       icon={faLink}
       header={intl.formatMessage({ id: "component_tagger.verb_match_tag" })}
     >
-      <Form>
-        <Form.Check
-          type="radio"
-          id="create-new"
+      <Box p={2}>
+        <FormControlLabel
+          value="create"
+          control={
+            <Radio
+              checked={createNew}
+              onChange={() => setCreateNew(true)}
+            />
+          }
           label={intl.formatMessage({ id: "actions.create_new" })}
-          checked={createNew}
-          onChange={() => setCreateNew(true)}
         />
 
-        <Form.Group className="ml-3 mt-2">
-          <Form.Label>
-            <FormattedMessage id="name" />
-          </Form.Label>
-          <Form.Control
-            className="input-control"
-            type="text"
+        <Box ml={4} mt={1} mb={2}>
+          <TextField
+            label={<FormattedMessage id="name" />}
             value={name}
             onChange={(e) => setName(e.target.value)}
             disabled={!createNew}
+            variant="outlined"
+            size="small"
+            fullWidth
           />
-        </Form.Group>
+        </Box>
 
-        <Form.Check
-          type="radio"
-          id="link-existing"
+        <FormControlLabel
+          value="link"
+          control={
+            <Radio
+              checked={!createNew}
+              onChange={() => setCreateNew(false)}
+            />
+          }
           label={intl.formatMessage({
             id: "component_tagger.verb_link_existing",
           })}
-          checked={!createNew}
-          onChange={() => setCreateNew(false)}
         />
 
-        <Form.Group className="ml-3 mt-2">
+        <Box ml={4} mt={1}>
           <TagSelect
             isMulti={false}
             values={existingTag ? [existingTag] : []}
@@ -116,21 +129,23 @@ export const CreateLinkTagDialog: React.FC<{
             isDisabled={createNew}
             menuPortalTarget={document.body}
           />
-        </Form.Group>
+        </Box>
 
-        <Form.Group className="mt-3">
-          <Form.Check
-            type="checkbox"
-            id="add-as-alias"
+        <Box mt={3}>
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={addAsAlias}
+                onChange={() => setAddAsAlias(!addAsAlias)}
+                disabled={!canAddAlias}
+              />
+            }
             label={intl.formatMessage({
               id: "component_tagger.verb_add_as_alias",
             })}
-            checked={addAsAlias}
-            onChange={() => setAddAsAlias(!addAsAlias)}
-            disabled={!canAddAlias}
           />
-        </Form.Group>
-      </Form>
+        </Box>
+      </Box>
     </ModalComponent>
   );
 };

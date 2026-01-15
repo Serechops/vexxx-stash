@@ -1,4 +1,7 @@
-import { Button, Tab, Nav, Dropdown } from "react-bootstrap";
+import { Menu, MenuItem, IconButton } from "@mui/material";
+import { Tabs, Tab, Box } from "@mui/material";
+import Button from "@mui/material/Button";
+import { Row, Col } from "src/components/Shared/Layouts";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   useHistory,
@@ -66,6 +69,16 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
   const [collapsed, setCollapsed] = useState(false);
 
   const [activeTabKey, setActiveTabKey] = useState("gallery-details-panel");
+  const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
+  const menuOpen = Boolean(menuAnchorEl);
+
+  const handleMenuClick = (event: React.MouseEvent<HTMLElement>) => {
+    setMenuAnchorEl(event.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setMenuAnchorEl(null);
+  };
 
   const setMainTabKey = (newTabKey: string | null) => {
     if (newTabKey === "add") {
@@ -186,41 +199,52 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
 
   function renderOperations() {
     return (
-      <Dropdown>
-        <Dropdown.Toggle
-          variant="secondary"
+      <>
+        <IconButton
           id="operation-menu"
           className="minimal"
           title={intl.formatMessage({ id: "operations" })}
+          onClick={handleMenuClick}
         >
           <Icon icon={faEllipsisV} />
-        </Dropdown.Toggle>
-        <Dropdown.Menu className="bg-secondary text-white">
-          {path ? (
-            <Dropdown.Item
-              className="bg-secondary text-white"
-              onClick={() => onRescan()}
+        </IconButton>
+        <Menu
+          anchorEl={menuAnchorEl}
+          open={menuOpen}
+          onClose={handleMenuClose}
+          className="bg-secondary text-white"
+        >
+          {path && (
+            <MenuItem
+              onClick={() => {
+                onRescan();
+                handleMenuClose();
+              }}
             >
               <FormattedMessage id="actions.rescan" />
-            </Dropdown.Item>
-          ) : undefined}
-          <Dropdown.Item
-            className="bg-secondary text-white"
-            onClick={() => onResetCover()}
+            </MenuItem>
+          )}
+          <MenuItem
+            onClick={() => {
+              onResetCover();
+              handleMenuClose();
+            }}
           >
             <FormattedMessage id="actions.reset_cover" />
-          </Dropdown.Item>
-          <Dropdown.Item
-            className="bg-secondary text-white"
-            onClick={() => setIsDeleteAlertOpen(true)}
+          </MenuItem>
+          <MenuItem
+            onClick={() => {
+              setIsDeleteAlertOpen(true);
+              handleMenuClose();
+            }}
           >
             <FormattedMessage
               id="actions.delete"
               values={{ entityType: intl.formatMessage({ id: "gallery" }) }}
             />
-          </Dropdown.Item>
-        </Dropdown.Menu>
-      </Dropdown>
+          </MenuItem>
+        </Menu>
+      </>
     );
   }
 
@@ -230,80 +254,77 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
     }
 
     return (
-      <Tab.Container
-        activeKey={activeTabKey}
-        onSelect={(k) => k && setActiveTabKey(k)}
-      >
-        <div>
-          <Nav variant="tabs" className="mr-auto">
-            <Nav.Item>
-              <Nav.Link eventKey="gallery-details-panel">
-                <FormattedMessage id="details" />
-              </Nav.Link>
-            </Nav.Item>
+      <>
+        <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 2 }}>
+          <Tabs
+            value={activeTabKey}
+            onChange={(_, k) => setActiveTabKey(k)}
+            variant="scrollable"
+            scrollButtons="auto"
+            aria-label="gallery details tabs"
+          >
+            <Tab label={<FormattedMessage id="details" />} value="gallery-details-panel" />
+
             {gallery.scenes.length >= 1 ? (
-              <Nav.Item>
-                <Nav.Link eventKey="gallery-scenes-panel">
+              <Tab
+                label={
                   <FormattedMessage
                     id="countables.scenes"
                     values={{ count: gallery.scenes.length }}
                   />
-                </Nav.Link>
-              </Nav.Item>
-            ) : undefined}
-            {path ? (
-              <Nav.Item>
-                <Nav.Link eventKey="gallery-file-info-panel">
-                  <FormattedMessage id="file_info" />
-                  <Counter count={gallery.files.length} hideZero hideOne />
-                </Nav.Link>
-              </Nav.Item>
-            ) : undefined}
-            <Nav.Item>
-              <Nav.Link eventKey="gallery-chapter-panel">
-                <FormattedMessage id="chapters" />
-              </Nav.Link>
-            </Nav.Item>
-            <Nav.Item>
-              <Nav.Link eventKey="gallery-edit-panel">
-                <FormattedMessage id="actions.edit" />
-              </Nav.Link>
-            </Nav.Item>
-          </Nav>
-        </div>
+                }
+                value="gallery-scenes-panel"
+              />
+            ) : null}
 
-        <Tab.Content>
-          <Tab.Pane eventKey="gallery-details-panel">
-            <GalleryDetailPanel gallery={gallery} />
-          </Tab.Pane>
-          <Tab.Pane
-            className="file-info-panel"
-            eventKey="gallery-file-info-panel"
-          >
+            {path ? (
+              <Tab
+                label={
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <FormattedMessage id="file_info" />
+                    <Counter count={gallery.files.length} hideZero hideOne />
+                  </Box>
+                }
+                value="gallery-file-info-panel"
+              />
+            ) : null}
+
+            <Tab label={<FormattedMessage id="chapters" />} value="gallery-chapter-panel" />
+            <Tab label={<FormattedMessage id="actions.edit" />} value="gallery-edit-panel" />
+          </Tabs>
+        </Box>
+
+        {activeTabKey === "gallery-details-panel" && (
+          <GalleryDetailPanel gallery={gallery} />
+        )}
+
+        {activeTabKey === "gallery-file-info-panel" && (
+          <Box className="file-info-panel">
             <GalleryFileInfoPanel gallery={gallery} />
-          </Tab.Pane>
-          <Tab.Pane eventKey="gallery-chapter-panel">
-            <GalleryChapterPanel
-              gallery={gallery}
-              onClickChapter={onClickChapter}
-              isVisible={activeTabKey === "gallery-chapter-panel"}
-            />
-          </Tab.Pane>
-          <Tab.Pane eventKey="gallery-edit-panel" mountOnEnter>
-            <GalleryEditPanel
-              isVisible={activeTabKey === "gallery-edit-panel"}
-              gallery={gallery}
-              onSubmit={onSave}
-              onDelete={() => setIsDeleteAlertOpen(true)}
-            />
-          </Tab.Pane>
-          {gallery.scenes.length > 0 && (
-            <Tab.Pane eventKey="gallery-scenes-panel">
-              <GalleryScenesPanel scenes={gallery.scenes} />
-            </Tab.Pane>
-          )}
-        </Tab.Content>
-      </Tab.Container>
+          </Box>
+        )}
+
+        {activeTabKey === "gallery-chapter-panel" && (
+          <GalleryChapterPanel
+            gallery={gallery}
+            onClickChapter={onClickChapter}
+            isVisible={activeTabKey === "gallery-chapter-panel"}
+          />
+        )}
+
+        {activeTabKey === "gallery-edit-panel" && (
+          <GalleryEditPanel
+            isVisible={activeTabKey === "gallery-edit-panel"}
+            gallery={gallery}
+            onSubmit={onSave}
+            onDelete={() => setIsDeleteAlertOpen(true)}
+          />
+        )}
+
+        {gallery.scenes.length > 0 && activeTabKey === "gallery-scenes-panel" && (
+          <GalleryScenesPanel scenes={gallery.scenes} />
+        )}
+      </>
     );
   }
 
@@ -313,35 +334,26 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
     }
 
     return (
-      <Tab.Container
-        activeKey={add ? "add" : "images"}
-        unmountOnExit
-        onSelect={setMainTabKey}
-      >
-        <div>
-          <Nav variant="tabs" className="mr-auto">
-            <Nav.Item>
-              <Nav.Link eventKey="images">
-                <FormattedMessage id="images" />
-              </Nav.Link>
-            </Nav.Item>
-            <Nav.Item>
-              <Nav.Link eventKey="add">
-                <FormattedMessage id="actions.add" />
-              </Nav.Link>
-            </Nav.Item>
-          </Nav>
-        </div>
+      <>
+        <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 2 }}>
+          <Tabs
+            value={add ? "add" : "images"}
+            onChange={(_, k) => setMainTabKey(k)}
+            aria-label="gallery right tabs"
+          >
+            <Tab label={<FormattedMessage id="images" />} value="images" />
+            <Tab label={<FormattedMessage id="actions.add" />} value="add" />
+          </Tabs>
+        </Box>
 
-        <Tab.Content>
-          <Tab.Pane eventKey="images">
-            <GalleryImagesPanel active={!add} gallery={gallery} />
-          </Tab.Pane>
-          <Tab.Pane eventKey="add">
-            <GalleryAddPanel active={!!add} gallery={gallery} />
-          </Tab.Pane>
-        </Tab.Content>
-      </Tab.Container>
+        {!add && (
+          <GalleryImagesPanel active={!add} gallery={gallery} />
+        )}
+
+        {add && (
+          <GalleryAddPanel active={!!add} gallery={gallery} />
+        )}
+      </>
     );
   }
 
@@ -382,7 +394,7 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
   const title = galleryTitle(gallery);
 
   return (
-    <div className="row">
+    <Row>
       <Helmet>
         <title>{title}</title>
       </Helmet>
@@ -440,14 +452,14 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
         {renderTabs()}
       </div>
       <div className="gallery-divider d-none d-xl-block">
-        <Button onClick={() => setCollapsed(!collapsed)}>
+        <Button variant="text" onClick={() => setCollapsed(!collapsed)}>
           <Icon className="fa-fw" icon={getCollapseButtonIcon()} />
         </Button>
       </div>
       <div className={`gallery-container ${collapsed ? "expanded" : ""}`}>
         {renderRightTabs()}
       </div>
-    </div>
+    </Row>
   );
 };
 

@@ -9,7 +9,7 @@ import { View } from "../views";
 import useFocus from "src/utils/focus";
 import ScreenUtils from "src/utils/screen";
 import Mousetrap from "mousetrap";
-import { Button } from "react-bootstrap";
+
 import cx from "classnames";
 
 const savedFiltersSectionID = "saved-filters";

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Tag, TagSelect, TagSelectProps } from "src/components/Tags/TagSelect";
 import { useToast } from "src/hooks/Toast";
 import { useIntl } from "react-intl";
-import { Badge, Button } from "react-bootstrap";
+import { Chip } from "@mui/material";
 import { Icon } from "src/components/Shared/Icon";
 import { faPlus } from "@fortawesome/free-solid-svg-icons";
 import { CollapseButton } from "src/components/Shared/CollapseButton";
@@ -110,17 +110,16 @@ export function useTagsEdit(
     const ret = (
       <>
         {newTags.map((t) => (
-          <Badge
-            className="tag-item"
-            variant="secondary"
+          <Chip
+            className="tag-item ml-1 mb-1"
             key={t.name}
+            label={t.name}
             onClick={() => createNewTag(t)}
-          >
-            {t.name}
-            <Button className="minimal ml-2">
-              <Icon className="fa-fw" icon={faPlus} />
-            </Button>
-          </Badge>
+            onDelete={() => createNewTag(t)}
+            deleteIcon={<Icon icon={faPlus} />}
+            variant="outlined"
+            size="small"
+          />
         ))}
       </>
     );

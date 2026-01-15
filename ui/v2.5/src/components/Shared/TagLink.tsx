@@ -1,4 +1,4 @@
-import { Badge, OverlayTrigger, Tooltip } from "react-bootstrap";
+import { Chip, Tooltip } from "@mui/material";
 import React, { useMemo } from "react";
 import { Link } from "react-router-dom";
 import cx from "classnames";
@@ -9,7 +9,6 @@ import { galleryTitle } from "src/core/galleries";
 import * as GQL from "src/core/generated-graphql";
 import { TagPopover } from "../Tags/TagPopover";
 import { markerTitle } from "src/core/markers";
-import { Placement } from "react-bootstrap/esm/Overlay";
 import { faFolderTree } from "@fortawesome/free-solid-svg-icons";
 import { Icon } from "../Shared/Icon";
 import { FormattedMessage } from "react-intl";
@@ -33,14 +32,14 @@ const SortNameLinkComponent: React.FC<ISortNameLinkProps> = ({
   children,
 }) => {
   return (
-    <Badge
+    <Chip
       data-name={className}
       data-sort-name={sortName}
       className={cx("tag-item tag-link", className)}
-      variant="secondary"
-    >
-      <Link to={link}>{children}</Link>
-    </Badge>
+      color="secondary"
+      size="small"
+      label={<Link to={link}>{children}</Link>}
+    />
   );
 };
 
@@ -55,9 +54,12 @@ const CommonLinkComponent: React.FC<ICommonLinkProps> = ({
   children,
 }) => {
   return (
-    <Badge className={cx("tag-item tag-link", className)} variant="secondary">
-      <Link to={link}>{children}</Link>
-    </Badge>
+    <Chip
+      className={cx("tag-item tag-link", className)}
+      color="secondary"
+      size="small"
+      label={<Link to={link}>{children}</Link>}
+    />
   );
 };
 
@@ -230,16 +232,16 @@ export const GalleryLink: React.FC<IGalleryLinkProps> = ({
 interface ITagLinkProps {
   tag: INamedObject;
   linkType?:
-    | "scene"
-    | "gallery"
-    | "image"
-    | "details"
-    | "performer"
-    | "group"
-    | "studio"
-    | "scene_marker";
+  | "scene"
+  | "gallery"
+  | "image"
+  | "details"
+  | "performer"
+  | "group"
+  | "studio"
+  | "scene_marker";
   className?: string;
-  hoverPlacement?: Placement;
+  hoverPlacement?: "top" | "bottom" | "left" | "right";
   showHierarchyIcon?: boolean;
   hierarchyTooltipID?: string;
 }
@@ -277,16 +279,11 @@ export const TagLink: React.FC<ITagLinkProps> = PatchComponent(
 
     const title = tag.name || "";
 
-    const tooltip = useMemo(() => {
+    const tooltipText = useMemo(() => {
       if (!hierarchyTooltipID) {
-        return <></>;
+        return "";
       }
-
-      return (
-        <Tooltip id="tag-hierarchy-tooltip">
-          <FormattedMessage id={hierarchyTooltipID} />
-        </Tooltip>
-      );
+      return hierarchyTooltipID;
     }, [hierarchyTooltipID]);
 
     return (
@@ -298,12 +295,12 @@ export const TagLink: React.FC<ITagLinkProps> = PatchComponent(
         <TagPopover id={tag.id ?? ""} placement={hoverPlacement}>
           {title}
           {showHierarchyIcon && (
-            <OverlayTrigger placement="top" overlay={tooltip}>
+            <Tooltip title={<FormattedMessage id={tooltipText} />} placement="top">
               <span className="icon-wrapper">
                 <span className="vertical-line">|</span>
                 <Icon icon={faFolderTree} className="tag-icon" />
               </span>
-            </OverlayTrigger>
+            </Tooltip>
           )}
         </TagPopover>
       </SortNameLinkComponent>

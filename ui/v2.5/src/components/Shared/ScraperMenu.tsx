@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Dropdown, Button } from "react-bootstrap";
+import { Button, Menu, MenuItem, Divider, Box } from "@mui/material";
 import { useIntl } from "react-intl";
 import { Icon } from "./Icon";
 import { stashboxDisplayName } from "src/utils/stashbox";
@@ -22,38 +22,56 @@ export const ScraperMenu: React.FC<{
   onScraperClicked,
   onReloadScrapers,
 }) => {
-  const intl = useIntl();
-  const [filter, setFilter] = useState("");
+    const intl = useIntl();
+    const [filter, setFilter] = useState("");
+    const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+    const open = Boolean(anchorEl);
 
-  const filteredStashboxes = useMemo(() => {
-    if (!stashBoxes) return [];
-    if (!filter) return stashBoxes;
+    const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+      setAnchorEl(event.currentTarget);
+    };
 
-    return stashBoxes.filter((s) =>
-      s.name.toLowerCase().includes(filter.toLowerCase())
-    );
-  }, [stashBoxes, filter]);
+    const handleClose = () => {
+      setAnchorEl(null);
+    };
 
-  const filteredScrapers = useMemo(() => {
-    if (!filter) return scrapers;
+    const filteredStashboxes = useMemo(() => {
+      if (!stashBoxes) return [];
+      if (!filter) return stashBoxes;
 
-    return scrapers.filter(
-      (s) =>
-        s.name.toLowerCase().includes(filter.toLowerCase()) ||
-        s.id.toLowerCase().includes(filter.toLowerCase())
-    );
-  }, [scrapers, filter]);
+      return stashBoxes.filter((s) =>
+        s.name.toLowerCase().includes(filter.toLowerCase())
+      );
+    }, [stashBoxes, filter]);
 
-  return (
-    <Dropdown
-      className="scraper-menu"
-      title={intl.formatMessage({ id: "actions.scrape_query" })}
-    >
-      <Dropdown.Toggle variant={variant}>{toggle}</Dropdown.Toggle>
+    const filteredScrapers = useMemo(() => {
+      if (!filter) return scrapers;
 
-      <Dropdown.Menu>
-        <div className="scraper-filter-container">
-          <div className="btn-group">
+      return scrapers.filter(
+        (s) =>
+          s.name.toLowerCase().includes(filter.toLowerCase()) ||
+          s.id.toLowerCase().includes(filter.toLowerCase())
+      );
+    }, [scrapers, filter]);
+
+    return (
+      <>
+        <Button
+          className="scraper-menu"
+          title={intl.formatMessage({ id: "actions.scrape_query" })}
+          onClick={handleClick}
+          variant={variant === "secondary" ? "outlined" : "contained"}
+          color="secondary"
+          size="small"
+        >
+          {toggle}
+        </Button>
+        <Menu
+          anchorEl={anchorEl}
+          open={open}
+          onClose={handleClose}
+        >
+          <Box className="scraper-filter-container" sx={{ p: 1, display: 'flex', gap: 1 }}>
             <ClearableInput
               placeholder={`${intl.formatMessage({ id: "filter" })}...`}
               value={filter}
@@ -63,38 +81,43 @@ export const ScraperMenu: React.FC<{
               onClick={onReloadScrapers}
               className="reload-button"
               title={intl.formatMessage({ id: "actions.reload_scrapers" })}
+              variant="outlined"
+              size="small"
             >
               <Icon icon={faSyncAlt} />
             </Button>
-          </div>
-        </div>
+          </Box>
 
-        {filteredStashboxes.map((s, index) => (
-          <Dropdown.Item
-            key={s.endpoint}
-            onClick={() =>
-              onScraperClicked({
-                stash_box_endpoint: s.endpoint,
-              })
-            }
-          >
-            {stashboxDisplayName(s.name, index)}
-          </Dropdown.Item>
-        ))}
+          {filteredStashboxes.map((s, index) => (
+            <MenuItem
+              key={s.endpoint}
+              onClick={() => {
+                onScraperClicked({
+                  stash_box_endpoint: s.endpoint,
+                });
+                handleClose();
+              }}
+            >
+              {stashboxDisplayName(s.name, index)}
+            </MenuItem>
+          ))}
 
-        {filteredStashboxes.length > 0 && filteredScrapers.length > 0 && (
-          <Dropdown.Divider />
-        )}
+          {filteredStashboxes.length > 0 && filteredScrapers.length > 0 && (
+            <Divider />
+          )}
 
-        {filteredScrapers.map((s) => (
-          <Dropdown.Item
-            key={s.name}
-            onClick={() => onScraperClicked({ scraper_id: s.id })}
-          >
-            {s.name}
-          </Dropdown.Item>
-        ))}
-      </Dropdown.Menu>
-    </Dropdown>
-  );
-};
+          {filteredScrapers.map((s) => (
+            <MenuItem
+              key={s.name}
+              onClick={() => {
+                onScraperClicked({ scraper_id: s.id });
+                handleClose();
+              }}
+            >
+              {s.name}
+            </MenuItem>
+          ))}
+        </Menu>
+      </>
+    );
+  };

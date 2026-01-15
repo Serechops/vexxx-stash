@@ -5,7 +5,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { Card, Form } from "react-bootstrap";
+import { Card, CardContent, Checkbox as MuiCheckbox } from "@mui/material";
 import { Link } from "react-router-dom";
 import cx from "classnames";
 import { TruncatedText } from "../TruncatedText";
@@ -115,16 +115,16 @@ const Checkbox: React.FC<{
   let shiftKey = false;
 
   return (
-    <Form.Control
-      type="checkbox"
+    <MuiCheckbox
       // #2750 - add mousetrap class to ensure keyboard shortcuts work
       className="card-check mousetrap"
       checked={selected}
       onChange={() => onSelectedChanged!(!selected, shiftKey)}
-      onClick={(event: React.MouseEvent<HTMLInputElement, MouseEvent>) => {
+      onClick={(event: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
         shiftKey = event.shiftKey;
         event.stopPropagation();
       }}
+      size="small"
     />
   );
 };

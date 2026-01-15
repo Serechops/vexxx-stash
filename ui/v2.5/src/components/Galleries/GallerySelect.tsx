@@ -25,7 +25,6 @@ import {
   Option as SelectOption,
 } from "../Shared/FilterSelect";
 import { useCompare } from "src/hooks/state";
-import { Placement } from "react-bootstrap/esm/Overlay";
 import { sortByRelevance } from "src/utils/query";
 import { galleryTitle } from "src/core/galleries";
 import { PatchComponent, PatchFunction } from "src/patch";
@@ -45,7 +44,7 @@ export type Gallery = Pick<GQL.Gallery, "id" | "title" | "date" | "code"> & {
 type Option = SelectOption<Gallery>;
 
 type ExtraGalleryProps = {
-  hoverPlacement?: Placement;
+  hoverPlacement?: "top" | "bottom" | "left" | "right";
   excludeIds?: string[];
   extraCriteria?: Array<ModifierCriterion<CriterionValue>>;
 };

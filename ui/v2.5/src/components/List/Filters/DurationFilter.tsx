@@ -1,5 +1,5 @@
 import React from "react";
-import { Form } from "react-bootstrap";
+import { Box } from "@mui/material";
 import { useIntl } from "react-intl";
 import { CriterionModifier } from "src/core/generated-graphql";
 import { DurationInput } from "src/components/Shared/DurationInput";
@@ -38,13 +38,13 @@ export const DurationFilter: React.FC<IDurationFilterProps> = ({
     }
 
     return (
-      <Form.Group>
+      <Box mb={1}>
         <DurationInput
           value={criterion.value?.value}
           setValue={(v) => onChanged(v, "value")}
           placeholder={placeholder}
         />
-      </Form.Group>
+      </Box>
     );
   }
 
@@ -57,13 +57,13 @@ export const DurationFilter: React.FC<IDurationFilterProps> = ({
     }
 
     return (
-      <Form.Group>
+      <Box mb={1}>
         <DurationInput
           value={criterion.value?.value2}
           setValue={(v) => onChanged(v, "value2")}
           placeholder={intl.formatMessage({ id: "criterion.less_than" })}
         />
-      </Form.Group>
+      </Box>
     );
   }
 

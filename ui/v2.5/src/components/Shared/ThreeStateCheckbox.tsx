@@ -1,6 +1,6 @@
 import { faCheck, faMinus, faTimes } from "@fortawesome/free-solid-svg-icons";
 import React from "react";
-import { Button } from "react-bootstrap";
+import { IconButton } from "@mui/material";
 import { Icon } from "./Icon";
 
 interface IThreeStateCheckbox {
@@ -35,13 +35,14 @@ export const ThreeStateCheckbox: React.FC<IThreeStateCheckbox> = ({
 
   return (
     <span className={`three-state-checkbox ${labelClassName}`}>
-      <Button
+      <IconButton
         onClick={() => setValue(cycleState())}
         className="minimal"
         disabled={disabled}
+        size="small"
       >
         <Icon icon={icon} className="fa-fw" />
-      </Button>
+      </IconButton>
       <span className="label">{label}</span>
     </span>
   );

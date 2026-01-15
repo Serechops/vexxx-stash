@@ -1,7 +1,7 @@
 import React from "react";
 import { SceneCard } from "./SceneCard";
 import * as GQL from "src/core/generated-graphql";
-import { Button, Badge } from "react-bootstrap";
+import { Button } from "@mui/material";
 import { Icon } from "../Shared/Icon";
 import { faTag, faCheck, faCircle } from "@fortawesome/free-solid-svg-icons";
 
@@ -84,18 +84,18 @@ export const ScrapedSceneCardsGrid: React.FC<IScrapedSceneCardsGridProps> = ({
                 const hasTrailer = !!trailerUrl;
 
                 // Determine button state: Owned > Tracked > Track
-                let buttonVariant: "info" | "success" | "secondary" = "secondary";
+                let buttonColor: "info" | "success" | "secondary" = "secondary";
                 let buttonText = " Track";
                 let buttonIcon = faTag;
                 let buttonDisabled = false;
 
                 if (isOwned) {
-                    buttonVariant = "info";
+                    buttonColor = "info";
                     buttonText = " Owned";
                     buttonIcon = faCheck;
                     buttonDisabled = true;
                 } else if (isTracked) {
-                    buttonVariant = "success";
+                    buttonColor = "success";
                     buttonText = " Tracked";
                     buttonIcon = faTag;
                     buttonDisabled = true;
@@ -118,8 +118,9 @@ export const ScrapedSceneCardsGrid: React.FC<IScrapedSceneCardsGridProps> = ({
                                     )}
                                     <Button
                                         className={`btn-track ${isOwned ? "owned" : isTracked ? "tracked" : ""}`}
-                                        variant={buttonVariant}
-                                        size="sm"
+                                        variant="contained"
+                                        color={buttonColor}
+                                        size="small"
                                         onClick={() => onTrack(scene)}
                                         title={buttonText.trim()}
                                         disabled={buttonDisabled}

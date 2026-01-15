@@ -2,26 +2,28 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Button,
   ButtonGroup,
-  Dropdown,
-  Form,
-  InputGroup,
-  Overlay,
+  Menu,
+  MenuItem,
   Popover,
-} from "react-bootstrap";
+  TextField,
+  Box,
+  IconButton,
+} from "@mui/material";
 import { FormattedMessage, FormattedNumber, useIntl } from "react-intl";
 import useFocus from "src/utils/focus";
 import { Icon } from "../Shared/Icon";
 import cx from "classnames";
 import { faCheck, faChevronDown } from "@fortawesome/free-solid-svg-icons";
 import { useStopWheelScroll } from "src/utils/form";
-import { Placement } from "react-bootstrap/esm/Overlay";
 import { PatchComponent } from "src/patch";
+
+type PlacementType = "top" | "bottom" | "left" | "right";
 
 const PageCount: React.FC<{
   totalPages: number;
   currentPage: number;
   onChangePage: (page: number) => void;
-  pagePopupPlacement?: Placement;
+  pagePopupPlacement?: PlacementType;
 }> = ({
   totalPages,
   currentPage,
@@ -29,18 +31,19 @@ const PageCount: React.FC<{
   pagePopupPlacement = "bottom",
 }) => {
     const intl = useIntl();
-    const currentPageCtrl = useRef(null);
+    const currentPageCtrl = useRef<HTMLButtonElement>(null);
     const [pageInput, pageFocus] = useFocus();
-    const [showSelectPage, setShowSelectPage] = useState(false);
+    const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
+    const [popoverAnchor, setPopoverAnchor] = useState<HTMLButtonElement | null>(null);
 
     useEffect(() => {
-      if (showSelectPage) {
+      if (popoverAnchor) {
         // delaying the focus to the next execution loop so that rendering takes place first and stops the page from resetting.
         setTimeout(() => {
           pageFocus();
         }, 0);
       }
-    }, [showSelectPage, pageFocus]);
+    }, [popoverAnchor, pageFocus]);
 
     useStopWheelScroll(pageInput);
 
@@ -60,20 +63,26 @@ const PageCount: React.FC<{
       if (newPage) {
         onChangePage(newPage);
       }
-      setShowSelectPage(false);
+      setPopoverAnchor(null);
     }
+
+    const handleMenuOpen = (event: React.MouseEvent<HTMLButtonElement>) => {
+      setAnchorEl(event.currentTarget);
+    };
+
+    const handleMenuClose = () => {
+      setAnchorEl(null);
+    };
 
     return (
       <div className="page-count-container">
-        <ButtonGroup>
+        <ButtonGroup size="small">
           <Button
-            variant="secondary"
+            variant="outlined"
+            color="secondary"
             className="page-count !bg-card hover:!bg-secondary !text-foreground"
             ref={currentPageCtrl}
-            onClick={() => {
-              setShowSelectPage(true);
-              pageFocus();
-            }}
+            onClick={(e) => setPopoverAnchor(e.currentTarget)}
           >
             <FormattedMessage
               id="pagination.current_total"
@@ -83,60 +92,67 @@ const PageCount: React.FC<{
               }}
             />
           </Button>
-          <Dropdown>
-            <Dropdown.Toggle variant="secondary" className="page-count-dropdown !bg-card hover:!bg-secondary !text-foreground">
-              <Icon size="xs" icon={faChevronDown} />
-            </Dropdown.Toggle>
-            <Dropdown.Menu>
-              {pageOptions.map((s) => (
-                <Dropdown.Item
-                  key={s}
-                  active={s === currentPage}
-                  onClick={() => onChangePage(s)}
-                >
-                  {s}
-                </Dropdown.Item>
-              ))}
-            </Dropdown.Menu>
-          </Dropdown>
+          <Button
+            variant="outlined"
+            color="secondary"
+            className="page-count-dropdown !bg-card hover:!bg-secondary !text-foreground"
+            onClick={handleMenuOpen}
+            size="small"
+          >
+            <Icon size="xs" icon={faChevronDown} />
+          </Button>
         </ButtonGroup>
-        <Overlay
-          target={currentPageCtrl.current}
-          show={showSelectPage}
-          placement={pagePopupPlacement}
-          rootClose
-          onHide={() => setShowSelectPage(false)}
+        <Menu
+          anchorEl={anchorEl}
+          open={Boolean(anchorEl)}
+          onClose={handleMenuClose}
         >
-          <Popover id="select_page_popover">
-            <Form inline>
-              <InputGroup>
-                {/* can't use NumberField because of the ref */}
-                <Form.Control
-                  type="number"
-                  min={1}
-                  max={totalPages}
-                  className="text-input"
-                  ref={pageInput}
-                  defaultValue={currentPage}
-                  onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                    if (e.key === "Enter") {
-                      onCustomChangePage();
-                      e.preventDefault();
-                    }
-                  }}
-                  onFocus={(e: React.FocusEvent<HTMLInputElement>) =>
-                    e.target.select()
-                  }
-                />
-                <InputGroup.Append>
-                  <Button variant="primary" onClick={() => onCustomChangePage()}>
-                    <Icon icon={faCheck} />
-                  </Button>
-                </InputGroup.Append>
-              </InputGroup>
-            </Form>
-          </Popover>
-        </Overlay>
+          {pageOptions.map((s) => (
+            <MenuItem
+              key={s}
+              selected={s === currentPage}
+              onClick={() => {
+                onChangePage(s);
+                handleMenuClose();
+              }}
+            >
+              {s}
+            </MenuItem>
+          ))}
+        </Menu>
+        <Popover
+          open={Boolean(popoverAnchor)}
+          anchorEl={popoverAnchor}
+          onClose={() => setPopoverAnchor(null)}
+          anchorOrigin={{
+            vertical: pagePopupPlacement === "top" ? "top" : "bottom",
+            horizontal: "left",
+          }}
+        >
+          <Box sx={{ p: 1, display: 'flex', gap: 1 }}>
+            {/* can't use NumberField because of the ref */}
+            <TextField
+              type="number"
+              inputProps={{ min: 1, max: totalPages }}
+              className="text-input"
+              inputRef={pageInput}
+              defaultValue={currentPage}
+              onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                if (e.key === "Enter") {
+                  onCustomChangePage();
+                  e.preventDefault();
+                }
+              }}
+              onFocus={(e: React.FocusEvent<HTMLInputElement>) =>
+                e.target.select()
+              }
+              size="small"
+            />
+            <IconButton color="primary" onClick={() => onCustomChangePage()} size="small">
+              <Icon icon={faCheck} />
+            </IconButton>
+          </Box>
+        </Popover>
       </div>
     );
   };
@@ -147,7 +163,7 @@ interface IPaginationProps {
   totalItems: number;
   metadataByline?: React.ReactNode;
   onChangePage: (page: number) => void;
-  pagePopupPlacement?: Placement;
+  pagePopupPlacement?: PlacementType;
 }
 
 interface IPaginationIndexProps {
@@ -190,7 +206,8 @@ export const Pagination: React.FC<IPaginationProps> = PatchComponent(
 
       return pages.map((page: number) => (
         <Button
-          variant={currentPage === page ? "primary" : "secondary"}
+          variant={currentPage === page ? "contained" : "outlined"}
+          color={currentPage === page ? "primary" : "secondary"}
           className={cx(
             "hover:!bg-secondary !text-foreground border-none font-bold",
             currentPage === page
@@ -198,8 +215,8 @@ export const Pagination: React.FC<IPaginationProps> = PatchComponent(
               : "!bg-card !opacity-90"
           )}
           key={page}
-          active={currentPage === page}
           onClick={() => onChangePage(page)}
+          size="small"
         >
           <FormattedNumber value={page} />
         </Button>
@@ -209,9 +226,10 @@ export const Pagination: React.FC<IPaginationProps> = PatchComponent(
     if (totalPages <= 1) return <div />;
 
     return (
-      <ButtonGroup className="pagination w-fit mx-auto">
+      <ButtonGroup className="pagination w-fit mx-auto" size="small">
         <Button
-          variant="secondary"
+          variant="outlined"
+          color="secondary"
           className="!bg-card hover:!bg-secondary !text-foreground"
           disabled={currentPage === 1}
           onClick={() => onChangePage(1)}
@@ -220,7 +238,8 @@ export const Pagination: React.FC<IPaginationProps> = PatchComponent(
           <span>«</span>
         </Button>
         <Button
-          variant="secondary"
+          variant="outlined"
+          color="secondary"
           className="!bg-card hover:!bg-secondary !text-foreground"
           disabled={currentPage === 1}
           onClick={() => onChangePage(currentPage - 1)}
@@ -230,7 +249,8 @@ export const Pagination: React.FC<IPaginationProps> = PatchComponent(
         </Button>
         {pageButtons}
         <Button
-          variant="secondary"
+          variant="outlined"
+          color="secondary"
           className="!bg-card hover:!bg-secondary !text-foreground"
           disabled={currentPage === totalPages}
           onClick={() => onChangePage(currentPage + 1)}
@@ -239,7 +259,8 @@ export const Pagination: React.FC<IPaginationProps> = PatchComponent(
           &gt;
         </Button>
         <Button
-          variant="secondary"
+          variant="outlined"
+          color="secondary"
           className="!bg-card hover:!bg-secondary !text-foreground"
           disabled={currentPage === totalPages}
           onClick={() => onChangePage(totalPages)}

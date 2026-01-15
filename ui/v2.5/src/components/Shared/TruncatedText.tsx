@@ -1,6 +1,5 @@
 import React, { useRef, useState } from "react";
-import { Overlay, Tooltip } from "react-bootstrap";
-import { Placement } from "react-bootstrap/Overlay";
+import { Tooltip } from "@mui/material";
 import cx from "classnames";
 import { useDebounce } from "src/hooks/debounce";
 import { PatchComponent } from "src/patch";
@@ -8,10 +7,12 @@ import { PatchComponent } from "src/patch";
 const CLASSNAME = "TruncatedText";
 const CLASSNAME_TOOLTIP = `${CLASSNAME}-tooltip`;
 
+type PlacementType = "top" | "bottom" | "left" | "right";
+
 interface ITruncatedTextProps {
   text?: JSX.Element | string | null;
   lineCount?: number;
-  placement?: Placement;
+  placement?: PlacementType;
   delay?: number;
   className?: string;
 }
@@ -40,27 +41,25 @@ export const TruncatedText: React.FC<ITruncatedTextProps> = PatchComponent(
       setShowTooltip(false);
     };
 
-    const overlay = (
-      <Overlay target={target.current} show={showTooltip} placement={placement}>
-        <Tooltip id={CLASSNAME} className={CLASSNAME_TOOLTIP}>
-          {text}
-        </Tooltip>
-      </Overlay>
-    );
-
     return (
-      <div
-        className={cx(CLASSNAME, className)}
-        style={{ WebkitLineClamp: lineCount }}
-        ref={target}
-        onMouseEnter={(e) => handleFocus(e.currentTarget)}
-        onFocus={(e) => handleFocus(e.currentTarget)}
-        onMouseLeave={handleBlur}
-        onBlur={handleBlur}
+      <Tooltip
+        title={text}
+        open={showTooltip}
+        placement={placement}
+        classes={{ tooltip: CLASSNAME_TOOLTIP }}
       >
-        {text}
-        {overlay}
-      </div>
+        <div
+          className={cx(CLASSNAME, className)}
+          style={{ WebkitLineClamp: lineCount }}
+          ref={target}
+          onMouseEnter={(e) => handleFocus(e.currentTarget)}
+          onFocus={(e) => handleFocus(e.currentTarget)}
+          onMouseLeave={handleBlur}
+          onBlur={handleBlur}
+        >
+          {text}
+        </div>
+      </Tooltip>
     );
   }
 );
@@ -92,25 +91,23 @@ export const TruncatedInlineText: React.FC<ITruncatedTextProps> = ({
     setShowTooltip(false);
   };
 
-  const overlay = (
-    <Overlay target={target.current} show={showTooltip} placement={placement}>
-      <Tooltip id={CLASSNAME} className={CLASSNAME_TOOLTIP}>
-        {text}
-      </Tooltip>
-    </Overlay>
-  );
-
   return (
-    <span
-      className={cx(CLASSNAME, "inline", className)}
-      ref={target}
-      onMouseEnter={(e) => handleFocus(e.currentTarget)}
-      onFocus={(e) => handleFocus(e.currentTarget)}
-      onMouseLeave={handleBlur}
-      onBlur={handleBlur}
+    <Tooltip
+      title={text}
+      open={showTooltip}
+      placement={placement}
+      classes={{ tooltip: CLASSNAME_TOOLTIP }}
     >
-      {text}
-      {overlay}
-    </span>
+      <span
+        className={cx(CLASSNAME, "inline", className)}
+        ref={target}
+        onMouseEnter={(e) => handleFocus(e.currentTarget)}
+        onFocus={(e) => handleFocus(e.currentTarget)}
+        onMouseLeave={handleBlur}
+        onBlur={handleBlur}
+      >
+        {text}
+      </span>
+    </Tooltip>
   );
 };

@@ -1,6 +1,6 @@
 import { faCalendar } from "@fortawesome/free-regular-svg-icons";
 import React, { forwardRef, useMemo } from "react";
-import { Button, InputGroup, Form } from "react-bootstrap";
+import { Button, TextField, InputAdornment, Box, FormHelperText } from "@mui/material";
 import ReactDatePicker from "react-datepicker";
 import TextUtils from "src/utils/text";
 import { Icon } from "./Icon";
@@ -24,7 +24,7 @@ const ShowPickerButton = forwardRef<
     onClick: (event: React.MouseEvent) => void;
   }
 >(({ onClick }, ref) => (
-  <Button variant="secondary" onClick={onClick} ref={ref}>
+  <Button variant="outlined" color="secondary" onClick={onClick} ref={ref} size="small">
     <Icon icon={faCalendar} />
   </Button>
 ));
@@ -56,7 +56,7 @@ const _DateInput: React.FC<IProps> = (props: IProps) => {
           onChange={(v) => {
             props.onValueChange(v ? dateToString(v) : "");
           }}
-          customInput={<ShowPickerButton onClick={() => {}} />}
+          customInput={<ShowPickerButton onClick={() => { }} />}
           showMonthDropdown
           showYearDropdown
           scrollableMonthYearDropdown
@@ -75,13 +75,13 @@ const _DateInput: React.FC<IProps> = (props: IProps) => {
   });
 
   return (
-    <div>
-      <InputGroup hasValidation>
-        <Form.Control
+    <Box>
+      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5 }}>
+        <TextField
           className="date-input text-input"
           disabled={props.disabled}
           value={props.value}
-          onChange={(e) => props.onValueChange(e.currentTarget.value)}
+          onChange={(e) => props.onValueChange(e.target.value)}
           placeholder={
             !props.disabled
               ? props.placeholder
@@ -89,14 +89,14 @@ const _DateInput: React.FC<IProps> = (props: IProps) => {
                 : placeholderText
               : undefined
           }
-          isInvalid={!!props.error}
+          error={!!props.error}
+          helperText={props.error}
+          size="small"
+          variant="outlined"
         />
-        <InputGroup.Append>{maybeRenderButton()}</InputGroup.Append>
-        <Form.Control.Feedback type="invalid">
-          {props.error}
-        </Form.Control.Feedback>
-      </InputGroup>
-    </div>
+        {maybeRenderButton()}
+      </Box>
+    </Box>
   );
 };
 

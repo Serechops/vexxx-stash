@@ -1,6 +1,22 @@
 import { faChevronDown, faChevronUp } from "@fortawesome/free-solid-svg-icons";
 import React, { PropsWithChildren, useState } from "react";
-import { Button, Collapse, Form, Modal, ModalProps } from "react-bootstrap";
+import {
+  Button,
+  Collapse,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Switch,
+  TextField,
+  FormControlLabel,
+  Select,
+  MenuItem,
+  FormControl,
+  IconButton,
+  Box,
+  Typography,
+} from "@mui/material";
 import { FormattedMessage, useIntl } from "react-intl";
 import { Icon } from "../Shared/Icon";
 import { StringListInput } from "../Shared/StringListInput";
@@ -38,9 +54,7 @@ export const Setting: React.FC<PropsWithChildren<ISetting>> = PatchComponent(
       advanced,
     } = props;
 
-    // these components can be used in the setup wizard, where advanced mode is not available
     const { advancedMode } = useSettingsOptional();
-
     const intl = useIntl();
 
     function renderHeading() {
@@ -103,13 +117,13 @@ export const SettingGroup: React.FC<PropsWithChildren<ISettingGroup>> =
         if (!collapsible) return;
 
         return (
-          <Button
+          <IconButton
             className="setting-group-collapse-button"
-            variant="minimal"
+            size="small"
             onClick={() => setOpen(!open)}
           >
             <Icon className="fa-fw" icon={open ? faChevronUp : faChevronDown} />
-          </Button>
+          </IconButton>
         );
       }
 
@@ -159,11 +173,16 @@ export const BooleanSetting: React.FC<IBooleanSetting> = PatchComponent(
 
     return (
       <Setting {...settingProps} disabled={disabled}>
-        <Form.Switch
-          id={id}
-          disabled={disabled}
-          checked={checked ?? false}
-          onChange={() => onChange(!checked)}
+        <FormControlLabel
+          control={
+            <Switch
+              id={id}
+              disabled={disabled}
+              checked={checked ?? false}
+              onChange={() => onChange(!checked)}
+            />
+          }
+          label=""
         />
       </Setting>
     );
@@ -186,14 +205,18 @@ export const SelectSetting: React.FC<PropsWithChildren<ISelectSetting>> =
           subHeadingID={subHeadingID}
           id={id}
         >
-          <Form.Control
-            className="input-control"
-            as="select"
-            value={value ?? ""}
-            onChange={(e) => onChange(e.currentTarget.value)}
-          >
-            {children}
-          </Form.Control>
+          <FormControl variant="standard" fullWidth className="input-control">
+            <Select
+              native
+              value={value ?? ""}
+              onChange={(e) => onChange(e.target.value as string)}
+              inputProps={{
+                className: "text-input",
+              }}
+            >
+              {children}
+            </Select>
+          </FormControl>
         </Setting>
       );
     }
@@ -251,7 +274,7 @@ const _ChangeButtonSetting = <T extends {}>(props: IDialogSetting<T>) => {
         ) : undefined}
       </div>
       <div>
-        <Button onClick={() => onChange()} disabled={disabled}>
+        <Button variant="contained" onClick={() => onChange()} disabled={disabled}>
           {buttonText ? (
             buttonText
           ) : (
@@ -280,7 +303,7 @@ export interface ISettingModal<T> {
     setValue: (v?: T) => void,
     error?: string
   ) => JSX.Element;
-  modalProps?: ModalProps;
+  modalProps?: any; // MUI Dialog doesn't match React-Bootstrap ModalProps exactly, use any or omit
   validate?: (v: T) => boolean | undefined;
   error?: string | undefined;
 }
@@ -303,17 +326,17 @@ const _SettingModal = <T extends {}>(props: ISettingModal<T>) => {
   const [currentValue, setCurrentValue] = useState<T | undefined>(value);
 
   return (
-    <Modal show onHide={() => close()} id="setting-dialog" {...modalProps}>
-      <Form
+    <Dialog open onClose={() => close()} id="setting-dialog" {...modalProps}>
+      <form
         onSubmit={(e) => {
           close(currentValue);
           e.preventDefault();
         }}
       >
-        <Modal.Header closeButton>
+        <DialogTitle>
           {headingID ? <FormattedMessage id={headingID} /> : heading}
-        </Modal.Header>
-        <Modal.Body>
+        </DialogTitle>
+        <DialogContent dividers>
           {renderField(currentValue, setCurrentValue, error)}
           {subHeadingID ? (
             <div className="sub-heading">
@@ -322,14 +345,14 @@ const _SettingModal = <T extends {}>(props: ISettingModal<T>) => {
           ) : subHeading ? (
             <div className="sub-heading">{subHeading}</div>
           ) : undefined}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => close()}>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => close()}>
             <FormattedMessage id="actions.cancel" />
           </Button>
           <Button
             type="submit"
-            variant="primary"
+            variant="contained"
             onClick={() => close(currentValue)}
             disabled={
               currentValue === undefined ||
@@ -338,9 +361,9 @@ const _SettingModal = <T extends {}>(props: ISettingModal<T>) => {
           >
             <FormattedMessage id="actions.confirm" />
           </Button>
-        </Modal.Footer>
-      </Form>
-    </Modal>
+        </DialogActions>
+      </form>
+    </Dialog>
   );
 };
 
@@ -360,7 +383,7 @@ interface IModalSetting<T> extends ISetting {
     error?: string
   ) => JSX.Element;
   renderValue?: (v: T | undefined) => JSX.Element;
-  modalProps?: ModalProps;
+  modalProps?: any;
   validateChange?: (v: T) => void | undefined;
 }
 
@@ -450,7 +473,7 @@ export const ModalSetting = PatchComponent(
 interface IStringSetting extends ISetting {
   value: string | undefined;
   onChange: (v: string) => void;
-  modalProps?: ModalProps;
+  modalProps?: any;
 }
 
 export const StringSetting: React.FC<IStringSetting> = PatchComponent(
@@ -461,8 +484,9 @@ export const StringSetting: React.FC<IStringSetting> = PatchComponent(
         {...props}
         modalProps={props.modalProps}
         renderField={(value, setValue) => (
-          <Form.Control
+          <TextField
             className="text-input"
+            fullWidth
             value={value ?? ""}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
               setValue(e.currentTarget.value)
@@ -478,7 +502,7 @@ export const StringSetting: React.FC<IStringSetting> = PatchComponent(
 interface INumberSetting extends ISetting {
   value: number | undefined;
   onChange: (v: number) => void;
-  modalProps?: ModalProps;
+  modalProps?: any;
 }
 
 export const NumberSetting: React.FC<INumberSetting> = PatchComponent(
@@ -491,6 +515,8 @@ export const NumberSetting: React.FC<INumberSetting> = PatchComponent(
         renderField={(value, setValue) => (
           <NumberField
             className="text-input"
+            // NumberField expects value, likely OK. Might check if it accepts MUI specific props if refactored.
+            // Using existing NumberField which might be legacy or migrated.
             value={value ?? 0}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
               setValue(Number.parseInt(e.currentTarget.value || "0", 10))
@@ -507,7 +533,7 @@ interface IStringListSetting extends ISetting {
   value: string[] | undefined;
   defaultNewValue?: string;
   onChange: (v: string[]) => void;
-  modalProps?: ModalProps;
+  modalProps?: any;
 }
 
 export const StringListSetting: React.FC<IStringListSetting> = PatchComponent(

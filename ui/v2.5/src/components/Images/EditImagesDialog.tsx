@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Form, Col, Row } from "react-bootstrap";
+import { Box, Typography, FormControlLabel, Checkbox } from "@mui/material";
 import { FormattedMessage, useIntl } from "react-intl";
 import isEqual from "lodash-es/isEqual";
 import { useBulkImageUpdate } from "src/core/StashService";
@@ -20,6 +20,7 @@ import {
   getAggregateTagIds,
 } from "src/utils/bulkUpdate";
 import { faPencilAlt } from "@fortawesome/free-solid-svg-icons";
+import { Row, Col } from "src/components/Shared/Layouts";
 
 interface IListOperationProps {
   selected: GQL.SlimImageDataFragment[];
@@ -213,8 +214,8 @@ export const EditImagesDialog: React.FC<IListOperationProps> = (
         }}
         isRunning={isUpdating}
       >
-        <Form>
-          <Form.Group controlId="rating" as={Row}>
+        <Box component="form">
+          <Row>
             {FormUtils.renderLabel({
               title: intl.formatMessage({ id: "rating" }),
             })}
@@ -225,8 +226,8 @@ export const EditImagesDialog: React.FC<IListOperationProps> = (
                 disabled={isUpdating}
               />
             </Col>
-          </Form.Group>
-          <Form.Group controlId="studio" as={Row}>
+          </Row>
+          <Row>
             {FormUtils.renderLabel({
               title: intl.formatMessage({ id: "studio" }),
             })}
@@ -240,12 +241,12 @@ export const EditImagesDialog: React.FC<IListOperationProps> = (
                 menuPortalTarget={document.body}
               />
             </Col>
-          </Form.Group>
+          </Row>
 
-          <Form.Group controlId="performers">
-            <Form.Label>
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="body2" sx={{ mb: 1 }}>
               <FormattedMessage id="performers" />
-            </Form.Label>
+            </Typography>
             <MultiSet
               type="performers"
               disabled={isUpdating}
@@ -256,12 +257,12 @@ export const EditImagesDialog: React.FC<IListOperationProps> = (
               mode={performerMode}
               menuPortalTarget={document.body}
             />
-          </Form.Group>
+          </Box>
 
-          <Form.Group controlId="tags">
-            <Form.Label>
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="body2" sx={{ mb: 1 }}>
               <FormattedMessage id="tags" />
-            </Form.Label>
+            </Typography>
             <MultiSet
               type="tags"
               disabled={isUpdating}
@@ -272,12 +273,12 @@ export const EditImagesDialog: React.FC<IListOperationProps> = (
               mode={tagMode}
               menuPortalTarget={document.body}
             />
-          </Form.Group>
+          </Box>
 
-          <Form.Group controlId="galleries">
-            <Form.Label>
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="body2" sx={{ mb: 1 }}>
               <FormattedMessage id="galleries" />
-            </Form.Label>
+            </Typography>
             <MultiSet
               type="galleries"
               disabled={isUpdating}
@@ -288,18 +289,20 @@ export const EditImagesDialog: React.FC<IListOperationProps> = (
               mode={galleryMode}
               menuPortalTarget={document.body}
             />
-          </Form.Group>
+          </Box>
 
-          <Form.Group controlId="organized">
-            <Form.Check
-              type="checkbox"
-              label={intl.formatMessage({ id: "organized" })}
-              checked={organized}
-              ref={checkboxRef}
-              onChange={() => cycleOrganized()}
-            />
-          </Form.Group>
-        </Form>
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={organized ?? false}
+                indeterminate={organized === undefined}
+                inputRef={checkboxRef}
+                onChange={() => cycleOrganized()}
+              />
+            }
+            label={intl.formatMessage({ id: "organized" })}
+          />
+        </Box>
       </ModalComponent>
     );
   }

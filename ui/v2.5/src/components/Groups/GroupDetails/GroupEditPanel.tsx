@@ -10,7 +10,7 @@ import {
 import { LoadingIndicator } from "src/components/Shared/LoadingIndicator";
 import { DetailsEditNavbar } from "src/components/Shared/DetailsEditNavbar";
 import { useToast } from "src/hooks/Toast";
-import { Modal as BSModal, Form, Button } from "react-bootstrap";
+import { Dialog, DialogContent, DialogActions, Box, Button } from "@mui/material";
 import TextUtils from "src/utils/text";
 import ImageUtils from "src/utils/image";
 import { useFormik } from "formik";
@@ -362,38 +362,35 @@ export const GroupEditPanel: React.FC<IGroupEditPanel> = ({
 
   function renderImageAlert() {
     return (
-      <BSModal
-        show={isImageAlertOpen}
-        onHide={() => setIsImageAlertOpen(false)}
+      <Dialog
+        open={isImageAlertOpen}
+        onClose={() => setIsImageAlertOpen(false)}
       >
-        <BSModal.Body>
+        <DialogContent>
           <p>Select image to set</p>
-        </BSModal.Body>
-        <BSModal.Footer>
-          <div>
-            <Button
-              className="mr-2"
-              variant="secondary"
-              onClick={() => setIsImageAlertOpen(false)}
-            >
-              <FormattedMessage id="actions.cancel" />
-            </Button>
-
-            <Button
-              className="mr-2"
-              onClick={() => setImageFromClipboard(false)}
-            >
-              Back Image
-            </Button>
-            <Button
-              className="mr-2"
-              onClick={() => setImageFromClipboard(true)}
-            >
-              Front Image
-            </Button>
-          </div>
-        </BSModal.Footer>
-      </BSModal>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            variant="outlined"
+            color="secondary"
+            onClick={() => setIsImageAlertOpen(false)}
+          >
+            <FormattedMessage id="actions.cancel" />
+          </Button>
+          <Button
+            variant="outlined"
+            onClick={() => setImageFromClipboard(false)}
+          >
+            Back Image
+          </Button>
+          <Button
+            variant="outlined"
+            onClick={() => setImageFromClipboard(true)}
+          >
+            Front Image
+          </Button>
+        </DialogActions>
+      </Dialog>
     );
   }
 
@@ -494,7 +491,7 @@ export const GroupEditPanel: React.FC<IGroupEditPanel> = ({
         }}
       />
 
-      <Form noValidate onSubmit={formik.handleSubmit} id="group-edit">
+      <Box component="form" noValidate onSubmit={formik.handleSubmit} id="group-edit">
         {renderInputField("name")}
         {renderInputField("aliases")}
         {renderDurationField("duration")}
@@ -506,7 +503,7 @@ export const GroupEditPanel: React.FC<IGroupEditPanel> = ({
         {renderURLListField("urls", onScrapeGroupURL, urlScrapable)}
         {renderInputField("synopsis", "textarea")}
         {renderTagsField()}
-      </Form>
+      </Box>
 
       <DetailsEditNavbar
         objectName={group?.name ?? intl.formatMessage({ id: "group" })}

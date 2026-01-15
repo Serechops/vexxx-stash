@@ -1,12 +1,19 @@
 import React, { useState } from "react";
 import { FormattedMessage } from "react-intl";
-import { Button, Modal, ModalProps } from "react-bootstrap";
+import {
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  DialogProps,
+} from "@mui/material";
 import { FolderSelect } from "./FolderSelect";
 
 interface IProps {
   defaultValue?: string;
   onClose: (directory?: string) => void;
-  modalProps?: ModalProps;
+  modalProps?: Partial<DialogProps>;
 }
 
 export const FolderSelectDialog: React.FC<IProps> = ({
@@ -19,24 +26,30 @@ export const FolderSelectDialog: React.FC<IProps> = ({
   );
 
   return (
-    <Modal show onHide={() => onClose()} title="" {...modalProps}>
-      <Modal.Header>Select Directory</Modal.Header>
-      <Modal.Body>
-        <div className="dialog-content">
+    <Dialog open onClose={() => onClose()} {...modalProps} fullWidth maxWidth="sm">
+      <DialogTitle>Select Directory</DialogTitle>
+      <DialogContent>
+        <div className="dialog-content" style={{ marginTop: 8 }}>
           <FolderSelect
             currentDirectory={currentDirectory}
             onChangeDirectory={setCurrentDirectory}
+            collapsible
           />
         </div>
-      </Modal.Body>
-      <Modal.Footer>
-        <Button variant="secondary" onClick={() => onClose()}>
+      </DialogContent>
+      <DialogActions>
+        <Button variant="outlined" color="secondary" onClick={() => onClose()}>
           <FormattedMessage id="actions.cancel" />
         </Button>
-        <Button variant="success" onClick={() => onClose(currentDirectory)}>
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={() => onClose(currentDirectory)}
+        >
           <FormattedMessage id="actions.confirm" />
         </Button>
-      </Modal.Footer>
-    </Modal>
+      </DialogActions>
+    </Dialog>
   );
 };
+

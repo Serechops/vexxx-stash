@@ -3,8 +3,8 @@ import {
   faPlus,
   faTrash,
 } from "@fortawesome/free-solid-svg-icons";
-import React from "react";
-import { Button, Dropdown } from "react-bootstrap";
+import React, { useState } from "react";
+import { Button, IconButton, Menu, MenuItem, Box, Typography, Divider } from "@mui/material";
 import { FormattedMessage, useIntl } from "react-intl";
 import { AlertModal } from "src/components/Shared/Alert";
 import { Counter } from "src/components/Shared/Counter";
@@ -57,15 +57,14 @@ const History: React.FC<{
         {history.map((playdate, index) => (
           <li key={index}>
             <span>{renderDate(playdate)}</span>
-            <Button
+            <IconButton
               className="remove-date-button"
-              size="sm"
-              variant="minimal"
+              size="small"
               onClick={() => onRemove(playdate)}
               title={intl.formatMessage({ id: "actions.remove_date" })}
             >
               <Icon icon={faTrash} />
-            </Button>
+            </IconButton>
           </li>
         ))}
       </ul>
@@ -88,52 +87,61 @@ const HistoryMenu: React.FC<{
   resetResume,
   resetDuration,
 }) => {
-  const intl = useIntl();
+    const intl = useIntl();
+    const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+    const open = Boolean(anchorEl);
 
-  return (
-    <Dropdown className="history-operations-dropdown">
-      <Dropdown.Toggle
-        variant="secondary"
-        className="minimal"
-        title={intl.formatMessage({ id: "operations" })}
-      >
-        <Icon icon={faEllipsisV} />
-      </Dropdown.Toggle>
-      <Dropdown.Menu className="bg-secondary text-white">
-        <Dropdown.Item
-          className="bg-secondary text-white"
-          onClick={() => onAddDate()}
+    const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+      setAnchorEl(event.currentTarget);
+    };
+
+    const handleClose = () => {
+      setAnchorEl(null);
+    };
+
+    return (
+      <>
+        <IconButton
+          onClick={handleClick}
+          size="small"
+          title={intl.formatMessage({ id: "operations" })}
+          aria-controls={open ? 'history-menu' : undefined}
+          aria-haspopup="true"
+          aria-expanded={open ? 'true' : undefined}
         >
-          <FormattedMessage id="actions.add_manual_date" />
-        </Dropdown.Item>
-        {hasHistory && (
-          <Dropdown.Item
-            className="bg-secondary text-white"
-            onClick={() => onClearDates()}
-          >
-            <FormattedMessage id="actions.clear_date_data" />
-          </Dropdown.Item>
-        )}
-        {showResetResumeDuration && (
-          <Dropdown.Item
-            className="bg-secondary text-white"
-            onClick={() => resetResume()}
-          >
-            <FormattedMessage id="actions.reset_resume_time" />
-          </Dropdown.Item>
-        )}
-        {showResetResumeDuration && (
-          <Dropdown.Item
-            className="bg-secondary text-white"
-            onClick={() => resetDuration()}
-          >
-            <FormattedMessage id="actions.reset_play_duration" />
-          </Dropdown.Item>
-        )}
-      </Dropdown.Menu>
-    </Dropdown>
-  );
-};
+          <Icon icon={faEllipsisV} />
+        </IconButton>
+        <Menu
+          id="history-menu"
+          anchorEl={anchorEl}
+          open={open}
+          onClose={handleClose}
+          MenuListProps={{
+            'aria-labelledby': 'history-button',
+          }}
+        >
+          <MenuItem onClick={() => { handleClose(); onAddDate(); }}>
+            <FormattedMessage id="actions.add_manual_date" />
+          </MenuItem>
+          {hasHistory && (
+            <MenuItem onClick={() => { handleClose(); onClearDates(); }}>
+              <FormattedMessage id="actions.clear_date_data" />
+            </MenuItem>
+          )}
+          {showResetResumeDuration && (
+            <MenuItem onClick={() => { handleClose(); resetResume(); }}>
+              <FormattedMessage id="actions.reset_resume_time" />
+            </MenuItem>
+          )}
+          {showResetResumeDuration && (
+            <MenuItem onClick={() => { handleClose(); resetDuration(); }}>
+              <FormattedMessage id="actions.reset_play_duration" />
+            </MenuItem>
+          )}
+        </Menu>
+      </>
+    );
+  };
 
 const DatePickerModal: React.FC<{
   show: boolean;
@@ -374,15 +382,14 @@ export const SceneHistoryPanel: React.FC<ISceneHistoryProps> = ({ scene }) => {
               <Counter count={playHistory.length} hideZero />
             </span>
             <span>
-              <Button
-                size="sm"
-                variant="minimal"
+              <IconButton
+                size="small"
                 className="add-date-button"
                 title={intl.formatMessage({ id: "actions.add_play" })}
                 onClick={() => handleAddPlayDate()}
               >
                 <Icon icon={faPlus} />
-              </Button>
+              </IconButton>
               <HistoryMenu
                 hasHistory={playHistory.length > 0}
                 showResetResumeDuration={true}
@@ -417,15 +424,14 @@ export const SceneHistoryPanel: React.FC<ISceneHistoryProps> = ({ scene }) => {
               <Counter count={oHistory.length} hideZero />
             </span>
             <span>
-              <Button
-                size="sm"
-                variant="minimal"
+              <IconButton
+                size="small"
                 className="add-date-button"
                 title={intl.formatMessage({ id: "actions.add_o" })}
                 onClick={() => handleAddODate()}
               >
                 <Icon icon={faPlus} />
-              </Button>
+              </IconButton>
               <HistoryMenu
                 hasHistory={oHistory.length > 0}
                 showResetResumeDuration={false}

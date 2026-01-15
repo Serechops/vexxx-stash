@@ -1,5 +1,5 @@
 import React from "react";
-import { Button, Form } from "react-bootstrap";
+import { Box, Button } from "@mui/material";
 import { FormattedMessage, useIntl } from "react-intl";
 import { useFormik } from "formik";
 import * as yup from "yup";
@@ -106,7 +106,7 @@ export const GalleryChapterForm: React.FC<IGalleryChapterForm> = ({
   const { renderInputField } = formikUtils(intl, formik, splitProps);
 
   return (
-    <Form noValidate onSubmit={formik.handleSubmit}>
+    <Box component="form" noValidate onSubmit={formik.handleSubmit}>
       <div className="form-container px-3">
         {renderInputField("title")}
         {renderInputField("image_index", "number")}
@@ -114,14 +114,16 @@ export const GalleryChapterForm: React.FC<IGalleryChapterForm> = ({
       <div className="buttons-container px-3">
         <div className="d-flex">
           <Button
-            variant="primary"
+            variant="contained"
+            color="primary"
             disabled={(!isNew && !formik.dirty) || !isEqual(formik.errors, {})}
             onClick={() => formik.submitForm()}
           >
             <FormattedMessage id="actions.save" />
           </Button>
           <Button
-            variant="secondary"
+            variant="outlined"
+            color="secondary"
             type="button"
             onClick={onClose}
             className="ml-2"
@@ -130,7 +132,8 @@ export const GalleryChapterForm: React.FC<IGalleryChapterForm> = ({
           </Button>
           {!isNew && (
             <Button
-              variant="danger"
+              variant="contained"
+              color="error"
               className="ml-auto"
               onClick={() => onDelete()}
             >
@@ -139,6 +142,6 @@ export const GalleryChapterForm: React.FC<IGalleryChapterForm> = ({
           )}
         </div>
       </div>
-    </Form>
+    </Box>
   );
 };

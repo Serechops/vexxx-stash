@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Button, Form } from "react-bootstrap";
+import { Button, Box, Typography, FormHelperText } from "@mui/material";
 import { FormattedMessage, useIntl } from "react-intl";
 import { useFormik } from "formik";
 import * as yup from "yup";
@@ -196,10 +196,10 @@ export const SceneMarkerForm: React.FC<ISceneMarkerForm> = ({
           values={primaryTag ? [primaryTag] : []}
           hoverPlacement="right"
         />
-        {formik.touched.primary_tag_id && (
-          <Form.Control.Feedback type="invalid">
+        {formik.touched.primary_tag_id && formik.errors.primary_tag_id && (
+          <FormHelperText error>
             {formik.errors.primary_tag_id}
-          </Form.Control.Feedback>
+          </FormHelperText>
         )}
       </>
     );
@@ -240,9 +240,9 @@ export const SceneMarkerForm: React.FC<ISceneMarkerForm> = ({
           error={error}
         />
         {formik.touched.end_seconds && formik.errors.end_seconds && (
-          <Form.Control.Feedback type="invalid">
+          <FormHelperText error>
             {formik.errors.end_seconds}
-          </Form.Control.Feedback>
+          </FormHelperText>
         )}
       </>
     );
@@ -265,7 +265,7 @@ export const SceneMarkerForm: React.FC<ISceneMarkerForm> = ({
   }
 
   return (
-    <Form noValidate onSubmit={formik.handleSubmit}>
+    <Box component="form" noValidate onSubmit={formik.handleSubmit}>
       <div className="form-container px-3">
         {renderTitleField()}
         {renderPrimaryTagField()}
@@ -276,14 +276,14 @@ export const SceneMarkerForm: React.FC<ISceneMarkerForm> = ({
       <div className="buttons-container px-3">
         <div className="d-flex">
           <Button
-            variant="primary"
+            variant="contained"
             disabled={(!isNew && !formik.dirty) || !isEqual(formik.errors, {})}
             onClick={() => formik.submitForm()}
           >
             <FormattedMessage id="actions.save" />
           </Button>
           <Button
-            variant="secondary"
+            variant="outlined"
             type="button"
             onClick={onClose}
             className="ml-2"
@@ -292,7 +292,8 @@ export const SceneMarkerForm: React.FC<ISceneMarkerForm> = ({
           </Button>
           {!isNew && (
             <Button
-              variant="danger"
+              variant="contained"
+              color="error"
               className="ml-auto"
               onClick={() => onDelete()}
             >
@@ -301,6 +302,6 @@ export const SceneMarkerForm: React.FC<ISceneMarkerForm> = ({
           )}
         </div>
       </div>
-    </Form>
+    </Box>
   );
 };

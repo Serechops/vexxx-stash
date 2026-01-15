@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import cx from "classnames";
-import { Badge, Button, Col, Form, Row } from "react-bootstrap";
+import { Chip, Button, FormControlLabel, Checkbox, Box, Stack, Typography } from "@mui/material";
 import { FormattedMessage, useIntl } from "react-intl";
 import uniq from "lodash-es/uniq";
 import { blobToBase64 } from "base64-blob";
@@ -32,6 +32,7 @@ import { useInitialState } from "src/hooks/state";
 import { getStashboxBase } from "src/utils/stashbox";
 import { ExternalLink } from "src/components/Shared/ExternalLink";
 import { compareScenesForSort } from "./utils";
+import { Row, Col } from "src/components/Shared/Layouts";
 
 const getDurationIcon = (matchPercentage: number) => {
   if (matchPercentage > 65)
@@ -726,7 +727,7 @@ const StashSearchResult: React.FC<IStashSearchResultProps> = ({
   const renderPerformerField = () => (
     <div className="mt-2">
       <div>
-        <Form.Group controlId="performers">
+        <Box>
           {performers.map((performer, performerIndex) => (
             <PerformerResult
               performer={performer}
@@ -747,7 +748,7 @@ const StashSearchResult: React.FC<IStashSearchResultProps> = ({
               }
             />
           ))}
-        </Form.Group>
+        </Box>
       </div>
     </div>
   );
@@ -760,7 +761,7 @@ const StashSearchResult: React.FC<IStashSearchResultProps> = ({
     return (
       <div className="mt-2">
         <div>
-          <Form.Group controlId="tags" as={Row}>
+          <Row>
             {FormUtils.renderLabel({
               title: `${intl.formatMessage({ id: "tags" })}:`,
             })}
@@ -773,37 +774,46 @@ const StashSearchResult: React.FC<IStashSearchResultProps> = ({
                 ids={tagIDs}
               />
             </Col>
-          </Form.Group>
+          </Row>
         </div>
         {createTags?.map((t) => (
-          <Badge
+          <Chip
             className="tag-item"
-            variant="secondary"
             key={t.name}
+            label={t.name}
             onClick={() => {
               onCreateTag(t);
             }}
-          >
-            {t.name}
-            <Button
-              className="minimal ml-2"
-              title={intl.formatMessage({ id: "actions.create" })}
-            >
-              <Icon className="fa-fw" icon={faPlus} />
-            </Button>
-            <Button
-              className="minimal"
-              onClick={(e) => {
-                showTagModal(t);
-                e.stopPropagation();
-              }}
-              title={intl.formatMessage({
-                id: "component_tagger.verb_link_existing",
-              })}
-            >
-              <Icon className="fa-fw" icon={faLink} />
-            </Button>
-          </Badge>
+            deleteIcon={
+              <Stack direction="row" spacing={0.5}>
+                <Button
+                  size="small"
+                  className="minimal"
+                  title={intl.formatMessage({ id: "actions.create" })}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onCreateTag(t);
+                  }}
+                >
+                  <Icon className="fa-fw" icon={faPlus} />
+                </Button>
+                <Button
+                  size="small"
+                  className="minimal"
+                  onClick={(e) => {
+                    showTagModal(t);
+                    e.stopPropagation();
+                  }}
+                  title={intl.formatMessage({
+                    id: "component_tagger.verb_link_existing",
+                  })}
+                >
+                  <Icon className="fa-fw" icon={faLink} />
+                </Button>
+              </Stack>
+            }
+            onDelete={() => { }}
+          />
         ))}
       </div>
     );

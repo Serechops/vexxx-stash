@@ -1,13 +1,12 @@
-import React from "react";
-import { Button, Modal, Spinner, ModalProps } from "react-bootstrap";
-import { ButtonVariant } from "react-bootstrap/types";
+import { Button, Dialog, DialogTitle, DialogContent, DialogActions, Box, IconButton, Tooltip, CircularProgress } from "@mui/material";
+import { Breakpoint } from "@mui/material/styles";
 import { Icon } from "./Icon";
 import { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import { FormattedMessage } from "react-intl";
 
 interface IButton {
   text?: string;
-  variant?: ButtonVariant;
+  variant?: string;
   onClick?: () => void;
 }
 
@@ -20,11 +19,12 @@ interface IModal {
   accept?: IButton;
   isRunning?: boolean;
   disabled?: boolean;
-  modalProps?: ModalProps;
+  maxWidth?: Breakpoint;
   dialogClassName?: string;
   footerButtons?: React.ReactNode;
   leftFooterButtons?: React.ReactNode;
   hideAccept?: boolean;
+  modalProps?: any; // Shim for backward compatibility
 }
 
 const defaultOnHide = () => { };
@@ -39,68 +39,85 @@ export const ModalComponent: React.FC<IModal> = ({
   onHide,
   isRunning,
   disabled,
-  modalProps,
+  maxWidth = "sm",
   dialogClassName,
   footerButtons,
   leftFooterButtons,
   hideAccept,
-}) => (
-  <Modal
-    className="ModalComponent"
-    keyboard={false}
-    onHide={onHide ?? defaultOnHide}
-    show={show}
-    dialogClassName={dialogClassName}
-    {...modalProps}
-  >
-    <Modal.Header>
-      {icon ? <Icon icon={icon} /> : ""}
-      <span>{header ?? ""}</span>
-    </Modal.Header>
-    <Modal.Body>{children}</Modal.Body>
-    <Modal.Footer className="ModalFooter">
-      <div>{leftFooterButtons}</div>
-      <div>
-        {footerButtons}
-        {cancel ? (
-          <Button
-            disabled={isRunning}
-            variant={cancel.variant ?? "primary"}
-            onClick={cancel.onClick}
-            className="ml-2"
-          >
-            {cancel.text ?? (
-              <FormattedMessage
-                id="actions.cancel"
-                defaultMessage="Cancel"
-                description="Cancels the current action and dismisses the modal."
-              />
+  modalProps,
+}) => {
+  // Map RB size to MUI maxWidth
+  let calculatedMaxWidth = maxWidth;
+  if (modalProps?.size === "lg") calculatedMaxWidth = "md";
+  if (modalProps?.size === "xl") calculatedMaxWidth = "lg";
+  if (modalProps?.size === "sm") calculatedMaxWidth = "xs";
+
+  const combinedClassName = `${dialogClassName ?? ""} ${modalProps?.dialogClassName ?? ""}`;
+
+  return (
+    <Dialog
+      open={show}
+      onClose={onHide ?? defaultOnHide}
+      maxWidth={calculatedMaxWidth}
+      fullWidth
+      className={combinedClassName}
+      {...modalProps}
+    >
+      <DialogTitle>
+        <Box display="flex" alignItems="center">
+          {icon && <Icon icon={icon} className="mr-2" />}
+          <span>{header ?? ""}</span>
+        </Box>
+      </DialogTitle>
+      <DialogContent dividers>{children}</DialogContent>
+      <DialogActions>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+          <Box>
+            {leftFooterButtons}
+          </Box>
+          <Box>
+            {footerButtons}
+            {cancel ? (
+              <Button
+                disabled={isRunning}
+                variant={cancel.variant === "outline-secondary" ? "outlined" : "text"}
+                color="secondary"
+                onClick={cancel.onClick}
+                className="ml-2"
+              >
+                {cancel.text ?? (
+                  <FormattedMessage
+                    id="actions.cancel"
+                    defaultMessage="Cancel"
+                    description="Cancels the current action and dismisses the modal."
+                  />
+                )}
+              </Button>
+            ) : null}
+            {!hideAccept && (
+              <Button
+                disabled={isRunning || disabled}
+                variant="contained"
+                color={(accept?.variant as any) === "danger" ? "error" : "primary"}
+                onClick={accept?.onClick}
+                className="ml-2"
+              >
+                {isRunning ? (
+                  <CircularProgress size={24} color="inherit" />
+                ) : (
+                  accept?.text ?? (
+                    <FormattedMessage
+                      id="actions.close"
+                      defaultMessage="Close"
+                      description="Closes the current modal."
+                    />
+                  )
+                )}
+              </Button>
             )}
-          </Button>
-        ) : (
-          ""
-        )}
-        {!hideAccept && (
-          <Button
-            disabled={isRunning || disabled}
-            variant={accept?.variant ?? "primary"}
-            onClick={accept?.onClick}
-            className="ml-2"
-          >
-            {isRunning ? (
-              <Spinner animation="border" role="status" size="sm" />
-            ) : (
-              accept?.text ?? (
-                <FormattedMessage
-                  id="actions.close"
-                  defaultMessage="Close"
-                  description="Closes the current modal."
-                />
-              )
-            )}
-          </Button>
-        )}
-      </div>
-    </Modal.Footer>
-  </Modal>
-);
+          </Box>
+        </Box>
+      </DialogActions>
+    </Dialog>
+  );
+};

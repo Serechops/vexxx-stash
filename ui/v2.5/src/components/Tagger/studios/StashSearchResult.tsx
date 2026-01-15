@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Button } from "react-bootstrap";
+import { Button, Box, Stack, Typography } from "@mui/material";
 
 import * as GQL from "src/core/generated-graphql";
 import { useUpdateStudio } from "../queries";
@@ -110,7 +110,7 @@ const StashSearchResult: React.FC<IStashSearchResultProps> = ({
   const studios = stashboxStudios.map((p) => (
     <Button
       className="StudioTagger-studio-search-item minimal col-6"
-      variant="link"
+      variant="text"
       key={p.remote_site_id}
       onClick={() => setModalStudio(p)}
     >

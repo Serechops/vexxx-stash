@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Form } from "react-bootstrap";
+import { Box, Typography } from "@mui/material";
 import { FormattedMessage, useIntl } from "react-intl";
 import { useBulkSceneMarkerUpdate } from "src/core/StashService";
 import * as GQL from "src/core/generated-graphql";
@@ -122,17 +122,17 @@ export const EditSceneMarkersDialog: React.FC<IListOperationProps> = (
     area: boolean = false
   ) {
     return (
-      <Form.Group controlId={name}>
-        <Form.Label>
+      <Box mb={2}>
+        <Typography variant="body2" component="label" htmlFor={name}>
           <FormattedMessage id={name} />
-        </Form.Label>
+        </Typography>
         <BulkUpdateTextInput
           value={value === null ? "" : value ?? undefined}
           valueChanged={(newValue) => setter(newValue)}
           unsetDisabled={props.selected.length < 2}
           as={area ? "textarea" : undefined}
         />
-      </Form.Group>
+      </Box>
     );
   }
 
@@ -157,27 +157,27 @@ export const EditSceneMarkersDialog: React.FC<IListOperationProps> = (
         }}
         isRunning={isUpdating}
       >
-        <Form>
+        <Box component="form">
           {renderTextField("title", updateInput.title, (newValue) =>
             setUpdateField({ title: newValue })
           )}
 
-          <Form.Group controlId="primary-tag">
-            <Form.Label>
+          <Box mb={2}>
+            <Typography variant="body2" component="label" htmlFor="primary-tag">
               <FormattedMessage id="primary_tag" />
-            </Form.Label>
+            </Typography>
             <TagSelect
               onSelect={(t) => setUpdateField({ primary_tag_id: t[0]?.id })}
               ids={
                 updateInput.primary_tag_id ? [updateInput.primary_tag_id] : []
               }
             />
-          </Form.Group>
+          </Box>
 
-          <Form.Group controlId="tags">
-            <Form.Label>
+          <Box mb={2}>
+            <Typography variant="body2" component="label" htmlFor="tags">
               <FormattedMessage id="tags" />
-            </Form.Label>
+            </Typography>
             <MultiSet
               type="tags"
               disabled={isUpdating}
@@ -190,8 +190,8 @@ export const EditSceneMarkersDialog: React.FC<IListOperationProps> = (
               mode={tagIds.mode}
               menuPortalTarget={document.body}
             />
-          </Form.Group>
-        </Form>
+          </Box>
+        </Box>
       </ModalComponent>
     );
   }

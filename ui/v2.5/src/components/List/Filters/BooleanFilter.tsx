@@ -1,6 +1,6 @@
 import cloneDeep from "lodash-es/cloneDeep";
 import React, { useMemo } from "react";
-import { Form } from "react-bootstrap";
+import { FormControlLabel, Radio, RadioGroup } from "@mui/material";
 import {
   BooleanCriterion,
   CriterionOption,
@@ -30,22 +30,30 @@ export const BooleanFilter: React.FC<IBooleanFilter> = ({
   }
 
   return (
-    <div className="boolean-filter">
-      <Form.Check
-        id={`${criterion.getId()}-true`}
-        onChange={() => onSelect(true)}
-        checked={criterion.value === "true"}
-        type="radio"
+    <RadioGroup className="boolean-filter">
+      <FormControlLabel
+        control={
+          <Radio
+            id={`${criterion.getId()}-true`}
+            checked={criterion.value === "true"}
+            onChange={() => onSelect(true)}
+            size="small"
+          />
+        }
         label={<FormattedMessage id="true" />}
       />
-      <Form.Check
-        id={`${criterion.getId()}-false`}
-        onChange={() => onSelect(false)}
-        checked={criterion.value === "false"}
-        type="radio"
+      <FormControlLabel
+        control={
+          <Radio
+            id={`${criterion.getId()}-false`}
+            checked={criterion.value === "false"}
+            onChange={() => onSelect(false)}
+            size="small"
+          />
+        }
         label={<FormattedMessage id="false" />}
       />
-    </div>
+    </RadioGroup>
   );
 };
 

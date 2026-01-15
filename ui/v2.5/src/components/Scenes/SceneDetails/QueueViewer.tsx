@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import cx from "classnames";
-import { Button, Form, Spinner } from "react-bootstrap";
+import { Button, IconButton, FormControlLabel, Checkbox, CircularProgress, Box } from "@mui/material";
 import { Icon } from "src/components/Shared/Icon";
 import { useIntl } from "react-intl";
 import {
@@ -84,7 +84,8 @@ export const QueueViewer: React.FC<IPlaylistViewer> = ({
       >
         <Link
           to={`/scenes/${scene.id}`}
-          onClick={(e) => handleSceneClick(e, scene.id)}
+          onClick={(e: React.MouseEvent<HTMLAnchorElement, MouseEvent>) => handleSceneClick(e, scene.id)}
+          style={{ textDecoration: 'none', color: 'inherit', width: '100%' }}
         >
           <div className="ml-1 d-flex align-items-center">
             <div className="thumbnail-container">
@@ -116,45 +117,44 @@ export const QueueViewer: React.FC<IPlaylistViewer> = ({
     <div id="queue-viewer">
       <div className="queue-controls">
         <div>
-          <Form.Check
-            id="continue-checkbox"
-            checked={continuePlaylist}
+          <FormControlLabel
+            control={
+              <Checkbox
+                id="continue-checkbox"
+                checked={continuePlaylist}
+                onChange={() => setContinue(!continuePlaylist)}
+              />
+            }
             label={intl.formatMessage({ id: "actions.continue" })}
-            onChange={() => {
-              setContinue(!continuePlaylist);
-            }}
           />
         </div>
         <div>
           {currentIndex > 0 || start > 1 ? (
-            <Button
-              className="minimal"
-              variant="secondary"
+            <IconButton
               onClick={() => onPrevious()}
+              size="small"
             >
               <Icon icon={faStepBackward} />
-            </Button>
+            </IconButton>
           ) : (
             ""
           )}
           {currentIndex < scenes.length - 1 || hasMoreScenes ? (
-            <Button
-              className="minimal"
-              variant="secondary"
+            <IconButton
               onClick={() => onNext()}
+              size="small"
             >
               <Icon icon={faStepForward} />
-            </Button>
+            </IconButton>
           ) : (
             ""
           )}
-          <Button
-            className="minimal"
-            variant="secondary"
+          <IconButton
             onClick={() => onRandom()}
+            size="small"
           >
             <Icon icon={faRandom} />
-          </Button>
+          </IconButton>
         </div>
       </div>
       <div id="queue-content">
@@ -164,7 +164,7 @@ export const QueueViewer: React.FC<IPlaylistViewer> = ({
               {!lessLoading ? (
                 <Icon icon={faChevronUp} />
               ) : (
-                <Spinner animation="border" role="status" />
+                <CircularProgress size={20} />
               )}
             </Button>
           </div>
@@ -176,7 +176,7 @@ export const QueueViewer: React.FC<IPlaylistViewer> = ({
               {!moreLoading ? (
                 <Icon icon={faChevronDown} />
               ) : (
-                <Spinner animation="border" role="status" />
+                <CircularProgress size={20} />
               )}
             </Button>
           </div>

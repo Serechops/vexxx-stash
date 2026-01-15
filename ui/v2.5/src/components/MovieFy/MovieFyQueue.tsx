@@ -1,5 +1,5 @@
 import React from "react";
-import { Modal, Button, Row, Col, Badge, Form } from "react-bootstrap";
+import { Button, Dialog, DialogTitle, DialogContent, DialogActions, Chip, Box, Grid, TextField, CircularProgress } from "@mui/material";
 import { Icon } from "../Shared/Icon";
 import { faTrash, faUser, faTag, faBuilding } from "@fortawesome/free-solid-svg-icons";
 
@@ -67,25 +67,21 @@ export const MovieFyQueue: React.FC<MovieFyQueueProps> = ({
     };
 
     return (
-        <Modal show={open} onHide={onClose} size="lg" centered scrollable>
-            <Modal.Header closeButton>
-                <Modal.Title>
-                    Review Queue{" "}
-                    <Badge variant="secondary" className="ml-2">
-                        {safeQueue.length} items
-                    </Badge>
-                </Modal.Title>
-            </Modal.Header>
-            <Modal.Body>
+        <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth scroll="paper">
+            <DialogTitle>
+                Review Queue{" "}
+                <Chip label={`${safeQueue.length} items`} className="ml-2" />
+            </DialogTitle>
+            <DialogContent dividers>
                 {safeQueue.length === 0 ? (
                     <div className="text-center text-muted p-4">No items in queue</div>
                 ) : (
                     <div className="moviefy-queue-list">
                         {safeQueue.map((item, index) => (
-                            <div key={index} className="moviefy-queue-item mb-3 p-3 border rounded">
-                                <Row>
+                            <Box key={index} className="moviefy-queue-item mb-3 p-3 border rounded">
+                                <Grid container spacing={2}>
                                     {/* Scene Previews */}
-                                    <Col xs={12} sm={3}>
+                                    <Grid size={{ xs: 12, sm: 3 }}>
                                         <div className="scene-previews d-flex mb-2" style={{ gap: "0.25rem" }}>
                                             {(item.scenes || []).slice(0, 2).map((scene: QueueSceneItem, sceneIndex: number) => (
                                                 <div
@@ -117,10 +113,10 @@ export const MovieFyQueue: React.FC<MovieFyQueueProps> = ({
                                             {(item.scenes || []).length} scene
                                             {(item.scenes || []).length !== 1 ? "s" : ""} to process
                                         </small>
-                                    </Col>
+                                    </Grid>
 
                                     {/* Movie Details */}
-                                    <Col xs={12} sm={9}>
+                                    <Grid size={{ xs: 12, sm: 9 }}>
                                         <div className="d-flex justify-content-between align-items-start mb-2">
                                             <div className="d-flex align-items-center">
                                                 {item.group.front_image && (
@@ -137,7 +133,7 @@ export const MovieFyQueue: React.FC<MovieFyQueueProps> = ({
                                                     />
                                                 )}
                                                 <div>
-                                                    <h6 className="mb-0">{item.group.name}</h6>
+                                                    <h6 className="mb-0 text-body">{item.group.name}</h6>
                                                     {item.group.urls && item.group.urls.length > 0 && (
                                                         <a
                                                             href={item.group.urls[0]}
@@ -151,8 +147,9 @@ export const MovieFyQueue: React.FC<MovieFyQueueProps> = ({
                                                 </div>
                                             </div>
                                             <Button
-                                                variant="outline-danger"
-                                                size="sm"
+                                                variant="outlined"
+                                                color="error"
+                                                size="small"
                                                 onClick={() => onRemove(index)}
                                             >
                                                 <Icon icon={faTrash} />
@@ -165,46 +162,45 @@ export const MovieFyQueue: React.FC<MovieFyQueueProps> = ({
                                             <div className="mt-1">
                                                 {(item.scenes || []).map((scene: QueueSceneItem, sceneIndex: number) => (
                                                     <div key={sceneIndex} className="d-flex align-items-center mb-1">
-                                                        <Form.Control
+                                                        <TextField
                                                             type="number"
-                                                            size="sm"
+                                                            size="small"
                                                             placeholder="#"
                                                             style={{ width: "60px" }}
                                                             className="mr-2"
                                                             value={scene.new_scene_index?.toString() ?? ""}
                                                             onChange={(e) => handleSceneIndexChange(index, sceneIndex, e.target.value)}
+                                                            inputProps={{ style: { padding: '4px 8px' } }}
                                                         />
-                                                        <span className="text-truncate" title={scene.title || ""}>
+                                                        <span className="text-truncate text-body" title={scene.title || ""}>
                                                             {scene.title || `Scene ${sceneIndex + 1}`}
                                                         </span>
                                                     </div>
                                                 ))}
                                             </div>
                                         </div>
-                                    </Col>
-                                </Row>
-                            </div>
+                                    </Grid>
+                                </Grid>
+                            </Box>
                         ))}
                     </div>
                 )}
-            </Modal.Body>
-            <Modal.Footer className="justify-content-between">
+            </DialogContent>
+            <DialogActions className="justify-content-between">
                 <div />
                 <div>
-                    <Button variant="secondary" onClick={onClose} className="mr-2">
+                    <Button variant="outlined" onClick={onClose} className="mr-2">
                         Close
                     </Button>
                     <Button
-                        variant="primary"
+                        variant="contained"
+                        color="primary"
                         onClick={onProcess}
                         disabled={safeQueue.length === 0 || processing}
                     >
                         {processing ? (
                             <>
-                                <span
-                                    className="spinner-border spinner-border-sm mr-2"
-                                    role="status"
-                                />
+                                <CircularProgress size={20} className="mr-2" color="inherit" />
                                 Processing...
                             </>
                         ) : (
@@ -212,8 +208,8 @@ export const MovieFyQueue: React.FC<MovieFyQueueProps> = ({
                         )}
                     </Button>
                 </div>
-            </Modal.Footer>
-        </Modal>
+            </DialogActions>
+        </Dialog>
     );
 };
 

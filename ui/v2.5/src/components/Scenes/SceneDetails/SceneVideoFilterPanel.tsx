@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
-import { Button, Form } from "react-bootstrap";
+import { Button, Slider as MuiSlider, Box, Typography } from "@mui/material";
 import { TruncatedText } from "src/components/Shared/TruncatedText";
 import { VIDEO_PLAYER_ID } from "src/components/ScenePlayer/util";
 import * as GQL from "src/core/generated-graphql";
@@ -36,29 +36,28 @@ interface ISliderProps {
 
 const Slider: React.FC<ISliderProps> = (sliderProps: ISliderProps) => {
   return (
-    <div className="row form-group">
-      <span className="col-sm-3">{sliderProps.title}</span>
-      <span className="col-sm-7">
-        <Form.Control
-          className={`filter-slider d-inline-flex ml-sm-3 ${sliderProps.className}`}
-          type="range"
+    <Box display="flex" alignItems="center" mb={1}>
+      <Typography variant="body2" sx={{ width: '25%' }}>{sliderProps.title}</Typography>
+      <Box sx={{ flexGrow: 1, mx: 2 }}>
+        <MuiSlider
+          className={sliderProps.className}
           min={sliderProps.range.min}
           max={sliderProps.range.max}
           value={sliderProps.value}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-            sliderProps.setValue(Number.parseInt(e.currentTarget.value, 10))
-          }
+          onChange={(_, value) => sliderProps.setValue(value as number)}
+          size="small"
         />
-      </span>
-      <span
-        className="col-sm-2 filter-slider-value"
-        role="presentation"
+      </Box>
+      <Typography
+        variant="body2"
+        sx={{ width: '15%', textAlign: 'right', cursor: 'pointer' }}
         onClick={() => sliderProps.setValue(sliderProps.range.default)}
         onKeyPress={() => sliderProps.setValue(sliderProps.range.default)}
+        role="presentation"
       >
         <TruncatedText text={sliderProps.displayValue} />
-      </span>
-    </div>
+      </Typography>
+    </Box>
   );
 };
 
@@ -211,9 +210,8 @@ export const SceneVideoFilterPanel: React.FC<ISceneVideoFilterPanelProps> = (
       styleString += "; transform:";
 
       if (rotateValue !== rotateRange.default) {
-        styleString += ` rotate(${
-          (rotateValue - rotateRange.default) / rotateRange.divider
-        }deg)`;
+        styleString += ` rotate(${(rotateValue - rotateRange.default) / rotateRange.divider
+          }deg)`;
       }
 
       if (
@@ -280,12 +278,9 @@ export const SceneVideoFilterPanel: React.FC<ISceneVideoFilterPanelProps> = (
 
       feColorMatrix.setAttribute(
         "values",
-        `${
-          1 + wbMatrixValue + getMatrixValue(redValue, colourRange)
-        } 0 0 0 0   0 ${
-          1.0 + getMatrixValue(greenValue, colourRange)
-        } 0 0 0   0 0 ${
-          1 - wbMatrixValue + getMatrixValue(blueValue, colourRange)
+        `${1 + wbMatrixValue + getMatrixValue(redValue, colourRange)
+        } 0 0 0 0   0 ${1.0 + getMatrixValue(greenValue, colourRange)
+        } 0 0 0   0 0 ${1 - wbMatrixValue + getMatrixValue(blueValue, colourRange)
         } 0 0   0 0 0 1.0 0`
       );
       videoFilter.appendChild(feColorMatrix);
@@ -421,28 +416,24 @@ export const SceneVideoFilterPanel: React.FC<ISceneVideoFilterPanelProps> = (
 
   function renderRotateAndScale() {
     return (
-      <div className="row form-group">
-        <span className="col-6">
-          <Button
-            id="rotateAndScaleLeft"
-            variant="primary"
-            type="button"
-            onClick={() => onRotateAndScale(0)}
-          >
-            <FormattedMessage id="effect_filters.rotate_left_and_scale" />
-          </Button>
-        </span>
-        <span className="col-6">
-          <Button
-            id="rotateAndScaleRight"
-            variant="primary"
-            type="button"
-            onClick={() => onRotateAndScale(1)}
-          >
-            <FormattedMessage id="effect_filters.rotate_right_and_scale" />
-          </Button>
-        </span>
-      </div>
+      <Box display="flex" gap={2} mb={2}>
+        <Button
+          id="rotateAndScaleLeft"
+          variant="contained"
+          fullWidth
+          onClick={() => onRotateAndScale(0)}
+        >
+          <FormattedMessage id="effect_filters.rotate_left_and_scale" />
+        </Button>
+        <Button
+          id="rotateAndScaleRight"
+          variant="contained"
+          fullWidth
+          onClick={() => onRotateAndScale(1)}
+        >
+          <FormattedMessage id="effect_filters.rotate_right_and_scale" />
+        </Button>
+      </Box>
     );
   }
 
@@ -467,28 +458,25 @@ export const SceneVideoFilterPanel: React.FC<ISceneVideoFilterPanelProps> = (
 
   function renderResetButton() {
     return (
-      <div className="row form-group">
-        <span className="col-6">
-          <Button
-            id="resetFilters"
-            variant="primary"
-            type="button"
-            onClick={() => onResetFilters()}
-          >
-            <FormattedMessage id="effect_filters.reset_filters" />
-          </Button>
-        </span>
-        <span className="col-6">
-          <Button
-            id="resetTransforms"
-            variant="secondary"
-            type="button"
-            onClick={() => onResetTransforms()}
-          >
-            <FormattedMessage id="effect_filters.reset_transforms" />
-          </Button>
-        </span>
-      </div>
+      <Box display="flex" gap={2} mb={2}>
+        <Button
+          id="resetFilters"
+          variant="contained"
+          fullWidth
+          onClick={() => onResetFilters()}
+        >
+          <FormattedMessage id="effect_filters.reset_filters" />
+        </Button>
+        <Button
+          id="resetTransforms"
+          variant="outlined"
+          color="secondary"
+          fullWidth
+          onClick={() => onResetTransforms()}
+        >
+          <FormattedMessage id="effect_filters.reset_transforms" />
+        </Button>
+      </Box>
     );
   }
 
@@ -501,14 +489,12 @@ export const SceneVideoFilterPanel: React.FC<ISceneVideoFilterPanelProps> = (
   updateVideoStyle();
 
   return (
-    <div className="container scene-video-filter">
-      <div className="row form-group">
-        <span className="col-12">
-          <h5>
-            <FormattedMessage id="effect_filters.name" />
-          </h5>
-        </span>
-      </div>
+    <Box className="container scene-video-filter">
+      <Box mb={2}>
+        <Typography variant="h6">
+          <FormattedMessage id="effect_filters.name" />
+        </Typography>
+      </Box>
       <Slider
         title={intl.formatMessage({ id: "effect_filters.brightness" })}
         className="brightness-slider"
@@ -531,9 +517,8 @@ export const SceneVideoFilterPanel: React.FC<ISceneVideoFilterPanelProps> = (
         range={gammaRange}
         value={gammaValue}
         setValue={setGammaValue}
-        displayValue={`${
-          (gammaValue - gammaRange.default) / gammaRange.divider
-        }`}
+        displayValue={`${(gammaValue - gammaRange.default) / gammaRange.divider
+          }`}
       />
       <Slider
         title={intl.formatMessage({ id: "effect_filters.saturation" })}
@@ -557,10 +542,9 @@ export const SceneVideoFilterPanel: React.FC<ISceneVideoFilterPanelProps> = (
         range={whiteBalanceRange}
         value={whiteBalanceValue}
         setValue={setWhiteBalanceValue}
-        displayValue={`${
-          (whiteBalanceValue - whiteBalanceRange.default) /
+        displayValue={`${(whiteBalanceValue - whiteBalanceRange.default) /
           whiteBalanceRange.divider
-        }`}
+          }`}
       />
       <Slider
         title={intl.formatMessage({ id: "effect_filters.red" })}
@@ -594,21 +578,18 @@ export const SceneVideoFilterPanel: React.FC<ISceneVideoFilterPanelProps> = (
         displayValue={`${blurValue / blurRange.divider}px`}
       />
 
-      <div className="row form-group">
-        <span className="col-12">
-          <h5>
-            <FormattedMessage id="effect_filters.name_transforms" />
-          </h5>
-        </span>
-      </div>
+      <Box my={2}>
+        <Typography variant="h6">
+          <FormattedMessage id="effect_filters.name_transforms" />
+        </Typography>
+      </Box>
       <Slider
         title={intl.formatMessage({ id: "effect_filters.rotate" })}
         range={rotateRange}
         value={rotateValue}
         setValue={setRotateValue}
-        displayValue={`${
-          (rotateValue - rotateRange.default) / rotateRange.divider
-        }\xB0`}
+        displayValue={`${(rotateValue - rotateRange.default) / rotateRange.divider
+          }\xB0`}
       />
       <Slider
         title={intl.formatMessage({ id: "effect_filters.scale" })}
@@ -622,22 +603,19 @@ export const SceneVideoFilterPanel: React.FC<ISceneVideoFilterPanelProps> = (
         range={aspectRatioRange}
         value={aspectRatioValue}
         setValue={setAspectRatioValue}
-        displayValue={`${
-          (aspectRatioValue - aspectRatioRange.default) /
+        displayValue={`${(aspectRatioValue - aspectRatioRange.default) /
           aspectRatioRange.divider
-        }`}
+          }`}
       />
-      <div className="row form-group">
-        <span className="col-12">
-          <h5>
-            <FormattedMessage id="actions_name" />
-          </h5>
-        </span>
-      </div>
+      <Box my={2}>
+        <Typography variant="h6">
+          <FormattedMessage id="actions_name" />
+        </Typography>
+      </Box>
       {renderRotateAndScale()}
       {renderResetButton()}
       {renderFilterContainer()}
-    </div>
+    </Box>
   );
 };
 

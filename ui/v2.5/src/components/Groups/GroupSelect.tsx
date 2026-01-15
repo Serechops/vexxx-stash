@@ -25,7 +25,6 @@ import {
   Option as SelectOption,
 } from "../Shared/FilterSelect";
 import { useCompare } from "src/hooks/state";
-import { Placement } from "react-bootstrap/esm/Overlay";
 import { sortByRelevance } from "src/utils/query";
 import { PatchComponent, PatchFunction } from "src/patch";
 import { TruncatedText } from "../Shared/TruncatedText";
@@ -58,11 +57,11 @@ const groupSelectSort = PatchFunction(
 
 export const GroupSelect: React.FC<
   IFilterProps &
-    IFilterValueProps<Group> & {
-      hoverPlacement?: Placement;
-      excludeIds?: string[];
-      filterHook?: (f: ListFilterModel) => ListFilterModel;
-    }
+  IFilterValueProps<Group> & {
+    hoverPlacement?: "top" | "bottom" | "left" | "right";
+    excludeIds?: string[];
+    filterHook?: (f: ListFilterModel) => ListFilterModel;
+  }
 > = PatchComponent("GroupSelect", (props) => {
   const [createGroup] = useGroupCreate();
 

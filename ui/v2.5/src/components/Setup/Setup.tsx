@@ -5,9 +5,18 @@ import {
   Button,
   Card,
   Container,
-  Form,
-  InputGroup,
-} from "react-bootstrap";
+  TextField,
+  InputAdornment,
+  IconButton,
+  FormControlLabel,
+  Checkbox,
+  Box,
+  Typography,
+  CardContent,
+  CircularProgress,
+  Stack,
+  Divider,
+} from "@mui/material";
 import * as GQL from "src/core/generated-graphql";
 import {
   mutateSetup,
@@ -64,6 +73,7 @@ const SetupContext: React.FC<{
   setupError: string | undefined;
   systemStatus: GQL.SystemStatusQuery;
   configuration: GQL.ConfigDataFragment;
+  children?: React.ReactNode;
 }> = ({ setupState, setupError, systemStatus, configuration, children }) => {
   const status = systemStatus?.systemStatus;
 
@@ -133,14 +143,14 @@ const WelcomeSpecificConfig: React.FC<IWizardStep> = ({ next }) => {
 
   return (
     <>
-      <section>
-        <h2 className="mb-5">
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h4" gutterBottom>
           <FormattedMessage id="setup.welcome_to_stash" />
-        </h2>
-        <p className="lead text-center">
+        </Typography>
+        <Typography variant="subtitle1" align="center" gutterBottom>
           <FormattedMessage id="setup.welcome_specific_config.unable_to_locate_specified_config" />
-        </p>
-        <p>
+        </Typography>
+        <Typography paragraph>
           <FormattedMessage
             id="setup.welcome_specific_config.config_path"
             values={{
@@ -148,19 +158,17 @@ const WelcomeSpecificConfig: React.FC<IWizardStep> = ({ next }) => {
               code: (chunks: string) => <code>{chunks}</code>,
             }}
           />
-        </p>
-        <p>
+        </Typography>
+        <Typography paragraph>
           <FormattedMessage id="setup.welcome_specific_config.next_step" />
-        </p>
-      </section>
+        </Typography>
+      </Box>
 
-      <section className="mt-5">
-        <div className="d-flex justify-content-center">
-          <Button variant="primary mx-2 p-5" onClick={() => onNext()}>
-            <FormattedMessage id="actions.next_action" />
-          </Button>
-        </div>
-      </section>
+      <Box sx={{ mt: 5, display: "flex", justifyContent: "center" }}>
+        <Button variant="contained" size="large" onClick={() => onNext()} sx={{ p: 4 }}>
+          <FormattedMessage id="actions.next_action" />
+        </Button>
+      </Box>
     </>
   );
 };
@@ -179,14 +187,14 @@ const DefaultWelcomeStep: React.FC<IWizardStep> = ({ next }) => {
 
   return (
     <>
-      <section>
-        <h2 className="mb-5">
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h4" gutterBottom>
           <FormattedMessage id="setup.welcome_to_stash" />
-        </h2>
-        <p className="lead text-center">
+        </Typography>
+        <Typography variant="subtitle1" align="center" gutterBottom>
           <FormattedMessage id="setup.welcome.unable_to_locate_config" />
-        </p>
-        <p>
+        </Typography>
+        <Typography paragraph>
           <FormattedMessage
             id="setup.welcome.config_path_logic_explained"
             values={{
@@ -194,8 +202,8 @@ const DefaultWelcomeStep: React.FC<IWizardStep> = ({ next }) => {
               fallback_path: fallbackConfigPath,
             }}
           />
-        </p>
-        <Alert variant="info text-center">
+        </Typography>
+        <Alert severity="info" sx={{ textAlign: "center", mb: 2 }}>
           <FormattedMessage
             id="setup.welcome.unexpected_explained"
             values={{
@@ -203,38 +211,46 @@ const DefaultWelcomeStep: React.FC<IWizardStep> = ({ next }) => {
             }}
           />
         </Alert>
-        <p>
+        <Typography paragraph>
           <FormattedMessage id="setup.welcome.next_step" />
-        </p>
-      </section>
+        </Typography>
+      </Box>
 
-      <section className="mt-5">
-        <h3 className="text-center mb-5">
+      <Box sx={{ mt: 5 }}>
+        <Typography variant="h5" align="center" gutterBottom>
           <FormattedMessage id="setup.welcome.store_stash_config" />
-        </h3>
+        </Typography>
 
-        <div className="d-flex justify-content-center">
+        <Box sx={{ display: "flex", justifyContent: "center", gap: 2 }}>
           <Button
-            variant="secondary mx-2 p-5"
+            variant="contained"
+            color="secondary"
+            size="large"
             onClick={() => onConfigLocationChosen(false)}
+            sx={{ p: 4 }}
           >
-            <FormattedMessage
-              id="setup.welcome.in_current_stash_directory"
-              values={{
-                code: (chunks: string) => <code>{chunks}</code>,
-                path: fallbackStashDir,
-              }}
-            />
-            <br />
-            <code>{homeDirPath}</code>
+            <Box>
+              <FormattedMessage
+                id="setup.welcome.in_current_stash_directory"
+                values={{
+                  code: (chunks: string) => <code>{chunks}</code>,
+                  path: fallbackStashDir,
+                }}
+              />
+              <br />
+              <code>{homeDirPath}</code>
+            </Box>
           </Button>
           <Button
-            variant="secondary mx-2 p-5"
+            variant="contained"
+            color="secondary"
+            size="large"
             onClick={() => onConfigLocationChosen(true)}
             disabled={macApp}
+            sx={{ p: 4 }}
           >
             {macApp ? (
-              <>
+              <Box>
                 <FormattedMessage
                   id="setup.welcome.in_the_current_working_directory_disabled"
                   values={{
@@ -252,9 +268,9 @@ const DefaultWelcomeStep: React.FC<IWizardStep> = ({ next }) => {
                     }}
                   />
                 </b>
-              </>
+              </Box>
             ) : (
-              <>
+              <Box>
                 <FormattedMessage
                   id="setup.welcome.in_the_current_working_directory"
                   values={{
@@ -264,11 +280,11 @@ const DefaultWelcomeStep: React.FC<IWizardStep> = ({ next }) => {
                 />
                 <br />
                 <code>{workingDir}</code>
-              </>
+              </Box>
             )}
           </Button>
-        </div>
-      </section>
+        </Box>
+      </Box>
     </>
   );
 };
@@ -315,11 +331,11 @@ const DatabaseSection: React.FC<{
   const intl = useIntl();
 
   return (
-    <Form.Group id="database">
-      <h3>
+    <Box id="database" mb={3}>
+      <Typography variant="h5" gutterBottom>
         <FormattedMessage id="setup.paths.where_can_stash_store_its_database" />
-      </h3>
-      <p>
+      </Typography>
+      <Typography paragraph>
         <FormattedMessage
           id="setup.paths.where_can_stash_store_its_database_description"
           values={{
@@ -333,16 +349,16 @@ const DatabaseSection: React.FC<{
             strong: (chunks: string) => <strong>{chunks}</strong>,
           }}
         />
-      </p>
-      <Form.Control
-        className="text-input"
+      </Typography>
+      <TextField
+        fullWidth
         defaultValue={databaseFile}
         placeholder={intl.formatMessage({
           id: "setup.paths.database_filename_empty_for_default",
         })}
         onChange={(e) => setDatabaseFile(e.currentTarget.value)}
       />
-    </Form.Group>
+    </Box>
   );
 };
 
@@ -366,25 +382,26 @@ const DirectorySelector: React.FC<{
       {showSelectDialog ? (
         <FolderSelectDialog onClose={onSelectClosed} />
       ) : null}
-      <InputGroup>
-        <Form.Control
-          className="text-input"
-          value={disabled ? "" : value}
-          placeholder={placeholder}
-          onChange={(e) => setValue(e.currentTarget.value)}
-          disabled={disabled}
-        />
-        <InputGroup.Append>
-          <Button
-            variant="secondary"
-            className="text-input"
-            onClick={() => setShowSelectDialog(true)}
-            disabled={disabled}
-          >
-            <Icon icon={faEllipsisH} />
-          </Button>
-        </InputGroup.Append>
-      </InputGroup>
+      <TextField
+        fullWidth
+        value={disabled ? "" : value}
+        placeholder={placeholder}
+        onChange={(e) => setValue(e.currentTarget.value)}
+        disabled={disabled}
+        InputProps={{
+          endAdornment: (
+            <InputAdornment position="end">
+              <IconButton
+                onClick={() => setShowSelectDialog(true)}
+                disabled={disabled}
+                edge="end"
+              >
+                <Icon icon={faEllipsisH} />
+              </IconButton>
+            </InputAdornment>
+          )
+        }}
+      />
     </>
   );
 };
@@ -396,18 +413,18 @@ const GeneratedSection: React.FC<{
   const intl = useIntl();
 
   return (
-    <Form.Group id="generated">
-      <h3>
+    <Box id="generated" mb={3}>
+      <Typography variant="h5" gutterBottom>
         <FormattedMessage id="setup.paths.where_can_stash_store_its_generated_content" />
-      </h3>
-      <p>
+      </Typography>
+      <Typography paragraph>
         <FormattedMessage
           id="setup.paths.where_can_stash_store_its_generated_content_description"
           values={{
             code: (chunks: string) => <code>{chunks}</code>,
           }}
         />
-      </p>
+      </Typography>
       <DirectorySelector
         value={generatedLocation}
         setValue={setGeneratedLocation}
@@ -415,7 +432,7 @@ const GeneratedSection: React.FC<{
           id: "setup.paths.path_to_generated_directory_empty_for_default",
         })}
       />
-    </Form.Group>
+    </Box>
   );
 };
 
@@ -426,18 +443,18 @@ const CacheSection: React.FC<{
   const intl = useIntl();
 
   return (
-    <Form.Group id="cache">
-      <h3>
+    <Box id="cache" mb={3}>
+      <Typography variant="h5" gutterBottom>
         <FormattedMessage id="setup.paths.where_can_stash_store_cache_files" />
-      </h3>
-      <p>
+      </Typography>
+      <Typography paragraph>
         <FormattedMessage
           id="setup.paths.where_can_stash_store_cache_files_description"
           values={{
             code: (chunks: string) => <code>{chunks}</code>,
           }}
         />
-      </p>
+      </Typography>
       <DirectorySelector
         value={cacheLocation}
         setValue={setCacheLocation}
@@ -445,7 +462,7 @@ const CacheSection: React.FC<{
           id: "setup.paths.path_to_cache_directory_empty_for_default",
         })}
       />
-    </Form.Group>
+    </Box>
   );
 };
 
@@ -460,55 +477,58 @@ const BlobsSection: React.FC<{
   storeBlobsInDatabase,
   setStoreBlobsInDatabase,
 }) => {
-  const intl = useIntl();
+    const intl = useIntl();
 
-  return (
-    <Form.Group id="blobs">
-      <h3>
-        <FormattedMessage id="setup.paths.where_can_stash_store_blobs" />
-      </h3>
-      <p>
-        <FormattedMessage
-          id="setup.paths.where_can_stash_store_blobs_description"
-          values={{
-            code: (chunks: string) => <code>{chunks}</code>,
-          }}
-        />
-      </p>
-      <p>
-        <FormattedMessage
-          id="setup.paths.where_can_stash_store_blobs_description_addendum"
-          values={{
-            code: (chunks: string) => <code>{chunks}</code>,
-            strong: (chunks: string) => <strong>{chunks}</strong>,
-          }}
-        />
-      </p>
+    return (
+      <Box id="blobs" mb={3}>
+        <Typography variant="h5" gutterBottom>
+          <FormattedMessage id="setup.paths.where_can_stash_store_blobs" />
+        </Typography>
+        <Typography paragraph>
+          <FormattedMessage
+            id="setup.paths.where_can_stash_store_blobs_description"
+            values={{
+              code: (chunks: string) => <code>{chunks}</code>,
+            }}
+          />
+        </Typography>
+        <Typography paragraph>
+          <FormattedMessage
+            id="setup.paths.where_can_stash_store_blobs_description_addendum"
+            values={{
+              code: (chunks: string) => <code>{chunks}</code>,
+              strong: (chunks: string) => <strong>{chunks}</strong>,
+            }}
+          />
+        </Typography>
 
-      <div>
-        <Form.Check
-          id="store-blobs-in-database"
-          checked={storeBlobsInDatabase}
-          label={intl.formatMessage({
-            id: "setup.paths.store_blobs_in_database",
-          })}
-          onChange={() => setStoreBlobsInDatabase(!storeBlobsInDatabase)}
-        />
-      </div>
+        <Box mb={2}>
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={storeBlobsInDatabase}
+                onChange={() => setStoreBlobsInDatabase(!storeBlobsInDatabase)}
+              />
+            }
+            label={intl.formatMessage({
+              id: "setup.paths.store_blobs_in_database",
+            })}
+          />
+        </Box>
 
-      <div>
-        <DirectorySelector
-          value={blobsLocation}
-          setValue={setBlobsLocation}
-          placeholder={intl.formatMessage({
-            id: "setup.paths.path_to_blobs_directory_empty_for_default",
-          })}
-          disabled={storeBlobsInDatabase}
-        />
-      </div>
-    </Form.Group>
-  );
-};
+        <Box>
+          <DirectorySelector
+            value={blobsLocation}
+            setValue={setBlobsLocation}
+            placeholder={intl.formatMessage({
+              id: "setup.paths.path_to_blobs_directory_empty_for_default",
+            })}
+            disabled={storeBlobsInDatabase}
+          />
+        </Box>
+      </Box>
+    );
+  };
 
 const SetPathsStep: React.FC<IWizardStep> = ({ goBack, next }) => {
   const { configuration, setupState } = useSetupContext();
@@ -576,45 +596,50 @@ const SetPathsStep: React.FC<IWizardStep> = ({ goBack, next }) => {
           }}
         />
       ) : null}
-      <section>
-        <h2 className="mb-3">
+      <Box mb={4}>
+        <Typography variant="h4" gutterBottom>
           <FormattedMessage id="setup.paths.set_up_your_paths" />
-        </h2>
-        <p>
+        </Typography>
+        <Typography>
           <FormattedMessage id="setup.paths.description" />
-        </p>
-      </section>
-      <section>
-        <Form.Group id="stashes">
-          <h3>
+        </Typography>
+      </Box>
+      <Box>
+        <Box id="stashes" mb={3}>
+          <Typography variant="h5" gutterBottom>
             <FormattedMessage id="setup.paths.where_is_your_porn_located" />
-          </h3>
-          <p>
+          </Typography>
+          <Typography paragraph>
             <FormattedMessage id="setup.paths.where_is_your_porn_located_description" />
-          </p>
-          <Card>
+          </Typography>
+          <Card variant="outlined">
             <StashConfiguration
               stashes={stashes}
               setStashes={(s) => setStashes(s)}
             />
           </Card>
-        </Form.Group>
-        <Form.Group id="sfw_content">
-          <h3>
+        </Box>
+        <Box id="sfw_content" mb={3}>
+          <Typography variant="h5" gutterBottom>
             <FormattedMessage id="setup.paths.sfw_content_settings" />
-          </h3>
-          <p>
+          </Typography>
+          <Typography paragraph>
             <FormattedMessage id="setup.paths.sfw_content_settings_description" />
-          </p>
-          <Card>
-            <Form.Check
-              id="use-sfw-content-mode"
-              checked={sfwContentMode}
-              label={<FormattedMessage id="setup.paths.use_sfw_content_mode" />}
-              onChange={() => setSfwContentMode(!sfwContentMode)}
-            />
+          </Typography>
+          <Card variant="outlined">
+            <Box p={2}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={sfwContentMode}
+                    onChange={() => setSfwContentMode(!sfwContentMode)}
+                  />
+                }
+                label={<FormattedMessage id="setup.paths.use_sfw_content_mode" />}
+              />
+            </Box>
           </Card>
-        </Form.Group>
+        </Box>
         {overrideDatabase ? null : (
           <DatabaseSection
             databaseFile={databaseFile}
@@ -641,17 +666,15 @@ const SetPathsStep: React.FC<IWizardStep> = ({ goBack, next }) => {
             setStoreBlobsInDatabase={setStoreBlobsInDatabase}
           />
         )}
-      </section>
-      <section className="mt-5">
-        <div className="d-flex justify-content-center">
-          <Button variant="secondary mx-2 p-5" onClick={() => goBack()}>
-            <FormattedMessage id="actions.previous_action" />
-          </Button>
-          <Button variant="primary mx-2 p-5" onClick={() => preNext()}>
-            <FormattedMessage id="actions.next_action" />
-          </Button>
-        </div>
-      </section>
+      </Box>
+      <Box sx={{ mt: 5, display: "flex", justifyContent: "center", gap: 2 }}>
+        <Button variant="contained" color="secondary" size="large" onClick={() => goBack()} sx={{ p: 4 }}>
+          <FormattedMessage id="actions.previous_action" />
+        </Button>
+        <Button variant="contained" color="primary" size="large" onClick={() => preNext()} sx={{ p: 4 }}>
+          <FormattedMessage id="actions.next_action" />
+        </Button>
+      </Box>
     </>
   );
 };
@@ -711,26 +734,24 @@ const ConfirmStep: React.FC<IWizardStep> = ({ goBack, next }) => {
 
   return (
     <>
-      <section>
-        <h2 className="mb-3">
+      <Box mb={4}>
+        <Typography variant="h4" gutterBottom>
           <FormattedMessage id="setup.confirm.nearly_there" />
-        </h2>
-        <p>
+        </Typography>
+        <Typography>
           <FormattedMessage id="setup.confirm.almost_ready" />
-        </p>
-        <dl>
-          <dt>
-            <FormattedMessage id="setup.confirm.configuration_file_location" />
-          </dt>
-          <dd>
-            <code>{cfgFile}</code>
-          </dd>
-        </dl>
-        <dl>
-          <dt>
-            <FormattedMessage id="setup.confirm.stash_library_directories" />
-          </dt>
-          <dd>
+        </Typography>
+      </Box>
+
+      <Box>
+        <Box mb={2}>
+          <Typography variant="h6"><FormattedMessage id="setup.confirm.configuration_file_location" /></Typography>
+          <Box ml={2}><code>{cfgFile}</code></Box>
+        </Box>
+
+        <Box mb={2}>
+          <Typography variant="h6"><FormattedMessage id="setup.confirm.stash_library_directories" /></Typography>
+          <Box ml={2}>
             <ul>
               {stashes.map((s) => (
                 <li key={s.path}>
@@ -739,44 +760,31 @@ const ConfirmStep: React.FC<IWizardStep> = ({ goBack, next }) => {
                 </li>
               ))}
             </ul>
-          </dd>
-        </dl>
+          </Box>
+        </Box>
+
         {!overrideDatabase && (
-          <dl>
-            <dt>
-              <FormattedMessage id="setup.confirm.database_file_path" />
-            </dt>
-            <dd>
-              <code>{databaseFile || joinCfgDir("stash-go.sqlite")}</code>
-            </dd>
-          </dl>
+          <Box mb={2}>
+            <Typography variant="h6"><FormattedMessage id="setup.confirm.database_file_path" /></Typography>
+            <Box ml={2}><code>{databaseFile || joinCfgDir("stash-go.sqlite")}</code></Box>
+          </Box>
         )}
         {!overrideGenerated && (
-          <dl>
-            <dt>
-              <FormattedMessage id="setup.confirm.generated_directory" />
-            </dt>
-            <dd>
-              <code>{generatedLocation || joinCfgDir("generated")}</code>
-            </dd>
-          </dl>
+          <Box mb={2}>
+            <Typography variant="h6"><FormattedMessage id="setup.confirm.generated_directory" /></Typography>
+            <Box ml={2}><code>{generatedLocation || joinCfgDir("generated")}</code></Box>
+          </Box>
         )}
         {!overrideCache && (
-          <dl>
-            <dt>
-              <FormattedMessage id="setup.confirm.cache_directory" />
-            </dt>
-            <dd>
-              <code>{cacheLocation || joinCfgDir("cache")}</code>
-            </dd>
-          </dl>
+          <Box mb={2}>
+            <Typography variant="h6"><FormattedMessage id="setup.confirm.cache_directory" /></Typography>
+            <Box ml={2}><code>{cacheLocation || joinCfgDir("cache")}</code></Box>
+          </Box>
         )}
         {!overrideBlobs && (
-          <dl>
-            <dt>
-              <FormattedMessage id="setup.confirm.blobs_directory" />
-            </dt>
-            <dd>
+          <Box mb={2}>
+            <Typography variant="h6"><FormattedMessage id="setup.confirm.blobs_directory" /></Typography>
+            <Box ml={2}>
               <code>
                 {storeBlobsInDatabase ? (
                   <FormattedMessage id="setup.confirm.blobs_use_database" />
@@ -784,20 +792,19 @@ const ConfirmStep: React.FC<IWizardStep> = ({ goBack, next }) => {
                   blobsLocation || joinCfgDir("blobs")
                 )}
               </code>
-            </dd>
-          </dl>
+            </Box>
+          </Box>
         )}
-      </section>
-      <section className="mt-5">
-        <div className="d-flex justify-content-center">
-          <Button variant="secondary mx-2 p-5" onClick={() => goBack()}>
-            <FormattedMessage id="actions.previous_action" />
-          </Button>
-          <Button variant="success mx-2 p-5" onClick={() => next()}>
-            <FormattedMessage id="actions.confirm" />
-          </Button>
-        </div>
-      </section>
+      </Box>
+
+      <Box sx={{ mt: 5, display: "flex", justifyContent: "center", gap: 2 }}>
+        <Button variant="contained" color="secondary" size="large" onClick={() => goBack()} sx={{ p: 4 }}>
+          <FormattedMessage id="actions.previous_action" />
+        </Button>
+        <Button variant="contained" color="success" size="large" onClick={() => next()} sx={{ p: 4 }}>
+          <FormattedMessage id="actions.confirm" />
+        </Button>
+      </Box>
     </>
   );
 };
@@ -817,30 +824,28 @@ const ErrorStep: React.FC<{ error: string; goBack: () => void }> = ({
 }) => {
   return (
     <>
-      <section>
-        <h2>
+      <Box mb={4}>
+        <Typography variant="h4" gutterBottom>
           <FormattedMessage id="setup.errors.something_went_wrong" />
-        </h2>
-        <p>
+        </Typography>
+        <Typography paragraph>
           <FormattedMessage
             id="setup.errors.something_went_wrong_while_setting_up_your_system"
             values={{ error: <pre>{error}</pre> }}
           />
-        </p>
-        <p>
+        </Typography>
+        <Typography paragraph>
           <FormattedMessage
             id="setup.errors.something_went_wrong_description"
             values={{ githubLink: GithubLink, discordLink: DiscordLink }}
           />
-        </p>
-      </section>
-      <section className="mt-5">
-        <div className="d-flex justify-content-center">
-          <Button variant="secondary mx-2 p-5" onClick={goBack}>
-            <FormattedMessage id="actions.previous_action" />
-          </Button>
-        </div>
-      </section>
+        </Typography>
+      </Box>
+      <Box sx={{ mt: 5, display: "flex", justifyContent: "center" }}>
+        <Button variant="contained" color="secondary" size="large" onClick={goBack} sx={{ p: 4 }}>
+          <FormattedMessage id="actions.previous_action" />
+        </Button>
+      </Box>
     </>
   );
 };
@@ -866,14 +871,14 @@ const SuccessStep: React.FC<{}> = () => {
 
   return (
     <>
-      <section>
-        <h2>
+      <Box mb={4}>
+        <Typography variant="h4" gutterBottom>
           <FormattedMessage id="setup.success.your_system_has_been_created" />
-        </h2>
-        <p>
+        </Typography>
+        <Typography paragraph>
           <FormattedMessage id="setup.success.next_config_step_one" />
-        </p>
-        <p>
+        </Typography>
+        <Typography paragraph>
           <FormattedMessage
             id="setup.success.next_config_step_two"
             values={{
@@ -884,10 +889,10 @@ const SuccessStep: React.FC<{}> = () => {
               localized_scan: intl.formatMessage({ id: "actions.scan" }),
             }}
           />
-        </p>
+        </Typography>
         {!status?.ffmpegPath || !status?.ffprobePath ? (
           <>
-            <Alert variant="warning text-center">
+            <Alert severity="warning" sx={{ textAlign: "center", mb: 2 }}>
               <FormattedMessage
                 id="setup.success.missing_ffmpeg"
                 values={{
@@ -895,41 +900,44 @@ const SuccessStep: React.FC<{}> = () => {
                 }}
               />
             </Alert>
-            <p>
-              <Form.Check
-                id="download-ffmpeg"
-                checked={downloadFFmpeg}
+            <Box mb={2}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={downloadFFmpeg}
+                    onChange={() => setDownloadFFmpeg(!downloadFFmpeg)}
+                  />
+                }
                 label={intl.formatMessage({
                   id: "setup.success.download_ffmpeg",
                 })}
-                onChange={() => setDownloadFFmpeg(!downloadFFmpeg)}
               />
-            </p>
+            </Box>
           </>
         ) : null}
-      </section>
-      <section>
-        <h3>
+      </Box>
+      <Box mb={4}>
+        <Typography variant="h5" gutterBottom>
           <FormattedMessage id="setup.success.getting_help" />
-        </h3>
-        <p>
+        </Typography>
+        <Typography paragraph>
           <FormattedMessage
             id="setup.success.in_app_manual_explained"
             values={{ icon: <Icon icon={faQuestionCircle} /> }}
           />
-        </p>
-        <p>
+        </Typography>
+        <Typography paragraph>
           <FormattedMessage
             id="setup.success.help_links"
             values={{ discordLink: DiscordLink, githubLink: GithubLink }}
           />
-        </p>
-      </section>
-      <section>
-        <h3>
+        </Typography>
+      </Box>
+      <Box mb={4}>
+        <Typography variant="h5" gutterBottom>
           <FormattedMessage id="setup.success.support_us" />
-        </h3>
-        <p>
+        </Typography>
+        <Typography paragraph>
           <FormattedMessage
             id="setup.success.open_collective"
             values={{
@@ -940,23 +948,21 @@ const SuccessStep: React.FC<{}> = () => {
               ),
             }}
           />
-        </p>
-        <p>
+        </Typography>
+        <Typography paragraph>
           <FormattedMessage id="setup.success.welcome_contrib" />
-        </p>
-      </section>
-      <section>
-        <p className="lead text-center">
+        </Typography>
+      </Box>
+      <Box mb={4}>
+        <Typography variant="h6" align="center" gutterBottom>
           <FormattedMessage id="setup.success.thanks_for_trying_stash" />
-        </p>
-      </section>
-      <section className="mt-5">
-        <div className="d-flex justify-content-center">
-          <Button variant="success mx-2 p-5" onClick={() => onFinishClick()}>
-            <FormattedMessage id="actions.finish" />
-          </Button>
-        </div>
-      </section>
+        </Typography>
+      </Box>
+      <Box sx={{ mt: 5, display: "flex", justifyContent: "center" }}>
+        <Button variant="contained" color="success" size="large" onClick={() => onFinishClick()} sx={{ p: 4 }}>
+          <FormattedMessage id="actions.finish" />
+        </Button>
+      </Box>
     </>
   );
 };
@@ -1060,8 +1066,8 @@ export const Setup: React.FC = () => {
 
   if (statusError) {
     return (
-      <Container>
-        <Alert variant="danger">
+      <Container maxWidth="md" sx={{ mt: 4 }}>
+        <Alert severity="error">
           <FormattedMessage
             id="setup.errors.unable_to_retrieve_system_status"
             values={{ error: statusError.message }}
@@ -1073,8 +1079,8 @@ export const Setup: React.FC = () => {
 
   if (!configuration || !systemStatus) {
     return (
-      <Container>
-        <Alert variant="danger">
+      <Container maxWidth="md" sx={{ mt: 4 }}>
+        <Alert severity="error">
           <FormattedMessage
             id="setup.errors.unable_to_retrieve_configuration"
             values={{ error: "configuration or systemStatus === undefined" }}
@@ -1091,20 +1097,22 @@ export const Setup: React.FC = () => {
       configuration={configuration}
       systemStatus={systemStatus}
     >
-      <Container className="setup-wizard">
-        <h1 className="text-center">
+      <Container maxWidth="md" className="setup-wizard" sx={{ mt: 4, mb: 4 }}>
+        <Typography variant="h3" align="center" gutterBottom>
           <FormattedMessage id="setup.stash_setup_wizard" />
-        </h1>
-        <Card>
-          {creating ? (
-            <LoadingIndicator
-              message={intl.formatMessage({
-                id: "setup.creating.creating_your_system",
-              })}
-            />
-          ) : (
-            <Step next={next} goBack={goBack} />
-          )}
+        </Typography>
+        <Card variant="outlined">
+          <CardContent>
+            {creating ? (
+              <LoadingIndicator
+                message={intl.formatMessage({
+                  id: "setup.creating.creating_your_system",
+                })}
+              />
+            ) : (
+              <Step next={next} goBack={goBack} />
+            )}
+          </CardContent>
         </Card>
       </Container>
     </SetupContext>

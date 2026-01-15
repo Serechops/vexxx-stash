@@ -1,5 +1,5 @@
 import React from "react";
-import { Form } from "react-bootstrap";
+import { Box } from "@mui/material";
 import { useIntl } from "react-intl";
 import { CriterionModifier } from "../../../core/generated-graphql";
 import { ITimestampValue } from "../../../models/list-filter/types";
@@ -32,7 +32,7 @@ export const TimestampFilter: React.FC<ITimestampFilterProps> = ({
     criterion.modifier === CriterionModifier.NotEquals
   ) {
     equalsControl = (
-      <Form.Group>
+      <Box mb={1}>
         <DateInput
           value={value?.value ?? ""}
           onValueChange={(v) => onChanged(v, "value")}
@@ -51,7 +51,7 @@ export const TimestampFilter: React.FC<ITimestampFilterProps> = ({
             " (YYYY-MM-DD HH:MM)"
           }
         /> */}
-      </Form.Group>
+      </Box>
     );
   }
 
@@ -62,7 +62,7 @@ export const TimestampFilter: React.FC<ITimestampFilterProps> = ({
     criterion.modifier === CriterionModifier.NotBetween
   ) {
     lowerControl = (
-      <Form.Group>
+      <Box mb={1}>
         <DateInput
           value={value?.value ?? ""}
           onValueChange={(v) => onChanged(v, "value")}
@@ -81,7 +81,7 @@ export const TimestampFilter: React.FC<ITimestampFilterProps> = ({
             " (YYYY-MM-DD HH:MM)"
           }
         /> */}
-      </Form.Group>
+      </Box>
     );
   }
 
@@ -92,7 +92,7 @@ export const TimestampFilter: React.FC<ITimestampFilterProps> = ({
     criterion.modifier === CriterionModifier.NotBetween
   ) {
     upperControl = (
-      <Form.Group>
+      <Box mb={1}>
         <DateInput
           value={
             (criterion.modifier === CriterionModifier.LessThan
@@ -131,7 +131,7 @@ export const TimestampFilter: React.FC<ITimestampFilterProps> = ({
             " (YYYY-MM-DD HH:MM)"
           }
         /> */}
-      </Form.Group>
+      </Box>
     );
   }
 

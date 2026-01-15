@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Form } from "react-bootstrap";
+import { Box, FormLabel } from "@mui/material";
 import { FormattedMessage, useIntl } from "react-intl";
 import { useBulkTagUpdate } from "src/core/StashService";
 import * as GQL from "src/core/generated-graphql";
@@ -32,10 +32,10 @@ function Tags(props: {
   } = props;
 
   return (
-    <Form.Group controlId={controlId}>
-      <Form.Label>
+    <Box mb={2} id={controlId}>
+      <FormLabel>
         <FormattedMessage id={messageId} />
-      </Form.Label>
+      </FormLabel>
       <MultiSet
         type="tags"
         disabled={isUpdating}
@@ -50,7 +50,7 @@ function Tags(props: {
         mode={tagIDs.mode}
         menuPortalTarget={document.body}
       />
-    </Form.Group>
+    </Box>
   );
 }
 
@@ -159,16 +159,14 @@ export const EditTagsDialog: React.FC<IListOperationProps> = (
     setter: (newValue: string | undefined) => void
   ) {
     return (
-      <Form.Group controlId={name}>
-        <Form.Label>
-          <FormattedMessage id={name} />
-        </Form.Label>
+      <Box mb={2}>
         <BulkUpdateTextInput
+          label={<FormattedMessage id={name} />}
           value={value === null ? "" : value ?? undefined}
           valueChanged={(newValue) => setter(newValue)}
           unsetDisabled={props.selected.length < 2}
         />
-      </Form.Group>
+      </Box>
     );
   }
 
@@ -192,14 +190,14 @@ export const EditTagsDialog: React.FC<IListOperationProps> = (
       }}
       isRunning={isUpdating}
     >
-      <Form>
-        <Form.Group controlId="favorite">
+      <Box component="form">
+        <Box mb={2} id="favorite">
           <IndeterminateCheckbox
             setChecked={(checked) => setUpdateField({ favorite: checked })}
             checked={updateInput.favorite ?? undefined}
             label={intl.formatMessage({ id: "favourite" })}
           />
-        </Form.Group>
+        </Box>
 
         {renderTextField("description", updateInput.description, (v) =>
           setUpdateField({ description: v })
@@ -223,7 +221,7 @@ export const EditTagsDialog: React.FC<IListOperationProps> = (
           setTagIDs={setChildTagIDs}
         />
 
-        <Form.Group controlId="ignore-auto-tags">
+        <Box mb={2} id="ignore-auto-tags">
           <IndeterminateCheckbox
             label={intl.formatMessage({ id: "ignore_auto_tag" })}
             setChecked={(checked) =>
@@ -231,8 +229,8 @@ export const EditTagsDialog: React.FC<IListOperationProps> = (
             }
             checked={updateInput.ignore_auto_tag ?? undefined}
           />
-        </Form.Group>
-      </Form>
+        </Box>
+      </Box>
     </ModalComponent>
   );
 };

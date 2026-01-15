@@ -1,5 +1,5 @@
-import React, { PropsWithChildren, useEffect, useMemo } from "react";
-import { Button, ButtonGroup, Dropdown } from "react-bootstrap";
+import React, { PropsWithChildren, useEffect, useMemo, useState } from "react";
+import { Button, ButtonGroup, Menu, MenuItem, IconButton } from "@mui/material";
 import Mousetrap from "mousetrap";
 import { FormattedMessage, useIntl } from "react-intl";
 import { IconDefinition } from "@fortawesome/fontawesome-svg-core";
@@ -19,21 +19,43 @@ export const OperationDropdown: React.FC<
     menuClassName?: string;
   }>
 > = ({ className, menuPortalTarget, menuClassName, children }) => {
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const open = Boolean(anchorEl);
+
+  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
+
   if (!children) return null;
 
   const menu = (
-    <Dropdown.Menu className={cx("bg-secondary text-white", menuClassName)}>
+    <Menu
+      anchorEl={anchorEl}
+      open={open}
+      onClose={handleClose}
+      className={cx("bg-secondary text-white", menuClassName)}
+      onClick={handleClose}
+    >
       {children}
-    </Dropdown.Menu>
+    </Menu>
   );
 
   return (
-    <Dropdown className={className} as={ButtonGroup}>
-      <Dropdown.Toggle variant="secondary" id="more-menu">
+    <span className={className}>
+      <IconButton
+        onClick={handleClick}
+        color="secondary"
+        size="small"
+        id="more-menu"
+      >
         <Icon icon={faEllipsisH} />
-      </Dropdown.Toggle>
+      </IconButton>
       {menuPortalTarget ? createPortal(menu, menuPortalTarget) : menu}
-    </Dropdown>
+    </span>
   );
 };
 
@@ -43,12 +65,12 @@ export const OperationDropdownItem: React.FC<{
   className?: string;
 }> = ({ text, onClick, className }) => {
   return (
-    <Dropdown.Item
+    <MenuItem
       className={cx("bg-secondary text-white", className)}
       onClick={onClick}
     >
       {text}
-    </Dropdown.Item>
+    </MenuItem>
   );
 };
 
@@ -129,7 +151,7 @@ export const ListOperationButtons: React.FC<IListOperationButtonsProps> = ({
           icon: faTrash,
           text: intl.formatMessage({ id: "actions.delete" }),
           onClick: onDelete,
-          buttonVariant: "danger",
+          buttonVariant: "error",
         });
       }
     }
@@ -144,9 +166,11 @@ export const ListOperationButtons: React.FC<IListOperationButtonsProps> = ({
           return (
             <Button
               key={button.text}
-              variant={button.buttonVariant ?? "secondary"}
+              variant="outlined"
+              color={(button.buttonVariant as any) ?? "secondary"}
               onClick={button.onClick}
               title={button.text}
+              size="small"
             >
               <Icon icon={button.icon!} />
             </Button>
@@ -160,13 +184,13 @@ export const ListOperationButtons: React.FC<IListOperationButtonsProps> = ({
     function renderSelectAll() {
       if (onSelectAll) {
         return (
-          <Dropdown.Item
+          <MenuItem
             key="select-all"
             className="bg-secondary text-white"
             onClick={() => onSelectAll?.()}
           >
             <FormattedMessage id="actions.select_all" />
-          </Dropdown.Item>
+          </MenuItem>
         );
       }
     }
@@ -174,13 +198,13 @@ export const ListOperationButtons: React.FC<IListOperationButtonsProps> = ({
     function renderSelectNone() {
       if (onSelectNone) {
         return (
-          <Dropdown.Item
+          <MenuItem
             key="select-none"
             className="bg-secondary text-white"
             onClick={() => onSelectNone?.()}
           >
             <FormattedMessage id="actions.select_none" />
-          </Dropdown.Item>
+          </MenuItem>
         );
       }
     }
@@ -203,13 +227,13 @@ export const ListOperationButtons: React.FC<IListOperationButtonsProps> = ({
         })
         .forEach((o) => {
           options.push(
-            <Dropdown.Item
+            <MenuItem
               key={o.text}
               className="bg-secondary text-white"
               onClick={o.onClick}
             >
               {o.text}
-            </Dropdown.Item>
+            </MenuItem>
           );
         });
     }
@@ -228,7 +252,7 @@ export const ListOperationButtons: React.FC<IListOperationButtonsProps> = ({
 
   return (
     <>
-      <ButtonGroup>
+      <ButtonGroup size="small">
         {operationButtons}
         {moreDropdown}
       </ButtonGroup>

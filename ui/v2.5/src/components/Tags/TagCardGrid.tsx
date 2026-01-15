@@ -1,4 +1,5 @@
 import React from "react";
+import { Grid } from "@mui/material";
 import * as GQL from "src/core/generated-graphql";
 import {
   useCardWidth,
@@ -25,20 +26,21 @@ export const TagCardGrid: React.FC<ITagCardGrid> = ({
   const cardWidth = useCardWidth(containerWidth, zoomIndex, zoomWidths);
 
   return (
-    <div className="row justify-content-center" ref={componentRef}>
+    <Grid container justifyContent="center" ref={componentRef} spacing={2}>
       {tags.map((tag) => (
-        <TagCard
-          key={tag.id}
-          cardWidth={cardWidth}
-          tag={tag}
-          zoomIndex={zoomIndex}
-          selecting={selectedIds.size > 0}
-          selected={selectedIds.has(tag.id)}
-          onSelectedChanged={(selected: boolean, shiftKey: boolean) =>
-            onSelectChange(tag.id, selected, shiftKey)
-          }
-        />
+        <Grid key={tag.id}>
+          <TagCard
+            cardWidth={cardWidth}
+            tag={tag}
+            zoomIndex={zoomIndex}
+            selecting={selectedIds.size > 0}
+            selected={selectedIds.has(tag.id)}
+            onSelectedChanged={(selected: boolean, shiftKey: boolean) =>
+              onSelectChange(tag.id, selected, shiftKey)
+            }
+          />
+        </Grid>
       ))}
-    </div>
+    </Grid>
   );
 };

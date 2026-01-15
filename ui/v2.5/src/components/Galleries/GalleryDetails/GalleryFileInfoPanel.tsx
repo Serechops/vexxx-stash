@@ -1,5 +1,12 @@
 import React, { useMemo, useState } from "react";
-import { Accordion, Button, Card } from "react-bootstrap";
+import {
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Button,
+  Typography,
+  Box,
+} from "@mui/material";
 import { FormattedMessage, FormattedTime } from "react-intl";
 import { TruncatedText } from "src/components/Shared/TruncatedText";
 import { DeleteFilesDialog } from "src/components/Shared/DeleteFilesDialog";
@@ -8,6 +15,8 @@ import { mutateGallerySetPrimaryFile } from "src/core/StashService";
 import { useToast } from "src/hooks/Toast";
 import TextUtils from "src/utils/text";
 import { TextField, URLField, URLsField } from "src/utils/field";
+import { Icon } from "src/components/Shared/Icon";
+import { faAngleDown } from "@fortawesome/free-solid-svg-icons";
 
 interface IFileInfoPanelProps {
   folder?: Pick<GQL.Folder, "id" | "path">;
@@ -55,7 +64,7 @@ const FileInfoPanel: React.FC<IFileInfoPanelProps> = (
         )}
       </dl>
       {props.ofMany && props.onSetPrimaryFile && !props.primary && (
-        <div>
+        <Box sx={{ "& > button": { mr: 1 } }}>
           <Button
             className="edit-button"
             disabled={props.loading}
@@ -64,13 +73,14 @@ const FileInfoPanel: React.FC<IFileInfoPanelProps> = (
             <FormattedMessage id="actions.make_primary" />
           </Button>
           <Button
-            variant="danger"
+            variant="contained"
+            color="error"
             disabled={props.loading}
             onClick={props.onDeleteFile}
           >
             <FormattedMessage id="actions.delete_file" />
           </Button>
-        </div>
+        </Box>
       )}
     </div>
   );
@@ -114,7 +124,7 @@ export const GalleryFileInfoPanel: React.FC<IGalleryFileInfoPanelProps> = (
     }
 
     return (
-      <Accordion defaultActiveKey={props.gallery.files[0].id}>
+      <div>
         {deletingFile && (
           <DeleteFilesDialog
             onClose={() => setDeletingFile(undefined)}
@@ -122,12 +132,14 @@ export const GalleryFileInfoPanel: React.FC<IGalleryFileInfoPanelProps> = (
           />
         )}
         {props.gallery.files.map((file, index) => (
-          <Card key={file.id} className="gallery-file-card">
-            <Accordion.Toggle as={Card.Header} eventKey={file.id}>
-              <TruncatedText text={TextUtils.fileNameFromPath(file.path)} />
-            </Accordion.Toggle>
-            <Accordion.Collapse eventKey={file.id}>
-              <Card.Body>
+          <Accordion key={file.id} defaultExpanded={index === 0}>
+            <AccordionSummary expandIcon={<Icon icon={faAngleDown} />}>
+              <Typography>
+                <TruncatedText text={TextUtils.fileNameFromPath(file.path)} />
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <Box sx={{ width: "100%" }}>
                 <FileInfoPanel
                   file={file}
                   primary={index === 0}
@@ -136,11 +148,11 @@ export const GalleryFileInfoPanel: React.FC<IGalleryFileInfoPanelProps> = (
                   loading={loading}
                   onDeleteFile={() => setDeletingFile(file)}
                 />
-              </Card.Body>
-            </Accordion.Collapse>
-          </Card>
+              </Box>
+            </AccordionDetails>
+          </Accordion>
         ))}
-      </Accordion>
+      </div>
     );
   }, [props.gallery, loading, Toast, deletingFile]);
 

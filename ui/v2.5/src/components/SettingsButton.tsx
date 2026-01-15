@@ -1,6 +1,6 @@
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import React, { useEffect, useState } from "react";
-import { Button } from "react-bootstrap";
+import { IconButton } from "@mui/material";
 import { useJobQueue, useJobsSubscribe } from "src/core/StashService";
 import * as GQL from "src/core/generated-graphql";
 import { useIntl } from "react-intl";
@@ -56,11 +56,12 @@ export const SettingsButton: React.FC = () => {
   }, [jobsSubscribe.data]);
 
   return (
-    <Button
+    <IconButton
       className="minimal d-flex align-items-center h-100"
       title={intl.formatMessage({ id: "settings" })}
+      color="inherit"
     >
       <FontAwesomeIcon icon={faCog} spin={queue.length > 0} />
-    </Button>
+    </IconButton>
   );
 };

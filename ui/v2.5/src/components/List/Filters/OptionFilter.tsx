@@ -1,6 +1,6 @@
 import cloneDeep from "lodash-es/cloneDeep";
 import React from "react";
-import { Form } from "react-bootstrap";
+import { FormControlLabel, Radio, RadioGroup, Checkbox } from "@mui/material";
 import {
   CriterionValue,
   ModifierCriterion,
@@ -29,18 +29,22 @@ export const OptionFilter: React.FC<IOptionsFilter> = ({
   const { options } = criterion.modifierCriterionOption();
 
   return (
-    <div className="option-list-filter">
+    <RadioGroup className="option-list-filter">
       {options?.map((o) => (
-        <Form.Check
-          id={`${criterion.getId()}-${o.toString()}`}
+        <FormControlLabel
           key={o.toString()}
-          onChange={() => onSelect(o.toString())}
-          checked={criterion.value === o.toString()}
-          type="radio"
+          control={
+            <Radio
+              id={`${criterion.getId()}-${o.toString()}`}
+              checked={criterion.value === o.toString()}
+              onChange={() => onSelect(o.toString())}
+              size="small"
+            />
+          }
           label={o.toString()}
         />
       ))}
-    </div>
+    </RadioGroup>
   );
 };
 
@@ -71,12 +75,16 @@ export const OptionListFilter: React.FC<IOptionsListFilter> = ({
   return (
     <div className="option-list-filter">
       {options?.map((o) => (
-        <Form.Check
-          id={`${criterion.getId()}-${o.toString()}`}
+        <FormControlLabel
           key={o.toString()}
-          onChange={() => onSelect(o.toString())}
-          checked={value.includes(o.toString())}
-          type="checkbox"
+          control={
+            <Checkbox
+              id={`${criterion.getId()}-${o.toString()}`}
+              checked={value.includes(o.toString())}
+              onChange={() => onSelect(o.toString())}
+              size="small"
+            />
+          }
           label={o.toString()}
         />
       ))}

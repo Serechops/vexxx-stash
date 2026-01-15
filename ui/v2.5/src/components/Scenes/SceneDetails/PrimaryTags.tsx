@@ -1,7 +1,7 @@
 import React from "react";
 import { FormattedMessage } from "react-intl";
 import * as GQL from "src/core/generated-graphql";
-import { Button, Badge, Card } from "react-bootstrap";
+import { Button, Chip, Card, CardContent } from "@mui/material";
 import TextUtils from "src/utils/text";
 import { markerTitle } from "src/core/markers";
 
@@ -32,20 +32,18 @@ export const PrimaryTags: React.FC<IPrimaryTags> = ({
   const primaryCards = Object.keys(markersByTag).map((id) => {
     const markers = markersByTag[id].map((marker) => {
       const tags = marker.tags.map((tag) => (
-        <Badge key={tag.id} variant="secondary" className="tag-item">
-          {tag.name}
-        </Badge>
+        <Chip key={tag.id} label={tag.name} color="secondary" size="small" className="tag-item" />
       ));
 
       return (
         <div key={marker.id}>
           <hr />
           <div className="row">
-            <Button variant="link" onClick={() => onClickMarker(marker)}>
+            <Button variant="text" onClick={() => onClickMarker(marker)}>
               {markerTitle(marker)}
             </Button>
             <Button
-              variant="link"
+              variant="text"
               className="ml-auto"
               onClick={() => onEdit(marker)}
             >
@@ -66,7 +64,7 @@ export const PrimaryTags: React.FC<IPrimaryTags> = ({
     return (
       <Card className="primary-card col-12 col-sm-6 col-xl-6" key={id}>
         <h3>{primaryTagNames[id]}</h3>
-        <Card.Body className="primary-card-body">{markers}</Card.Body>
+        <CardContent className="primary-card-body">{markers}</CardContent>
       </Card>
     );
   });

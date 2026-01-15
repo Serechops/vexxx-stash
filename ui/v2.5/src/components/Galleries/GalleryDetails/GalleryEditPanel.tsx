@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { Prompt } from "react-router-dom";
-import { Button, Form, Col, Row } from "react-bootstrap";
+import { Box, Button, Typography } from "@mui/material";
+import { Row, Col } from "src/components/Shared/Layouts";
 import Mousetrap from "mousetrap";
 import * as GQL from "src/core/generated-graphql";
 import * as yup from "yup";
@@ -353,16 +354,16 @@ export const GalleryEditPanel: React.FC<IProps> = ({
   const urlProps = isNew
     ? splitProps
     : {
-        labelProps: {
-          column: true,
-          md: 3,
-          lg: 12,
-        },
-        fieldProps: {
-          md: 9,
-          lg: 12,
-        },
-      };
+      labelProps: {
+        column: true,
+        md: 3,
+        lg: 12,
+      },
+      fieldProps: {
+        md: 9,
+        lg: 12,
+      },
+    };
   const { renderField, renderInputField, renderDateField, renderURLListField } =
     formikUtils(intl, formik, splitProps);
 
@@ -442,12 +443,13 @@ export const GalleryEditPanel: React.FC<IProps> = ({
       />
 
       {maybeRenderScrapeDialog()}
-      <Form noValidate onSubmit={formik.handleSubmit}>
+      <Box component="form" noValidate onSubmit={formik.handleSubmit}>
         <Row className="form-container edit-buttons-container px-3 pt-3">
           <div className="edit-buttons mb-3 pl-0">
             <Button
               className="edit-button"
-              variant="primary"
+              variant="contained"
+              color="primary"
               disabled={
                 (!isNew && !formik.dirty) || !isEqual(formik.errors, {})
               }
@@ -457,7 +459,8 @@ export const GalleryEditPanel: React.FC<IProps> = ({
             </Button>
             <Button
               className="edit-button"
-              variant="danger"
+              variant="contained"
+              color="error"
               onClick={() => onDelete()}
             >
               <FormattedMessage id="actions.delete" />
@@ -497,15 +500,15 @@ export const GalleryEditPanel: React.FC<IProps> = ({
           </Col>
           <Col lg={5} xl={12}>
             {renderDetailsField()}
-            <Form.Group controlId="cover_image">
-              <Form.Label>
+            <Box>
+              <Typography component="label" variant="body2" sx={{ mb: 1 }}>
                 <FormattedMessage id="cover_image" />
-              </Form.Label>
+              </Typography>
               {cover}
-            </Form.Group>
+            </Box>
           </Col>
         </Row>
-      </Form>
+      </Box>
     </div>
   );
 };

@@ -40,7 +40,7 @@ import {
   TabTitleCounter,
   useTabKey,
 } from "src/components/Shared/DetailsPage/Tabs";
-import { Button, Tab, Tabs } from "react-bootstrap";
+import { Tabs, Tab, Button, Box } from "@mui/material";
 import { GroupSubGroupsPanel } from "./GroupSubGroupsPanel";
 import { GroupPerformersPanel } from "./GroupPerformersPanel";
 import { Icon } from "src/components/Shared/Icon";
@@ -84,50 +84,55 @@ const GroupTabs: React.FC<{
   });
 
   return (
-    <Tabs
-      id="group-tabs"
-      mountOnEnter
-      unmountOnExit
-      activeKey={tabKey}
-      onSelect={setTabKey}
-    >
-      <Tab
-        eventKey="scenes"
-        title={
-          <TabTitleCounter
-            messageID="scenes"
-            count={sceneCount}
-            abbreviateCounter={abbreviateCounter}
-          />
-        }
+    <Box>
+      <Tabs
+        value={tabKey || populatedDefaultTab}
+        onChange={(_e, newValue) => setTabKey(newValue)}
       >
-        <GroupScenesPanel active={tabKey === "scenes"} group={group} />
-      </Tab>
-      <Tab
-        eventKey="performers"
-        title={
-          <TabTitleCounter
-            messageID="performers"
-            count={performerCount}
-            abbreviateCounter={abbreviateCounter}
-          />
-        }
-      >
-        <GroupPerformersPanel active={tabKey === "performers"} group={group} />
-      </Tab>
-      <Tab
-        eventKey="subgroups"
-        title={
-          <TabTitleCounter
-            messageID="sub_groups"
-            count={groupCount}
-            abbreviateCounter={abbreviateCounter}
-          />
-        }
-      >
-        <GroupSubGroupsPanel active={tabKey === "subgroups"} group={group} />
-      </Tab>
-    </Tabs>
+        <Tab
+          value="scenes"
+          label={
+            <TabTitleCounter
+              messageID="scenes"
+              count={sceneCount}
+              abbreviateCounter={abbreviateCounter}
+            />
+          }
+        />
+        <Tab
+          value="performers"
+          label={
+            <TabTitleCounter
+              messageID="performers"
+              count={performerCount}
+              abbreviateCounter={abbreviateCounter}
+            />
+          }
+        />
+        <Tab
+          value="subgroups"
+          label={
+            <TabTitleCounter
+              messageID="sub_groups"
+              count={groupCount}
+              abbreviateCounter={abbreviateCounter}
+            />
+          }
+        />
+      </Tabs>
+
+      <Box sx={{ mt: 2 }}>
+        {(tabKey === "scenes" || (!tabKey && populatedDefaultTab === "scenes")) && (
+          <GroupScenesPanel active={tabKey === "scenes" || (!tabKey && populatedDefaultTab === "scenes")} group={group} />
+        )}
+        {(tabKey === "performers" || (!tabKey && populatedDefaultTab === "performers")) && (
+          <GroupPerformersPanel active={tabKey === "performers" || (!tabKey && populatedDefaultTab === "performers")} group={group} />
+        )}
+        {(tabKey === "subgroups" || (!tabKey && populatedDefaultTab === "subgroups")) && (
+          <GroupSubGroupsPanel active={tabKey === "subgroups" || (!tabKey && populatedDefaultTab === "subgroups")} group={group} />
+        )}
+      </Box>
+    </Box>
   );
 };
 

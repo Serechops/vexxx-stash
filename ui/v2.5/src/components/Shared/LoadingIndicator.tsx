@@ -1,5 +1,7 @@
 import React from "react";
-import { Spinner } from "react-bootstrap";
+import CircularProgress from "@mui/material/CircularProgress";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
 import cx from "classnames";
 import { useIntl } from "react-intl";
 import { PatchComponent } from "src/patch";
@@ -22,18 +24,26 @@ export const LoadingIndicator: React.FC<ILoadingProps> = PatchComponent(
     const text = intl.formatMessage({ id: "loading.generic" });
 
     return (
-      <div className={cx(CLASSNAME, { inline, small, "card-based": card })}>
-        <Spinner
-          animation="border"
+      <Box
+        className={cx(CLASSNAME, { inline, small, "card-based": card })}
+        display="flex"
+        alignItems="center"
+        justifyContent={inline ? "flex-start" : "center"}
+        flexDirection={inline ? "row" : "column"}
+        gap={1}
+        p={card ? 2 : 0}
+      >
+        <CircularProgress
+          size={small ? 20 : 40}
           role="status"
-          size={small ? "sm" : undefined}
-        >
-          <span className="sr-only">{text}</span>
-        </Spinner>
-        {message !== "" && (
-          <h4 className={CLASSNAME_MESSAGE}>{message ?? text}</h4>
+          aria-label={typeof text === "string" ? text : undefined}
+        />
+        {(message !== "") && (
+          <Typography variant="h6" className={CLASSNAME_MESSAGE}>
+            {message ?? text}
+          </Typography>
         )}
-      </div>
+      </Box>
     );
   }
 );

@@ -1,5 +1,5 @@
 import React from "react";
-import { Form } from "react-bootstrap";
+import { Box, TextField } from "@mui/material";
 import { useIntl } from "react-intl";
 import { IPhashDistanceValue } from "../../../models/list-filter/types";
 import { ModifierCriterion } from "../../../models/list-filter/criteria/criterion";
@@ -39,24 +39,26 @@ export const PhashFilter: React.FC<IPhashFilterProps> = ({
 
   return (
     <div>
-      <Form.Group>
-        <Form.Control
-          className="btn-secondary"
+      <Box mb={1}>
+        <TextField
+          fullWidth
+          size="small"
           onChange={valueChanged}
           value={value ? value.value : ""}
           placeholder={intl.formatMessage({ id: "media_info.phash" })}
+          variant="outlined"
         />
-      </Form.Group>
+      </Box>
       {criterion.modifier !== CriterionModifier.IsNull &&
         criterion.modifier !== CriterionModifier.NotNull && (
-          <Form.Group>
+          <Box mb={1}>
             <NumberField
               className="btn-secondary"
               onChange={distanceChanged}
               value={value ? value.distance : ""}
               placeholder={intl.formatMessage({ id: "distance" })}
             />
-          </Form.Group>
+          </Box>
         )}
     </div>
   );

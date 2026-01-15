@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from "react";
-import { Overlay, Popover, OverlayProps } from "react-bootstrap";
+import { Popover, PopoverProps } from "@mui/material";
 import { PatchComponent } from "src/patch";
 
 interface IHoverPopover {
@@ -7,7 +7,7 @@ interface IHoverPopover {
   leaveDelay?: number;
   content: JSX.Element[] | JSX.Element | string;
   className?: string;
-  placement?: OverlayProps["placement"];
+  placement?: "top" | "bottom" | "left" | "right";
   onOpen?: () => void;
   onClose?: () => void;
   target?: React.RefObject<HTMLElement>;
@@ -55,6 +55,38 @@ export const HoverPopover: React.FC<IHoverPopover> = PatchComponent(
       []
     );
 
+    const getOrigin = (placement: string) => {
+      switch (placement) {
+        case "top":
+          return {
+            anchorOrigin: { vertical: "top", horizontal: "center" } as const,
+            transformOrigin: { vertical: "bottom", horizontal: "center" } as const,
+          };
+        case "bottom":
+          return {
+            anchorOrigin: { vertical: "bottom", horizontal: "center" } as const,
+            transformOrigin: { vertical: "top", horizontal: "center" } as const,
+          };
+        case "left":
+          return {
+            anchorOrigin: { vertical: "center", horizontal: "left" } as const,
+            transformOrigin: { vertical: "center", horizontal: "right" } as const,
+          };
+        case "right":
+          return {
+            anchorOrigin: { vertical: "center", horizontal: "right" } as const,
+            transformOrigin: { vertical: "center", horizontal: "left" } as const,
+          };
+        default:
+          return {
+            anchorOrigin: { vertical: "top", horizontal: "center" } as const,
+            transformOrigin: { vertical: "bottom", horizontal: "center" } as const,
+          };
+      }
+    };
+
+    const { anchorOrigin, transformOrigin } = getOrigin(placement);
+
     return (
       <>
         <div
@@ -65,22 +97,27 @@ export const HoverPopover: React.FC<IHoverPopover> = PatchComponent(
         >
           {children}
         </div>
-        {triggerRef.current && (
-          <Overlay
-            show={show}
-            placement={placement}
-            target={target?.current ?? triggerRef.current}
+        <Popover
+          open={show}
+          anchorEl={target?.current ?? triggerRef.current}
+          onClose={() => {
+            setShow(false);
+            onClose?.();
+          }}
+          anchorOrigin={anchorOrigin}
+          transformOrigin={transformOrigin}
+          style={{ pointerEvents: 'none' }}
+          disableRestoreFocus
+          sx={{ pointerEvents: 'auto' }}
+        >
+          <div
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+            className="hover-popover-content"
           >
-            <Popover
-              onMouseEnter={handleMouseEnter}
-              onMouseLeave={handleMouseLeave}
-              id="popover"
-              className="hover-popover-content"
-            >
-              {content}
-            </Popover>
-          </Overlay>
-        )}
+            {content}
+          </div>
+        </Popover>
       </>
     );
   }

@@ -1,6 +1,6 @@
 import { faCheck, faTimes } from "@fortawesome/free-solid-svg-icons";
 import React from "react";
-import { Button } from "react-bootstrap";
+import { IconButton, Box } from "@mui/material";
 import { Icon } from "../Shared/Icon";
 
 interface IIncludeExcludeButton {
@@ -14,16 +14,15 @@ export const IncludeExcludeButton: React.FC<IIncludeExcludeButton> = ({
   disabled,
   setExclude,
 }) => (
-  <Button
+  <IconButton
     onClick={() => setExclude(!exclude)}
     disabled={disabled}
-    variant="minimal"
-    className={`${
-      exclude ? "text-danger" : "text-success"
-    } include-exclude-button`}
+    size="small"
+    sx={{ color: exclude ? 'error.main' : 'success.main' }}
+    className="include-exclude-button"
   >
     <Icon className="fa-fw" icon={exclude ? faTimes : faCheck} />
-  </Button>
+  </IconButton>
 );
 
 interface IOptionalField {
@@ -31,6 +30,7 @@ interface IOptionalField {
   title?: string;
   disabled?: boolean;
   setExclude: (v: boolean) => void;
+  children?: React.ReactNode;
 }
 
 export const OptionalField: React.FC<IOptionalField> = ({
@@ -40,10 +40,10 @@ export const OptionalField: React.FC<IOptionalField> = ({
   title,
 }) => {
   return (
-    <div className={`optional-field ${!exclude ? "included" : "excluded"}`}>
+    <Box className={`optional-field ${!exclude ? "included" : "excluded"}`}>
       <IncludeExcludeButton exclude={exclude} setExclude={setExclude} />
       {title && <span className="optional-field-title">{title}</span>}
-      <div className="optional-field-content">{children}</div>
-    </div>
+      <Box className="optional-field-content">{children}</Box>
+    </Box>
   );
 };

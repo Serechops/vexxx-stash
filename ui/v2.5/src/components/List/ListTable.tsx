@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { Table, Form } from "react-bootstrap";
+import { Table, TableHead, TableBody, TableRow, TableCell, Checkbox } from "@mui/material";
 import { CheckBoxSelect } from "../Shared/Select";
 import cx from "classnames";
 
@@ -73,48 +73,44 @@ export const ListTable = <T extends { id: string }>(
     let shiftKey = false;
 
     return (
-      <tr key={item.id}>
-        <td className="select-col">
-          <label>
-            <Form.Control
-              type="checkbox"
-              checked={selectedIds.has(item.id)}
-              onChange={() =>
-                onSelectChange(item.id, !selectedIds.has(item.id), shiftKey)
-              }
-              onClick={(
-                event: React.MouseEvent<HTMLInputElement, MouseEvent>
-              ) => {
-                shiftKey = event.shiftKey;
-                event.stopPropagation();
-              }}
-            />
-          </label>
-        </td>
+      <TableRow key={item.id}>
+        <TableCell className="select-col" padding="checkbox">
+          <Checkbox
+            checked={selectedIds.has(item.id)}
+            onChange={() =>
+              onSelectChange(item.id, !selectedIds.has(item.id), shiftKey)
+            }
+            onClick={(event: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
+              shiftKey = event.shiftKey;
+              event.stopPropagation();
+            }}
+            size="small"
+          />
+        </TableCell>
 
         {visibleColumns.map((column) => (
-          <td key={column.value} className={`${column.value}-data`}>
+          <TableCell key={column.value} className={`${column.value}-data`}>
             {renderCell(column, item, index)}
-          </td>
+          </TableCell>
         ))}
-      </tr>
+      </TableRow>
     );
   };
 
   const columnHeaders = useMemo(() => {
     return visibleColumns.map((column) => (
-      <th key={column.value} className={`${column.value}-head`}>
+      <TableCell key={column.value} className={`${column.value}-head`}>
         {column.label}
-      </th>
+      </TableCell>
     ));
   }, [visibleColumns]);
 
   return (
     <div className={cx("table-list", className)}>
-      <Table striped bordered>
-        <thead>
-          <tr>
-            <th className="select-col">
+      <Table size="small">
+        <TableHead>
+          <TableRow>
+            <TableCell className="select-col" padding="checkbox">
               <div
                 className="d-inline-block"
                 data-toggle="popover"
@@ -126,15 +122,15 @@ export const ListTable = <T extends { id: string }>(
                   setSelected={setColumns}
                 />
               </div>
-            </th>
+            </TableCell>
 
             {columnHeaders}
-          </tr>
-          <tr>
-            <th className="border-row" colSpan={100}></th>
-          </tr>
-        </thead>
-        <tbody>{items.map(renderObjectRow)}</tbody>
+          </TableRow>
+          <TableRow>
+            <TableCell className="border-row" colSpan={100}></TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>{items.map(renderObjectRow)}</TableBody>
       </Table>
     </div>
   );

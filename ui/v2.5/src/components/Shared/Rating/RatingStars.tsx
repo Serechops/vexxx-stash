@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button } from "react-bootstrap";
+import { Button } from "@mui/material";
 import { Icon } from "../Icon";
 import { faStar as fasStar } from "@fortawesome/free-solid-svg-icons";
 import { faStar as farStar } from "@fortawesome/free-regular-svg-icons";
@@ -210,7 +210,8 @@ export const RatingStars = PatchComponent(
           disabled={disabled}
           className={`minimal ${getButtonClassName(thisStar, ratingFraction)}`}
           onClick={() => setRating(thisStar)}
-          variant="secondary"
+          variant="text"
+          color="secondary"
           onMouseEnter={() => onMouseOver(thisStar)}
           onMouseLeave={() => onMouseOut(thisStar)}
           onFocus={() => onMouseOver(thisStar)}

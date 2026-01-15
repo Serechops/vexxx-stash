@@ -318,8 +318,8 @@ export const IdentifyDialog: React.FC<IIdentifyDialogProps> = ({
     return !editingSource?.id === undefined
       ? []
       : allSources?.filter((s) => {
-          return !sources.some((ss) => ss.id === s.id);
-        }) ?? [];
+        return !sources.some((ss) => ss.id === s.id);
+      }) ?? [];
   }
 
   function onEditSource(s?: IScraperSource) {
@@ -443,7 +443,7 @@ export const IdentifyDialog: React.FC<IIdentifyDialogProps> = ({
       disabled={editingField || savingDefaults || sources.length === 0}
       footerButtons={
         <OperationButton
-          variant="secondary"
+          color="secondary"
           disabled={editingField || savingDefaults}
           operation={setAsDefault}
         >

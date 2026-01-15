@@ -1,7 +1,20 @@
 /* eslint-disable no-param-reassign, jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */
 
 import React, { useEffect, useState, useCallback, useRef } from "react";
-import { Button, Card, Form, Table } from "react-bootstrap";
+import {
+  Button,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Checkbox,
+  Typography,
+  Box,
+  Stack,
+} from "@mui/material";
 import { FormattedMessage, useIntl } from "react-intl";
 import clone from "lodash-es/clone";
 import {
@@ -317,15 +330,15 @@ export const SceneFilenameParser: React.FC = () => {
 
     return (
       <>
-        <th className="w-15">
-          <Form.Check
+        <TableCell sx={{ width: '15%' }}>
+          <Checkbox
             checked={allSet}
             onChange={() => {
               onAllSet(!allSet);
             }}
           />
-        </th>
-        <th>{fieldName}</th>
+        </TableCell>
+        <TableCell>{fieldName}</TableCell>
       </>
     );
   }
@@ -336,60 +349,62 @@ export const SceneFilenameParser: React.FC = () => {
     }
 
     return (
-      <>
-        <div className="scene-parser-results">
-          <Table>
-            <thead>
-              <tr className="scene-parser-row">
-                <th className="parser-field-filename">
-                  {intl.formatMessage({
-                    id: "config.tools.scene_filename_parser.filename",
-                  })}
-                </th>
-                {renderHeader(
-                  intl.formatMessage({ id: "title" }),
-                  allTitleSet,
-                  onSelectAllTitleSet
-                )}
-                {renderHeader(
-                  intl.formatMessage({ id: "date" }),
-                  allDateSet,
-                  onSelectAllDateSet
-                )}
-                {renderHeader(
-                  intl.formatMessage({ id: "rating" }),
-                  allRatingSet,
-                  onSelectAllRatingSet
-                )}
-                {renderHeader(
-                  intl.formatMessage({ id: "performers" }),
-                  allPerformerSet,
-                  onSelectAllPerformerSet
-                )}
-                {renderHeader(
-                  intl.formatMessage({ id: "tags" }),
-                  allTagSet,
-                  onSelectAllTagSet
-                )}
-                {renderHeader(
-                  intl.formatMessage({ id: "studio" }),
-                  allStudioSet,
-                  onSelectAllStudioSet
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {parserResult.map((scene) => (
-                <SceneParserRow
-                  scene={scene}
-                  key={scene.id}
-                  onChange={(changedScene) => onChange(scene, changedScene)}
-                  showFields={showFields}
-                />
-              ))}
-            </tbody>
-          </Table>
-        </div>
+      <Box>
+        <Box className="scene-parser-results">
+          <TableContainer sx={{ maxHeight: '600px' }}>
+            <Table stickyHeader size="small">
+              <TableHead>
+                <TableRow className="scene-parser-row">
+                  <TableCell className="parser-field-filename">
+                    {intl.formatMessage({
+                      id: "config.tools.scene_filename_parser.filename",
+                    })}
+                  </TableCell>
+                  {renderHeader(
+                    intl.formatMessage({ id: "title" }),
+                    allTitleSet,
+                    onSelectAllTitleSet
+                  )}
+                  {renderHeader(
+                    intl.formatMessage({ id: "date" }),
+                    allDateSet,
+                    onSelectAllDateSet
+                  )}
+                  {renderHeader(
+                    intl.formatMessage({ id: "rating" }),
+                    allRatingSet,
+                    onSelectAllRatingSet
+                  )}
+                  {renderHeader(
+                    intl.formatMessage({ id: "performers" }),
+                    allPerformerSet,
+                    onSelectAllPerformerSet
+                  )}
+                  {renderHeader(
+                    intl.formatMessage({ id: "tags" }),
+                    allTagSet,
+                    onSelectAllTagSet
+                  )}
+                  {renderHeader(
+                    intl.formatMessage({ id: "studio" }),
+                    allStudioSet,
+                    onSelectAllStudioSet
+                  )}
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {parserResult.map((scene) => (
+                  <SceneParserRow
+                    scene={scene}
+                    key={scene.id}
+                    onChange={(changedScene) => onChange(scene, changedScene)}
+                    showFields={showFields}
+                  />
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Box>
         <Pagination
           currentPage={parserInput.page}
           itemsPerPage={parserInput.pageSize}
@@ -397,18 +412,18 @@ export const SceneFilenameParser: React.FC = () => {
           metadataByline={[]}
           onChangePage={(page) => onPageChanged(page)}
         />
-        <Button variant="primary" onClick={onApply}>
+        <Button variant="contained" onClick={onApply} sx={{ mt: 2 }}>
           <FormattedMessage id="actions.apply" />
         </Button>
-      </>
+      </Box>
     );
   }
 
   return (
-    <Card id="parser-container" className="col col-sm-9 mx-auto">
-      <h4>
+    <Paper id="parser-container" sx={{ maxWidth: '1000px', mx: 'auto', p: 3 }}>
+      <Typography variant="h4" gutterBottom>
         {intl.formatMessage({ id: "config.tools.scene_filename_parser.title" })}
-      </h4>
+      </Typography>
       <ParserInput
         input={parserInput}
         onFind={(input) => onFindClicked(input)}
@@ -419,7 +434,7 @@ export const SceneFilenameParser: React.FC = () => {
 
       {isLoading && <LoadingIndicator />}
       {renderTable()}
-    </Card>
+    </Paper>
   );
 };
 

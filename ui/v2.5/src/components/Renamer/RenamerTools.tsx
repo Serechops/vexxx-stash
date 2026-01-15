@@ -1,5 +1,15 @@
 import React, { useState } from "react";
-import { Button, Form } from "react-bootstrap";
+import {
+    Button,
+    TextField,
+    Checkbox,
+    FormControlLabel,
+    Box,
+    Stack,
+    Typography,
+    FormHelperText,
+    Divider,
+} from "@mui/material";
 import { faCheck, faPlay, faSave } from "@fortawesome/free-solid-svg-icons";
 import { gql, useMutation } from "@apollo/client";
 import { useRenameScenesMutation, RenameResult } from "src/core/generated-graphql";
@@ -125,11 +135,11 @@ export const RenamerTools: React.FC = () => {
 
     return (
         <div className="renamer-tools">
-            <h3>Renamer Sandbox</h3>
-            <p className="text-muted">
+            <Typography variant="h5" gutterBottom>Renamer Sandbox</Typography>
+            <Typography variant="body2" color="textSecondary" paragraph>
                 Test your renaming templates here. Select a directory, choose scenes, build your template, and preview the results.
                 You can also execute the rename operation directly from here.
-            </p>
+            </Typography>
 
             <RenamerTargetSelector
                 selectedDirectory={selectedDirectory}
@@ -142,71 +152,92 @@ export const RenamerTools: React.FC = () => {
                 onSelectedSceneIdsChange={setSelectedSceneIds}
             />
 
-            <hr />
+            <Divider sx={{ my: 3 }} />
 
-            <div className="mb-3">
-                <h4>Naming Template</h4>
-                <Form.Group controlId="renamerTemplateTools">
-                    <Form.Control
-                        type="text"
+            <Stack spacing={3} mb={3}>
+                <Typography variant="h6">Naming Template</Typography>
+                <Box>
+                    <TextField
                         value={template}
                         onChange={(e) => setTemplate(e.target.value)}
                         placeholder="{studio}/{date} - {title}"
+                        fullWidth
+                        variant="outlined"
+                        helperText={
+                            <Box component="span">
+                                Click to add token:
+                                <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                                    {["{title}", "{studio}", "{parent_studio}", "{performers}", "{date}", "{year}", "{rating}", "{id}"].map((token) => (
+                                        <Button
+                                            key={token}
+                                            variant="outlined"
+                                            size="small"
+                                            onClick={() => setTemplate(template + token)}
+                                        >
+                                            {token}
+                                        </Button>
+                                    ))}
+                                </Box>
+                            </Box>
+                        }
                     />
-                    <Form.Text className="text-muted">
-                        Click to add token:
-                    </Form.Text>
-                    <div className="mt-1">
-                        {["{title}", "{studio}", "{parent_studio}", "{performers}", "{date}", "{year}", "{rating}", "{id}"].map((token) => (
-                            <Button
-                                key={token}
-                                variant="secondary"
-                                size="sm"
-                                className="mr-1 mb-1"
-                                onClick={() => setTemplate(template + token)}
-                            >
-                                {token}
-                            </Button>
-                        ))}
-                    </div>
-                </Form.Group>
+                </Box>
 
-                <Form.Group controlId="moveFilesTools">
-                    <Form.Check
-                        type="checkbox"
+                <Box>
+                    <FormControlLabel
+                        control={
+                            <Checkbox
+                                checked={moveFiles}
+                                onChange={(e) => setMoveFiles(e.target.checked)}
+                            />
+                        }
                         label="Move Files"
-                        checked={moveFiles}
-                        onChange={(e) => setMoveFiles(e.target.checked)}
                     />
-                    <Form.Text className="text-muted">
+                    <FormHelperText>
                         If enabled, files will be moved to the destination directory specified in the template.
-                    </Form.Text>
-                </Form.Group>
-            </div>
+                    </FormHelperText>
+                </Box>
+            </Stack>
 
-            <div className="d-flex mb-3">
-                <Button onClick={handleDryRun} disabled={renaming || !selectedDirectory} className="mr-2">
-                    <Icon icon={faPlay} className="mr-2" />
+            <Stack direction="row" spacing={2} mb={3}>
+                <Button
+                    onClick={handleDryRun}
+                    disabled={renaming || !selectedDirectory}
+                    variant="contained"
+                    color="primary"
+                    startIcon={<Icon icon={faPlay} />}
+                >
                     Dry Run
                 </Button>
-                <Button onClick={handleExecuteRename} disabled={renaming || !selectedDirectory} variant="danger" className="mr-2">
-                    <Icon icon={faCheck} className="mr-2" />
+                <Button
+                    onClick={handleExecuteRename}
+                    disabled={renaming || !selectedDirectory}
+                    variant="contained"
+                    color="error"
+                    startIcon={<Icon icon={faCheck} />}
+                >
                     Execute Rename
                 </Button>
-                <Button onClick={handleSaveAsDefault} variant="secondary" className="mr-2">
-                    <Icon icon={faSave} className="mr-2" />
+                <Button
+                    onClick={handleSaveAsDefault}
+                    variant="outlined"
+                    startIcon={<Icon icon={faSave} />}
+                >
                     Save as Default
                 </Button>
-                <Button onClick={handleLoadDefault} variant="outline-secondary">
+                <Button
+                    onClick={handleLoadDefault}
+                    variant="outlined"
+                >
                     Load Default
                 </Button>
-            </div>
+            </Stack>
 
             {renaming && <div className="mt-3">Processing...</div>}
 
             {previewResults.length > 0 && (
                 <div className="mt-4">
-                    <h4>Results</h4>
+                    <Typography variant="h6" gutterBottom>Results</Typography>
                     <RenamerPreview results={previewResults} />
                 </div>
             )}

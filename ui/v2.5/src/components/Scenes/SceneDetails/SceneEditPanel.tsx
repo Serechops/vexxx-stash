@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
-import { Button, Form, Col, Row, ButtonGroup } from "react-bootstrap";
+import { Button, ButtonGroup, Box, Typography } from "@mui/material";
+import { Col, Row } from "src/components/Shared/Layouts";
 import Mousetrap from "mousetrap";
 import * as GQL from "src/core/generated-graphql";
 import * as yup from "yup";
@@ -738,12 +739,13 @@ export const SceneEditPanel: React.FC<IProps> = ({
           initialQuery={scene.title ?? ""}
         />
       )}
-      <Form noValidate onSubmit={formik.handleSubmit}>
+      <Box component="form" noValidate onSubmit={formik.handleSubmit}>
         <Row className="form-container edit-buttons-container px-3 pt-3">
           <div className="edit-buttons mb-3 pl-0">
             <Button
               className="edit-button"
-              variant="primary"
+              variant="contained"
+              color="primary"
               disabled={
                 (!isNew && !formik.dirty) || !isEqual(formik.errors, {})
               }
@@ -754,7 +756,8 @@ export const SceneEditPanel: React.FC<IProps> = ({
             {onDelete && (
               <Button
                 className="edit-button"
-                variant="danger"
+                variant="contained"
+                color="error"
                 onClick={() => onDelete()}
               >
                 <FormattedMessage id="actions.delete" />
@@ -799,10 +802,10 @@ export const SceneEditPanel: React.FC<IProps> = ({
             {renderDateField("date")}
             {renderInputField("director")}
 
-            <Form.Row>
+            <Row>
               <Col xs={6}>{renderInputField("start_point", "number")}</Col>
               <Col xs={6}>{renderInputField("end_point", "number")}</Col>
-            </Form.Row>
+            </Row>
 
             {renderGalleriesField()}
             {renderStudioField()}
@@ -816,7 +819,7 @@ export const SceneEditPanel: React.FC<IProps> = ({
               "stash_ids",
               fullWidthProps,
               <Button
-                variant="success"
+                color="success"
                 className="mr-2 py-0"
                 onClick={() => setIsStashIDSearchOpen(true)}
                 disabled={!stashConfig?.general.stashBoxes?.length}
@@ -828,20 +831,36 @@ export const SceneEditPanel: React.FC<IProps> = ({
           </Col>
           <Col lg={5} xl={12}>
             {renderDetailsField()}
-            <Form.Group controlId="cover_image">
-              <Form.Label>
+            <Button
+              className="text-left mt-3"
+              variant="text"
+              color="success"
+              onClick={() => setIsStashIDSearchOpen(true)}
+            >
+              <Icon icon={faPlus} className="mr-2" />
+              <FormattedMessage id="actions.add_stash_id" />
+            </Button>
+            <Box mb={3} id="cover_image">
+              <Typography variant="body2" color="textSecondary" gutterBottom>
                 <FormattedMessage id="cover_image" />
-              </Form.Label>
+              </Typography>
               {image}
-              <ImageInput
-                isEditing
-                onImageChange={onCoverImageChange}
-                onImageURL={onImageLoad}
+              <input
+                className="d-none"
+                type="file"
+                accept="image/*"
+                onChange={onCoverImageChange}
+                style={{ display: 'none' }}
               />
-            </Form.Group>
+            </Box>
+            <Box mb={3}>
+              <div className="text-muted small">
+                <FormattedMessage id="scrape_image_text" />
+              </div>
+            </Box>
           </Col>
         </Row>
-      </Form>
+      </Box>
     </div>
   );
 };

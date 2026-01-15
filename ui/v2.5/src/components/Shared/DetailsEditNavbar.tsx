@@ -1,4 +1,4 @@
-import { Button, Modal } from "react-bootstrap";
+import { Button, Dialog, DialogActions, DialogContent, DialogContentText } from "@mui/material";
 import React, { useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { ImageInput } from "./ImageInput";
@@ -34,7 +34,8 @@ export const DetailsEditNavbar: React.FC<IProps> = (props: IProps) => {
     if (props.isNew) return;
     return (
       <Button
-        variant="primary"
+        variant="contained"
+        color="primary"
         className="edit"
         onClick={() => props.onToggleEdit()}
       >
@@ -50,7 +51,8 @@ export const DetailsEditNavbar: React.FC<IProps> = (props: IProps) => {
 
     return (
       <Button
-        variant="success"
+        variant="contained"
+        color="success"
         className="save"
         disabled={props.saveDisabled}
         onClick={() => props.onSave()}
@@ -64,7 +66,8 @@ export const DetailsEditNavbar: React.FC<IProps> = (props: IProps) => {
     if (props.isNew || props.isEditing) return;
     return (
       <Button
-        variant="danger"
+        variant="contained"
+        color="error"
         className="delete"
         onClick={() => setIsDeleteAlertOpen(true)}
       >
@@ -94,7 +97,8 @@ export const DetailsEditNavbar: React.FC<IProps> = (props: IProps) => {
       return (
         <div>
           <Button
-            variant="secondary"
+            variant="contained"
+            color="secondary"
             disabled={props.autoTagDisabled}
             onClick={() => {
               if (props.onAutoTag) {
@@ -111,25 +115,27 @@ export const DetailsEditNavbar: React.FC<IProps> = (props: IProps) => {
 
   function renderDeleteAlert() {
     return (
-      <Modal show={isDeleteAlertOpen}>
-        <Modal.Body>
-          <FormattedMessage
-            id="dialogs.delete_confirm"
-            values={{ entityName: props.objectName }}
-          />
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="danger" onClick={props.onDelete}>
+      <Dialog open={isDeleteAlertOpen} onClose={() => setIsDeleteAlertOpen(false)}>
+        <DialogContent>
+          <DialogContentText>
+            <FormattedMessage
+              id="dialogs.delete_confirm"
+              values={{ entityName: props.objectName }}
+            />
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button variant="contained" color="error" onClick={props.onDelete}>
             <FormattedMessage id="actions.delete" />
           </Button>
           <Button
-            variant="secondary"
+            variant="text"
             onClick={() => setIsDeleteAlertOpen(false)}
           >
             <FormattedMessage id="actions.cancel" />
           </Button>
-        </Modal.Footer>
-      </Modal>
+        </DialogActions>
+      </Dialog>
     );
   }
 
@@ -151,7 +157,8 @@ export const DetailsEditNavbar: React.FC<IProps> = (props: IProps) => {
         <div>
           <Button
             className="mr-2"
-            variant="danger"
+            variant="contained"
+            color="error"
             onClick={() => props.onClearImage!()}
           >
             {props.onClearBackImage
@@ -165,10 +172,11 @@ export const DetailsEditNavbar: React.FC<IProps> = (props: IProps) => {
         <div>
           <Button
             className="mr-2"
-            variant="danger"
+            variant="contained"
+            color="error"
             onClick={() => props.onClearBackImage!()}
           >
-            {intl.formatMessage({ id: "actions.clear_back_image" })}
+            <FormattedMessage id="actions.clear_back_image" />
           </Button>
         </div>
       ) : null}

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Form } from "react-bootstrap";
+import { Box, Typography, Select, MenuItem, FormControl, InputLabel } from "@mui/material";
 import * as GQL from "src/core/generated-graphql";
 import {
   mutateSubmitStashBoxPerformerDraft,
@@ -121,23 +121,24 @@ export const SubmitStashBoxDraft: React.FC<IProps> = ({
       );
     } else {
       return (
-        <Form.Group className="form-row align-items-end">
-          <Form.Label className="col-6">
+        <Box className="form-row align-items-end" sx={{ display: 'flex', gap: 2 }}>
+          <Typography className="col-6">
             <FormattedMessage id="stashbox.selected_stash_box" />:
-          </Form.Label>
-          <Form.Control
-            as="select"
-            onChange={(e) => setSelectedBoxIndex(Number(e.currentTarget.value))}
-            value={selectedBoxIndex}
-            className="col-6 input-control"
-          >
-            {boxes.map((box, i) => (
-              <option value={i} key={`${box.endpoint}-${i}`}>
-                {box.name}
-              </option>
-            ))}
-          </Form.Control>
-        </Form.Group>
+          </Typography>
+          <FormControl size="small" className="col-6">
+            <Select
+              value={selectedBoxIndex}
+              onChange={(e) => setSelectedBoxIndex(Number(e.target.value))}
+              className="input-control"
+            >
+              {boxes.map((box, i) => (
+                <MenuItem value={i} key={`${box.endpoint}-${i}`}>
+                  {box.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Box>
       );
     }
   }

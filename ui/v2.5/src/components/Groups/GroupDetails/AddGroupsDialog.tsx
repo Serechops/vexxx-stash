@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { Form } from "react-bootstrap";
+import { Box } from "@mui/material";
 import { useIntl } from "react-intl";
 import * as GQL from "src/core/generated-graphql";
 import { useToast } from "src/hooks/Toast";
@@ -108,7 +108,7 @@ export const AddSubGroupsDialog: React.FC<IListOperationProps> = (
       }}
       isRunning={isUpdating}
     >
-      <Form>
+      <Box>
         <RelatedGroupTable
           value={entries}
           onUpdate={(input) => setEntries(input)}
@@ -116,7 +116,7 @@ export const AddSubGroupsDialog: React.FC<IListOperationProps> = (
           filterHook={filterHook}
           menuPortalTarget={document.body}
         />
-      </Form>
+      </Box>
     </ModalComponent>
   );
 };

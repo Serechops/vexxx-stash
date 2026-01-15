@@ -1,6 +1,6 @@
 import { faAngleDown, faAngleUp } from "@fortawesome/free-solid-svg-icons";
 import React, { useState } from "react";
-import { Button, Card, Collapse } from "react-bootstrap";
+import { Button, Paper, Collapse, Box, Typography } from "@mui/material";
 import { FormattedDate, FormattedMessage } from "react-intl";
 import { Icon } from "src/components/Shared/Icon";
 
@@ -30,10 +30,10 @@ const Version: React.FC<IVersionProps> = ({
   };
 
   return (
-    <Card className="changelog-version">
-      <Card.Header>
-        <h4 className="changelog-version-header d-flex align-items-center">
-          <Button onClick={updateState} variant="link">
+    <Paper className="changelog-version" sx={{ mb: 2 }}>
+      <Box sx={{ p: 2 }}>
+        <Typography variant="h6" className="changelog-version-header d-flex align-items-center">
+          <Button onClick={updateState} variant="text">
             <Icon icon={open ? faAngleUp : faAngleDown} className="mr-3" />
             {version} (
             {date ? (
@@ -46,14 +46,14 @@ const Version: React.FC<IVersionProps> = ({
             )}
             )
           </Button>
-        </h4>
-      </Card.Header>
-      <Card.Body>
+        </Typography>
+      </Box>
+      <Box sx={{ px: 2, pb: 2 }}>
         <Collapse in={open}>
           <div className="changelog-version-body markdown">{children}</div>
         </Collapse>
-      </Card.Body>
-    </Card>
+      </Box>
+    </Paper>
   );
 };
 

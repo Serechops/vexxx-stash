@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Button } from "react-bootstrap";
+import { Button, Box, Typography, Stack } from "@mui/material";
 
 import * as GQL from "src/core/generated-graphql";
 import { useUpdatePerformer } from "../queries";
@@ -74,7 +74,7 @@ const StashSearchResult: React.FC<IStashSearchResultProps> = ({
         message: `Failed to save performer "${performer.name}"`,
         details:
           res?.errors?.[0].message ===
-          "UNIQUE constraint failed: performers.name"
+            "UNIQUE constraint failed: performers.name"
             ? "Name already exists"
             : res?.errors?.[0].message,
       });
@@ -85,7 +85,7 @@ const StashSearchResult: React.FC<IStashSearchResultProps> = ({
   const performers = stashboxPerformers.map((p) => (
     <Button
       className="PerformerTagger-performer-search-item minimal col-6"
-      variant="link"
+      variant="text"
       key={p.remote_site_id}
       onClick={() => setModalPerformer(p)}
     >

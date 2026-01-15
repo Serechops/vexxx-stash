@@ -1,6 +1,18 @@
 import React, { useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
-import { Button, InputGroup, Form, Collapse } from "react-bootstrap";
+import {
+  Button,
+  Collapse,
+  TextField,
+  InputAdornment,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemText,
+  IconButton,
+  Box,
+  Typography,
+} from "@mui/material";
 import { Icon } from "../Icon";
 import { LoadingIndicator } from "../LoadingIndicator";
 import { faEllipsis, faTimes } from "@fortawesome/free-solid-svg-icons";
@@ -69,74 +81,83 @@ const _FolderSelect: React.FC<IProps> = ({
   }
 
   const topDirectory = currentDirectory && parent && (
-    <li className="folder-list-parent folder-list-item">
-      <Button variant="link" onClick={() => goUp()} disabled={loading}>
-        <span>
-          <FormattedMessage id="setup.folder.up_dir" />
-        </span>
-      </Button>
-    </li>
+    <ListItem disablePadding className="folder-list-parent" dense>
+      <ListItemButton onClick={() => goUp()} disabled={loading}>
+        <ListItemText
+          primary={<FormattedMessage id="setup.folder.up_dir" />}
+        />
+      </ListItemButton>
+    </ListItem>
   );
 
   return (
     <>
-      <InputGroup>
-        <Form.Control
-          className="btn-secondary"
-          placeholder={intl.formatMessage({ id: "setup.folder.file_path" })}
-          onChange={(e) => {
-            setDebounced(e.currentTarget.value);
-          }}
-          value={currentDirectory}
-          spellCheck={false}
-        />
-
-        {appendButton && <InputGroup.Append>{appendButton}</InputGroup.Append>}
-
-        {collapsible && (
-          <InputGroup.Append>
-            <Button
-              variant="secondary"
-              onClick={() => setShowBrowser(!showBrowser)}
-            >
-              <Icon icon={faEllipsis} />
-            </Button>
-          </InputGroup.Append>
-        )}
-
-        {(loading || error) && (
-          <InputGroup.Append className="align-self-center">
-            {loading ? (
-              <LoadingIndicator inline small message="" />
-            ) : (
-              !hideError && <Icon icon={faTimes} color="red" className="ml-3" />
-            )}
-          </InputGroup.Append>
-        )}
-      </InputGroup>
+      <TextField
+        fullWidth
+        variant="outlined"
+        size="small"
+        placeholder={intl.formatMessage({ id: "setup.folder.file_path" })}
+        onChange={(e) => {
+          setDebounced(e.currentTarget.value);
+        }}
+        value={currentDirectory}
+        InputProps={{
+          spellCheck: false,
+          endAdornment: (
+            <InputAdornment position="end">
+              {appendButton}
+              {collapsible && (
+                <IconButton
+                  onClick={() => setShowBrowser(!showBrowser)}
+                  size="small"
+                >
+                  <Icon icon={faEllipsis} />
+                </IconButton>
+              )}
+              {(loading || error) && (
+                <Box display="flex" alignItems="center" ml={1}>
+                  {loading ? (
+                    <LoadingIndicator inline small message="" />
+                  ) : (
+                    !hideError && (
+                      <Icon icon={faTimes} color="red" className="ml-3" />
+                    )
+                  )}
+                </Box>
+              )}
+            </InputAdornment>
+          ),
+        }}
+      />
 
       {!hideError && error !== undefined && (
-        <h5 className="mt-4 text-break">Error: {error.message}</h5>
+        <Typography variant="h6" color="error" className="mt-4 text-break">
+          Error: {error.message}
+        </Typography>
       )}
 
       <Collapse in={!collapsible || showBrowser}>
-        <ul className="folder-list">
+        <List dense className="folder-list">
           {topDirectory}
           {selectableDirectories.map((dir) => (
-            <li key={dir} className="folder-list-item">
-              <Button
-                variant="link"
+            <ListItem
+              key={dir}
+              disablePadding
+              className="folder-list-item"
+            >
+              <ListItemButton
                 onClick={() => setInstant(dir)}
                 disabled={loading}
               >
-                <span>{dir}</span>
-              </Button>
-            </li>
+                <ListItemText primary={dir} />
+              </ListItemButton>
+            </ListItem>
           ))}
-        </ul>
+        </List>
       </Collapse>
     </>
   );
 };
 
 export const FolderSelect = PatchComponent("FolderSelect", _FolderSelect);
+

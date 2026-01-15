@@ -5,99 +5,119 @@ import React, {
   useReducer,
   useRef,
 } from "react";
-import { Badge, BadgeProps, Button, Overlay, Popover } from "react-bootstrap";
+import { Chip, Button, Popover, IconButton, Box } from "@mui/material";
 import { Criterion } from "src/models/list-filter/criteria/criterion";
 import { FormattedMessage, useIntl } from "react-intl";
 import { Icon } from "../Shared/Icon";
 import { faMagnifyingGlass, faTimes } from "@fortawesome/free-solid-svg-icons";
-import { BsPrefixProps, ReplaceProps } from "react-bootstrap/esm/helpers";
+
 import { CustomFieldsCriterion } from "src/models/list-filter/criteria/custom-fields";
 import { useDebounce } from "src/hooks/debounce";
 import cx from "classnames";
 import { useConfigurationContext } from "src/hooks/Config";
 
-type TagItemProps = PropsWithChildren<
-  ReplaceProps<"span", BsPrefixProps<"span"> & BadgeProps>
->;
+type TagItemProps = React.PropsWithChildren<{
+  className?: string;
+  variant?: "filled" | "outlined";
+  onClick?: React.MouseEventHandler<HTMLDivElement>;
+}>;
 
 export const TagItem: React.FC<TagItemProps> = (props) => {
-  const { className, children, ...others } = props;
+  const { className, children, onClick, ...others } = props;
   return (
-    <Badge
+    <Chip
       className={cx("tag-item", className)}
-      variant="secondary"
+      label={children}
+      onClick={onClick}
+      size="small"
+      color="secondary"
       {...others}
-    >
-      {children}
-    </Badge>
+    />
   );
 };
 
 export const FilterTag: React.FC<{
   className?: string;
   label: React.ReactNode;
-  onClick: React.MouseEventHandler<HTMLSpanElement>;
+  onClick: React.MouseEventHandler<HTMLDivElement>;
   onRemove: React.MouseEventHandler<HTMLElement>;
 }> = ({ className, label, onClick, onRemove }) => {
   return (
-    <TagItem className={className} onClick={onClick}>
-      {label}
-      <Button
-        variant="secondary"
-        onClick={(e) => {
-          onRemove(e);
-          e.stopPropagation();
-        }}
-      >
-        <Icon icon={faTimes} />
-      </Button>
-    </TagItem>
+    <Chip
+      className={cx("tag-item", className)}
+      label={label}
+      onClick={onClick}
+      onDelete={(e) => {
+        onRemove(e as any);
+        e.stopPropagation();
+      }}
+      size="small"
+      color="secondary"
+    />
   );
 };
 
 const MoreFilterTags: React.FC<{
   tags: React.ReactNode[];
 }> = ({ tags }) => {
-  const [showTooltip, setShowTooltip] = React.useState(false);
-  const target = useRef(null);
+  const [anchorEl, setAnchorEl] = React.useState<HTMLDivElement | null>(null);
 
   if (!tags.length) {
     return null;
   }
 
-  function handleMouseEnter() {
-    setShowTooltip(true);
+  function handleMouseEnter(event: React.MouseEvent<HTMLDivElement>) {
+    setAnchorEl(event.currentTarget);
   }
 
   function handleMouseLeave() {
-    setShowTooltip(false);
+    setAnchorEl(null);
   }
+
+  const open = Boolean(anchorEl);
 
   return (
     <>
-      <Overlay target={target.current} placement="bottom" show={showTooltip}>
-        <Popover
-          id="more-criteria-popover"
-          className="hover-popover-content"
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
-          onClick={handleMouseLeave}
-        >
+      <Popover
+        open={open}
+        anchorEl={anchorEl}
+        onClose={handleMouseLeave}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'center',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'center',
+        }}
+        disableRestoreFocus
+        sx={{ pointerEvents: 'none' }}
+        slotProps={{
+          paper: {
+            onMouseEnter: () => setAnchorEl(anchorEl),
+            onMouseLeave: handleMouseLeave,
+            onClick: handleMouseLeave,
+            sx: { pointerEvents: 'auto', p: 1 }
+          }
+        }}
+      >
+        <Box display="flex" flexWrap="wrap" gap={0.5}>
           {tags}
-        </Popover>
-      </Overlay>
-      <Badge
-        ref={target}
-        className={"tag-item more-tags"}
-        variant="secondary"
+        </Box>
+      </Popover>
+      <Chip
+        className="tag-item more-tags"
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
-      >
-        <FormattedMessage
-          id="search_filter.more_filter_criteria"
-          values={{ count: tags.length }}
-        />
-      </Badge>
+        size="small"
+        color="secondary"
+        label={
+          <FormattedMessage
+            id="search_filter.more_filter_criteria"
+            values={{ count: tags.length }}
+          />
+        }
+      />
     </>
   );
 };
@@ -316,7 +336,8 @@ export const FilterTags: React.FC<IFilterTagsProps> = ({
       <MoreFilterTags tags={hiddenCriteria} />
       {filterTags.length >= 3 && (
         <Button
-          variant="minimal"
+          variant="text"
+          size="small"
           className="clear-all-button"
           onClick={() => onRemoveAll()}
         >

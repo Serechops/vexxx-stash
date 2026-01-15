@@ -10,7 +10,7 @@ import {
   ScrapedStringListRow,
 } from "src/components/Shared/ScrapeDialog/ScrapeDialogRow";
 import { ScrapeDialog } from "src/components/Shared/ScrapeDialog/ScrapeDialog";
-import { Form } from "react-bootstrap";
+import { Select, FormControl } from "@mui/material";
 import {
   genderStrings,
   genderToString,
@@ -35,24 +35,29 @@ function renderScrapedGender(
   const selectOptions = [""].concat(genderStrings);
 
   return (
-    <Form.Control
-      as="select"
-      className="input-control"
-      disabled={!isNew}
-      plaintext={!isNew}
-      value={isNew ? result.newValue : result.originalValue}
-      onChange={(e) => {
-        if (isNew && onChange) {
-          onChange(e.currentTarget.value);
-        }
-      }}
-    >
-      {selectOptions.map((opt) => (
-        <option value={opt} key={opt}>
-          {opt}
-        </option>
-      ))}
-    </Form.Control>
+    <FormControl fullWidth size="small" variant="standard">
+      <Select
+        native
+        className="input-control"
+        disabled={!isNew}
+        value={isNew ? result.newValue : result.originalValue}
+        onChange={(e) => {
+          if (isNew && onChange) {
+            onChange(e.target.value as string);
+          }
+        }}
+        inputProps={{
+          readOnly: !isNew,
+        }}
+        disableUnderline={!isNew}
+      >
+        {selectOptions.map((opt) => (
+          <option value={opt} key={opt}>
+            {opt}
+          </option>
+        ))}
+      </Select>
+    </FormControl>
   );
 }
 
@@ -83,24 +88,29 @@ function renderScrapedCircumcised(
   const selectOptions = [""].concat(circumcisedStrings);
 
   return (
-    <Form.Control
-      as="select"
-      className="input-control"
-      disabled={!isNew}
-      plaintext={!isNew}
-      value={isNew ? result.newValue : result.originalValue}
-      onChange={(e) => {
-        if (isNew && onChange) {
-          onChange(e.currentTarget.value);
-        }
-      }}
-    >
-      {selectOptions.map((opt) => (
-        <option value={opt} key={opt}>
-          {opt}
-        </option>
-      ))}
-    </Form.Control>
+    <FormControl fullWidth size="small" variant="standard">
+      <Select
+        native
+        className="input-control"
+        disabled={!isNew}
+        value={isNew ? result.newValue : result.originalValue}
+        onChange={(e) => {
+          if (isNew && onChange) {
+            onChange(e.target.value as string);
+          }
+        }}
+        inputProps={{
+          readOnly: !isNew,
+        }}
+        disableUnderline={!isNew}
+      >
+        {selectOptions.map((opt) => (
+          <option value={opt} key={opt}>
+            {opt}
+          </option>
+        ))}
+      </Select>
+    </FormControl>
   );
 }
 

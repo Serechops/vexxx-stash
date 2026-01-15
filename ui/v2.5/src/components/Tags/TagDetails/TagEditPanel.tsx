@@ -3,7 +3,7 @@ import { FormattedMessage, useIntl } from "react-intl";
 import * as GQL from "src/core/generated-graphql";
 import * as yup from "yup";
 import { DetailsEditNavbar } from "src/components/Shared/DetailsEditNavbar";
-import { Button, Form } from "react-bootstrap";
+import { Button, Box } from "@mui/material";
 import { faPlus } from "@fortawesome/free-solid-svg-icons";
 import ImageUtils from "src/utils/image";
 import { useFormik } from "formik";
@@ -239,7 +239,7 @@ export const TagEditPanel: React.FC<ITagEditPanel> = ({
           }}
         />
 
-        <Form noValidate onSubmit={formik.handleSubmit} id="tag-edit">
+        <Box component="form" noValidate onSubmit={formik.handleSubmit} id="tag-edit">
           {renderInputField("name")}
           {renderInputField("sort_name", "text")}
           {renderStringListField("aliases", "aliases", { orderable: false })}
@@ -252,7 +252,8 @@ export const TagEditPanel: React.FC<ITagEditPanel> = ({
             "stash_ids",
             undefined,
             <Button
-              variant="success"
+              variant="contained"
+              color="success"
               className="mr-2 py-0"
               onClick={() => setIsStashIDSearchOpen(true)}
               disabled={!stashConfig?.general.stashBoxes?.length}
@@ -263,7 +264,7 @@ export const TagEditPanel: React.FC<ITagEditPanel> = ({
           )}
           <hr />
           {renderInputField("ignore_auto_tag", "checkbox")}
-        </Form>
+        </Box>
 
         <DetailsEditNavbar
           objectName={tag?.name ?? intl.formatMessage({ id: "tag" })}

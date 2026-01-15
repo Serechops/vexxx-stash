@@ -3,12 +3,11 @@ import Mousetrap from "mousetrap";
 import {
   Button,
   ButtonGroup,
-  Dropdown,
-  Overlay,
-  OverlayTrigger,
   Popover,
+  MenuItem,
   Tooltip,
-} from "react-bootstrap";
+  Box,
+} from "@mui/material";
 import { DisplayMode } from "src/models/list-filter/types";
 import { IntlShape, useIntl } from "react-intl";
 import { Icon } from "../Shared/Icon";
@@ -74,8 +73,9 @@ export const ListViewOptions: React.FC<IListViewOptionsProps> = ({
 }) => {
   const intl = useIntl();
 
-  const overlayTarget = useRef(null);
-  const [showOptions, setShowOptions] = useState(false);
+  const overlayTarget = useRef<HTMLButtonElement>(null);
+  const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
+  const showOptions = Boolean(anchorEl);
 
   useEffect(() => {
     Mousetrap.bind("v g", () => {
@@ -113,60 +113,68 @@ export const ListViewOptions: React.FC<IListViewOptionsProps> = ({
     }
   }
 
+  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
+
   return (
     <>
       <Button
         className="display-mode-select"
         ref={overlayTarget}
-        variant="secondary"
+        variant="outlined"
+        color="secondary"
         title={intl.formatMessage(
           { id: "display_mode.label_current" },
           { current: getLabel(intl, displayMode) }
         )}
-        onClick={() => setShowOptions(!showOptions)}
+        onClick={handleClick}
+        size="small"
       >
         <Icon icon={getIcon(displayMode)} />
         <Icon size="xs" icon={faChevronDown} />
       </Button>
-      <Overlay
-        target={overlayTarget.current}
-        show={showOptions}
-        placement="bottom"
-        rootClose
-        onHide={() => setShowOptions(false)}
+      <Popover
+        open={showOptions}
+        anchorEl={anchorEl}
+        onClose={handleClose}
+        anchorOrigin={{
+          vertical: "bottom",
+          horizontal: "left",
+        }}
       >
-        {({ placement, arrowProps, show: _show, ...props }) => (
-          <div className="popover" {...props} style={{ ...props.style }}>
-            <Popover.Content className="display-mode-popover">
-              <div className="display-mode-menu">
-                {onSetZoom &&
-                zoomIndex !== undefined &&
-                (displayMode === DisplayMode.Grid ||
-                  displayMode === DisplayMode.Wall) ? (
-                  <div className="zoom-slider-container">
-                    <ZoomSelect
-                      zoomIndex={zoomIndex}
-                      onChangeZoom={onChangeZoom}
-                    />
-                  </div>
-                ) : null}
-                {displayModeOptions.map((option) => (
-                  <Dropdown.Item
-                    key={option}
-                    active={displayMode === option}
-                    onClick={() => {
-                      setShowOptions(false);
-                      onSetDisplayMode(option);
-                    }}
-                  >
-                    <Icon icon={getIcon(option)} /> {getLabel(intl, option)}
-                  </Dropdown.Item>
-                ))}
+        <Box className="display-mode-popover" sx={{ p: 1 }}>
+          <div className="display-mode-menu">
+            {onSetZoom &&
+              zoomIndex !== undefined &&
+              (displayMode === DisplayMode.Grid ||
+                displayMode === DisplayMode.Wall) ? (
+              <div className="zoom-slider-container">
+                <ZoomSelect
+                  zoomIndex={zoomIndex}
+                  onChangeZoom={onChangeZoom}
+                />
               </div>
-            </Popover.Content>
+            ) : null}
+            {displayModeOptions.map((option) => (
+              <MenuItem
+                key={option}
+                selected={displayMode === option}
+                onClick={() => {
+                  handleClose();
+                  onSetDisplayMode(option);
+                }}
+              >
+                <Icon icon={getIcon(option)} /> {getLabel(intl, option)}
+              </MenuItem>
+            ))}
           </div>
-        )}
-      </Overlay>
+        </Box>
+      </Popover>
     </>
   );
 };
@@ -183,32 +191,28 @@ export const ListViewButtonGroup: React.FC<IListViewOptionsProps> = ({
   return (
     <>
       {displayModeOptions.length > 1 && (
-        <ButtonGroup>
+        <ButtonGroup size="small">
           {displayModeOptions.map((option) => (
-            <OverlayTrigger
+            <Tooltip
               key={option}
-              overlay={
-                <Tooltip id="display-mode-tooltip">
-                  {getLabel(intl, option)}
-                </Tooltip>
-              }
+              title={getLabel(intl, option)}
             >
               <Button
-                variant="secondary"
-                active={displayMode === option}
+                variant={displayMode === option ? "contained" : "outlined"}
+                color="secondary"
                 onClick={() => onSetDisplayMode(option)}
               >
                 <Icon icon={getIcon(option)} />
               </Button>
-            </OverlayTrigger>
+            </Tooltip>
           ))}
         </ButtonGroup>
       )}
       <div className="zoom-slider-container">
         {onSetZoom &&
-        zoomIndex !== undefined &&
-        (displayMode === DisplayMode.Grid ||
-          displayMode === DisplayMode.Wall) ? (
+          zoomIndex !== undefined &&
+          (displayMode === DisplayMode.Grid ||
+            displayMode === DisplayMode.Wall) ? (
           <ZoomSelect zoomIndex={zoomIndex} onChangeZoom={onSetZoom} />
         ) : null}
       </div>

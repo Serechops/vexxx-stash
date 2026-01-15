@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { Accordion, Button, Card } from "react-bootstrap";
+import { Accordion, AccordionSummary, AccordionDetails, Button, Paper, Typography } from "@mui/material";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { FormattedMessage, FormattedTime } from "react-intl";
 import { TruncatedText } from "src/components/Shared/TruncatedText";
 import { DeleteFilesDialog } from "src/components/Shared/DeleteFilesDialog";
@@ -63,6 +64,7 @@ const FileInfoPanel: React.FC<IFileInfoPanelProps> = (
       {props.ofMany && props.onSetPrimaryFile && !props.primary && (
         <div>
           <Button
+            variant="outlined"
             className="edit-button"
             disabled={props.loading}
             onClick={props.onSetPrimaryFile}
@@ -70,7 +72,8 @@ const FileInfoPanel: React.FC<IFileInfoPanelProps> = (
             <FormattedMessage id="actions.make_primary" />
           </Button>
           <Button
-            variant="danger"
+            variant="outlined"
+            color="error"
             disabled={props.loading}
             onClick={props.onDeleteFile}
           >
@@ -94,6 +97,7 @@ export const ImageFileInfoPanel: React.FC<IImageFileInfoPanelProps> = (
   const [deletingFile, setDeletingFile] = useState<
     GQL.ImageFileDataFragment | GQL.VideoFileDataFragment | undefined
   >();
+  const [expanded, setExpanded] = useState<string | false>(props.image.visual_files[0]?.id || false);
 
   if (props.image.visual_files.length === 0) {
     return <></>;
@@ -122,8 +126,12 @@ export const ImageFileInfoPanel: React.FC<IImageFileInfoPanelProps> = (
     }
   }
 
+  const handleChange = (panel: string) => (_event: React.SyntheticEvent, isExpanded: boolean) => {
+    setExpanded(isExpanded ? panel : false);
+  };
+
   return (
-    <Accordion defaultActiveKey={props.image.visual_files[0].id}>
+    <div>
       {deletingFile && (
         <DeleteFilesDialog
           onClose={() => setDeletingFile(undefined)}
@@ -131,24 +139,29 @@ export const ImageFileInfoPanel: React.FC<IImageFileInfoPanelProps> = (
         />
       )}
       {props.image.visual_files.map((file, index) => (
-        <Card key={file.id} className="image-file-card">
-          <Accordion.Toggle as={Card.Header} eventKey={file.id}>
-            <TruncatedText text={TextUtils.fileNameFromPath(file.path)} />
-          </Accordion.Toggle>
-          <Accordion.Collapse eventKey={file.id}>
-            <Card.Body>
-              <FileInfoPanel
-                file={file}
-                primary={index === 0}
-                ofMany
-                onSetPrimaryFile={() => onSetPrimaryFile(file.id)}
-                onDeleteFile={() => setDeletingFile(file)}
-                loading={loading}
-              />
-            </Card.Body>
-          </Accordion.Collapse>
-        </Card>
+        <Accordion
+          key={file.id}
+          expanded={expanded === file.id}
+          onChange={handleChange(file.id)}
+          className="image-file-card"
+        >
+          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <Typography>
+              <TruncatedText text={TextUtils.fileNameFromPath(file.path)} />
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <FileInfoPanel
+              file={file}
+              primary={index === 0}
+              ofMany
+              onSetPrimaryFile={() => onSetPrimaryFile(file.id)}
+              onDeleteFile={() => setDeletingFile(file)}
+              loading={loading}
+            />
+          </AccordionDetails>
+        </Accordion>
       ))}
-    </Accordion>
+    </div>
   );
 };

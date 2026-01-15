@@ -1,12 +1,21 @@
 import React, { useState } from "react";
 import {
   Button,
-  Dropdown,
-  DropdownButton,
-  Form,
-  InputGroup,
-} from "react-bootstrap";
-import { useIntl } from "react-intl";
+  TextField,
+  Checkbox,
+  FormControlLabel,
+  Box,
+  Stack,
+  Typography,
+  Grid,
+  Menu,
+  MenuItem,
+  InputAdornment,
+  Tooltip,
+} from "@mui/material";
+import { FormattedMessage, useIntl } from "react-intl";
+import { faQuestionCircle, faCaretDown } from "@fortawesome/free-solid-svg-icons";
+import { Icon } from "src/components/Shared/Icon";
 import { ParserField } from "./ParserField";
 import { ShowFields } from "./ShowFields";
 
@@ -100,6 +109,9 @@ export const ParserInput: React.FC<IParserInputProps> = (
     props.input.ignoreOrganized
   );
 
+  const [fieldAnchorEl, setFieldAnchorEl] = useState<null | HTMLElement>(null);
+  const [recipeAnchorEl, setRecipeAnchorEl] = useState<null | HTMLElement>(null);
+
   function onFind() {
     props.onFind({
       pattern,
@@ -118,6 +130,7 @@ export const ParserInput: React.FC<IParserInputProps> = (
     setIgnoreWords(recipe.ignoreWords.join(" "));
     setWhitespaceCharacters(recipe.whitespaceCharacters);
     setCapitalizeTitle(recipe.capitalizeTitle);
+    setRecipeAnchorEl(null);
   }
 
   const validFields = [new ParserField("", "Wildcard")].concat(
@@ -126,175 +139,213 @@ export const ParserInput: React.FC<IParserInputProps> = (
 
   function addParserField(field: ParserField) {
     setPattern(pattern + field.getFieldPattern());
+    setFieldAnchorEl(null);
   }
 
   const PAGE_SIZE_OPTIONS = ["20", "40", "60", "120", "250", "500", "1000"];
 
   return (
-    <Form.Group>
-      <Form.Group className="row">
-        <Form.Label htmlFor="filename-pattern" className="col-2">
-          {intl.formatMessage({
-            id: "config.tools.scene_filename_parser.filename_pattern",
-          })}
-        </Form.Label>
-        <InputGroup className="col-8">
-          <Form.Control
-            className="text-input"
+    <Box sx={{ p: 2 }}>
+      <Grid container spacing={2} alignItems="center" mb={2}>
+        <Grid size={{ xs: 12, sm: 2 }}>
+          <Typography variant="subtitle1" component="label" htmlFor="filename-pattern">
+            {intl.formatMessage({
+              id: "config.tools.scene_filename_parser.filename_pattern",
+            })}
+          </Typography>
+        </Grid>
+        <Grid size={{ xs: 12, sm: 10 }}>
+          <TextField
             id="filename-pattern"
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              setPattern(e.currentTarget.value)
-            }
+            fullWidth
+            variant="outlined"
             value={pattern}
+            onChange={(e) => setPattern(e.target.value)}
+            slotProps={{
+              input: {
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <Button
+                      variant="contained"
+                      color="secondary"
+                      onClick={(e) => setFieldAnchorEl(e.currentTarget)}
+                      endIcon={<Icon icon={faCaretDown} />}
+                      sx={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }}
+                    >
+                      {intl.formatMessage({
+                        id: "config.tools.scene_filename_parser.add_field",
+                      })}
+                    </Button>
+                  </InputAdornment>
+                )
+              }
+            }}
           />
-          <InputGroup.Append>
-            <DropdownButton
-              id="parser-field-select"
-              title={intl.formatMessage({
-                id: "config.tools.scene_filename_parser.add_field",
-              })}
-            >
-              {validFields.map((item) => (
-                <Dropdown.Item
-                  key={item.field}
-                  onSelect={() => addParserField(item)}
-                >
-                  <span className="mr-2">{item.field || "{}"}</span>
-                  <span className="ml-auto text-muted">{item.helperText}</span>
-                </Dropdown.Item>
-              ))}
-            </DropdownButton>
-          </InputGroup.Append>
-        </InputGroup>
-        <Form.Text className="text-muted row col-10 offset-2">
-          {intl.formatMessage({
-            id: "config.tools.scene_filename_parser.escape_chars",
-          })}
-        </Form.Text>
-      </Form.Group>
+          <Menu
+            anchorEl={fieldAnchorEl}
+            open={Boolean(fieldAnchorEl)}
+            onClose={() => setFieldAnchorEl(null)}
+          >
+            {validFields.map((item) => (
+              <MenuItem key={item.field} onClick={() => addParserField(item)}>
+                <Box display="flex" width="100%" justifyContent="space-between" gap={2}>
+                  <Typography variant="body2">{item.field || "{}"}</Typography>
+                  <Typography variant="caption" color="textSecondary">{item.helperText}</Typography>
+                </Box>
+              </MenuItem>
+            ))}
+          </Menu>
+          <Typography variant="caption" color="textSecondary" sx={{ mt: 0.5, display: 'block' }}>
+            {intl.formatMessage({
+              id: "config.tools.scene_filename_parser.escape_chars",
+            })}
+          </Typography>
+        </Grid>
+      </Grid>
 
-      <Form.Group className="row" controlId="ignored-words">
-        <Form.Label className="col-2">
-          {intl.formatMessage({
-            id: "config.tools.scene_filename_parser.ignored_words",
-          })}
-        </Form.Label>
-        <InputGroup className="col-8">
-          <Form.Control
-            className="text-input"
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              setIgnoreWords(e.currentTarget.value)
-            }
+      <Grid container spacing={2} alignItems="center" mb={2}>
+        <Grid size={{ xs: 12, sm: 2 }}>
+          <Typography variant="subtitle1" component="label" htmlFor="ignore-words">
+            {intl.formatMessage({
+              id: "config.tools.scene_filename_parser.ignored_words",
+            })}{" "}
+            <Tooltip title={intl.formatMessage({
+              id: "config.tools.scene_filename_parser.ignore_words_help",
+            })}>
+              <span><Icon icon={faQuestionCircle} /></span>
+            </Tooltip>
+          </Typography>
+        </Grid>
+        <Grid size={{ xs: 12, sm: 10 }}>
+          <TextField
+            id="ignore-words"
+            fullWidth
+            variant="outlined"
             value={ignoreWords}
+            onChange={(e) => setIgnoreWords(e.target.value)}
           />
-        </InputGroup>
-        <Form.Text className="text-muted col-10 offset-2">
-          {intl.formatMessage({
-            id: "config.tools.scene_filename_parser.matches_with",
-          })}
-        </Form.Text>
-      </Form.Group>
+          <Typography variant="caption" color="textSecondary" sx={{ mt: 0.5, display: 'block' }}>
+            {intl.formatMessage({
+              id: "config.tools.scene_filename_parser.matches_with",
+            })}
+          </Typography>
+        </Grid>
+      </Grid>
 
-      <h5>{intl.formatMessage({ id: "title" })}</h5>
-      <Form.Group className="row">
-        <Form.Label htmlFor="whitespace-characters" className="col-2">
-          {intl.formatMessage({
-            id: "config.tools.scene_filename_parser.whitespace_chars",
-          })}
-        </Form.Label>
-        <InputGroup className="col-8">
-          <Form.Control
-            className="text-input"
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              setWhitespaceCharacters(e.currentTarget.value)
-            }
+      <Typography variant="h6" gutterBottom>{intl.formatMessage({ id: "title" })}</Typography>
+      <Grid container spacing={2} alignItems="center" mb={2}>
+        <Grid size={{ xs: 12, sm: 2 }}>
+          <Typography variant="subtitle1" component="label" htmlFor="whitespace-characters">
+            {intl.formatMessage({
+              id: "config.tools.scene_filename_parser.whitespace_chars",
+            })}
+          </Typography>
+        </Grid>
+        <Grid size={{ xs: 12, sm: 10 }}>
+          <TextField
+            id="whitespace-characters"
+            fullWidth
+            variant="outlined"
             value={whitespaceCharacters}
+            onChange={(e) => setWhitespaceCharacters(e.target.value)}
           />
-        </InputGroup>
-        <Form.Text className="text-muted col-10 offset-2">
-          {intl.formatMessage({
-            id: "config.tools.scene_filename_parser.whitespace_chars_desc",
-          })}
-        </Form.Text>
-      </Form.Group>
-      <Form.Group>
-        <Form.Check
-          inline
-          className="m-0"
-          id="capitalize-title"
-          checked={capitalizeTitle}
-          onChange={() => setCapitalizeTitle(!capitalizeTitle)}
-        />
-        <Form.Label htmlFor="capitalize-title">
-          {intl.formatMessage({
+          <Typography variant="caption" color="textSecondary" sx={{ mt: 0.5, display: 'block' }}>
+            {intl.formatMessage({
+              id: "config.tools.scene_filename_parser.whitespace_chars_desc",
+            })}
+          </Typography>
+        </Grid>
+      </Grid>
+
+      <Box mb={2}>
+        <FormControlLabel
+          control={
+            <Checkbox
+              id="capitalize-title"
+              checked={capitalizeTitle}
+              onChange={(e) => setCapitalizeTitle(e.target.checked)}
+            />
+          }
+          label={intl.formatMessage({
             id: "config.tools.scene_filename_parser.capitalize_title",
           })}
-        </Form.Label>
-      </Form.Group>
-      <Form.Group>
-        <Form.Check
-          inline
-          className="m-0"
-          id="ignore-organized"
-          checked={ignoreOrganized}
-          onChange={() => setIgnoreOrganized(!ignoreOrganized)}
         />
-        <Form.Label htmlFor="ignore-organized">
-          {intl.formatMessage({
+      </Box>
+
+      <Box mb={2}>
+        <FormControlLabel
+          control={
+            <Checkbox
+              id="ignore-organized"
+              checked={ignoreOrganized}
+              onChange={(e) => setIgnoreOrganized(e.target.checked)}
+            />
+          }
+          label={intl.formatMessage({
             id: "config.tools.scene_filename_parser.ignore_organized",
           })}
-        </Form.Label>
-      </Form.Group>
+        />
+      </Box>
 
-      {/* TODO - mapping stuff will go here */}
-
-      <Form.Group>
-        <DropdownButton
-          variant="secondary"
-          id="recipe-select"
-          title={intl.formatMessage({
+      <Box mb={2}>
+        <Button
+          variant="contained"
+          color="secondary"
+          onClick={(e) => setRecipeAnchorEl(e.currentTarget)}
+          endIcon={<Icon icon={faCaretDown} />}
+        >
+          {intl.formatMessage({
             id: "config.tools.scene_filename_parser.select_parser_recipe",
           })}
-          drop="up"
+        </Button>
+        <Menu
+          anchorEl={recipeAnchorEl}
+          open={Boolean(recipeAnchorEl)}
+          onClose={() => setRecipeAnchorEl(null)}
         >
           {builtInRecipes.map((item) => (
-            <Dropdown.Item
-              key={item.pattern}
-              onSelect={() => setParserRecipe(item)}
-            >
-              <span>{item.pattern}</span>
-              <span className="ml-auto text-muted">{item.description}</span>
-            </Dropdown.Item>
+            <MenuItem key={item.pattern} onClick={() => setParserRecipe(item)}>
+              <Box display="flex" width="100%" justifyContent="space-between" gap={2}>
+                <Typography variant="body2">{item.pattern}</Typography>
+                <Typography variant="caption" color="textSecondary">{item.description}</Typography>
+              </Box>
+            </MenuItem>
           ))}
-        </DropdownButton>
-      </Form.Group>
+        </Menu>
+      </Box>
 
-      <Form.Group>
+      <Box mb={2}>
         <ShowFields
           fields={props.showFields}
           onShowFieldsChanged={(fields) => props.setShowFields(fields)}
         />
-      </Form.Group>
+      </Box>
 
-      <Form.Group className="row">
-        <Button variant="secondary" className="ml-3 col-1" onClick={onFind}>
+      <Stack direction="row" spacing={2} alignItems="center">
+        <Button variant="contained" color="primary" onClick={onFind}>
           {intl.formatMessage({ id: "actions.find" })}
         </Button>
-        <Form.Control
-          as="select"
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-            props.onPageSizeChanged(parseInt(e.currentTarget.value, 10))
-          }
-          defaultValue={props.input.pageSize}
-          className="col-1 input-control filter-item"
-        >
-          {PAGE_SIZE_OPTIONS.map((val) => (
-            <option key={val} value={val}>
-              {val}
-            </option>
-          ))}
-        </Form.Control>
-      </Form.Group>
-    </Form.Group>
+
+        <Box display="flex" alignItems="center">
+          <Typography sx={{ mr: 1 }}>
+            <FormattedMessage id="items_per_page" />:
+          </Typography>
+          <TextField
+            select
+            value={props.input.pageSize}
+            onChange={(e) => props.onPageSizeChanged(parseInt(e.target.value, 10))}
+            variant="outlined"
+            size="small"
+            sx={{ width: 80 }}
+          >
+            {PAGE_SIZE_OPTIONS.map((val) => (
+              <MenuItem key={val} value={val}>
+                {val}
+              </MenuItem>
+            ))}
+          </TextField>
+        </Box>
+      </Stack>
+    </Box>
   );
 };

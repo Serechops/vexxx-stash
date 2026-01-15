@@ -1,7 +1,6 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Button } from "react-bootstrap";
 import { useFindScenes } from "src/core/StashService";
 import { ListFilterModel } from "src/models/list-filter/filter";
 import * as GQL from "src/core/generated-graphql";

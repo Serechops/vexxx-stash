@@ -3,7 +3,7 @@ import {
   faTriangleExclamation,
 } from "@fortawesome/free-solid-svg-icons";
 import React, { useState, useContext, createContext, useMemo } from "react";
-import { Button, Toast } from "react-bootstrap";
+import { Button, Snackbar, Alert, AlertTitle, IconButton, Box } from "@mui/material";
 import { FormattedMessage } from "react-intl";
 import { Icon } from "src/components/Shared/Icon";
 import { ModalComponent } from "src/components/Shared/Modal";
@@ -45,30 +45,38 @@ export const ToastProvider: React.FC = ({ children }) => {
     if (!toast || expanded) return null;
 
     return (
-      <Toast
-        autohide
-        key={toast.id}
+      <Snackbar
+        open={!!toast && !hiding}
+        autoHideDuration={toast.delay ?? 3000}
         onClose={() => setHiding(true)}
-        className={toast.variant ?? "success"}
-        delay={toast.delay ?? 3000}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
-        <Toast.Header>
-          <span className="mr-auto" onClick={() => expand()}>
-            {toast.content}
-          </span>
-          {toast.variant === "danger" && (
-            <Button
-              variant="minimal"
-              className="expand-error-button"
-              onClick={() => expand()}
-            >
-              <Icon icon={faArrowUpRightFromSquare} />
-            </Button>
+        <Alert
+          severity={toast.variant === "danger" ? "error" : toast.variant === "warning" ? "warning" : "success"}
+          variant="filled"
+          sx={{ width: '100%' }}
+          action={
+            toast.variant === "danger" ? (
+              <IconButton
+                size="small"
+                color="inherit"
+                onClick={() => expand()}
+              >
+                <Icon icon={faArrowUpRightFromSquare} />
+              </IconButton>
+            ) : undefined
+          }
+          onClose={() => setHiding(true)}
+        >
+          {typeof toast.content === 'string' ? (
+            <Box component="span">{toast.content}</Box>
+          ) : (
+            toast.content
           )}
-        </Toast.Header>
-      </Toast>
+        </Alert>
+      </Snackbar>
     );
-  }, [toast, expanded]);
+  }, [toast, expanded, hiding]);
 
   function addToast(item: IToast) {
     if (hiding || !toast || (item.priority ?? 0) >= (toast.priority ?? 0)) {
@@ -103,7 +111,7 @@ export const ToastProvider: React.FC = ({ children }) => {
           footerButtons={
             <>
               {!!navigator.clipboard && (
-                <Button variant="secondary" onClick={() => copyToClipboard()}>
+                <Button variant="contained" color="secondary" onClick={() => copyToClipboard()}>
                   <FormattedMessage id="actions.copy_to_clipboard" />
                 </Button>
               )}
@@ -113,7 +121,7 @@ export const ToastProvider: React.FC = ({ children }) => {
           {toast?.content}
         </ModalComponent>
       )}
-      <div className={cx("toast-container row", { hidden: !toast || hiding })}>
+      <div className={cx("toast-container", { hidden: !toast || hiding })}>
         {toastItem}
       </div>
     </ToastContext.Provider>

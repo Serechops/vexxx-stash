@@ -4,7 +4,7 @@ import {
   faClock,
 } from "@fortawesome/free-solid-svg-icons";
 import React, { useState, useEffect } from "react";
-import { Button, ButtonGroup, InputGroup, Form } from "react-bootstrap";
+import { Button, ButtonGroup, TextField, InputAdornment, Box } from "@mui/material";
 import { Icon } from "./Icon";
 import PercentUtils from "src/utils/percent";
 
@@ -67,9 +67,10 @@ export const PercentInput: React.FC<IProps> = (props: IProps) => {
   function renderButtons() {
     if (!props.disabled) {
       return (
-        <ButtonGroup vertical>
+        <ButtonGroup orientation="vertical" size="small">
           <Button
-            variant="secondary"
+            variant="outlined"
+            color="secondary"
             className="percent-button"
             disabled={props.disabled}
             onClick={() => increment()}
@@ -77,7 +78,8 @@ export const PercentInput: React.FC<IProps> = (props: IProps) => {
             <Icon icon={faChevronUp} />
           </Button>
           <Button
-            variant="secondary"
+            variant="outlined"
+            color="secondary"
             className="percent-button"
             disabled={props.disabled}
             onClick={() => decrement()}
@@ -98,7 +100,7 @@ export const PercentInput: React.FC<IProps> = (props: IProps) => {
   function maybeRenderReset() {
     if (props.onReset) {
       return (
-        <Button variant="secondary" onClick={onReset}>
+        <Button variant="outlined" color="secondary" onClick={onReset} size="small">
           <Icon icon={faClock} />
         </Button>
       );
@@ -106,35 +108,39 @@ export const PercentInput: React.FC<IProps> = (props: IProps) => {
   }
 
   return (
-    <div className={`percent-input ${props.className}`}>
-      <InputGroup>
-        <Form.Control
-          className="percent-control text-input"
-          disabled={props.disabled}
-          value={value ?? 0}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-            setValue(e.currentTarget.value)
+    <Box className={`percent-input ${props.className}`} sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5 }}>
+      <TextField
+        className="percent-control text-input"
+        disabled={props.disabled}
+        value={value ?? 0}
+        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+          setValue(e.currentTarget.value)
+        }
+        onBlur={() => {
+          if (props.mandatory || (value !== undefined && value !== "")) {
+            props.onValueChange(PercentUtils.stringToNumber(value), value);
+          } else {
+            props.onValueChange(undefined);
           }
-          onBlur={() => {
-            if (props.mandatory || (value !== undefined && value !== "")) {
-              props.onValueChange(PercentUtils.stringToNumber(value), value);
-            } else {
-              props.onValueChange(undefined);
-            }
-          }}
-          placeholder={
-            !props.disabled
-              ? props.placeholder
-                ? `${props.placeholder} (%)`
-                : "%"
-              : undefined
-          }
-        />
-        <InputGroup.Append>
-          {maybeRenderReset()}
-          {renderButtons()}
-        </InputGroup.Append>
-      </InputGroup>
-    </div>
+        }}
+        placeholder={
+          !props.disabled
+            ? props.placeholder
+              ? `${props.placeholder} (%)`
+              : "%"
+            : undefined
+        }
+        size="small"
+        variant="outlined"
+        InputProps={{
+          endAdornment: (
+            <InputAdornment position="end">
+              {maybeRenderReset()}
+            </InputAdornment>
+          ),
+        }}
+      />
+      {renderButtons()}
+    </Box>
   );
 };

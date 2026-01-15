@@ -3,8 +3,8 @@ import { ModalComponent } from "./Modal";
 import { useToast } from "src/hooks/Toast";
 import { useIntl } from "react-intl";
 import { faSignOutAlt } from "@fortawesome/free-solid-svg-icons";
-import { Col, Form, Row } from "react-bootstrap";
-import * as FormUtils from "src/utils/form";
+import { Box, Typography } from "@mui/material";
+import Grid from "@mui/material/Grid";
 import { mutateSceneAssignFile } from "src/core/StashService";
 import { Scene, SceneSelect } from "src/components/Scenes/SceneSelect";
 
@@ -75,26 +75,23 @@ export const ReassignFilesDialog: React.FC<IReassignFilesDialogProps> = (
       }}
       isRunning={reassigning}
     >
-      <Form>
-        <Form.Group controlId="dest" as={Row}>
-          {FormUtils.renderLabel({
-            title: intl.formatMessage({
-              id: "dialogs.reassign_files.destination",
-            }),
-            labelProps: {
-              column: true,
-              sm: 3,
-              xl: 12,
-            },
-          })}
-          <Col sm={9} xl={12}>
+      <Box>
+        <Grid container spacing={2} alignItems="center">
+          <Grid size={{ xs: 12, sm: 3 }}>
+            <Typography variant="body2" fontWeight="bold">
+              {intl.formatMessage({
+                id: "dialogs.reassign_files.destination",
+              })}
+            </Typography>
+          </Grid>
+          <Grid size={{ xs: 12, sm: 9 }}>
             <SceneSelect
               values={scenes}
               onSelect={(items) => setScenes(items)}
             />
-          </Col>
-        </Form.Group>
-      </Form>
+          </Grid>
+        </Grid>
+      </Box>
     </ModalComponent>
   );
 };

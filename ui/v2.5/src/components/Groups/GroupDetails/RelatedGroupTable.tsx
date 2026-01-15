@@ -1,7 +1,8 @@
 import React, { useMemo } from "react";
 import { FormattedMessage } from "react-intl";
 import * as GQL from "src/core/generated-graphql";
-import { Form, Row, Col } from "react-bootstrap";
+import { TextField, Typography } from "@mui/material";
+import { Row, Col } from "src/components/Shared/Layouts";
 import { Group, GroupSelect } from "src/components/Groups/GroupSelect";
 import cx from "classnames";
 import { ListFilterModel } from "src/models/list-filter/filter";
@@ -89,9 +90,11 @@ export const RelatedGroupTable: React.FC<{
     <div className={cx("group-table", { "no-groups": !value.length })}>
       <Row className="group-table-header">
         <Col xs={9}></Col>
-        <Form.Label column xs={3} className="group-scene-number-header">
-          <FormattedMessage id="description" />
-        </Form.Label>
+        <Col xs={3}>
+          <Typography variant="body2" className="group-scene-number-header">
+            <FormattedMessage id="description" />
+          </Typography>
+        </Col>
       </Row>
       {value.map((m, i) => (
         <Row key={m.group.id} className="group-row">
@@ -106,7 +109,9 @@ export const RelatedGroupTable: React.FC<{
             />
           </Col>
           <Col xs={3}>
-            <Form.Control
+            <TextField
+              size="small"
+              fullWidth
               className="text-input"
               value={m.description ?? ""}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => {

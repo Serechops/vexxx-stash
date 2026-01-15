@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Button } from "react-bootstrap";
+import { Button } from "@mui/material";
 import { Icon } from "src/components/Shared/Icon";
 import {
   faCheckCircle,
@@ -95,56 +95,58 @@ const CandidateItem: React.FC<{
   singleValue = false,
   className,
 }) => {
-  const singleValueClass = singleValue ? "single-value" : "";
-  const includeIcon = (
-    <Icon
-      className={`fa-fw include-button ${singleValueClass}`}
-      icon={faPlus}
-    />
-  );
-  const excludeIcon = (
-    <Icon className={`fa-fw exclude-icon ${singleValueClass}`} icon={faMinus} />
-  );
+    const singleValueClass = singleValue ? "single-value" : "";
+    const includeIcon = (
+      <Icon
+        className={`fa-fw include-button ${singleValueClass}`}
+        icon={faPlus}
+      />
+    );
+    const excludeIcon = (
+      <Icon className={`fa-fw exclude-icon ${singleValueClass}`} icon={faMinus} />
+    );
 
-  return (
-    <li
-      className={cx("unselected-object", className, {
-        "modifier-object": modifier,
-      })}
-    >
-      <a
-        onClick={() => onSelect(false)}
-        onKeyDown={keyboardClickHandler(() => onSelect(false))}
-        tabIndex={0}
+    return (
+      <li
+        className={cx("unselected-object", className, {
+          "modifier-object": modifier,
+        })}
       >
-        <div className="label-group">
-          {includeIcon}
-          <TruncatedInlineText
-            className="unselected-object-label"
-            text={label}
-          />
-        </div>
-        <div>
-          {/* TODO item count */}
-          {/* <span className="object-count">{p.id}</span> */}
-          {canExclude && (
-            <Button
-              onClick={(e) => {
-                e.stopPropagation();
-                onSelect(true);
-              }}
-              onKeyDown={(e) => e.stopPropagation()}
-              className="minimal exclude-button"
-            >
-              <span className="exclude-button-text">exclude</span>
-              {excludeIcon}
-            </Button>
-          )}
-        </div>
-      </a>
-    </li>
-  );
-};
+        <a
+          onClick={() => onSelect(false)}
+          onKeyDown={keyboardClickHandler(() => onSelect(false))}
+          tabIndex={0}
+        >
+          <div className="label-group">
+            {includeIcon}
+            <TruncatedInlineText
+              className="unselected-object-label"
+              text={label}
+            />
+          </div>
+          <div>
+            {/* TODO item count */}
+            {/* <span className="object-count">{p.id}</span> */}
+            {canExclude && (
+              <Button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelect(true);
+                }}
+                onKeyDown={(e) => e.stopPropagation()}
+                size="small"
+                variant="text"
+                sx={{ minWidth: 'auto', padding: '2px 4px' }}
+              >
+                <span className="exclude-button-text">exclude</span>
+                {excludeIcon}
+              </Button>
+            )}
+          </div>
+        </a>
+      </li>
+    );
+  };
 
 export type Option<T = unknown> = {
   id: string;
@@ -232,33 +234,33 @@ export const CandidateList: React.FC<
   canExclude,
   singleValue,
 }) => {
-  const showQueryField =
-    inputFocus !== undefined && query !== undefined && setQuery !== undefined;
+    const showQueryField =
+      inputFocus !== undefined && query !== undefined && setQuery !== undefined;
 
-  return (
-    <div className="queryable-candidate-list">
-      {showQueryField && (
-        <QueryField
-          focus={inputFocus}
-          value={query}
-          setValue={(v) => setQuery(v)}
-        />
-      )}
-      <ul>
-        {items.map((p) => (
-          <CandidateItem
-            key={p.id}
-            className={p.className}
-            onSelect={(exclude) => onSelect(p, exclude)}
-            label={p.label}
-            canExclude={canExclude && (p.canExclude ?? true)}
-            singleValue={singleValue}
+    return (
+      <div className="queryable-candidate-list">
+        {showQueryField && (
+          <QueryField
+            focus={inputFocus}
+            value={query}
+            setValue={(v) => setQuery(v)}
           />
-        ))}
-      </ul>
-    </div>
-  );
-};
+        )}
+        <ul>
+          {items.map((p) => (
+            <CandidateItem
+              key={p.id}
+              className={p.className}
+              onSelect={(exclude) => onSelect(p, exclude)}
+              label={p.label}
+              canExclude={canExclude && (p.canExclude ?? true)}
+              singleValue={singleValue}
+            />
+          ))}
+        </ul>
+      </div>
+    );
+  };
 
 export const SidebarListFilter: React.FC<{
   title: React.ReactNode;
@@ -296,72 +298,72 @@ export const SidebarListFilter: React.FC<{
   onOpen,
   sectionID,
 }) => {
-  // TODO - sort items?
+    // TODO - sort items?
 
-  const inputFocus = useFocus();
-  const [, setInputFocus] = inputFocus;
+    const inputFocus = useFocus();
+    const [, setInputFocus] = inputFocus;
 
-  function unselectHook(item: Option, exclude: boolean) {
-    onUnselect(item, exclude);
+    function unselectHook(item: Option, exclude: boolean) {
+      onUnselect(item, exclude);
 
-    // focus the input box
-    // don't do this on touch devices, as it's annoying
-    if (!ScreenUtils.isTouch()) {
-      setInputFocus();
-    }
-  }
-
-  function selectHook(item: Option, exclude: boolean) {
-    onSelect(item, exclude);
-
-    // reset filter query after selecting
-    setQuery?.("");
-
-    // focus the input box
-    // don't do this on touch devices, as it's annoying
-    if (!ScreenUtils.isTouch()) {
-      setInputFocus();
-    }
-  }
-
-  return (
-    <SidebarSection
-      className="sidebar-list-filter"
-      text={title}
-      sectionID={sectionID}
-      outsideCollapse={
-        <>
-          {preSelected ? <div className="extra">{preSelected}</div> : null}
-          <SelectedList
-            items={selected}
-            onUnselect={(i) => unselectHook(i, false)}
-          />
-          {excluded && (
-            <SelectedList
-              items={excluded}
-              onUnselect={(i) => unselectHook(i, true)}
-              excluded
-            />
-          )}
-          {postSelected ? <div className="extra">{postSelected}</div> : null}
-        </>
+      // focus the input box
+      // don't do this on touch devices, as it's annoying
+      if (!ScreenUtils.isTouch()) {
+        setInputFocus();
       }
-      onOpen={onOpen}
-    >
-      {preCandidates ? <div className="extra">{preCandidates}</div> : null}
-      <CandidateList
-        items={candidates}
-        onSelect={selectHook}
-        canExclude={canExclude}
-        inputFocus={inputFocus}
-        query={query}
-        setQuery={setQuery}
-        singleValue={singleValue}
-      />
-      {postCandidates ? <div className="extra">{postCandidates}</div> : null}
-    </SidebarSection>
-  );
-};
+    }
+
+    function selectHook(item: Option, exclude: boolean) {
+      onSelect(item, exclude);
+
+      // reset filter query after selecting
+      setQuery?.("");
+
+      // focus the input box
+      // don't do this on touch devices, as it's annoying
+      if (!ScreenUtils.isTouch()) {
+        setInputFocus();
+      }
+    }
+
+    return (
+      <SidebarSection
+        className="sidebar-list-filter"
+        text={title}
+        sectionID={sectionID}
+        outsideCollapse={
+          <>
+            {preSelected ? <div className="extra">{preSelected}</div> : null}
+            <SelectedList
+              items={selected}
+              onUnselect={(i) => unselectHook(i, false)}
+            />
+            {excluded && (
+              <SelectedList
+                items={excluded}
+                onUnselect={(i) => unselectHook(i, true)}
+                excluded
+              />
+            )}
+            {postSelected ? <div className="extra">{postSelected}</div> : null}
+          </>
+        }
+        onOpen={onOpen}
+      >
+        {preCandidates ? <div className="extra">{preCandidates}</div> : null}
+        <CandidateList
+          items={candidates}
+          onSelect={selectHook}
+          canExclude={canExclude}
+          inputFocus={inputFocus}
+          query={query}
+          setQuery={setQuery}
+          singleValue={singleValue}
+        />
+        {postCandidates ? <div className="extra">{postCandidates}</div> : null}
+      </SidebarSection>
+    );
+  };
 
 export function useStaticResults<T>(r: T) {
   return () => ({ results: r, loading: false });

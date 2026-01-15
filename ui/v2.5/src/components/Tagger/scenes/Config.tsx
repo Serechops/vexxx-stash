@@ -1,13 +1,21 @@
 import { faTimes } from "@fortawesome/free-solid-svg-icons";
 import React, { useContext, useState } from "react";
 import {
-  Badge,
   Button,
-  Card,
+  Chip,
+  Paper,
   Collapse,
-  Form,
-  InputGroup,
-} from "react-bootstrap";
+  TextField,
+  Box,
+  Typography,
+  FormControlLabel,
+  Checkbox,
+  MenuItem,
+  FormHelperText,
+  Stack,
+  InputAdornment,
+  IconButton,
+} from "@mui/material";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Icon } from "src/components/Shared/Icon";
@@ -58,57 +66,57 @@ const Blacklist: React.FC<{
   }
 
   return (
-    <div>
-      <h5>
+    <Box>
+      <Typography variant="h6" gutterBottom>
         <FormattedMessage id="component_tagger.config.blacklist_label" />
-      </h5>
-      <Form.Group>
-        <InputGroup hasValidation>
-          <Form.Control
-            className="text-input"
-            value={currentValue}
-            onChange={(e) => {
-              setCurrentValue(e.currentTarget.value);
-              setError(undefined);
-            }}
-            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-              if (e.key === "Enter") {
-                addBlacklistItem();
-                e.preventDefault();
-              }
-            }}
-            isInvalid={!!error}
-          />
-          <InputGroup.Append>
-            <Button onClick={() => addBlacklistItem()}>
-              <FormattedMessage id="actions.add" />
-            </Button>
-          </InputGroup.Append>
-          <Form.Control.Feedback type="invalid">{error}</Form.Control.Feedback>
-        </InputGroup>
-      </Form.Group>
-      <div>
+      </Typography>
+      <Box mb={2}>
+        <TextField
+          fullWidth
+          value={currentValue}
+          onChange={(e) => {
+            setCurrentValue(e.target.value);
+            setError(undefined);
+          }}
+          onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+            if (e.key === "Enter") {
+              addBlacklistItem();
+              e.preventDefault();
+            }
+          }}
+          error={!!error}
+          helperText={error}
+          slotProps={{
+            input: {
+              endAdornment: (
+                <InputAdornment position="end">
+                  <Button variant="contained" size="small" onClick={() => addBlacklistItem()}>
+                    <FormattedMessage id="actions.add" />
+                  </Button>
+                </InputAdornment>
+              )
+            }
+          }}
+        />
+      </Box>
+      <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
         {intl.formatMessage(
           { id: "component_tagger.config.blacklist_desc" },
-          { chars_require_escape: <code>[\^$.|?*+()</code> }
+          { chars_require_escape: <code>[\\^$.|?*+()</code> }
         )}
-      </div>
-      {list.map((item, index) => (
-        <Badge
-          className="tag-item d-inline-block"
-          variant="secondary"
-          key={item}
-        >
-          {item.toString()}
-          <Button
-            className="minimal ml-2"
-            onClick={() => removeBlacklistItem(index)}
-          >
-            <Icon icon={faTimes} />
-          </Button>
-        </Badge>
-      ))}
-    </div>
+      </Typography>
+      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+        {list.map((item, index) => (
+          <Chip
+            key={item}
+            label={item.toString()}
+            onDelete={() => removeBlacklistItem(index)}
+            deleteIcon={<Icon icon={faTimes} />}
+            sx={{ mb: 1 }}
+          />
+        ))}
+      </Stack>
+    </Box>
   );
 };
 
@@ -123,178 +131,187 @@ const Config: React.FC<IConfigProps> = ({ show }) => {
   function renderGenderCheckbox(gender: GenderEnum) {
     const performerGenders = config.performerGenders || genderList.slice();
     return (
-      <Form.Check
-        id={`gender-${gender}`}
+      <FormControlLabel
         key={gender}
+        control={
+          <Checkbox
+            checked={performerGenders.includes(gender)}
+            onChange={(e) => {
+              const isChecked = e.target.checked;
+              setConfig({
+                ...config,
+                performerGenders: isChecked
+                  ? [...performerGenders, gender]
+                  : performerGenders.filter((g) => g !== gender),
+              });
+            }}
+            size="small"
+          />
+        }
         label={<FormattedMessage id={`gender_types.${gender}`} />}
-        checked={performerGenders.includes(gender)}
-        onChange={(e) => {
-          const isChecked = e.currentTarget.checked;
-          setConfig({
-            ...config,
-            performerGenders: isChecked
-              ? [...performerGenders, gender]
-              : performerGenders.filter((g) => g !== gender),
-          });
-        }}
       />
     );
   }
 
   return (
     <Collapse in={show}>
-      <Card>
-        <div className="row">
-          <h4 className="col-12">
+      <Paper sx={{ p: 2, mt: 2 }}>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+          <Typography variant="h5" sx={{ width: '100%' }}>
             <FormattedMessage id="configuration" />
-          </h4>
-          <hr className="w-100" />
-          <Form className="col-md-6">
-            <Form.Group
-              controlId="performer-genders"
-              className="align-items-center"
-            >
-              <Form.Label>
+          </Typography>
+          <Box sx={{ flexBasis: { xs: '100%', md: '48%' } }}>
+            <Box mb={3}>
+              <Typography variant="subtitle1" gutterBottom>
                 <FormattedMessage id="component_tagger.config.performer_genders.heading" />
-              </Form.Label>
-              {genderList.map(renderGenderCheckbox)}
-              <Form.Text>
+              </Typography>
+              <Stack direction="row" flexWrap="wrap">
+                {genderList.map(renderGenderCheckbox)}
+              </Stack>
+              <FormHelperText>
                 <FormattedMessage id="component_tagger.config.performer_genders.description" />
-              </Form.Text>
-            </Form.Group>
-            <Form.Group controlId="set-cover" className="align-items-center">
-              <Form.Check
-                label={
-                  <FormattedMessage id="component_tagger.config.set_cover_label" />
+              </FormHelperText>
+            </Box>
+
+            <Box mb={3}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={config.setCoverImage}
+                    onChange={(e) =>
+                      setConfig({
+                        ...config,
+                        setCoverImage: e.target.checked,
+                      })
+                    }
+                  />
                 }
-                checked={config.setCoverImage}
-                onChange={(e) =>
-                  setConfig({
-                    ...config,
-                    setCoverImage: e.currentTarget.checked,
-                  })
-                }
+                label={<FormattedMessage id="component_tagger.config.set_cover_label" />}
               />
-              <Form.Text>
+              <FormHelperText>
                 <FormattedMessage id="component_tagger.config.set_cover_desc" />
-              </Form.Text>
-            </Form.Group>
-            <Form.Group className="align-items-center">
-              <div className="d-flex align-items-center">
-                <Form.Check
-                  id="tag-mode"
-                  label={
-                    <FormattedMessage id="component_tagger.config.set_tag_label" />
+              </FormHelperText>
+            </Box>
+
+            <Box mb={3}>
+              <Stack direction="row" alignItems="center" spacing={2}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={config.setTags}
+                      onChange={(e) =>
+                        setConfig({ ...config, setTags: e.target.checked })
+                      }
+                    />
                   }
-                  className="mr-4"
-                  checked={config.setTags}
-                  onChange={(e) =>
-                    setConfig({ ...config, setTags: e.currentTarget.checked })
-                  }
+                  label={<FormattedMessage id="component_tagger.config.set_tag_label" />}
                 />
-                <Form.Control
-                  id="tag-operation"
-                  className="col-md-2 col-3 input-control"
-                  as="select"
+                <TextField
+                  select
+                  size="small"
                   value={config.tagOperation}
                   onChange={(e) =>
                     setConfig({
                       ...config,
-                      tagOperation: e.currentTarget.value as TagOperation,
+                      tagOperation: e.target.value as TagOperation,
                     })
                   }
                   disabled={!config.setTags}
+                  sx={{ minWidth: 120 }}
                 >
-                  <option value="merge">
+                  <MenuItem value="merge">
                     {intl.formatMessage({ id: "actions.merge" })}
-                  </option>
-                  <option value="overwrite">
+                  </MenuItem>
+                  <MenuItem value="overwrite">
                     {intl.formatMessage({ id: "actions.overwrite" })}
-                  </option>
-                </Form.Control>
-              </div>
-              <Form.Text>
+                  </MenuItem>
+                </TextField>
+              </Stack>
+              <FormHelperText>
                 <FormattedMessage id="component_tagger.config.set_tag_desc" />
-              </Form.Text>
-            </Form.Group>
+              </FormHelperText>
+            </Box>
 
-            <Form.Group controlId="mode-select">
-              <div className="row no-gutters">
-                <Form.Label className="mr-4 mt-1">
-                  <FormattedMessage id="component_tagger.config.query_mode_label" />
-                  :
-                </Form.Label>
-                <Form.Control
-                  as="select"
-                  className="col-md-2 col-3 input-control"
+            <Box mb={3}>
+              <Stack direction="row" alignItems="center" spacing={2}>
+                <Typography>
+                  <FormattedMessage id="component_tagger.config.query_mode_label" />:
+                </Typography>
+                <TextField
+                  select
+                  size="small"
                   value={config.mode}
                   onChange={(e) =>
                     setConfig({
                       ...config,
-                      mode: e.currentTarget.value as ParseMode,
+                      mode: e.target.value as ParseMode,
                     })
                   }
+                  sx={{ minWidth: 120 }}
                 >
-                  <option value="auto">
+                  <MenuItem value="auto">
                     {intl.formatMessage({
                       id: "component_tagger.config.query_mode_auto",
                     })}
-                  </option>
-                  <option value="filename">
+                  </MenuItem>
+                  <MenuItem value="filename">
                     {intl.formatMessage({
                       id: "component_tagger.config.query_mode_filename",
                     })}
-                  </option>
-                  <option value="dir">
+                  </MenuItem>
+                  <MenuItem value="dir">
                     {intl.formatMessage({
                       id: "component_tagger.config.query_mode_dir",
                     })}
-                  </option>
-                  <option value="path">
+                  </MenuItem>
+                  <MenuItem value="path">
                     {intl.formatMessage({
                       id: "component_tagger.config.query_mode_path",
                     })}
-                  </option>
-                  <option value="metadata">
+                  </MenuItem>
+                  <MenuItem value="metadata">
                     {intl.formatMessage({
                       id: "component_tagger.config.query_mode_metadata",
                     })}
-                  </option>
-                </Form.Control>
-              </div>
-              <Form.Text>
+                  </MenuItem>
+                </TextField>
+              </Stack>
+              <FormHelperText>
                 {intl.formatMessage({
                   id: `component_tagger.config.query_mode_${config.mode}_desc`,
                   defaultMessage: "Unknown query mode",
                 })}
-              </Form.Text>
-            </Form.Group>
-            <Form.Group controlId="toggle-organized">
-              <Form.Check
-                label={
-                  <FormattedMessage id="component_tagger.config.mark_organized_label" />
+              </FormHelperText>
+            </Box>
+
+            <Box mb={3}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={config.markSceneAsOrganizedOnSave}
+                    onChange={(e) =>
+                      setConfig({
+                        ...config,
+                        markSceneAsOrganizedOnSave: e.target.checked,
+                      })
+                    }
+                  />
                 }
-                checked={config.markSceneAsOrganizedOnSave}
-                onChange={(e) =>
-                  setConfig({
-                    ...config,
-                    markSceneAsOrganizedOnSave: e.currentTarget.checked,
-                  })
-                }
+                label={<FormattedMessage id="component_tagger.config.mark_organized_label" />}
               />
-              <Form.Text>
+              <FormHelperText>
                 <FormattedMessage id="component_tagger.config.mark_organized_desc" />
-              </Form.Text>
-            </Form.Group>
-          </Form>
-          <div className="col-md-6">
+              </FormHelperText>
+            </Box>
+          </Box>
+          <Box sx={{ flexBasis: { xs: '100%', md: '48%' } }}>
             <Blacklist
               list={config.blacklist}
               setList={(blacklist) => setConfig({ ...config, blacklist })}
             />
-          </div>
-        </div>
-      </Card>
+          </Box>
+        </Box>
+      </Paper>
     </Collapse>
   );
 };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Form, Button } from "react-bootstrap";
+import { Box, Button } from "@mui/material";
 import { mutateMetadataGenerate } from "src/core/StashService";
 import { ModalComponent } from "../Shared/Modal";
 import { Icon } from "src/components/Shared/Icon";
@@ -91,7 +91,7 @@ export const GenerateDialog: React.FC<ISceneGenerateDialog> = ({
   const selectionStatus = useMemo(() => {
     if (selectedIds) {
       return (
-        <Form.Group id="selected-generate-ids">
+        <Box id="selected-generate-ids" sx={{ mb: 2 }}>
           <FormattedMessage
             id="config.tasks.generate.generating_scenes"
             values={{
@@ -107,7 +107,7 @@ export const GenerateDialog: React.FC<ISceneGenerateDialog> = ({
             }}
           />
           .
-        </Form.Group>
+        </Box>
       );
     }
     const message = (
@@ -131,9 +131,9 @@ export const GenerateDialog: React.FC<ISceneGenerateDialog> = ({
     );
 
     return (
-      <Form.Group className="dialog-selected-folders">
+      <Box className="dialog-selected-folders" sx={{ mb: 2 }}>
         <div>{message}</div>
-      </Form.Group>
+      </Box>
     );
   }, [selectedIds, intl]);
 
@@ -197,7 +197,7 @@ export const GenerateDialog: React.FC<ISceneGenerateDialog> = ({
         </Button>
       }
     >
-      <Form>
+      <Box component="form">
         {selectionStatus}
         <SettingsContext>
           <SettingSection>
@@ -209,7 +209,7 @@ export const GenerateDialog: React.FC<ISceneGenerateDialog> = ({
             />
           </SettingSection>
         </SettingsContext>
-      </Form>
+      </Box>
     </ModalComponent>
   );
 };

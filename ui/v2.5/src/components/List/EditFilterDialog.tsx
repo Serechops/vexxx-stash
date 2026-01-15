@@ -6,7 +6,22 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { Accordion, Button, Card, Form, Modal } from "react-bootstrap";
+import {
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Button,
+  Card,
+  CardContent,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Box,
+  IconButton,
+} from "@mui/material";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import cx from "classnames";
 import {
   Criterion,
@@ -142,58 +157,56 @@ const CriterionOptionList: React.FC<ICriterionList> = ({
   }
 
   function renderCard(c: CriterionOption, isPin: boolean) {
+    const isExpanded = selected?.type === c.type;
     return (
-      <Card key={c.type} data-type={c.type} ref={criteriaRefs[c.type]!}>
-        <Accordion.Toggle className="filter-item-header" eventKey={c.type}>
-          <span className="mr-auto">
-            <Icon
-              className="collapse-icon fa-fw"
-              icon={type === c.type ? faChevronDown : faChevronRight}
-            />
+      <Accordion
+        key={c.type}
+        expanded={isExpanded}
+        onChange={() => onSelect(isExpanded ? null : c.type)}
+        sx={{ mb: 0.5 }}
+      >
+        <AccordionSummary
+          expandIcon={<ExpandMoreIcon />}
+          className="filter-item-header"
+          ref={criteriaRefs[c.type] as any}
+          data-type={c.type}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', flex: 1, mr: 1 }}>
             <FormattedMessage
               id={!sfwContentMode ? c.messageID : c.sfwMessageID ?? c.messageID}
             />
-          </span>
+          </Box>
           {criteria.some((cc) => c.type === cc) && (
-            <Button
-              className="remove-criterion-button"
-              variant="minimal"
+            <IconButton
+              size="small"
               onClick={(e) => removeClicked(e, c.type)}
+              sx={{ mr: 0.5 }}
             >
               <Icon icon={faTimes} />
-            </Button>
+            </IconButton>
           )}
-          <Button
-            className="pin-criterion-button"
-            variant="minimal"
+          <IconButton
+            size="small"
             onClick={(e) => togglePin(e, c)}
           >
             <Icon icon={faThumbtack} className={isPin ? "" : "tilted"} />
-          </Button>
-        </Accordion.Toggle>
-        <Accordion.Collapse eventKey={c.type}>
+          </IconButton>
+        </AccordionSummary>
+        <AccordionDetails>
           {(type === c.type && currentCriterion) ||
-          (prevType === c.type && prevCriterion) ? (
-            <Card.Body>
-              <CriterionEditor
-                criterion={getReleventCriterion(c.type)!}
-                setCriterion={setCriterion}
-              />
-            </Card.Body>
-          ) : (
-            <Card.Body></Card.Body>
-          )}
-        </Accordion.Collapse>
-      </Card>
+            (prevType === c.type && prevCriterion) ? (
+            <CriterionEditor
+              criterion={getReleventCriterion(c.type)!}
+              setCriterion={setCriterion}
+            />
+          ) : null}
+        </AccordionDetails>
+      </Accordion>
     );
   }
 
   return (
-    <Accordion
-      className="criterion-list"
-      activeKey={selected?.type}
-      onSelect={onSelect}
-    >
+    <Box className="criterion-list">
       {pinnedCriterionOptions.length !== 0 && (
         <>
           {pinnedCriterionOptions.map((c) => renderCard(c, true))}
@@ -201,7 +214,7 @@ const CriterionOptionList: React.FC<ICriterionList> = ({
         </>
       )}
       {criterionOptions.map((c) => renderCard(c, false))}
-    </Accordion>
+    </Box>
   );
 };
 
@@ -527,27 +540,30 @@ export const EditFilterDialog: React.FC<IEditFilterProps> = ({
           }}
         />
       )}
-      <Modal
-        show={!showSaveDialog && !showLoadDialog}
-        onHide={() => onCancel()}
-        // need sfw mode class because dialog is outside body
+      <Dialog
+        open={!showSaveDialog && !showLoadDialog}
+        onClose={() => onCancel()}
+        maxWidth="sm"
+        fullWidth
         className={cx("edit-filter-dialog", {
           "sfw-content-mode": sfwContentMode,
         })}
       >
-        <Modal.Header>
-          <div>
-            <FormattedMessage id="search_filter.edit_filter" />
-          </div>
-          <Form.Control
-            className="btn-secondary search-input"
-            onChange={(e) => setSearchValue(e.target.value)}
-            value={searchValue}
-            placeholder={`${intl.formatMessage({ id: "actions.search" })}…`}
-            ref={searchRef}
-          />
-        </Modal.Header>
-        <Modal.Body>
+        <DialogTitle>
+          <Box display="flex" justifyContent="space-between" alignItems="center">
+            <span><FormattedMessage id="search_filter.edit_filter" /></span>
+            <TextField
+              size="small"
+              variant="outlined"
+              className="search-input"
+              onChange={(e) => setSearchValue(e.target.value)}
+              value={searchValue}
+              placeholder={`${intl.formatMessage({ id: "actions.search" })}…`}
+              inputRef={searchRef}
+            />
+          </Box>
+        </DialogTitle>
+        <DialogContent>
           <div
             className={cx("dialog-content", {
               "criterion-selected": !!criterion,
@@ -585,34 +601,39 @@ export const EditFilterDialog: React.FC<IEditFilterProps> = ({
               </div>
             )}
           </div>
-        </Modal.Body>
-        <Modal.Footer>
-          <div>
-            <Button
-              variant="secondary"
-              onClick={() => setShowLoadDialog(true)}
-              title={intl.formatMessage({ id: "actions.load_filter" })}
-            >
-              <FormattedMessage id="actions.load" />…
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => setShowSaveDialog(true)}
-              title={intl.formatMessage({ id: "actions.save_filter" })}
-            >
-              <FormattedMessage id="actions.save" />…
-            </Button>
-          </div>
-          <div>
-            <Button variant="secondary" onClick={() => onCancel()}>
-              <FormattedMessage id="actions.cancel" />
-            </Button>
-            <Button onClick={() => onApply(currentFilter)}>
-              <FormattedMessage id="actions.apply" />
-            </Button>
-          </div>
-        </Modal.Footer>
-      </Modal>
+        </DialogContent>
+        <DialogActions>
+          <Box display="flex" justifyContent="space-between" width="100%">
+            <Box>
+              <Button
+                variant="contained"
+                color="secondary"
+                onClick={() => setShowLoadDialog(true)}
+                title={intl.formatMessage({ id: "actions.load_filter" })}
+                sx={{ mr: 1 }}
+              >
+                <FormattedMessage id="actions.load" />…
+              </Button>
+              <Button
+                variant="contained"
+                color="secondary"
+                onClick={() => setShowSaveDialog(true)}
+                title={intl.formatMessage({ id: "actions.save_filter" })}
+              >
+                <FormattedMessage id="actions.save" />…
+              </Button>
+            </Box>
+            <Box>
+              <Button variant="contained" color="secondary" onClick={() => onCancel()} sx={{ mr: 1 }}>
+                <FormattedMessage id="actions.cancel" />
+              </Button>
+              <Button variant="contained" color="primary" onClick={() => onApply(currentFilter)}>
+                <FormattedMessage id="actions.apply" />
+              </Button>
+            </Box>
+          </Box>
+        </DialogActions>
+      </Dialog>
     </>
   );
 };

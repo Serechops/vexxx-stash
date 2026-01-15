@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Button } from "react-bootstrap";
+import { Button, Box, IconButton, Typography, Stack } from "@mui/material";
 import { FormattedMessage, useIntl } from "react-intl";
 import cx from "classnames";
 import { IconDefinition } from "@fortawesome/fontawesome-svg-core";
@@ -96,8 +96,8 @@ const PerformerModal: React.FC<IPerformerModalProps> = ({
           {!create && (
             <Button
               onClick={() => toggleField(name)}
-              variant="secondary"
-              className={excluded[name] ? "text-muted" : "text-success"}
+              variant="outlined"
+              color={excluded[name] ? "inherit" : "success"}
             >
               <Icon icon={excluded[name] ? faTimes : faCheck} />
             </Button>
@@ -130,8 +130,8 @@ const PerformerModal: React.FC<IPerformerModalProps> = ({
           {!create && (
             <Button
               onClick={() => toggleField(name)}
-              variant="secondary"
-              className={excluded[name] ? "text-muted" : "text-success"}
+              variant="outlined"
+              color={excluded[name] ? "inherit" : "success"}
             >
               <Icon icon={excluded[name] ? faTimes : faCheck} />
             </Button>
@@ -164,11 +164,9 @@ const PerformerModal: React.FC<IPerformerModalProps> = ({
           {!create && (
             <Button
               onClick={() => toggleField("image")}
-              variant="secondary"
-              className={cx(
-                "performer-image-exclude",
-                excluded.image ? "text-muted" : "text-success"
-              )}
+              variant="outlined"
+              color={excluded.image ? "inherit" : "success"}
+              className="performer-image-exclude"
             >
               <Icon icon={excluded.image ? faTimes : faCheck} />
             </Button>
@@ -190,7 +188,7 @@ const PerformerModal: React.FC<IPerformerModalProps> = ({
           )}
         </div>
         <div className="d-flex mt-3">
-          <Button onClick={setPrev} disabled={images.length === 1}>
+          <Button onClick={setPrev} disabled={images.length === 1} variant="outlined">
             <Icon icon={faArrowLeft} />
           </Button>
           <h5 className="flex-grow-1">
@@ -198,7 +196,7 @@ const PerformerModal: React.FC<IPerformerModalProps> = ({
             <br />
             {imageIndex + 1} of {images.length}
           </h5>
-          <Button onClick={setNext} disabled={images.length === 1}>
+          <Button onClick={setNext} disabled={images.length === 1} variant="outlined">
             <Icon icon={faArrowRight} />
           </Button>
         </div>

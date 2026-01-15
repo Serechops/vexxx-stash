@@ -1,7 +1,16 @@
 import React, { useState, useContext, PropsWithChildren, useMemo } from "react";
 import * as GQL from "src/core/generated-graphql";
 import { Link, useHistory } from "react-router-dom";
-import { Button, Collapse, Form, InputGroup } from "react-bootstrap";
+import {
+  Button,
+  Collapse,
+  TextField,
+  Box,
+  InputAdornment,
+  IconButton,
+  Typography,
+  Stack,
+} from "@mui/material";
 import { FormattedMessage } from "react-intl";
 
 import { sortPerformers } from "src/core/performers";
@@ -31,19 +40,19 @@ const TaggerSceneDetails: React.FC<ITaggerSceneDetails> = ({ scene }) => {
   const sorted = sortPerformers(scene.performers);
 
   return (
-    <div className="original-scene-details">
+    <Box className="original-scene-details">
       <Collapse in={open}>
-        <div className="row">
-          <div className="col col-lg-6">
-            <h4>{objectTitle(scene)}</h4>
-            <h5>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+          <Box sx={{ flex: { xs: '1 1 100%', lg: '1 1 48%' } }}>
+            <Typography variant="h6">{objectTitle(scene)}</Typography>
+            <Typography variant="subtitle1" color="textSecondary">
               {scene.studio?.name}
               {scene.studio?.name && scene.date && ` • `}
               {scene.date}
-            </h5>
+            </Typography>
             <TruncatedText text={scene.details ?? ""} lineCount={3} />
-          </div>
-          <div className="col col-lg-6">
+          </Box>
+          <Box sx={{ flex: { xs: '1 1 100%', lg: '1 1 48%' } }}>
             <div>
               {sorted.map((performer) => (
                 <div className="performer-tag-container row" key={performer.id}>
@@ -71,17 +80,17 @@ const TaggerSceneDetails: React.FC<ITaggerSceneDetails> = ({ scene }) => {
                 <TagLink key={tag.id} tag={tag} />
               ))}
             </div>
-          </div>
-        </div>
+          </Box>
+        </Box>
       </Collapse>
-      <Button
+      <IconButton
         onClick={() => setOpen(!open)}
-        className="minimal collapse-button"
-        size="lg"
+        className="collapse-button"
+        size="large"
       >
         <Icon icon={open ? faChevronUp : faChevronDown} />
-      </Button>
-    </div>
+      </IconButton>
+    </Box>
   );
 };
 
@@ -179,35 +188,38 @@ export const TaggerScene: React.FC<PropsWithChildren<ITaggerScene>> = ({
     const isOverridden = !!queryOverride;
 
     return (
-      <InputGroup>
-        <InputGroup.Prepend>
-          <InputGroup.Text>
-            <FormattedMessage id="component_tagger.noun_query" />
-            {isOverridden && <span className="ml-1 text-info">(Global)</span>}
-          </InputGroup.Text>
-        </InputGroup.Prepend>
-        <Form.Control
-          className="text-input"
-          value={displayValue}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-            setQueryString(e.currentTarget.value);
-          }}
-          onKeyPress={(e: React.KeyboardEvent<HTMLInputElement>) =>
-            e.key === "Enter" && query()
+      <TextField
+        fullWidth
+        size="small"
+        value={displayValue}
+        onChange={(e) => setQueryString(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && query()}
+        sx={isOverridden ? { '& .MuiOutlinedInput-root': { backgroundColor: '#2a4a5e' } } : undefined}
+        slotProps={{
+          input: {
+            startAdornment: (
+              <InputAdornment position="start">
+                <Typography variant="body2" color="textSecondary">
+                  <FormattedMessage id="component_tagger.noun_query" />
+                  {isOverridden && <span className="ml-1 text-info">(Global)</span>}
+                </Typography>
+              </InputAdornment>
+            ),
+            endAdornment: (
+              <InputAdornment position="end">
+                <OperationButton
+                  disabled={loading}
+                  operation={query}
+                  loading={queryLoading}
+                  setLoading={setQueryLoading}
+                >
+                  <FormattedMessage id="actions.search" />
+                </OperationButton>
+              </InputAdornment>
+            )
           }
-          style={isOverridden ? { backgroundColor: '#2a4a5e' } : undefined}
-        />
-        <InputGroup.Append>
-          <OperationButton
-            disabled={loading}
-            operation={query}
-            loading={queryLoading}
-            setLoading={setQueryLoading}
-          >
-            <FormattedMessage id="actions.search" />
-          </OperationButton>
-        </InputGroup.Append>
-      </InputGroup>
+        }}
+      />
     );
   }
 
@@ -221,13 +233,13 @@ export const TaggerScene: React.FC<PropsWithChildren<ITaggerScene>> = ({
     // path will be http://localhost:9999/scene/_sprite.jpg
     if (scene.files.length > 0) {
       return (
-        <Button
+        <IconButton
           className="sprite-button"
-          variant="link"
           onClick={onSpriteClick}
+          size="small"
         >
           <Icon icon={faImage} />
-        </Button>
+        </IconButton>
       );
     }
   }

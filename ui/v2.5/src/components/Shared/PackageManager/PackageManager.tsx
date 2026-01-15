@@ -1,4 +1,19 @@
-import { Button, Form, Table } from "react-bootstrap";
+import {
+  Button,
+  Checkbox,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  TextField,
+  IconButton,
+  Stack,
+  Box,
+  Typography,
+} from "@mui/material";
 import React, { useState, useMemo, useEffect } from "react";
 import { FormattedMessage, IntlShape, useIntl } from "react-intl";
 import * as GQL from "src/core/generated-graphql";
@@ -87,36 +102,42 @@ const InstalledPackageRow: React.FC<{
   }, [updatesLoaded, pkg]);
 
   return (
-    <tr className={cx({ "package-update-available": updateAvailable })}>
-      <td>
-        <Form.Check
+    <TableRow className={cx({ "package-update-available": updateAvailable })}>
+      <TableCell padding="checkbox">
+        <Checkbox
           checked={selected}
           disabled={loading}
           onChange={() => togglePackage()}
         />
-      </td>
-      <td>
-        <span className="package-name">{pkg.name}</span>
-        <span className="package-id">{pkg.package_id}</span>
-      </td>
-      <td>
-        <span className="package-version">
-          {displayVersion(intl, pkg.version)}
-        </span>
-        <span className="package-date">{displayDate(intl, pkg.date)}</span>
-      </td>
+      </TableCell>
+      <TableCell>
+        <Stack>
+          <span className="package-name">{pkg.name}</span>
+          <span className="package-id">{pkg.package_id}</span>
+        </Stack>
+      </TableCell>
+      <TableCell>
+        <Stack>
+          <span className="package-version">
+            {displayVersion(intl, pkg.version)}
+          </span>
+          <span className="package-date">{displayDate(intl, pkg.date)}</span>
+        </Stack>
+      </TableCell>
       {updatesLoaded && pkg.source_package && (
-        <td>
-          <span className="package-latest-version">
-            {displayVersion(intl, pkg.source_package.version)}
-            {updateAvailable && <Icon icon={faAnglesUp} />}
-          </span>
-          <span className="package-latest-date">
-            {displayDate(intl, pkg.source_package.date)}
-          </span>
-        </td>
+        <TableCell>
+          <Stack>
+            <span className="package-latest-version">
+              {displayVersion(intl, pkg.source_package.version)}
+              {updateAvailable && <Icon icon={faAnglesUp} className="ml-1" />}
+            </span>
+            <span className="package-latest-date">
+              {displayDate(intl, pkg.source_package.date)}
+            </span>
+          </Stack>
+        </TableCell>
       )}
-    </tr>
+    </TableRow>
   );
 };
 
@@ -139,111 +160,112 @@ const InstalledPackagesList: React.FC<{
   error,
   upgradableOnly,
 }) => {
-  const checkedMap = useMemo(() => {
-    const map: Record<string, boolean> = {};
-    for (const pkg of checkedPackages) {
-      map[packageKey(pkg)] = true;
-    }
-    return map;
-  }, [checkedPackages]);
-
-  const allChecked = useMemo(() => {
-    return packages.length > 0 && checkedPackages.length === packages.length;
-  }, [checkedPackages, packages]);
-
-  const filteredPackages = useMemo(() => {
-    return filterPackages(packages, filter).filter((pkg) => {
-      return !updatesLoaded || !upgradableOnly || hasUpgrade(pkg);
-    });
-  }, [packages, filter, updatesLoaded, upgradableOnly]);
-
-  function toggleAllChecked() {
-    setCheckedPackages(allChecked ? [] : packages.slice());
-  }
-
-  function togglePackage(pkg: InstalledPackage) {
-    if (loading) return;
-
-    setCheckedPackages((prev) => {
-      if (prev.includes(pkg)) {
-        return prev.filter((n) => packageKey(n) !== packageKey(pkg));
-      } else {
-        return [...prev, pkg];
+    const checkedMap = useMemo(() => {
+      const map: Record<string, boolean> = {};
+      for (const pkg of checkedPackages) {
+        map[packageKey(pkg)] = true;
       }
-    });
-  }
+      return map;
+    }, [checkedPackages]);
 
-  function renderBody() {
-    if (error) {
-      return (
-        <tr>
-          <td />
-          <td colSpan={1000} className="source-error">
-            <Icon icon={faWarning} />
-            <span>{error}</span>
-          </td>
-        </tr>
-      );
+    const allChecked = useMemo(() => {
+      return packages.length > 0 && checkedPackages.length === packages.length;
+    }, [checkedPackages, packages]);
+
+    const filteredPackages = useMemo(() => {
+      return filterPackages(packages, filter).filter((pkg) => {
+        return !updatesLoaded || !upgradableOnly || hasUpgrade(pkg);
+      });
+    }, [packages, filter, updatesLoaded, upgradableOnly]);
+
+    function toggleAllChecked() {
+      setCheckedPackages(allChecked ? [] : packages.slice());
     }
 
-    if (filteredPackages.length === 0) {
-      const id = upgradableOnly
-        ? "package_manager.no_upgradable"
-        : "package_manager.no_packages";
-      return (
-        <tr className="package-manager-no-results">
-          <td colSpan={1000}>
-            <FormattedMessage id={id} />
-          </td>
-        </tr>
-      );
+    function togglePackage(pkg: InstalledPackage) {
+      if (loading) return;
+
+      setCheckedPackages((prev) => {
+        if (prev.includes(pkg)) {
+          return prev.filter((n) => packageKey(n) !== packageKey(pkg));
+        } else {
+          return [...prev, pkg];
+        }
+      });
     }
 
-    return filteredPackages.map((pkg) => (
-      <InstalledPackageRow
-        key={packageKey(pkg)}
-        loading={loading}
-        pkg={pkg}
-        selected={checkedMap[packageKey(pkg)] ?? false}
-        togglePackage={() => togglePackage(pkg)}
-        updatesLoaded={updatesLoaded}
-      />
-    ));
-  }
+    function renderBody() {
+      if (error) {
+        return (
+          <TableRow>
+            <TableCell />
+            <TableCell colSpan={100} className="source-error">
+              <Stack direction="row" alignItems="center" spacing={1}>
+                <Icon icon={faWarning} color="error" />
+                <Typography color="error">{error}</Typography>
+              </Stack>
+            </TableCell>
+          </TableRow>
+        );
+      }
 
-  return (
-    <div className="package-manager-table-container">
-      <Table>
-        <thead>
-          <tr>
-            <th className="check-cell">
-              <Form.Check
-                checked={allChecked ?? false}
-                onChange={toggleAllChecked}
-                disabled={loading && packages.length > 0}
-              />
-            </th>
-            <th>
-              <FormattedMessage id="package_manager.package" />
-            </th>
-            <th>
-              <FormattedMessage id="package_manager.installed_version" />
-            </th>
-            {updatesLoaded ? (
-              <th>
-                <FormattedMessage id="package_manager.latest_version" />
-              </th>
-            ) : undefined}
-          </tr>
-          <tr>
-            <th className="border-row" colSpan={100}></th>
-          </tr>
-        </thead>
-        <tbody>{renderBody()}</tbody>
-      </Table>
-    </div>
-  );
-};
+      if (filteredPackages.length === 0) {
+        const id = upgradableOnly
+          ? "package_manager.no_upgradable"
+          : "package_manager.no_packages";
+        return (
+          <TableRow className="package-manager-no-results">
+            <TableCell colSpan={100} align="center">
+              <FormattedMessage id={id} />
+            </TableCell>
+          </TableRow>
+        );
+      }
+
+      return filteredPackages.map((pkg) => (
+        <InstalledPackageRow
+          key={packageKey(pkg)}
+          loading={loading}
+          pkg={pkg}
+          selected={checkedMap[packageKey(pkg)] ?? false}
+          togglePackage={() => togglePackage(pkg)}
+          updatesLoaded={updatesLoaded}
+        />
+      ));
+    }
+
+    return (
+      <div className="package-manager-table-container">
+        <TableContainer component={Paper} variant="outlined">
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell padding="checkbox">
+                  <Checkbox
+                    checked={allChecked ?? false}
+                    onChange={toggleAllChecked}
+                    disabled={loading && packages.length > 0}
+                  />
+                </TableCell>
+                <TableCell>
+                  <FormattedMessage id="package_manager.package" />
+                </TableCell>
+                <TableCell>
+                  <FormattedMessage id="package_manager.installed_version" />
+                </TableCell>
+                {updatesLoaded ? (
+                  <TableCell>
+                    <FormattedMessage id="package_manager.latest_version" />
+                  </TableCell>
+                ) : undefined}
+              </TableRow>
+            </TableHead>
+            <TableBody>{renderBody()}</TableBody>
+          </Table>
+        </TableContainer>
+      </div>
+    );
+  };
 
 const InstalledPackagesToolbar: React.FC<{
   loading?: boolean;
@@ -267,49 +289,50 @@ const InstalledPackagesToolbar: React.FC<{
   upgradableOnly,
   setUpgradableOnly,
 }) => {
-  const intl = useIntl();
+    const intl = useIntl();
 
-  return (
-    <div className="package-manager-toolbar">
-      <ClearableInput
-        placeholder={`${intl.formatMessage({ id: "filter" })}...`}
-        value={filter}
-        setValue={(v) => setFilter(v)}
-      />
-      {upgradableOnly && (
+    return (
+      <div className="package-manager-toolbar">
+        <ClearableInput
+          placeholder={`${intl.formatMessage({ id: "filter" })}...`}
+          value={filter}
+          setValue={(v) => setFilter(v)}
+        />
+        {upgradableOnly && (
+          <Button
+            size="small"
+            variant="contained"
+            onClick={() => setUpgradableOnly(!upgradableOnly)}
+          >
+            <FormattedMessage id="package_manager.show_all" />
+          </Button>
+        )}
+        <div className="flex-grow-1" />
         <Button
-          size="sm"
-          variant="primary"
-          onClick={() => setUpgradableOnly(!upgradableOnly)}
+          variant="contained"
+          onClick={() => onCheckForUpdates()}
+          disabled={loading}
         >
-          <FormattedMessage id="package_manager.show_all" />
+          <FormattedMessage id="package_manager.check_for_updates" />
         </Button>
-      )}
-      <div className="flex-grow-1" />
-      <Button
-        variant="primary"
-        onClick={() => onCheckForUpdates()}
-        disabled={loading}
-      >
-        <FormattedMessage id="package_manager.check_for_updates" />
-      </Button>
-      <Button
-        variant="primary"
-        disabled={!checkedPackages.length || loading}
-        onClick={() => onUpdatePackages()}
-      >
-        <FormattedMessage id="package_manager.update" />
-      </Button>
-      <Button
-        variant="danger"
-        disabled={!checkedPackages.length || loading}
-        onClick={() => onUninstallPackages()}
-      >
-        <FormattedMessage id="package_manager.uninstall" />
-      </Button>
-    </div>
-  );
-};
+        <Button
+          variant="contained"
+          disabled={!checkedPackages.length || loading}
+          onClick={() => onUpdatePackages()}
+        >
+          <FormattedMessage id="package_manager.update" />
+        </Button>
+        <Button
+          variant="outlined"
+          color="error"
+          disabled={!checkedPackages.length || loading}
+          onClick={() => onUninstallPackages()}
+        >
+          <FormattedMessage id="package_manager.uninstall" />
+        </Button>
+      </div>
+    );
+  };
 
 export const InstalledPackages: React.FC<{
   loading?: boolean;
@@ -328,97 +351,97 @@ export const InstalledPackages: React.FC<{
   loading,
   error,
 }) => {
-  const [checkedPackages, setCheckedPackages] = useState<InstalledPackage[]>(
-    []
-  );
-  const [filter, setFilter] = useState("");
-  const [upgradableOnly, setUpgradableOnly] = useState(true);
-  const [uninstalling, setUninstalling] = useState(false);
+    const [checkedPackages, setCheckedPackages] = useState<InstalledPackage[]>(
+      []
+    );
+    const [filter, setFilter] = useState("");
+    const [upgradableOnly, setUpgradableOnly] = useState(true);
+    const [uninstalling, setUninstalling] = useState(false);
 
-  // sort packages so that those with updates are at the top
-  const sortedPackages = useMemo(() => {
-    return packages.slice().sort((a, b) => {
-      const aHasUpdate = hasUpgrade(a);
-      const bHasUpdate = hasUpgrade(b);
+    // sort packages so that those with updates are at the top
+    const sortedPackages = useMemo(() => {
+      return packages.slice().sort((a, b) => {
+        const aHasUpdate = hasUpgrade(a);
+        const bHasUpdate = hasUpgrade(b);
 
-      if (aHasUpdate && !bHasUpdate) return -1;
-      if (!aHasUpdate && bHasUpdate) return 1;
+        if (aHasUpdate && !bHasUpdate) return -1;
+        if (!aHasUpdate && bHasUpdate) return 1;
 
-      // sort by name
-      return a.package_id.localeCompare(b.package_id);
-    });
-  }, [packages]);
+        // sort by name
+        return a.package_id.localeCompare(b.package_id);
+      });
+    }, [packages]);
 
-  const filteredPackages = useMemo(() => {
-    return filterPackages(checkedPackages, filter).filter((pkg) => {
-      return !updatesLoaded || !upgradableOnly || hasUpgrade(pkg);
-    });
-  }, [checkedPackages, filter, updatesLoaded, upgradableOnly]);
+    const filteredPackages = useMemo(() => {
+      return filterPackages(checkedPackages, filter).filter((pkg) => {
+        return !updatesLoaded || !upgradableOnly || hasUpgrade(pkg);
+      });
+    }, [checkedPackages, filter, updatesLoaded, upgradableOnly]);
 
-  useEffect(() => {
-    setCheckedPackages((prev) => {
-      const newVal = prev.filter((pkg) =>
-        packages.find((p) => packageKey(p) === packageKey(pkg))
-      );
-      if (newVal.length !== prev.length) {
-        return newVal;
-      }
-
-      return prev;
-    });
-  }, [checkedPackages, packages]);
-
-  function confirmUninstall() {
-    onUninstallPackages(filteredPackages);
-    setUninstalling(false);
-  }
-
-  function checkForUpdates() {
-    // reset to only show upgradable packages
-    setUpgradableOnly(true);
-    onCheckForUpdates();
-  }
-
-  return (
-    <>
-      <AlertModal
-        show={!!uninstalling}
-        text={
-          <FormattedMessage
-            id="package_manager.confirm_uninstall"
-            values={{ number: filteredPackages.length }}
-          />
+    useEffect(() => {
+      setCheckedPackages((prev) => {
+        const newVal = prev.filter((pkg) =>
+          packages.find((p) => packageKey(p) === packageKey(pkg))
+        );
+        if (newVal.length !== prev.length) {
+          return newVal;
         }
-        onConfirm={() => confirmUninstall()}
-        onCancel={() => setUninstalling(false)}
-      />
-      <div className="installed-packages">
-        <InstalledPackagesToolbar
-          filter={filter}
-          setFilter={(f) => setFilter(f)}
-          loading={loading}
-          checkedPackages={filteredPackages}
-          onCheckForUpdates={() => checkForUpdates()}
-          onUpdatePackages={() => onUpdatePackages(filteredPackages)}
-          onUninstallPackages={() => setUninstalling(true)}
-          upgradableOnly={updatesLoaded && upgradableOnly}
-          setUpgradableOnly={(v) => setUpgradableOnly(v)}
+
+        return prev;
+      });
+    }, [checkedPackages, packages]);
+
+    function confirmUninstall() {
+      onUninstallPackages(filteredPackages);
+      setUninstalling(false);
+    }
+
+    function checkForUpdates() {
+      // reset to only show upgradable packages
+      setUpgradableOnly(true);
+      onCheckForUpdates();
+    }
+
+    return (
+      <>
+        <AlertModal
+          show={!!uninstalling}
+          text={
+            <FormattedMessage
+              id="package_manager.confirm_uninstall"
+              values={{ number: filteredPackages.length }}
+            />
+          }
+          onConfirm={() => confirmUninstall()}
+          onCancel={() => setUninstalling(false)}
         />
-        <InstalledPackagesList
-          filter={filter}
-          loading={loading}
-          error={error}
-          packages={sortedPackages}
-          // use original checked packages so that check boxes are not affected by filter
-          checkedPackages={checkedPackages}
-          setCheckedPackages={setCheckedPackages}
-          updatesLoaded={updatesLoaded}
-          upgradableOnly={upgradableOnly}
-        />
-      </div>
-    </>
-  );
-};
+        <div className="installed-packages">
+          <InstalledPackagesToolbar
+            filter={filter}
+            setFilter={(f) => setFilter(f)}
+            loading={loading}
+            checkedPackages={filteredPackages}
+            onCheckForUpdates={() => checkForUpdates()}
+            onUpdatePackages={() => onUpdatePackages(filteredPackages)}
+            onUninstallPackages={() => setUninstalling(true)}
+            upgradableOnly={updatesLoaded && upgradableOnly}
+            setUpgradableOnly={(v) => setUpgradableOnly(v)}
+          />
+          <InstalledPackagesList
+            filter={filter}
+            loading={loading}
+            error={error}
+            packages={sortedPackages}
+            // use original checked packages so that check boxes are not affected by filter
+            checkedPackages={checkedPackages}
+            setCheckedPackages={setCheckedPackages}
+            updatesLoaded={updatesLoaded}
+            upgradableOnly={upgradableOnly}
+          />
+        </div>
+      </>
+    );
+  };
 
 const AvailablePackagesToolbar: React.FC<{
   filter: string;
@@ -438,39 +461,39 @@ const AvailablePackagesToolbar: React.FC<{
   selectedOnly,
   setSelectedOnly,
 }) => {
-  const intl = useIntl();
+    const intl = useIntl();
 
-  const selectedOnlyId = !selectedOnly
-    ? "package_manager.hide_unselected"
-    : "package_manager.show_all";
+    const selectedOnlyId = !selectedOnly
+      ? "package_manager.hide_unselected"
+      : "package_manager.show_all";
 
-  return (
-    <div className="package-manager-toolbar">
-      <ClearableInput
-        placeholder={`${intl.formatMessage({ id: "filter" })}...`}
-        value={filter}
-        setValue={(v) => setFilter(v)}
-      />
-      {hasSelectedPackages && (
+    return (
+      <div className="package-manager-toolbar">
+        <ClearableInput
+          placeholder={`${intl.formatMessage({ id: "filter" })}...`}
+          value={filter}
+          setValue={(v) => setFilter(v)}
+        />
+        {hasSelectedPackages && (
+          <Button
+            size="small"
+            variant="contained"
+            onClick={() => setSelectedOnly(!selectedOnly)}
+          >
+            <FormattedMessage id={selectedOnlyId} />
+          </Button>
+        )}
+        <div className="flex-grow-1" />
         <Button
-          size="sm"
-          variant="primary"
-          onClick={() => setSelectedOnly(!selectedOnly)}
+          variant="contained"
+          disabled={!hasSelectedPackages || loading}
+          onClick={() => onInstallPackages()}
         >
-          <FormattedMessage id={selectedOnlyId} />
+          <FormattedMessage id="package_manager.install" />
         </Button>
-      )}
-      <div className="flex-grow-1" />
-      <Button
-        variant="primary"
-        disabled={!hasSelectedPackages || loading}
-        onClick={() => onInstallPackages()}
-      >
-        <FormattedMessage id="package_manager.install" />
-      </Button>
-    </div>
-  );
-};
+      </div>
+    );
+  };
 
 const EditSourceModal: React.FC<{
   sources: GQL.PackageSource[];
@@ -529,70 +552,48 @@ const EditSourceModal: React.FC<{
     const errors = validate(v);
 
     return (
-      <>
-        <Form.Group id="package-source-name">
-          <h6>
-            <FormattedMessage id="package_manager.source.name" />
-          </h6>
-          <Form.Control
-            placeholder={intl.formatMessage({
-              id: "package_manager.source.name",
-            })}
-            className="text-input"
-            value={v?.name ?? ""}
-            isInvalid={!!errors?.name}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              setValue({ ...v!, name: e.currentTarget.value })
-            }
-          />
-          <Form.Control.Feedback type="invalid">
-            {errors?.name}
-          </Form.Control.Feedback>
-        </Form.Group>
+      <Stack spacing={2}>
+        <TextField
+          label={<FormattedMessage id="package_manager.source.name" />}
+          placeholder={intl.formatMessage({ id: "package_manager.source.name" })}
+          value={v?.name ?? ""}
+          onChange={(e) => setValue({ ...v!, name: e.target.value })}
+          error={!!errors?.name}
+          helperText={errors?.name}
+          fullWidth
+          variant="outlined"
+          size="small"
+        />
 
-        <Form.Group id="package-source-url">
-          <h6>
-            <FormattedMessage id="package_manager.source.url" />
-          </h6>
-          <Form.Control
-            placeholder={intl.formatMessage({
-              id: "package_manager.source.url",
-            })}
-            className="text-input"
-            value={v?.url}
-            isInvalid={!!errors?.url}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              setValue({ ...v!, url: e.currentTarget.value.trim() })
-            }
-          />
-          <Form.Control.Feedback type="invalid">
-            {errors?.url}
-          </Form.Control.Feedback>
-        </Form.Group>
+        <TextField
+          label={<FormattedMessage id="package_manager.source.url" />}
+          placeholder={intl.formatMessage({ id: "package_manager.source.url" })}
+          value={v?.url ?? ""}
+          onChange={(e) => setValue({ ...v!, url: e.target.value.trim() })}
+          error={!!errors?.url}
+          helperText={errors?.url}
+          fullWidth
+          variant="outlined"
+          size="small"
+        />
 
-        <Form.Group id="package-source-name">
-          <h6>
-            <FormattedMessage id="package_manager.source.local_path.heading" />
-          </h6>
-          <Form.Control
-            placeholder={intl.formatMessage({
-              id: "package_manager.source.local_path.heading",
-            })}
-            className="text-input"
+        <Box>
+          <TextField
+            label={<FormattedMessage id="package_manager.source.local_path.heading" />}
+            placeholder={intl.formatMessage({ id: "package_manager.source.local_path.heading" })}
             value={v?.local_path ?? ""}
-            isInvalid={!!errors?.local_path}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              setValue({ ...v!, local_path: e.currentTarget.value })
-            }
+            onChange={(e) => setValue({ ...v!, local_path: e.target.value })}
+            error={!!errors?.local_path}
+            helperText={errors?.local_path}
+            fullWidth
+            variant="outlined"
+            size="small"
           />
-          <div className="sub-heading">
+          <Typography variant="caption" color="textSecondary">
             <FormattedMessage id="package_manager.source.local_path.description" />
-          </div>
-          <Form.Control.Feedback type="invalid">
-            {errors?.local_path}
-          </Form.Control.Feedback>
-        </Form.Group>
-      </>
+          </Typography>
+        </Box>
+      </Stack>
     );
   }
 
@@ -626,47 +627,51 @@ const AvailablePackageRow: React.FC<{
   togglePackage,
   renderDescription = () => undefined,
 }) => {
-  const intl = useIntl();
+    const intl = useIntl();
 
-  function renderRequiredBy() {
-    if (!requiredBy.length) return;
+    function renderRequiredBy() {
+      if (!requiredBy.length) return;
+
+      return (
+        <div className="package-required-by">
+          <FormattedMessage
+            id="package_manager.required_by"
+            values={{ packages: requiredBy.map((p) => p.name).join(", ") }}
+          />
+        </div>
+      );
+    }
 
     return (
-      <div className="package-required-by">
-        <FormattedMessage
-          id="package_manager.required_by"
-          values={{ packages: requiredBy.map((p) => p.name).join(", ") }}
-        />
-      </div>
+      <TableRow>
+        <TableCell padding="checkbox" colSpan={2}>
+          <Checkbox
+            checked={selected ?? false}
+            onChange={() => togglePackage()}
+            disabled={disabled}
+          />
+        </TableCell>
+        <TableCell className="package-cell" onClick={() => togglePackage()}>
+          <Stack>
+            <span className="package-name">{pkg.name}</span>
+            <span className="package-id">{pkg.package_id}</span>
+          </Stack>
+        </TableCell>
+        <TableCell>
+          <Stack>
+            <span className="package-version">
+              {displayVersion(intl, pkg.version)}
+            </span>
+            <span className="package-date">{displayDate(intl, pkg.date)}</span>
+          </Stack>
+        </TableCell>
+        <TableCell>
+          {renderRequiredBy()}
+          <div>{renderDescription(pkg)}</div>
+        </TableCell>
+      </TableRow>
     );
-  }
-
-  return (
-    <tr>
-      <td colSpan={2}>
-        <Form.Check
-          checked={selected ?? false}
-          onChange={() => togglePackage()}
-          disabled={disabled}
-        />
-      </td>
-      <td className="package-cell" onClick={() => togglePackage()}>
-        <span className="package-name">{pkg.name}</span>
-        <span className="package-id">{pkg.package_id}</span>
-      </td>
-      <td>
-        <span className="package-version">
-          {displayVersion(intl, pkg.version)}
-        </span>
-        <span className="package-date">{displayDate(intl, pkg.date)}</span>
-      </td>
-      <td>
-        {renderRequiredBy()}
-        <div>{renderDescription(pkg)}</div>
-      </td>
-    </tr>
-  );
-};
+  };
 
 const SourcePackagesList: React.FC<{
   filter: string;
@@ -693,202 +698,226 @@ const SourcePackagesList: React.FC<{
   editSource,
   deleteSource,
 }) => {
-  const intl = useIntl();
-  const [packages, setPackages] = useState<RemotePackage[]>();
-  const [sourceOpen, setSourceOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [loadError, setLoadError] = useState<string>();
+    const intl = useIntl();
+    const [packages, setPackages] = useState<RemotePackage[]>();
+    const [sourceOpen, setSourceOpen] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [loadError, setLoadError] = useState<string>();
 
-  const checkedMap = useMemo(() => {
-    const map: Record<string, boolean> = {};
+    const checkedMap = useMemo(() => {
+      const map: Record<string, boolean> = {};
 
-    selectedPackages.forEach((pkg) => {
-      map[pkg.package_id] = true;
-    });
-    return map;
-  }, [selectedPackages]);
-
-  const sourceChecked = useMemo(() => {
-    return packages && Object.keys(checkedMap).length === packages.length;
-  }, [checkedMap, packages]);
-
-  const filteredPackages = useMemo(() => {
-    if (!packages) return [];
-
-    let ret = filterPackages(packages, filter);
-
-    if (selectedOnly) {
-      ret = ret.filter((pkg) => checkedMap[pkg.package_id]);
-    }
-
-    return ret;
-  }, [filter, packages, selectedOnly, checkedMap]);
-
-  function toggleSource() {
-    if (disabled || packages === undefined) return;
-
-    if (sourceChecked) {
-      setSelectedPackages([]);
-    } else {
-      setSelectedPackages(packages.slice());
-    }
-  }
-
-  async function loadPackages() {
-    // need to load
-    setLoading(true);
-    setLoadError(undefined);
-    try {
-      const loaded = await loadSource();
-      setPackages(loaded);
-    } catch (e) {
-      setLoadError((e as ApolloError).message);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  function toggleSourceOpen() {
-    if (sourceOpen) {
-      setLoadError(undefined);
-      setSourceOpen(false);
-    } else {
-      if (packages === undefined) {
-        loadPackages();
-      }
-      setSourceOpen(true);
-    }
-  }
-
-  function renderContents() {
-    if (loading) {
-      return (
-        <tr>
-          <td colSpan={2}></td>
-          <td colSpan={3}>
-            <LoadingIndicator inline small />
-          </td>
-        </tr>
-      );
-    }
-
-    if (loadError) {
-      return (
-        <tr>
-          <td colSpan={2}></td>
-          <td colSpan={3} className="source-error">
-            <Icon icon={faWarning} />
-            <span>{loadError}</span>
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => loadPackages()}
-              title={intl.formatMessage({ id: "actions.reload" })}
-            >
-              <Icon icon={faRotate} />
-            </Button>
-          </td>
-        </tr>
-      );
-    }
-
-    if (!sourceOpen) {
-      return null;
-    }
-
-    function getRequiredPackages(pkg: RemotePackage) {
-      const ret: RemotePackage[] = [];
-      for (const r of pkg.requires) {
-        const found = packages?.find((p) => p.package_id === r.package_id);
-        if (found && !ret.includes(found)) {
-          ret.push(found);
-          ret.push(...getRequiredPackages(found));
-        }
-      }
-      return ret;
-    }
-
-    function togglePackage(pkg: RemotePackage) {
-      if (disabled || !packages) return;
-
-      setSelectedPackages((prev) => {
-        const selected = prev.find((p) => p.package_id === pkg.package_id);
-
-        if (selected) {
-          return prev.filter((n) => n.package_id !== pkg.package_id);
-        } else {
-          // also include required packages
-          return [...prev, pkg, ...getRequiredPackages(pkg)];
-        }
+      selectedPackages.forEach((pkg) => {
+        map[pkg.package_id] = true;
       });
+      return map;
+    }, [selectedPackages]);
+
+    const sourceChecked = useMemo(() => {
+      return packages && Object.keys(checkedMap).length === packages.length;
+    }, [checkedMap, packages]);
+
+    const filteredPackages = useMemo(() => {
+      if (!packages) return [];
+
+      let ret = filterPackages(packages, filter);
+
+      if (selectedOnly) {
+        ret = ret.filter((pkg) => checkedMap[pkg.package_id]);
+      }
+
+      return ret;
+    }, [filter, packages, selectedOnly, checkedMap]);
+
+    function toggleSource() {
+      if (disabled || packages === undefined) return;
+
+      if (sourceChecked) {
+        setSelectedPackages([]);
+      } else {
+        setSelectedPackages(packages.slice());
+      }
     }
 
-    return filteredPackages.map((pkg) => (
-      <AvailablePackageRow
-        key={pkg.package_id}
-        disabled={disabled}
-        pkg={pkg}
-        requiredBy={selectedPackages.filter((p) =>
-          p.requires.some((r) => r.package_id === pkg.package_id)
-        )}
-        selected={checkedMap[pkg.package_id] ?? false}
-        togglePackage={() => togglePackage(pkg)}
-        renderDescription={renderDescription}
-      />
-    ));
-  }
+    async function loadPackages() {
+      // need to load
+      setLoading(true);
+      setLoadError(undefined);
+      try {
+        const loaded = await loadSource();
+        setPackages(loaded);
+      } catch (e) {
+        setLoadError((e as ApolloError).message);
+      } finally {
+        setLoading(false);
+      }
+    }
 
-  return (
-    <>
-      <tr className="package-source">
-        <td>
-          {allowSelectAll && packages !== undefined ? (
-            <Form.Check
-              checked={sourceChecked ?? false}
-              onChange={() => toggleSource()}
-              disabled={disabled}
-            />
-          ) : undefined}
-        </td>
-        <td className="source-collapse">
-          <Button
-            variant="minimal"
-            size="sm"
-            onClick={() => toggleSourceOpen()}
-          >
-            <Icon icon={sourceOpen ? faChevronDown : faChevronRight} />
-          </Button>
-        </td>
-        <td
-          className="source-name"
-          colSpan={2}
-          onClick={() => toggleSourceOpen()}
-        >
-          <span>{source.name ?? source.url}</span>
-        </td>
-        <td className="source-controls">
-          <Button
-            size="sm"
-            variant="primary"
-            title={intl.formatMessage({ id: "actions.edit" })}
-            onClick={() => editSource()}
-          >
-            <FormattedMessage id="actions.edit" />
-          </Button>
-          <Button
-            size="sm"
-            variant="danger"
-            title={intl.formatMessage({ id: "actions.delete" })}
-            onClick={() => deleteSource()}
-          >
-            <FormattedMessage id="actions.delete" />
-          </Button>
-        </td>
-      </tr>
-      {renderContents()}
-    </>
-  );
-};
+    function toggleSourceOpen() {
+      if (sourceOpen) {
+        setLoadError(undefined);
+        setSourceOpen(false);
+      } else {
+        if (packages === undefined) {
+          loadPackages();
+        }
+        setSourceOpen(true);
+      }
+    }
+
+    function renderContents() {
+      if (loading) {
+        return (
+          <TableRow>
+            <TableCell colSpan={2}></TableCell>
+            <TableCell colSpan={3}>
+              <LoadingIndicator inline small />
+            </TableCell>
+          </TableRow>
+        );
+      }
+
+      if (loadError) {
+        return (
+          <TableRow>
+            <TableCell colSpan={2}></TableCell>
+            <TableCell colSpan={3} className="source-error">
+              <Stack direction="row" alignItems="center" spacing={2}>
+                <Icon icon={faWarning} color="error" />
+                <Typography color="error">{loadError}</Typography>
+                <IconButton
+                  size="small"
+                  onClick={() => loadPackages()}
+                  title={intl.formatMessage({ id: "actions.reload" })}
+                >
+                  <Icon icon={faRotate} />
+                </IconButton>
+              </Stack>
+            </TableCell>
+          </TableRow>
+        );
+      }
+
+      if (!sourceOpen) {
+        return null;
+      }
+
+      function getRequiredPackages(pkg: RemotePackage) {
+        const ret: RemotePackage[] = [];
+
+        function check(pkg_id: string) {
+          if (!packages || !pkg_id) return;
+          const p = packages.find((p) => p.package_id === pkg_id);
+
+          if (p && checkedMap[p.package_id]) {
+            ret.push(p);
+          }
+        }
+
+        if (pkg.requires?.length) {
+          pkg.requires.forEach((p) => check(p.package_id));
+        }
+
+        return ret;
+      }
+
+      if (filteredPackages.length === 0) {
+        return (
+          <TableRow className="package-manager-no-results">
+            <TableCell colSpan={100} align="center">
+              <FormattedMessage id="package_manager.no_packages" />
+            </TableCell>
+          </TableRow>
+        );
+      }
+
+      function setPackage(pkg: RemotePackage, value: boolean) {
+        setSelectedPackages((prev) => {
+          if (value) {
+            if (prev.find((p) => p.package_id === pkg.package_id)) {
+              return prev;
+            }
+            return [...prev, pkg];
+          } else {
+            return prev.filter((p) => p.package_id !== pkg.package_id);
+          }
+        });
+      }
+
+      function togglePackage(pkg: RemotePackage) {
+        if (disabled) return;
+
+        setPackage(pkg, !checkedMap[pkg.package_id]);
+      }
+
+      return filteredPackages.map((pkg) => (
+        <AvailablePackageRow
+          key={packageKey(pkg)}
+          pkg={pkg}
+          requiredBy={getRequiredPackages(pkg)}
+          selected={checkedMap[pkg.package_id] ?? false}
+          togglePackage={() => togglePackage(pkg)}
+          disabled={disabled}
+          renderDescription={renderDescription}
+        />
+      ));
+    }
+
+    return (
+      <>
+        <TableRow className="source-header">
+          <TableCell padding="checkbox">
+            {allowSelectAll && (
+              <Checkbox
+                checked={sourceChecked ?? false}
+                indeterminate={
+                  packages &&
+                  !sourceChecked &&
+                  Object.keys(checkedMap).length > 0
+                }
+                onChange={toggleSource}
+                disabled={disabled || loading || packages === undefined}
+              />
+            )}
+          </TableCell>
+          <TableCell>
+            <IconButton
+              size="small"
+              onClick={() => toggleSourceOpen()}
+            >
+              <Icon icon={sourceOpen ? faChevronDown : faChevronRight} />
+            </IconButton>
+          </TableCell>
+          <TableCell>
+            <span className="source-name">{source.name}</span>
+            <br />
+            <span className="source-url">{source.url}</span>
+          </TableCell>
+          <TableCell colSpan={2}>
+            <Box display="flex" justifyContent="flex-end">
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={editSource}
+                className="mr-2"
+              >
+                <FormattedMessage id="actions.edit" />
+              </Button>
+              <Button
+                variant="outlined"
+                size="small"
+                color="error"
+                onClick={deleteSource}
+              >
+                <FormattedMessage id="actions.delete" />
+              </Button>
+            </Box>
+          </TableCell>
+        </TableRow>
+        {renderContents()}
+      </>
+    );
+  };
 
 const AvailablePackagesList: React.FC<{
   filter: string;
@@ -919,140 +948,140 @@ const AvailablePackagesList: React.FC<{
   deleteSource,
   allowSourceSelectAll,
 }) => {
-  const [deletingSource, setDeletingSource] = useState<GQL.PackageSource>();
-  const [editingSource, setEditingSource] = useState<GQL.PackageSource>();
-  const [addingSource, setAddingSource] = useState(false);
+    const [deletingSource, setDeletingSource] = useState<GQL.PackageSource>();
+    const [editingSource, setEditingSource] = useState<GQL.PackageSource>();
+    const [addingSource, setAddingSource] = useState(false);
 
-  function onDeleteSource() {
-    if (!deletingSource) return;
+    function onDeleteSource() {
+      if (!deletingSource) return;
 
-    deleteSource(deletingSource);
-    setDeletingSource(undefined);
-  }
+      deleteSource(deletingSource);
+      setDeletingSource(undefined);
+    }
 
-  function setSelectedSourcePackages(
-    src: GQL.PackageSource,
-    v: RemotePackage[] | ((prevState: RemotePackage[]) => RemotePackage[])
-  ) {
-    setSelectedPackages((prev) => {
-      const existing = prev[src.url] ?? [];
-      const next = typeof v === "function" ? v(existing) : v;
+    function setSelectedSourcePackages(
+      src: GQL.PackageSource,
+      v: RemotePackage[] | ((prevState: RemotePackage[]) => RemotePackage[])
+    ) {
+      setSelectedPackages((prev) => {
+        const existing = prev[src.url] ?? [];
+        const next = typeof v === "function" ? v(existing) : v;
 
-      return {
-        ...prev,
-        [src.url]: next,
-      };
-    });
-  }
+        return {
+          ...prev,
+          [src.url]: next,
+        };
+      });
+    }
 
-  function renderBody() {
-    if (sources.length === 0) {
+    function renderBody() {
+      if (sources.length === 0) {
+        return (
+          <TableRow className="package-manager-no-results">
+            <TableCell colSpan={5} align="center">
+              <FormattedMessage id="package_manager.no_sources" />
+              <br />
+              <Button
+                size="small"
+                variant="contained"
+                onClick={() => setAddingSource(true)}
+              >
+                <FormattedMessage id="package_manager.add_source" />
+              </Button>
+            </TableCell>
+          </TableRow>
+        );
+      }
+
       return (
-        <tr className="package-manager-no-results">
-          <td colSpan={5}>
-            <FormattedMessage id="package_manager.no_sources" />
-            <br />
-            <Button
-              size="sm"
-              variant="success"
-              onClick={() => setAddingSource(true)}
-            >
-              <FormattedMessage id="package_manager.add_source" />
-            </Button>
-          </td>
-        </tr>
+        <>
+          {sources.map((src) => (
+            <SourcePackagesList
+              key={src.url}
+              filter={filter}
+              disabled={loading}
+              source={src}
+              renderDescription={renderDescription}
+              loadSource={() => loadSource(src.url)}
+              selectedOnly={selectedOnly}
+              selectedPackages={selectedPackages[src.url] ?? []}
+              setSelectedPackages={(v) => setSelectedSourcePackages(src, v)}
+              editSource={() => setEditingSource(src)}
+              deleteSource={() => setDeletingSource(src)}
+              allowSelectAll={allowSourceSelectAll}
+            />
+          ))}
+          <TableRow className="add-package-source">
+            <TableCell colSpan={2}></TableCell>
+            <TableCell colSpan={3}>
+              <Button
+                size="small"
+                variant="contained"
+                color="primary"
+                onClick={() => setAddingSource(true)}
+              >
+                <FormattedMessage id="package_manager.add_source" />
+              </Button>
+            </TableCell>
+          </TableRow>
+        </>
       );
     }
 
     return (
       <>
-        {sources.map((src) => (
-          <SourcePackagesList
-            key={src.url}
-            filter={filter}
-            disabled={loading}
-            source={src}
-            renderDescription={renderDescription}
-            loadSource={() => loadSource(src.url)}
-            selectedOnly={selectedOnly}
-            selectedPackages={selectedPackages[src.url] ?? []}
-            setSelectedPackages={(v) => setSelectedSourcePackages(src, v)}
-            editSource={() => setEditingSource(src)}
-            deleteSource={() => setDeletingSource(src)}
-            allowSelectAll={allowSourceSelectAll}
+        <AlertModal
+          show={!!deletingSource}
+          text={
+            <FormattedMessage
+              id="package_manager.confirm_delete_source"
+              values={{ name: deletingSource?.name, url: deletingSource?.url }}
+            />
+          }
+          onConfirm={() => onDeleteSource()}
+          onCancel={() => setDeletingSource(undefined)}
+        />
+
+        {editingSource || addingSource ? (
+          <EditSourceModal
+            sources={sources}
+            existing={editingSource}
+            onClose={(v) => {
+              if (v) {
+                if (addingSource) addSource(v);
+                else if (editingSource) editSource(editingSource, v);
+              }
+              setEditingSource(undefined);
+              setAddingSource(false);
+            }}
           />
-        ))}
-        <tr className="add-package-source">
-          <td colSpan={2}></td>
-          <td colSpan={3}>
-            <Button
-              size="sm"
-              variant="success"
-              onClick={() => setAddingSource(true)}
-            >
-              <FormattedMessage id="package_manager.add_source" />
-            </Button>
-          </td>
-        </tr>
+        ) : undefined}
+
+        <div className="package-manager-table-container">
+          <TableContainer component={Paper} variant="outlined">
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell className="check-cell"></TableCell>
+                  <TableCell className="collapse-cell"></TableCell>
+                  <TableCell>
+                    <FormattedMessage id="package_manager.package" />
+                  </TableCell>
+                  <TableCell>
+                    <FormattedMessage id="package_manager.version" />
+                  </TableCell>
+                  <TableCell>
+                    <FormattedMessage id="package_manager.description" />
+                  </TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>{renderBody()}</TableBody>
+            </Table>
+          </TableContainer>
+        </div>
       </>
     );
-  }
-
-  return (
-    <>
-      <AlertModal
-        show={!!deletingSource}
-        text={
-          <FormattedMessage
-            id="package_manager.confirm_delete_source"
-            values={{ name: deletingSource?.name, url: deletingSource?.url }}
-          />
-        }
-        onConfirm={() => onDeleteSource()}
-        onCancel={() => setDeletingSource(undefined)}
-      />
-
-      {editingSource || addingSource ? (
-        <EditSourceModal
-          sources={sources}
-          existing={editingSource}
-          onClose={(v) => {
-            if (v) {
-              if (addingSource) addSource(v);
-              else if (editingSource) editSource(editingSource, v);
-            }
-            setEditingSource(undefined);
-            setAddingSource(false);
-          }}
-        />
-      ) : undefined}
-
-      <div className="package-manager-table-container">
-        <Table>
-          <thead>
-            <tr>
-              <th className="check-cell"></th>
-              <th className="collapse-cell"></th>
-              <th>
-                <FormattedMessage id="package_manager.package" />
-              </th>
-              <th>
-                <FormattedMessage id="package_manager.version" />
-              </th>
-              <th>
-                <FormattedMessage id="package_manager.description" />
-              </th>
-            </tr>
-            <tr>
-              <th className="border-row" colSpan={100}></th>
-            </tr>
-          </thead>
-          <tbody>{renderBody()}</tbody>
-        </Table>
-      </div>
-    </>
-  );
-};
+  };
 
 export const AvailablePackages: React.FC<{
   loading?: boolean;
@@ -1075,58 +1104,58 @@ export const AvailablePackages: React.FC<{
   deleteSource,
   allowSelectAll,
 }) => {
-  const [checkedPackages, setCheckedPackages] = useState<
-    Record<string, RemotePackage[]>
-  >({});
-  const [filter, setFilter] = useState("");
-  const [selectedOnly, setSelectedOnly] = useState(false);
+    const [checkedPackages, setCheckedPackages] = useState<
+      Record<string, RemotePackage[]>
+    >({});
+    const [filter, setFilter] = useState("");
+    const [selectedOnly, setSelectedOnly] = useState(false);
 
-  const hasPackagesSelected = useMemo(() => {
-    return Object.values(checkedPackages).some((s) => s.length > 0);
-  }, [checkedPackages]);
+    const hasPackagesSelected = useMemo(() => {
+      return Object.values(checkedPackages).some((s) => s.length > 0);
+    }, [checkedPackages]);
 
-  // if no packages are selected, set selected only to false
-  useEffect(() => {
-    if (!hasPackagesSelected) {
-      setSelectedOnly(false);
-    }
-  }, [hasPackagesSelected]);
+    // if no packages are selected, set selected only to false
+    useEffect(() => {
+      if (!hasPackagesSelected) {
+        setSelectedOnly(false);
+      }
+    }, [hasPackagesSelected]);
 
-  function toPackageSpecInput(): GQL.PackageSpecInput[] {
-    const ret: GQL.PackageSpecInput[] = [];
-    Object.keys(checkedPackages).forEach((sourceURL) => {
-      checkedPackages[sourceURL].forEach((pkg) => {
-        ret.push({ id: pkg.package_id, sourceURL });
+    function toPackageSpecInput(): GQL.PackageSpecInput[] {
+      const ret: GQL.PackageSpecInput[] = [];
+      Object.keys(checkedPackages).forEach((sourceURL) => {
+        checkedPackages[sourceURL].forEach((pkg) => {
+          ret.push({ id: pkg.package_id, sourceURL });
+        });
       });
-    });
-    return ret;
-  }
+      return ret;
+    }
 
-  return (
-    <div className="available-packages">
-      <AvailablePackagesToolbar
-        filter={filter}
-        setFilter={(f) => setFilter(f)}
-        loading={loading}
-        hasSelectedPackages={hasPackagesSelected}
-        onInstallPackages={() => onInstallPackages(toPackageSpecInput())}
-        selectedOnly={selectedOnly}
-        setSelectedOnly={(v) => setSelectedOnly(v)}
-      />
-      <AvailablePackagesList
-        filter={filter}
-        loading={loading}
-        sources={sources}
-        renderDescription={renderDescription}
-        loadSource={loadSource}
-        selectedOnly={selectedOnly}
-        selectedPackages={checkedPackages}
-        setSelectedPackages={setCheckedPackages}
-        addSource={addSource}
-        editSource={editSource}
-        deleteSource={deleteSource}
-        allowSourceSelectAll={allowSelectAll}
-      />
-    </div>
-  );
-};
+    return (
+      <div className="available-packages">
+        <AvailablePackagesToolbar
+          filter={filter}
+          setFilter={(f) => setFilter(f)}
+          loading={loading}
+          hasSelectedPackages={hasPackagesSelected}
+          onInstallPackages={() => onInstallPackages(toPackageSpecInput())}
+          selectedOnly={selectedOnly}
+          setSelectedOnly={(v) => setSelectedOnly(v)}
+        />
+        <AvailablePackagesList
+          filter={filter}
+          loading={loading}
+          sources={sources}
+          renderDescription={renderDescription}
+          loadSource={loadSource}
+          selectedOnly={selectedOnly}
+          selectedPackages={checkedPackages}
+          setSelectedPackages={setCheckedPackages}
+          addSource={addSource}
+          editSource={editSource}
+          deleteSource={deleteSource}
+          allowSourceSelectAll={allowSelectAll}
+        />
+      </div>
+    );
+  };

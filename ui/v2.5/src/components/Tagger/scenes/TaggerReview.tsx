@@ -1,5 +1,15 @@
-import React, { useContext, useMemo } from "react";
-import { Button, Card, Accordion, Badge } from "react-bootstrap";
+import React, { useContext, useMemo, useState } from "react";
+import {
+    Button,
+    Paper,
+    Accordion,
+    AccordionSummary,
+    AccordionDetails,
+    Chip,
+    Typography,
+    Box,
+    Stack,
+} from "@mui/material";
 import { Link } from "react-router-dom";
 import { FormattedMessage } from "react-intl";
 import { TaggerStateContext, ITaggerHistoryEntry } from "../context";
@@ -21,12 +31,15 @@ interface ISceneGroup {
 }
 
 const EntityBadge: React.FC<{ isNew: boolean }> = ({ isNew }) => (
-    <Badge variant={isNew ? "success" : "info"} className="ml-1">
-        {isNew ? "new" : "updated"}
-    </Badge>
+    <Chip
+        size="small"
+        color={isNew ? "success" : "info"}
+        label={isNew ? "new" : "updated"}
+        sx={{ ml: 0.5 }}
+    />
 );
 
-const SceneCard: React.FC<{ group: ISceneGroup; eventKey: string }> = ({ group, eventKey }) => {
+const SceneCard: React.FC<{ group: ISceneGroup; defaultExpanded?: boolean }> = ({ group, defaultExpanded }) => {
     const formatTime = (date: Date) => {
         return new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     };
@@ -34,77 +47,79 @@ const SceneCard: React.FC<{ group: ISceneGroup; eventKey: string }> = ({ group, 
     const hasMetadata = group.tags.length > 0 || group.performers.length > 0 || group.studio;
 
     return (
-        <Card className="tagger-review-section">
-            <Accordion.Toggle as={Card.Header} eventKey={eventKey} className="d-flex align-items-center">
-                <Icon icon={faFilm} className="mr-2" />
-                <Link to={`/scenes/${group.sceneId}`} className="tagger-review-entry-name" onClick={(e) => e.stopPropagation()}>
-                    {group.sceneTitle}
-                </Link>
-                <span className="tagger-review-entry-time ml-auto mr-2">
-                    {formatTime(group.timestamp)}
-                </span>
-                <Icon icon={faChevronDown} />
-            </Accordion.Toggle>
-            <Accordion.Collapse eventKey={eventKey}>
-                <Card.Body className="tagger-review-scene-body">
-                    {!hasMetadata ? (
-                        <div className="text-muted small">Scene saved with no new metadata</div>
-                    ) : (
-                        <>
-                            {/* Studio */}
-                            {group.studio && (
-                                <div className="tagger-review-metadata-row">
-                                    <Icon icon={faBuilding} className="mr-2 text-muted" />
-                                    <span className="tagger-review-label">Studio:</span>
-                                    <Link to={`/studios/${group.studio.id}`} className="tagger-review-entity-link">
-                                        {group.studio.name}
-                                    </Link>
-                                    <EntityBadge isNew={group.studio.isNew} />
-                                </div>
-                            )}
+        <Accordion defaultExpanded={defaultExpanded} className="tagger-review-section">
+            <AccordionSummary
+                expandIcon={<Icon icon={faChevronDown} />}
+                sx={{ display: 'flex', alignItems: 'center' }}
+            >
+                <Stack direction="row" alignItems="center" spacing={1} sx={{ flex: 1 }}>
+                    <Icon icon={faFilm} />
+                    <Link to={`/scenes/${group.sceneId}`} className="tagger-review-entry-name" onClick={(e) => e.stopPropagation()}>
+                        {group.sceneTitle}
+                    </Link>
+                    <Typography variant="caption" color="textSecondary" sx={{ ml: 'auto', mr: 1 }}>
+                        {formatTime(group.timestamp)}
+                    </Typography>
+                </Stack>
+            </AccordionSummary>
+            <AccordionDetails className="tagger-review-scene-body">
+                {!hasMetadata ? (
+                    <Typography variant="body2" color="textSecondary">Scene saved with no new metadata</Typography>
+                ) : (
+                    <Stack spacing={1}>
+                        {/* Studio */}
+                        {group.studio && (
+                            <Stack direction="row" alignItems="center" spacing={1} className="tagger-review-metadata-row">
+                                <Icon icon={faBuilding} />
+                                <Typography variant="body2" color="textSecondary">Studio:</Typography>
+                                <Link to={`/studios/${group.studio.id}`} className="tagger-review-entity-link">
+                                    {group.studio.name}
+                                </Link>
+                                <EntityBadge isNew={group.studio.isNew} />
+                            </Stack>
+                        )}
 
-                            {/* Performers */}
-                            {group.performers.length > 0 && (
-                                <div className="tagger-review-metadata-row">
-                                    <Icon icon={faUser} className="mr-2 text-muted" />
-                                    <span className="tagger-review-label">Performers:</span>
-                                    <div className="tagger-review-entity-list">
-                                        {group.performers.map((p, i) => (
-                                            <span key={p.id} className="tagger-review-entity-item">
-                                                <Link to={`/performers/${p.id}`} className="tagger-review-entity-link">
-                                                    {p.name}
-                                                </Link>
-                                                <EntityBadge isNew={p.isNew} />
-                                                {i < group.performers.length - 1 && <span className="mx-1">,</span>}
-                                            </span>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
+                        {/* Performers */}
+                        {group.performers.length > 0 && (
+                            <Stack direction="row" alignItems="flex-start" spacing={1} className="tagger-review-metadata-row">
+                                <Icon icon={faUser} />
+                                <Typography variant="body2" color="textSecondary">Performers:</Typography>
+                                <Box className="tagger-review-entity-list">
+                                    {group.performers.map((p, i) => (
+                                        <span key={p.id} className="tagger-review-entity-item">
+                                            <Link to={`/performers/${p.id}`} className="tagger-review-entity-link">
+                                                {p.name}
+                                            </Link>
+                                            <EntityBadge isNew={p.isNew} />
+                                            {i < group.performers.length - 1 && <span className="mx-1">,</span>}
+                                        </span>
+                                    ))}
+                                </Box>
+                            </Stack>
+                        )}
 
-                            {/* Tags */}
-                            {group.tags.length > 0 && (
-                                <div className="tagger-review-metadata-row">
-                                    <Icon icon={faTag} className="mr-2 text-muted" />
-                                    <span className="tagger-review-label">Tags:</span>
-                                    <div className="tagger-review-entity-list">
-                                        {group.tags.map((t, i) => (
-                                            <span key={t.id} className="tagger-review-entity-item">
-                                                <Link to={`/tags/${t.id}`} className="tagger-review-entity-link">
-                                                    {t.name}
-                                                </Link>
-                                                <EntityBadge isNew={t.isNew} />
-                                                {i < group.tags.length - 1 && <span className="mx-1">,</span>}
-                                            </span>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-                        </>
-                    )}
-                </Card.Body>
-            </Accordion.Collapse>
-        </Card>
+                        {/* Tags */}
+                        {group.tags.length > 0 && (
+                            <Stack direction="row" alignItems="flex-start" spacing={1} className="tagger-review-metadata-row">
+                                <Icon icon={faTag} />
+                                <Typography variant="body2" color="textSecondary">Tags:</Typography>
+                                <Box className="tagger-review-entity-list">
+                                    {group.tags.map((t, i) => (
+                                        <span key={t.id} className="tagger-review-entity-item">
+                                            <Link to={`/tags/${t.id}`} className="tagger-review-entity-link">
+                                                {t.name}
+                                            </Link>
+                                            <EntityBadge isNew={t.isNew} />
+                                            {i < group.tags.length - 1 && <span className="mx-1">,</span>}
+                                        </span>
+                                    ))}
+                                </Box>
+                            </Stack>
+                        )}
+                    </Stack>
+                )}
+            </AccordionDetails>
+        </Accordion>
     );
 };
 
@@ -188,56 +203,56 @@ export const TaggerReview: React.FC<ITaggerReviewProps> = ({ show, onClose }) =>
     const totalStudios = new Set(taggerHistory.filter(e => e.type === 'studio').map(e => e.entityId)).size;
 
     return (
-        <div className="tagger-review">
-            <div className="tagger-review-header">
-                <h5>
+        <Box className="tagger-review">
+            <Stack direction="row" justifyContent="space-between" alignItems="center" className="tagger-review-header" mb={2}>
+                <Typography variant="h6">
                     <Icon icon={faFilm} className="mr-2" />
                     Scenes Saved
-                    <Badge variant="secondary" className="ml-2">{sceneGroups.length}</Badge>
-                </h5>
-                <div className="tagger-review-actions">
+                    <Chip size="small" label={sceneGroups.length} sx={{ ml: 1 }} />
+                </Typography>
+                <Stack direction="row" spacing={1} className="tagger-review-actions">
                     {hasHistory && (
                         <Button
-                            variant="outline-danger"
-                            size="sm"
+                            variant="outlined"
+                            color="error"
+                            size="small"
                             onClick={clearTaggerHistory}
-                            className="mr-2"
+                            startIcon={<Icon icon={faTrash} />}
                         >
-                            <Icon icon={faTrash} className="mr-1" />
                             Clear
                         </Button>
                     )}
-                    <Button variant="secondary" size="sm" onClick={onClose}>
+                    <Button variant="outlined" size="small" onClick={onClose}>
                         Close
                     </Button>
-                </div>
-            </div>
+                </Stack>
+            </Stack>
 
             {!hasHistory ? (
-                <div className="tagger-review-empty">
-                    <p className="text-muted text-center py-4">
+                <Box className="tagger-review-empty">
+                    <Typography variant="body2" color="textSecondary" textAlign="center" py={4}>
                         No tagging operations recorded yet. Use the bulk operations to save scenes.
-                    </p>
-                </div>
+                    </Typography>
+                </Box>
             ) : (
-                <Accordion defaultActiveKey="0" className="tagger-review-accordion">
+                <Box className="tagger-review-accordion">
                     {sceneGroups.map((group, index) => (
-                        <SceneCard key={group.sceneId} group={group} eventKey={String(index)} />
+                        <SceneCard key={group.sceneId} group={group} defaultExpanded={index === 0} />
                     ))}
-                </Accordion>
+                </Box>
             )}
 
             {hasHistory && (
-                <div className="tagger-review-summary mt-3">
-                    <small className="text-muted">
+                <Box className="tagger-review-summary" mt={3}>
+                    <Typography variant="caption" color="textSecondary">
                         {sceneGroups.length} scene{sceneGroups.length !== 1 ? 's' : ''} |
                         {totalTags} tag{totalTags !== 1 ? 's' : ''} |
                         {totalPerformers} performer{totalPerformers !== 1 ? 's' : ''} |
                         {totalStudios} studio{totalStudios !== 1 ? 's' : ''}
-                    </small>
-                </div>
+                    </Typography>
+                </Box>
             )}
-        </div>
+        </Box>
     );
 };
 

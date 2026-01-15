@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { CustomFieldsCriterion } from "src/models/list-filter/criteria/custom-fields";
-import { Button, Col, Form, Row } from "react-bootstrap";
+import { Button, Box, TextField, Grid } from "@mui/material";
 import {
   CriterionModifier,
   CustomFieldCriterionInput,
@@ -88,7 +88,7 @@ const CustomFieldCriterionEditor: React.FC<ICustomFieldCriterionEditor> = ({
 
   const firstPlaceholder =
     modifier === CriterionModifier.Between ||
-    modifier === CriterionModifier.NotBetween
+      modifier === CriterionModifier.NotBetween
       ? intl.formatMessage({ id: "criterion.greater_than" })
       : intl.formatMessage({ id: "custom_fields.value" });
 
@@ -97,63 +97,69 @@ const CustomFieldCriterionEditor: React.FC<ICustomFieldCriterionEditor> = ({
     modifier === CriterionModifier.NotBetween;
 
   return (
-    <Form.Group className="custom-field-filter">
+    <Box className="custom-field-filter" mb={2}>
       <div>
-        <Row noGutters>
-          <Col xs={6}>
-            <Form.Control
-              className="btn-secondary"
+        <Grid container spacing={1}>
+          <Grid size={6}>
+            <TextField
+              fullWidth
+              size="small"
               type="text"
               placeholder={intl.formatMessage({ id: "custom_fields.field" })}
               onChange={(e) => setField(e.target.value)}
               value={field}
+              variant="outlined"
             />
-          </Col>
-          <Col xs={6}>
+          </Grid>
+          <Grid size={6}>
             <ModifierSelect
               value={modifier}
               onChanged={(m) => onChangeModifier(m)}
             />
-          </Col>
-        </Row>
-        <Row noGutters>
+          </Grid>
+        </Grid>
+        <Grid container spacing={1} sx={{ mt: 1 }}>
           {modifier !== CriterionModifier.IsNull &&
             modifier !== CriterionModifier.NotNull && (
-              <Col xs={hasTwoValues ? 6 : 12}>
-                <Form.Control
+              <Grid size={hasTwoValues ? 6 : 12}>
+                <TextField
+                  fullWidth
+                  size="small"
                   placeholder={firstPlaceholder}
-                  className="btn-secondary"
                   type="text"
                   onChange={(e) => setFirstValue(e.target.value)}
                   value={firstValue}
+                  variant="outlined"
                 />
-              </Col>
+              </Grid>
             )}
           {(modifier === CriterionModifier.Between ||
             modifier === CriterionModifier.NotBetween) && (
-            <Col xs={6}>
-              <Form.Control
-                placeholder={intl.formatMessage({ id: "criterion.less_than" })}
-                className="btn-secondary"
-                type="text"
-                onChange={(e) => setSecondValue(e.target.value)}
-                value={secondValue}
-              />
-            </Col>
-          )}
-        </Row>
+              <Grid size={6}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  placeholder={intl.formatMessage({ id: "criterion.less_than" })}
+                  type="text"
+                  onChange={(e) => setSecondValue(e.target.value)}
+                  value={secondValue}
+                  variant="outlined"
+                />
+              </Grid>
+            )}
+        </Grid>
       </div>
       <div className="custom-field-filter-buttons">
-        <Button variant="success" onClick={() => onConfirm()} disabled={!field}>
+        <Button variant="contained" color="success" onClick={() => onConfirm()} disabled={!field}>
           <Icon icon={faCheck} />
         </Button>
         {editing && (
-          <Button variant="secondary" onClick={() => cancel()}>
+          <Button variant="contained" color="secondary" onClick={() => cancel()}>
             <Icon icon={faTimes} />
           </Button>
         )}
       </div>
-    </Form.Group>
+    </Box>
   );
 };
 
@@ -292,7 +298,7 @@ export const CustomFieldsFilter: React.FC<ICustomFieldsFilter> = ({
   }
 
   return (
-    <Form.Group>
+    <Box mb={1}>
       <CustomFieldCriterionEditor
         criterion={editCriterion}
         editing={editCriterion.field !== ""}
@@ -307,6 +313,6 @@ export const CustomFieldsFilter: React.FC<ICustomFieldsFilter> = ({
         }
         onRemoveCriterion={(index) => onRemove(index)}
       />
-    </Form.Group>
+    </Box>
   );
 };

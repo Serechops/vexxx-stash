@@ -11,7 +11,7 @@ import ScreenUtils, { useMediaQuery } from "src/utils/screen";
 import { IViewConfig, useInterfaceLocalForage } from "src/hooks/LocalForage";
 import { View } from "../List/views";
 import cx from "classnames";
-import { Button, CollapseProps } from "react-bootstrap";
+import { Button, CollapseProps } from "@mui/material";
 import { useIntl } from "react-intl";
 import { Icon } from "./Icon";
 import { faSliders } from "@fortawesome/free-solid-svg-icons";
@@ -68,9 +68,11 @@ export const SidebarToggleButton: React.FC<{
     <div className="sidebar-toggle-button-container">
       <Button
         className="sidebar-toggle-button ignore-sidebar-outside-click !bg-card hover:!bg-secondary !text-foreground !border !border-border shadow-md rounded-r-md transition-all !z-[110]"
-        variant="secondary"
+        variant="contained"
+        color="secondary"
         onClick={onClick}
         title={intl.formatMessage({ id: "actions.sidebar.toggle" })}
+        style={{ minWidth: 'unset', padding: '6px 12px' }}
       >
         <Icon icon={faSliders} className="w-5 h-5" />
       </Button>

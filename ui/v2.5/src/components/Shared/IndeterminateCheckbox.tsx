@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { Form, FormCheckProps } from "react-bootstrap";
+import { Checkbox, CheckboxProps, FormControlLabel } from "@mui/material";
 
 const useIndeterminate = (
   ref: React.RefObject<HTMLInputElement>,
@@ -13,10 +13,11 @@ const useIndeterminate = (
   }, [ref, value]);
 };
 
-interface IIndeterminateCheckbox extends FormCheckProps {
+interface IIndeterminateCheckbox extends CheckboxProps {
   setChecked: (v: boolean | undefined) => void;
   allowIndeterminate?: boolean;
   indeterminateClassname?: string;
+  label?: React.ReactNode;
 }
 
 export const IndeterminateCheckbox: React.FC<IIndeterminateCheckbox> = ({
@@ -24,6 +25,7 @@ export const IndeterminateCheckbox: React.FC<IIndeterminateCheckbox> = ({
   setChecked,
   allowIndeterminate,
   indeterminateClassname,
+  label,
   ...props
 }) => {
   const ref = React.createRef<HTMLInputElement>();
@@ -42,14 +44,19 @@ export const IndeterminateCheckbox: React.FC<IIndeterminateCheckbox> = ({
   }
 
   return (
-    <Form.Check
-      {...props}
-      className={`${props.className ?? ""} ${
-        checked === undefined ? indeterminateClassname : ""
-      }`}
-      ref={ref}
-      checked={checked ?? false}
-      onChange={() => setChecked(cycleState())}
+    <FormControlLabel
+      control={
+        <Checkbox
+          {...props}
+          className={`${props.className ?? ""} ${checked === undefined ? indeterminateClassname : ""
+            }`}
+          inputRef={ref}
+          checked={checked ?? false}
+          indeterminate={checked === undefined}
+          onChange={() => setChecked(cycleState())}
+        />
+      }
+      label={label || ""}
     />
   );
 };

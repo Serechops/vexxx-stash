@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Col, Form, Row } from "react-bootstrap";
+import { Grid, FormControl, InputLabel, Select, Typography, Box } from "@mui/material";
 import { FormattedMessage, useIntl } from "react-intl";
 import { useBulkPerformerUpdate } from "src/core/StashService";
 import * as GQL from "src/core/generated-graphql";
@@ -25,7 +25,7 @@ import {
 import { IndeterminateCheckbox } from "../Shared/IndeterminateCheckbox";
 import { BulkUpdateTextInput } from "../Shared/BulkUpdateTextInput";
 import { faPencilAlt } from "@fortawesome/free-solid-svg-icons";
-import * as FormUtils from "src/utils/form";
+
 import { CountrySelect } from "../Shared/CountrySelect";
 import { useConfigurationContext } from "src/hooks/Config";
 import cx from "classnames";
@@ -210,16 +210,16 @@ export const EditPerformersDialog: React.FC<IListOperationProps> = (
     setter: (newValue: string | undefined) => void
   ) {
     return (
-      <Form.Group controlId={name} data-field={name}>
-        <Form.Label>
+      <Box className="form-group" data-field={name} mb={2}>
+        <InputLabel shrink>
           <FormattedMessage id={name} />
-        </Form.Label>
+        </InputLabel>
         <BulkUpdateTextInput
           value={value === null ? "" : value ?? undefined}
           valueChanged={(newValue) => setter(newValue)}
           unsetDisabled={props.selected.length < 2}
         />
-      </Form.Group>
+      </Box>
     );
   }
 
@@ -248,50 +248,55 @@ export const EditPerformersDialog: React.FC<IListOperationProps> = (
         }}
         isRunning={isUpdating}
       >
-        <Form.Group controlId="rating" as={Row} data-field={name}>
-          {FormUtils.renderLabel({
-            title: intl.formatMessage({ id: "rating" }),
-          })}
-          <Col xs={9}>
-            <RatingSystem
-              value={updateInput.rating100}
-              onSetRating={(value) =>
-                setUpdateField({ rating100: value ?? undefined })
-              }
-              disabled={isUpdating}
-            />
-          </Col>
-        </Form.Group>
-        <Form>
-          <Form.Group controlId="favorite">
+        <Box mb={2} data-field="rating">
+          <Grid container alignItems="center">
+            <Grid size={{ xs: 3 }}>
+              <Typography variant="body1">{intl.formatMessage({ id: "rating" })}</Typography>
+            </Grid>
+            <Grid size={{ xs: 9 }}>
+              <RatingSystem
+                value={updateInput.rating100}
+                onSetRating={(value) =>
+                  setUpdateField({ rating100: value ?? undefined })
+                }
+                disabled={isUpdating}
+              />
+            </Grid>
+          </Grid>
+        </Box>
+
+        <Box component="form">
+          <Box mb={2}>
             <IndeterminateCheckbox
               setChecked={(checked) => setUpdateField({ favorite: checked })}
               checked={updateInput.favorite ?? undefined}
               label={intl.formatMessage({ id: "favourite" })}
             />
-          </Form.Group>
+          </Box>
 
-          <Form.Group>
-            <Form.Label>
+          <Box mb={2}>
+            <InputLabel shrink>
               <FormattedMessage id="gender" />
-            </Form.Label>
-            <Form.Control
-              as="select"
-              className="input-control"
-              value={genderToString(updateInput.gender)}
-              onChange={(event) =>
-                setUpdateField({
-                  gender: stringToGender(event.currentTarget.value),
-                })
-              }
-            >
-              {genderOptions.map((opt) => (
-                <option value={opt} key={opt}>
-                  {opt}
-                </option>
-              ))}
-            </Form.Control>
-          </Form.Group>
+            </InputLabel>
+            <FormControl fullWidth size="small" variant="outlined">
+              <Select
+                native
+                className="input-control"
+                value={genderToString(updateInput.gender)}
+                onChange={(event) =>
+                  setUpdateField({
+                    gender: stringToGender(event.target.value as string),
+                  })
+                }
+              >
+                {genderOptions.map((opt) => (
+                  <option value={opt} key={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </Select>
+            </FormControl>
+          </Box>
 
           {renderTextField("disambiguation", updateInput.disambiguation, (v) =>
             setUpdateField({ disambiguation: v })
@@ -303,16 +308,16 @@ export const EditPerformersDialog: React.FC<IListOperationProps> = (
             setUpdateField({ death_date: v })
           )}
 
-          <Form.Group>
-            <Form.Label>
+          <Box mb={2}>
+            <InputLabel shrink>
               <FormattedMessage id="country" />
-            </Form.Label>
+            </InputLabel>
             <CountrySelect
               value={updateInput.country ?? ""}
               onChange={(v) => setUpdateField({ country: v })}
               showFlag
             />
-          </Form.Group>
+          </Box>
 
           {renderTextField("ethnicity", updateInput.ethnicity, (v) =>
             setUpdateField({ ethnicity: v })
@@ -332,27 +337,29 @@ export const EditPerformersDialog: React.FC<IListOperationProps> = (
             setPenisLength(v)
           )}
 
-          <Form.Group data-field="circumcised">
-            <Form.Label>
+          <Box mb={2} data-field="circumcised">
+            <InputLabel shrink>
               <FormattedMessage id="circumcised" />
-            </Form.Label>
-            <Form.Control
-              as="select"
-              className="input-control"
-              value={circumcisedToString(updateInput.circumcised)}
-              onChange={(event) =>
-                setUpdateField({
-                  circumcised: stringToCircumcised(event.currentTarget.value),
-                })
-              }
-            >
-              {circumcisedOptions.map((opt) => (
-                <option value={opt} key={opt}>
-                  {opt}
-                </option>
-              ))}
-            </Form.Control>
-          </Form.Group>
+            </InputLabel>
+            <FormControl fullWidth size="small" variant="outlined">
+              <Select
+                native
+                className="input-control"
+                value={circumcisedToString(updateInput.circumcised)}
+                onChange={(event) =>
+                  setUpdateField({
+                    circumcised: stringToCircumcised(event.target.value as string),
+                  })
+                }
+              >
+                {circumcisedOptions.map((opt) => (
+                  <option value={opt} key={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </Select>
+            </FormControl>
+          </Box>
 
           {renderTextField("fake_tits", updateInput.fake_tits, (v) =>
             setUpdateField({ fake_tits: v })
@@ -367,10 +374,10 @@ export const EditPerformersDialog: React.FC<IListOperationProps> = (
             setUpdateField({ career_length: v })
           )}
 
-          <Form.Group controlId="tags">
-            <Form.Label>
+          <Box mb={2}>
+            <InputLabel shrink>
               <FormattedMessage id="tags" />
-            </Form.Label>
+            </InputLabel>
             <MultiSet
               type="tags"
               disabled={isUpdating}
@@ -381,9 +388,9 @@ export const EditPerformersDialog: React.FC<IListOperationProps> = (
               mode={tagIds.mode}
               menuPortalTarget={document.body}
             />
-          </Form.Group>
+          </Box>
 
-          <Form.Group controlId="ignore-auto-tags">
+          <Box mb={2}>
             <IndeterminateCheckbox
               label={intl.formatMessage({ id: "ignore_auto_tag" })}
               setChecked={(checked) =>
@@ -391,8 +398,8 @@ export const EditPerformersDialog: React.FC<IListOperationProps> = (
               }
               checked={updateInput.ignore_auto_tag ?? undefined}
             />
-          </Form.Group>
-        </Form>
+          </Box>
+        </Box>
       </ModalComponent>
     );
   }

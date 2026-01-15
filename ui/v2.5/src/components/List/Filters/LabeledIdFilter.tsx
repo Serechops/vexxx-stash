@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { Form } from "react-bootstrap";
+import { Box } from "@mui/material";
 import { FilterSelect, SelectObject } from "src/components/Shared/Select";
 import { objectTitle } from "src/core/files";
 import { galleryTitle } from "src/core/galleries";
@@ -70,7 +70,7 @@ export const LabeledIdFilter: React.FC<ILabeledIdFilterProps> = ({
   }
 
   return (
-    <Form.Group>
+    <Box mb={1}>
       <FilterSelect
         type={inputType}
         isMulti
@@ -78,7 +78,7 @@ export const LabeledIdFilter: React.FC<ILabeledIdFilterProps> = ({
         ids={criterion.value.map((labeled) => labeled.id)}
         menuPortalTarget={document.body}
       />
-    </Form.Group>
+    </Box>
   );
 };
 

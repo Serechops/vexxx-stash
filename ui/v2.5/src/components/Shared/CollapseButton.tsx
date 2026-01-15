@@ -4,7 +4,7 @@ import {
   faChevronUp,
 } from "@fortawesome/free-solid-svg-icons";
 import React, { useEffect, useState } from "react";
-import { Button, Collapse, CollapseProps } from "react-bootstrap";
+import { Button, Collapse, CollapseProps } from "@mui/material";
 import { Icon } from "./Icon";
 
 interface IProps {
@@ -39,6 +39,7 @@ export const CollapseButton: React.FC<React.PropsWithChildren<IProps>> = (
         <Button
           onClick={() => toggleOpen()}
           className="minimal collapse-button"
+          color="inherit"
         >
           <Icon icon={open ? faChevronDown : faChevronRight} fixedWidth />
           <span>{props.text}</span>
@@ -63,6 +64,7 @@ export const ExpandCollapseButton: React.FC<{
       <Button
         className="minimal expand-collapse"
         onClick={() => setCollapsed(!collapsed)}
+        color="inherit"
       >
         <Icon icon={buttonIcon} fixedWidth />
       </Button>

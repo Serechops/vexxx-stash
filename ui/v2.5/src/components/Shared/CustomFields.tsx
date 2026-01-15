@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { CollapseButton } from "./CollapseButton";
 import { DetailItem } from "./DetailItem";
-import { Button, Col, Form, FormGroup, InputGroup, Row } from "react-bootstrap";
+import { Button, TextField, Box, Typography, InputAdornment, IconButton } from "@mui/material";
+import Grid from "@mui/material/Grid";
 import { FormattedMessage, useIntl } from "react-intl";
 import { cloneDeep } from "@apollo/client/utilities";
 import { Icon } from "./Icon";
@@ -121,58 +122,65 @@ const CustomFieldInput: React.FC<{
     }
 
     return (
-      <FormGroup>
-        <Row
+      <Box sx={{ mb: 1 }}>
+        <Grid
+          container
+          spacing={1}
           className={cx("custom-fields-row", { "custom-fields-new": isNew })}
+          alignItems="center"
         >
-          <Col sm={3} xl={2} className="custom-fields-field">
+          <Grid size={{ xs: 12, sm: 3, xl: 2 }} className="custom-fields-field">
             {isNew ? (
-              <>
-                <Form.Control
-                  ref={fieldRef}
-                  className="input-control"
-                  type="text"
-                  value={currentField ?? ""}
-                  placeholder={intl.formatMessage({
-                    id: "custom_fields.field",
-                  })}
-                  onChange={(event) =>
-                    setCurrentField(event.currentTarget.value)
-                  }
-                  onBlur={onBlur}
-                />
-              </>
-            ) : (
-              <Form.Label title={currentField}>{currentField}</Form.Label>
-            )}
-          </Col>
-          <Col sm={9} xl={7}>
-            <InputGroup>
-              <Form.Control
-                ref={valueRef}
+              <TextField
+                inputRef={fieldRef}
                 className="input-control"
-                type="text"
-                value={(currentValue as string) ?? ""}
-                placeholder={currentField}
-                onChange={(event) => setCurrentValue(event.currentTarget.value)}
+                size="small"
+                fullWidth
+                value={currentField ?? ""}
+                placeholder={intl.formatMessage({
+                  id: "custom_fields.field",
+                })}
+                onChange={(event) =>
+                  setCurrentField(event.target.value)
+                }
                 onBlur={onBlur}
               />
-              <InputGroup.Append>
-                {!isNew && (
-                  <Button
-                    className="custom-fields-remove"
-                    variant="danger"
-                    onClick={() => onDelete()}
-                  >
-                    <Icon icon={faMinus} />
-                  </Button>
-                )}
-              </InputGroup.Append>
-            </InputGroup>
-          </Col>
-        </Row>
-        <Form.Control.Feedback type="invalid">{error}</Form.Control.Feedback>
-      </FormGroup>
+            ) : (
+              <Typography variant="body2" title={currentField} sx={{ fontWeight: 'bold' }}>
+                {currentField}
+              </Typography>
+            )}
+          </Grid>
+          <Grid size={{ xs: 12, sm: 9, xl: 7 }}>
+            <TextField
+              inputRef={valueRef}
+              className="input-control"
+              size="small"
+              fullWidth
+              value={(currentValue as string) ?? ""}
+              placeholder={currentField}
+              onChange={(event) => setCurrentValue(event.target.value)}
+              onBlur={onBlur}
+              error={!!error}
+              helperText={error}
+              InputProps={{
+                endAdornment: !isNew ? (
+                  <InputAdornment position="end">
+                    <IconButton
+                      className="custom-fields-remove"
+                      color="error"
+                      onClick={() => onDelete()}
+                      size="small"
+                    >
+                      <Icon icon={faMinus} />
+                    </IconButton>
+                  </InputAdornment>
+                ) : null,
+              }}
+            />
+          </Grid>
+        </Grid>
+      </Box>
     );
   }
 );
@@ -279,40 +287,48 @@ export const CustomFieldsInput: React.FC<ICustomFieldsInput> = PatchComponent(
         className="custom-fields-input"
         text={intl.formatMessage({ id: "custom_fields.title" })}
       >
-        <Row>
-          <Col xl={12}>
-            <Row className="custom-fields-input-header">
-              <Form.Label column sm={3} xl={2}>
-                <FormattedMessage id="custom_fields.field" />
-              </Form.Label>
-              <Form.Label column sm={9} xl={7}>
-                <FormattedMessage id="custom_fields.value" />
-              </Form.Label>
-            </Row>
-            {fields.map((field) => (
+        <Box>
+          <Grid container spacing={1}>
+            <Grid size={12}>
+              <Grid container spacing={1} className="custom-fields-input-header" sx={{ mb: 1 }}>
+                <Grid size={{ xs: 12, sm: 3, xl: 2 }}>
+                  <Typography variant="body2" fontWeight="bold">
+                    <FormattedMessage id="custom_fields.field" />
+                  </Typography>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 9, xl: 7 }}>
+                  <Typography variant="body2" fontWeight="bold">
+                    <FormattedMessage id="custom_fields.value" />
+                  </Typography>
+                </Grid>
+              </Grid>
+              {fields.map((field) => (
+                <CustomFieldInput
+                  key={field}
+                  field={field}
+                  value={values[field]}
+                  onChange={(newField, newValue) =>
+                    fieldChanged(field, newField, newValue)
+                  }
+                />
+              ))}
               <CustomFieldInput
-                key={field}
-                field={field}
-                value={values[field]}
-                onChange={(newField, newValue) =>
-                  fieldChanged(field, newField, newValue)
-                }
+                field={newCustomField.field}
+                value={newCustomField.value}
+                error={error}
+                onChange={(field, value) => onSetNewField({ field, value })}
+                isNew
               />
-            ))}
-            <CustomFieldInput
-              field={newCustomField.field}
-              value={newCustomField.value}
-              error={error}
-              onChange={(field, value) => onSetNewField({ field, value })}
-              isNew
-            />
-          </Col>
-        </Row>
+            </Grid>
+          </Grid>
+        </Box>
         <Button
           className="custom-fields-add"
-          variant="success"
+          variant="contained"
+          color="success"
           onClick={() => onAdd()}
           disabled={newCustomField.field === "" || error !== undefined}
+          size="small"
         >
           <Icon icon={faPlus} />
         </Button>

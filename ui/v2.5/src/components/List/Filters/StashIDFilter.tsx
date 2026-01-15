@@ -1,5 +1,5 @@
 import React from "react";
-import { Form } from "react-bootstrap";
+import { Box, TextField } from "@mui/material";
 import { useIntl } from "react-intl";
 import { IStashIDValue } from "../../../models/list-filter/types";
 import { ModifierCriterion } from "../../../models/list-filter/criteria/criterion";
@@ -33,24 +33,28 @@ export const StashIDFilter: React.FC<IStashIDFilterProps> = ({
 
   return (
     <div>
-      <Form.Group>
-        <Form.Control
-          className="btn-secondary"
+      <Box mb={1}>
+        <TextField
+          fullWidth
+          size="small"
           onChange={onEndpointChanged}
           value={value ? value.endpoint : ""}
           placeholder={intl.formatMessage({ id: "stash_id_endpoint" })}
+          variant="outlined"
         />
-      </Form.Group>
+      </Box>
       {criterion.modifier !== CriterionModifier.IsNull &&
         criterion.modifier !== CriterionModifier.NotNull && (
-          <Form.Group>
-            <Form.Control
-              className="btn-secondary"
+          <Box mb={1}>
+            <TextField
+              fullWidth
+              size="small"
               onChange={onStashIDChanged}
               value={value ? value.stashID : ""}
               placeholder={intl.formatMessage({ id: "stash_id" })}
+              variant="outlined"
             />
-          </Form.Group>
+          </Box>
         )}
     </div>
   );

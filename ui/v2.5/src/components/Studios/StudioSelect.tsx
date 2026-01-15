@@ -25,7 +25,6 @@ import {
   Option as SelectOption,
 } from "../Shared/FilterSelect";
 import { useCompare } from "src/hooks/state";
-import { Placement } from "react-bootstrap/esm/Overlay";
 import { sortByRelevance } from "src/utils/query";
 import { PatchComponent, PatchFunction } from "src/patch";
 
@@ -58,10 +57,10 @@ const studioSelectSort = PatchFunction(
 
 const _StudioSelect: React.FC<
   IFilterProps &
-    IFilterValueProps<Studio> & {
-      hoverPlacement?: Placement;
-      excludeIds?: string[];
-    }
+  IFilterValueProps<Studio> & {
+    hoverPlacement?: "top" | "bottom" | "left" | "right";
+    excludeIds?: string[];
+  }
 > = (props) => {
   const [createStudio] = useStudioCreate();
 

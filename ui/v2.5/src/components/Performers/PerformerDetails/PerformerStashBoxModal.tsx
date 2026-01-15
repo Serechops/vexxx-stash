@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Form, Row, Col, Badge } from "react-bootstrap";
+import { TextField, Grid, Chip, Box, Typography } from "@mui/material";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import * as GQL from "src/core/generated-graphql";
@@ -41,8 +41,6 @@ const PerformerSearchResultDetails: React.FC<
 
   function calculateAge() {
     if (performer?.birthdate) {
-      // calculate the age from birthdate. In future, this should probably be
-      // provided by the server
       return TextUtils.age(performer.birthdate, performer.death_date);
     }
   }
@@ -50,19 +48,19 @@ const PerformerSearchResultDetails: React.FC<
   function renderTags() {
     if (performer.tags) {
       return (
-        <Row>
-          <Col>
+        <Grid container>
+          <Grid size={12}>
             {performer.tags?.map((tag) => (
-              <Badge
+              <Chip
                 className="tag-item"
-                variant="secondary"
+                size="small"
                 key={tag.stored_id}
-              >
-                {tag.name}
-              </Badge>
+                label={tag.name}
+                sx={{ mr: 0.5, mb: 0.5 }}
+              />
             ))}
-          </Col>
-        </Row>
+          </Grid>
+        </Grid>
       );
     }
   }
@@ -84,41 +82,45 @@ const PerformerSearchResultDetails: React.FC<
 
   return (
     <div className="performer-result">
-      <Row>
-        {renderImage()}
-        <div className="col flex-column">
-          <h4 className="performer-name">
-            <span>{performer.name}</span>
-            {performer.disambiguation && (
-              <span className="performer-disambiguation">
-                {` (${performer.disambiguation})`}
-              </span>
-            )}
-          </h4>
-          <h5 className="performer-details">
-            {performer.gender && (
-              <span>
-                <GenderIcon
-                  className="gender-icon"
-                  gender={stringToGender(performer.gender, true)}
-                />
-              </span>
-            )}
-            {age && (
-              <span>
-                {`${age} `}
-                <FormattedMessage id="years_old" />
-              </span>
-            )}
-          </h5>
-          {renderCountry()}
-        </div>
-      </Row>
-      <Row>
-        <Col>
+      <Grid container spacing={2}>
+        <Grid size="auto">
+          {renderImage()}
+        </Grid>
+        <Grid size="grow">
+          <Box display="flex" flexDirection="column">
+            <h4 className="performer-name">
+              <span>{performer.name}</span>
+              {performer.disambiguation && (
+                <span className="performer-disambiguation">
+                  {` (${performer.disambiguation})`}
+                </span>
+              )}
+            </h4>
+            <h5 className="performer-details">
+              {performer.gender && (
+                <span>
+                  <GenderIcon
+                    className="gender-icon"
+                    gender={stringToGender(performer.gender, true)}
+                  />
+                </span>
+              )}
+              {age && (
+                <span>
+                  {`${age} `}
+                  <FormattedMessage id="years_old" />
+                </span>
+              )}
+            </h5>
+            {renderCountry()}
+          </Box>
+        </Grid>
+      </Grid>
+      <Grid container>
+        <Grid size={12}>
           <TruncatedText text={performer.details ?? ""} lineCount={3} />
-        </Col>
-      </Row>
+        </Grid>
+      </Grid>
       {renderTags()}
     </div>
   );
@@ -215,12 +217,13 @@ const PerformerStashBoxModal: React.FC<IProps> = ({
       }}
     >
       <div className={CLASSNAME}>
-        <Form.Control
-          onChange={(e) => onInputChange(e.currentTarget.value)}
+        <TextField
+          onChange={(e) => onInputChange(e.target.value)}
           defaultValue={name ?? ""}
           placeholder="Performer name..."
           className="text-input mb-4"
-          ref={inputRef}
+          inputRef={inputRef}
+          fullWidth
         />
         {loading ? (
           <div className="m-4 text-center">

@@ -15,7 +15,9 @@ import { objectTitle } from "src/core/files";
 import { SceneQueue } from "src/models/sceneQueue";
 import { useConfigurationContext } from "src/hooks/Config";
 import TextUtils from "src/utils/text";
-import { Badge, Button, OverlayTrigger, Tooltip } from "react-bootstrap";
+import Tooltip from "@mui/material/Tooltip";
+import IconButton from "@mui/material/IconButton";
+import Chip from "@mui/material/Chip";
 import { useSceneIncrementO } from "src/core/StashService";
 import { useToast } from "src/hooks/Toast";
 
@@ -139,7 +141,8 @@ export const StashDBCard: React.FC<ISceneCardProps> = ({
                         {resolution && (
                             <>
                                 <span>•</span>
-                                <Badge variant="secondary">{resolution}</Badge>
+                                <span>•</span>
+                                <Chip label={resolution} size="small" variant="outlined" />
                             </>
                         )}
                         {rating && (
@@ -180,19 +183,16 @@ export const StashDBCard: React.FC<ISceneCardProps> = ({
                         )}
 
                         {/* O-Counter Quick Action */}
-                        <OverlayTrigger
-                            placement="top"
-                            overlay={<Tooltip id={`ocounter-${scene.id}`}>Increment O-Counter</Tooltip>}
-                        >
-                            <Button
-                                variant="link"
+                        <Tooltip title="Increment O-Counter" arrow>
+                            <IconButton
+                                size="small"
                                 className="p-0 text-muted hover-text-danger"
                                 onClick={onIncrementO}
                             >
                                 <Icon icon={faBolt} className={scene.o_counter ? "text-danger" : ""} />
                                 {scene.o_counter ? <span className="ml-1 small">{scene.o_counter}</span> : null}
-                            </Button>
-                        </OverlayTrigger>
+                            </IconButton>
+                        </Tooltip>
                     </div>
                 </div>
             </Link>

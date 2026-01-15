@@ -4,7 +4,7 @@ import Mousetrap from "mousetrap";
 import { ListFilterModel } from "src/models/list-filter/filter";
 import { DisplayMode } from "src/models/list-filter/types";
 import { ItemList, ItemListContext, showWhenSelected } from "../List/ItemList";
-import { Button } from "react-bootstrap";
+import { Button, IconButton, Box, Grid, Typography, Stack } from "@mui/material";
 import { Link, useHistory } from "react-router-dom";
 import * as GQL from "src/core/generated-graphql";
 import {
@@ -259,21 +259,28 @@ export const TagList: React.FC<ITagList> = PatchComponent(
 
           const tagElements = result.data.findTags.tags.map((tag) => {
             return (
-              <div key={tag.id} className="tag-list-row row">
-                <Link to={`/tags/${tag.id}`}>{tag.name}</Link>
+              <Grid container key={tag.id} className="tag-list-row" alignItems="center" sx={{ py: 1.25, borderBottom: '1px solid rgba(255, 255, 255, 0.12)' }}>
+                <Grid sx={{ flexGrow: 1, pl: 2 }}>
+                  <Link to={`/tags/${tag.id}`} style={{ color: 'inherit', textDecoration: 'none' }}>
+                    <Typography variant="body1">{tag.name}</Typography>
+                  </Link>
+                </Grid>
 
-                <div className="ml-auto">
+                <Grid sx={{ display: 'flex', gap: 1, pr: 2 }}>
                   <Button
-                    variant="secondary"
+                    variant="contained"
+                    color="secondary"
                     className="tag-list-button"
                     onClick={() => onAutoTag(tag)}
+                    size="small"
                   >
                     <FormattedMessage id="actions.auto_tag" />
                   </Button>
-                  <Button variant="secondary" className="tag-list-button">
+                  <Button variant="contained" color="secondary" className="tag-list-button" size="small">
                     <Link
                       to={NavUtils.makeTagScenesUrl(tag)}
                       className="tag-list-anchor"
+                      style={{ color: 'inherit', textDecoration: 'none' }}
                     >
                       <FormattedMessage
                         id="countables.scenes"
@@ -284,10 +291,11 @@ export const TagList: React.FC<ITagList> = PatchComponent(
                       : <FormattedNumber value={tag.scene_count ?? 0} />
                     </Link>
                   </Button>
-                  <Button variant="secondary" className="tag-list-button">
+                  <Button variant="contained" color="secondary" className="tag-list-button" size="small">
                     <Link
                       to={NavUtils.makeTagImagesUrl(tag)}
                       className="tag-list-anchor"
+                      style={{ color: 'inherit', textDecoration: 'none' }}
                     >
                       <FormattedMessage
                         id="countables.images"
@@ -298,10 +306,11 @@ export const TagList: React.FC<ITagList> = PatchComponent(
                       : <FormattedNumber value={tag.image_count ?? 0} />
                     </Link>
                   </Button>
-                  <Button variant="secondary" className="tag-list-button">
+                  <Button variant="contained" color="secondary" className="tag-list-button" size="small">
                     <Link
                       to={NavUtils.makeTagGalleriesUrl(tag)}
                       className="tag-list-anchor"
+                      style={{ color: 'inherit', textDecoration: 'none' }}
                     >
                       <FormattedMessage
                         id="countables.galleries"
@@ -312,10 +321,11 @@ export const TagList: React.FC<ITagList> = PatchComponent(
                       : <FormattedNumber value={tag.gallery_count ?? 0} />
                     </Link>
                   </Button>
-                  <Button variant="secondary" className="tag-list-button">
+                  <Button variant="contained" color="secondary" className="tag-list-button" size="small">
                     <Link
                       to={NavUtils.makeTagSceneMarkersUrl(tag)}
                       className="tag-list-anchor"
+                      style={{ color: 'inherit', textDecoration: 'none' }}
                     >
                       <FormattedMessage
                         id="countables.markers"
@@ -326,7 +336,7 @@ export const TagList: React.FC<ITagList> = PatchComponent(
                       : <FormattedNumber value={tag.scene_marker_count ?? 0} />
                     </Link>
                   </Button>
-                  <span className="tag-list-count">
+                  <Box className="tag-list-count" sx={{ display: 'flex', alignItems: 'center', mx: 1 }}>
                     <FormattedMessage id="total" />:{" "}
                     <FormattedNumber
                       value={
@@ -336,20 +346,22 @@ export const TagList: React.FC<ITagList> = PatchComponent(
                         (tag.gallery_count || 0)
                       }
                     />
-                  </span>
-                  <Button variant="danger" onClick={() => setDeletingTag(tag)}>
-                    <Icon icon={faTrashAlt} color="danger" />
-                  </Button>
-                </div>
-              </div>
+                  </Box>
+                  <IconButton color="error" onClick={() => setDeletingTag(tag)}>
+                    <Icon icon={faTrashAlt} />
+                  </IconButton>
+                </Grid>
+              </Grid>
             );
           });
 
           return (
-            <div className="col col-sm-8 m-auto">
-              {tagElements}
-              {deleteAlert}
-            </div>
+            <Grid container justifyContent="center">
+              <Grid size={{ xs: 12, sm: 8 }}>
+                {tagElements}
+                {deleteAlert}
+              </Grid>
+            </Grid>
           );
         }
         if (filter.displayMode === DisplayMode.Wall) {

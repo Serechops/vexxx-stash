@@ -1,7 +1,7 @@
 import React from "react";
 import { useIntl } from "react-intl";
 import { getCountryByISO } from "src/utils/country";
-import { OverlayTrigger, Tooltip } from "react-bootstrap";
+import { Tooltip } from "@mui/material";
 
 interface ICountryFlag {
   country?: string | null;
@@ -26,13 +26,11 @@ export const CountryFlag: React.FC<ICountryFlag> = ({
     <>
       {includeName ? country : ""}
       {includeOverlay ? (
-        <OverlayTrigger
-          overlay={<Tooltip id="{country}-tooltip">{country}</Tooltip>}
-        >
+        <Tooltip title={country}>
           <span
             className={`${className ?? ""} fi fi-${isoCountry.toLowerCase()}`}
           />
-        </OverlayTrigger>
+        </Tooltip>
       ) : (
         <span
           className={`${className ?? ""} fi fi-${isoCountry.toLowerCase()}`}

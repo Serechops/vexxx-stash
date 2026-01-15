@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Button } from "react-bootstrap";
+import { IconButton } from "@mui/material";
 import { Icon } from "../Icon";
 import { faPencil, faStar } from "@fortawesome/free-solid-svg-icons";
 import { useFocusOnce } from "src/utils/focus";
@@ -130,14 +130,13 @@ export const RatingNumber = PatchComponent(
           {props.withoutContext && <Icon icon={faStar} />}
           <span>{Number((effectiveValue ?? 0) / 10).toFixed(1)}</span>
           {!props.disabled && props.clickToRate && (
-            <Button
-              variant="minimal"
-              size="sm"
+            <IconButton
+              size="small"
               className="edit-rating-button"
               onClick={() => setEditing(true)}
             >
               <Icon className="text-primary" icon={faPencil} />
-            </Button>
+            </IconButton>
           )}
         </div>
       );

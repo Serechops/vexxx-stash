@@ -1,7 +1,7 @@
 import { PropsWithChildren } from "react";
 import { useLightbox } from "./hooks";
 import { ILightboxImage } from "./types";
-import { Button } from "react-bootstrap";
+import { Button } from "@mui/material";
 import { PatchComponent } from "src/patch";
 
 export const LightboxLink: React.FC<
@@ -15,7 +15,8 @@ export const LightboxLink: React.FC<
 
   return (
     <Button
-      variant="link"
+      variant="text"
+      color="primary"
       onClick={() => showLightbox({ images, initialIndex: index })}
     >
       {children}

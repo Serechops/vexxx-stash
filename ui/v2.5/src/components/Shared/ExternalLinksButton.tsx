@@ -1,11 +1,10 @@
-import { Button, Dropdown } from "react-bootstrap";
+import { Button, Menu, MenuItem, IconButton } from "@mui/material";
 import { ExternalLink } from "./ExternalLink";
 import TextUtils from "src/utils/text";
 import { Icon } from "./Icon";
 import { IconDefinition, faLink } from "@fortawesome/free-solid-svg-icons";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { faInstagram, faTwitter } from "@fortawesome/free-brands-svg-icons";
-import ReactDOM from "react-dom";
 import { PatchComponent } from "src/patch";
 
 export const ExternalLinksButton: React.FC<{
@@ -16,26 +15,20 @@ export const ExternalLinksButton: React.FC<{
 }> = PatchComponent(
   "ExternalLinksButton",
   ({ urls, icon = faLink, className = "", openIfSingle = false }) => {
+    const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+    const open = Boolean(anchorEl);
+
+    const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+      setAnchorEl(event.currentTarget);
+    };
+
+    const handleClose = () => {
+      setAnchorEl(null);
+    };
+
     if (!urls.length) {
       return null;
     }
-
-    const Menu = () =>
-      ReactDOM.createPortal(
-        <Dropdown.Menu>
-          {urls.map((url) => (
-            <Dropdown.Item
-              key={url}
-              as={ExternalLink}
-              href={TextUtils.sanitiseURL(url)}
-              title={url}
-            >
-              {url}
-            </Dropdown.Item>
-          ))}
-        </Dropdown.Menu>,
-        document.body
-      );
 
     if (openIfSingle && urls.length === 1) {
       return (
@@ -50,12 +43,33 @@ export const ExternalLinksButton: React.FC<{
       );
     } else {
       return (
-        <Dropdown className="external-links-button">
-          <Dropdown.Toggle as={Button} className={`minimal link ${className}`}>
+        <>
+          <IconButton
+            className={`minimal link ${className}`}
+            onClick={handleClick}
+            size="small"
+          >
             <Icon icon={icon} />
-          </Dropdown.Toggle>
-          <Menu />
-        </Dropdown>
+          </IconButton>
+          <Menu
+            anchorEl={anchorEl}
+            open={open}
+            onClose={handleClose}
+            className="external-links-button"
+          >
+            {urls.map((url) => (
+              <MenuItem
+                key={url}
+                component={ExternalLink}
+                href={TextUtils.sanitiseURL(url)}
+                title={url}
+                onClick={handleClose}
+              >
+                {url}
+              </MenuItem>
+            ))}
+          </Menu>
+        </>
       );
     }
   }

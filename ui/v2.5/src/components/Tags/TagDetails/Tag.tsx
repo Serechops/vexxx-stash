@@ -1,4 +1,5 @@
-import { Button, Tabs, Tab, Form } from "react-bootstrap";
+import { Button, Tabs, Tab, Box, FormControlLabel, Switch } from "@mui/material";
+import { Row, Col } from "src/components/Shared/Layouts";
 import React, { useEffect, useMemo, useState } from "react";
 import { useHistory, Redirect, RouteComponentProps } from "react-router-dom";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -140,145 +141,174 @@ const TagTabs: React.FC<{
 
     return (
       <div className="item-list-header">
-        <Form.Check
-          id="showSubContent"
-          checked={showAllDetails}
-          onChange={() => setShowAllDetails(!showAllDetails)}
-          type="switch"
-          label={<FormattedMessage id="include_sub_tag_content" />}
-        />
+        <div className="item-list-header">
+          <FormControlLabel
+            control={
+              <Switch
+                id="showSubContent"
+                checked={showAllDetails}
+                onChange={() => setShowAllDetails(!showAllDetails)}
+              />
+            }
+            label={<FormattedMessage id="include_sub_tag_content" />}
+          />
+        </div>
       </div>
     );
   }, [showAllDetails, tag.children.length]);
 
   return (
-    <Tabs
-      id="tag-tabs"
-      mountOnEnter
-      unmountOnExit
-      activeKey={tabKey}
-      onSelect={setTabKey}
-    >
-      <Tab
-        eventKey="scenes"
-        title={
-          <TabTitleCounter
-            messageID="scenes"
-            count={sceneCount}
-            abbreviateCounter={abbreviateCounter}
-          />
-        }
+    <Box sx={{ width: "100%" }}>
+      <Tabs
+        id="tag-tabs"
+        value={tabKey}
+        onChange={(_, newValue) => setTabKey(newValue)}
+        variant="scrollable"
+        scrollButtons="auto"
       >
-        {contentSwitch}
-        <TagScenesPanel
-          active={tabKey === "scenes"}
-          tag={tag}
-          showSubTagContent={showAllDetails}
+        <Tab
+          value="scenes"
+          label={
+            <TabTitleCounter
+              messageID="scenes"
+              count={sceneCount}
+              abbreviateCounter={abbreviateCounter}
+            />
+          }
         />
-      </Tab>
-      <Tab
-        eventKey="images"
-        title={
-          <TabTitleCounter
-            messageID="images"
-            count={imageCount}
-            abbreviateCounter={abbreviateCounter}
+        <Tab
+          value="images"
+          label={
+            <TabTitleCounter
+              messageID="images"
+              count={imageCount}
+              abbreviateCounter={abbreviateCounter}
+            />
+          }
+        />
+        <Tab
+          value="galleries"
+          label={
+            <TabTitleCounter
+              messageID="galleries"
+              count={galleryCount}
+              abbreviateCounter={abbreviateCounter}
+            />
+          }
+        />
+        <Tab
+          value="groups"
+          label={
+            <TabTitleCounter
+              messageID="groups"
+              count={groupCount}
+              abbreviateCounter={abbreviateCounter}
+            />
+          }
+        />
+        <Tab
+          value="markers"
+          label={
+            <TabTitleCounter
+              messageID="markers"
+              count={sceneMarkerCount}
+              abbreviateCounter={abbreviateCounter}
+            />
+          }
+        />
+        <Tab
+          value="performers"
+          label={
+            <TabTitleCounter
+              messageID="performers"
+              count={performerCount}
+              abbreviateCounter={abbreviateCounter}
+            />
+          }
+        />
+        <Tab
+          value="studios"
+          label={
+            <TabTitleCounter
+              messageID="studios"
+              count={studioCount}
+              abbreviateCounter={abbreviateCounter}
+            />
+          }
+        />
+      </Tabs>
+
+      {tabKey === "scenes" && (
+        <Box>
+          {contentSwitch}
+          <TagScenesPanel
+            active={tabKey === "scenes"}
+            tag={tag}
+            showSubTagContent={showAllDetails}
           />
-        }
-      >
-        {contentSwitch}
-        <TagImagesPanel
-          active={tabKey === "images"}
-          tag={tag}
-          showSubTagContent={showAllDetails}
-        />
-      </Tab>
-      <Tab
-        eventKey="galleries"
-        title={
-          <TabTitleCounter
-            messageID="galleries"
-            count={galleryCount}
-            abbreviateCounter={abbreviateCounter}
+        </Box>
+      )}
+      {tabKey === "images" && (
+        <Box>
+          {contentSwitch}
+          <TagImagesPanel
+            active={tabKey === "images"}
+            tag={tag}
+            showSubTagContent={showAllDetails}
           />
-        }
-      >
-        {contentSwitch}
-        <TagGalleriesPanel
-          active={tabKey === "galleries"}
-          tag={tag}
-          showSubTagContent={showAllDetails}
-        />
-      </Tab>
-      <Tab
-        eventKey="groups"
-        title={
-          <TabTitleCounter
-            messageID="groups"
-            count={groupCount}
-            abbreviateCounter={abbreviateCounter}
+        </Box>
+      )}
+      {tabKey === "galleries" && (
+        <Box>
+          {contentSwitch}
+          <TagGalleriesPanel
+            active={tabKey === "galleries"}
+            tag={tag}
+            showSubTagContent={showAllDetails}
           />
-        }
-      >
-        {contentSwitch}
-        <TagGroupsPanel
-          active={tabKey === "groups"}
-          tag={tag}
-          showSubTagContent={showAllDetails}
-        />
-      </Tab>
-      <Tab
-        eventKey="markers"
-        title={
-          <TabTitleCounter
-            messageID="markers"
-            count={sceneMarkerCount}
-            abbreviateCounter={abbreviateCounter}
+        </Box>
+      )}
+      {tabKey === "groups" && (
+        <Box>
+          {contentSwitch}
+          <TagGroupsPanel
+            active={tabKey === "groups"}
+            tag={tag}
+            showSubTagContent={showAllDetails}
           />
-        }
-      >
-        {contentSwitch}
-        <TagMarkersPanel
-          active={tabKey === "markers"}
-          tag={tag}
-          showSubTagContent={showAllDetails}
-        />
-      </Tab>
-      <Tab
-        eventKey="performers"
-        title={
-          <TabTitleCounter
-            messageID="performers"
-            count={performerCount}
-            abbreviateCounter={abbreviateCounter}
+        </Box>
+      )}
+      {tabKey === "markers" && (
+        <Box>
+          {contentSwitch}
+          <TagMarkersPanel
+            active={tabKey === "markers"}
+            tag={tag}
+            showSubTagContent={showAllDetails}
           />
-        }
-      >
-        {contentSwitch}
-        <TagPerformersPanel
-          active={tabKey === "performers"}
-          tag={tag}
-          showSubTagContent={showAllDetails}
-        />
-      </Tab>
-      <Tab
-        eventKey="studios"
-        title={
-          <TabTitleCounter
-            messageID="studios"
-            count={studioCount}
-            abbreviateCounter={abbreviateCounter}
+        </Box>
+      )}
+      {tabKey === "performers" && (
+        <Box>
+          {contentSwitch}
+          <TagPerformersPanel
+            active={tabKey === "performers"}
+            tag={tag}
+            showSubTagContent={showAllDetails}
           />
-        }
-      >
-        {contentSwitch}
-        <TagStudiosPanel
-          active={tabKey === "studios"}
-          tag={tag}
-          showSubTagContent={showAllDetails}
-        />
-      </Tab>
-    </Tabs>
+        </Box>
+      )}
+      {tabKey === "studios" && (
+        <Box>
+          {contentSwitch}
+          <TagStudiosPanel
+            active={tabKey === "studios"}
+            tag={tag}
+            showSubTagContent={showAllDetails}
+          />
+        </Box>
+      )}
+    </Box>
   );
 };
 
@@ -456,7 +486,7 @@ const TagPage: React.FC<IProps> = ({ tag, tabKey }) => {
 
   function renderMergeButton() {
     return (
-      <Button variant="secondary" onClick={() => setIsMerging(true)}>
+      <Button variant="contained" color="secondary" onClick={() => setIsMerging(true)}>
         <FormattedMessage id="actions.merge" />
         ...
       </Button>
@@ -488,7 +518,7 @@ const TagPage: React.FC<IProps> = ({ tag, tabKey }) => {
   });
 
   return (
-    <div id="tag-page" className="row">
+    <Row id="tag-page">
       <Helmet>
         <title>{tag.name}</title>
       </Helmet>
@@ -504,8 +534,8 @@ const TagPage: React.FC<IProps> = ({ tag, tabKey }) => {
               <DetailImage className="logo" alt={tag.name} src={tagImage} />
             )}
           </HeaderImage>
-          <div className="row">
-            <div className="tag-head col">
+          <Row>
+            <Col className="tag-head">
               <DetailTitle name={tag.name} classNamePrefix="tag">
                 {!isEditing && (
                   <ExpandCollapseButton
@@ -553,14 +583,16 @@ const TagPage: React.FC<IProps> = ({ tag, tabKey }) => {
                   customButtons={renderMergeButton()}
                 />
               )}
-            </div>
-          </div>
+            </Col>
+          </Row>
         </div>
       </div>
 
-      {!isEditing && loadStickyHeader && (
-        <CompressedTagDetailsPanel tag={tag} />
-      )}
+      {
+        !isEditing && loadStickyHeader && (
+          <CompressedTagDetailsPanel tag={tag} />
+        )
+      }
 
       <div className="detail-body">
         <div className="tag-body">
@@ -578,7 +610,7 @@ const TagPage: React.FC<IProps> = ({ tag, tabKey }) => {
       </div>
       {renderDeleteAlert()}
       {renderMergeDialog()}
-    </div>
+    </Row>
   );
 };
 

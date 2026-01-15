@@ -1,5 +1,5 @@
 import React, { PropsWithChildren } from "react";
-import { Card } from "react-bootstrap";
+import { Card } from "@mui/material";
 import { useIntl } from "react-intl";
 import { useSettings } from "./context";
 

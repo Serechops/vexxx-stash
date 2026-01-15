@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Button, ButtonGroup } from "react-bootstrap";
+import { Button, ButtonGroup } from "@mui/material";
 import * as GQL from "src/core/generated-graphql";
 import { Icon } from "../Shared/Icon";
 import { TagLink } from "../Shared/TagLink";
@@ -64,7 +64,7 @@ const SceneMarkerCardPopovers = PatchComponent(
           placement="bottom"
           content={popoverContent}
         >
-          <Button className="minimal">
+          <Button className="minimal" variant="text" size="small">
             <Icon icon={faTag} />
             <span>{popoverContent.length}</span>
           </Button>

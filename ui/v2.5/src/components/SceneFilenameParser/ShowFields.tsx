@@ -5,7 +5,7 @@ import {
   faTimes,
 } from "@fortawesome/free-solid-svg-icons";
 import React, { useState } from "react";
-import { Button, Collapse } from "react-bootstrap";
+import { Button, Collapse, Box, Typography } from "@mui/material";
 import { useIntl } from "react-intl";
 import { Icon } from "src/components/Shared/Icon";
 
@@ -26,30 +26,32 @@ export const ShowFields: React.FC<IShowFieldsProps> = (props) => {
 
   const fieldRows = [...props.fields.entries()].map(([label, enabled]) => (
     <Button
-      className="minimal d-block"
+      fullWidth
       key={label}
-      onClick={() => {
-        handleClick(label);
-      }}
+      onClick={() => handleClick(label)}
+      startIcon={<Icon icon={enabled ? faCheck : faTimes} color={enabled ? "success" : "error"} />}
+      sx={{ justifyContent: 'flex-start', textTransform: 'none', color: 'text.primary' }}
+      color="inherit"
     >
-      <Icon icon={enabled ? faCheck : faTimes} />
-      <span>{label}</span>
+      {label}
     </Button>
   ));
 
   return (
-    <div>
-      <Button onClick={() => setOpen(!open)} className="minimal">
-        <Icon icon={open ? faChevronDown : faChevronRight} />
-        <span>
-          {intl.formatMessage({
-            id: "config.tools.scene_filename_parser.display_fields",
-          })}
-        </span>
+    <Box>
+      <Button
+        onClick={() => setOpen(!open)}
+        startIcon={<Icon icon={open ? faChevronDown : faChevronRight} />}
+        color="inherit"
+        sx={{ textTransform: 'none' }}
+      >
+        {intl.formatMessage({
+          id: "config.tools.scene_filename_parser.display_fields",
+        })}
       </Button>
       <Collapse in={open}>
-        <div>{fieldRows}</div>
+        <Box sx={{ pl: 2, display: 'flex', flexDirection: 'column' }}>{fieldRows}</Box>
       </Collapse>
-    </div>
+    </Box>
   );
 };

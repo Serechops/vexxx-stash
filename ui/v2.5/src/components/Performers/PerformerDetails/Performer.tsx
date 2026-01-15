@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Button, Tabs, Tab, Col, Row } from "react-bootstrap";
+import { Tabs, Tab, Box } from "@mui/material";
+import Button from "@mui/material/Button";
+import { Row, Col } from "src/components/Shared/Layouts";
 import { FormattedMessage, useIntl } from "react-intl";
 import { useHistory, Redirect, RouteComponentProps } from "react-router-dom";
 import { Helmet } from "react-helmet";
@@ -133,109 +135,120 @@ const PerformerTabs: React.FC<{
   });
 
   return (
-    <Tabs
-      id="performer-tabs"
-      mountOnEnter
-      unmountOnExit
-      activeKey={tabKey}
-      onSelect={setTabKey}
-    >
-      <Tab
-        eventKey="scenes"
-        title={
-          <TabTitleCounter
-            messageID="scenes"
-            count={performer.scene_count}
-            abbreviateCounter={abbreviateCounter}
+    <>
+      <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 2 }}>
+        <Tabs
+          value={tabKey}
+          onChange={(_, k) => setTabKey(k)}
+          variant="scrollable"
+          scrollButtons="auto"
+          aria-label="performer tabs"
+        >
+          <Tab
+            value="scenes"
+            label={
+              <TabTitleCounter
+                messageID="scenes"
+                count={performer.scene_count}
+                abbreviateCounter={abbreviateCounter}
+              />
+            }
           />
-        }
-      >
+          <Tab
+            value="galleries"
+            label={
+              <TabTitleCounter
+                messageID="galleries"
+                count={performer.gallery_count}
+                abbreviateCounter={abbreviateCounter}
+              />
+            }
+          />
+          <Tab
+            value="images"
+            label={
+              <TabTitleCounter
+                messageID="images"
+                count={performer.image_count}
+                abbreviateCounter={abbreviateCounter}
+              />
+            }
+          />
+          <Tab
+            value="groups"
+            label={
+              <TabTitleCounter
+                messageID="groups"
+                count={performer.group_count}
+                abbreviateCounter={abbreviateCounter}
+              />
+            }
+          />
+          <Tab
+            value="appearswith"
+            label={
+              <TabTitleCounter
+                messageID="appears_with"
+                count={performer.performer_count}
+                abbreviateCounter={abbreviateCounter}
+              />
+            }
+          />
+          <Tab
+            value="missing"
+            label={
+              <TabTitleCounter
+                messageID="Missing Scenes"
+                count={missingSceneCount}
+                abbreviateCounter={abbreviateCounter}
+              />
+            }
+          />
+        </Tabs>
+      </Box>
+
+      {tabKey === "scenes" && (
         <PerformerScenesPanel
           active={tabKey === "scenes"}
           performer={performer}
         />
-      </Tab>
+      )}
 
-      <Tab
-        eventKey="galleries"
-        title={
-          <TabTitleCounter
-            messageID="galleries"
-            count={performer.gallery_count}
-            abbreviateCounter={abbreviateCounter}
-          />
-        }
-      >
+      {tabKey === "galleries" && (
         <PerformerGalleriesPanel
           active={tabKey === "galleries"}
           performer={performer}
         />
-      </Tab>
+      )}
 
-      <Tab
-        eventKey="images"
-        title={
-          <TabTitleCounter
-            messageID="images"
-            count={performer.image_count}
-            abbreviateCounter={abbreviateCounter}
-          />
-        }
-      >
+      {tabKey === "images" && (
         <PerformerImagesPanel
           active={tabKey === "images"}
           performer={performer}
         />
-      </Tab>
+      )}
 
-      <Tab
-        eventKey="groups"
-        title={
-          <TabTitleCounter
-            messageID="groups"
-            count={performer.group_count}
-            abbreviateCounter={abbreviateCounter}
-          />
-        }
-      >
+      {tabKey === "groups" && (
         <PerformerGroupsPanel
           active={tabKey === "groups"}
           performer={performer}
         />
-      </Tab>
+      )}
 
-      <Tab
-        eventKey="appearswith"
-        title={
-          <TabTitleCounter
-            messageID="appears_with"
-            count={performer.performer_count}
-            abbreviateCounter={abbreviateCounter}
-          />
-        }
-      >
+      {tabKey === "appearswith" && (
         <PerformerAppearsWithPanel
           active={tabKey === "appearswith"}
           performer={performer}
         />
-      </Tab>
+      )}
 
-      <Tab
-        eventKey="missing"
-        title={
-          <TabTitleCounter
-            messageID="Missing Scenes"
-            count={missingSceneCount}
-            abbreviateCounter={abbreviateCounter}
-          />
-        }
-      >
+      {tabKey === "missing" && (
         <PerformerMissingScenesPanel
           active={tabKey === "missing"}
           performer={performer}
         />
-      </Tab>
-    </Tabs>
+      )}
+    </>
   );
 };
 
@@ -323,7 +336,7 @@ const PerformerPage: React.FC<IProps> = PatchComponent(
 
     function renderMergeButton() {
       return (
-        <Button variant="secondary" onClick={() => setIsMerging(true)}>
+        <Button variant="contained" color="secondary" onClick={() => setIsMerging(true)}>
           <FormattedMessage id="actions.merge" />
           ...
         </Button>
@@ -447,7 +460,7 @@ const PerformerPage: React.FC<IProps> = PatchComponent(
     });
 
     return (
-      <div id="performer-page" className="row">
+      <Row id="performer-page">
         <Helmet>
           <title>{performer.name}</title>
         </Helmet>
@@ -516,7 +529,7 @@ const PerformerPage: React.FC<IProps> = PatchComponent(
                   />
                 ) : (
                   <Col>
-                    <Row xs={8}>
+                    <Row>
                       <DetailsEditNavbar
                         objectName={
                           performer?.name ??
@@ -566,7 +579,7 @@ const PerformerPage: React.FC<IProps> = PatchComponent(
           </div>
         </div>
         {renderMergeDialog()}
-      </div>
+      </Row>
     );
   }
 );

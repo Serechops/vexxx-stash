@@ -1,6 +1,6 @@
 import { faWarning } from "@fortawesome/free-solid-svg-icons";
 import React, { ReactNode } from "react";
-import { Alert } from "react-bootstrap";
+import { Alert, AlertTitle, Box } from "@mui/material";
 import { FormattedMessage } from "react-intl";
 import { Icon } from "./Icon";
 
@@ -14,11 +14,13 @@ export const ErrorMessage: React.FC<IProps> = (props) => {
 
   return (
     <div className="ErrorMessage-container">
-      <Alert variant="danger" className="ErrorMessage">
-        <Alert.Heading className="ErrorMessage-header">
-          <Icon icon={faWarning} />
-          {message}
-        </Alert.Heading>
+      <Alert severity="error" className="ErrorMessage">
+        <AlertTitle className="ErrorMessage-header">
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Icon icon={faWarning} />
+            {message}
+          </Box>
+        </AlertTitle>
         <div className="ErrorMessage-content code">{error}</div>
       </Alert>
     </div>

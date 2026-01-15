@@ -1,16 +1,16 @@
 import { faTrashAlt } from "@fortawesome/free-solid-svg-icons";
 import { FormikValues, useFormik } from "formik";
 import React, { InputHTMLAttributes, useEffect, useRef } from "react";
-import {
-  Button,
-  Col,
-  ColProps,
-  Form,
-  FormControlProps,
-  FormLabelProps,
-  Row,
-} from "react-bootstrap";
 import { IntlShape } from "react-intl";
+import TextField, { TextFieldProps } from "@mui/material/TextField";
+import Checkbox from "@mui/material/Checkbox";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import FormHelperText from "@mui/material/FormHelperText";
+import Button from "@mui/material/Button";
+import Typography from "@mui/material/Typography";
+import Box from "@mui/material/Box";
+import Grid from "@mui/material/Grid";
+
 import { DateInput } from "src/components/Shared/DateInput";
 import { DurationInput } from "src/components/Shared/DurationInput";
 import { Icon } from "src/components/Shared/Icon";
@@ -20,15 +20,25 @@ import { StringListInput } from "src/components/Shared/StringListInput";
 import { URLListInput } from "src/components/Shared/URLField";
 import * as GQL from "src/core/generated-graphql";
 
+// Mocking some bootstrap interfaces for compatibility if needed, 
+// though we aim to replace them.
+interface FormLabelProps {
+  column?: boolean;
+  xs?: number | string;
+  sm?: number | string;
+  md?: number | string;
+  lg?: number | string;
+  xl?: number | string;
+  [key: string]: any;
+}
+
 function getLabelProps(labelProps?: FormLabelProps) {
-  let ret = labelProps;
-  if (!ret) {
+  let ret = labelProps || {};
+  if (!labelProps) {
     ret = {
-      column: true,
       xs: 3,
     };
   }
-
   return ret;
 }
 
@@ -36,10 +46,29 @@ export function renderLabel(options: {
   title: string;
   labelProps?: FormLabelProps;
 }) {
+  const props = getLabelProps(options.labelProps);
+  // Filter out 'column' which is a bootstrap specific prop
+  const { column, ...colProps } = props;
+
+  // Map bootstrap cols to MUI Grid size
+  const size: any = {};
+  if (colProps.xs) size.xs = Number(colProps.xs);
+  if (colProps.sm) size.sm = Number(colProps.sm);
+  if (colProps.md) size.md = Number(colProps.md);
+  if (colProps.lg) size.lg = Number(colProps.lg);
+  if (colProps.xl) size.xl = Number(colProps.xl);
+
+  // If no size props are found but we have 'xs' default from getLabelProps, use it
+  if (Object.keys(size).length === 0 && colProps.xs) {
+    size.xs = Number(colProps.xs);
+  }
+
   return (
-    <Form.Label column {...getLabelProps(options.labelProps)}>
-      {options.title}
-    </Form.Label>
+    <Grid size={size} {...colProps}>
+      <Typography variant="subtitle2" component="label" sx={{ pt: 1, display: 'block' }}>
+        {options.title}
+      </Typography>
+    </Grid>
   );
 }
 
@@ -48,7 +77,6 @@ export function renderLabel(options: {
 // the mouse wheel will change the field value _and_ scroll the window.
 // This hook prevents the propagation that causes the window to scroll.
 export function useStopWheelScroll(ref: React.RefObject<HTMLElement>) {
-  // removed the dependency array because the underlying ref value may change
   useEffect(() => {
     const { current } = ref;
 
@@ -70,22 +98,55 @@ export function useStopWheelScroll(ref: React.RefObject<HTMLElement>) {
   });
 }
 
-// NumberField is a wrapper around Form.Control that prevents wheel events from scrolling the window.
-export const NumberField: React.FC<
-  InputHTMLAttributes<HTMLInputElement> & FormControlProps
-> = (props) => {
+// NumberField is a wrapper around TextField that prevents wheel events from scrolling the window.
+// We override onChange to be specific to HTMLInputElement to maintain compatibility with legacy consumers.
+// We also explicitly handle min/max/step since TextFieldProps doesn't include them directly (they go in inputProps).
+type BaseTextFieldProps = React.ComponentProps<typeof TextField>;
+type NumberFieldProps = Omit<BaseTextFieldProps, 'onChange'> & {
+  onChange?: React.ChangeEventHandler<HTMLInputElement>;
+  min?: number | string;
+  max?: number | string;
+  step?: number | string;
+};
+
+export const NumberField: React.FC<NumberFieldProps> = (props) => {
   const inputRef = useRef<HTMLInputElement>(null);
 
   useStopWheelScroll(inputRef);
 
-  return <Form.Control {...props} type="number" ref={inputRef} />;
+  const { onChange, min, max, step, inputProps, ...other } = props;
+
+  // Merge min/max/step into inputProps
+  const combinedInputProps = {
+    ...inputProps,
+    ...(min !== undefined && { min }),
+    ...(max !== undefined && { max }),
+    ...(step !== undefined && { step }),
+  };
+
+  return (
+    <TextField
+      {...other}
+      type="number"
+      inputRef={inputRef}
+      variant="outlined"
+      size="small"
+      fullWidth // Bootstrap form controls are usually block block-level
+      inputProps={combinedInputProps}
+      onChange={
+        onChange
+          ? (e) => onChange(e as React.ChangeEvent<HTMLInputElement>)
+          : undefined
+      }
+    />
+  );
 };
 
 type Formik<V extends FormikValues> = ReturnType<typeof useFormik<V>>;
 
 interface IProps {
   labelProps?: FormLabelProps;
-  fieldProps?: ColProps;
+  fieldProps?: any;
 }
 
 export function formikUtils<V extends FormikValues>(
@@ -93,7 +154,6 @@ export function formikUtils<V extends FormikValues>(
   formik: Formik<V>,
   {
     labelProps = {
-      column: true,
       sm: 3,
       xl: 2,
     },
@@ -109,62 +169,65 @@ export function formikUtils<V extends FormikValues>(
   function renderFormControl(field: Field, type: string, placeholder: string) {
     const formikProps = formik.getFieldProps({ name: field, type: type });
     const error = formik.errors[field] as ErrorMessage;
+    const touched = formik.touched[field];
+    const hasError = !!(touched && error);
 
     let { value } = formikProps;
     if (value === null) {
       value = "";
     }
 
-    let control: React.ReactNode;
     if (type === "checkbox") {
-      control = (
-        <Form.Check
-          placeholder={placeholder}
-          {...formikProps}
-          value={value}
-          isInvalid={!!error}
-        />
-      );
-    } else if (type === "textarea") {
-      control = (
-        <Form.Control
-          as="textarea"
-          className="text-input"
-          placeholder={placeholder}
-          {...formikProps}
-          value={value}
-          isInvalid={!!error}
-        />
-      );
-    } else if (type === "number") {
-      control = (
-        <NumberField
-          type={type}
-          className="text-input"
-          placeholder={placeholder}
-          {...formikProps}
-          value={value}
-          isInvalid={!!error}
-        />
-      );
-    } else {
-      control = (
-        <Form.Control
-          type={type}
-          className="text-input"
-          placeholder={placeholder}
-          {...formikProps}
-          value={value}
-          isInvalid={!!error}
-        />
+      return (
+        <Box>
+          <FormControlLabel
+            control={
+              <Checkbox
+                {...formikProps}
+                checked={!!value} // Ensure boolean
+                color="primary"
+              />
+            }
+            label={placeholder || ""}
+          />
+          {hasError && <FormHelperText error>{error}</FormHelperText>}
+        </Box>
       );
     }
 
+    // textarea handling
+    const isMultiline = type === "textarea";
+    const inputType = isMultiline ? "text" : type;
+
+    if (type === "number") {
+      return (
+        <NumberField
+          className="text-input"
+          placeholder={placeholder}
+          {...formikProps}
+          value={value}
+          error={hasError}
+          helperText={hasError ? error : undefined}
+        />
+      )
+    }
+
     return (
-      <>
-        {control}
-        <Form.Control.Feedback type="invalid">{error}</Form.Control.Feedback>
-      </>
+      <TextField
+        fullWidth
+        className="text-input" // Keep classname for potential compat
+        placeholder={placeholder}
+        multiline={isMultiline}
+        rows={isMultiline ? 3 : undefined}
+        id={field}
+        {...formikProps}
+        type={inputType}
+        value={value}
+        error={hasError}
+        helperText={hasError ? error : undefined}
+        variant="outlined"
+        size="small"
+      />
     );
   }
 
@@ -174,11 +237,26 @@ export function formikUtils<V extends FormikValues>(
     control: React.ReactNode,
     props?: IProps
   ) {
+    const lProps = props?.labelProps ?? labelProps;
+    const fProps = props?.fieldProps ?? fieldProps;
+
+    // Map bootstrap cols to MUI Grid size for field props
+    const size: any = {};
+    if (fProps.xs) size.xs = Number(fProps.xs);
+    if (fProps.sm) size.sm = Number(fProps.sm);
+    if (fProps.md) size.md = Number(fProps.md);
+    if (fProps.lg) size.lg = Number(fProps.lg);
+    if (fProps.xl) size.xl = Number(fProps.xl);
+
+    if (Object.keys(size).length === 0 && fProps.sm) {
+      size.sm = Number(fProps.sm);
+    }
+
     return (
-      <Form.Group controlId={field} as={Row} data-field={field}>
-        <Form.Label {...(props?.labelProps ?? labelProps)}>{title}</Form.Label>
-        <Col {...(props?.fieldProps ?? fieldProps)}>{control}</Col>
-      </Form.Group>
+      <Grid container spacing={2} className="mb-3" alignItems="center" data-field={field}>
+        {renderLabel({ title, labelProps: lProps })}
+        <Grid size={size} {...fProps}>{control}</Grid>
+      </Grid>
     );
   }
 
@@ -209,11 +287,17 @@ export function formikUtils<V extends FormikValues>(
 
     const title = intl.formatMessage({ id: messageID });
     const control = (
-      <Form.Control
-        as="select"
+      <TextField
+        select
+        fullWidth
         className="input-control"
         {...formikProps}
         value={value}
+        SelectProps={{
+          native: true,
+        }}
+        variant="outlined"
+        size="small"
       >
         <option value="" key=""></option>
         {Array.from(entries).map(([k, v]) => (
@@ -221,7 +305,7 @@ export function formikUtils<V extends FormikValues>(
             {k}
           </option>
         ))}
-      </Form.Control>
+      </TextField>
     );
 
     return renderField(field, title, control, props);
@@ -383,23 +467,25 @@ export function formikUtils<V extends FormikValues>(
     const control = (
       <>
         {values.length > 0 && (
-          <ul className="pl-0 mb-2">
+          <ul className="pl-0 mb-2" style={{ listStyle: "none" }}>
             {values.map((stashID) => {
               return (
-                <Row as="li" key={stashID.stash_id} noGutters>
+                <Box component="li" key={stashID.stash_id} display="flex" alignItems="center" mb={1}>
                   <Button
-                    variant="danger"
-                    className="mr-2 py-0"
+                    variant="contained"
+                    color="error" // MUI equivalent for danger
+                    className="mr-2"
                     title={intl.formatMessage(
                       { id: "actions.delete_entity" },
                       { entityType: intl.formatMessage({ id: "stash_id" }) }
                     )}
                     onClick={() => removeStashID(stashID)}
+                    style={{ minWidth: 32, padding: "4px 8px" }}
                   >
                     <Icon icon={faTrashAlt} />
                   </Button>
                   <StashIDPill stashID={stashID} linkType={linkType} />
-                </Row>
+                </Box>
               );
             })}
           </ul>

@@ -7,7 +7,7 @@ import { PatchComponent } from "src/patch";
 import { HoverPopover } from "../Shared/HoverPopover";
 import { Icon } from "../Shared/Icon";
 import { TagLink } from "../Shared/TagLink";
-import { Button, ButtonGroup } from "react-bootstrap";
+import { Button, ButtonGroup } from "@mui/material";
 import { FormattedMessage } from "react-intl";
 import { PopoverCountButton } from "../Shared/PopoverCountButton";
 import { RatingBanner } from "../Shared/RatingBanner";
@@ -171,7 +171,7 @@ export const StudioCard: React.FC<IProps> = PatchComponent(
 
       return (
         <HoverPopover placement="bottom" content={popoverContent}>
-          <Button className="minimal tag-count">
+          <Button className="minimal tag-count" variant="text" size="small">
             <Icon icon={faTag} />
             <span>{studio.tags.length}</span>
           </Button>

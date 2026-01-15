@@ -1,5 +1,5 @@
 import React from "react";
-import { Badge, Button } from "react-bootstrap";
+import { Button, Chip } from "@mui/material";
 import { faFilter } from "@fortawesome/free-solid-svg-icons";
 import { Icon } from "src/components/Shared/Icon";
 import { useIntl } from "react-intl";
@@ -23,16 +23,20 @@ export const FilterButton: React.FC<IFilterButtonProps> = ({
 
   return (
     <Button
-      variant="secondary"
+      variant="contained"
+      color="secondary"
       className="filter-button"
       onClick={onClick}
       title={title}
     >
       <Icon icon={faFilter} />
       {count ? (
-        <Badge pill variant="info">
-          {count}
-        </Badge>
+        <Chip
+          size="small"
+          color="info"
+          label={count}
+          sx={{ ml: 0.5 }}
+        />
       ) : undefined}
     </Button>
   );

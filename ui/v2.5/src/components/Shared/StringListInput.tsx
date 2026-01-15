@@ -1,6 +1,6 @@
 import { faGripVertical, faMinus } from "@fortawesome/free-solid-svg-icons";
 import React, { ComponentType, useState } from "react";
-import { Button, Form, InputGroup } from "react-bootstrap";
+import { Button, TextField, Box, IconButton } from "@mui/material";
 import { Icon } from "./Icon";
 
 interface IListInputComponentProps {
@@ -37,14 +37,16 @@ export const StringInput: React.FC<IListInputComponentProps> = ({
   readOnly = false,
 }) => {
   return (
-    <Form.Control
+    <TextField
       className={`text-input ${className ?? ""}`}
       value={value}
       onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
         setValue(e.currentTarget.value)
       }
       placeholder={placeholder}
-      readOnly={readOnly}
+      disabled={readOnly}
+      size="small"
+      fullWidth
     />
   );
 };
@@ -108,12 +110,13 @@ export const StringListInput: React.FC<IStringListInputProps> = (props) => {
   return (
     <>
       <div className={`string-list-input ${props.errors ? "is-invalid" : ""}`}>
-        <Form.Group>
+        <Box component="div">
           {values.map((v, i) => (
-            <InputGroup
+            <Box
               className={props.className}
               key={i}
               onDragOver={(e) => handleDragOver(e, i)}
+              sx={{ display: 'flex', gap: 1, mb: 1 }}
             >
               <Input
                 value={v}
@@ -122,34 +125,35 @@ export const StringListInput: React.FC<IStringListInputProps> = (props) => {
                 className={props.errorIdx?.includes(i) ? "is-invalid" : ""}
                 readOnly={props.readOnly}
               />
-              <InputGroup.Append>
+              <Box sx={{ display: 'flex', gap: 0.5 }}>
                 {AppendComponent && <AppendComponent value={v} />}
                 {!props.readOnly && values.length > 2 && orderable && (
-                  <Button
-                    variant="secondary"
+                  <IconButton
+                    color="secondary"
                     className="drag-handle minimal"
                     draggable={i !== values.length - 1}
                     disabled={i === values.length - 1}
                     onDragStart={(e) => handleDragStart(e, i)}
                     onDragEnd={handleDragEnd}
+                    size="small"
                   >
                     <Icon icon={faGripVertical} />
-                  </Button>
+                  </IconButton>
                 )}
                 {!props.readOnly && (
-                  <Button
-                    variant="danger"
+                  <IconButton
+                    color="error"
                     onClick={() => removeValue(i)}
                     disabled={i === values.length - 1}
-                    size="sm"
+                    size="small"
                   >
                     <Icon icon={faMinus} />
-                  </Button>
+                  </IconButton>
                 )}
-              </InputGroup.Append>
-            </InputGroup>
+              </Box>
+            </Box>
           ))}
-        </Form.Group>
+        </Box>
       </div>
       <div className="invalid-feedback mt-n2">{props.errors}</div>
     </>

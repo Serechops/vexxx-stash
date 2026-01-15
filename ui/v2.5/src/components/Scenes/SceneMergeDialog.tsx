@@ -1,4 +1,5 @@
-import { Form, Col, Row, Button, FormControl } from "react-bootstrap";
+import { Button, TextField, Box, Typography } from "@mui/material";
+import { Col, Row } from "src/components/Shared/Layouts";
 import React, { useEffect, useMemo, useState } from "react";
 import * as GQL from "src/core/generated-graphql";
 import { Icon } from "../Shared/Icon";
@@ -218,9 +219,9 @@ const SceneMergeDetails: React.FC<ISceneMergeDetailsProps> = ({
         dest.studio ? idToStoredID(dest.studio) : undefined,
         foundStudio
           ? {
-              stored_id: foundStudio.id,
-              name: foundStudio.name,
-            }
+            stored_id: foundStudio.id,
+            name: foundStudio.name,
+          }
           : undefined,
         !dest.studio
       )
@@ -409,19 +410,19 @@ const SceneMergeDetails: React.FC<ISceneMergeDetailsProps> = ({
           title={intl.formatMessage({ id: "o_count" })}
           result={oCounter}
           originalField={
-            <FormControl
+            <TextField
               value={oCounter.originalValue ?? 0}
-              readOnly
-              onChange={() => {}}
-              className="bg-secondary text-white border-secondary"
+              InputProps={{ readOnly: true }}
+              size="small"
+              variant="outlined"
             />
           }
           newField={
-            <FormControl
+            <TextField
               value={oCounter.newValue ?? 0}
-              readOnly
-              onChange={() => {}}
-              className="bg-secondary text-white border-secondary"
+              InputProps={{ readOnly: true }}
+              size="small"
+              variant="outlined"
             />
           }
           onChange={(value) => setOCounter(value)}
@@ -431,19 +432,19 @@ const SceneMergeDetails: React.FC<ISceneMergeDetailsProps> = ({
           title={intl.formatMessage({ id: "play_count" })}
           result={playCount}
           originalField={
-            <FormControl
+            <TextField
               value={playCount.originalValue ?? 0}
-              readOnly
-              onChange={() => {}}
-              className="bg-secondary text-white border-secondary"
+              InputProps={{ readOnly: true }}
+              size="small"
+              variant="outlined"
             />
           }
           newField={
-            <FormControl
+            <TextField
               value={playCount.newValue ?? 0}
-              readOnly
-              onChange={() => {}}
-              className="bg-secondary text-white border-secondary"
+              InputProps={{ readOnly: true }}
+              size="small"
+              variant="outlined"
             />
           }
           onChange={(value) => setPlayCount(value)}
@@ -453,21 +454,21 @@ const SceneMergeDetails: React.FC<ISceneMergeDetailsProps> = ({
           title={intl.formatMessage({ id: "play_duration" })}
           result={playDuration}
           originalField={
-            <FormControl
+            <TextField
               value={TextUtils.secondsToTimestamp(
                 playDuration.originalValue ?? 0
               )}
-              readOnly
-              onChange={() => {}}
-              className="bg-secondary text-white border-secondary"
+              InputProps={{ readOnly: true }}
+              size="small"
+              variant="outlined"
             />
           }
           newField={
-            <FormControl
+            <TextField
               value={TextUtils.secondsToTimestamp(playDuration.newValue ?? 0)}
-              readOnly
-              onChange={() => {}}
-              className="bg-secondary text-white border-secondary"
+              InputProps={{ readOnly: true }}
+              size="small"
+              variant="outlined"
             />
           }
           onChange={(value) => setPlayDuration(value)}
@@ -480,7 +481,7 @@ const SceneMergeDetails: React.FC<ISceneMergeDetailsProps> = ({
             <GallerySelect
               className="form-control react-select"
               ids={galleries.originalValue ?? []}
-              onSelect={() => {}}
+              onSelect={() => { }}
               isMulti
               isDisabled
             />
@@ -489,7 +490,7 @@ const SceneMergeDetails: React.FC<ISceneMergeDetailsProps> = ({
             <GallerySelect
               className="form-control react-select"
               ids={galleries.newValue ?? []}
-              onSelect={() => {}}
+              onSelect={() => { }}
               isMulti
               isDisabled
             />
@@ -532,19 +533,19 @@ const SceneMergeDetails: React.FC<ISceneMergeDetailsProps> = ({
           title={intl.formatMessage({ id: "organized" })}
           result={organized}
           originalField={
-            <FormControl
+            <TextField
               value={organized.originalValue ? trueString : falseString}
-              readOnly
-              onChange={() => {}}
-              className="bg-secondary text-white border-secondary"
+              InputProps={{ readOnly: true }}
+              size="small"
+              variant="outlined"
             />
           }
           newField={
-            <FormControl
+            <TextField
               value={organized.newValue ? trueString : falseString}
-              readOnly
-              onChange={() => {}}
-              className="bg-secondary text-white border-secondary"
+              InputProps={{ readOnly: true }}
+              size="small"
+              variant="outlined"
             />
           }
           onChange={(value) => setOrganized(value)}
@@ -762,15 +763,12 @@ export const SceneMergeModal: React.FC<ISceneMergeModalProps> = ({
     >
       <div className="form-container row px-3">
         <div className="col-12 col-lg-6 col-xl-12">
-          <Form.Group controlId="source" as={Row}>
-            {FormUtils.renderLabel({
-              title: intl.formatMessage({ id: "dialogs.merge.source" }),
-              labelProps: {
-                column: true,
-                sm: 3,
-                xl: 12,
-              },
-            })}
+          <Row className="mb-3" alignItems="center">
+            <Col sm={3} xl={12}>
+              <Typography variant="subtitle2" component="label" htmlFor="source">
+                {intl.formatMessage({ id: "dialogs.merge.source" })}
+              </Typography>
+            </Col>
             <Col sm={9} xl={12}>
               <SceneSelect
                 isMulti
@@ -779,32 +777,24 @@ export const SceneMergeModal: React.FC<ISceneMergeModalProps> = ({
                 menuPortalTarget={document.body}
               />
             </Col>
-          </Form.Group>
-          <Form.Group
-            controlId="switch"
-            as={Row}
-            className="justify-content-center"
-          >
+          </Row>
+          <Row className="justify-content-center mb-3">
             <Button
-              variant="secondary"
+              variant="text"
+              color="secondary"
               onClick={() => switchScenes()}
               disabled={!sourceScenes.length || !destScene.length}
               title={intl.formatMessage({ id: "actions.swap" })}
             >
               <Icon className="fa-fw" icon={faExchangeAlt} />
             </Button>
-          </Form.Group>
-          <Form.Group controlId="destination" as={Row}>
-            {FormUtils.renderLabel({
-              title: intl.formatMessage({
-                id: "dialogs.merge.destination",
-              }),
-              labelProps: {
-                column: true,
-                sm: 3,
-                xl: 12,
-              },
-            })}
+          </Row>
+          <Row className="mb-3" alignItems="center">
+            <Col sm={3} xl={12}>
+              <Typography variant="subtitle2" component="label" htmlFor="destination">
+                {intl.formatMessage({ id: "dialogs.merge.destination" })}
+              </Typography>
+            </Col>
             <Col sm={9} xl={12}>
               <SceneSelect
                 onSelect={(items) => setDestScene(items)}
@@ -812,7 +802,7 @@ export const SceneMergeModal: React.FC<ISceneMergeModalProps> = ({
                 menuPortalTarget={document.body}
               />
             </Col>
-          </Form.Group>
+          </Row>
         </div>
       </div>
     </ModalComponent>

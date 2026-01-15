@@ -5,7 +5,7 @@ import React, {
   useState,
   useCallback,
 } from "react";
-import { Button } from "react-bootstrap";
+import { Button } from "@mui/material";
 import * as GQL from "src/core/generated-graphql";
 import TextUtils from "src/utils/text";
 import { Icon } from "src/components/Shared/Icon";

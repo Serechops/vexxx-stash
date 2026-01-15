@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import Mousetrap from "mousetrap";
-import { Form } from "react-bootstrap";
+import { Slider } from "@mui/material";
 
 const minZoom = 0;
 const maxZoom = 4;
@@ -39,17 +39,16 @@ export const ZoomSelect: React.FC<IZoomSelectProps> = ({
   onChangeZoom,
 }) => {
   return (
-    <Form.Control
+    <Slider
       className="zoom-slider"
-      type="range"
       min={minZoom}
       max={maxZoom}
       value={zoomIndex}
-      onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-        onChangeZoom(Number.parseInt(e.currentTarget.value, 10));
-        e.preventDefault();
-        e.stopPropagation();
+      onChange={(_, value) => {
+        onChangeZoom(value as number);
       }}
+      size="small"
+      sx={{ width: 100 }}
     />
   );
 };

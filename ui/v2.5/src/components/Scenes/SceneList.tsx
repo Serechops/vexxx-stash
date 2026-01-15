@@ -69,7 +69,7 @@ import {
 } from "../List/Filters/FilterSidebar";
 import { PatchComponent, PatchContainerComponent } from "src/patch";
 import { Pagination, PaginationIndex } from "../List/Pagination";
-import { Button, ButtonGroup } from "react-bootstrap";
+import { Button, ButtonGroup } from "@mui/material";
 import { Icon } from "../Shared/Icon";
 import useFocus from "src/utils/focus";
 import { useZoomKeybinds } from "../List/ZoomSlider";

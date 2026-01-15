@@ -1,5 +1,5 @@
 import React from "react";
-import { Form } from "react-bootstrap";
+import { Box } from "@mui/material";
 import { useIntl } from "react-intl";
 import { CriterionModifier } from "../../../core/generated-graphql";
 import { IDateValue } from "../../../models/list-filter/types";
@@ -32,13 +32,13 @@ export const DateFilter: React.FC<IDateFilterProps> = ({
     criterion.modifier === CriterionModifier.NotEquals
   ) {
     equalsControl = (
-      <Form.Group>
+      <Box mb={1}>
         <DateInput
           value={value?.value ?? ""}
           onValueChange={(v) => onChanged(v, "value")}
           placeholder={intl.formatMessage({ id: "criterion.value" })}
         />
-      </Form.Group>
+      </Box>
     );
   }
 
@@ -49,13 +49,13 @@ export const DateFilter: React.FC<IDateFilterProps> = ({
     criterion.modifier === CriterionModifier.NotBetween
   ) {
     lowerControl = (
-      <Form.Group>
+      <Box mb={1}>
         <DateInput
           value={value?.value ?? ""}
           onValueChange={(v) => onChanged(v, "value")}
           placeholder={intl.formatMessage({ id: "criterion.greater_than" })}
         />
-      </Form.Group>
+      </Box>
     );
   }
 
@@ -66,7 +66,7 @@ export const DateFilter: React.FC<IDateFilterProps> = ({
     criterion.modifier === CriterionModifier.NotBetween
   ) {
     upperControl = (
-      <Form.Group>
+      <Box mb={1}>
         <DateInput
           value={
             (criterion.modifier === CriterionModifier.LessThan
@@ -83,7 +83,7 @@ export const DateFilter: React.FC<IDateFilterProps> = ({
           }
           placeholder={intl.formatMessage({ id: "criterion.less_than" })}
         />
-      </Form.Group>
+      </Box>
     );
   }
 

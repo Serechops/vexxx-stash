@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { Button, Table } from "react-bootstrap";
+import { Button, Box } from "@mui/material";
 import { FormattedMessage, useIntl } from "react-intl";
 import * as GQL from "src/core/generated-graphql";
 import { CreateSceneSegmentDialog } from "../../CreateSceneSegmentDialog";
@@ -30,7 +30,7 @@ export const SceneSegmentsPanel: React.FC<IProps> = ({ scene }) => {
         <div className="scene-segments-panel">
             <div className="d-flex justify-content-between align-items-center mb-3">
                 <h3>Segments</h3>
-                <Button onClick={() => setShowCreateDialog(true)}>
+                <Button onClick={() => setShowCreateDialog(true)} variant="contained">
                     <Icon icon={faPlus} className="mr-2" />
                     <FormattedMessage id="actions.create" />
                 </Button>

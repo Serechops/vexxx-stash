@@ -1,7 +1,19 @@
 import React, { useContext, useMemo, useState } from "react";
 import * as GQL from "src/core/generated-graphql";
 import { SceneQueue } from "src/models/sceneQueue";
-import { Button, Form, Dropdown, DropdownButton, ProgressBar } from "react-bootstrap";
+import {
+  Button,
+  TextField,
+  MenuItem,
+  Menu,
+  LinearProgress,
+  Box,
+  Stack,
+  Typography,
+  FormControlLabel,
+  Switch,
+  Divider,
+} from "@mui/material";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Icon } from "src/components/Shared/Icon";
@@ -118,46 +130,44 @@ export const Tagger: React.FC<ITaggerProps> = ({ scenes, queue }) => {
   const [hideUnmatched, setHideUnmatched] = useState(false);
   const [globalQueryOverride, setGlobalQueryOverride] = useState("");
   const [fillAllEnabled, setFillAllEnabled] = useState(false);
+  const [massActionsAnchorEl, setMassActionsAnchorEl] = useState<null | HTMLElement>(null);
 
   const intl = useIntl();
 
-  function handleSourceSelect(e: React.ChangeEvent<HTMLSelectElement>) {
-    setCurrentSource(sources!.find((s) => s.id === e.currentTarget.value));
+  function handleSourceSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    setCurrentSource(sources!.find((s) => s.id === e.target.value));
   }
 
   function renderSourceSelector() {
     return (
-      <Form.Group controlId="scraper">
-        <Form.Label>
+      <Box>
+        <Typography variant="subtitle2" gutterBottom>
           <FormattedMessage id="component_tagger.config.source" />
-        </Form.Label>
-        <div>
-          <Form.Control
-            as="select"
-            value={currentSource?.id}
-            className="input-control"
-            disabled={loading || !sources.length}
-            onChange={handleSourceSelect}
-          >
-            {!sources.length && <option>No scraper sources</option>}
-            {sources.map((i) => (
-              <option value={i.id} key={i.id}>
-                {i.displayName}
-              </option>
-            ))}
-          </Form.Control>
-        </div>
-      </Form.Group>
+        </Typography>
+        <TextField
+          select
+          size="small"
+          value={currentSource?.id || ""}
+          disabled={loading || !sources.length}
+          onChange={handleSourceSelect}
+          sx={{ minWidth: 200 }}
+        >
+          {!sources.length && <MenuItem value="">No scraper sources</MenuItem>}
+          {sources.map((i) => (
+            <MenuItem value={i.id} key={i.id}>
+              {i.displayName}
+            </MenuItem>
+          ))}
+        </TextField>
+      </Box>
     );
   }
 
   function renderConfigButton() {
     return (
-      <div className="ml-2">
-        <Button onClick={() => setShowConfig(!showConfig)}>
-          <Icon className="fa-fw" icon={faCog} />
-        </Button>
-      </div>
+      <Button onClick={() => setShowConfig(!showConfig)} variant="outlined" size="small">
+        <Icon className="fa-fw" icon={faCog} />
+      </Button>
     );
   }
 
@@ -189,7 +199,7 @@ export const Tagger: React.FC<ITaggerProps> = ({ scenes, queue }) => {
   function maybeRenderShowHideUnmatchedButton() {
     if (Object.keys(searchResults).length) {
       return (
-        <Button onClick={toggleHideUnmatchedScenes}>
+        <Button onClick={toggleHideUnmatchedScenes} variant="outlined" size="small">
           <FormattedMessage
             id="component_tagger.verb_toggle_unmatched"
             values={{
@@ -236,37 +246,28 @@ export const Tagger: React.FC<ITaggerProps> = ({ scenes, queue }) => {
     if (loadingMulti) {
       return (
         <Button
-          className="ml-1"
-          variant="danger"
+          variant="contained"
+          color="error"
+          size="small"
           onClick={() => {
             stopMultiScrape();
           }}
+          startIcon={<LoadingIndicator message="" inline small />}
         >
-          <LoadingIndicator message="" inline small />
-          <span className="ml-2">
-            {intl.formatMessage({ id: "actions.stop" })}
-          </span>
+          {intl.formatMessage({ id: "actions.stop" })}
         </Button>
       );
     }
 
     return (
-      <div className="ml-1">
-        <OperationButton
-          disabled={loading}
-          operation={async () => {
-            await doMultiSceneFragmentScrape(scenes.map((s) => s.id));
-          }}
-        >
-          {intl.formatMessage({ id: "component_tagger.verb_scrape_all" })}
-        </OperationButton>
-        {multiError && (
-          <>
-            <br />
-            <b className="text-danger">{multiError}</b>
-          </>
-        )}
-      </div>
+      <OperationButton
+        disabled={loading}
+        operation={async () => {
+          await doMultiSceneFragmentScrape(scenes.map((s) => s.id));
+        }}
+      >
+        {intl.formatMessage({ id: "component_tagger.verb_scrape_all" })}
+      </OperationButton>
     );
   }
 
@@ -274,29 +275,38 @@ export const Tagger: React.FC<ITaggerProps> = ({ scenes, queue }) => {
     if (Object.keys(searchResults).length === 0) return;
 
     return (
-      <DropdownButton
-        className="ml-1"
-        title={intl.formatMessage({ id: "Bulk Operations" })}
-        id="mass-actions-dropdown"
-        disabled={loading || loadingMulti}
-      >
-        <Dropdown.Item onClick={() => doMassCreateTags()} disabled={pendingTagsCount === 0}>
-          Create All Tags ({pendingTagsCount})
-        </Dropdown.Item>
-        <Dropdown.Item onClick={() => doMassCreatePerformers()} disabled={pendingPerformersCount === 0}>
-          Create All Performers ({pendingPerformersCount})
-        </Dropdown.Item>
-        <Dropdown.Item onClick={() => doMassCreateStudios()} disabled={pendingStudiosCount === 0}>
-          Create All Studios ({pendingStudiosCount})
-        </Dropdown.Item>
-        <Dropdown.Item onClick={() => doMassSave()} disabled={pendingScenesCount === 0}>
-          Save All Matched ({pendingScenesCount})
-        </Dropdown.Item>
-        <Dropdown.Divider />
-        <Dropdown.Item onClick={() => doRunAll()} disabled={pendingScenesCount === 0}>
-          <strong>Run All</strong>
-        </Dropdown.Item>
-      </DropdownButton>
+      <>
+        <Button
+          variant="outlined"
+          size="small"
+          onClick={(e) => setMassActionsAnchorEl(e.currentTarget)}
+          disabled={loading || loadingMulti}
+        >
+          {intl.formatMessage({ id: "Bulk Operations" })}
+        </Button>
+        <Menu
+          anchorEl={massActionsAnchorEl}
+          open={Boolean(massActionsAnchorEl)}
+          onClose={() => setMassActionsAnchorEl(null)}
+        >
+          <MenuItem onClick={() => { doMassCreateTags(); setMassActionsAnchorEl(null); }} disabled={pendingTagsCount === 0}>
+            Create All Tags ({pendingTagsCount})
+          </MenuItem>
+          <MenuItem onClick={() => { doMassCreatePerformers(); setMassActionsAnchorEl(null); }} disabled={pendingPerformersCount === 0}>
+            Create All Performers ({pendingPerformersCount})
+          </MenuItem>
+          <MenuItem onClick={() => { doMassCreateStudios(); setMassActionsAnchorEl(null); }} disabled={pendingStudiosCount === 0}>
+            Create All Studios ({pendingStudiosCount})
+          </MenuItem>
+          <MenuItem onClick={() => { doMassSave(); setMassActionsAnchorEl(null); }} disabled={pendingScenesCount === 0}>
+            Save All Matched ({pendingScenesCount})
+          </MenuItem>
+          <Divider />
+          <MenuItem onClick={() => { doRunAll(); setMassActionsAnchorEl(null); }} disabled={pendingScenesCount === 0}>
+            <strong>Run All</strong>
+          </MenuItem>
+        </Menu>
+      </>
     );
   }
 
@@ -304,30 +314,31 @@ export const Tagger: React.FC<ITaggerProps> = ({ scenes, queue }) => {
     if (!bulkProgress) return null;
     const percent = (bulkProgress.progress / bulkProgress.total) * 100;
     return (
-      <div className="mb-3">
-        <div className="d-flex justify-content-between mb-1">
-          <span>{bulkProgress.message}</span>
-          <span>{bulkProgress.progress} / {bulkProgress.total}</span>
-        </div>
-        <ProgressBar animated now={percent} label={`${percent.toFixed(0)}%`} />
-      </div>
+      <Box mb={3}>
+        <Stack direction="row" justifyContent="space-between" mb={1}>
+          <Typography variant="body2">{bulkProgress.message}</Typography>
+          <Typography variant="body2">{bulkProgress.progress} / {bulkProgress.total}</Typography>
+        </Stack>
+        <LinearProgress variant="determinate" value={percent} />
+      </Box>
     );
   }
 
   return (
     <SceneTaggerModals>
-      <div className="tagger-container mx-md-auto">
-        <div className="tagger-container-header">
-          <div className="d-flex justify-content-between align-items-center flex-wrap">
-            <div className="w-auto">{renderSourceSelector()}</div>
-            <div className="d-flex">
+      <Box className="tagger-container mx-md-auto">
+        <Box className="tagger-container-header">
+          <Stack direction="row" justifyContent="space-between" alignItems="flex-start" flexWrap="wrap" spacing={2}>
+            <Box>{renderSourceSelector()}</Box>
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
               {maybeRenderShowHideUnmatchedButton()}
               {maybeRenderSubmitFingerprintsButton()}
               {renderFragmentScrapeButton()}
               {/* Standalone Search All button - visible when Fill All is enabled */}
               {fillAllEnabled && globalQueryOverride && (
                 <Button
-                  className="ml-1"
+                  variant="contained"
+                  size="small"
                   onClick={() => doSearchAll(scenes, globalQueryOverride)}
                   disabled={loading || loadingMulti || scenes.length === 0}
                 >
@@ -338,40 +349,42 @@ export const Tagger: React.FC<ITaggerProps> = ({ scenes, queue }) => {
               {/* Review toggle button */}
               {taggerHistory.length > 0 && (
                 <Button
-                  className="ml-2"
-                  variant={showReview ? "primary" : "outline-secondary"}
+                  variant={showReview ? "contained" : "outlined"}
+                  size="small"
                   onClick={() => setShowReview(!showReview)}
                   title="Show Tagging Session Review"
+                  startIcon={<Icon icon={faClipboardList} />}
                 >
-                  <Icon icon={faClipboardList} />
-                  <span className="ml-1">{taggerHistory.length}</span>
+                  {taggerHistory.length}
                 </Button>
               )}
               {renderConfigButton()}
-            </div>
-          </div>
+            </Stack>
+          </Stack>
           <Config show={showConfig} />
           {/* Fill All Queries Input */}
-          <div className="d-flex align-items-center mt-2 mb-2">
-            <Form.Check
-              type="switch"
-              id="fill-all-switch"
+          <Stack direction="row" alignItems="center" spacing={2} mt={2} mb={2}>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={fillAllEnabled}
+                  onChange={(e) => setFillAllEnabled(e.target.checked)}
+                  size="small"
+                />
+              }
               label="Fill All Queries"
-              checked={fillAllEnabled}
-              onChange={(e) => setFillAllEnabled(e.target.checked)}
-              className="mr-2"
             />
             {fillAllEnabled && (
-              <Form.Control
-                type="text"
+              <TextField
+                size="small"
                 placeholder="Enter query text for all scenes..."
                 value={globalQueryOverride}
                 onChange={(e) => setGlobalQueryOverride(e.target.value)}
-                className="w-50"
+                sx={{ width: '50%' }}
               />
             )}
-          </div>
-        </div>
+          </Stack>
+        </Box>
         {renderBulkProgress()}
         <TaggerReview show={showReview} onClose={() => setShowReview(false)} />
         <div>
@@ -387,7 +400,7 @@ export const Tagger: React.FC<ITaggerProps> = ({ scenes, queue }) => {
             />
           ))}
         </div>
-      </div>
+      </Box>
     </SceneTaggerModals>
   );
 };

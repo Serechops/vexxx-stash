@@ -1,5 +1,17 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Button, Card, Container, Form, ProgressBar } from "react-bootstrap";
+import {
+  Button,
+  Card,
+  Container,
+  TextField,
+  LinearProgress,
+  Box,
+  Typography,
+  CardContent,
+  Alert,
+  Stack,
+  Divider,
+} from "@mui/material";
 import { useIntl, FormattedMessage } from "react-intl";
 import { useHistory } from "react-router-dom";
 import * as GQL from "src/core/generated-graphql";
@@ -97,18 +109,18 @@ export const Migrate: React.FC = () => {
     if (notes.length === 0) return;
 
     return (
-      <div className="migration-notes">
-        <h2>
+      <Box className="migration-notes" mt={4} mb={4}>
+        <Typography variant="h5" gutterBottom>
           <FormattedMessage id="setup.migrate.migration_notes" />
-        </h2>
-        <div>
+        </Typography>
+        <Box>
           {notes.map((n, i) => (
-            <div key={i}>
+            <Box key={i} mb={2}>
               <MarkdownPage page={n} />
-            </div>
+            </Box>
           ))}
-        </div>
-      </div>
+        </Box>
+      </Box>
     );
   }, [status]);
 
@@ -124,26 +136,27 @@ export const Migrate: React.FC = () => {
         : undefined;
 
     return (
-      <div className="migrate-loading-status">
-        <h4>
-          <LoadingIndicator inline small message="" />
-          <span>
-            <FormattedMessage id="setup.migrate.migrating_database" />
-          </span>
-        </h4>
+      <Container maxWidth="md" sx={{ mt: 4 }}>
+        <Box textAlign="center" mb={4}>
+          <Box display="flex" alignItems="center" justifyContent="center" mb={2}>
+            <LoadingIndicator inline small message="" />
+            <Typography variant="h4" component="span" ml={2}>
+              <FormattedMessage id="setup.migrate.migrating_database" />
+            </Typography>
+          </Box>
+        </Box>
         {progress !== undefined && (
-          <ProgressBar
-            animated
-            now={progress}
-            label={`${progress.toFixed(0)}%`}
-          />
+          <Box mb={2}>
+            <LinearProgress variant="determinate" value={progress} sx={{ height: 10, borderRadius: 5 }} />
+            <Typography variant="body2" align="center" mt={1}>
+              {progress.toFixed(0)}%
+            </Typography>
+          </Box>
         )}
         {job?.subTasks?.map((subTask, i) => (
-          <div key={i}>
-            <p>{subTask}</p>
-          </div>
+          <Typography key={i} variant="body1" align="center">{subTask}</Typography>
         ))}
-      </div>
+      </Container>
     );
   }
 
@@ -178,72 +191,76 @@ export const Migrate: React.FC = () => {
     }
 
     return (
-      <section>
-        <h2 className="text-danger">
+      <Box mt={4}>
+        <Typography variant="h4" color="error" gutterBottom>
           <FormattedMessage id="setup.migrate.migration_failed" />
-        </h2>
+        </Typography>
 
-        <p>
+        <Typography paragraph>
           <FormattedMessage id="setup.migrate.migration_failed_error" />
-        </p>
+        </Typography>
 
-        <Card>
-          <pre>{migrateError}</pre>
+        <Card variant="outlined" sx={{ mb: 3 }}>
+          <CardContent>
+            <Typography component="pre" sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+              {migrateError}
+            </Typography>
+          </CardContent>
         </Card>
 
-        <p>
+        <Typography paragraph>
           <FormattedMessage
             id="setup.migrate.migration_failed_help"
             values={{ discordLink, githubLink }}
           />
-        </p>
-      </section>
+        </Typography>
+      </Box>
     );
   }
 
   return (
-    <Container>
-      <h1 className="text-center mb-3">
+    <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
+      <Typography variant="h3" align="center" gutterBottom>
         <FormattedMessage id="setup.migrate.migration_required" />
-      </h1>
-      <Card>
-        <section>
-          <p>
-            <FormattedMessage
-              id="setup.migrate.schema_too_old"
-              values={{
-                databaseSchema: <strong>{status.databaseSchema}</strong>,
-                appSchema: <strong>{status.appSchema}</strong>,
-                strong: (chunks: string) => <strong>{chunks}</strong>,
-                code: (chunks: string) => <code>{chunks}</code>,
-              }}
-            />
-          </p>
+      </Typography>
+      <Card variant="outlined">
+        <CardContent>
+          <Box component="section">
+            <Typography paragraph>
+              <FormattedMessage
+                id="setup.migrate.schema_too_old"
+                values={{
+                  databaseSchema: <strong>{status.databaseSchema}</strong>,
+                  appSchema: <strong>{status.appSchema}</strong>,
+                  strong: (chunks: string) => <strong>{chunks}</strong>,
+                  code: (chunks: string) => <code>{chunks}</code>,
+                }}
+              />
+            </Typography>
 
-          <p className="lead text-center my-5">
-            <FormattedMessage id="setup.migrate.migration_irreversible_warning" />
-          </p>
+            <Typography variant="h6" align="center" color="text.secondary" sx={{ my: 4 }}>
+              <FormattedMessage id="setup.migrate.migration_irreversible_warning" />
+            </Typography>
 
-          <p>
-            <FormattedMessage
-              id="setup.migrate.backup_recommended"
-              values={{
-                defaultBackupPath,
-                code: (chunks: string) => <code>{chunks}</code>,
-              }}
-            />
-          </p>
-        </section>
+            <Typography paragraph>
+              <FormattedMessage
+                id="setup.migrate.backup_recommended"
+                values={{
+                  defaultBackupPath,
+                  code: (chunks: string) => <code>{chunks}</code>,
+                }}
+              />
+            </Typography>
+          </Box>
 
-        {maybeMigrationNotes}
+          <Divider sx={{ my: 3 }} />
 
-        <section>
-          <Form.Group id="migrate">
-            <Form.Label>
-              <FormattedMessage id="setup.migrate.backup_database_path_leave_empty_to_disable_backup" />
-            </Form.Label>
-            <Form.Control
-              className="text-input"
+          {maybeMigrationNotes}
+
+          <Box mt={4}>
+            <TextField
+              fullWidth
+              label={<FormattedMessage id="setup.migrate.backup_database_path_leave_empty_to_disable_backup" />}
               name="backupPath"
               defaultValue={backupPath}
               placeholder={intl.formatMessage({
@@ -252,19 +269,18 @@ export const Migrate: React.FC = () => {
               onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                 setBackupPath(e.currentTarget.value)
               }
+              helperText={<FormattedMessage id="setup.migrate.backup_database_path_leave_empty_to_disable_backup" />}
             />
-          </Form.Group>
-        </section>
+          </Box>
 
-        <section>
-          <div className="d-flex justify-content-center">
-            <Button variant="primary mx-2 p-5" onClick={() => onMigrate()}>
+          <Box sx={{ mt: 5, display: "flex", justifyContent: "center" }}>
+            <Button variant="contained" size="large" onClick={() => onMigrate()} sx={{ p: 2, minWidth: 200 }}>
               <FormattedMessage id="setup.migrate.perform_schema_migration" />
             </Button>
-          </div>
-        </section>
+          </Box>
 
-        {maybeRenderError()}
+          {maybeRenderError()}
+        </CardContent>
       </Card>
     </Container>
   );

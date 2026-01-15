@@ -1,4 +1,4 @@
-import { Button } from "react-bootstrap";
+import { Button } from "@mui/material";
 import React, { useState } from "react";
 import { FormattedMessage } from "react-intl";
 import * as GQL from "src/core/generated-graphql";

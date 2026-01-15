@@ -1,5 +1,4 @@
 import React from "react";
-import { ModalProps } from "react-bootstrap";
 import { useIntl } from "react-intl";
 import { faQuestionCircle } from "@fortawesome/free-solid-svg-icons";
 import { useSettings } from "../context";
@@ -11,7 +10,7 @@ import { SettingSection } from "../SettingSection";
 import { BooleanSetting, StringListSetting, StringSetting } from "../Inputs";
 
 interface IProps {
-    modalProps?: ModalProps;
+    modalProps?: any;
 }
 
 export const LibrarySettings: React.FC<IProps> = ({ modalProps }) => {

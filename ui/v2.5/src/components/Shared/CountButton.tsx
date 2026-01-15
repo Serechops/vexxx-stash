@@ -1,6 +1,6 @@
 import { faEye, faThumbsUp } from "@fortawesome/free-solid-svg-icons";
 import React from "react";
-import { Button, ButtonGroup } from "react-bootstrap";
+import { Button, ButtonGroup } from "@mui/material";
 import { Icon } from "src/components/Shared/Icon";
 import { SweatDrops } from "./SweatDrops";
 import cx from "classnames";
@@ -27,10 +27,12 @@ export const CountButton: React.FC<ICountButtonProps> = ({
   return (
     <ButtonGroup
       className={cx("count-button", { "increment-only": !onValueClicked })}
+      size="small"
     >
       <Button
         className="minimal count-icon"
-        variant="secondary"
+        variant="text"
+        color="secondary"
         onClick={() => onIncrement?.()}
         title={title}
       >
@@ -38,7 +40,8 @@ export const CountButton: React.FC<ICountButtonProps> = ({
       </Button>
       <Button
         className="minimal count-value"
-        variant="secondary"
+        variant="text"
+        color="secondary"
         onClick={() => (onValueClicked ?? onIncrement)?.()}
         title={!!onValueClicked ? countTitle : undefined}
       >

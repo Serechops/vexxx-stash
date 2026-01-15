@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Button, ButtonGroup } from "react-bootstrap";
+import { Button, ButtonGroup, Box, Stack } from "@mui/material";
 import { FormattedMessage } from "react-intl";
 
 import * as GQL from "src/core/generated-graphql";
@@ -165,12 +165,12 @@ const PerformerResult: React.FC<IPerformerResultProps> = ({
           />
         </b>
       </div>
-      <ButtonGroup>
-        <Button variant="secondary" onClick={() => onCreate()}>
+      <ButtonGroup size="small">
+        <Button variant="outlined" onClick={() => onCreate()}>
           <FormattedMessage id="actions.create" />
         </Button>
         <Button
-          variant={selectedSource === "skip" ? "primary" : "secondary"}
+          variant={selectedSource === "skip" ? "contained" : "outlined"}
           onClick={() => handleSkip()}
         >
           <FormattedMessage id="actions.skip" />

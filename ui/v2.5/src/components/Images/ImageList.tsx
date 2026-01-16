@@ -483,6 +483,7 @@ const ImageListContent: React.FC<{
           totalCount={totalCount}
           onChangePage={onChangePage}
           metadataByline={metadataByline}
+          hidePagination={true}
         >
           {renderContent(result, effectiveFilter, selectedIds, onSelectChange, onChangePage, pages)}
         </PagedList>

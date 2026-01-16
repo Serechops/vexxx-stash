@@ -237,18 +237,20 @@ export const ImageCard: React.FC<IImageCardProps> = PatchComponent(
                 >
                   <Button
                     onClick={props.onPreview}
-                    size="small"
                     sx={{
                       minWidth: "auto",
-                      p: 1,
-                      bgcolor: "rgba(0,0,0,0)",
+                      p: 2,
+                      bgcolor: "rgba(0,0,0,0)", // Subtle background for the larger icon
+                      borderRadius: "50%",
                       color: "white",
                       "&:hover": {
                         bgcolor: "rgba(0,0,0,0)",
+                        transform: "scale(1.1)",
                       },
+                      transition: "all 0.2s ease-in-out",
                     }}
                   >
-                    <SearchIcon />
+                    <SearchIcon sx={{ fontSize: "4.5rem", filter: "drop-shadow(0 4px 8px rgba(0,0,0,0.5))" }} />
                   </Button>
                 </Box>
               ) : undefined}

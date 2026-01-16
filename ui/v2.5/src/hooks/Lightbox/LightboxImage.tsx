@@ -190,30 +190,22 @@ export const LightboxImage: React.FC<IProps> = ({
 
   const calculateInitialPosition = useCallback(
     (appliedZoom: number) => {
-      // Center image from container's center
-      const newPositionX = Math.min((boxWidth - imageWidth) / 2, 0);
-      let newPositionY: number;
+      // User request: Ensure image is centered.
+      // We rely on CSS flexbox (margin: auto) to center the image.
+      // Therefore, the initial translation should be 0,0 to preserve centering.
+      // Only when aligning to bottom (e.g. specific scroll modes) do we need offsets.
 
-      if (displayMode === GQL.ImageLightboxDisplayMode.FitXy) {
-        newPositionY = Math.min((boxHeight - imageHeight) / 2, 0);
-      } else {
-        // otherwise, align image with container
+      const newPositionX = 0;
+      let newPositionY = 0;
+
+      if (alignBottom) {
         const [minY, maxY] = minMaxY(appliedZoom);
-        if (!alignBottom) {
-          newPositionY = maxY;
-        } else {
-          newPositionY = minY;
-        }
+        newPositionY = minY;
       }
 
       return [newPositionX, newPositionY];
     },
     [
-      displayMode,
-      boxWidth,
-      imageWidth,
-      boxHeight,
-      imageHeight,
       alignBottom,
       minMaxY,
     ]
@@ -548,15 +540,20 @@ export const LightboxImage: React.FC<IProps> = ({
   return (
     <div
       ref={container}
-      className={`${CLASSNAME_IMAGE}`}
+      className={`flex w-full h-full m-auto relative justify-center items-center ${displayMode === GQL.ImageLightboxDisplayMode.FitXy
+        ? "object-cover"
+        : "object-contain"
+        }`}
       onWheel={(e) => onContainerScroll(e)}
     >
       {defaultZoom ? (
         <picture
           style={{
-            transform: `translate(${positionX}px, ${positionY}px) scale(${
-              defaultZoom * zoom
-            })`,
+            transform: `translate(${positionX}px, ${positionY}px) scale(${defaultZoom * zoom
+              })`,
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
           }}
         >
           <source srcSet={src} media="(min-width: 800px)" />
@@ -566,6 +563,7 @@ export const LightboxImage: React.FC<IProps> = ({
             src={src}
             alt=""
             draggable={false}
+            className="cursor-pointer max-w-none w-auto h-auto"
             style={{ touchAction: "none" }}
             onWheel={current ? (e) => onImageScroll(e) : undefined}
             onMouseDown={onImageMouseDown}

@@ -35,8 +35,9 @@ interface LightboxControlsProps {
     onIncrementO: () => Promise<void>;
     onDecrementO: () => Promise<void>;
     title?: string;
-    details?: string;
+    details?: React.ReactNode;
     date?: string;
+    optionsContent?: React.ReactNode;
 }
 
 const ControlButton: React.FC<{
@@ -46,7 +47,7 @@ const ControlButton: React.FC<{
     children: React.ReactNode;
 }> = ({ onClick, title, active, children }) => (
     <button
-        className={`p-2 rounded-full hover:bg-white/20 transition-colors text-white ${active ? "text-blue-400" : ""
+        className={`p-3 rounded-full hover:bg-white/20 transition-colors text-white ${active ? "text-blue-400" : ""
             }`}
         onClick={(e) => {
             e.stopPropagation();
@@ -81,6 +82,7 @@ export const LightboxControls: React.FC<LightboxControlsProps> = ({
     title,
     details,
     date,
+    optionsContent,
 }) => {
     const intl = useIntl();
     const [showChapters, setShowChapters] = useState(false);
@@ -90,7 +92,7 @@ export const LightboxControls: React.FC<LightboxControlsProps> = ({
     return (
         <>
             {/* Header */}
-            <div className="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/80 to-transparent flex justify-between items-start z-[1050] transition-opacity duration-300">
+            <div className="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/80 to-transparent flex justify-between items-start z-[2000] transition-opacity duration-300">
                 <div className="flex flex-col gap-1">
                     {chapters.length > 0 && (
                         <div className="relative">
@@ -101,17 +103,17 @@ export const LightboxControls: React.FC<LightboxControlsProps> = ({
                                     setShowChapters(!showChapters);
                                 }}
                             >
-                                <MenuIcon fontSize="small" />
-                                <span>Chapters</span>
-                                <KeyboardArrowDownIcon fontSize="small" />
+                                <MenuIcon sx={{ fontSize: '2rem' }} />
+                                <span className="text-xl">Chapters</span>
+                                <KeyboardArrowDownIcon sx={{ fontSize: '2rem' }} />
                             </button>
 
                             {showChapters && (
-                                <div className="absolute top-full left-0 mt-2 bg-gray-900 border border-gray-700 rounded-md shadow-xl py-1 w-64 max-h-96 overflow-y-auto z-[1060]">
+                                <div className="absolute top-full left-0 mt-2 bg-gray-900 border border-gray-700 rounded-md shadow-xl py-1 w-64 max-h-96 overflow-y-auto z-[2010]">
                                     {chapters.map((chapter) => (
                                         <button
                                             key={chapter.id}
-                                            className="w-full text-left px-4 py-2 hover:bg-white/10 text-sm text-gray-200"
+                                            className="w-full text-left px-4 py-2 hover:bg-white/10 text-lg text-gray-200"
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 onChapterClick(chapter.image_index);
@@ -127,18 +129,18 @@ export const LightboxControls: React.FC<LightboxControlsProps> = ({
                         </div>
                     )}
 
-                    <h2 className="text-lg font-bold text-white drop-shadow-md">{title}</h2>
+                    <h2 className="text-xl font-bold text-white drop-shadow-md">{title}</h2>
                     {details && (
-                        <p className="text-sm text-gray-300 drop-shadow-md">
+                        <div className="text-base text-gray-300 drop-shadow-md">
                             {details} {date && `• ${date}`}
-                        </p>
+                        </div>
                     )}
                 </div>
 
                 <div className="flex items-center gap-2">
                     {zoom !== 1 && (
                         <ControlButton onClick={() => onZoomChange(1)} title="Reset Zoom">
-                            <ZoomOutIcon fontSize="small" />
+                            <ZoomOutIcon sx={{ fontSize: '2rem' }} />
                         </ControlButton>
                     )}
 
@@ -148,48 +150,47 @@ export const LightboxControls: React.FC<LightboxControlsProps> = ({
                             active={slideshowActive}
                             title="Toggle Slideshow"
                         >
-                            {slideshowActive ? <PauseIcon fontSize="small" /> : <PlayArrowIcon fontSize="small" />}
+                            {slideshowActive ? <PauseIcon sx={{ fontSize: '2rem' }} /> : <PlayArrowIcon sx={{ fontSize: '2rem' }} />}
                         </ControlButton>
                     )}
 
                     <div className="relative">
                         <ControlButton onClick={onToggleOptions} title="Options" active={showOptions}>
-                            <SettingsIcon fontSize="small" />
+                            <SettingsIcon sx={{ fontSize: '2rem' }} />
                         </ControlButton>
 
                         {showOptions && (
                             <div
-                                className="absolute top-full right-0 mt-2 bg-gray-900 border border-gray-700 rounded-md shadow-xl p-4 w-72 z-[1060]"
+                                className="absolute top-full right-0 mt-2 bg-gray-900 border border-gray-700 rounded-md shadow-xl p-4 min-w-[350px] z-[2010] text-left"
                                 onClick={(e) => e.stopPropagation()}
                             >
                                 <div className="space-y-4">
-                                    {/* Options content placeholder - can be expanded */}
-                                    <div className="text-sm text-gray-400">Settings</div>
+                                    {optionsContent}
                                 </div>
                             </div>
                         )}
                     </div>
 
                     <ControlButton onClick={onToggleFullscreen} title="Toggle Fullscreen">
-                        <FullscreenIcon fontSize="small" />
+                        <FullscreenIcon sx={{ fontSize: '2rem' }} />
                     </ControlButton>
 
                     <ControlButton onClick={onClose} title="Close">
-                        <CloseIcon sx={{ fontSize: '1.25rem' }} />
+                        <CloseIcon sx={{ fontSize: '2rem' }} />
                     </ControlButton>
                 </div>
             </div>
 
             {/* Footer */}
-            <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent flex justify-between items-end z-[1050] transition-opacity duration-300">
+            <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent flex justify-between items-end z-[2000] transition-opacity duration-300">
                 <div className="flex gap-4 items-center">
                     <div className="flex items-center gap-2 text-white">
-                        <span className="text-sm opacity-70">
+                        <span className="text-lg opacity-70">
                             {currentIndex + 1} / {totalImages}
                         </span>
                     </div>
 
-                    <div className="h-6 w-px bg-white/20 mx-2"></div>
+                    <div className="h-8 w-px bg-white/20 mx-2"></div>
 
                     <OCounterButton
                         value={image?.o_counter ?? 0}

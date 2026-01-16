@@ -41,6 +41,7 @@ export const PagedList: React.FC<
     onChangePage: (page: number) => void;
     metadataByline?: React.ReactNode;
     allowSkeleton?: boolean;
+    hidePagination?: boolean;
   }>
 > = ({
   result,
@@ -51,10 +52,12 @@ export const PagedList: React.FC<
   metadataByline,
   children,
   allowSkeleton,
+  hidePagination,
 }) => {
     const pages = Math.ceil(totalCount / filter.itemsPerPage);
 
     const pagination = useMemo(() => {
+      // ... (existing code)
       return (
         <Pagination
           itemsPerPage={filter.itemsPerPage}
@@ -94,7 +97,7 @@ export const PagedList: React.FC<
       return (
         <LoadedContent loading={allowSkeleton ? false : result.loading} error={result.error}>
           {children}
-          {!!pages && (
+          {!!pages && !hidePagination && (
             <>
               {paginationIndex}
               {pagination}
@@ -110,12 +113,13 @@ export const PagedList: React.FC<
       pagination,
       paginationIndex,
       allowSkeleton,
+      hidePagination,
     ]);
 
     return (
       <>
-        {pagination}
-        {paginationIndex}
+        {!hidePagination && pagination}
+        {!hidePagination && paginationIndex}
         {content}
       </>
     );

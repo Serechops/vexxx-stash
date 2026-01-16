@@ -26,6 +26,7 @@ import { useToast } from "../Toast";
 import { FormattedMessage, useIntl } from "react-intl";
 import { LightboxImage } from "./LightboxImage";
 import { LightboxFilmstrip } from "./LightboxFilmstrip";
+import { LightboxControls } from "./LightboxControls";
 import { useConfigurationContext } from "../Config";
 import { Link } from "react-router-dom";
 import { OCounterButton } from "src/components/Scenes/SceneDetails/OCounterButton";
@@ -56,30 +57,6 @@ import { useDebounce } from "../debounce";
 import { isVideo } from "src/utils/visualFile";
 import { imageTitle } from "src/core/files";
 import { galleryTitle } from "src/core/galleries";
-
-const CLASSNAME = "Lightbox";
-const CLASSNAME_HEADER = `${CLASSNAME}-header`;
-const CLASSNAME_LEFT_SPACER = `${CLASSNAME_HEADER}-left-spacer`;
-const CLASSNAME_CHAPTERS = `${CLASSNAME_HEADER}-chapters`;
-const CLASSNAME_CHAPTER_BUTTON = `${CLASSNAME_HEADER}-chapter-button`;
-const CLASSNAME_INDICATOR = `${CLASSNAME_HEADER}-indicator`;
-const CLASSNAME_OPTIONS = `${CLASSNAME_HEADER}-options`;
-const CLASSNAME_OPTIONS_ICON = `${CLASSNAME_OPTIONS}-icon`;
-const CLASSNAME_OPTIONS_INLINE = `${CLASSNAME_OPTIONS}-inline`;
-const CLASSNAME_RIGHT = `${CLASSNAME_HEADER}-right`;
-const CLASSNAME_FOOTER = `${CLASSNAME}-footer`;
-const CLASSNAME_FOOTER_LEFT = `${CLASSNAME_FOOTER}-left`;
-const CLASSNAME_FOOTER_CENTER = `${CLASSNAME_FOOTER}-center`;
-const CLASSNAME_FOOTER_RIGHT = `${CLASSNAME_FOOTER}-right`;
-const CLASSNAME_DISPLAY = `${CLASSNAME}-display`;
-const CLASSNAME_CAROUSEL = `${CLASSNAME}-carousel`;
-const CLASSNAME_INSTANT = `${CLASSNAME_CAROUSEL}-instant`;
-const CLASSNAME_IMAGE = `${CLASSNAME_CAROUSEL}-image`;
-const CLASSNAME_NAVBUTTON = `${CLASSNAME}-navbutton`;
-const CLASSNAME_RIGHTBUTTON = `${CLASSNAME}-rightbutton`;
-const CLASSNAME_NAV = `${CLASSNAME}-nav`;
-const CLASSNAME_NAVIMAGE = `${CLASSNAME_NAV}-image`;
-const CLASSNAME_NAVSELECTED = `${CLASSNAME_NAV}-selected`;
 
 const DEFAULT_SLIDESHOW_DELAY = 5000;
 const SECONDS_TO_MS = 1000;
@@ -341,9 +318,8 @@ export const LightboxComponent: React.FC<IProps> = ({
   }, [isFullscreen, hide]);
 
   const handleClose = (e: React.MouseEvent<HTMLDivElement>) => {
-    const { className } = e.target as Element;
-    if (className && className.includes && className.includes(CLASSNAME_IMAGE))
-      close();
+    const target = e.target as HTMLElement;
+    if (target.dataset.closeLightbox) close();
   };
 
   const handleLeft = useCallback(
@@ -489,9 +465,12 @@ export const LightboxComponent: React.FC<IProps> = ({
           ? image.paths.preview ?? ""
           : image.paths.thumbnail ?? "",
       alt: "",
-      className: cx(CLASSNAME_NAVIMAGE, {
-        [CLASSNAME_NAVSELECTED]: i === index,
-      }),
+      className: cx(
+        "h-full object-cover min-w-[3rem] cursor-pointer opacity-60 transition-opacity hover:opacity-100 mx-1 border-2 border-transparent",
+        {
+          "!opacity-100 !border-white": i === index,
+        }
+      ),
       onClick: (e: React.MouseEvent) => selectIndex(e, i),
       role: "presentation",
       loading: "lazy",
@@ -538,60 +517,6 @@ export const LightboxComponent: React.FC<IProps> = ({
     setShowChapters(false);
   }
 
-  function chapterHeader() {
-    const imageNumber = (index ?? 0) + 1;
-    const globalIndex = page
-      ? (page - 1) * pageSize + imageNumber
-      : imageNumber;
-
-    let chapterTitle = "";
-    chapters.forEach(function (chapter) {
-      if (chapter.image_index > globalIndex) {
-        return;
-      }
-      chapterTitle = chapter.title;
-    });
-
-    return chapterTitle ?? "";
-  }
-
-  const [anchorElChapters, setAnchorElChapters] = useState<null | HTMLElement>(null);
-
-  const renderChapterMenu = () => {
-    if (chapters.length <= 0) return;
-
-    const handleChapterClick = (imageIndex: number) => {
-      gotoPage(imageIndex);
-      setAnchorElChapters(null);
-    };
-
-    return (
-      <>
-        <IconButton
-          onClick={(e) => setAnchorElChapters(e.currentTarget)}
-          className={`minimal ${CLASSNAME_CHAPTER_BUTTON}`}
-          size="small"
-        >
-          {showChapters ? <CloseIcon fontSize="small" /> : <MenuIcon fontSize="small" />}
-        </IconButton>
-        <Menu
-          anchorEl={anchorElChapters}
-          open={Boolean(anchorElChapters)}
-          onClose={() => setAnchorElChapters(null)}
-          className={`${CLASSNAME_CHAPTERS}`}
-        >
-          {chapters.map(({ id, title, image_index }) => (
-            <MenuItem key={id} onClick={() => handleChapterClick(image_index)}>
-              {title}
-              {title.length > 0 ? " - #" : "#"}
-              {image_index}
-            </MenuItem>
-          ))}
-        </Menu>
-      </>
-    );
-  };
-
   // #2451: making OptionsForm an inline component means it
   // get re-rendered each time. This makes the text
   // field lose focus on input. Use function instead.
@@ -635,6 +560,11 @@ export const LightboxComponent: React.FC<IProps> = ({
               }
               value={displayMode}
               fullWidth
+              SelectProps={{
+                MenuProps: {
+                  style: { zIndex: 2200 },
+                },
+              }}
             >
               {Array.from(imageLightboxDisplayModeIntlMap.entries()).map(
                 (v) => (
@@ -703,6 +633,11 @@ export const LightboxComponent: React.FC<IProps> = ({
                   GQL.ImageLightboxScrollMode.Zoom
                 }
                 fullWidth
+                SelectProps={{
+                  MenuProps: {
+                    style: { zIndex: 2200 },
+                  },
+                }}
               >
                 <MenuItem
                   value={GQL.ImageLightboxScrollMode.Zoom}
@@ -781,131 +716,83 @@ export const LightboxComponent: React.FC<IProps> = ({
       }
     }
 
-    const pageHeader =
-      page && pages
-        ? intl.formatMessage(
-          { id: "dialogs.lightbox.page_header" },
-          { page, total: pages }
-        )
-        : "";
+    const detailsNode = currentImage?.galleries?.length ? (
+      <Link
+        className="text-gray-300 hover:text-white flex items-center gap-1 inline-flex"
+        to={`/galleries/${currentImage.galleries[0].id}`}
+        onClick={() => close()}
+      >
+        <CollectionsIcon fontSize="inherit" sx={{ fontSize: "1.1em" }} />
+        {galleryTitle(currentImage.galleries[0])}
+      </Link>
+    ) : undefined;
 
     return (
       <>
-        <div className={CLASSNAME_HEADER}>
-          <div className={CLASSNAME_LEFT_SPACER}>{renderChapterMenu()}</div>
-          <div className={CLASSNAME_INDICATOR}>
-            <span>
-              {chapterHeader()} {pageHeader}
-            </span>
-            {images.length > 1 ? (
-              <b ref={indicatorRef}>{`${currentIndex + 1} / ${images.length
-                }`}</b>
-            ) : undefined}
-          </div>
-          <div className={CLASSNAME_RIGHT}>
-            <div className={CLASSNAME_OPTIONS}>
-              <div className={CLASSNAME_OPTIONS_ICON}>
-                <IconButton
-                  ref={overlayTarget}
-                  title={intl.formatMessage({
-                    id: "dialogs.lightbox.options",
-                  })}
-                  onClick={() => setShowOptions(!showOptions)}
-                  size="large"
-                  className="minimal"
-                >
-                  <SettingsIcon />
-                </IconButton>
-                <Popover
-                  open={showOptions}
-                  anchorEl={overlayTarget.current}
-                  onClose={() => setShowOptions(false)}
-                  anchorOrigin={{
-                    vertical: 'top',
-                    horizontal: 'center',
-                  }}
-                  transformOrigin={{
-                    vertical: 'bottom',
-                    horizontal: 'center',
-                  }}
-                >
-                  <Box p={2}>
-                    <Typography variant="h6" gutterBottom>
-                      {intl.formatMessage({
-                        id: "dialogs.lightbox.options",
-                      })}
-                    </Typography>
-                    {renderOptionsForm()}
-                  </Box>
-                </Popover>
-              </div>
-              <Box className={CLASSNAME_OPTIONS_INLINE}>
-                {renderOptionsForm()}
-              </Box>
-            </div>
-            {slideshowEnabled && (
-              <IconButton
-                onClick={toggleSlideshow}
-                title="Toggle Slideshow"
-                size="large"
-                className="minimal"
-              >
-                {slideshowInterval !== null ? <PauseIcon /> : <PlayArrowIcon />}
-              </IconButton>
-            )}
-            {zoom !== 1 && (
-              <IconButton
-                onClick={() => {
-                  setResetPosition(!resetPosition);
-                  setZoom(1);
-                }}
-                title="Reset zoom"
-                size="large"
-                className="minimal"
-              >
-                <ZoomOutIcon />
-              </IconButton>
-            )}
-            {document.fullscreenEnabled && (
-              <IconButton
-                onClick={toggleFullscreen}
-                title="Toggle Fullscreen"
-                size="large"
-                className="minimal"
-              >
-                <FullscreenIcon />
-              </IconButton>
-            )}
-            <IconButton
-              onClick={() => close()}
-              title="Close Lightbox"
-              size="large"
-              className="minimal"
-            >
-              <CloseIcon />
-            </IconButton>
-          </div>
-        </div>
-        <div className={CLASSNAME_DISPLAY}>
+        <LightboxControls
+          visible={true}
+          image={currentImage}
+          currentIndex={currentIndex}
+          totalImages={images.length}
+          onClose={close}
+          isFullscreen={isFullscreen}
+          onToggleFullscreen={toggleFullscreen}
+          showOptions={showOptions}
+          onToggleOptions={() => setShowOptions(!showOptions)}
+          chapters={chapters}
+          onChapterClick={gotoPage}
+          slideshowEnabled={slideshowEnabled}
+          slideshowActive={slideshowInterval !== null}
+          onToggleSlideshow={toggleSlideshow}
+          zoom={zoom}
+          onZoomChange={(z) => {
+            setResetPosition(!resetPosition);
+            setZoom(z); // LightboxControls currently only resets to 1
+          }}
+          onRatingChange={(v) => setRating(v)}
+          onIncrementO={onIncrementClick}
+          onDecrementO={onDecrementClick}
+          title={title}
+          details={detailsNode}
+          optionsContent={renderOptionsForm()}
+        />
+
+        <div className="flex h-full transition relative justify-between">
           {allowNavigation && (
             <IconButton
-              onClick={handleLeft}
-              className={`${CLASSNAME_NAVBUTTON} d-none d-lg-block minimal`}
+              onClick={() => handleLeft(true)}
+              className="d-none d-lg-block minimal z-[1045]"
               size="large"
+              sx={{
+                position: "absolute",
+                left: 0,
+                top: "50%",
+                transform: "translateY(-50%)",
+                "& svg": {
+                  fontSize: "4rem",
+                  opacity: 0.4,
+                  "&:hover": { opacity: 1 },
+                  filter: "drop-shadow(2px 2px 2px black)",
+                },
+              }}
             >
               <ChevronLeftIcon />
             </IconButton>
           )}
 
           <div
-            className={cx(CLASSNAME_CAROUSEL, {
-              [CLASSNAME_INSTANT]: instantTransition,
+            className={cx("flex h-full absolute transition-all duration-400", {
+              "duration-0": instantTransition,
             })}
-            style={{ left: `${currentIndex * -100}vw` }}
+            style={{ left: `${currentIndex * -100}vw`, width: `${images.length * 100}vw` }}
             ref={carouselRef}
           >
             {images.map((image, i) => (
-              <div className={`${CLASSNAME_IMAGE}`} key={image.paths.image}>
+              <div
+                className="flex w-screen h-full justify-center items-center relative"
+                key={image.paths.image}
+                data-close-lightbox="true"
+              >
                 {i >= currentIndex - 1 && i <= currentIndex + 1 ? (
                   <LightboxImage
                     src={image.paths.image ?? ""}
@@ -923,7 +810,7 @@ export const LightboxComponent: React.FC<IProps> = ({
                     firstScroll={firstScroll}
                     inScrollGroup={inScrollGroup}
                     current={i === currentIndex}
-                    alignBottom={movingLeft}
+                    alignBottom={false}
                     setZoom={updateZoom}
                     debouncedScrollReset={debouncedScrollReset}
                     onLeft={handleLeft}
@@ -937,79 +824,53 @@ export const LightboxComponent: React.FC<IProps> = ({
 
           {allowNavigation && (
             <IconButton
-              onClick={handleRight}
-              className={`${CLASSNAME_NAVBUTTON} ${CLASSNAME_RIGHTBUTTON} d-none d-lg-block minimal`}
+              onClick={() => handleRight(true)}
+              className="d-none d-lg-block minimal z-[1045]"
               size="large"
+              sx={{
+                position: "absolute",
+                right: 0,
+                top: "50%",
+                transform: "translateY(-50%)",
+                "& svg": {
+                  fontSize: "4rem",
+                  opacity: 0.4,
+                  "&:hover": { opacity: 1 },
+                  filter: "drop-shadow(2px 2px 2px black)",
+                },
+              }}
             >
               <ChevronRightIcon />
             </IconButton>
           )}
         </div>
+
         {showNavigation && !isFullscreen && images.length > 1 && (
-          <div className={CLASSNAME_NAV} style={navOffset} ref={navRef}>
+          <div
+            className="flex flex-row shrink-0 h-40 mx-auto mb-8 px-40 relative transition-all duration-400 hidden lg:flex"
+            style={navOffset}
+            ref={navRef}
+          >
             <IconButton
               onClick={() => setIndex(images.length - 1)}
-              className={`${CLASSNAME_NAVBUTTON} minimal`}
+              className="minimal z-[1045]"
               size="large"
+              sx={{ "& svg": { fontSize: "4rem", opacity: 0.4, "&:hover": { opacity: 1 } } }}
             >
               <ArrowBackIcon sx={{ mr: 2 }} />
             </IconButton>
             {navItems}
             <IconButton
               onClick={() => setIndex(0)}
-              className={`${CLASSNAME_NAVBUTTON} minimal`}
+              className="minimal z-[1045]"
               size="large"
+              sx={{ "& svg": { fontSize: "4rem", opacity: 0.4, "&:hover": { opacity: 1 } } }}
             >
               <ArrowForwardIcon sx={{ ml: 2 }} />
             </IconButton>
           </div>
         )}
-        <div className={CLASSNAME_FOOTER}>
-          <div className={CLASSNAME_FOOTER_LEFT}>
-            {currentImage?.id !== undefined && (
-              <>
-                <div>
-                  <OCounterButton
-                    onDecrement={onDecrementClick}
-                    onIncrement={onIncrementClick}
-                    onReset={onResetClick}
-                    value={currentImage?.o_counter ?? 0}
-                  />
-                </div>
-                <RatingSystem
-                  value={currentImage?.rating100}
-                  onSetRating={(v) => setRating(v)}
-                  clickToRate
-                  withoutContext
-                />
-              </>
-            )}
-          </div>
-          <div className={CLASSNAME_FOOTER_CENTER}>
-            {currentImage && (
-              <>
-                <Link
-                  className="image-link"
-                  to={`/images/${currentImage.id}`}
-                  onClick={() => close()}
-                >
-                  {title ?? ""}
-                </Link>
-                {currentImage.galleries?.length ? (
-                  <Link
-                    className="image-gallery-link"
-                    to={`/galleries/${currentImage.galleries[0].id}`}
-                    onClick={() => close()}
-                  >
-                    <CollectionsIcon fontSize="small" sx={{ mr: 0.5 }} />
-                    {galleryTitle(currentImage.galleries[0])}
-                  </Link>
-                ) : null}
-              </>
-            )}
-          </div>
-          <div className={CLASSNAME_FOOTER_RIGHT}></div>
-        </div>
+
         <LightboxFilmstrip
           visible={showFilmstrip}
           images={images}
@@ -1026,10 +887,11 @@ export const LightboxComponent: React.FC<IProps> = ({
 
   return (
     <div
-      className={CLASSNAME}
+      className="fixed inset-0 z-[1400] flex flex-col bg-black/80"
       role="presentation"
       ref={containerRef}
       onClick={handleClose}
+      data-close-lightbox="true"
     >
       {renderBody()}
     </div>

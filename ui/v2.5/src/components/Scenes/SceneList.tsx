@@ -654,6 +654,8 @@ export const FilteredSceneList = (props: IFilteredScenes) => {
   // render
   if (sidebarStateLoading) return null;
 
+  const displayFeatured = !hideFeatured && view === View.Scenes;
+
   return (
     <TaggerContext>
       <div
@@ -682,11 +684,11 @@ export const FilteredSceneList = (props: IFilteredScenes) => {
               onSidebarToggle={() => setShowSidebar(!showSidebar)}
             >
               <>
-                {!hideFeatured && <FeaturedScene />}
+                {displayFeatured && <FeaturedScene />}
 
                 <Box
                   sx={
-                    !hideFeatured
+                    displayFeatured
                       ? {
                         position: "relative",
                         zIndex: 10,

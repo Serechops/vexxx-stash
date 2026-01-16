@@ -195,22 +195,27 @@ const GroupListContent: React.FC<{
 
     return (
       <Box
-        sx={{
-          position: "relative",
-          zIndex: 10,
-          mt: { xs: 4, md: '65vh' },
-          background: (theme) =>
-            `linear-gradient(to bottom, transparent, ${theme.palette.background.default} 20%, ${theme.palette.background.default})`,
-          pt: { xs: 4, md: 8 },
-          pb: 4,
-          px: { xs: 2, md: 6 },
-          minHeight: "100vh",
-          width: "100vw",
-          marginLeft: "calc(50% - 50vw)",
-          marginRight: "calc(50% - 50vw)",
-          maxWidth: "none",
-          "& > *": { maxWidth: "none" },
-        }}
+        sx={
+          view === View.Groups ? {
+            position: "relative",
+            zIndex: 10,
+            mt: { xs: 4, md: '65vh' },
+            background: (theme) =>
+              `linear-gradient(to bottom, transparent, ${theme.palette.background.default} 20%, ${theme.palette.background.default})`,
+            pt: { xs: 4, md: 8 },
+            pb: 4,
+            px: { xs: 2, md: 6 },
+            minHeight: "100vh",
+            width: "100vw",
+            marginLeft: "calc(50% - 50vw)",
+            marginRight: "calc(50% - 50vw)",
+            maxWidth: "none",
+            "& > *": { maxWidth: "none" },
+          } : {
+            mt: 4,
+            pb: 4
+          }
+        }
       >
         {/* Sticky Header Control Bar */}
         <Box

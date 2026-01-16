@@ -406,15 +406,19 @@ export const PerformerList: React.FC<IPerformerList> = PatchComponent(
         selectable
       >
         <Box
-          sx={{
-            position: "relative",
-            zIndex: 10,
-            mt: { xs: 4, md: '65vh' },
-            background: (theme) =>
-              `linear-gradient(to bottom, transparent, ${theme.palette.background.default} 20%, ${theme.palette.background.default})`,
-            minHeight: "100vh",
-            transition: "margin-top 0.3s ease",
-          }}
+          sx={
+            view === View.Performers ? {
+              position: "relative",
+              zIndex: 10,
+              mt: { xs: 4, md: '65vh' },
+              background: (theme) =>
+                `linear-gradient(to bottom, transparent, ${theme.palette.background.default} 20%, ${theme.palette.background.default})`,
+              minHeight: "100vh",
+              transition: "margin-top 0.3s ease",
+            } : {
+              mt: 4
+            }
+          }
         >
           <ItemList
             view={view}

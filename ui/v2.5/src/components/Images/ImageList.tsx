@@ -203,8 +203,8 @@ const ImageListImages: React.FC<IImageListImages> = ({
   const lightboxState = useMemo(() => {
     return {
       images,
-      showNavigation: false,
-      showFilmstrip: true,
+      showNavigation: filter.displayMode !== DisplayMode.Grid,
+      showFilmstrip: filter.displayMode === DisplayMode.Grid,
       pageCallback: pageCount > 1 ? handleLightBoxPage : undefined,
       page: filter.currentPage,
       pages: pageCount,
@@ -418,21 +418,26 @@ const ImageListContent: React.FC<{
     }
 
     return (
-      <Box sx={{
-        position: "relative",
-        zIndex: 10,
-        mt: { xs: "50vw", md: "65vh" },
-        background: (theme) => `linear-gradient(to bottom, transparent, ${theme.palette.background.default} 20%, ${theme.palette.background.default})`,
-        pt: { xs: 4, md: 8 },
-        pb: 4,
-        px: { xs: 2, md: 6 },
-        minHeight: "100vh",
-        width: "100vw",
-        marginLeft: "calc(50% - 50vw)",
-        marginRight: "calc(50% - 50vw)",
-        maxWidth: "none",
-        "& > *": { maxWidth: "none" },
-      }}>
+      <Box sx={
+        view === View.Images ? {
+          position: "relative",
+          zIndex: 10,
+          mt: { xs: "50vw", md: "65vh" },
+          background: (theme) => `linear-gradient(to bottom, transparent, ${theme.palette.background.default} 20%, ${theme.palette.background.default})`,
+          pt: { xs: 4, md: 8 },
+          pb: 4,
+          px: { xs: 2, md: 6 },
+          minHeight: "100vh",
+          width: "100vw",
+          marginLeft: "calc(50% - 50vw)",
+          marginRight: "calc(50% - 50vw)",
+          maxWidth: "none",
+          "& > *": { maxWidth: "none" },
+        } : {
+          mt: 4,
+          pb: 4,
+        }
+      }>
         {/* Sticky Header Control Bar */}
         <Box sx={{
           position: "sticky",

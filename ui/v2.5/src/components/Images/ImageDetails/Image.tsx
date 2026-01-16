@@ -218,24 +218,41 @@ const ImagePage: React.FC<IProps> = ({ image }) => {
 
     return (
       <Box>
-        <Tabs
-          value={activeTabKey}
-          onChange={(_e, newValue) => setActiveTabKey(newValue)}
-          className="mr-auto"
+        <Box
+          sx={{
+            position: "sticky",
+            top: 0,
+            zIndex: 10,
+            backgroundColor: "background.paper",
+            mx: -2,
+            px: 2,
+            borderBottom: 1,
+            borderColor: "divider",
+            mb: 2,
+            pt: 1
+          }}
         >
-          <Tab label={<FormattedMessage id="details" />} />
-          <Tab
-            label={
-              <>
-                <FormattedMessage id="file_info" />
-                <Counter count={image.visual_files.length} hideZero hideOne />
-              </>
-            }
-          />
-          <Tab label={<FormattedMessage id="actions.edit" />} />
-        </Tabs>
+          <Tabs
+            value={activeTabKey}
+            onChange={(_e, newValue) => setActiveTabKey(newValue)}
+            variant="scrollable"
+            scrollButtons="auto"
+            allowScrollButtonsMobile
+          >
+            <Tab label={<FormattedMessage id="details" />} />
+            <Tab
+              label={
+                <>
+                  <FormattedMessage id="file_info" />
+                  <Counter count={image.visual_files.length} hideZero hideOne />
+                </>
+              }
+            />
+            <Tab label={<FormattedMessage id="actions.edit" />} />
+          </Tabs>
+        </Box>
 
-        <Box sx={{ mt: 2 }}>
+        <Box>
           {activeTabKey === 0 && <ImageDetailPanel image={image} />}
           {activeTabKey === 1 && (
             <Box className="file-info-panel">
@@ -299,13 +316,13 @@ const ImagePage: React.FC<IProps> = ({ image }) => {
       <Box
         className="image-tabs"
         sx={{
-          flex: { xl: "0 0 450px" },
-          maxWidth: { xl: "450px" },
-          maxHeight: "calc(100vh - 4rem)",
+          flex: { md: "0 0 450px" },
+          maxWidth: { md: "450px" },
+          maxHeight: { md: "calc(100vh - 4rem)" },
           overflow: "auto",
           overflowWrap: "break-word",
           wordWrap: "break-word",
-          order: { xs: 2, xl: 1 },
+          order: { xs: 2, md: 1 },
           pl: "15px",
           pr: "15px",
           position: "relative",
@@ -322,12 +339,14 @@ const ImagePage: React.FC<IProps> = ({ image }) => {
             }}
           >
             {image.studio && (
-              <Typography
-                variant="h1"
+              <Box
+                className="image-studio-image"
                 sx={{
-                  textAlign: "center",
                   flex: { lg: "0 0 25%" },
                   order: { lg: 2 },
+                  display: "flex",
+                  justifyContent: "center",
+                  mb: { xs: 2, lg: 0 },
                   "& img": {
                     maxHeight: "100%",
                     maxWidth: "100%",
@@ -342,7 +361,7 @@ const ImagePage: React.FC<IProps> = ({ image }) => {
                     className="studio-logo"
                   />
                 </Link>
-              </Typography>
+              </Box>
             )}
             <Typography
               variant="h3"
@@ -452,14 +471,14 @@ const ImagePage: React.FC<IProps> = ({ image }) => {
         className="image-container"
         sx={{
           display: "flex",
-          flex: { xl: "0 0 calc(100% - 450px)" },
-          height: { xl: "calc(100vh - 4rem)" },
-          maxWidth: { xl: "calc(100% - 450px)" },
+          flex: { md: "0 0 calc(100% - 450px)" },
+          height: { md: "calc(100vh - 4rem)" },
+          maxWidth: { md: "calc(100% - 450px)" },
           pl: "15px",
           pr: "15px",
           position: "relative",
           width: "100%",
-          order: { xs: 1, xl: 2 }
+          order: { xs: 1, md: 2 }
         }}
       >
         {image.visual_files.length > 0 && (

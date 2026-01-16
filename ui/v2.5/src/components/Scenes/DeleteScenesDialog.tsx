@@ -6,7 +6,7 @@ import { ModalComponent } from "src/components/Shared/Modal";
 import { useToast } from "src/hooks/Toast";
 import { useConfigurationContext } from "src/hooks/Config";
 import { FormattedMessage, useIntl } from "react-intl";
-import { faTrashAlt } from "@fortawesome/free-solid-svg-icons";
+import DeleteIcon from "@mui/icons-material/Delete";
 import { objectPath } from "src/core/files";
 
 interface IDeleteSceneDialogProps {
@@ -133,7 +133,7 @@ export const DeleteScenesDialog: React.FC<IDeleteSceneDialogProps> = (
   return (
     <ModalComponent
       show
-      icon={faTrashAlt}
+      icon={<DeleteIcon />}
       header={header}
       accept={{
         variant: "danger",

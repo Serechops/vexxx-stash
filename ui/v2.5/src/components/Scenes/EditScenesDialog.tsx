@@ -20,7 +20,7 @@ import {
   getAggregateStudioId,
   getAggregateTagIds,
 } from "src/utils/bulkUpdate";
-import { faPencilAlt } from "@fortawesome/free-solid-svg-icons";
+import EditIcon from "@mui/icons-material/Edit";
 
 interface IListOperationProps {
   selected: GQL.SlimSceneDataFragment[];
@@ -246,7 +246,7 @@ export const EditScenesDialog: React.FC<IListOperationProps> = (
     return (
       <ModalComponent
         show
-        icon={faPencilAlt}
+        icon={<EditIcon />}
         header={intl.formatMessage(
           { id: "dialogs.edit_entity_title" },
           {

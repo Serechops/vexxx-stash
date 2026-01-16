@@ -21,7 +21,7 @@ import * as GQL from "src/core/generated-graphql";
 import { useRenameScenes } from "src/core/StashService";
 import { ModalComponent } from "../Shared/Modal";
 import { useToast } from "src/hooks/Toast";
-import { faPencilAlt } from "@fortawesome/free-solid-svg-icons";
+import EditIcon from "@mui/icons-material/Edit";
 
 interface IRenameScenesProps {
     selected: GQL.SlimSceneDataFragment[];
@@ -136,7 +136,7 @@ export const RenameScenesDialog: React.FC<IRenameScenesProps> = (props) => {
     return (
         <ModalComponent
             show
-            icon={faPencilAlt}
+            icon={<EditIcon />}
             header="Rename Scenes"
             accept={{
                 onClick: onApply,

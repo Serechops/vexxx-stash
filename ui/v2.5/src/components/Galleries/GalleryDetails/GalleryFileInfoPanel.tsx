@@ -15,8 +15,7 @@ import { mutateGallerySetPrimaryFile } from "src/core/StashService";
 import { useToast } from "src/hooks/Toast";
 import TextUtils from "src/utils/text";
 import { TextField, URLField, URLsField } from "src/utils/field";
-import { Icon } from "src/components/Shared/Icon";
-import { faAngleDown } from "@fortawesome/free-solid-svg-icons";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 
 interface IFileInfoPanelProps {
   folder?: Pick<GQL.Folder, "id" | "path">;
@@ -133,7 +132,7 @@ export const GalleryFileInfoPanel: React.FC<IGalleryFileInfoPanelProps> = (
         )}
         {props.gallery.files.map((file, index) => (
           <Accordion key={file.id} defaultExpanded={index === 0}>
-            <AccordionSummary expandIcon={<Icon icon={faAngleDown} />}>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
               <Typography>
                 <TruncatedText text={TextUtils.fileNameFromPath(file.path)} />
               </Typography>

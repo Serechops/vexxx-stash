@@ -7,7 +7,7 @@ import { showWhenSelected } from "src/components/List/ItemList";
 import { mutateAddGalleryImages } from "src/core/StashService";
 import { useToast } from "src/hooks/Toast";
 import { useIntl } from "react-intl";
-import { faPlus } from "@fortawesome/free-solid-svg-icons";
+import AddIcon from "@mui/icons-material/Add";
 import { galleryTitle } from "src/core/galleries";
 import { IItemListOperation } from "src/components/List/FilteredListToolbar";
 import { PatchComponent } from "src/patch";
@@ -95,7 +95,7 @@ export const GalleryAddPanel: React.FC<IGalleryAddProps> = PatchComponent(
         onClick: addImages,
         isDisplayed: showWhenSelected,
         postRefetch: true,
-        icon: faPlus,
+        icon: <AddIcon fontSize="small" />,
       },
     ];
 

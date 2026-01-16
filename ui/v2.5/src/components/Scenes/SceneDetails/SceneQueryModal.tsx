@@ -6,10 +6,9 @@ import * as GQL from "src/core/generated-graphql";
 import { ModalComponent } from "src/components/Shared/Modal";
 import { LoadingIndicator } from "src/components/Shared/LoadingIndicator";
 import { TruncatedText } from "src/components/Shared/TruncatedText";
-import { Icon } from "src/components/Shared/Icon";
+import SearchIcon from "@mui/icons-material/Search";
 import { queryScrapeSceneQuery } from "src/core/StashService";
 import { useToast } from "src/hooks/Toast";
-import { faSearch } from "@fortawesome/free-solid-svg-icons";
 
 interface ISceneSearchResultDetailsProps {
   scene: GQL.ScrapedSceneDataFragment;
@@ -224,7 +223,7 @@ export const SceneQueryModal: React.FC<IProps> = ({
                   title={intl.formatMessage({ id: "actions.search" })}
                   edge="end"
                 >
-                  <Icon icon={faSearch} />
+                  <SearchIcon />
                 </IconButton>
               </InputAdornment>
             ),

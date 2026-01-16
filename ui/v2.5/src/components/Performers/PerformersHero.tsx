@@ -10,20 +10,37 @@ import { Box } from "@mui/material";
  */
 export const PerformersHero: React.FC = () => {
     const history = useHistory();
+    const [activeIndex, setActiveIndex] = useState(0);
+    const [fadeIn, setFadeIn] = useState(true);
 
-    // Fetch 1 random performer
+    // Fetch random performers
     const { data, loading } = GQL.useFindPerformersQuery({
         variables: {
             filter: {
-                per_page: 1,
+                per_page: 8,
                 sort: "random",
             },
         },
     });
 
-    const performer = data?.findPerformers?.performers?.[0];
+    const performers = (data?.findPerformers?.performers || []).filter(p => p.image_path);
 
-    if (loading || !performer) return null;
+    // Auto-advance
+    useEffect(() => {
+        if (performers.length === 0) return;
+        const interval = setInterval(() => {
+            setFadeIn(false); // Trigger fade out
+            setTimeout(() => {
+                setActiveIndex((prev) => (prev + 1) % performers.length);
+                setFadeIn(true); // Trigger fade in
+            }, 600); // 600ms match transition time
+        }, 8000); // 8 seconds per performer
+        return () => clearInterval(interval);
+    }, [performers.length]);
+
+    if (loading || performers.length === 0) return null;
+
+    const performer = performers[activeIndex];
 
     const handlePerformerClick = () => {
         history.push(`/performers/${performer.id}`);
@@ -47,11 +64,14 @@ export const PerformersHero: React.FC = () => {
     const age = getAge(performer.birthdate);
 
     return (
-        <Box sx={{ display: { xs: 'none', '@media (min-width: 950px)': { display: 'block' } } }}>
+        <Box sx={{ display: { xs: 'none', md: 'block' } }}>
             <div className="fixed top-0 left-0 w-screen h-[56.25vw] md:h-screen z-0 overflow-hidden bg-[#000]">
                 {/* Blurred Background */}
                 <div
-                    className="absolute inset-0 bg-cover bg-center transition-all duration-[2000ms] ease-out opacity-60 scale-105"
+                    className={cx(
+                        "absolute inset-0 bg-cover bg-center transition-all duration-[1500ms] ease-in-out",
+                        fadeIn ? "opacity-100 scale-105" : "opacity-0 scale-100"
+                    )}
                     style={{
                         backgroundImage: `url('${imagePath}')`,
                         filter: "blur(40px) brightness(0.3)",
@@ -63,8 +83,11 @@ export const PerformersHero: React.FC = () => {
                 <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent" />
 
                 {/* Content Container */}
-                <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center p-6 md:p-16 pb-24 md:pb-32">
-                    <div className="max-w-7xl w-full flex flex-row items-end gap-12 z-10">
+                <div className={cx(
+                    "absolute top-0 left-0 w-full h-full flex items-center justify-center p-6 md:p-16 pb-24 md:pb-32 transition-all duration-1000 ease-in-out",
+                    fadeIn ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
+                )}>
+                    <div className="max-w-7xl w-full flex flex-row items-center gap-12 z-10">
 
                         {/* Left Column: Portrait */}
                         <div

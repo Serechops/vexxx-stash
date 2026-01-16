@@ -11,8 +11,9 @@ import {
   mutateReloadScrapers,
   queryScrapePerformerURL,
 } from "src/core/StashService";
-import { Icon } from "src/components/Shared/Icon";
 import { ImageInput } from "src/components/Shared/ImageInput";
+import SyncIcon from "@mui/icons-material/Sync";
+import AddIcon from "@mui/icons-material/Add";
 import { LoadingIndicator } from "src/components/Shared/LoadingIndicator";
 import { CountrySelect } from "src/components/Shared/CountrySelect";
 import ImageUtils from "src/utils/image";
@@ -37,7 +38,6 @@ import PerformerScrapeModal from "./PerformerScrapeModal";
 import PerformerStashBoxModal, { IStashBox } from "./PerformerStashBoxModal";
 import StashBoxIDSearchModal from "src/components/Shared/StashBoxIDSearchModal";
 import cx from "classnames";
-import { faSyncAlt, faPlus } from "@fortawesome/free-solid-svg-icons";
 import isEqual from "lodash-es/isEqual";
 import { formikUtils } from "src/utils/form";
 import {
@@ -543,7 +543,7 @@ export const PerformerEditPanel: React.FC<IPerformerDetails> = ({
           >
             <Box display="flex" alignItems="center">
               <Box mr={1} display="flex">
-                <Icon icon={faSyncAlt} />
+                <SyncIcon fontSize="small" />
               </Box>
               <FormattedMessage id="actions.reload_scrapers" />
             </Box>
@@ -762,7 +762,7 @@ export const PerformerEditPanel: React.FC<IPerformerDetails> = ({
             disabled={!stashConfig?.general.stashBoxes?.length}
             title={intl.formatMessage({ id: "actions.add_stash_id" })}
           >
-            <Icon icon={faPlus} />
+            <AddIcon fontSize="small" />
           </Button>
         )}
 

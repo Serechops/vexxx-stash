@@ -199,9 +199,9 @@ const getFingerprintStatus = (
         )}
         {checksumMatch && (
           <Typography fontWeight="bold" component="div">
-            <span style={{ marginRight: "0.5rem" }}>
+            <Box component="span" sx={{ mr: 1 }}>
               <SuccessIcon />
-            </span>
+            </Box>
             <FormattedMessage
               id="component_tagger.results.hash_matches"
               values={{

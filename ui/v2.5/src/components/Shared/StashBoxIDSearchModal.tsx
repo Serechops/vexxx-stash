@@ -68,7 +68,7 @@ const SearchResultTags: React.FC<{
     <Row>
       <Col xs={12}>
         {tags.map((tag) => (
-          <Chip className="tag-item" label={tag.name} key={tag.stored_id} size="small" style={{ marginRight: 4 }} />
+          <Chip className="tag-item" label={tag.name} key={tag.stored_id} size="small" sx={{ mr: 0.5 }} />
         ))}
       </Col>
     </Row>
@@ -140,9 +140,9 @@ export const PerformerSearchResult: React.FC<IPerformerResultProps> = ({
   performer,
 }) => {
   return (
-    <div className="mt-3 search-item" style={{ cursor: "pointer" }}>
+    <Box className="mt-3 search-item" sx={{ cursor: "pointer" }}>
       <PerformerSearchResultDetails performer={performer} />
-    </div>
+    </Box>
   );
 };
 
@@ -188,9 +188,9 @@ const SceneSearchResultDetails: React.FC<ISceneResultProps> = ({ scene }) => {
 
 export const SceneSearchResult: React.FC<ISceneResultProps> = ({ scene }) => {
   return (
-    <div className="mt-3 search-item" style={{ cursor: "pointer" }}>
+    <Box className="mt-3 search-item" sx={{ cursor: "pointer" }}>
       <SceneSearchResultDetails scene={scene} />
-    </div>
+    </Box>
   );
 };
 
@@ -228,9 +228,9 @@ export const StudioSearchResult: React.FC<IStudioResultProps> = ({
   studio,
 }) => {
   return (
-    <div className="mt-3 search-item" style={{ cursor: "pointer" }}>
+    <Box className="mt-3 search-item" sx={{ cursor: "pointer" }}>
       <StudioSearchResultDetails studio={studio} />
-    </div>
+    </Box>
   );
 };
 
@@ -241,7 +241,7 @@ interface ITagResultProps {
 
 export const TagSearchResult: React.FC<ITagResultProps> = ({ tag }) => {
   return (
-    <div className="mt-3 search-item" style={{ cursor: "pointer" }}>
+    <Box className="mt-3 search-item" sx={{ cursor: "pointer" }}>
       <div className="tag-result">
         <Row>
           <Col className="flex-column">
@@ -251,7 +251,7 @@ export const TagSearchResult: React.FC<ITagResultProps> = ({ tag }) => {
           </Col>
         </Row>
       </div>
-    </div>
+    </Box>
   );
 };
 
@@ -413,13 +413,13 @@ export const StashBoxIDSearchModal: React.FC<IProps> = ({
             values={{ count: results.length }}
           />
         </div>
-        <ul className={CLASSNAME_LIST} style={{ listStyleType: "none" }}>
+        <Box component="ul" className={CLASSNAME_LIST} sx={{ listStyleType: "none" }}>
           {results.map((item, i) => (
             <li key={i} onClick={() => handleItemClick(item)}>
               {renderResultItem(item)}
             </li>
           ))}
-        </ul>
+        </Box>
       </div>
     );
   }

@@ -12,7 +12,6 @@ import {
   mutateReloadScrapers,
   queryScrapeSceneQueryFragment,
 } from "src/core/StashService";
-import { Icon } from "src/components/Shared/Icon";
 import { LoadingIndicator } from "src/components/Shared/LoadingIndicator";
 import { ImageInput } from "src/components/Shared/ImageInput";
 import { useToast } from "src/hooks/Toast";
@@ -22,7 +21,8 @@ import { useFormik } from "formik";
 import { Prompt } from "react-router-dom";
 import { useConfigurationContext } from "src/hooks/Config";
 import { IGroupEntry, SceneGroupTable } from "./SceneGroupTable";
-import { faSearch, faPlus } from "@fortawesome/free-solid-svg-icons";
+import SearchIcon from "@mui/icons-material/Search";
+import AddIcon from "@mui/icons-material/Add";
 import { objectTitle } from "src/core/files";
 import { galleryTitle } from "src/core/galleries";
 import { lazyComponent } from "src/utils/lazyComponent";
@@ -776,7 +776,7 @@ export const SceneEditPanel: React.FC<IProps> = ({
                 />
                 <ScraperMenu
                   variant="secondary"
-                  toggle={<Icon icon={faSearch} />}
+                  toggle={<SearchIcon />}
                   stashBoxes={stashConfig?.general.stashBoxes ?? []}
                   scrapers={queryableScrapers}
                   onScraperClicked={onScrapeQueryClicked}
@@ -825,7 +825,7 @@ export const SceneEditPanel: React.FC<IProps> = ({
                 disabled={!stashConfig?.general.stashBoxes?.length}
                 title={intl.formatMessage({ id: "actions.add_stash_id" })}
               >
-                <Icon icon={faPlus} />
+                <AddIcon fontSize="small" />
               </Button>
             )}
           </Col>
@@ -837,7 +837,7 @@ export const SceneEditPanel: React.FC<IProps> = ({
               color="success"
               onClick={() => setIsStashIDSearchOpen(true)}
             >
-              <Icon icon={faPlus} className="mr-2" />
+              <AddIcon sx={{ mr: 1 }} />
               <FormattedMessage id="actions.add_stash_id" />
             </Button>
             <Box mb={3} id="cover_image">

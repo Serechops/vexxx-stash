@@ -26,7 +26,8 @@ import {
   showWhenNoneSelected,
   showWhenSelected,
 } from "src/components/List/ItemList";
-import { faMinus, faPlus } from "@fortawesome/free-solid-svg-icons";
+import AddIcon from "@mui/icons-material/Add";
+import RemoveIcon from "@mui/icons-material/Remove";
 import { useIntl } from "react-intl";
 import { useToast } from "src/hooks/Toast";
 import { useModal } from "src/hooks/modal";
@@ -170,7 +171,7 @@ export const GroupSubGroupsPanel: React.FC<IGroupSubGroupsPanel> =
           onClick: onAddSubGroups,
           isDisplayed: showWhenNoneSelected,
           postRefetch: true,
-          icon: faPlus,
+          icon: <AddIcon fontSize="small" />,
           buttonVariant: "secondary",
         },
         {
@@ -180,7 +181,7 @@ export const GroupSubGroupsPanel: React.FC<IGroupSubGroupsPanel> =
           onClick: removeSubGroups,
           isDisplayed: showWhenSelected,
           postRefetch: true,
-          icon: faMinus,
+          icon: <RemoveIcon fontSize="small" />,
           buttonVariant: "danger",
         },
       ];

@@ -1,7 +1,6 @@
 import React, { useCallback } from "react";
 import { QueryResult } from "@apollo/client";
 import { ListFilterModel } from "src/models/list-filter/filter";
-import { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import { PageSizeSelector, SearchTermInput, SortBySelect } from "./ListFilter";
 import { ListViewButtonGroup } from "./ListViewOptions";
 import {
@@ -13,9 +12,9 @@ import { View } from "./views";
 import { IListSelect, useFilterOperations } from "./util";
 import { SavedFilterDropdown } from "./SavedFilterList";
 import { FilterButton } from "./Filters/FilterButton";
-import { Icon } from "../Shared/Icon";
-import { faTimes } from "@fortawesome/free-solid-svg-icons";
-import { faSquareCheck } from "@fortawesome/free-regular-svg-icons";
+import CloseIcon from "@mui/icons-material/Close";
+import CheckBoxIcon from "@mui/icons-material/CheckBox";
+import { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import { useIntl } from "react-intl";
 import cx from "classnames";
 import { useZoomContext } from "src/hooks/ZoomContext";
@@ -37,7 +36,7 @@ const SelectionSection: React.FC<{
         onClick={() => onSelectNone()}
         title={intl.formatMessage({ id: "actions.select_none" })}
       >
-        <Icon icon={faTimes} />
+        <CloseIcon fontSize="small" />
       </Button>
       <span className="selected-count">{selected}</span>
       <Button
@@ -47,7 +46,7 @@ const SelectionSection: React.FC<{
         onClick={() => onSelectAll()}
         title={intl.formatMessage({ id: "actions.select_all" })}
       >
-        <Icon icon={faSquareCheck} />
+        <CheckBoxIcon fontSize="small" />
       </Button>
     </div>
   );
@@ -66,7 +65,7 @@ export interface IItemListOperation<T extends QueryResult> {
     selectedIds: Set<string>
   ) => boolean;
   postRefetch?: boolean;
-  icon?: IconDefinition;
+  icon?: IconDefinition | React.ReactNode;
   buttonVariant?: string;
 }
 

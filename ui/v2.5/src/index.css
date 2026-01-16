@@ -2,32 +2,68 @@
 @tailwind components;
 @tailwind utilities;
 
+/* 
+ * Unified Color Palette - Synced with MUI theme (theme.ts)
+ * 
+ * Zinc Scale (neutrals):
+ * 50: #fafafa, 100: #f4f4f5, 200: #e4e4e7, 300: #d4d4d8, 
+ * 400: #a1a1aa, 500: #71717a, 600: #52525b, 700: #3f3f46, 
+ * 800: #27272a, 900: #18181b, 950: #09090b
+ * 
+ * Accent Primary: Indigo-500 (#6366f1)
+ */
+
 :root {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 240 5.9% 10%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 240 4.9% 83.9%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
+    /* Background colors - Zinc scale */
+    --background: 240 6% 4%;           /* #09090b - Zinc-950 */
+    --foreground: 0 0% 98%;            /* #fafafa - Zinc-50 */
+    
+    /* Card/Paper */
+    --card: 240 6% 10%;                /* #18181b - Zinc-900 */
+    --card-foreground: 0 0% 98%;       /* #fafafa */
+    
+    /* Popover */
+    --popover: 240 5% 16%;             /* #27272a - Zinc-800 */
+    --popover-foreground: 0 0% 98%;    /* #fafafa */
+    
+    /* Primary - Indigo accent (visible on dark) */
+    --primary: 239 84% 67%;            /* #6366f1 - Indigo-500 */
+    --primary-foreground: 0 0% 100%;   /* #ffffff */
+    
+    /* Secondary - Zinc-700 */
+    --secondary: 240 4% 26%;           /* #3f3f46 - Zinc-700 */
+    --secondary-foreground: 0 0% 98%;  /* #fafafa */
+    
+    /* Muted text/backgrounds */
+    --muted: 240 5% 16%;               /* #27272a - Zinc-800 */
+    --muted-foreground: 240 4% 65%;    /* #a1a1aa - Zinc-400 */
+    
+    /* Accent - same as secondary for subtle actions */
+    --accent: 240 4% 26%;              /* #3f3f46 - Zinc-700 */
+    --accent-foreground: 0 0% 98%;     /* #fafafa */
+    
+    /* Destructive/Error - Red-500 */
+    --destructive: 0 84% 60%;          /* #ef4444 */
+    --destructive-foreground: 0 0% 100%;
+    
+    /* Borders and inputs */
+    --border: 240 4% 26%;              /* #3f3f46 - Zinc-700 */
+    --input: 240 5% 16%;               /* #27272a - Zinc-800 */
+    --ring: 239 84% 67%;               /* #6366f1 - Primary for focus rings */
+    
+    /* Chart colors */
+    --chart-1: 239 84% 67%;            /* Primary indigo */
+    --chart-2: 142 71% 45%;            /* Green-500 */
+    --chart-3: 38 92% 50%;             /* Amber-500 */
+    --chart-4: 262 83% 58%;            /* Purple-500 */
+    --chart-5: 0 84% 60%;              /* Red-500 */
+    
     --radius: 0.5rem;
+    
+    /* Additional semantic colors for consistency */
+    --success: 142 71% 45%;            /* #22c55e - Green-500 */
+    --warning: 38 92% 50%;             /* #f59e0b - Amber-500 */
+    --info: 217 91% 60%;               /* #3b82f6 - Blue-500 */
 }
 
 .light {
@@ -37,8 +73,8 @@
     --card-foreground: 240 10% 3.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 3.9%;
-    --primary: 240 5.9% 10%;
-    --primary-foreground: 0 0% 98%;
+    --primary: 239 84% 67%;
+    --primary-foreground: 0 0% 100%;
     --secondary: 240 4.8% 95.9%;
     --secondary-foreground: 240 5.9% 10%;
     --muted: 240 4.8% 95.9%;
@@ -49,12 +85,12 @@
     --destructive-foreground: 0 0% 98%;
     --border: 240 5.9% 90%;
     --input: 240 5.9% 90%;
-    --ring: 240 10% 3.9%;
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
+    --ring: 239 84% 67%;
+    --chart-1: 239 84% 67%;
+    --chart-2: 142 71% 45%;
+    --chart-3: 38 92% 50%;
+    --chart-4: 262 83% 58%;
+    --chart-5: 0 84% 60%;
 }
 
 @layer base {

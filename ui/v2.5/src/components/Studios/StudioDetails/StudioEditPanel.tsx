@@ -6,7 +6,7 @@ import * as yup from "yup";
 import Mousetrap from "mousetrap";
 import { LoadingIndicator } from "src/components/Shared/LoadingIndicator";
 import { DetailsEditNavbar } from "src/components/Shared/DetailsEditNavbar";
-import { faPlus } from "@fortawesome/free-solid-svg-icons";
+import AddIcon from "@mui/icons-material/Add";
 import ImageUtils from "src/utils/image";
 import { addUpdateStashID, getStashIDs } from "src/utils/stashIds";
 import { useFormik } from "formik";
@@ -19,7 +19,6 @@ import { formikUtils } from "src/utils/form";
 import { yupFormikValidate, yupUniqueAliases } from "src/utils/yup";
 import { Studio, StudioSelect } from "../StudioSelect";
 import { useTagsEdit } from "src/hooks/tagsEdit";
-import { Icon } from "src/components/Shared/Icon";
 import StashBoxIDSearchModal from "src/components/Shared/StashBoxIDSearchModal";
 
 interface IStudioEditPanel {
@@ -235,7 +234,7 @@ export const StudioEditPanel: React.FC<IStudioEditPanel> = ({
             disabled={!stashConfig?.general.stashBoxes?.length}
             title={intl.formatMessage({ id: "actions.add_stash_id" })}
           >
-            <Icon icon={faPlus} />
+            <AddIcon fontSize="small" />
           </Button>
         )}
         <hr />

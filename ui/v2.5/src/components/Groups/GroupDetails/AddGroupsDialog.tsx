@@ -3,7 +3,7 @@ import { Box } from "@mui/material";
 import { useIntl } from "react-intl";
 import * as GQL from "src/core/generated-graphql";
 import { useToast } from "src/hooks/Toast";
-import { faPlus } from "@fortawesome/free-solid-svg-icons";
+import AddIcon from "@mui/icons-material/Add";
 import { RelatedGroupTable, IRelatedGroupEntry } from "./RelatedGroupTable";
 import { ModalComponent } from "src/components/Shared/Modal";
 import { useAddSubGroups } from "src/core/StashService";
@@ -95,7 +95,7 @@ export const AddSubGroupsDialog: React.FC<IListOperationProps> = (
   return (
     <ModalComponent
       show
-      icon={faPlus}
+      icon={<AddIcon />}
       header={intl.formatMessage({ id: "actions.add_sub_groups" })}
       accept={{
         onClick: onSave,

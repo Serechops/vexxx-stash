@@ -544,7 +544,7 @@ const StudioTaggerList: React.FC<IStudioTaggerListProps> = ({
           <Box fontSize="small">
             <ExternalLink
               href={`${base}studios/${stashID.stash_id}`}
-              style={{ display: "block" }}
+              className="block"
             >
               {stashID.stash_id}
             </ExternalLink>
@@ -574,7 +574,7 @@ const StudioTaggerList: React.FC<IStudioTaggerListProps> = ({
             {error[studio.id] && (
               <Box color="error.main" mt={1}>
                 <Typography component="strong" fontWeight="bold">
-                  <span style={{ marginRight: "0.5rem" }}>Error:</span>
+                  <Box component="span" sx={{ mr: 1 }}>Error:</Box>
                   {error[studio.id]?.message}
                 </Typography>
                 <div>{error[studio.id]?.details}</div>

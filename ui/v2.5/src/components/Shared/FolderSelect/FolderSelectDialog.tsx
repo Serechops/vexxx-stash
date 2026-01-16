@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { FormattedMessage } from "react-intl";
 import {
+  Box,
   Button,
   Dialog,
   DialogActions,
@@ -29,13 +30,13 @@ export const FolderSelectDialog: React.FC<IProps> = ({
     <Dialog open onClose={() => onClose()} {...modalProps} fullWidth maxWidth="sm">
       <DialogTitle>Select Directory</DialogTitle>
       <DialogContent>
-        <div className="dialog-content" style={{ marginTop: 8 }}>
+        <Box className="dialog-content" sx={{ mt: 1 }}>
           <FolderSelect
             currentDirectory={currentDirectory}
             onChangeDirectory={setCurrentDirectory}
             collapsible
           />
-        </div>
+        </Box>
       </DialogContent>
       <DialogActions>
         <Button variant="outlined" color="secondary" onClick={() => onClose()}>

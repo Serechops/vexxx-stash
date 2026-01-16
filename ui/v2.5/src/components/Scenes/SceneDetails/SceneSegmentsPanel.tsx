@@ -4,8 +4,7 @@ import { FormattedMessage, useIntl } from "react-intl";
 import * as GQL from "src/core/generated-graphql";
 import { CreateSceneSegmentDialog } from "../../CreateSceneSegmentDialog";
 import { Link } from "react-router-dom";
-import { Icon } from "src/components/Shared/Icon";
-import { faPlus } from "@fortawesome/free-solid-svg-icons";
+import AddIcon from "@mui/icons-material/Add";
 import TextUtils from "src/utils/text";
 
 interface IProps {
@@ -31,7 +30,7 @@ export const SceneSegmentsPanel: React.FC<IProps> = ({ scene }) => {
             <div className="d-flex justify-content-between align-items-center mb-3">
                 <h3>Segments</h3>
                 <Button onClick={() => setShowCreateDialog(true)} variant="contained">
-                    <Icon icon={faPlus} className="mr-2" />
+                    <AddIcon sx={{ mr: 1 }} />
                     <FormattedMessage id="actions.create" />
                 </Button>
             </div>

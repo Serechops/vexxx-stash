@@ -31,7 +31,7 @@ import {
   StudioDetailsPanel,
 } from "./StudioDetailsPanel";
 import { StudioGroupsPanel } from "./StudioGroupsPanel";
-import { faTrashAlt } from "@fortawesome/free-solid-svg-icons";
+import DeleteIcon from "@mui/icons-material/Delete";
 import { RatingSystem } from "src/components/Shared/Rating/RatingSystem";
 import { DetailImage } from "src/components/Shared/DetailImage";
 import { useRatingKeybinds } from "src/hooks/keybinds";
@@ -168,6 +168,33 @@ const StudioTabs: React.FC<{
     return potentialData.findPotentialScenes.filter(ps => !ps.existing_scene?.id).length;
   }, [potentialData]);
 
+  const TabLabel: React.FC<{ messageID: string; count: number }> = ({ messageID, count }) => (
+    <Box sx={{ position: 'relative', display: 'inline-flex', alignItems: 'center', pr: count > 0 ? 3 : 0 }}>
+      <FormattedMessage id={messageID} />
+      {count > 0 && (
+        <Box
+          sx={{
+            position: 'absolute',
+            top: -8,
+            right: -4,
+            backgroundColor: 'primary.main',
+            color: 'primary.contrastText',
+            borderRadius: '10px',
+            px: 0.75,
+            py: 0.25,
+            fontSize: '0.7rem',
+            fontWeight: 600,
+            lineHeight: 1,
+            minWidth: '20px',
+            textAlign: 'center',
+          }}
+        >
+          {abbreviateCounter && count >= 1000 ? `${Math.floor(count / 1000)}k` : count}
+        </Box>
+      )}
+    </Box>
+  );
+
   return (
     <>
       <Tabs
@@ -179,73 +206,31 @@ const StudioTabs: React.FC<{
       >
         <Tab
           value="scenes"
-          label={
-            <TabTitleCounter
-              messageID="scenes"
-              count={sceneCount}
-              abbreviateCounter={abbreviateCounter}
-            />
-          }
+          label={<TabLabel messageID="scenes" count={sceneCount} />}
         />
         <Tab
           value="galleries"
-          label={
-            <TabTitleCounter
-              messageID="galleries"
-              count={galleryCount}
-              abbreviateCounter={abbreviateCounter}
-            />
-          }
+          label={<TabLabel messageID="galleries" count={galleryCount} />}
         />
         <Tab
           value="images"
-          label={
-            <TabTitleCounter
-              messageID="images"
-              count={imageCount}
-              abbreviateCounter={abbreviateCounter}
-            />
-          }
+          label={<TabLabel messageID="images" count={imageCount} />}
         />
         <Tab
           value="performers"
-          label={
-            <TabTitleCounter
-              messageID="performers"
-              count={performerCount}
-              abbreviateCounter={abbreviateCounter}
-            />
-          }
+          label={<TabLabel messageID="performers" count={performerCount} />}
         />
         <Tab
           value="groups"
-          label={
-            <TabTitleCounter
-              messageID="groups"
-              count={groupCount}
-              abbreviateCounter={abbreviateCounter}
-            />
-          }
+          label={<TabLabel messageID="groups" count={groupCount} />}
         />
         <Tab
           value="childstudios"
-          label={
-            <TabTitleCounter
-              messageID="subsidiary_studios"
-              count={studio.child_studios.length}
-              abbreviateCounter={abbreviateCounter}
-            />
-          }
+          label={<TabLabel messageID="subsidiary_studios" count={studio.child_studios.length} />}
         />
         <Tab
           value="missing"
-          label={
-            <TabTitleCounter
-              messageID="Missing Scenes"
-              count={missingSceneCount}
-              abbreviateCounter={abbreviateCounter}
-            />
-          }
+          label={<TabLabel messageID="Missing Scenes" count={missingSceneCount} />}
         />
       </Tabs>
 
@@ -448,7 +433,7 @@ const StudioPage: React.FC<IProps> = ({ studio, tabKey }) => {
     return (
       <ModalComponent
         show={isDeleteAlertOpen}
-        icon={faTrashAlt}
+        icon={<DeleteIcon />}
         accept={{
           text: intl.formatMessage({ id: "actions.delete" }),
           variant: "danger",

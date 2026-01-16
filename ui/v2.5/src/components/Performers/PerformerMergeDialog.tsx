@@ -1,8 +1,9 @@
 import { Box, Grid, Button, Typography } from "@mui/material";
 import React, { useEffect, useMemo, useState } from "react";
 import * as GQL from "src/core/generated-graphql";
-import { Icon } from "../Shared/Icon";
 import { LoadingIndicator } from "../Shared/LoadingIndicator";
+import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
+import LoginIcon from "@mui/icons-material/Login";
 import {
   circumcisedToString,
   stringToCircumcised,
@@ -16,7 +17,6 @@ import {
 } from "src/core/StashService";
 import { FormattedMessage, useIntl } from "react-intl";
 import { useToast } from "src/hooks/Toast";
-import { faExchangeAlt, faSignInAlt } from "@fortawesome/free-solid-svg-icons";
 import { ScrapeDialog } from "../Shared/ScrapeDialog/ScrapeDialog";
 import {
   ScrapedImageRow,
@@ -804,7 +804,7 @@ export const PerformerMergeModal: React.FC<IPerformerMergeModalProps> = ({
       dialogClassName="performer-merge-dialog"
       show={show}
       header={title}
-      icon={faSignInAlt}
+      icon={<LoginIcon />}
       accept={{
         text: intl.formatMessage({ id: "actions.next_action" }),
         onClick: () => loadPerformers(),
@@ -845,7 +845,7 @@ export const PerformerMergeModal: React.FC<IPerformerMergeModalProps> = ({
                 disabled={!sourcePerformers.length || !destPerformer.length}
                 title={intl.formatMessage({ id: "actions.swap" })}
               >
-                <Icon className="fa-fw" icon={faExchangeAlt} />
+                <SwapHorizIcon />
               </Button>
             </Box>
 

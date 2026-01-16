@@ -72,7 +72,7 @@ export const SidebarToggleButton: React.FC<{
         color="secondary"
         onClick={onClick}
         title={intl.formatMessage({ id: "actions.sidebar.toggle" })}
-        style={{ minWidth: 'unset', padding: '6px 12px' }}
+        sx={{ minWidth: 'unset', px: 1.5, py: 0.75 }}
       >
         <Icon icon={faSliders} className="w-5 h-5" />
       </Button>

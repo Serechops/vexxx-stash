@@ -17,7 +17,7 @@ import {
   getAggregateStudioId,
   getAggregateTagIds,
 } from "src/utils/bulkUpdate";
-import { faPencilAlt } from "@fortawesome/free-solid-svg-icons";
+import EditIcon from "@mui/icons-material/Edit";
 import { isEqual } from "lodash-es";
 import { MultiSet } from "../Shared/MultiSet";
 import { ContainingGroupsMultiSet } from "./ContainingGroupsMultiSet";
@@ -188,7 +188,7 @@ export const EditGroupsDialog: React.FC<IListOperationProps> = (
     return (
       <ModalComponent
         show
-        icon={faPencilAlt}
+        icon={<EditIcon />}
         header={intl.formatMessage(
           { id: "actions.edit_entity" },
           { entityType: intl.formatMessage({ id: "groups" }) }

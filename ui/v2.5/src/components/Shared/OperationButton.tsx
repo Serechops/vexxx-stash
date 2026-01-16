@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import Button, { ButtonProps } from "@mui/material/Button";
+import Box from "@mui/material/Box";
 import { LoadingIndicator } from "./LoadingIndicator";
 
 export interface IOperationButton extends ButtonProps {
@@ -54,9 +55,9 @@ export const OperationButton: React.FC<IOperationButton> = (props) => {
       {...withoutExtras}
     >
       {loading && (
-        <span style={{ marginRight: "8px", display: "flex", alignItems: "center" }}>
+        <Box component="span" sx={{ mr: 1, display: "flex", alignItems: "center" }}>
           <LoadingIndicator message="" inline small />
-        </span>
+        </Box>
       )}
       {(!loading || !hideChildrenWhenLoading) && props.children}
     </Button>

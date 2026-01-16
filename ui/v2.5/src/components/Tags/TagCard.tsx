@@ -8,8 +8,7 @@ import { FormattedMessage } from "react-intl";
 import { TruncatedText } from "../Shared/TruncatedText";
 import { GridCard } from "../Shared/GridCard/GridCard";
 import { PopoverCountButton } from "../Shared/PopoverCountButton";
-import { Icon } from "../Shared/Icon";
-import { faHeart } from "@fortawesome/free-solid-svg-icons";
+import FavoriteIcon from "@mui/icons-material/Favorite";
 import cx from "classnames";
 import { useTagUpdate } from "src/core/StashService";
 import { RatingBanner } from "../Shared/RatingBanner";
@@ -107,7 +106,7 @@ const TagCardOverlays: React.FC<IProps> = PatchComponent(
             onClick={() => onToggleFavorite!(!tag.favorite)}
             color={tag.favorite ? "error" : "default"}
           >
-            <Icon icon={faHeart} size="2x" />
+            <FavoriteIcon sx={{ fontSize: '2rem' }} />
           </IconButton>
         </Link>
       );

@@ -4,7 +4,7 @@ import * as GQL from "src/core/generated-graphql";
 import { ModalComponent } from "src/components/Shared/Modal";
 import { useToast } from "src/hooks/Toast";
 import { useIntl } from "react-intl";
-import { faTrashAlt } from "@fortawesome/free-solid-svg-icons";
+import DeleteIcon from "@mui/icons-material/Delete";
 
 interface IDeleteSceneMarkersDialogProps {
   selected: GQL.SceneMarkerDataFragment[];
@@ -61,7 +61,7 @@ export const DeleteSceneMarkersDialog: React.FC<
   return (
     <ModalComponent
       show
-      icon={faTrashAlt}
+      icon={<DeleteIcon />}
       header={header}
       accept={{
         variant: "danger",

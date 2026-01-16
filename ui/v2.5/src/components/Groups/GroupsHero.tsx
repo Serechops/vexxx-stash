@@ -47,7 +47,7 @@ export const GroupsHero: React.FC = () => {
     const backImage = (group as any).back_image_path;
 
     return (
-        <Box sx={{ display: { xs: 'none', '@media (min-width: 950px)': { display: 'block' } } }}>
+        <Box sx={{ display: { xs: 'none', md: 'block' } }}>
             <div className="fixed top-0 left-0 w-screen h-[56.25vw] md:h-screen z-0 overflow-hidden bg-[#000]">
                 {/* Blurred Background */}
                 <div

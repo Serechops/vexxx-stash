@@ -12,9 +12,9 @@ import {
 } from "@mui/material";
 import { FormattedMessage, FormattedNumber, useIntl } from "react-intl";
 import useFocus from "src/utils/focus";
-import { Icon } from "../Shared/Icon";
+import CheckIcon from "@mui/icons-material/Check";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import cx from "classnames";
-import { faCheck, faChevronDown } from "@fortawesome/free-solid-svg-icons";
 import { useStopWheelScroll } from "src/utils/form";
 import { PatchComponent } from "src/patch";
 
@@ -108,7 +108,7 @@ const PageCount: React.FC<{
               "&:hover": { backgroundColor: "secondary.main" },
             }}
           >
-            <Icon size="xs" icon={faChevronDown} />
+            <KeyboardArrowDownIcon fontSize="small" />
           </Button>
         </ButtonGroup>
         <Menu
@@ -158,7 +158,7 @@ const PageCount: React.FC<{
               sx={{ width: "80px" }}
             />
             <IconButton color="primary" onClick={() => onCustomChangePage()} size="small">
-              <Icon icon={faCheck} />
+              <CheckIcon fontSize="small" />
             </IconButton>
           </Box>
         </Popover>

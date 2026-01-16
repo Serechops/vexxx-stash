@@ -1,8 +1,7 @@
 import React from "react";
 import { Box, TextField, IconButton, InputAdornment } from "@mui/material";
-import { faTimes } from "@fortawesome/free-solid-svg-icons";
+import CloseIcon from "@mui/icons-material/Close";
 import { useIntl } from "react-intl";
-import { Icon } from "./Icon";
 import useFocus from "src/utils/focus";
 import cx from "classnames";
 
@@ -132,7 +131,7 @@ export const ClearableInput: React.FC<IClearableInput> = ({
                   }
                 }}
               >
-                <Icon icon={faTimes} />
+                <CloseIcon fontSize="small" />
               </IconButton>
             </InputAdornment>
           ) : null,

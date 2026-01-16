@@ -2,18 +2,15 @@ import React, { MouseEvent, useMemo } from "react";
 import { Button, ButtonGroup, Box, Typography } from "@mui/material";
 import cx from "classnames";
 import * as GQL from "src/core/generated-graphql";
-import { Icon } from "src/components/Shared/Icon";
 import { GalleryLink, TagLink } from "src/components/Shared/TagLink";
 import { HoverPopover } from "src/components/Shared/HoverPopover";
 import { PerformerPopoverButton } from "src/components/Shared/PerformerPopoverButton";
 import { GridCard } from "src/components/Shared/GridCard/GridCard";
 import { RatingBanner } from "src/components/Shared/RatingBanner";
-import {
-  faBox,
-  faImages,
-  faSearch,
-  faTag,
-} from "@fortawesome/free-solid-svg-icons";
+import InventoryIcon from "@mui/icons-material/Inventory";
+import CollectionsIcon from "@mui/icons-material/Collections";
+import SearchIcon from "@mui/icons-material/Search";
+import LocalOfferIcon from "@mui/icons-material/LocalOffer";
 import { imageTitle } from "src/core/files";
 import { PatchComponent } from "src/patch";
 import { TruncatedText } from "../Shared/TruncatedText";
@@ -71,7 +68,7 @@ export const ImageCard: React.FC<IImageCardProps> = PatchComponent(
           content={popoverContent}
         >
           <Button className="minimal">
-            <Icon icon={faTag} />
+            <LocalOfferIcon fontSize="small" />
             <span>{props.image.tags.length}</span>
           </Button>
         </HoverPopover>
@@ -109,7 +106,7 @@ export const ImageCard: React.FC<IImageCardProps> = PatchComponent(
           content={popoverContent}
         >
           <Button className="minimal">
-            <Icon icon={faImages} />
+            <CollectionsIcon fontSize="small" />
             <span>{props.image.galleries.length}</span>
           </Button>
         </HoverPopover>
@@ -121,7 +118,7 @@ export const ImageCard: React.FC<IImageCardProps> = PatchComponent(
         return (
           <div className="organized">
             <Button className="minimal">
-              <Icon icon={faBox} />
+              <InventoryIcon fontSize="small" />
             </Button>
           </div>
         );
@@ -251,7 +248,7 @@ export const ImageCard: React.FC<IImageCardProps> = PatchComponent(
                       },
                     }}
                   >
-                    <Icon icon={faSearch} />
+                    <SearchIcon />
                   </Button>
                 </Box>
               ) : undefined}

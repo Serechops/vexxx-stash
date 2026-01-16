@@ -4,13 +4,16 @@ import Mousetrap from "mousetrap";
 import { FormattedMessage, useIntl } from "react-intl";
 import { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import { Icon } from "../Shared/Icon";
-import {
-  faEllipsisH,
-  faPencilAlt,
-  faTrash,
-} from "@fortawesome/free-solid-svg-icons";
+import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
 import cx from "classnames";
 import { createPortal } from "react-dom";
+
+// Helper to check if icon is FA IconDefinition
+function isFaIcon(icon: IconDefinition | React.ReactNode): icon is IconDefinition {
+  return icon != null && typeof icon === "object" && "iconName" in icon;
+}
 
 export const OperationDropdown: React.FC<
   PropsWithChildren<{
@@ -60,7 +63,7 @@ export const OperationDropdown: React.FC<
         size="small"
         id="more-menu"
       >
-        <Icon icon={faEllipsisH} />
+        <MoreHorizIcon fontSize="small" />
       </IconButton>
       {menuPortalTarget ? createPortal(menu, menuPortalTarget) : menu}
     </span>
@@ -86,7 +89,7 @@ export interface IListFilterOperation {
   text: string;
   onClick: () => void;
   isDisplayed?: () => boolean;
-  icon?: IconDefinition;
+  icon?: IconDefinition | React.ReactNode;
   buttonVariant?: string;
 }
 
@@ -149,14 +152,14 @@ export const ListOperationButtons: React.FC<IListOperationButtonsProps> = ({
     if (itemsSelected) {
       if (onEdit) {
         ret.push({
-          icon: faPencilAlt,
+          icon: <EditIcon fontSize="small" />,
           text: intl.formatMessage({ id: "actions.edit" }),
           onClick: onEdit,
         });
       }
       if (onDelete) {
         ret.push({
-          icon: faTrash,
+          icon: <DeleteIcon fontSize="small" />,
           text: intl.formatMessage({ id: "actions.delete" }),
           onClick: onDelete,
           buttonVariant: "error",
@@ -171,6 +174,9 @@ export const ListOperationButtons: React.FC<IListOperationButtonsProps> = ({
     return (
       <>
         {buttons.map((button) => {
+          const iconElement = isFaIcon(button.icon)
+            ? <Icon icon={button.icon} />
+            : button.icon;
           return (
             <Button
               key={button.text}
@@ -180,7 +186,7 @@ export const ListOperationButtons: React.FC<IListOperationButtonsProps> = ({
               title={button.text}
               size="small"
             >
-              <Icon icon={button.icon!} />
+              {iconElement}
             </Button>
           );
         })}

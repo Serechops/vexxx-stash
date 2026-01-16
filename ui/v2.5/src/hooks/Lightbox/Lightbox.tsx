@@ -19,7 +19,6 @@ import {
 import cx from "classnames";
 import Mousetrap from "mousetrap";
 
-import { Icon } from "src/components/Shared/Icon";
 import { LoadingIndicator } from "src/components/Shared/LoadingIndicator";
 import useInterval from "../Interval";
 import usePageVisibility from "../PageVisibility";
@@ -40,20 +39,18 @@ import * as GQL from "src/core/generated-graphql";
 import { useInterfaceLocalForage } from "../LocalForage";
 import { imageLightboxDisplayModeIntlMap } from "src/core/enums";
 import { ILightboxImage, IChapter } from "./types";
-import {
-  faArrowLeft,
-  faArrowRight,
-  faChevronLeft,
-  faChevronRight,
-  faCog,
-  faExpand,
-  faPause,
-  faPlay,
-  faSearchMinus,
-  faTimes,
-  faBars,
-  faImages,
-} from "@fortawesome/free-solid-svg-icons";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
+import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import SettingsIcon from "@mui/icons-material/Settings";
+import FullscreenIcon from "@mui/icons-material/Fullscreen";
+import PauseIcon from "@mui/icons-material/Pause";
+import PlayArrowIcon from "@mui/icons-material/PlayArrow";
+import ZoomOutIcon from "@mui/icons-material/ZoomOut";
+import CloseIcon from "@mui/icons-material/Close";
+import MenuIcon from "@mui/icons-material/Menu";
+import CollectionsIcon from "@mui/icons-material/Collections";
 import { RatingSystem } from "src/components/Shared/Rating/RatingSystem";
 import { useDebounce } from "../debounce";
 import { isVideo } from "src/utils/visualFile";
@@ -575,7 +572,7 @@ export const LightboxComponent: React.FC<IProps> = ({
           className={`minimal ${CLASSNAME_CHAPTER_BUTTON}`}
           size="small"
         >
-          <Icon icon={showChapters ? faTimes : faBars} />
+          {showChapters ? <CloseIcon fontSize="small" /> : <MenuIcon fontSize="small" />}
         </IconButton>
         <Menu
           anchorEl={anchorElChapters}
@@ -817,7 +814,7 @@ export const LightboxComponent: React.FC<IProps> = ({
                   size="large"
                   className="minimal"
                 >
-                  <Icon icon={faCog} />
+                  <SettingsIcon />
                 </IconButton>
                 <Popover
                   open={showOptions}
@@ -853,7 +850,7 @@ export const LightboxComponent: React.FC<IProps> = ({
                 size="large"
                 className="minimal"
               >
-                <Icon icon={slideshowInterval !== null ? faPause : faPlay} />
+                {slideshowInterval !== null ? <PauseIcon /> : <PlayArrowIcon />}
               </IconButton>
             )}
             {zoom !== 1 && (
@@ -866,7 +863,7 @@ export const LightboxComponent: React.FC<IProps> = ({
                 size="large"
                 className="minimal"
               >
-                <Icon icon={faSearchMinus} />
+                <ZoomOutIcon />
               </IconButton>
             )}
             {document.fullscreenEnabled && (
@@ -876,7 +873,7 @@ export const LightboxComponent: React.FC<IProps> = ({
                 size="large"
                 className="minimal"
               >
-                <Icon icon={faExpand} />
+                <FullscreenIcon />
               </IconButton>
             )}
             <IconButton
@@ -885,7 +882,7 @@ export const LightboxComponent: React.FC<IProps> = ({
               size="large"
               className="minimal"
             >
-              <Icon icon={faTimes} />
+              <CloseIcon />
             </IconButton>
           </div>
         </div>
@@ -896,7 +893,7 @@ export const LightboxComponent: React.FC<IProps> = ({
               className={`${CLASSNAME_NAVBUTTON} d-none d-lg-block minimal`}
               size="large"
             >
-              <Icon icon={faChevronLeft} />
+              <ChevronLeftIcon />
             </IconButton>
           )}
 
@@ -944,7 +941,7 @@ export const LightboxComponent: React.FC<IProps> = ({
               className={`${CLASSNAME_NAVBUTTON} ${CLASSNAME_RIGHTBUTTON} d-none d-lg-block minimal`}
               size="large"
             >
-              <Icon icon={faChevronRight} />
+              <ChevronRightIcon />
             </IconButton>
           )}
         </div>
@@ -955,7 +952,7 @@ export const LightboxComponent: React.FC<IProps> = ({
               className={`${CLASSNAME_NAVBUTTON} minimal`}
               size="large"
             >
-              <Icon icon={faArrowLeft} className="mr-4" />
+              <ArrowBackIcon sx={{ mr: 2 }} />
             </IconButton>
             {navItems}
             <IconButton
@@ -963,7 +960,7 @@ export const LightboxComponent: React.FC<IProps> = ({
               className={`${CLASSNAME_NAVBUTTON} minimal`}
               size="large"
             >
-              <Icon icon={faArrowRight} className="ml-4" />
+              <ArrowForwardIcon sx={{ ml: 2 }} />
             </IconButton>
           </div>
         )}
@@ -1004,7 +1001,7 @@ export const LightboxComponent: React.FC<IProps> = ({
                     to={`/galleries/${currentImage.galleries[0].id}`}
                     onClick={() => close()}
                   >
-                    <Icon icon={faImages} />
+                    <CollectionsIcon fontSize="small" sx={{ mr: 0.5 }} />
                     {galleryTitle(currentImage.galleries[0])}
                   </Link>
                 ) : null}

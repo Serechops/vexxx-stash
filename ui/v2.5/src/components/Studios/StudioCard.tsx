@@ -5,14 +5,13 @@ import NavUtils from "src/utils/navigation";
 import { GridCard } from "src/components/Shared/GridCard/GridCard";
 import { PatchComponent } from "src/patch";
 import { HoverPopover } from "../Shared/HoverPopover";
-import { Icon } from "../Shared/Icon";
 import { TagLink } from "../Shared/TagLink";
 import { FormattedMessage } from "react-intl";
 import { PopoverCountButton } from "../Shared/PopoverCountButton";
 import { RatingBanner } from "../Shared/RatingBanner";
 import { FavoriteIcon } from "../Shared/FavoriteIcon";
 import { useStudioUpdate } from "src/core/StashService";
-import { faTag } from "@fortawesome/free-solid-svg-icons";
+import LocalOfferIcon from "@mui/icons-material/LocalOffer";
 import { OCounterButton } from "../Shared/CountButton";
 
 interface IProps {
@@ -182,7 +181,7 @@ export const StudioCard: React.FC<IProps> = PatchComponent(
               }
             }}
           >
-            <Icon icon={faTag} />
+            <LocalOfferIcon fontSize="small" />
             <span>{studio.tags.length}</span>
           </Button>
         </HoverPopover>

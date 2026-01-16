@@ -6,7 +6,7 @@ import { useToast } from "src/hooks/Toast";
 import downloadFile from "src/utils/download";
 import { ExportObjectsInput } from "src/core/generated-graphql";
 import { useIntl } from "react-intl";
-import { faCogs } from "@fortawesome/free-solid-svg-icons";
+import SettingsIcon from "@mui/icons-material/Settings";
 
 interface IExportDialogProps {
   exportInput: ExportObjectsInput;
@@ -48,7 +48,7 @@ export const ExportDialog: React.FC<IExportDialogProps> = (
   return (
     <ModalComponent
       show
-      icon={faCogs}
+      icon={<SettingsIcon />}
       header={intl.formatMessage({ id: "dialogs.export_title" })}
       accept={{
         onClick: onExport,

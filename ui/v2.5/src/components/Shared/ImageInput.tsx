@@ -138,7 +138,7 @@ export const ImageInput: React.FC<IImageInput> = PatchComponent(
               fullWidth
               startIcon={<Icon icon={faFile} className="fa-fw" />}
             >
-              <span style={{ marginLeft: 8 }}>{intl.formatMessage({ id: "actions.from_file" })}</span>
+              <Box component="span" sx={{ ml: 1 }}>{intl.formatMessage({ id: "actions.from_file" })}</Box>
             </Button>
           </label>
 
@@ -148,9 +148,9 @@ export const ImageInput: React.FC<IImageInput> = PatchComponent(
             fullWidth
             startIcon={<Icon icon={faLink} className="fa-fw" />}
             color="inherit"
-            style={{ justifyContent: 'flex-start' }}
+            sx={{ justifyContent: 'flex-start' }}
           >
-            <span style={{ marginLeft: 8 }}>{intl.formatMessage({ id: "actions.from_url" })}</span>
+            <Box component="span" sx={{ ml: 1 }}>{intl.formatMessage({ id: "actions.from_url" })}</Box>
           </Button>
         </Stack>
       </Box>

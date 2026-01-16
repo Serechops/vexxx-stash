@@ -5,9 +5,8 @@ import { useIntl } from "react-intl";
 import { Box, IconButton } from "@mui/material";
 import { Link } from "react-router-dom";
 import * as GQL from "src/core/generated-graphql";
-import { Icon } from "../Shared/Icon";
 import NavUtils from "src/utils/navigation";
-import { faHeart } from "@fortawesome/free-solid-svg-icons";
+import FavoriteIcon from "@mui/icons-material/Favorite";
 import { usePerformerUpdate } from "src/core/StashService";
 import { useTableColumns } from "src/hooks/useTableColumns";
 import { RatingSystem } from "../Shared/Rating/RatingSystem";
@@ -172,7 +171,7 @@ export const PerformerListTable: React.FC<IPerformerListTableProps> = (
       }}
       onClick={() => setFavorite(!performer.favorite, performer.id)}
     >
-      <Icon icon={faHeart} />
+      <FavoriteIcon />
     </IconButton>
   );
 

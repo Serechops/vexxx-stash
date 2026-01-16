@@ -1,16 +1,20 @@
 import React from "react";
-import { Icon } from "../Shared/Icon";
 import { IconButton } from "@mui/material";
-import { faHeart } from "@fortawesome/free-solid-svg-icons";
+import FavoriteIconMui from "@mui/icons-material/Favorite";
 import cx from "classnames";
-import { SizeProp } from "@fortawesome/fontawesome-svg-core";
 
 export const FavoriteIcon: React.FC<{
   favorite: boolean;
   onToggleFavorite: (v: boolean) => void;
-  size?: SizeProp;
+  size?: "small" | "medium" | "large" | "1x" | "2x";
   className?: string;
-}> = ({ favorite, onToggleFavorite, size, className }) => {
+}> = ({ favorite, onToggleFavorite, size = "small", className }) => {
+  // map legacy font-awesome sizes to MUI fontSize values
+  const fontSize: "small" | "medium" | "large" =
+    size === "1x" ? "small" : size === "2x" ? "large" : (size as any);
+
+  const buttonSize: "small" | "medium" = fontSize === "small" ? "small" : "medium";
+
   return (
     <IconButton
       className={cx(
@@ -21,9 +25,9 @@ export const FavoriteIcon: React.FC<{
         favorite ? "favorite" : "not-favorite"
       )}
       onClick={() => onToggleFavorite!(!favorite)}
-      size="small"
+      size={buttonSize}
     >
-      <Icon icon={faHeart} size={size} />
+      <FavoriteIconMui fontSize={fontSize} />
     </IconButton>
   );
 };

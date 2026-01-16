@@ -3,13 +3,10 @@ import { Box } from "@mui/material";
 import { Link, useHistory } from "react-router-dom";
 import cx from "classnames";
 import * as GQL from "src/core/generated-graphql";
-import { Icon } from "../Shared/Icon";
 import { HoverVideoPreview } from "./HoverVideoPreview";
-import {
-    faBolt,
-    faPlay,
-    faStar,
-} from "@fortawesome/free-solid-svg-icons";
+import BoltIcon from "@mui/icons-material/Bolt";
+import PlayArrowIcon from "@mui/icons-material/PlayArrow";
+import StarIcon from "@mui/icons-material/Star";
 import { objectTitle } from "src/core/files";
 import { SceneQueue } from "src/models/sceneQueue";
 import { useConfigurationContext } from "src/hooks/Config";
@@ -242,7 +239,7 @@ export const OverlayCard: React.FC<ISceneCardProps> = ({
                                     color: "warning.main",
                                 }}
                             >
-                                <Icon icon={faStar} /> {rating}
+                                <StarIcon sx={{ fontSize: 14 }} /> {rating}
                             </Box>
                         )}
                     </Box>
@@ -329,7 +326,7 @@ export const OverlayCard: React.FC<ISceneCardProps> = ({
                                     alignItems: "center",
                                 }}
                             >
-                                <Icon icon={faBolt} className="mr-1" />
+                                <BoltIcon sx={{ fontSize: 14, mr: 0.5 }} />
                                 {scene.o_counter || 0}
                             </Box>
                         </Box>

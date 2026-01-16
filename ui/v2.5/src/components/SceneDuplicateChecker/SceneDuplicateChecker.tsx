@@ -855,7 +855,7 @@ const SceneDuplicateChecker: React.FC = () => {
             <TableHead>
               <TableRow>
                 <TableCell padding="checkbox"></TableCell>
-                <TableCell style={{ width: 120 }}></TableCell>
+                <TableCell sx={{ width: 120 }}></TableCell>
                 <TableCell><FormattedMessage id="details" /></TableCell>
                 <TableCell></TableCell>
                 <TableCell><FormattedMessage id="duration" /></TableCell>

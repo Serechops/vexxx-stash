@@ -13,8 +13,8 @@ import {
 } from "src/core/StashService";
 import { ErrorMessage } from "src/components/Shared/ErrorMessage";
 import { LoadingIndicator } from "src/components/Shared/LoadingIndicator";
-import { Icon } from "src/components/Shared/Icon";
 import { Counter } from "src/components/Shared/Counter";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { useToast } from "src/hooks/Toast";
 import * as Mousetrap from "mousetrap";
 import * as GQL from "src/core/generated-graphql";
@@ -24,7 +24,6 @@ import { ImageFileInfoPanel } from "./ImageFileInfoPanel";
 import { ImageEditPanel } from "./ImageEditPanel";
 import { ImageDetailPanel } from "./ImageDetailPanel";
 import { DeleteImagesDialog } from "../DeleteImagesDialog";
-import { faEllipsisV } from "@fortawesome/free-solid-svg-icons";
 import { imagePath, imageTitle } from "src/core/files";
 import { isVideo } from "src/utils/visualFile";
 import { useScrollToTopOnMount } from "src/hooks/scrollToTop";
@@ -180,7 +179,7 @@ const ImagePage: React.FC<IProps> = ({ image }) => {
           title="Operations"
           size="small"
         >
-          <Icon icon={faEllipsisV} />
+          <MoreVertIcon />
         </IconButton>
         <Menu
           anchorEl={anchorEl}

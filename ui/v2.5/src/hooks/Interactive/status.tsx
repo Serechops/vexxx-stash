@@ -1,5 +1,4 @@
-import { faCircle } from "@fortawesome/free-solid-svg-icons";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import FiberManualRecordIcon from "@mui/icons-material/FiberManualRecord";
 import React from "react";
 import { FormattedMessage } from "react-intl";
 import {
@@ -36,7 +35,7 @@ export const SceneInteractiveStatus: React.FC = ({}) => {
 
   return (
     <div className={`scene-interactive-status ${getStateClass()}`}>
-      <FontAwesomeIcon pulse icon={faCircle} size="xs" />
+      <FiberManualRecordIcon sx={{ fontSize: 10, animation: 'pulse 1s infinite' }} />
       <span className="status-text">
         <FormattedMessage id={connectionStateLabel(state)} />
         {error && <span>: {error}</span>}

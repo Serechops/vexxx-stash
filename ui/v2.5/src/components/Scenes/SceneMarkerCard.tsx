@@ -1,14 +1,13 @@
 import { useMemo } from "react";
 import { Button, ButtonGroup, Box, Typography } from "@mui/material";
 import * as GQL from "src/core/generated-graphql";
-import { Icon } from "../Shared/Icon";
 import { TagLink } from "../Shared/TagLink";
 import { HoverPopover } from "../Shared/HoverPopover";
 import NavUtils from "src/utils/navigation";
 import TextUtils from "src/utils/text";
 import { useConfigurationContext } from "src/hooks/Config";
 import { GridCard } from "../Shared/GridCard/GridCard";
-import { faTag } from "@fortawesome/free-solid-svg-icons";
+import LocalOfferIcon from "@mui/icons-material/LocalOffer";
 import { markerTitle } from "src/core/markers";
 import { Link } from "react-router-dom";
 import { objectTitle } from "src/core/files";
@@ -65,7 +64,7 @@ const SceneMarkerCardPopovers = PatchComponent(
           content={popoverContent}
         >
           <Button className="minimal" variant="text" size="small">
-            <Icon icon={faTag} />
+            <LocalOfferIcon fontSize="small" />
             <span>{popoverContent.length}</span>
           </Button>
         </HoverPopover>

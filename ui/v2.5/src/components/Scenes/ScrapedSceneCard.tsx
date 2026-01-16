@@ -1,7 +1,8 @@
 import React from "react";
 import { Button, Card, CardContent, Box } from "@mui/material";
-import { faPlus, faCheck, faExternalLinkAlt } from "@fortawesome/free-solid-svg-icons";
-import { Icon } from "src/components/Shared/Icon";
+import AddIcon from "@mui/icons-material/Add";
+import CheckIcon from "@mui/icons-material/Check";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import * as GQL from "src/core/generated-graphql";
 import TextUtils from "src/utils/text";
 import cx from "classnames";
@@ -76,7 +77,7 @@ export const ScrapedSceneCard: React.FC<IScrapedSceneCardProps> = ({
                         disabled={tracked}
                         title={tracked ? "Tracked" : "Track Scene"}
                     >
-                        <Icon icon={tracked ? faCheck : faPlus} className="w-3 h-3" />
+                        {tracked ? <CheckIcon sx={{ fontSize: 12 }} /> : <AddIcon sx={{ fontSize: 12 }} />}
                     </Button>
                 </div>
             </div>

@@ -41,7 +41,7 @@ export const RenamerPreview: React.FC<RenamerPreviewProps> = ({ results }) => {
                         {results.map((result) => (
                             <TableRow key={result.id} hover>
                                 <TableCell sx={{ wordBreak: 'break-all' }}>{result.old_path}</TableCell>
-                                <TableCell style={{ width: "20px" }} align="center">
+                                <TableCell sx={{ width: 20 }} align="center">
                                     <Icon icon={faArrowRight} color="gray" />
                                 </TableCell>
                                 <TableCell sx={{ wordBreak: 'break-all' }}>
@@ -57,7 +57,7 @@ export const RenamerPreview: React.FC<RenamerPreviewProps> = ({ results }) => {
                                         result.new_path
                                     )}
                                 </TableCell>
-                                <TableCell style={{ width: "50px" }} align="center">
+                                <TableCell sx={{ width: 50 }} align="center">
                                     {result.error ? (
                                         <div title={result.error}>
                                             <Icon icon={faTimes} color="red" />

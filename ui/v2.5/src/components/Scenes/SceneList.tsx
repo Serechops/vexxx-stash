@@ -20,12 +20,10 @@ import { FeaturedScene } from "./FeaturedScene";
 import { TaggerContext } from "../Tagger/context";
 import { IdentifyDialog } from "../Dialogs/IdentifyDialog/IdentifyDialog";
 import { useConfigurationContext } from "src/hooks/Config";
-import {
-  faPencil,
-  faPlay,
-  faPlus,
-  faTrash,
-} from "@fortawesome/free-solid-svg-icons";
+import EditIcon from "@mui/icons-material/Edit";
+import PlayArrowIcon from "@mui/icons-material/PlayArrow";
+import AddIcon from "@mui/icons-material/Add";
+import DeleteIcon from "@mui/icons-material/Delete";
 import { SceneMergeModal } from "./SceneMergeDialog";
 import { objectTitle } from "src/core/files";
 import TextUtils from "src/utils/text";
@@ -70,7 +68,6 @@ import {
 import { PatchComponent, PatchContainerComponent } from "src/patch";
 import { Pagination, PaginationIndex } from "../List/Pagination";
 import { Box, Button, ButtonGroup } from "@mui/material";
-import { Icon } from "../Shared/Icon";
 import useFocus from "src/utils/focus";
 import { useZoomKeybinds } from "../List/ZoomSlider";
 import { SearchTermInput } from "../List/ListFilter";

@@ -1,8 +1,7 @@
-import { faExternalLinkAlt } from "@fortawesome/free-solid-svg-icons";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import React from "react";
 import { Button } from "@mui/material";
 import { useIntl } from "react-intl";
-import { Icon } from "src/components/Shared/Icon";
 import { objectTitle } from "src/core/files";
 import { SceneDataFragment } from "src/core/generated-graphql";
 
@@ -58,7 +57,7 @@ export const ExternalPlayerButton: React.FC<IExternalPlayerButtonProps> = ({
       size="small"
     >
       <a href={url}>
-        <Icon icon={faExternalLinkAlt} color="white" />
+        <OpenInNewIcon sx={{ color: "white" }} fontSize="small" />
       </a>
     </Button>
   );

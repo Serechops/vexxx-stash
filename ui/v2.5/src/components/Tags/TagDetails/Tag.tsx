@@ -30,7 +30,7 @@ import { TagGalleriesPanel } from "./TagGalleriesPanel";
 import { CompressedTagDetailsPanel, TagDetailsPanel } from "./TagDetailsPanel";
 import { TagEditPanel } from "./TagEditPanel";
 import { TagMergeModal } from "../TagMergeDialog";
-import { faTrashAlt } from "@fortawesome/free-solid-svg-icons";
+import DeleteIcon from "@mui/icons-material/Delete";
 import { DetailImage } from "src/components/Shared/DetailImage";
 import { useLoadStickyHeader } from "src/hooks/detailsPanel";
 import { useScrollToTopOnMount } from "src/hooks/scrollToTop";
@@ -157,6 +157,33 @@ const TagTabs: React.FC<{
     );
   }, [showAllDetails, tag.children.length]);
 
+  const TabLabel: React.FC<{ messageID: string; count: number }> = ({ messageID, count }) => (
+    <Box sx={{ position: 'relative', display: 'inline-flex', alignItems: 'center', pr: count > 0 ? 3 : 0 }}>
+      <FormattedMessage id={messageID} />
+      {count > 0 && (
+        <Box
+          sx={{
+            position: 'absolute',
+            top: -8,
+            right: -4,
+            backgroundColor: 'primary.main',
+            color: 'primary.contrastText',
+            borderRadius: '10px',
+            px: 0.75,
+            py: 0.25,
+            fontSize: '0.7rem',
+            fontWeight: 600,
+            lineHeight: 1,
+            minWidth: '20px',
+            textAlign: 'center',
+          }}
+        >
+          {abbreviateCounter && count >= 1000 ? `${Math.floor(count / 1000)}k` : count}
+        </Box>
+      )}
+    </Box>
+  );
+
   return (
     <Box sx={{ width: "100%" }}>
       <Tabs
@@ -168,73 +195,31 @@ const TagTabs: React.FC<{
       >
         <Tab
           value="scenes"
-          label={
-            <TabTitleCounter
-              messageID="scenes"
-              count={sceneCount}
-              abbreviateCounter={abbreviateCounter}
-            />
-          }
+          label={<TabLabel messageID="scenes" count={sceneCount} />}
         />
         <Tab
           value="images"
-          label={
-            <TabTitleCounter
-              messageID="images"
-              count={imageCount}
-              abbreviateCounter={abbreviateCounter}
-            />
-          }
+          label={<TabLabel messageID="images" count={imageCount} />}
         />
         <Tab
           value="galleries"
-          label={
-            <TabTitleCounter
-              messageID="galleries"
-              count={galleryCount}
-              abbreviateCounter={abbreviateCounter}
-            />
-          }
+          label={<TabLabel messageID="galleries" count={galleryCount} />}
         />
         <Tab
           value="groups"
-          label={
-            <TabTitleCounter
-              messageID="groups"
-              count={groupCount}
-              abbreviateCounter={abbreviateCounter}
-            />
-          }
+          label={<TabLabel messageID="groups" count={groupCount} />}
         />
         <Tab
           value="markers"
-          label={
-            <TabTitleCounter
-              messageID="markers"
-              count={sceneMarkerCount}
-              abbreviateCounter={abbreviateCounter}
-            />
-          }
+          label={<TabLabel messageID="markers" count={sceneMarkerCount} />}
         />
         <Tab
           value="performers"
-          label={
-            <TabTitleCounter
-              messageID="performers"
-              count={performerCount}
-              abbreviateCounter={abbreviateCounter}
-            />
-          }
+          label={<TabLabel messageID="performers" count={performerCount} />}
         />
         <Tab
           value="studios"
-          label={
-            <TabTitleCounter
-              messageID="studios"
-              count={studioCount}
-              abbreviateCounter={abbreviateCounter}
-            />
-          }
+          label={<TabLabel messageID="studios" count={studioCount} />}
         />
       </Tabs>
 
@@ -453,7 +438,7 @@ const TagPage: React.FC<IProps> = ({ tag, tabKey }) => {
     return (
       <ModalComponent
         show={isDeleteAlertOpen}
-        icon={faTrashAlt}
+        icon={<DeleteIcon />}
         accept={{
           text: intl.formatMessage({ id: "actions.delete" }),
           variant: "danger",

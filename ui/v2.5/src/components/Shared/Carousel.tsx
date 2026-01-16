@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect, useCallback } from "react";
 import { Box, IconButton, useTheme, useMediaQuery } from "@mui/material";
-import { faChevronLeft, faChevronRight } from "@fortawesome/free-solid-svg-icons";
-import { Icon } from "./Icon";
+import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 
 interface CarouselProps {
     children: React.ReactNode;
@@ -100,7 +100,7 @@ export const Carousel: React.FC<CarouselProps> = ({
                         height: 40,
                     }}
                 >
-                    <Icon icon={faChevronLeft} />
+                    <ChevronLeftIcon />
                 </IconButton>
             )}
 
@@ -155,7 +155,7 @@ export const Carousel: React.FC<CarouselProps> = ({
                         height: 40,
                     }}
                 >
-                    <Icon icon={faChevronRight} />
+                    <ChevronRightIcon />
                 </IconButton>
             )}
         </Box>

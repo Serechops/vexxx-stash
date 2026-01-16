@@ -1,11 +1,8 @@
-import {
-  faChevronDown,
-  faChevronUp,
-  faClock,
-} from "@fortawesome/free-solid-svg-icons";
 import React, { useMemo, useState } from "react";
 import { Button, ButtonGroup, TextField, InputAdornment, Box, FormHelperText } from "@mui/material";
-import { Icon } from "./Icon";
+import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import TextUtils from "src/utils/text";
 
 interface IProps {
@@ -81,7 +78,7 @@ export const DurationInput: React.FC<IProps> = ({
               borderTopLeftRadius: 0,
             }}
           >
-            <Icon icon={faChevronUp} />
+            <KeyboardArrowUpIcon fontSize="small" />
           </Button>
           <Button
             variant="outlined"
@@ -96,7 +93,7 @@ export const DurationInput: React.FC<IProps> = ({
               marginLeft: "0 !important", // Override ButtonGroup margin
             }}
           >
-            <Icon icon={faChevronDown} />
+            <KeyboardArrowDownIcon fontSize="small" />
           </Button>
         </ButtonGroup>
       );
@@ -107,7 +104,7 @@ export const DurationInput: React.FC<IProps> = ({
     if (onReset) {
       return (
         <Button variant="outlined" color="secondary" onClick={() => onReset()} size="small">
-          <Icon icon={faClock} />
+          <AccessTimeIcon fontSize="small" />
         </Button>
       );
     }

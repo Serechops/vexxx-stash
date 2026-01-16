@@ -19,8 +19,10 @@ import * as GQL from "src/core/generated-graphql";
 import { useToast } from "src/hooks/Toast";
 import { LoadingIndicator } from "src/components/Shared/LoadingIndicator";
 import { useConfigurationContext } from "src/hooks/Config";
-import { Icon } from "src/components/Shared/Icon";
-import { faPlus, faSearch, faSortAmountDown, faSortAmountUp, faFilter } from "@fortawesome/free-solid-svg-icons";
+import AddIcon from "@mui/icons-material/Add";
+import SearchIcon from "@mui/icons-material/Search";
+import SortIcon from "@mui/icons-material/Sort";
+import FilterListIcon from "@mui/icons-material/FilterList";
 import { getClient } from "src/core/StashService";
 import { ScrapedSceneCardsGrid } from "src/components/Scenes/ScrapedSceneCardsGrid";
 import { Pagination } from "src/components/List/Pagination";
@@ -380,18 +382,18 @@ export const StudioMissingScenesPanel: React.FC<IStudioMissingScenesPanelProps> 
             {/* Action Buttons */}
             <Stack direction="row" spacing={2} sx={{ my: 3, flexWrap: "wrap" }}>
                 <Button variant="contained" color="primary" onClick={onScan} disabled={scanning}>
-                    <Icon icon={faSearch} className="mr-2" />
+                    <SearchIcon sx={{ mr: 1 }} />
                     <FormattedMessage id="scan_missing_scenes" defaultMessage="Scan for Missing Scenes (StashBox)" />
                 </Button>
 
                 <Button variant="contained" color="secondary" onClick={onScanBackground} disabled={scanning}>
-                    <Icon icon={faSearch} className="mr-2" />
+                    <SearchIcon sx={{ mr: 1 }} />
                     <FormattedMessage id="scan_missing_scenes_bg" defaultMessage="Scan in Background" />
                 </Button>
 
                 {!scanning && filteredAndSortedScenes.filter(s => s.remote_site_id && !trackedStatus[s.remote_site_id]).length > 0 && (
                     <Button variant="contained" color="success" onClick={onTrackAll}>
-                        <Icon icon={faPlus} className="mr-2" />
+                        <AddIcon sx={{ mr: 1 }} />
                         <FormattedMessage id="track_all" defaultMessage="Track All" />
                     </Button>
                 )}
@@ -413,14 +415,14 @@ export const StudioMissingScenesPanel: React.FC<IStudioMissingScenesPanelProps> 
                     <TextField
                         variant="outlined"
                         size="small"
-                        placeholder={intl.formatMessage({ id: "search_ellipsis" })}
+                        placeholder={intl.formatMessage({ id: "Search..." })}
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         slotProps={{
                             input: {
                                 startAdornment: (
                                     <InputAdornment position="start">
-                                        <Icon icon={faSearch} />
+                                        <SearchIcon fontSize="small" />
                                     </InputAdornment>
                                 ),
                             },
@@ -489,7 +491,7 @@ export const StudioMissingScenesPanel: React.FC<IStudioMissingScenesPanelProps> 
                         >
                             {(["all", "untracked", "tracked", "owned"] as StatusFilter[]).map(status => (
                                 <MenuItem key={status} value={status}>
-                                    <Icon icon={faFilter} className="mr-1" /> {statusFilterLabel[status]}
+                                    <FilterListIcon sx={{ mr: 0.5, fontSize: 16 }} /> {statusFilterLabel[status]}
                                 </MenuItem>
                             ))}
                         </MuiSelect>
@@ -516,7 +518,7 @@ export const StudioMissingScenesPanel: React.FC<IStudioMissingScenesPanelProps> 
                         title={sortDirection === "asc" ? "Ascending" : "Descending"}
                         size="small"
                     >
-                        <Icon icon={sortDirection === "asc" ? faSortAmountUp : faSortAmountDown} />
+                        <SortIcon sx={{ transform: sortDirection === "asc" ? "scaleY(-1)" : "none" }} />
                     </IconButton>
 
                     {/* Stats Summary */}

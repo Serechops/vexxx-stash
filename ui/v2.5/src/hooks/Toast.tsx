@@ -1,11 +1,8 @@
-import {
-  faArrowUpRightFromSquare,
-  faTriangleExclamation,
-} from "@fortawesome/free-solid-svg-icons";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import WarningIcon from "@mui/icons-material/Warning";
 import React, { useState, useContext, createContext, useMemo } from "react";
 import { Button, Snackbar, Alert, AlertTitle, IconButton, Box } from "@mui/material";
 import { FormattedMessage } from "react-intl";
-import { Icon } from "src/components/Shared/Icon";
 import { ModalComponent } from "src/components/Shared/Modal";
 import { errorToString } from "src/utils";
 import cx from "classnames";
@@ -62,7 +59,7 @@ export const ToastProvider: React.FC = ({ children }) => {
                 color="inherit"
                 onClick={() => expand()}
               >
-                <Icon icon={faArrowUpRightFromSquare} />
+                <OpenInNewIcon fontSize="small" />
               </IconButton>
             ) : undefined
           }
@@ -107,7 +104,7 @@ export const ToastProvider: React.FC = ({ children }) => {
             },
           }}
           header={<FormattedMessage id="errors.header" />}
-          icon={faTriangleExclamation}
+          icon={<WarningIcon />}
           footerButtons={
             <>
               {!!navigator.clipboard && (

@@ -28,9 +28,10 @@ import {
 } from "src/core/generated-graphql";
 import { View } from "./views";
 import { FormattedMessage, useIntl } from "react-intl";
-import { Icon } from "../Shared/Icon";
+import BookmarkIcon from "@mui/icons-material/Bookmark";
+import SaveIcon from "@mui/icons-material/Save";
+import CloseIcon from "@mui/icons-material/Close";
 import { LoadingIndicator } from "../Shared/LoadingIndicator";
-import { faBookmark, faSave, faTimes } from "@fortawesome/free-solid-svg-icons";
 import { AlertModal } from "../Shared/Alert";
 import cx from "classnames";
 import { TruncatedInlineText } from "../Shared/TruncatedText";
@@ -414,7 +415,7 @@ export const SavedFilterList: React.FC<ISavedFilterListProps> = ({
               e.stopPropagation();
             }}
           >
-            <Icon icon={faSave} />
+            <SaveIcon fontSize="small" />
           </IconButton>
           <IconButton
             size="small"
@@ -425,7 +426,7 @@ export const SavedFilterList: React.FC<ISavedFilterListProps> = ({
               e.stopPropagation();
             }}
           >
-            <Icon icon={faTimes} />
+            <CloseIcon fontSize="small" />
           </IconButton>
         </ButtonGroup>
       </Box>
@@ -518,7 +519,7 @@ export const SavedFilterList: React.FC<ISavedFilterListProps> = ({
                 onSaveFilter(filterName);
               }}
             >
-              <Icon icon={faSave} />
+              <SaveIcon fontSize="small" />
             </Button>
           </span>
         </Tooltip>
@@ -573,7 +574,7 @@ const SavedFilterItem: React.FC<ISavedFilterItem> = ({
               e.stopPropagation();
             }}
           >
-            <Icon fixedWidth icon={faTimes} />
+            <CloseIcon fontSize="small" />
           </IconButton>
         </Box>
       </Box>
@@ -820,7 +821,7 @@ export const SidebarSavedFilterList: React.FC<ISavedFilterListProps> = ({
           onClick={() => setShowSaveDialog(true)}
           sx={{ fontWeight: "bold", color: "text.primary" }}
         >
-          <Icon icon={faBookmark} />
+          <BookmarkIcon fontSize="small" sx={{ mr: 0.5 }} />
           <FormattedMessage id="actions.save" />
         </Button>
         <Box>
@@ -911,7 +912,7 @@ export const SavedFilterDropdown: React.FC<ISavedFilterListProps> = (props) => {
           color="secondary"
           onClick={handleClick}
         >
-          <Icon icon={faBookmark} />
+          <BookmarkIcon fontSize="small" />
         </Button>
       </Tooltip>
       {props.menuPortalTarget

@@ -1,7 +1,6 @@
 import React from "react";
 import { Button, Chip } from "@mui/material";
-import { faFilter } from "@fortawesome/free-solid-svg-icons";
-import { Icon } from "src/components/Shared/Icon";
+import FilterListIcon from "@mui/icons-material/FilterList";
 import { useIntl } from "react-intl";
 
 interface IFilterButtonProps {
@@ -29,7 +28,7 @@ export const FilterButton: React.FC<IFilterButtonProps> = ({
       onClick={onClick}
       title={title}
     >
-      <Icon icon={faFilter} />
+      <FilterListIcon fontSize="small" />
       {count ? (
         <Chip
           size="small"

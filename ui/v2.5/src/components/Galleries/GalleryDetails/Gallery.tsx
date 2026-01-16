@@ -20,7 +20,6 @@ import {
 } from "src/core/StashService";
 import { ErrorMessage } from "src/components/Shared/ErrorMessage";
 import { LoadingIndicator } from "src/components/Shared/LoadingIndicator";
-import { Icon } from "src/components/Shared/Icon";
 import { Counter } from "src/components/Shared/Counter";
 import Mousetrap from "mousetrap";
 import { useGalleryLightbox } from "src/hooks/Lightbox/hooks";
@@ -33,11 +32,9 @@ import { GalleryImagesPanel } from "./GalleryImagesPanel";
 import { GalleryAddPanel } from "./GalleryAddPanel";
 import { GalleryFileInfoPanel } from "./GalleryFileInfoPanel";
 import { GalleryScenesPanel } from "./GalleryScenesPanel";
-import {
-  faEllipsisV,
-  faChevronRight,
-  faChevronLeft,
-} from "@fortawesome/free-solid-svg-icons";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import { galleryPath, galleryTitle } from "src/core/galleries";
 import { GalleryChapterPanel } from "./GalleryChaptersPanel";
 import { useScrollToTopOnMount } from "src/hooks/scrollToTop";
@@ -202,7 +199,7 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
           title={intl.formatMessage({ id: "operations" })}
           onClick={handleMenuClick}
         >
-          <Icon icon={faEllipsisV} />
+          <MoreVertIcon />
         </IconButton>
         <Menu
           anchorEl={menuAnchorEl}

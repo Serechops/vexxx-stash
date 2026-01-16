@@ -17,12 +17,11 @@ import {
 import { useToast } from "src/hooks/Toast";
 import { FormattedMessage, FormattedNumber, useIntl } from "react-intl";
 import NavUtils from "src/utils/navigation";
-import { Icon } from "../Shared/Icon";
 import { ModalComponent } from "../Shared/Modal";
 import { DeleteEntityDialog } from "../Shared/DeleteEntityDialog";
 import { ExportDialog } from "../Shared/ExportDialog";
 import { tagRelationHook } from "../../core/tags";
-import { faTrashAlt } from "@fortawesome/free-solid-svg-icons";
+import DeleteIcon from "@mui/icons-material/Delete";
 import { TagMergeModal } from "./TagMergeDialog";
 import { Tag } from "./TagSelect";
 import { TagCardGrid } from "./TagCardGrid";
@@ -240,7 +239,7 @@ export const TagList: React.FC<ITagList> = PatchComponent(
             <ModalComponent
               onHide={() => { }}
               show={!!deletingTag}
-              icon={faTrashAlt}
+              icon={<DeleteIcon />}
               accept={{
                 onClick: onDelete,
                 variant: "danger",
@@ -348,7 +347,7 @@ export const TagList: React.FC<ITagList> = PatchComponent(
                     />
                   </Box>
                   <IconButton color="error" onClick={() => setDeletingTag(tag)}>
-                    <Icon icon={faTrashAlt} />
+                    <DeleteIcon fontSize="small" />
                   </IconButton>
                 </Grid>
               </Grid>

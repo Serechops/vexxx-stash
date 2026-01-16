@@ -13,7 +13,7 @@ import {
 } from "src/components/List/ItemList";
 import { useToast } from "src/hooks/Toast";
 import { useIntl } from "react-intl";
-import { faMinus } from "@fortawesome/free-solid-svg-icons";
+import RemoveIcon from "@mui/icons-material/Remove";
 import { galleryTitle } from "src/core/galleries";
 import { View } from "src/components/List/views";
 import { PatchComponent } from "src/patch";
@@ -136,7 +136,7 @@ export const GalleryImagesPanel: React.FC<IGalleryDetailsProps> =
           onClick: removeImages,
           isDisplayed: showWhenSelected,
           postRefetch: true,
-          icon: faMinus,
+          icon: <RemoveIcon fontSize="small" />,
           buttonVariant: "danger",
         },
       ];

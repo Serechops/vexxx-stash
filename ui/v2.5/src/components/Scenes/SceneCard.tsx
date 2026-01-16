@@ -3,7 +3,6 @@ import { Box, Typography } from "@mui/material";
 import { useHistory } from "react-router-dom";
 import cx from "classnames";
 import * as GQL from "src/core/generated-graphql";
-import { Icon } from "../Shared/Icon";
 import { GalleryLink, TagLink, SceneMarkerLink } from "../Shared/TagLink";
 import { HoverPopover } from "../Shared/HoverPopover";
 import { TruncatedText } from "../Shared/TruncatedText";
@@ -18,15 +17,13 @@ import { FormattedMessage } from "react-intl";
 import { StashDBCard } from "./StashDBCard";
 import { OverlayCard } from "./OverlayCard";
 import { useInterfaceLocalForage } from "src/hooks/LocalForage";
-import {
-  faBox,
-  faCopy,
-  faFilm,
-  faImages,
-  faInfoCircle,
-  faMapMarkerAlt,
-  faTag,
-} from "@fortawesome/free-solid-svg-icons";
+import InventoryIcon from "@mui/icons-material/Inventory";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import MovieIcon from "@mui/icons-material/Movie";
+import ImageIcon from "@mui/icons-material/Image";
+import InfoIcon from "@mui/icons-material/Info";
+import PlaceIcon from "@mui/icons-material/Place";
+import LocalOfferIcon from "@mui/icons-material/LocalOffer";
 import { objectPath, objectTitle } from "src/core/files";
 import { PreviewScrubber } from "./PreviewScrubber";
 import { PatchComponent } from "src/patch";
@@ -311,11 +308,12 @@ const FlipCard = PatchComponent(
                     )}
                     {/* Info Button for Flip - Top Right */}
                     <Box sx={{ position: "absolute", top: "0.5rem", right: "0.5rem", zIndex: 20, opacity: 0, ".group:hover &": { opacity: 1 }, transition: "opacity 0.2s" }}>
-                      <button
-                        style={{
-                          padding: "0.375rem",
+                      <Box
+                        component="button"
+                        sx={{
+                          p: 0.75,
                           borderRadius: "9999px",
-                          backgroundColor: "rgba(0, 0, 0, 0.6)",
+                          bgcolor: "rgba(0, 0, 0, 0.6)",
                           color: "#fff",
                           backdropFilter: "blur(4px)",
                           border: "none",
@@ -328,9 +326,9 @@ const FlipCard = PatchComponent(
                         }}
                         title="View Details"
                       >
-                        <Icon icon={faInfoCircle} style={{ height: "1rem", width: "1rem" }} />
-                        <span style={{ position: "absolute", width: "1px", height: "1px", padding: 0, margin: "-1px", overflow: "hidden", clip: "rect(0, 0, 0, 0)", whiteSpace: "nowrap", border: 0 }}>Info</span>
-                      </button>
+                        <InfoIcon fontSize="small" />
+                        <Box component="span" sx={{ position: "absolute", width: "1px", height: "1px", p: 0, m: "-1px", overflow: "hidden", clip: "rect(0, 0, 0, 0)", whiteSpace: "nowrap", border: 0 }}>Info</Box>
+                      </Box>
                     </Box>
                   </>
                 }
@@ -351,7 +349,7 @@ const FlipCard = PatchComponent(
                             }}
                             sx={{ cursor: "pointer", opacity: 0.8, "&:hover": { opacity: 1 }, transition: "opacity 0.2s" }}
                           >
-                            <img src={props.scene.studio.image_path} alt="Studio" style={{ height: "1.5rem", width: "auto", objectFit: "contain" }} />
+                            <Box component="img" src={props.scene.studio.image_path} alt="Studio" sx={{ height: "1.5rem", width: "auto", objectFit: "contain" }} />
                           </Box>
                         ) : (
                           props.scene.studio && <Box component="span" sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{props.scene.studio.name}</Box>
@@ -436,16 +434,17 @@ const FlipCard = PatchComponent(
             {/* Back Header: Return Button */}
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 1, flexShrink: 0 }}>
               <Typography variant="caption" sx={{ fontWeight: "bold", color: "text.secondary", textTransform: "uppercase", letterSpacing: "0.05rem" }}>Details</Typography>
-              <button
-                style={{
-                  padding: "0.375rem",
+              <Box
+                component="button"
+                sx={{
+                  p: 0.75,
                   borderRadius: "9999px",
-                  backgroundColor: "transparent",
+                  bgcolor: "transparent",
                   color: "inherit",
                   border: "none",
                   cursor: "pointer",
+                  "&:hover": { bgcolor: "action.hover" },
                 }}
-                className="hover-bg-secondary" // We'll use theme colors in sx if possible, but keep it simple
                 onClick={(e) => {
                   e.stopPropagation();
                   e.preventDefault();
@@ -454,9 +453,9 @@ const FlipCard = PatchComponent(
                 }}
                 title="Back to Preview"
               >
-                <Icon icon={faCopy} style={{ height: "1rem", width: "1rem", transform: "rotate(180deg)" }} />
-                <span style={{ fontWeight: "bold", fontSize: "1.125rem", lineHeight: 1, marginLeft: "0.25rem" }}>✕</span>
-              </button>
+                <ContentCopyIcon fontSize="small" />
+                <Box component="span" sx={{ fontWeight: "bold", fontSize: "1.125rem", lineHeight: 1, ml: 0.5 }}>✕</Box>
+              </Box>
             </Box>
 
             {/* Description (Fixed/Limited Height) */}
@@ -497,7 +496,7 @@ const FlipCard = PatchComponent(
                     }}
                   >
                     {p.image_path ? (
-                      <img src={p.image_path} alt={p.name} style={{ height: "100%", width: "100%", objectFit: "cover" }} />
+                      <Box component="img" src={p.image_path} alt={p.name} sx={{ height: "100%", width: "100%", objectFit: "cover" }} />
                     ) : (
                       <Typography variant="caption" sx={{ fontWeight: "bold", color: "text.secondary", textTransform: "uppercase" }}>{p.name.charAt(0)}</Typography>
                     )}
@@ -558,3 +557,4 @@ export const SceneCard = PatchComponent(
     return <OverlayCard {...props} />;
   }
 );
+

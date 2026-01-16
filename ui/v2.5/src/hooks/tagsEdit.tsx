@@ -5,8 +5,7 @@ import { Tag, TagSelect, TagSelectProps } from "src/components/Tags/TagSelect";
 import { useToast } from "src/hooks/Toast";
 import { useIntl } from "react-intl";
 import { Chip } from "@mui/material";
-import { Icon } from "src/components/Shared/Icon";
-import { faPlus } from "@fortawesome/free-solid-svg-icons";
+import AddIcon from "@mui/icons-material/Add";
 import { CollapseButton } from "src/components/Shared/CollapseButton";
 
 export function useTagsEdit(
@@ -116,7 +115,7 @@ export function useTagsEdit(
             label={t.name}
             onClick={() => createNewTag(t)}
             onDelete={() => createNewTag(t)}
-            deleteIcon={<Icon icon={faPlus} />}
+            deleteIcon={<AddIcon fontSize="small" />}
             variant="outlined"
             size="small"
           />

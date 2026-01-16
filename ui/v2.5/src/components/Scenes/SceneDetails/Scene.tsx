@@ -25,7 +25,6 @@ import {
 import { SceneEditPanel } from "./SceneEditPanel";
 import { ErrorMessage } from "src/components/Shared/ErrorMessage";
 import { LoadingIndicator } from "src/components/Shared/LoadingIndicator";
-import { Icon } from "src/components/Shared/Icon";
 import { Counter } from "src/components/Shared/Counter";
 import { useToast } from "src/hooks/Toast";
 import SceneQueue, { QueuedScene } from "src/models/sceneQueue";
@@ -34,11 +33,9 @@ import Mousetrap from "mousetrap";
 import { OrganizedButton } from "./OrganizedButton";
 import { useConfigurationContext } from "src/hooks/Config";
 import { getPlayerPosition } from "src/components/ScenePlayer/util";
-import {
-  faEllipsisV,
-  faChevronRight,
-  faChevronLeft,
-} from "@fortawesome/free-solid-svg-icons";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import { objectPath, objectTitle } from "src/core/files";
 import { RatingSystem } from "src/components/Shared/Rating/RatingSystem";
 import TextUtils from "src/utils/text";
@@ -412,7 +409,7 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
         title={intl.formatMessage({ id: "operations" })}
         size="small"
       >
-        <Icon icon={faEllipsisV} />
+        <MoreVertIcon />
       </IconButton>
       <Menu
         anchorEl={operationsAnchorEl}
@@ -622,7 +619,7 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
   );
 
   function getCollapseButtonIcon() {
-    return collapsed ? faChevronRight : faChevronLeft;
+    return collapsed ? <ChevronRightIcon fontSize="small" /> : <ChevronLeftIcon fontSize="small" />;
   }
 
   const title = objectTitle(scene);
@@ -658,15 +655,10 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
             className="scene-header-container"
             sx={{
               display: "flex",
-              flexDirection: "column",
+              flexDirection: { xs: "column", md: "row" },
               alignItems: "center",
-              justifyContent: "center",
+              justifyContent: { xs: "center", md: "space-between" },
               mb: 2,
-              "@media (min-width: 960px)": { // lg
-                flexDirection: "row",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }
             }}
           >
             {scene.studio && (
@@ -791,7 +783,7 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
         }}
       >
         <IconButton onClick={() => setCollapsed(!collapsed)}>
-          <Icon className="fa-fw" icon={getCollapseButtonIcon()} />
+          {getCollapseButtonIcon()}
         </IconButton>
       </Box>
       <SubmitStashBoxDraft

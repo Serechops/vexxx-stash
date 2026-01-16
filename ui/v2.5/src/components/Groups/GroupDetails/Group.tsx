@@ -22,7 +22,8 @@ import {
   GroupDetailsPanel,
 } from "./GroupDetailsPanel";
 import { GroupEditPanel } from "./GroupEditPanel";
-import { faRefresh, faTrashAlt } from "@fortawesome/free-solid-svg-icons";
+import DeleteIcon from "@mui/icons-material/Delete";
+import RefreshIcon from "@mui/icons-material/Refresh";
 import { RatingSystem } from "src/components/Shared/Rating/RatingSystem";
 import { useConfigurationContext } from "src/hooks/Config";
 import { DetailImage } from "src/components/Shared/DetailImage";
@@ -43,7 +44,6 @@ import {
 import { Tabs, Tab, Button, Box } from "@mui/material";
 import { GroupSubGroupsPanel } from "./GroupSubGroupsPanel";
 import { GroupPerformersPanel } from "./GroupPerformersPanel";
-import { Icon } from "src/components/Shared/Icon";
 import { goBackOrReplace } from "src/utils/history";
 
 const validTabs = ["default", "scenes", "performers", "subgroups"] as const;
@@ -83,6 +83,33 @@ const GroupTabs: React.FC<{
     baseURL: `/groups/${group.id}`,
   });
 
+  const TabLabel: React.FC<{ messageID: string; count: number }> = ({ messageID, count }) => (
+    <Box sx={{ position: 'relative', display: 'inline-flex', alignItems: 'center', pr: count > 0 ? 3 : 0 }}>
+      <FormattedMessage id={messageID} />
+      {count > 0 && (
+        <Box
+          sx={{
+            position: 'absolute',
+            top: -8,
+            right: -4,
+            backgroundColor: 'primary.main',
+            color: 'primary.contrastText',
+            borderRadius: '10px',
+            px: 0.75,
+            py: 0.25,
+            fontSize: '0.7rem',
+            fontWeight: 600,
+            lineHeight: 1,
+            minWidth: '20px',
+            textAlign: 'center',
+          }}
+        >
+          {abbreviateCounter && count >= 1000 ? `${Math.floor(count / 1000)}k` : count}
+        </Box>
+      )}
+    </Box>
+  );
+
   return (
     <Box>
       <Tabs
@@ -91,33 +118,15 @@ const GroupTabs: React.FC<{
       >
         <Tab
           value="scenes"
-          label={
-            <TabTitleCounter
-              messageID="scenes"
-              count={sceneCount}
-              abbreviateCounter={abbreviateCounter}
-            />
-          }
+          label={<TabLabel messageID="scenes" count={sceneCount} />}
         />
         <Tab
           value="performers"
-          label={
-            <TabTitleCounter
-              messageID="performers"
-              count={performerCount}
-              abbreviateCounter={abbreviateCounter}
-            />
-          }
+          label={<TabLabel messageID="performers" count={performerCount} />}
         />
         <Tab
           value="subgroups"
-          label={
-            <TabTitleCounter
-              messageID="sub_groups"
-              count={groupCount}
-              abbreviateCounter={abbreviateCounter}
-            />
-          }
+          label={<TabLabel messageID="sub_groups" count={groupCount} />}
         />
       </Tabs>
 
@@ -306,7 +315,7 @@ const GroupPage: React.FC<IProps> = ({ group, tabKey }) => {
     return (
       <ModalComponent
         show={isDeleteAlertOpen}
-        icon={faTrashAlt}
+        icon={<DeleteIcon />}
         accept={{
           text: intl.formatMessage({ id: "actions.delete" }),
           variant: "danger",
@@ -391,7 +400,7 @@ const GroupPage: React.FC<IProps> = ({ group, tabKey }) => {
                   className="flip"
                   onClick={() => setFocusedOnFront(!focusedOnFront)}
                 >
-                  <Icon icon={faRefresh} />
+                  <RefreshIcon fontSize="small" />
                 </Button>
               )}
             </div>

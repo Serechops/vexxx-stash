@@ -5,8 +5,8 @@ import { Button, TextField, Box, Typography, InputAdornment, IconButton } from "
 import Grid from "@mui/material/Grid";
 import { FormattedMessage, useIntl } from "react-intl";
 import { cloneDeep } from "@apollo/client/utilities";
-import { Icon } from "./Icon";
-import { faMinus, faPlus } from "@fortawesome/free-solid-svg-icons";
+import RemoveIcon from "@mui/icons-material/Remove";
+import AddIcon from "@mui/icons-material/Add";
 import cx from "classnames";
 import { PatchComponent } from "src/patch";
 import { TruncatedText } from "./TruncatedText";
@@ -214,7 +214,7 @@ const CustomFieldInput: React.FC<{
                       onClick={() => onDelete()}
                       size="small"
                     >
-                      <Icon icon={faMinus} />
+                      <RemoveIcon fontSize="small" />
                     </IconButton>
                   </InputAdornment>
                 ) : null,
@@ -377,7 +377,7 @@ export const CustomFieldsInput: React.FC<ICustomFieldsInput> = PatchComponent(
           disabled={newCustomField.field === "" || error !== undefined}
           size="small"
         >
-          <Icon icon={faPlus} />
+          <AddIcon fontSize="small" />
         </Button>
       </CollapseButton>
     );

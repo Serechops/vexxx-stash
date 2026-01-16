@@ -1,13 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Button, Box } from "@mui/material";
-import { Icon } from "src/components/Shared/Icon";
-import {
-  faCheckCircle,
-  faMinus,
-  faPlus,
-  faTimesCircle,
-} from "@fortawesome/free-solid-svg-icons";
-import { faTimesCircle as faTimesCircleRegular } from "@fortawesome/free-regular-svg-icons";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import CancelIcon from "@mui/icons-material/Cancel";
+import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
+import AddIcon from "@mui/icons-material/Add";
+import RemoveIcon from "@mui/icons-material/Remove";
 import { ClearableInput } from "src/components/Shared/ClearableInput";
 import { useIntl } from "react-intl";
 import { keyboardClickHandler } from "src/utils/keyboard";
@@ -39,10 +36,10 @@ const SelectedItem: React.FC<ISelectedItem> = ({
 
   const icon = useMemo(() => {
     if (!hovered) {
-      return excluded ? faTimesCircle : faCheckCircle;
+      return excluded ? <CancelIcon fontSize="small" /> : <CheckCircleIcon fontSize="small" />;
     }
 
-    return faTimesCircleRegular;
+    return <CancelOutlinedIcon fontSize="small" />;
   }, [hovered, excluded]);
 
   return (
@@ -82,11 +79,8 @@ const SelectedItem: React.FC<ISelectedItem> = ({
         }}
       >
         <Box className="label-group" sx={{ display: "flex", alignItems: "center", overflow: "hidden" }}>
-          <Box component="span" sx={{ mr: 1, color: excluded ? "error.main" : "success.main" }}>
-            <Icon
-              className={`fa-fw ${iconClassName}`}
-              icon={icon}
-            />
+          <Box component="span" sx={{ mr: 1, color: excluded ? "error.main" : "success.main", display: "flex", alignItems: "center" }}>
+            <span className={iconClassName}>{icon}</span>
           </Box>
           <Box component="span" sx={{ opacity: modifier ? 0.6 : 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             <TruncatedInlineText
@@ -146,11 +140,8 @@ const CandidateItem: React.FC<{
           }}
         >
           <Box className="label-group" sx={{ display: "flex", alignItems: "center", overflow: "hidden" }}>
-            <Box component="span" sx={{ mr: 1, color: "success.main", visibility: singleValue ? "hidden" : "visible" }}>
-              <Icon
-                className="fa-fw include-button"
-                icon={faPlus}
-              />
+            <Box component="span" sx={{ mr: 1, color: "success.main", visibility: singleValue ? "hidden" : "visible", display: "flex", alignItems: "center" }}>
+              <AddIcon fontSize="small" className="include-button" />
             </Box>
             <Box component="span" sx={{ opacity: modifier ? 0.6 : 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               <TruncatedInlineText
@@ -193,11 +184,8 @@ const CandidateItem: React.FC<{
                 >
                   exclude
                 </Box>
-                <Box component="span" sx={{ color: "error.main" }}>
-                  <Icon
-                    className="fa-fw exclude-icon"
-                    icon={faMinus}
-                  />
+                <Box component="span" sx={{ color: "error.main", display: "flex", alignItems: "center" }}>
+                  <RemoveIcon fontSize="small" className="exclude-icon" />
                 </Box>
               </Button>
             )}

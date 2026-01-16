@@ -134,6 +134,33 @@ const PerformerTabs: React.FC<{
     };
   });
 
+  const TabLabel: React.FC<{ messageID: string; count: number }> = ({ messageID, count }) => (
+    <Box sx={{ position: 'relative', display: 'inline-flex', alignItems: 'center', pr: count > 0 ? 3 : 0 }}>
+      <FormattedMessage id={messageID} />
+      {count > 0 && (
+        <Box
+          sx={{
+            position: 'absolute',
+            top: -8,
+            right: -4,
+            backgroundColor: 'primary.main',
+            color: 'primary.contrastText',
+            borderRadius: '10px',
+            px: 0.75,
+            py: 0.25,
+            fontSize: '0.7rem',
+            fontWeight: 600,
+            lineHeight: 1,
+            minWidth: '20px',
+            textAlign: 'center',
+          }}
+        >
+          {abbreviateCounter && count >= 1000 ? `${Math.floor(count / 1000)}k` : count}
+        </Box>
+      )}
+    </Box>
+  );
+
   return (
     <>
       <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 2 }}>
@@ -146,63 +173,27 @@ const PerformerTabs: React.FC<{
         >
           <Tab
             value="scenes"
-            label={
-              <TabTitleCounter
-                messageID="scenes"
-                count={performer.scene_count}
-                abbreviateCounter={abbreviateCounter}
-              />
-            }
+            label={<TabLabel messageID="scenes" count={performer.scene_count} />}
           />
           <Tab
             value="galleries"
-            label={
-              <TabTitleCounter
-                messageID="galleries"
-                count={performer.gallery_count}
-                abbreviateCounter={abbreviateCounter}
-              />
-            }
+            label={<TabLabel messageID="galleries" count={performer.gallery_count} />}
           />
           <Tab
             value="images"
-            label={
-              <TabTitleCounter
-                messageID="images"
-                count={performer.image_count}
-                abbreviateCounter={abbreviateCounter}
-              />
-            }
+            label={<TabLabel messageID="images" count={performer.image_count} />}
           />
           <Tab
             value="groups"
-            label={
-              <TabTitleCounter
-                messageID="groups"
-                count={performer.group_count}
-                abbreviateCounter={abbreviateCounter}
-              />
-            }
+            label={<TabLabel messageID="groups" count={performer.group_count} />}
           />
           <Tab
             value="appearswith"
-            label={
-              <TabTitleCounter
-                messageID="appears_with"
-                count={performer.performer_count}
-                abbreviateCounter={abbreviateCounter}
-              />
-            }
+            label={<TabLabel messageID="appears_with" count={performer.performer_count} />}
           />
           <Tab
             value="missing"
-            label={
-              <TabTitleCounter
-                messageID="Missing Scenes"
-                count={missingSceneCount}
-                abbreviateCounter={abbreviateCounter}
-              />
-            }
+            label={<TabLabel messageID="Missing Scenes" count={missingSceneCount} />}
           />
         </Tabs>
       </Box>

@@ -3,6 +3,7 @@ import { Breakpoint } from "@mui/material/styles";
 import { Icon } from "./Icon";
 import { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import { FormattedMessage } from "react-intl";
+import React from "react";
 
 interface IButton {
   text?: string;
@@ -14,7 +15,7 @@ interface IModal {
   show: boolean;
   onHide?: () => void;
   header?: JSX.Element | string;
-  icon?: IconDefinition;
+  icon?: IconDefinition | React.ReactNode;
   cancel?: IButton;
   accept?: IButton;
   isRunning?: boolean;
@@ -26,6 +27,11 @@ interface IModal {
   hideAccept?: boolean;
   modalProps?: any; // Shim for backward compatibility
   sx?: SxProps<Theme>;
+}
+
+// Helper to check if icon is a FontAwesome IconDefinition
+function isFaIcon(icon: any): icon is IconDefinition {
+  return icon && typeof icon === "object" && "iconName" in icon && "prefix" in icon;
 }
 
 const defaultOnHide = () => { };
@@ -68,7 +74,7 @@ export const ModalComponent: React.FC<IModal> = ({
     >
       <DialogTitle>
         <Box display="flex" alignItems="center">
-          {icon && <Icon icon={icon} className="mr-2" />}
+          {icon && (isFaIcon(icon) ? <Icon icon={icon} className="mr-2" /> : <Box component="span" sx={{ mr: 1, display: "flex", alignItems: "center" }}>{icon}</Box>)}
           <span>{header ?? ""}</span>
         </Box>
       </DialogTitle>

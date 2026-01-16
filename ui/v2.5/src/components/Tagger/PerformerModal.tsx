@@ -218,7 +218,7 @@ const PerformerModal: React.FC<IPerformerModalProps> = ({
       <Typography variant="h6" sx={{ mt: 2 }}>
         <ExternalLink href={`${base}performers/${performer.remote_site_id}`}>
           <FormattedMessage id="stashbox.source" />
-          <Icon icon={faExternalLinkAlt} style={{ marginLeft: "0.5rem" }} />
+          <Icon icon={faExternalLinkAlt} className="ml-2" />
         </ExternalLink>
       </Typography>
     );

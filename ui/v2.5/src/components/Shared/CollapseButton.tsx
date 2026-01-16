@@ -1,11 +1,8 @@
-import {
-  faChevronDown,
-  faChevronRight,
-  faChevronUp,
-} from "@fortawesome/free-solid-svg-icons";
 import React, { useEffect, useState } from "react";
 import { Box, Button, Collapse, CollapseProps, SxProps, Theme } from "@mui/material";
-import { Icon } from "./Icon";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 
 interface IProps {
   className?: string;
@@ -52,7 +49,7 @@ export const CollapseButton: React.FC<React.PropsWithChildren<IProps>> = (
             "& .fa-icon": { marginLeft: 0, marginRight: "0.5rem" }
           }}
         >
-          <Icon icon={open ? faChevronDown : faChevronRight} fixedWidth />
+          {open ? <ExpandMoreIcon fontSize="small" /> : <ChevronRightIcon fontSize="small" />}
           <span>{props.text}</span>
         </Button>
       </Box>
@@ -68,8 +65,6 @@ export const ExpandCollapseButton: React.FC<{
   collapsed: boolean;
   setCollapsed: (collapsed: boolean) => void;
 }> = ({ collapsed, setCollapsed }) => {
-  const buttonIcon = collapsed ? faChevronDown : faChevronUp;
-
   return (
     <span className="detail-expand-collapse">
       <Button
@@ -77,7 +72,7 @@ export const ExpandCollapseButton: React.FC<{
         onClick={() => setCollapsed(!collapsed)}
         color="inherit"
       >
-        <Icon icon={buttonIcon} fixedWidth />
+        {collapsed ? <ExpandMoreIcon fontSize="small" /> : <ExpandLessIcon fontSize="small" />}
       </Button>
     </span>
   );

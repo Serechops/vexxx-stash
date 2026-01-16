@@ -1,8 +1,10 @@
-import { faBan, faMinus, faThumbsUp, faChevronDown } from "@fortawesome/free-solid-svg-icons";
+import BlockIcon from "@mui/icons-material/Block";
+import RemoveIcon from "@mui/icons-material/Remove";
+import ThumbUpIcon from "@mui/icons-material/ThumbUp";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import React, { useState } from "react";
 import { Button, ButtonGroup, Menu, MenuItem, Box } from "@mui/material";
 import { useIntl } from "react-intl";
-import { Icon } from "src/components/Shared/Icon";
 import { LoadingIndicator } from "src/components/Shared/LoadingIndicator";
 import { SweatDrops } from "src/components/Shared/SweatDrops";
 import { useConfigurationContext } from "src/hooks/Config";
@@ -21,7 +23,7 @@ export const OCounterButton: React.FC<IOCounterButtonProps> = (
   const { configuration } = useConfigurationContext();
   const { sfwContentMode } = configuration.interface;
 
-  const icon = !sfwContentMode ? <SweatDrops /> : <Icon icon={faThumbsUp} />;
+  const icon = !sfwContentMode ? <SweatDrops /> : <ThumbUpIcon fontSize="small" />;
   const messageID = !sfwContentMode ? "o_count" : "o_count_sfw";
 
   const [loading, setLoading] = useState(false);
@@ -80,7 +82,7 @@ export const OCounterButton: React.FC<IOCounterButtonProps> = (
             size="small"
             sx={{ pl: 0 }}
           >
-            <Icon icon={faChevronDown} size="xs" />
+            <KeyboardArrowDownIcon sx={{ fontSize: 14 }} />
           </Button>
           <Menu
             anchorEl={anchorEl}
@@ -88,11 +90,11 @@ export const OCounterButton: React.FC<IOCounterButtonProps> = (
             onClose={handleClose}
           >
             <MenuItem onClick={decrement}>
-              <Icon icon={faMinus} className="mr-2" />
+              <RemoveIcon sx={{ mr: 1 }} />
               <span>Decrement</span>
             </MenuItem>
             <MenuItem onClick={reset}>
-              <Icon icon={faBan} className="mr-2" />
+              <BlockIcon sx={{ mr: 1 }} />
               <span>Reset</span>
             </MenuItem>
           </Menu>

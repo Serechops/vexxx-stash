@@ -10,14 +10,11 @@ import {
 } from "@mui/material";
 import { DisplayMode } from "src/models/list-filter/types";
 import { IntlShape, useIntl } from "react-intl";
-import { Icon } from "../Shared/Icon";
-import {
-  faChevronDown,
-  faList,
-  faSquare,
-  faTags,
-  faThLarge,
-} from "@fortawesome/free-solid-svg-icons";
+import GridViewIcon from "@mui/icons-material/GridView";
+import FormatListBulletedIcon from "@mui/icons-material/FormatListBulleted";
+import SquareIcon from "@mui/icons-material/Square";
+import LocalOfferIcon from "@mui/icons-material/LocalOffer";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import { ZoomSelect } from "./ZoomSlider";
 
 interface IListViewOptionsProps {
@@ -31,13 +28,13 @@ interface IListViewOptionsProps {
 function getIcon(option: DisplayMode) {
   switch (option) {
     case DisplayMode.Grid:
-      return faThLarge;
+      return <GridViewIcon fontSize="small" />;
     case DisplayMode.List:
-      return faList;
+      return <FormatListBulletedIcon fontSize="small" />;
     case DisplayMode.Wall:
-      return faSquare;
+      return <SquareIcon fontSize="small" />;
     case DisplayMode.Tagger:
-      return faTags;
+      return <LocalOfferIcon fontSize="small" />;
   }
 }
 
@@ -139,8 +136,8 @@ export const ListViewOptions: React.FC<IListViewOptionsProps> = ({
           "& > span": { mr: 0 }
         }}
       >
-        <Icon icon={getIcon(displayMode)} />
-        <Icon size="xs" icon={faChevronDown} />
+        {getIcon(displayMode)}
+        <KeyboardArrowDownIcon sx={{ fontSize: 12 }} />
       </Button>
       <Popover
         open={showOptions}
@@ -177,7 +174,7 @@ export const ListViewOptions: React.FC<IListViewOptionsProps> = ({
                   onSetDisplayMode(option);
                 }}
               >
-                <Icon icon={getIcon(option)} /> {getLabel(intl, option)}
+                {getIcon(option)} <Box component="span" sx={{ ml: 1 }}>{getLabel(intl, option)}</Box>
               </MenuItem>
             ))}
           </Box>
@@ -210,7 +207,7 @@ export const ListViewButtonGroup: React.FC<IListViewOptionsProps> = ({
                 color="secondary"
                 onClick={() => onSetDisplayMode(option)}
               >
-                <Icon icon={getIcon(option)} />
+                {getIcon(option)}
               </Button>
             </Tooltip>
           ))}

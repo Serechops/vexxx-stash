@@ -14,7 +14,7 @@ import {
 } from "src/utils/bulkUpdate";
 import { IndeterminateCheckbox } from "../Shared/IndeterminateCheckbox";
 import { BulkUpdateTextInput } from "../Shared/BulkUpdateTextInput";
-import { faPencilAlt } from "@fortawesome/free-solid-svg-icons";
+import EditIcon from "@mui/icons-material/Edit";
 import { StudioSelect } from "../Shared/Select";
 
 interface IListOperationProps {
@@ -145,7 +145,7 @@ export const EditStudiosDialog: React.FC<IListOperationProps> = (
       <ModalComponent
         dialogClassName="edit-studios-dialog"
         show
-        icon={faPencilAlt}
+        icon={<EditIcon />}
         header={intl.formatMessage(
           { id: "actions.edit_entity" },
           { entityType: intl.formatMessage({ id: "studios" }) }

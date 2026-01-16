@@ -22,16 +22,13 @@ import {
   IconButton,
 } from "@mui/material";
 
-import { Icon } from "../Shared/Icon";
 import { ListFilterModel } from "src/models/list-filter/filter";
 import useFocus from "src/utils/focus";
 import { useIntl } from "react-intl";
-import {
-  faCaretDown,
-  faCaretUp,
-  faCheck,
-  faRandom,
-} from "@fortawesome/free-solid-svg-icons";
+import ArrowDropUpIcon from "@mui/icons-material/ArrowDropUp";
+import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
+import CheckIcon from "@mui/icons-material/Check";
+import ShuffleIcon from "@mui/icons-material/Shuffle";
 import { useDebounce } from "src/hooks/debounce";
 import { ClearableInput } from "../Shared/ClearableInput";
 import { useStopWheelScroll } from "src/utils/form";
@@ -224,7 +221,7 @@ export const PageSizeSelector: React.FC<{
               )
             }
           >
-            <Icon icon={faCheck} />
+            <CheckIcon fontSize="small" />
           </Button>
         </Box>
       </Popover>
@@ -325,17 +322,17 @@ export const SortBySelect: React.FC<{
           }
         >
           <Button variant="contained" color="secondary" onClick={onChangeSortDirection}>
-            <Icon
-              icon={
-                sortDirection === SortDirectionEnum.Asc ? faCaretUp : faCaretDown
-              }
-            />
+            {sortDirection === SortDirectionEnum.Asc ? (
+              <ArrowDropUpIcon />
+            ) : (
+              <ArrowDropDownIcon />
+            )}
           </Button>
         </Tooltip>
         {sortBy === "random" && (
           <Tooltip title={intl.formatMessage({ id: "actions.reshuffle" })}>
             <Button variant="contained" color="secondary" onClick={onReshuffleRandomSort}>
-              <Icon icon={faRandom} />
+              <ShuffleIcon fontSize="small" />
             </Button>
           </Tooltip>
         )}

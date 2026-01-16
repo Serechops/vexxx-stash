@@ -1,7 +1,7 @@
-import { faEye, faThumbsUp } from "@fortawesome/free-solid-svg-icons";
 import React from "react";
 import { Button, ButtonGroup } from "@mui/material";
-import { Icon } from "src/components/Shared/Icon";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import ThumbUpIcon from "@mui/icons-material/ThumbUp";
 import { SweatDrops } from "./SweatDrops";
 import cx from "classnames";
 import { useIntl } from "react-intl";
@@ -58,7 +58,7 @@ export const ViewCountButton: React.FC<CountButtonPropsNoIcon> = (props) => {
   return (
     <CountButton
       {...props}
-      icon={<Icon icon={faEye} />}
+      icon={<VisibilityIcon fontSize="small" />}
       title={intl.formatMessage({ id: "media_info.play_count" })}
       countTitle={intl.formatMessage({ id: "actions.view_history" })}
     />
@@ -70,7 +70,7 @@ export const OCounterButton: React.FC<CountButtonPropsNoIcon> = (props) => {
   const { configuration } = useConfigurationContext();
   const { sfwContentMode } = configuration.interface;
 
-  const icon = !sfwContentMode ? <SweatDrops /> : <Icon icon={faThumbsUp} />;
+  const icon = !sfwContentMode ? <SweatDrops /> : <ThumbUpIcon fontSize="small" />;
   const messageID = !sfwContentMode ? "o_count" : "o_count_sfw";
 
   return (

@@ -2,15 +2,12 @@ import React, { useMemo, useState } from "react";
 import { Link, useHistory } from "react-router-dom";
 import cx from "classnames";
 import * as GQL from "src/core/generated-graphql";
-import { Icon } from "../Shared/Icon";
 import { HoverVideoPreview } from "./HoverVideoPreview";
-import {
-    faBolt,
-    faPlayCircle,
-    faStar,
-    faTag,
-    faVideo,
-} from "@fortawesome/free-solid-svg-icons";
+import BoltIcon from "@mui/icons-material/Bolt";
+import PlayCircleIcon from "@mui/icons-material/PlayCircle";
+import StarIcon from "@mui/icons-material/Star";
+import LocalOfferIcon from "@mui/icons-material/LocalOffer";
+import VideocamIcon from "@mui/icons-material/Videocam";
 import { objectTitle } from "src/core/files";
 import { SceneQueue } from "src/models/sceneQueue";
 import { useConfigurationContext } from "src/hooks/Config";
@@ -250,7 +247,7 @@ export const StashDBCard: React.FC<ISceneCardProps> = ({
                                 component="span"
                                 sx={{ ml: "auto", color: "warning.main", fontWeight: "bold", display: "flex", alignItems: "center", gap: "2px" }}
                             >
-                                <Icon icon={faStar} /> {rating}
+                                <StarIcon sx={{ fontSize: 14 }} /> {rating}
                             </Box>
                         )}
                     </Box>
@@ -333,7 +330,7 @@ export const StashDBCard: React.FC<ISceneCardProps> = ({
                                 }}
                                 onClick={onIncrementO}
                             >
-                                <Icon icon={faBolt} className={scene.o_counter ? "text-danger" : ""} />
+                                <BoltIcon sx={{ color: scene.o_counter ? "error.main" : "inherit" }} />
                                 {scene.o_counter ? <Box component="span" sx={{ ml: 0.5, fontSize: "0.75rem" }}>{scene.o_counter}</Box> : null}
                             </IconButton>
                         </Tooltip>

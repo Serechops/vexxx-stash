@@ -2,15 +2,12 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import cx from "classnames";
 import { Button, IconButton, FormControlLabel, Checkbox, CircularProgress, Box } from "@mui/material";
-import { Icon } from "src/components/Shared/Icon";
 import { useIntl } from "react-intl";
-import {
-  faChevronDown,
-  faChevronUp,
-  faRandom,
-  faStepBackward,
-  faStepForward,
-} from "@fortawesome/free-solid-svg-icons";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
+import ShuffleIcon from "@mui/icons-material/Shuffle";
+import SkipPreviousIcon from "@mui/icons-material/SkipPrevious";
+import SkipNextIcon from "@mui/icons-material/SkipNext";
 import { objectTitle } from "src/core/files";
 import { QueuedScene } from "src/models/sceneQueue";
 
@@ -249,7 +246,7 @@ export const QueueViewer: React.FC<IPlaylistViewer> = ({
               onClick={() => onPrevious()}
               size="small"
             >
-              <Icon icon={faStepBackward} />
+              <SkipPreviousIcon />
             </IconButton>
           ) : (
             ""
@@ -259,7 +256,7 @@ export const QueueViewer: React.FC<IPlaylistViewer> = ({
               onClick={() => onNext()}
               size="small"
             >
-              <Icon icon={faStepForward} />
+              <SkipNextIcon />
             </IconButton>
           ) : (
             ""
@@ -268,7 +265,7 @@ export const QueueViewer: React.FC<IPlaylistViewer> = ({
             onClick={() => onRandom()}
             size="small"
           >
-            <Icon icon={faRandom} />
+            <ShuffleIcon />
           </IconButton>
         </Box>
       </Box>
@@ -277,7 +274,7 @@ export const QueueViewer: React.FC<IPlaylistViewer> = ({
           <Box sx={{ display: "flex", justifyContent: "center" }}>
             <Button onClick={() => lessClicked()} disabled={lessLoading}>
               {!lessLoading ? (
-                <Icon icon={faChevronUp} />
+                <KeyboardArrowUpIcon />
               ) : (
                 <CircularProgress size={20} />
               )}
@@ -289,7 +286,7 @@ export const QueueViewer: React.FC<IPlaylistViewer> = ({
           <Box sx={{ display: "flex", justifyContent: "center" }}>
             <Button onClick={() => moreClicked()} disabled={moreLoading}>
               {!moreLoading ? (
-                <Icon icon={faChevronDown} />
+                <KeyboardArrowDownIcon />
               ) : (
                 <CircularProgress size={20} />
               )}

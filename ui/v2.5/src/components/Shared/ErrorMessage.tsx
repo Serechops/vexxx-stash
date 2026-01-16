@@ -1,8 +1,7 @@
-import { faWarning } from "@fortawesome/free-solid-svg-icons";
 import React, { ReactNode } from "react";
 import { Alert, AlertTitle, Box } from "@mui/material";
 import { FormattedMessage } from "react-intl";
-import { Icon } from "./Icon";
+import WarningIcon from "@mui/icons-material/Warning";
 
 interface IProps {
   message?: React.ReactNode;
@@ -17,7 +16,7 @@ export const ErrorMessage: React.FC<IProps> = (props) => {
       <Alert severity="error" className="ErrorMessage">
         <AlertTitle className="ErrorMessage-header">
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Icon icon={faWarning} />
+            <WarningIcon fontSize="small" />
             {message}
           </Box>
         </AlertTitle>

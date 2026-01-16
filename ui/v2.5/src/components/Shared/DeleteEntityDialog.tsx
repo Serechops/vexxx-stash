@@ -4,7 +4,7 @@ import { FetchResult } from "@apollo/client";
 
 import { ModalComponent } from "./Modal";
 import { useToast } from "src/hooks/Toast";
-import { faTrashAlt } from "@fortawesome/free-solid-svg-icons";
+import DeleteIcon from "@mui/icons-material/Delete";
 
 interface IDeletionEntity {
   id: string;
@@ -79,7 +79,7 @@ export const DeleteEntityDialog: React.FC<IDeleteEntityDialogProps> = ({
   return (
     <ModalComponent
       show
-      icon={faTrashAlt}
+      icon={<DeleteIcon />}
       header={intl.formatMessage(messages.deleteHeader, {
         count,
         singularEntity,

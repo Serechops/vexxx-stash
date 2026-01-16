@@ -1,12 +1,12 @@
 import { Button, FormLabel, Box } from "@mui/material";
 import { Row, Col } from "src/components/Shared/Layouts";
 import React, { useEffect, useState } from "react";
-import { Icon } from "../Shared/Icon";
+import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
+import LoginIcon from "@mui/icons-material/Login";
 import { ModalComponent } from "src/components/Shared/Modal";
 import { useTagsMerge } from "src/core/StashService";
 import { useIntl } from "react-intl";
 import { useToast } from "src/hooks/Toast";
-import { faExchangeAlt, faSignInAlt } from "@fortawesome/free-solid-svg-icons";
 import { Tag, TagSelect } from "./TagSelect";
 
 interface ITagMergeModalProps {
@@ -82,7 +82,7 @@ export const TagMergeModal: React.FC<ITagMergeModalProps> = ({
     <ModalComponent
       show={show}
       header={title}
-      icon={faSignInAlt}
+      icon={<LoginIcon />}
       accept={{
         text: intl.formatMessage({ id: "actions.merge" }),
         onClick: () => onMerge(),
@@ -122,7 +122,7 @@ export const TagMergeModal: React.FC<ITagMergeModalProps> = ({
                 disabled={!src.length || !dest}
                 title={intl.formatMessage({ id: "actions.swap" })}
               >
-                <Icon className="fa-fw" icon={faExchangeAlt} />
+                <SwapHorizIcon />
               </Button>
             </Row>
 

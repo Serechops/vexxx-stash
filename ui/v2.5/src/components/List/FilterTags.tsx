@@ -8,8 +8,7 @@ import React, {
 import { Chip, Button, Popover, IconButton, Box } from "@mui/material";
 import { Criterion } from "src/models/list-filter/criteria/criterion";
 import { FormattedMessage, useIntl } from "react-intl";
-import { Icon } from "../Shared/Icon";
-import { faMagnifyingGlass, faTimes } from "@fortawesome/free-solid-svg-icons";
+import SearchIcon from "@mui/icons-material/Search";
 
 import { CustomFieldsCriterion } from "src/models/list-filter/criteria/custom-fields";
 import { useDebounce } from "src/hooks/debounce";
@@ -319,7 +318,7 @@ export const FilterTags: React.FC<IFilterTagsProps> = ({
         className="search-term-filter-tag"
         label={
           <span className="search-term">
-            <Icon icon={faMagnifyingGlass} />
+            <SearchIcon fontSize="small" sx={{ verticalAlign: 'middle', mr: 0.5 }} />
             {searchTerm}
           </span>
         }

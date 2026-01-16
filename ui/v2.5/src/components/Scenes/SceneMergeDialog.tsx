@@ -2,16 +2,16 @@ import { Button, TextField, Box, Typography } from "@mui/material";
 import { Col, Row } from "src/components/Shared/Layouts";
 import React, { useEffect, useMemo, useState } from "react";
 import * as GQL from "src/core/generated-graphql";
-import { Icon } from "../Shared/Icon";
 import { LoadingIndicator } from "../Shared/LoadingIndicator";
 import { StringListSelect, GallerySelect } from "../Shared/Select";
+import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
+import LoginIcon from "@mui/icons-material/Login";
 import * as FormUtils from "src/utils/form";
 import ImageUtils from "src/utils/image";
 import TextUtils from "src/utils/text";
 import { mutateSceneMerge, queryFindScenesByID } from "src/core/StashService";
 import { FormattedMessage, useIntl } from "react-intl";
 import { useToast } from "src/hooks/Toast";
-import { faExchangeAlt, faSignInAlt } from "@fortawesome/free-solid-svg-icons";
 import {
   ScrapeDialogRow,
   ScrapedImageRow,
@@ -749,7 +749,7 @@ export const SceneMergeModal: React.FC<ISceneMergeModalProps> = ({
     <ModalComponent
       show={show}
       header={title}
-      icon={faSignInAlt}
+      icon={<LoginIcon />}
       accept={{
         text: intl.formatMessage({ id: "actions.next_action" }),
         onClick: () => loadScenes(),
@@ -786,7 +786,7 @@ export const SceneMergeModal: React.FC<ISceneMergeModalProps> = ({
               disabled={!sourceScenes.length || !destScene.length}
               title={intl.formatMessage({ id: "actions.swap" })}
             >
-              <Icon className="fa-fw" icon={faExchangeAlt} />
+              <SwapHorizIcon />
             </Button>
           </Row>
           <Row className="mb-3" alignItems="center">

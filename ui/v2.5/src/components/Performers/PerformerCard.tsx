@@ -8,7 +8,6 @@ import TextUtils from "src/utils/text";
 import { GridCard } from "../Shared/GridCard/GridCard";
 import { CountryFlag } from "../Shared/CountryFlag";
 import { HoverPopover } from "../Shared/HoverPopover";
-import { Icon } from "../Shared/Icon";
 import cx from "classnames";
 import { TagLink } from "../Shared/TagLink";
 // Button, ButtonGroup removed
@@ -18,8 +17,8 @@ import {
 } from "src/models/list-filter/criteria/criterion";
 import { PopoverCountButton } from "../Shared/PopoverCountButton";
 import GenderIcon from "./GenderIcon";
-import { faLink, faTag } from "@fortawesome/free-solid-svg-icons";
-import { faInstagram, faTwitter } from "@fortawesome/free-brands-svg-icons";
+import LinkIcon from "@mui/icons-material/Link";
+import LocalOfferIcon from "@mui/icons-material/LocalOffer";
 import { RatingBanner } from "../Shared/RatingBanner";
 import { usePerformerUpdate } from "src/core/StashService";
 import { ILabeledId } from "src/models/list-filter/types";

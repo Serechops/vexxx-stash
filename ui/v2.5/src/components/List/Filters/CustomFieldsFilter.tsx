@@ -8,8 +8,9 @@ import {
 import { cloneDeep } from "@apollo/client/utilities";
 import { ModifierSelect } from "../ModifierSelect";
 import { useIntl } from "react-intl";
-import { Icon } from "src/components/Shared/Icon";
-import { faCheck, faPencil, faTimes } from "@fortawesome/free-solid-svg-icons";
+import CheckIcon from "@mui/icons-material/Check";
+import EditIcon from "@mui/icons-material/Edit";
+import CloseIcon from "@mui/icons-material/Close";
 import { FilterTag } from "../FilterTags";
 import { ModifierCriterion } from "src/models/list-filter/criteria/criterion";
 
@@ -151,11 +152,11 @@ const CustomFieldCriterionEditor: React.FC<ICustomFieldCriterionEditor> = ({
       </div>
       <div className="custom-field-filter-buttons">
         <Button variant="contained" color="success" onClick={() => onConfirm()} disabled={!field}>
-          <Icon icon={faCheck} />
+          <CheckIcon fontSize="small" />
         </Button>
         {editing && (
           <Button variant="contained" color="secondary" onClick={() => cancel()}>
-            <Icon icon={faTimes} />
+            <CloseIcon fontSize="small" />
           </Button>
         )}
       </div>
@@ -192,7 +193,7 @@ const CustomFieldFilterTag: React.FC<{
     if (editing) {
       return (
         <span>
-          <Icon icon={faPencil} />
+          <EditIcon fontSize="small" sx={{ mr: 0.5 }} />
           {str}
         </span>
       );

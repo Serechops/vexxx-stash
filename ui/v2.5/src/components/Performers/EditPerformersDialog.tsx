@@ -24,7 +24,7 @@ import {
 } from "src/utils/circumcised";
 import { IndeterminateCheckbox } from "../Shared/IndeterminateCheckbox";
 import { BulkUpdateTextInput } from "../Shared/BulkUpdateTextInput";
-import { faPencilAlt } from "@fortawesome/free-solid-svg-icons";
+import EditIcon from "@mui/icons-material/Edit";
 
 import { CountrySelect } from "../Shared/CountrySelect";
 import { useConfigurationContext } from "src/hooks/Config";
@@ -232,7 +232,7 @@ export const EditPerformersDialog: React.FC<IListOperationProps> = (
           "sfw-content-mode": sfwContentMode,
         })}
         show
-        icon={faPencilAlt}
+        icon={<EditIcon />}
         header={intl.formatMessage(
           { id: "actions.edit_entity" },
           { entityType: intl.formatMessage({ id: "performers" }) }

@@ -3,17 +3,12 @@ import { Link, useHistory } from "react-router-dom";
 import * as GQL from "src/core/generated-graphql";
 import { PatchComponent } from "src/patch";
 import { GridCard } from "../Shared/GridCard/GridCard";
-import { Icon } from "../Shared/Icon";
 import { TagLink } from "../Shared/TagLink";
 import { RatingBanner } from "../Shared/RatingBanner";
 import cx from "classnames";
-import {
-  faInfoCircle,
-  faCopy,
-  faPlayCircle,
-  faTag,
-  faClone,
-} from "@fortawesome/free-solid-svg-icons";
+import InfoIcon from "@mui/icons-material/Info";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import FolderCopyIcon from "@mui/icons-material/FolderCopy";
 import { OCounterButton } from "../Shared/CountButton";
 import { SceneLink } from "../Shared/TagLink";
 import ScreenUtils from "src/utils/screen";
@@ -54,7 +49,7 @@ const GroupCardFrontOverlays: React.FC<{
           }}
           title="View Details"
         >
-          <Icon icon={faInfoCircle} className="h-4 w-4" />
+          <InfoIcon sx={{ height: 16, width: 16 }} />
         </button>
       </div>
 
@@ -200,7 +195,7 @@ export const GroupCard: React.FC<IProps> = PatchComponent(
                 }}
                 title="Back to Preview"
               >
-                <Icon icon={faCopy} className="h-4 w-4 transform rotate-180" />
+                <ContentCopyIcon sx={{ height: 16, width: 16, transform: 'rotate(180deg)' }} />
               </button>
             </div>
 
@@ -233,7 +228,7 @@ export const GroupCard: React.FC<IProps> = PatchComponent(
                         to={`/groups/${cg.group.id}`}
                         className="px-2 py-0.5 bg-secondary hover:bg-primary/20 text-secondary-foreground hover:text-primary text-[10px] font-bold rounded-sm transition-colors"
                       >
-                        <Icon icon={faClone} className="mr-1 h-3 w-3 inline" />
+                        <FolderCopyIcon sx={{ mr: 0.5, height: 12, width: 12, display: 'inline' }} />
                         {cg.group.name}
                       </Link>
                     ))}

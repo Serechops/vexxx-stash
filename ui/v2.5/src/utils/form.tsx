@@ -480,7 +480,7 @@ export function formikUtils<V extends FormikValues>(
                       { entityType: intl.formatMessage({ id: "stash_id" }) }
                     )}
                     onClick={() => removeStashID(stashID)}
-                    style={{ minWidth: 32, padding: "4px 8px" }}
+                    sx={{ minWidth: 32, p: "4px 8px" }}
                   >
                     <Icon icon={faTrashAlt} />
                   </Button>

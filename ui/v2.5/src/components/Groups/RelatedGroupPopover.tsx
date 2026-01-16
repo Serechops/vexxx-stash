@@ -1,12 +1,9 @@
-import {
-  faFilm,
-  faArrowUpLong,
-  faArrowDownLong,
-} from "@fortawesome/free-solid-svg-icons";
+import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
+import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
+import MovieIcon from "@mui/icons-material/Movie";
 import React, { useMemo } from "react";
 import { Box, Button, Tooltip } from "@mui/material";
 import { Count } from "../Shared/PopoverCountButton";
-import { Icon } from "../Shared/Icon";
 import { HoverPopover } from "../Shared/HoverPopover";
 import { Link } from "react-router-dom";
 import NavUtils from "src/utils/navigation";
@@ -54,7 +51,7 @@ const ContainingGroupsCount: React.FC<IProps> = ({ group }) => {
         className="related-group-count"
       >
         <Count count={containingGroups.length} />
-        <Icon icon={faArrowUpLong} transform="shrink-4" />
+        <ArrowUpwardIcon sx={{ fontSize: 14 }} />
       </Link>
     </HoverPopover>
   );
@@ -88,7 +85,7 @@ const SubGroupCount: React.FC<IProps> = ({ group }) => {
         className="related-group-count"
       >
         <Count count={count} />
-        <Icon icon={faArrowDownLong} transform="shrink-4" />
+        <ArrowDownwardIcon sx={{ fontSize: 14 }} />
       </Link>
     </Tooltip>
   );
@@ -110,7 +107,7 @@ export const RelatedGroupPopoverButton: React.FC<IProps> = ({ group }) => {
       }}
     >
       <Button className="minimal" variant="text" size="small">
-        <Icon icon={faFilm} />
+        <MovieIcon fontSize="small" />
         <ContainingGroupsCount group={group} />
         <SubGroupCount group={group} />
       </Button>

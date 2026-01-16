@@ -2,8 +2,9 @@ import React from "react";
 import { SceneCard } from "./SceneCard";
 import * as GQL from "src/core/generated-graphql";
 import { Button } from "@mui/material";
-import { Icon } from "../Shared/Icon";
-import { faTag, faCheck, faCircle } from "@fortawesome/free-solid-svg-icons";
+import LocalOfferIcon from "@mui/icons-material/LocalOffer";
+import CheckIcon from "@mui/icons-material/Check";
+import FiberManualRecordIcon from "@mui/icons-material/FiberManualRecord";
 
 interface IScrapedSceneCardsGridProps {
     scenes: GQL.ScrapedSceneDataFragment[];
@@ -86,18 +87,18 @@ export const ScrapedSceneCardsGrid: React.FC<IScrapedSceneCardsGridProps> = ({
                 // Determine button state: Owned > Tracked > Track
                 let buttonColor: "info" | "success" | "secondary" = "secondary";
                 let buttonText = " Track";
-                let buttonIcon = faTag;
+                let ButtonIcon = LocalOfferIcon;
                 let buttonDisabled = false;
 
                 if (isOwned) {
                     buttonColor = "info";
                     buttonText = " Owned";
-                    buttonIcon = faCheck;
+                    ButtonIcon = CheckIcon;
                     buttonDisabled = true;
                 } else if (isTracked) {
                     buttonColor = "success";
                     buttonText = " Tracked";
-                    buttonIcon = faTag;
+                    ButtonIcon = LocalOfferIcon;
                     buttonDisabled = true;
                 }
 
@@ -113,7 +114,7 @@ export const ScrapedSceneCardsGrid: React.FC<IScrapedSceneCardsGridProps> = ({
                                 <div className="d-flex align-items-center gap-1">
                                     {hasTrailer && (
                                         <span className="text-success" title="Trailer available">
-                                            <Icon icon={faCircle} className="fa-xs" />
+                                            <FiberManualRecordIcon sx={{ fontSize: 8 }} />
                                         </span>
                                     )}
                                     <Button
@@ -125,7 +126,7 @@ export const ScrapedSceneCardsGrid: React.FC<IScrapedSceneCardsGridProps> = ({
                                         title={buttonText.trim()}
                                         disabled={buttonDisabled}
                                     >
-                                        <Icon icon={buttonIcon} />
+                                        <ButtonIcon fontSize="small" />
                                         {buttonText}
                                     </Button>
                                 </div>

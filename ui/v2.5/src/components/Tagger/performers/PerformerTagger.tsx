@@ -482,7 +482,7 @@ const PerformerTaggerList: React.FC<IPerformerTaggerListProps> = ({
           <Box fontSize="small">
             <ExternalLink
               href={`${base}performers/${stashID.stash_id}`}
-              style={{ display: "block" }}
+              className="block"
             >
               {stashID.stash_id}
             </ExternalLink>
@@ -516,7 +516,7 @@ const PerformerTaggerList: React.FC<IPerformerTaggerListProps> = ({
             {error[performer.id] && (
               <Box color="error.main" mt={1}>
                 <Typography component="strong">
-                  <span style={{ marginRight: "0.5rem" }}>Error:</span>
+                  <Box component="span" sx={{ mr: 1 }}>Error:</Box>
                   {error[performer.id]?.message}
                 </Typography>
                 <div>{error[performer.id]?.details}</div>

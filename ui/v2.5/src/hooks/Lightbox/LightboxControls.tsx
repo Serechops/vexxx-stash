@@ -1,15 +1,12 @@
 import React, { useState } from "react";
-import { Icon } from "src/components/Shared/Icon";
-import {
-    faTimes,
-    faExpand,
-    faPlay,
-    faPause,
-    faChevronDown,
-    faCog,
-    faSearchMinus,
-    faBars,
-} from "@fortawesome/free-solid-svg-icons";
+import CloseIcon from "@mui/icons-material/Close";
+import FullscreenIcon from "@mui/icons-material/Fullscreen";
+import PlayArrowIcon from "@mui/icons-material/PlayArrow";
+import PauseIcon from "@mui/icons-material/Pause";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import SettingsIcon from "@mui/icons-material/Settings";
+import ZoomOutIcon from "@mui/icons-material/ZoomOut";
+import MenuIcon from "@mui/icons-material/Menu";
 import { ILightboxImage as LightboxImageType, IChapter } from "./types";
 import { RatingSystem } from "src/components/Shared/Rating/RatingSystem";
 import { OCounterButton } from "src/components/Scenes/SceneDetails/OCounterButton";
@@ -104,9 +101,9 @@ export const LightboxControls: React.FC<LightboxControlsProps> = ({
                                     setShowChapters(!showChapters);
                                 }}
                             >
-                                <Icon icon={faBars} />
+                                <MenuIcon fontSize="small" />
                                 <span>Chapters</span>
-                                <Icon icon={faChevronDown} />
+                                <KeyboardArrowDownIcon fontSize="small" />
                             </button>
 
                             {showChapters && (
@@ -141,7 +138,7 @@ export const LightboxControls: React.FC<LightboxControlsProps> = ({
                 <div className="flex items-center gap-2">
                     {zoom !== 1 && (
                         <ControlButton onClick={() => onZoomChange(1)} title="Reset Zoom">
-                            <Icon icon={faSearchMinus} />
+                            <ZoomOutIcon fontSize="small" />
                         </ControlButton>
                     )}
 
@@ -151,13 +148,13 @@ export const LightboxControls: React.FC<LightboxControlsProps> = ({
                             active={slideshowActive}
                             title="Toggle Slideshow"
                         >
-                            <Icon icon={slideshowActive ? faPause : faPlay} />
+                            {slideshowActive ? <PauseIcon fontSize="small" /> : <PlayArrowIcon fontSize="small" />}
                         </ControlButton>
                     )}
 
                     <div className="relative">
                         <ControlButton onClick={onToggleOptions} title="Options" active={showOptions}>
-                            <Icon icon={faCog} />
+                            <SettingsIcon fontSize="small" />
                         </ControlButton>
 
                         {showOptions && (
@@ -174,11 +171,11 @@ export const LightboxControls: React.FC<LightboxControlsProps> = ({
                     </div>
 
                     <ControlButton onClick={onToggleFullscreen} title="Toggle Fullscreen">
-                        <Icon icon={faExpand} />
+                        <FullscreenIcon fontSize="small" />
                     </ControlButton>
 
                     <ControlButton onClick={onClose} title="Close">
-                        <Icon icon={faTimes} className="text-xl" />
+                        <CloseIcon sx={{ fontSize: '1.25rem' }} />
                     </ControlButton>
                 </div>
             </div>

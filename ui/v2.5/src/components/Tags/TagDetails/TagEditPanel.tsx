@@ -4,7 +4,7 @@ import * as GQL from "src/core/generated-graphql";
 import * as yup from "yup";
 import { DetailsEditNavbar } from "src/components/Shared/DetailsEditNavbar";
 import { Button, Box } from "@mui/material";
-import { faPlus } from "@fortawesome/free-solid-svg-icons";
+import AddIcon from "@mui/icons-material/Add";
 import ImageUtils from "src/utils/image";
 import { useFormik } from "formik";
 import { Prompt } from "react-router-dom";
@@ -18,7 +18,6 @@ import { formikUtils } from "src/utils/form";
 import { yupFormikValidate, yupUniqueAliases } from "src/utils/yup";
 import { addUpdateStashID, getStashIDs } from "src/utils/stashIds";
 import { Tag, TagSelect } from "../TagSelect";
-import { Icon } from "src/components/Shared/Icon";
 import StashBoxIDSearchModal from "src/components/Shared/StashBoxIDSearchModal";
 
 interface ITagEditPanel {
@@ -259,7 +258,7 @@ export const TagEditPanel: React.FC<ITagEditPanel> = ({
               disabled={!stashConfig?.general.stashBoxes?.length}
               title={intl.formatMessage({ id: "actions.add_stash_id" })}
             >
-              <Icon icon={faPlus} />
+              <AddIcon fontSize="small" />
             </Button>
           )}
           <hr />

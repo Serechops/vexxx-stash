@@ -106,9 +106,13 @@ export const HoverPopover: React.FC<IHoverPopover> = PatchComponent(
           }}
           anchorOrigin={anchorOrigin}
           transformOrigin={transformOrigin}
-          style={{ pointerEvents: 'none' }}
           disableRestoreFocus
-          sx={{ pointerEvents: 'auto' }}
+          sx={{ 
+            pointerEvents: 'none',
+            '& .MuiPopover-paper': {
+              pointerEvents: 'auto'
+            }
+          }}
         >
           <div
             onMouseEnter={handleMouseEnter}

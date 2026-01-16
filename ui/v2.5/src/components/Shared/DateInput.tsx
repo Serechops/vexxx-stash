@@ -1,9 +1,8 @@
-import { faCalendar } from "@fortawesome/free-regular-svg-icons";
 import React, { forwardRef, useMemo } from "react";
 import { Button, TextField, InputAdornment, Box, FormHelperText } from "@mui/material";
 import ReactDatePicker from "react-datepicker";
 import TextUtils from "src/utils/text";
-import { Icon } from "./Icon";
+import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 
 import "react-datepicker/dist/react-datepicker.css";
 import { useIntl } from "react-intl";
@@ -25,7 +24,7 @@ const ShowPickerButton = forwardRef<
   }
 >(({ onClick }, ref) => (
   <Button variant="outlined" color="secondary" onClick={onClick} ref={ref} size="small">
-    <Icon icon={faCalendar} />
+    <CalendarMonthIcon fontSize="small" />
   </Button>
 ));
 

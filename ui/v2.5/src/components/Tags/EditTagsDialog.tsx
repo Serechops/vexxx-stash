@@ -12,7 +12,7 @@ import {
 } from "src/utils/bulkUpdate";
 import { IndeterminateCheckbox } from "../Shared/IndeterminateCheckbox";
 import { BulkUpdateTextInput } from "../Shared/BulkUpdateTextInput";
-import { faPencilAlt } from "@fortawesome/free-solid-svg-icons";
+import EditIcon from "@mui/icons-material/Edit";
 
 function Tags(props: {
   isUpdating: boolean;
@@ -174,7 +174,7 @@ export const EditTagsDialog: React.FC<IListOperationProps> = (
     <ModalComponent
       dialogClassName="edit-tags-dialog"
       show
-      icon={faPencilAlt}
+      icon={<EditIcon />}
       header={intl.formatMessage(
         { id: "actions.edit_entity" },
         { entityType: intl.formatMessage({ id: "tags" }) }

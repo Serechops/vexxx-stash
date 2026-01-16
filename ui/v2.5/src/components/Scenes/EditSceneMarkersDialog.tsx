@@ -11,7 +11,7 @@ import {
   getAggregateStateObject,
 } from "src/utils/bulkUpdate";
 import { BulkUpdateTextInput } from "../Shared/BulkUpdateTextInput";
-import { faPencilAlt } from "@fortawesome/free-solid-svg-icons";
+import EditIcon from "@mui/icons-material/Edit";
 import { TagSelect } from "../Shared/Select";
 
 interface IListOperationProps {
@@ -141,7 +141,7 @@ export const EditSceneMarkersDialog: React.FC<IListOperationProps> = (
       <ModalComponent
         dialogClassName="edit-scenemarkers-dialog"
         show
-        icon={faPencilAlt}
+        icon={<EditIcon />}
         header={intl.formatMessage(
           { id: "actions.edit_entity" },
           { entityType: intl.formatMessage({ id: "markers" }) }

@@ -19,7 +19,7 @@ import {
   getAggregateStudioId,
   getAggregateTagIds,
 } from "src/utils/bulkUpdate";
-import { faPencilAlt } from "@fortawesome/free-solid-svg-icons";
+import EditIcon from "@mui/icons-material/Edit";
 import { Row, Col } from "src/components/Shared/Layouts";
 
 interface IListOperationProps {
@@ -194,7 +194,7 @@ export const EditImagesDialog: React.FC<IListOperationProps> = (
     return (
       <ModalComponent
         show
-        icon={faPencilAlt}
+        icon={<EditIcon />}
         header={intl.formatMessage(
           { id: "dialogs.edit_entity_title" },
           {

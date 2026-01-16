@@ -1,9 +1,8 @@
 import React from "react";
 import cx from "classnames";
 import { Button, CircularProgress } from "@mui/material";
-import { Icon } from "src/components/Shared/Icon";
+import InventoryIcon from "@mui/icons-material/Inventory";
 import { defineMessages, useIntl } from "react-intl";
-import { faBox } from "@fortawesome/free-solid-svg-icons";
 
 export interface IOrganizedButtonProps {
   loading: boolean;
@@ -38,7 +37,7 @@ export const OrganizedButton: React.FC<IOrganizedButtonProps> = (
       onClick={props.onClick}
       size="small"
     >
-      <Icon icon={faBox} />
+      <InventoryIcon fontSize="small" />
     </Button>
   );
 };

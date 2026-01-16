@@ -33,13 +33,8 @@ import { ListFilterModel } from "src/models/list-filter/filter";
 import { getFilterOptions } from "src/models/list-filter/factory";
 import { FilterTags } from "./FilterTags";
 import { CriterionEditor } from "./CriterionEditor";
-import { Icon } from "../Shared/Icon";
-import {
-  faChevronDown,
-  faChevronRight,
-  faTimes,
-  faThumbtack,
-} from "@fortawesome/free-solid-svg-icons";
+import CloseIcon from "@mui/icons-material/Close";
+import PushPinIcon from "@mui/icons-material/PushPin";
 import { useCompare, usePrevious } from "src/hooks/state";
 import { CriterionType } from "src/models/list-filter/types";
 import { useToast } from "src/hooks/Toast";
@@ -187,14 +182,14 @@ const CriterionOptionList: React.FC<ICriterionList> = ({
               onClick={(e) => removeClicked(e, c.type)}
               sx={{ mr: 0.5 }}
             >
-              <Icon icon={faTimes} />
+              <CloseIcon fontSize="small" />
             </IconButton>
           )}
           <IconButton
             size="small"
             onClick={(e) => togglePin(e, c)}
           >
-            <Icon icon={faThumbtack} style={{ transform: isPin ? "" : "rotate(45deg)" }} />
+            <PushPinIcon fontSize="small" sx={{ transform: isPin ? "none" : "rotate(45deg)" }} />
           </IconButton>
         </AccordionSummary>
         <AccordionDetails sx={{ p: 0 }}>

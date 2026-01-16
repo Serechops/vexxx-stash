@@ -13,9 +13,9 @@ import {
   Box,
   Typography,
 } from "@mui/material";
-import { Icon } from "../Icon";
+import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
+import CloseIcon from "@mui/icons-material/Close";
 import { LoadingIndicator } from "../LoadingIndicator";
-import { faEllipsis, faTimes } from "@fortawesome/free-solid-svg-icons";
 import { useDebounce } from "src/hooks/debounce";
 import TextUtils from "src/utils/text";
 import { useDirectoryPaths } from "./useDirectoryPaths";
@@ -112,7 +112,7 @@ const _FolderSelect: React.FC<IProps> = ({
                   onClick={() => setShowBrowser(!showBrowser)}
                   size="small"
                 >
-                  <Icon icon={faEllipsis} />
+                  <MoreHorizIcon fontSize="small" />
                 </IconButton>
               )}
               {(loading || error) && (
@@ -121,7 +121,7 @@ const _FolderSelect: React.FC<IProps> = ({
                     <LoadingIndicator inline small message="" />
                   ) : (
                     !hideError && (
-                      <Icon icon={faTimes} color="red" className="ml-3" />
+                      <CloseIcon fontSize="small" color="error" sx={{ ml: 1.5 }} />
                     )
                   )}
                 </Box>

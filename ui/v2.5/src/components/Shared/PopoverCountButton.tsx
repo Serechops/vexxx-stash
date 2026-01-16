@@ -152,9 +152,9 @@ export const PopoverCountButton: React.FC<IProps> = ({
             <Link className={className} to={url}>
               <Button
                 variant="text"
-                color="inherit" // or primary? Minimal usually means text/outlined
+                color="inherit"
                 className="minimal"
-                style={{ minWidth: "auto", padding: "4px 8px" }} // Adjust styling to match minimal
+                sx={{ minWidth: "auto", px: 1, py: 0.5 }}
               >
                 <Icon icon={getIcon()} />
                 <Count count={count} />

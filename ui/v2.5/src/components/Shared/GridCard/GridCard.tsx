@@ -5,7 +5,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { Card, CardContent, Checkbox as MuiCheckbox } from "@mui/material";
+import { Box, Card, CardContent, Checkbox as MuiCheckbox } from "@mui/material";
 import { Link } from "react-router-dom";
 import cx from "classnames";
 import { TruncatedText } from "../TruncatedText";
@@ -214,7 +214,7 @@ export const GridCard: React.FC<ICardProps> = PatchComponent(
         const percentStr = percentValue + "%";
         return (
           <div title={Math.round(percentValue) + "%"} className="progress-bar">
-            <div style={{ width: percentStr }} className="progress-indicator" />
+            <Box className="progress-indicator" sx={{ width: percentStr }} />
           </div>
         );
       }
@@ -228,7 +228,7 @@ export const GridCard: React.FC<ICardProps> = PatchComponent(
         )}
         onClick={handleImageClick}
         {...dragProps}
-        style={
+        sx={
           props.width && !ScreenUtils.isMobile()
             ? { width: `${props.width}px` }
             : {}

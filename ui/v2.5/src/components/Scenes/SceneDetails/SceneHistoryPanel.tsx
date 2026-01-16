@@ -1,15 +1,12 @@
-import {
-  faEllipsisV,
-  faPlus,
-  faTrash,
-} from "@fortawesome/free-solid-svg-icons";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+import AddIcon from "@mui/icons-material/Add";
+import DeleteIcon from "@mui/icons-material/Delete";
 import React, { useState } from "react";
 import { Button, IconButton, Menu, MenuItem, Box, Typography, Divider } from "@mui/material";
 import { FormattedMessage, useIntl } from "react-intl";
 import { AlertModal } from "src/components/Shared/Alert";
 import { Counter } from "src/components/Shared/Counter";
 import { DateInput } from "src/components/Shared/DateInput";
-import { Icon } from "src/components/Shared/Icon";
 import { ModalComponent } from "src/components/Shared/Modal";
 import {
   useSceneDecrementO,
@@ -63,7 +60,7 @@ const History: React.FC<{
               onClick={() => onRemove(playdate)}
               title={intl.formatMessage({ id: "actions.remove_date" })}
             >
-              <Icon icon={faTrash} />
+              <DeleteIcon fontSize="small" />
             </IconButton>
           </li>
         ))}
@@ -109,7 +106,7 @@ const HistoryMenu: React.FC<{
           aria-haspopup="true"
           aria-expanded={open ? 'true' : undefined}
         >
-          <Icon icon={faEllipsisV} />
+          <MoreVertIcon fontSize="small" />
         </IconButton>
         <Menu
           id="history-menu"
@@ -388,7 +385,7 @@ export const SceneHistoryPanel: React.FC<ISceneHistoryProps> = ({ scene }) => {
                 title={intl.formatMessage({ id: "actions.add_play" })}
                 onClick={() => handleAddPlayDate()}
               >
-                <Icon icon={faPlus} />
+                <AddIcon fontSize="small" />
               </IconButton>
               <HistoryMenu
                 hasHistory={playHistory.length > 0}
@@ -430,7 +427,7 @@ export const SceneHistoryPanel: React.FC<ISceneHistoryProps> = ({ scene }) => {
                 title={intl.formatMessage({ id: "actions.add_o" })}
                 onClick={() => handleAddODate()}
               >
-                <Icon icon={faPlus} />
+                <AddIcon fontSize="small" />
               </IconButton>
               <HistoryMenu
                 hasHistory={oHistory.length > 0}

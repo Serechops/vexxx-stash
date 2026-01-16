@@ -1,4 +1,5 @@
 import React, { PropsWithChildren } from "react";
+import { Box, Typography } from "@mui/material";
 
 interface IProps {
   className?: string;
@@ -12,15 +13,53 @@ export const RecommendationRow: React.FC<PropsWithChildren<IProps>> = ({
   link,
   children,
 }) => (
-  <div className={`recommendation-row mb-8 pl-4 md:pl-12 transition-all duration-300 ${className}`}>
-    <div className="recommendation-row-head flex items-center justify-between mb-2">
-      <div>
-        <h2 className="text-xl font-bold text-gray-200 uppercase tracking-wide drop-shadow-md">{header}</h2>
-      </div>
-      <div className="text-sm font-semibold text-cyan-400 hover:text-cyan-300 transition-colors mr-4 md:mr-12">
+  <Box
+    className={`recommendation-row ${className ?? ""}`}
+    sx={{
+      mb: 4,
+      pl: { xs: 2, md: 6 },
+      pr: { xs: 2, md: 6 },
+      transition: "all 0.3s",
+    }}
+  >
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        mb: 2,
+      }}
+    >
+      <Typography
+        variant="h6"
+        sx={{
+          fontWeight: 700,
+          color: "grey.200",
+          textTransform: "uppercase",
+          letterSpacing: "0.05em",
+          textShadow: "0 2px 4px rgba(0,0,0,0.5)",
+        }}
+      >
+        {header}
+      </Typography>
+      <Box
+        sx={{
+          fontSize: "0.875rem",
+          fontWeight: 600,
+          color: "primary.main",
+          "&:hover": {
+            color: "primary.light",
+          },
+          transition: "color 0.2s",
+          "& a": {
+            color: "inherit",
+            textDecoration: "none",
+          },
+        }}
+      >
         {link}
-      </div>
-    </div>
+      </Box>
+    </Box>
     {children}
-  </div>
+  </Box>
 );

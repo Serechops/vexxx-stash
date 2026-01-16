@@ -299,7 +299,7 @@ export const SortBySelect: React.FC<{
     }
 
     return (
-      <ButtonGroup className={`${className ?? ""} sort-by-select`}>
+      <ButtonGroup className={`${className ?? ""} sort-by-select`} size="small">
         <Button
           variant="contained"
           color="secondary"
@@ -313,6 +313,7 @@ export const SortBySelect: React.FC<{
           anchorEl={anchorEl}
           open={open}
           onClose={handleClose}
+          disableScrollLock
         >
           {renderSortByOptions()}
         </Menu>

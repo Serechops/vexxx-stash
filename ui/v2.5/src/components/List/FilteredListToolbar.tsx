@@ -144,7 +144,7 @@ export const FilteredListToolbar: React.FC<IFilteredListToolbar> = ({
         <>
           <SearchTermInput filter={filter} onFilterUpdate={setFilter} />
 
-          <ButtonGroup>
+          <ButtonGroup size="small">
             <SavedFilterDropdown
               filter={filter}
               onSetFilter={setFilter}

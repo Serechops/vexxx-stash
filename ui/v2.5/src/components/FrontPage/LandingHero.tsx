@@ -38,7 +38,7 @@ export const LandingHero: React.FC = () => {
     const video = scene?.paths.preview;
 
     return (
-        <div className="relative w-full h-[85vh] min-h-[600px] overflow-hidden mb-12 bg-black">
+        <div className="relative w-full h-[50vh] md:h-[70vh] min-h-[300px] md:min-h-[500px] overflow-hidden mb-12 bg-black">
             {/* Background Media */}
             <div className="absolute inset-0 animate-in fade-in duration-1000">
                 {video ? (

@@ -29,55 +29,59 @@ const TagCardPopovers: React.FC<IProps> = PatchComponent(
     return (
       <>
         <hr />
-        <ButtonGroup className="card-popovers" variant="contained" size="small">
+        <ButtonGroup
+          className="card-popovers"
+          variant="contained"
+          size="small"
+        >
           <PopoverCountButton
             className="scene-count"
             type="scene"
             count={tag.scene_count}
             url={NavUtils.makeTagScenesUrl(tag)}
-            showZero={false}
+            showZero={true}
           />
           <PopoverCountButton
             className="image-count"
             type="image"
             count={tag.image_count}
             url={NavUtils.makeTagImagesUrl(tag)}
-            showZero={false}
+            showZero={true}
           />
           <PopoverCountButton
             className="gallery-count"
             type="gallery"
             count={tag.gallery_count}
             url={NavUtils.makeTagGalleriesUrl(tag)}
-            showZero={false}
+            showZero={true}
           />
           <PopoverCountButton
             className="group-count"
             type="group"
             count={tag.group_count}
             url={NavUtils.makeTagGroupsUrl(tag)}
-            showZero={false}
+            showZero={true}
           />
           <PopoverCountButton
             className="marker-count"
             type="marker"
             count={tag.scene_marker_count}
             url={NavUtils.makeTagSceneMarkersUrl(tag)}
-            showZero={false}
+            showZero={true}
           />
           <PopoverCountButton
             className="performer-count"
             type="performer"
             count={tag.performer_count}
             url={NavUtils.makeTagPerformersUrl(tag)}
-            showZero={false}
+            showZero={true}
           />
           <PopoverCountButton
             className="studio-count"
             type="studio"
             count={tag.studio_count}
             url={NavUtils.makeTagStudiosUrl(tag)}
-            showZero={false}
+            showZero={true}
           />
         </ButtonGroup>
       </>

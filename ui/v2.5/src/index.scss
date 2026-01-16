@@ -47,12 +47,6 @@ body {
   margin: 0;
   overflow-x: hidden;
   padding: $navbar-height 0 0 0;
-
-  @include media-breakpoint-down(xs) {
-    @media (orientation: portrait) {
-      padding: 0.5rem 0 $navbar-height;
-    }
-  }
 }
 
 .main {
@@ -1036,11 +1030,6 @@ div.dropdown-menu {
 
   @include media-breakpoint-down(xs) {
     padding: 0.25rem 2rem;
-
-    @media (orientation: portrait) {
-      bottom: 0;
-      top: auto;
-    }
   }
 
   @include media-breakpoint-up(xl) {

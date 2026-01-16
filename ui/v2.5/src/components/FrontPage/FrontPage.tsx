@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { useConfigureUI } from "src/core/StashService";
 import { LoadingIndicator } from "../Shared/LoadingIndicator";
-import { Button } from "@mui/material";
+import { Box, Button } from "@mui/material";
 import { FrontPageConfig } from "./FrontPageConfig";
 import { LandingHero } from "./LandingHero";
 import { useToast } from "src/hooks/Toast";
@@ -70,27 +70,63 @@ const FrontPage: React.FC = PatchComponent("FrontPage", () => {
   const frontPageContent = getFrontPageContent(ui);
 
   return (
-    <div className="recommendations-container bg-background min-h-screen">
+    <Box
+      sx={{
+        bgcolor: "background.default",
+        minHeight: "100vh",
+      }}
+    >
       <LandingHero />
-      <div className="px-4 md:px-12 -mt-24 relative z-10 pb-12 space-y-8">
+      <Box
+        sx={{
+          px: { xs: 2, md: 6 },
+          mt: -12,
+          position: "relative",
+          zIndex: 10,
+          pb: 6,
+        }}
+      >
         {frontPageContent?.map((content, i) => (
           <Control key={i} content={content} />
         ))}
-      </div>
-      <div className="recommendations-footer">
+      </Box>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "flex-end",
+          mb: 2,
+          mr: 2,
+        }}
+      >
         <Button variant="outlined" onClick={() => setIsEditing(true)}>
           <FormattedMessage id={"actions.customise"} />
         </Button>
-      </div>
+      </Box>
 
-      <footer className="w-full py-6 mt-12 border-t border-gray-800 text-center text-sm text-gray-500">
+      <Box
+        component="footer"
+        sx={{
+          width: "100%",
+          py: 3,
+          mt: 6,
+          borderTop: 1,
+          borderColor: "grey.800",
+          textAlign: "center",
+          fontSize: "0.875rem",
+          color: "grey.500",
+          "& a": {
+            color: "grey.400",
+            "&:hover": { color: "white" },
+            transition: "color 0.2s",
+          },
+        }}
+      >
         <p>
           Powered by{" "}
           <a
             href="https://github.com/stashapp/stash"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-gray-400 hover:text-white transition-colors"
           >
             Stash
           </a>
@@ -99,23 +135,21 @@ const FrontPage: React.FC = PatchComponent("FrontPage", () => {
             href="https://github.com/stashapp/stash/blob/develop/LICENSE"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-gray-400 hover:text-white transition-colors"
           >
             AGPLv3
           </a>
-          . <span className="mx-2">|</span> Report bugs at{" "}
+          . <span>|</span> Report bugs at{" "}
           <a
             href="https://github.com/Serechops/vexxx-stash"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-gray-400 hover:text-white transition-colors"
           >
             Vexxx Stash
           </a>
           .
         </p>
-      </footer>
-    </div>
+      </Box>
+    </Box>
   );
 });
 

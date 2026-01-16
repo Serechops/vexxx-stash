@@ -68,7 +68,7 @@ export const GroupsHero: React.FC = () => {
     };
 
     return (
-        <div className="hidden md:flex relative w-full h-[60vh] overflow-hidden bg-[#111113] select-none items-center justify-center perspective-1000 mb-6">
+        <div className="hidden md:flex relative w-full h-[40vh] overflow-hidden bg-[#111113] select-none items-center justify-center perspective-1000 mb-6">
             {/* Background Gradients */}
             <div className="absolute inset-0 bg-gradient-radial from-[#1a0a2e]/30 to-[#111113] opacity-50 z-0 pointer-events-none" />
 

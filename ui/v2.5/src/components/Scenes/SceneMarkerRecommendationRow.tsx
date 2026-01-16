@@ -1,9 +1,9 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import { Skeleton } from "@mui/material";
 import { useFindSceneMarkers } from "src/core/StashService";
-import Slider from "@ant-design/react-slick";
 import { ListFilterModel } from "src/models/list-filter/filter";
-import { getSlickSliderSettings } from "src/core/recommendations";
+import { Carousel } from "../Shared/Carousel";
 import { RecommendationRow } from "../FrontPage/RecommendationRow";
 import { FormattedMessage } from "react-intl";
 import { SceneMarkerCard } from "./SceneMarkerCard";
@@ -32,28 +32,29 @@ export const SceneMarkerRecommendationRow: React.FC<IProps> = (props) => {
         </Link>
       }
     >
-      <Slider
-        {...getSlickSliderSettings(
-          cardCount ? cardCount : props.filter.itemsPerPage,
-          props.isTouch
-        )}
-      >
+      <Carousel itemWidth={320} gap={16}>
         {result.loading
-          ? [...Array(props.filter.itemsPerPage)].map((i) => (
-              <div
-                key={`_${i}`}
-                className="scene-marker-skeleton skeleton-card"
-              ></div>
-            ))
+          ? [...Array(props.filter.itemsPerPage)].map((_, i) => (
+            <Skeleton
+              key={`skeleton_${i}`}
+              variant="rectangular"
+              sx={{
+                width: 320,
+                height: 280,
+                borderRadius: 1,
+                bgcolor: "grey.800",
+              }}
+            />
+          ))
           : result.data?.findSceneMarkers.scene_markers.map((marker, index) => (
-              <SceneMarkerCard
-                key={marker.id}
-                marker={marker}
-                index={index}
-                zoomIndex={1}
-              />
-            ))}
-      </Slider>
+            <SceneMarkerCard
+              key={marker.id}
+              marker={marker}
+              index={index}
+              zoomIndex={1}
+            />
+          ))}
+      </Carousel>
     </RecommendationRow>
   );
 };

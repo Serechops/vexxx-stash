@@ -1,10 +1,10 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import { Skeleton } from "@mui/material";
 import { useFindStudios } from "src/core/StashService";
-import Slider from "@ant-design/react-slick";
 import { StudioCard } from "./StudioCard";
 import { ListFilterModel } from "src/models/list-filter/filter";
-import { getSlickSliderSettings } from "src/core/recommendations";
+import { Carousel } from "../Shared/Carousel";
 import { RecommendationRow } from "../FrontPage/RecommendationRow";
 import { FormattedMessage } from "react-intl";
 
@@ -32,23 +32,24 @@ export const StudioRecommendationRow: React.FC<IProps> = (props) => {
         </Link>
       }
     >
-      <Slider
-        {...getSlickSliderSettings(
-          cardCount ? cardCount : props.filter.itemsPerPage,
-          props.isTouch
-        )}
-      >
+      <Carousel itemWidth={360} gap={16}>
         {result.loading
-          ? [...Array(props.filter.itemsPerPage)].map((i) => (
-              <div
-                key={`_${i}`}
-                className="studio-skeleton skeleton-card"
-              ></div>
-            ))
+          ? [...Array(props.filter.itemsPerPage)].map((_, i) => (
+            <Skeleton
+              key={`skeleton_${i}`}
+              variant="rectangular"
+              sx={{
+                width: 360,
+                height: 278,
+                borderRadius: 1,
+                bgcolor: "grey.800",
+              }}
+            />
+          ))
           : result.data?.findStudios.studios.map((s) => (
-              <StudioCard key={s.id} studio={s} hideParent={true} />
-            ))}
-      </Slider>
+            <StudioCard key={s.id} studio={s} hideParent={true} />
+          ))}
+      </Carousel>
     </RecommendationRow>
   );
 };

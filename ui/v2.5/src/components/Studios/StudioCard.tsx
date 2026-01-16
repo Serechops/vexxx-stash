@@ -196,30 +196,50 @@ export const StudioCard: React.FC<IProps> = PatchComponent(
     }
 
     function maybeRenderPopoverButtonGroup() {
-      if (
-        studio.scene_count ||
-        studio.image_count ||
-        studio.gallery_count ||
-        studio.group_count ||
-        studio.performer_count ||
-        studio.o_counter ||
-        studio.tags.length > 0
-      ) {
-        return (
-          <>
-            <hr />
-            <ButtonGroup className="card-popovers">
-              {maybeRenderScenesPopoverButton()}
-              {maybeRenderGroupsPopoverButton()}
-              {maybeRenderImagesPopoverButton()}
-              {maybeRenderGalleriesPopoverButton()}
-              {maybeRenderPerformersPopoverButton()}
-              {maybeRenderTagPopoverButton()}
-              {maybeRenderOCounter()}
-            </ButtonGroup>
-          </>
-        );
-      }
+      return (
+        <>
+          <hr />
+          <ButtonGroup className="card-popovers">
+            <PopoverCountButton
+              className="scene-count"
+              type="scene"
+              count={studio.scene_count}
+              url={NavUtils.makeStudioScenesUrl(studio)}
+              showZero={true}
+            />
+            <PopoverCountButton
+              className="group-count"
+              type="group"
+              count={studio.group_count}
+              url={NavUtils.makeStudioGroupsUrl(studio)}
+              showZero={true}
+            />
+            <PopoverCountButton
+              className="image-count"
+              type="image"
+              count={studio.image_count}
+              url={NavUtils.makeStudioImagesUrl(studio)}
+              showZero={true}
+            />
+            <PopoverCountButton
+              className="gallery-count"
+              type="gallery"
+              count={studio.gallery_count}
+              url={NavUtils.makeStudioGalleriesUrl(studio)}
+              showZero={true}
+            />
+            <PopoverCountButton
+              className="performer-count"
+              type="performer"
+              count={studio.performer_count}
+              url={NavUtils.makeStudioPerformersUrl(studio)}
+              showZero={true}
+            />
+            {maybeRenderTagPopoverButton()}
+            {maybeRenderOCounter()}
+          </ButtonGroup>
+        </>
+      );
     }
 
     return (

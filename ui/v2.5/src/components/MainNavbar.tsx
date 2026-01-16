@@ -273,6 +273,7 @@ export const MainNavbar: React.FC = () => {
             className="minimal logout-button"
             href={`${baseURL}logout`}
             color="inherit"
+            size="small"
           >
             <Icon icon={faSignOutAlt} />
           </IconButton>
@@ -293,11 +294,12 @@ export const MainNavbar: React.FC = () => {
             target="_blank"
             onClick={handleDismiss}
             color="inherit"
+            size="small"
           >
             <img
               src="/patreon.png"
               alt="Patreon"
-              style={{ height: "1.5em", width: "auto" }}
+              style={{ height: "1em", width: "auto" }}
             />
           </IconButton>
         </Tooltip>
@@ -308,6 +310,7 @@ export const MainNavbar: React.FC = () => {
             to="/stats"
             onClick={handleDismiss}
             color="inherit"
+            size="small"
           >
             <Icon icon={faChartColumn} />
           </IconButton>
@@ -326,6 +329,7 @@ export const MainNavbar: React.FC = () => {
             className="nav-utility minimal"
             onClick={() => openManual()}
             color="inherit"
+            size="small"
           >
             <Icon icon={faQuestionCircle} />
           </IconButton>
@@ -378,7 +382,7 @@ export const MainNavbar: React.FC = () => {
         className="top-nav !bg-background/90 backdrop-blur-md border-b border-white/5 shadow-sm transition-all duration-300"
         elevation={0}
       >
-        <Toolbar variant="dense">
+        <Toolbar variant="dense" sx={{ minHeight: 48, height: 48, py: 0 }}>
           {/* Mobile Drawer Toggle */}
           <IconButton
             color="inherit"
@@ -395,12 +399,12 @@ export const MainNavbar: React.FC = () => {
             component={Link}
             to="/"
             onClick={handleDismiss}
-            sx={{ display: 'flex', alignItems: 'center', mr: 2, textDecoration: 'none' }}
+            sx={{ display: 'flex', alignItems: 'center', mr: 2, textDecoration: 'none', height: '100%' }}
           >
             <img
               src="/vexxx.png"
               alt="Vexxx"
-              className="h-10 w-auto object-contain drop-shadow-sm hover:opacity-90 transition-opacity"
+              style={{ height: '72px', width: 'auto', objectFit: 'cover' }}
             />
           </Box>
 

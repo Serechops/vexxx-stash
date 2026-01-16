@@ -1,11 +1,11 @@
 import React, { useMemo } from "react";
 import { Link } from "react-router-dom";
+import { Box, Skeleton } from "@mui/material";
 import { useFindScenes } from "src/core/StashService";
-import Slider from "@ant-design/react-slick";
 import { SceneCard } from "./SceneCard";
 import { SceneQueue } from "src/models/sceneQueue";
 import { ListFilterModel } from "src/models/list-filter/filter";
-import { getSlickSliderSettings } from "src/core/recommendations";
+import { Carousel } from "../Shared/Carousel";
 import { RecommendationRow } from "../FrontPage/RecommendationRow";
 import { FormattedMessage } from "react-intl";
 
@@ -37,32 +37,30 @@ export const SceneRecommendationRow: React.FC<IProps> = (props) => {
         </Link>
       }
     >
-      <Slider
-        {...{
-          ...getSlickSliderSettings(
-            cardCount ? cardCount : props.filter.itemsPerPage,
-            props.isTouch
-          ),
-          variableWidth: false,
-        }}
-      >
+      <Carousel itemWidth={320} gap={16}>
         {result.loading
-          ? [...Array(props.filter.itemsPerPage)].map((i) => (
-            <div key={`_${i}`} className="px-2">
-              <div className="scene-skeleton skeleton-card"></div>
-            </div>
+          ? [...Array(props.filter.itemsPerPage)].map((_, i) => (
+            <Skeleton
+              key={`skeleton_${i}`}
+              variant="rectangular"
+              sx={{
+                width: 320,
+                height: 365,
+                borderRadius: 1,
+                bgcolor: "grey.800",
+              }}
+            />
           ))
           : result.data?.findScenes.scenes.map((scene, index) => (
-            <div key={scene.id} className="px-2 h-full">
-              <SceneCard
-                scene={scene}
-                queue={queue}
-                index={index}
-                zoomIndex={1}
-              />
-            </div>
+            <SceneCard
+              key={scene.id}
+              scene={scene}
+              queue={queue}
+              index={index}
+              zoomIndex={1}
+            />
           ))}
-      </Slider>
+      </Carousel>
     </RecommendationRow>
   );
 };

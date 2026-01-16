@@ -64,7 +64,7 @@ export const ImagesHero: React.FC = () => {
     };
 
     return (
-        <div className="hidden md:flex relative w-full h-[60vh] overflow-hidden bg-background select-none pointer-events-none items-center justify-center perspective-1000">
+        <div className="hidden md:flex relative w-full h-[40vh] overflow-hidden bg-background select-none pointer-events-none items-center justify-center perspective-1000">
             {/* Gradient Overlay for integration with content below */}
             <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-background to-transparent z-20" />
             <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-background to-transparent z-20" />

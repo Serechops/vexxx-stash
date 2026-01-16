@@ -37,8 +37,16 @@ export const OperationDropdown: React.FC<
       anchorEl={anchorEl}
       open={open}
       onClose={handleClose}
-      className={cx("bg-secondary text-white", menuClassName)}
       onClick={handleClose}
+      slotProps={{
+        paper: {
+          sx: {
+            bgcolor: "background.paper",
+            color: "text.primary",
+          },
+        },
+      }}
+      disableScrollLock
     >
       {children}
     </Menu>

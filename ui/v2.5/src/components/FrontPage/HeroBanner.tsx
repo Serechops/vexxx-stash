@@ -61,7 +61,7 @@ export const HeroBanner: React.FC = () => {
     const video = scene.paths.preview;
 
     return (
-        <div className="hidden md:block relative w-full h-[56.25vw] max-h-[85vh] overflow-hidden mb-8 bg-black">
+        <div className="relative w-screen h-[56.25vw] md:h-screen bg-black left-[calc(50%-50vw)] right-[calc(50%-50vw)]">
             {/* Background Media */}
             <div className="absolute top-0 left-0 w-full h-full animate-in fade-in duration-1000">
                 {video ? (
@@ -89,28 +89,28 @@ export const HeroBanner: React.FC = () => {
             </div>
 
             {/* Content */}
-            <div className="absolute top-0 left-0 w-full h-full flex flex-col justify-center px-12 md:px-16 z-10 space-y-4">
+            <div className="absolute top-0 left-0 w-full h-full flex flex-col justify-center px-6 md:px-16 z-10 space-y-2 md:space-y-4">
                 {scene.studio?.image_path && (
                     <img
                         src={scene.studio.image_path}
                         alt={scene.studio.name ?? "Studio"}
-                        className="h-16 w-auto object-contain mb-2 drop-shadow-lg self-start"
+                        className="h-10 md:h-16 w-auto object-contain mb-2 drop-shadow-lg self-start"
                     />
                 )}
-                <h1 className="text-4xl md:text-6xl font-bold text-white max-w-3xl drop-shadow-lg line-clamp-4 leading-tight pb-3">
+                <h1 className="text-2xl md:text-6xl font-bold text-white max-w-3xl drop-shadow-lg line-clamp-2 md:line-clamp-4 leading-tight pb-1 md:pb-3">
                     {scene.title || "Untitled Scene"}
                 </h1>
 
-                <p className="text-lg md:text-xl text-gray-200 max-w-xl line-clamp-3 drop-shadow-md">
+                <p className="text-sm md:text-xl text-gray-200 max-w-xl line-clamp-3 drop-shadow-md hidden md:block">
                     {scene.details}
                 </p>
 
-                <div className="flex gap-4 pt-4">
+                <div className="flex gap-4 pt-2 md:pt-4">
                     <Link
                         to={`/scenes/${scene.id}`}
-                        className="flex items-center gap-2 px-8 py-2 bg-white text-black hover:bg-gray-200 border-none rounded text-lg font-bold transition-colors"
+                        className="flex items-center gap-2 px-4 md:px-8 py-1.5 md:py-2 bg-white text-black hover:bg-gray-200 border-none rounded text-sm md:text-lg font-bold transition-colors"
                     >
-                        <Play className="mr-2 h-7 w-7 text-black fill-black" strokeWidth={0} /> Play
+                        <Play className="mr-2 h-5 w-5 md:h-7 md:w-7 text-black fill-black" strokeWidth={0} /> Play
                     </Link>
                 </div>
             </div>

@@ -4,7 +4,7 @@ import { useConfigureUI } from "src/core/StashService";
 import { LoadingIndicator } from "../Shared/LoadingIndicator";
 import { Box, Button } from "@mui/material";
 import { FrontPageConfig } from "./FrontPageConfig";
-import { LandingHero } from "./LandingHero";
+import { HeroBanner } from "./HeroBanner";
 import { useToast } from "src/hooks/Toast";
 import { Control } from "./Control";
 import { useConfigurationContext } from "src/hooks/Config";
@@ -74,80 +74,98 @@ const FrontPage: React.FC = PatchComponent("FrontPage", () => {
       sx={{
         bgcolor: "background.default",
         minHeight: "100vh",
+        position: "relative",
+        width: "100vw",
+        marginLeft: "calc(50% - 50vw)",
+        marginRight: "calc(50% - 50vw)",
+        maxWidth: "none",
+        overflowX: "hidden", // Prevent horizontal scrollbars if calc is slightly off due to scrollbar width
+        "& > *": { maxWidth: "none" },
       }}
     >
-      <LandingHero />
+      {/* Fixed Hero Banner */}
+      <Box sx={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100vh", zIndex: 0 }}>
+        <HeroBanner />
+      </Box>
+
+      {/* Scrollable Content Overlay */}
       <Box
         sx={{
-          px: { xs: 2, md: 6 },
-          mt: -12,
           position: "relative",
           zIndex: 10,
+          mt: { xs: "50vw", md: "65vh" }, // Push content down to reveal hero (responsive)
+          background: (theme) => `linear-gradient(to bottom, transparent, ${theme.palette.background.default} 20%, ${theme.palette.background.default})`,
+          pt: { xs: 4, md: 10 },
           pb: 6,
+          px: { xs: 2, md: 6 },
+          minHeight: "40vh", // Ensure enough scroll space
+          width: "100%",
+          maxWidth: "100%",
         }}
       >
         {frontPageContent?.map((content, i) => (
           <Control key={i} content={content} />
         ))}
-      </Box>
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "flex-end",
-          mb: 2,
-          mr: 2,
-        }}
-      >
-        <Button variant="outlined" onClick={() => setIsEditing(true)}>
-          <FormattedMessage id={"actions.customise"} />
-        </Button>
-      </Box>
 
-      <Box
-        component="footer"
-        sx={{
-          width: "100%",
-          py: 3,
-          mt: 6,
-          borderTop: 1,
-          borderColor: "grey.800",
-          textAlign: "center",
-          fontSize: "0.875rem",
-          color: "grey.500",
-          "& a": {
-            color: "grey.400",
-            "&:hover": { color: "white" },
-            transition: "color 0.2s",
-          },
-        }}
-      >
-        <p>
-          Powered by{" "}
-          <a
-            href="https://github.com/stashapp/stash"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Stash
-          </a>
-          . Licensed under{" "}
-          <a
-            href="https://github.com/stashapp/stash/blob/develop/LICENSE"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            AGPLv3
-          </a>
-          . <span>|</span> Report bugs at{" "}
-          <a
-            href="https://github.com/Serechops/vexxx-stash"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Vexxx Stash
-          </a>
-          .
-        </p>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "flex-end",
+            mb: 2,
+            mr: 2,
+          }}
+        >
+          <Button variant="outlined" onClick={() => setIsEditing(true)}>
+            <FormattedMessage id={"actions.customise"} />
+          </Button>
+        </Box>
+
+        <Box
+          component="footer"
+          sx={{
+            width: "100%",
+            py: 3,
+            mt: 6,
+            borderTop: 1,
+            borderColor: "grey.800",
+            textAlign: "center",
+            fontSize: "0.875rem",
+            color: "grey.500",
+            "& a": {
+              color: "grey.400",
+              "&:hover": { color: "white" },
+              transition: "color 0.2s",
+            },
+          }}
+        >
+          <p>
+            Powered by{" "}
+            <a
+              href="https://github.com/stashapp/stash"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Stash
+            </a>
+            . Licensed under{" "}
+            <a
+              href="https://github.com/stashapp/stash/blob/develop/LICENSE"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              AGPLv3
+            </a>
+            . <span>|</span> Report bugs at{" "}
+            <a
+              href="https://github.com/Serechops/vexxx-stash"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Vexxx Stash
+            </a>
+            .
+          </p>
+        </Box>
       </Box>
     </Box>
   );

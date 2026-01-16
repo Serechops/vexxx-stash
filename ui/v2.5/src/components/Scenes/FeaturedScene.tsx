@@ -6,6 +6,7 @@ import { ListFilterModel } from "src/models/list-filter/filter";
 import * as GQL from "src/core/generated-graphql";
 import { useConfigurationContext } from "src/hooks/Config";
 import { Play, Volume2, VolumeX } from "lucide-react";
+import { TruncatedText } from "../Shared/TruncatedText";
 
 export const FeaturedScene: React.FC = () => {
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -90,13 +91,16 @@ export const FeaturedScene: React.FC = () => {
                     {scene.studio?.name && <span className="text-gray-300">• {scene.studio.name}</span>}
                 </div>
 
-                <h2 className="text-2xl md:text-6xl font-bold text-white max-w-3xl line-clamp-2 md:line-clamp-3 drop-shadow-md leading-tight">
+                <h2 className="text-2xl md:text-6xl font-bold text-white max-w-3xl line-clamp-4 md:line-clamp-2 drop-shadow-md leading-tight">
                     {scene.title || "Untitled Scene"}
                 </h2>
 
-                <p className="text-sm md:text-xl text-gray-200 max-w-xl line-clamp-3 drop-shadow-sm leading-relaxed hidden md:block">
-                    {scene.details}
-                </p>
+                <div className="hidden md:block max-w-xl text-sm md:text-xl text-gray-200 drop-shadow-sm leading-relaxed">
+                    <TruncatedText
+                        text={scene.details}
+                        lineCount={4}
+                    />
+                </div>
 
                 <div className="pt-2 md:pt-4 flex items-center gap-4 relative z-30">
                     <Link

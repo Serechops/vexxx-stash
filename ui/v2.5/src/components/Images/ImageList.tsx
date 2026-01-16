@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useMemo, MouseEvent } from "react";
+import React, { useCallback, useState, useMemo, MouseEvent, useEffect } from "react";
 import { FormattedNumber, useIntl } from "react-intl";
 import cloneDeep from "lodash-es/cloneDeep";
 import { useHistory } from "react-router-dom";
@@ -9,12 +9,13 @@ import {
   useFindImages,
   useFindImagesMetadata,
 } from "src/core/StashService";
-import { ItemList, ItemListContext, showWhenSelected } from "../List/ItemList";
+import { ItemListContext, showWhenSelected } from "../List/ItemList";
 import { useLightbox } from "src/hooks/Lightbox/hooks";
 import { ListFilterModel } from "src/models/list-filter/filter";
 import { DisplayMode } from "src/models/list-filter/types";
 
 import { ImageWallItem } from "./ImageWallItem";
+import { useShowEditFilter } from "src/components/List/EditFilterDialog";
 import { EditImagesDialog } from "./EditImagesDialog";
 import { DeleteImagesDialog } from "./DeleteImagesDialog";
 import "flexbin/flexbin.css";
@@ -24,9 +25,17 @@ import { objectTitle } from "src/core/files";
 import { useConfigurationContext } from "src/hooks/Config";
 import { ImageGridCard } from "./ImageGridCard";
 import { View } from "../List/views";
-import { IItemListOperation } from "../List/FilteredListToolbar";
+import { IItemListOperation, FilteredListToolbar } from "../List/FilteredListToolbar";
 import { FileSize } from "../Shared/FileSize";
 import { PatchComponent } from "src/patch";
+import { FilterTags } from "../List/FilterTags";
+import { PagedList } from "../List/PagedList";
+import { useFilterOperations } from "../List/util";
+import { useFilter } from "../List/FilterProvider";
+import { useListContext, useQueryResultContext } from "../List/ListProvider";
+import { useModal } from "src/hooks/modal";
+import { Box } from "@mui/material";
+import { Pagination, PaginationIndex } from "../List/Pagination";
 
 interface IImageWallProps {
   images: GQL.SlimImageDataFragment[];
@@ -75,7 +84,7 @@ const ImageWall: React.FC<IImageWallProps> = ({
       height: image.visual_files?.[0]?.height ?? 0,
       tabIndex: index,
       key: image.id,
-      loading: "lazy",
+      loading: "lazy" as const,
       className: "gallery-image",
       alt: objectTitle(image),
     };
@@ -108,14 +117,10 @@ const ImageWall: React.FC<IImageWallProps> = ({
     [zoomIndex]
   );
 
-  // set the max height as a factor of the targetRowHeight
-  // this allows some images to be taller than the target row height
-  // but prevents images from becoming too tall when there is a small number of items
   const maxHeightFactor = 1.3;
 
   const renderImage = useCallback(
     (props: RenderImageProps) => {
-      // #6165 - only use targetRowHeight in row direction
       const maxHeight =
         props.direction === "column"
           ? props.photo.height
@@ -179,7 +184,6 @@ const ImageListImages: React.FC<IImageListImages> = ({
           }
         } else if (direction > 0) {
           if (filter.currentPage === pageCount) {
-            // return to the first page
             onChangePage(1);
           } else {
             onChangePage(filter.currentPage + direction);
@@ -263,7 +267,6 @@ const ImageListImages: React.FC<IImageListImages> = ({
     );
   }
 
-  // should not happen
   return <></>;
 };
 
@@ -283,7 +286,6 @@ function renderMetadataByline(
   const size = metadataInfo?.data?.findImages?.filesize;
 
   if (metadataInfo?.loading) {
-    // return ellipsis
     return <span className="images-stats">&nbsp;(...)</span>;
   }
 
@@ -320,6 +322,185 @@ interface IImageList {
   chapters?: GQL.GalleryChapterDataFragment[];
 }
 
+const ImageListContent: React.FC<{
+  view?: View;
+  otherOperations: IItemListOperation<GQL.FindImagesQueryResult>[];
+  addKeybinds: any;
+  renderContent: any;
+  renderEditDialog: any;
+  renderDeleteDialog: any;
+  renderMetadataByline: any;
+}> = ({
+  view,
+  otherOperations,
+  addKeybinds,
+  renderContent,
+  renderEditDialog,
+  renderDeleteDialog,
+  renderMetadataByline,
+}) => {
+    const { filter, setFilter: updateFilter } = useFilter();
+    const { effectiveFilter, result, metadataInfo, cachedResult, totalCount } =
+      useQueryResultContext<GQL.FindImagesQueryResult, GQL.SlimImageDataFragment>();
+    const listSelect = useListContext<GQL.SlimImageDataFragment>();
+
+    const {
+      selectedIds,
+      getSelected,
+      onSelectChange,
+      onSelectAll,
+      onSelectNone,
+    } = listSelect;
+
+    const { modal, showModal, closeModal } = useModal();
+
+    const { setPage, removeCriterion, clearAllCriteria } = useFilterOperations({
+      filter,
+      setFilter: updateFilter,
+    });
+
+    const showEditFilter = useShowEditFilter({
+      showModal,
+      closeModal,
+      filter,
+      setFilter: updateFilter,
+    });
+
+    const pages = Math.ceil(totalCount / filter.itemsPerPage);
+
+    const metadataByline = useMemo(() => {
+      if (cachedResult.loading) return "";
+      return renderMetadataByline?.(cachedResult, metadataInfo) ?? "";
+    }, [renderMetadataByline, cachedResult, metadataInfo]);
+
+    const onChangePage = useCallback(
+      (p: number) => {
+        updateFilter(filter.changePage(p));
+      },
+      [filter, updateFilter]
+    );
+
+    const zoomable =
+      filter.displayMode === DisplayMode.Grid ||
+      filter.displayMode === DisplayMode.Wall ||
+      true;
+
+    const operations = useMemo(() => {
+      return otherOperations?.map((o) => ({
+        text: o.text,
+        onClick: async () => {
+          await o.onClick(result, effectiveFilter, selectedIds);
+          if (o.postRefetch) result.refetch();
+        },
+        isDisplayed: () => {
+          if (o.isDisplayed) return o.isDisplayed(result, effectiveFilter, selectedIds);
+          return true;
+        },
+        icon: o.icon,
+        buttonVariant: o.buttonVariant,
+      }));
+    }, [result, effectiveFilter, selectedIds, otherOperations]);
+
+    function onEdit() {
+      showModal(renderEditDialog(getSelected(), (applied: boolean) => {
+        if (applied) onSelectNone();
+        closeModal();
+        result.refetch();
+      }));
+    }
+
+    function onDelete() {
+      showModal(renderDeleteDialog(getSelected(), (deleted: boolean) => {
+        if (deleted) onSelectNone();
+        closeModal();
+        result.refetch();
+      }));
+    }
+
+    return (
+      <Box sx={{
+        position: "relative",
+        zIndex: 10,
+        mt: { xs: "50vw", md: "65vh" },
+        background: (theme) => `linear-gradient(to bottom, transparent, ${theme.palette.background.default} 20%, ${theme.palette.background.default})`,
+        pt: { xs: 4, md: 8 },
+        pb: 4,
+        px: { xs: 2, md: 6 },
+        minHeight: "100vh",
+        width: "100vw",
+        marginLeft: "calc(50% - 50vw)",
+        marginRight: "calc(50% - 50vw)",
+        maxWidth: "none",
+        "& > *": { maxWidth: "none" },
+      }}>
+        {/* Sticky Header Control Bar */}
+        <Box sx={{
+          position: "sticky",
+          top: 48,
+          zIndex: 20,
+          backgroundColor: "rgba(0,0,0,0)",
+          borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
+          mx: -2, px: 2, pt: 2, pb: 2, mb: 2,
+          transition: "all 0.3s ease",
+        }}>
+          <FilteredListToolbar
+            filter={filter}
+            setFilter={updateFilter}
+            listSelect={listSelect}
+            showEditFilter={showEditFilter}
+            view={view}
+            operations={operations}
+            zoomable={zoomable}
+            onEdit={onEdit}
+            onDelete={onDelete}
+          />
+
+          {totalCount > filter.itemsPerPage && (
+            <Box display="flex" justifyContent="center" mt={2}>
+              <Box display="flex" flexDirection="column" alignItems="center">
+                <Pagination itemsPerPage={filter.itemsPerPage} currentPage={filter.currentPage} totalItems={totalCount} onChangePage={onChangePage} pagePopupPlacement="bottom" />
+                <Box textAlign="center" mt={1}>
+                  <PaginationIndex itemsPerPage={filter.itemsPerPage} currentPage={filter.currentPage} totalItems={totalCount} metadataByline={metadataByline} />
+                </Box>
+              </Box>
+            </Box>
+          )}
+        </Box>
+
+        <FilterTags
+          criteria={filter.criteria}
+          onEditCriterion={(c) => showEditFilter(c.criterionOption.type)}
+          onRemoveCriterion={(c) => updateFilter(filter.removeCriterion(c.criterionOption.type))}
+          onRemoveAll={() => updateFilter(filter.clearCriteria())}
+        />
+
+        {modal}
+
+        <PagedList
+          result={result}
+          cachedResult={cachedResult}
+          filter={filter}
+          totalCount={totalCount}
+          onChangePage={onChangePage}
+          metadataByline={metadataByline}
+        >
+          {renderContent(result, effectiveFilter, selectedIds, onSelectChange, onChangePage, pages)}
+        </PagedList>
+
+        {totalCount > filter.itemsPerPage && (
+          <Box display="flex" justifyContent="center" mt={4}>
+            <div className="pagination-footer">
+              <Pagination itemsPerPage={filter.itemsPerPage} currentPage={filter.currentPage} totalItems={totalCount} onChangePage={onChangePage} pagePopupPlacement="top" />
+              <Box textAlign="center" mt={1}>
+                <PaginationIndex itemsPerPage={filter.itemsPerPage} currentPage={filter.currentPage} totalItems={totalCount} metadataByline={metadataByline} />
+              </Box>
+            </div>
+          </Box>
+        )}
+      </Box>
+    );
+  }
+
 export const ImageList: React.FC<IImageList> = PatchComponent(
   "ImageList",
   ({ filterHook, view, alterQuery, extraOperations = [], chapters = [] }) => {
@@ -329,7 +510,33 @@ export const ImageList: React.FC<IImageList> = PatchComponent(
     const [isExportAll, setIsExportAll] = useState(false);
     const [slideshowRunning, setSlideshowRunning] = useState<boolean>(false);
 
-    const filterMode = GQL.FilterMode.Images;
+    async function onExport() {
+      setIsExportAll(false);
+      setIsExportDialogOpen(true);
+    }
+
+    async function onExportAll() {
+      setIsExportAll(true);
+      setIsExportDialogOpen(true);
+    }
+
+    async function viewRandom(
+      result: GQL.FindImagesQueryResult,
+      filter: ListFilterModel
+    ) {
+      if (result.data?.findImages) {
+        const { count } = result.data.findImages;
+        const index = Math.floor(Math.random() * count);
+        const filterCopy = cloneDeep(filter);
+        filterCopy.itemsPerPage = 1;
+        filterCopy.currentPage = index + 1;
+        const singleResult = await queryFindImages(filterCopy);
+        if (singleResult.data.findImages.images.length === 1) {
+          const { id } = singleResult.data.findImages.images[0];
+          history.push(`/images/${id}`);
+        }
+      }
+    }
 
     const otherOperations = [
       ...extraOperations,
@@ -359,37 +566,6 @@ export const ImageList: React.FC<IImageList> = PatchComponent(
       return () => {
         Mousetrap.unbind("p r");
       };
-    }
-
-    async function viewRandom(
-      result: GQL.FindImagesQueryResult,
-      filter: ListFilterModel
-    ) {
-      // query for a random image
-      if (result.data?.findImages) {
-        const { count } = result.data.findImages;
-
-        const index = Math.floor(Math.random() * count);
-        const filterCopy = cloneDeep(filter);
-        filterCopy.itemsPerPage = 1;
-        filterCopy.currentPage = index + 1;
-        const singleResult = await queryFindImages(filterCopy);
-        if (singleResult.data.findImages.images.length === 1) {
-          const { id } = singleResult.data.findImages.images[0];
-          // navigate to the image player page
-          history.push(`/images/${id}`);
-        }
-      }
-    }
-
-    async function onExport() {
-      setIsExportAll(false);
-      setIsExportDialogOpen(true);
-    }
-
-    async function onExportAll() {
-      setIsExportAll(true);
-      setIsExportDialogOpen(true);
     }
 
     function renderContent(
@@ -462,7 +638,7 @@ export const ImageList: React.FC<IImageList> = PatchComponent(
 
     return (
       <ItemListContext
-        filterMode={filterMode}
+        filterMode={GQL.FilterMode.Images}
         useResult={useFindImages}
         useMetadataInfo={useFindImagesMetadata}
         getItems={getItems}
@@ -472,7 +648,7 @@ export const ImageList: React.FC<IImageList> = PatchComponent(
         view={view}
         selectable
       >
-        <ItemList
+        <ImageListContent
           view={view}
           otherOperations={otherOperations}
           addKeybinds={addKeybinds}

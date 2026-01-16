@@ -405,15 +405,30 @@ export const PerformerList: React.FC<IPerformerList> = PatchComponent(
         view={view}
         selectable
       >
-        <ItemList
-          view={view}
-          otherOperations={otherOperations}
-          addKeybinds={addKeybinds}
-          renderContent={renderContent}
-          renderEditDialog={renderEditDialog}
-          renderDeleteDialog={renderDeleteDialog}
-          allowSkeleton
-        />
+        <Box
+          sx={{
+            position: "relative",
+            zIndex: 10,
+            mt: 4,
+            '@media (min-width: 950px)': {
+              marginTop: '65vh'
+            },
+            background: (theme) =>
+              `linear-gradient(to bottom, transparent, ${theme.palette.background.default} 20%, ${theme.palette.background.default})`,
+            minHeight: "100vh",
+            transition: "margin-top 0.3s ease",
+          }}
+        >
+          <ItemList
+            view={view}
+            otherOperations={otherOperations}
+            addKeybinds={addKeybinds}
+            renderContent={renderContent}
+            renderEditDialog={renderEditDialog}
+            renderDeleteDialog={renderDeleteDialog}
+            allowSkeleton
+          />
+        </Box>
       </ItemListContext>
     );
   }

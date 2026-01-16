@@ -1,4 +1,4 @@
-import React, { PropsWithChildren, useState } from "react";
+import React, { PropsWithChildren, useState, useMemo, useCallback } from "react";
 import { useIntl } from "react-intl";
 import cloneDeep from "lodash-es/cloneDeep";
 import Mousetrap from "mousetrap";
@@ -11,7 +11,7 @@ import {
   useFindGroups,
   useGroupsDestroy,
 } from "src/core/StashService";
-import { ItemList, ItemListContext, showWhenSelected } from "../List/ItemList";
+import { ItemListContext, showWhenSelected } from "../List/ItemList";
 import { ExportDialog } from "../Shared/ExportDialog";
 import { DeleteEntityDialog } from "../Shared/DeleteEntityDialog";
 import { GroupCardGrid } from "./GroupCardGrid";
@@ -20,8 +20,18 @@ import { View } from "../List/views";
 import {
   IFilteredListToolbar,
   IItemListOperation,
+  FilteredListToolbar,
 } from "../List/FilteredListToolbar";
 import { PatchComponent } from "src/patch";
+import { useFilterOperations } from "../List/util";
+import { useFilter } from "../List/FilterProvider";
+import { useListContext, useQueryResultContext } from "../List/ListProvider";
+import { useModal } from "src/hooks/modal";
+import { Box } from "@mui/material";
+import { Pagination, PaginationIndex } from "../List/Pagination";
+import { FilterTags } from "../List/FilterTags";
+import { PagedList } from "../List/PagedList";
+import { useShowEditFilter } from "src/components/List/EditFilterDialog";
 
 const GroupExportDialog: React.FC<{
   open?: boolean;
@@ -90,6 +100,234 @@ interface IGroupList extends IGroupListContext {
   renderToolbar?: (props: IFilteredListToolbar) => React.ReactNode;
   otherOperations?: IItemListOperation<GQL.FindGroupsQueryResult>[];
 }
+
+const GroupListContent: React.FC<{
+  view?: View;
+  otherOperations: IItemListOperation<GQL.FindGroupsQueryResult>[];
+  addKeybinds: any;
+  renderContent: any;
+  renderEditDialog: any;
+  renderDeleteDialog: any;
+  renderToolbar?: (props: IFilteredListToolbar) => React.ReactNode;
+}> = ({
+  view,
+  otherOperations,
+  addKeybinds,
+  renderContent,
+  renderEditDialog,
+  renderDeleteDialog,
+  renderToolbar,
+}) => {
+    const { filter, setFilter: updateFilter } = useFilter();
+    const { effectiveFilter, result, metadataInfo, cachedResult, totalCount } =
+      useQueryResultContext<GQL.FindGroupsQueryResult, GQL.SlimGroupDataFragment>();
+    const listSelect = useListContext<GQL.SlimGroupDataFragment>();
+
+    const {
+      selectedIds,
+      getSelected,
+      onSelectChange,
+      onSelectAll,
+      onSelectNone,
+    } = listSelect;
+
+    const { modal, showModal, closeModal } = useModal();
+
+    const { setPage, removeCriterion, clearAllCriteria } = useFilterOperations({
+      filter,
+      setFilter: updateFilter,
+    });
+
+    const showEditFilter = useShowEditFilter({
+      showModal,
+      closeModal,
+      filter,
+      setFilter: updateFilter,
+    });
+
+    const pages = Math.ceil(totalCount / filter.itemsPerPage);
+
+    const onChangePage = useCallback(
+      (p: number) => {
+        updateFilter(filter.changePage(p));
+      },
+      [filter, updateFilter]
+    );
+
+    const zoomable = filter.displayMode === DisplayMode.Grid;
+
+    const operations = useMemo(() => {
+      return otherOperations?.map((o) => ({
+        text: o.text,
+        onClick: async () => {
+          await o.onClick(result, effectiveFilter, selectedIds);
+          if (o.postRefetch) result.refetch();
+        },
+        isDisplayed: () => {
+          if (o.isDisplayed)
+            return o.isDisplayed(result, effectiveFilter, selectedIds);
+          return true;
+        },
+        icon: o.icon,
+        buttonVariant: o.buttonVariant,
+      }));
+    }, [result, effectiveFilter, selectedIds, otherOperations]);
+
+    function onEdit() {
+      showModal(
+        renderEditDialog(getSelected(), (applied: boolean) => {
+          if (applied) onSelectNone();
+          closeModal();
+          result.refetch();
+        })
+      );
+    }
+
+    function onDelete() {
+      showModal(
+        renderDeleteDialog(getSelected(), (deleted: boolean) => {
+          if (deleted) onSelectNone();
+          closeModal();
+          result.refetch();
+        })
+      );
+    }
+
+    return (
+      <Box
+        sx={{
+          position: "relative",
+          zIndex: 10,
+          mt: 4,
+          '@media (min-width: 950px)': {
+            marginTop: '65vh'
+          },
+          background: (theme) =>
+            `linear-gradient(to bottom, transparent, ${theme.palette.background.default} 20%, ${theme.palette.background.default})`,
+          pt: { xs: 4, md: 8 },
+          pb: 4,
+          px: { xs: 2, md: 6 },
+          minHeight: "100vh",
+          width: "100vw",
+          marginLeft: "calc(50% - 50vw)",
+          marginRight: "calc(50% - 50vw)",
+          maxWidth: "none",
+          "& > *": { maxWidth: "none" },
+        }}
+      >
+        {/* Sticky Header Control Bar */}
+        <Box
+          sx={{
+            position: "sticky",
+            top: 48,
+            zIndex: 20,
+            backgroundColor: "rgba(0,0,0,0)",
+            borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
+            mx: -2,
+            px: 2,
+            pt: 2,
+            pb: 2,
+            mb: 2,
+            transition: "all 0.3s ease",
+          }}
+        >
+          {renderToolbar ? (
+            renderToolbar({
+              filter,
+              setFilter: updateFilter,
+              listSelect,
+              showEditFilter,
+              view,
+              operations,
+              zoomable,
+              onEdit,
+              onDelete,
+            })
+          ) : (
+            <FilteredListToolbar
+              filter={filter}
+              setFilter={updateFilter}
+              listSelect={listSelect}
+              showEditFilter={showEditFilter}
+              view={view}
+              operations={operations}
+              zoomable={zoomable}
+              onEdit={onEdit}
+              onDelete={onDelete}
+            />
+          )}
+
+          {totalCount > filter.itemsPerPage && (
+            <Box display="flex" justifyContent="center" mt={2}>
+              <Box display="flex" flexDirection="column" alignItems="center">
+                <Pagination
+                  itemsPerPage={filter.itemsPerPage}
+                  currentPage={filter.currentPage}
+                  totalItems={totalCount}
+                  onChangePage={onChangePage}
+                  pagePopupPlacement="bottom"
+                />
+                <Box textAlign="center" mt={1}>
+                  <PaginationIndex
+                    itemsPerPage={filter.itemsPerPage}
+                    currentPage={filter.currentPage}
+                    totalItems={totalCount}
+                  />
+                </Box>
+              </Box>
+            </Box>
+          )}
+        </Box>
+
+        <FilterTags
+          criteria={filter.criteria}
+          onEditCriterion={(c) => showEditFilter(c.criterionOption.type)}
+          onRemoveCriterion={(c) =>
+            updateFilter(filter.removeCriterion(c.criterionOption.type))
+          }
+          onRemoveAll={() => updateFilter(filter.clearCriteria())}
+        />
+
+        {modal}
+
+        <PagedList
+          result={result}
+          cachedResult={cachedResult}
+          filter={filter}
+          totalCount={totalCount}
+          onChangePage={onChangePage}
+        >
+          {renderContent(
+            result,
+            effectiveFilter,
+            selectedIds,
+            onSelectChange
+          )}
+        </PagedList>
+
+        {totalCount > filter.itemsPerPage && (
+          <Box display="flex" justifyContent="center" mt={4}>
+            <div className="pagination-footer">
+              <Pagination
+                itemsPerPage={filter.itemsPerPage}
+                currentPage={filter.currentPage}
+                totalItems={totalCount}
+                onChangePage={onChangePage}
+                pagePopupPlacement="top"
+              />
+              <Box textAlign="center" mt={1}>
+                <PaginationIndex
+                  itemsPerPage={filter.itemsPerPage}
+                  currentPage={filter.currentPage}
+                  totalItems={totalCount}
+                />
+              </Box>
+            </div>
+          </Box>
+        )}
+      </Box>
+    );
+  };
 
 export const GroupList: React.FC<IGroupList> = PatchComponent(
   "GroupList",
@@ -228,7 +466,7 @@ export const GroupList: React.FC<IGroupList> = PatchComponent(
         defaultFilter={defaultFilter}
         selectable={selectable}
       >
-        <ItemList
+        <GroupListContent
           view={view}
           otherOperations={otherOperations}
           addKeybinds={addKeybinds}

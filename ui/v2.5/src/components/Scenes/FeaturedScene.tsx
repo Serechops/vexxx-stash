@@ -84,7 +84,7 @@ export const FeaturedScene: React.FC = () => {
             </div>
 
             {/* Content Container */}
-            <div className="absolute top-0 left-0 w-full h-full flex flex-col justify-center px-6 md:px-16 z-10 space-y-2 md:space-y-4 pointer-events-auto">
+            <div className="absolute top-0 left-0 w-full h-full flex flex-col justify-center px-6 md:px-16 z-20 space-y-2 md:space-y-4 pointer-events-auto">
                 <div className="flex items-center space-x-2 text-xs font-bold tracking-widest text-primary uppercase mb-1">
                     <span className="bg-primary/20 px-2 py-1 rounded text-primary-foreground">Featured</span>
                     {scene.studio?.name && <span className="text-gray-300">• {scene.studio.name}</span>}
@@ -98,7 +98,7 @@ export const FeaturedScene: React.FC = () => {
                     {scene.details}
                 </p>
 
-                <div className="pt-2 md:pt-4 flex items-center gap-4">
+                <div className="pt-2 md:pt-4 flex items-center gap-4 relative z-30">
                     <Link
                         to={`/scenes/${scene.id}`}
                         className="inline-flex items-center gap-2 px-4 md:px-8 py-1.5 md:py-2 bg-white hover:bg-white/90 text-black border-none rounded-full text-sm md:text-lg font-bold transition-colors shadow-lg"

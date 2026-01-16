@@ -128,10 +128,10 @@ export const FilteredListToolbar: React.FC<IFilteredListToolbar> = ({
 
   return (
     <Box
-      className={cx("filtered-list-toolbar !bg-card text-card-foreground rounded-md shadow-sm p-2 mb-4 flex items-center gap-2 !justify-center w-fit mx-auto", { "has-selection": hasSelection })}
-      display="flex"
-      alignItems="center"
-      gap={1}
+      className={cx(
+        "filtered-list-toolbar text-card-foreground rounded-md shadow-sm p-2 mb-4 flex items-center gap-2 justify-center w-fit mx-auto backdrop-blur-md bg-card/30",
+        { "has-selection": hasSelection }
+      )}
     >
       {hasSelection ? (
         <SelectionSection

@@ -56,13 +56,13 @@ export const FeaturedScene: React.FC = () => {
     const video = scene.paths.preview;
 
     return (
-        <div className="hidden md:block relative w-full h-[70vh] min-h-[300px] overflow-hidden rounded-xl mb-6 bg-card shadow-lg group">
+        <div className="fixed top-0 left-0 w-screen h-[56.25vw] md:h-screen z-0 bg-black pointer-events-none md:pointer-events-auto">
             {/* Media Background */}
-            <div className="absolute top-0 left-0 w-full h-full">
+            <div className="absolute top-0 left-0 w-full h-full animate-in fade-in duration-1000">
                 {video ? (
                     <video
                         ref={videoRef}
-                        className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity duration-700"
+                        className="w-full h-full object-cover opacity-60 transition-opacity duration-700"
                         poster={image ?? undefined}
                         src={video}
                         autoPlay
@@ -80,42 +80,42 @@ export const FeaturedScene: React.FC = () => {
                 )}
                 {/* Gradient Overlays */}
                 <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-black/90 via-black/40 to-transparent" />
-                <div className="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-black/80 to-transparent" />
+                <div className="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-background to-transparent" />
             </div>
 
             {/* Content Container */}
-            <div className="absolute top-0 left-0 w-full h-full flex flex-col justify-center px-8 md:px-12 z-10 space-y-3">
+            <div className="absolute top-0 left-0 w-full h-full flex flex-col justify-center px-6 md:px-16 z-10 space-y-2 md:space-y-4 pointer-events-auto">
                 <div className="flex items-center space-x-2 text-xs font-bold tracking-widest text-primary uppercase mb-1">
                     <span className="bg-primary/20 px-2 py-1 rounded text-primary-foreground">Featured</span>
                     {scene.studio?.name && <span className="text-gray-300">• {scene.studio.name}</span>}
                 </div>
 
-                <h2 className="text-3xl md:text-4xl font-bold text-white max-w-2xl line-clamp-1 drop-shadow-md">
+                <h2 className="text-2xl md:text-6xl font-bold text-white max-w-3xl line-clamp-2 md:line-clamp-3 drop-shadow-md leading-tight">
                     {scene.title || "Untitled Scene"}
                 </h2>
 
-                <p className="text-sm md:text-base text-gray-300 max-w-lg line-clamp-2 drop-shadow-sm leading-relaxed">
+                <p className="text-sm md:text-xl text-gray-200 max-w-xl line-clamp-3 drop-shadow-sm leading-relaxed hidden md:block">
                     {scene.details}
                 </p>
 
-                <div className="pt-2">
+                <div className="pt-2 md:pt-4 flex items-center gap-4">
                     <Link
                         to={`/scenes/${scene.id}`}
-                        className="inline-flex items-center gap-2 px-6 py-2 bg-white hover:bg-white/90 text-black border-none rounded-full text-sm font-bold transition-colors shadow-lg"
+                        className="inline-flex items-center gap-2 px-4 md:px-8 py-1.5 md:py-2 bg-white hover:bg-white/90 text-black border-none rounded-full text-sm md:text-lg font-bold transition-colors shadow-lg"
                     >
-                        <Play className="h-4 w-4 text-black fill-black" strokeWidth={0} />
+                        <Play className="h-4 w-4 md:h-6 md:w-6 text-black fill-black" strokeWidth={0} />
                         Watch Now
                     </Link>
+
+                    {/* Mute Toggle - Positioned near controls for better mobile access */}
+                    <button
+                        onClick={toggleMute}
+                        className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-sm transition-all"
+                    >
+                        {isMuted ? <VolumeX className="h-5 w-5 md:h-6 md:w-6" /> : <Volume2 className="h-5 w-5 md:h-6 md:w-6" />}
+                    </button>
                 </div>
             </div>
-
-            {/* Mute Toggle */}
-            <button
-                onClick={toggleMute}
-                className="absolute bottom-4 right-4 p-2 rounded-full bg-black/30 hover:bg-black/50 text-white/70 hover:text-white backdrop-blur-sm transition-all"
-            >
-                {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-            </button>
         </div>
     );
 };

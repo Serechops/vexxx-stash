@@ -687,82 +687,122 @@ export const FilteredSceneList = (props: IFilteredScenes) => {
               <>
                 {!hideFeatured && <FeaturedScene />}
 
-                <FilteredListToolbar
-                  filter={filter}
-                  setFilter={setFilter}
-                  showEditFilter={showEditFilter}
-                  view={view}
-                  listSelect={listSelect}
-                  onEdit={onEdit}
-                  onDelete={onDelete}
-                  operations={otherOperations}
-                  zoomable
-                />
+                <Box
+                  sx={
+                    !hideFeatured
+                      ? {
+                        position: "relative",
+                        zIndex: 10,
+                        mt: { xs: "50vw", md: "65vh" },
+                        background: (theme) =>
+                          `linear-gradient(to bottom, transparent, ${theme.palette.background.default} 20%, ${theme.palette.background.default})`,
+                        pt: { xs: 4, md: 8 },
+                        pb: 4,
+                        px: { xs: 2, md: 6 },
+                        minHeight: "100vh",
+                        width: "100vw",
+                        marginLeft: "calc(50% - 50vw)",
+                        marginRight: "calc(50% - 50vw)",
+                        maxWidth: "none",
+                        "& > *": { maxWidth: "none" },
+                      }
+                      : {}
+                  }
+                >
+                  {/* Sticky Header Control Bar */}
+                  <Box
+                    sx={{
+                      position: "sticky",
+                      top: 48, // Header height
+                      zIndex: 20,
+                      backgroundColor: "rgba(0, 0, 0, 0)",
+                      borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
+                      mx: -2, // Negative margin to stretch full width of container padding
+                      px: 2, // Restore padding
+                      pt: 2,
+                      pb: 2,
+                      mb: 2,
+                      transition: "all 0.3s ease",
+                    }}
+                  >
+                    <FilteredListToolbar
+                      filter={filter}
+                      setFilter={setFilter}
+                      showEditFilter={showEditFilter}
+                      view={view}
+                      listSelect={listSelect}
+                      onEdit={onEdit}
+                      onDelete={onDelete}
+                      operations={otherOperations}
+                      zoomable
+                    />
 
-                {totalCount > filter.itemsPerPage && (
-                  <Box display="flex" justifyContent="center" mb={2}>
-                    <Box display="flex" flexDirection="column" alignItems="center">
-                      <Pagination
-                        itemsPerPage={filter.itemsPerPage}
-                        currentPage={filter.currentPage}
-                        totalItems={totalCount}
-                        onChangePage={setPage}
-                        pagePopupPlacement="bottom"
-                      />
-                      <Box textAlign="center" mt={1}>
-                        <PaginationIndex
+                    {totalCount > filter.itemsPerPage && (
+                      <Box display="flex" justifyContent="center" mt={2}>
+                        <Box display="flex" flexDirection="column" alignItems="center">
+                          <Pagination
+                            itemsPerPage={filter.itemsPerPage}
+                            currentPage={filter.currentPage}
+                            totalItems={totalCount}
+                            onChangePage={setPage}
+                            pagePopupPlacement="bottom"
+                          />
+                          <Box textAlign="center" mt={1}>
+                            <PaginationIndex
+                              itemsPerPage={filter.itemsPerPage}
+                              currentPage={filter.currentPage}
+                              totalItems={totalCount}
+                              metadataByline={metadataByline}
+                            />
+                          </Box>
+                        </Box>
+                      </Box>
+                    )}
+                  </Box>
+
+                  <FilterTags
+                    criteria={filter.criteria}
+                    onEditCriterion={(c) => showEditFilter(c.criterionOption.type)}
+                    onRemoveCriterion={removeCriterion}
+                    onRemoveAll={clearAllCriteria}
+                  />
+
+                  {/* Top Pagination removed for cleaner UI */}
+
+                  <LoadedContent loading={false} error={result.error}>
+                    <SceneList
+                      filter={effectiveFilter}
+                      scenes={items}
+                      selectedIds={selectedIds}
+                      onSelectChange={onSelectChange}
+                      fromGroupId={fromGroupId}
+                      loading={result.loading}
+                    />
+                  </LoadedContent>
+
+                  {totalCount > filter.itemsPerPage && (
+                    <Box display="flex" justifyContent="center" mt={4}>
+                      <div className="pagination-footer">
+                        <Pagination
                           itemsPerPage={filter.itemsPerPage}
                           currentPage={filter.currentPage}
                           totalItems={totalCount}
-                          metadataByline={metadataByline}
+                          onChangePage={setPage}
+                          pagePopupPlacement="top"
                         />
-                      </Box>
+                        <Box textAlign="center" mt={1}>
+                          <PaginationIndex
+                            itemsPerPage={filter.itemsPerPage}
+                            currentPage={filter.currentPage}
+                            totalItems={totalCount}
+                            metadataByline={metadataByline}
+                          />
+                        </Box>
+                      </div>
                     </Box>
-                  </Box>
-                )}
-              </>
-
-              <FilterTags
-                criteria={filter.criteria}
-                onEditCriterion={(c) => showEditFilter(c.criterionOption.type)}
-                onRemoveCriterion={removeCriterion}
-                onRemoveAll={clearAllCriteria}
-              />
-
-              {/* Top Pagination removed for cleaner UI */}
-
-              <LoadedContent loading={false} error={result.error}>
-                <SceneList
-                  filter={effectiveFilter}
-                  scenes={items}
-                  selectedIds={selectedIds}
-                  onSelectChange={onSelectChange}
-                  fromGroupId={fromGroupId}
-                  loading={result.loading}
-                />
-              </LoadedContent>
-
-              {totalCount > filter.itemsPerPage && (
-                <Box display="flex" justifyContent="center" mt={4}>
-                  <div className="pagination-footer">
-                    <Pagination
-                      itemsPerPage={filter.itemsPerPage}
-                      currentPage={filter.currentPage}
-                      totalItems={totalCount}
-                      onChangePage={setPage}
-                      pagePopupPlacement="top"
-                    />
-                    <Box textAlign="center" mt={1}>
-                      <PaginationIndex
-                        itemsPerPage={filter.itemsPerPage}
-                        currentPage={filter.currentPage}
-                        totalItems={totalCount}
-                        metadataByline={metadataByline}
-                      />
-                    </Box>
-                  </div>
+                  )}
                 </Box>
-              )}
+              </>
             </SidebarPaneContent>
           </SidebarPane>
         </SidebarStateContext.Provider>

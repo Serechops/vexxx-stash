@@ -130,7 +130,15 @@ const PerformerCardOverlays: React.FC<IPerformerCardProps> = PatchComponent(
             favorite={performer.favorite}
             onToggleFavorite={onToggleFavorite}
             size="1x"
-            className={cx("transition-colors drop-shadow-md", { "text-red-500": performer.favorite, "text-white/50 hover:text-white": !performer.favorite })}
+            className="transition-colors drop-shadow-md"
+            sx={{
+              color: performer.favorite
+                ? "#ff5252 !important"
+                : "rgba(255, 255, 255, 0.5)",
+              "&:hover": {
+                color: performer.favorite ? "#ff1744 !important" : "#ffffff",
+              },
+            }}
           />
         </Box>
 

@@ -21,6 +21,7 @@ export const PerformersHero: React.FC = () => {
                 sort: "random",
             },
         },
+        fetchPolicy: "no-cache",
     });
 
     const performers = (data?.findPerformers?.performers || []).filter(p => p.image_path);

@@ -8,7 +8,8 @@ export const FavoriteIcon: React.FC<{
   onToggleFavorite: (v: boolean) => void;
   size?: "small" | "medium" | "large" | "1x" | "2x";
   className?: string;
-}> = ({ favorite, onToggleFavorite, size = "small", className }) => {
+  sx?: any;
+}> = ({ favorite, onToggleFavorite, size = "small", className, sx }) => {
   // map legacy font-awesome sizes to MUI fontSize values
   const fontSize: "small" | "medium" | "large" =
     size === "1x" ? "small" : size === "2x" ? "large" : (size as any);
@@ -24,8 +25,12 @@ export const FavoriteIcon: React.FC<{
         className,
         favorite ? "favorite" : "not-favorite"
       )}
-      onClick={() => onToggleFavorite!(!favorite)}
+      onClick={(e) => {
+        e.stopPropagation();
+        onToggleFavorite!(!favorite);
+      }}
       size={buttonSize}
+      sx={sx}
     >
       <FavoriteIconMui fontSize={fontSize} />
     </IconButton>

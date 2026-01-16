@@ -287,7 +287,7 @@ export const MainNavbar: React.FC = () => {
   function renderUtilityButtons() {
     return (
       <>
-        <Tooltip title={intl.formatMessage({ id: "donate" })}>
+        <Tooltip title={intl.formatMessage({ id: "Support Me" })}>
           <IconButton
             component="a"
             href="https://www.patreon.com/c/Creat1veB1te"

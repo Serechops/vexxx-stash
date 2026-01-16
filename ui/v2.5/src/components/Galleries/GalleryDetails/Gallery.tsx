@@ -66,7 +66,6 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
   const { configuration } = useConfigurationContext();
   const showLightbox = useGalleryLightbox(gallery.id, gallery.chapters);
 
-  const [collapsed, setCollapsed] = useState(false);
 
   const [activeTabKey, setActiveTabKey] = useState("gallery-details-panel");
   const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
@@ -129,9 +128,6 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
     }
   };
 
-  function getCollapseButtonIcon() {
-    return collapsed ? faChevronRight : faChevronLeft;
-  }
 
   async function onRescan() {
     if (!gallery || !path) {
@@ -212,7 +208,15 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
           anchorEl={menuAnchorEl}
           open={menuOpen}
           onClose={handleMenuClose}
-          className="bg-secondary text-white"
+          disableScrollLock
+          slotProps={{
+            paper: {
+              sx: {
+                bgcolor: "background.paper",
+                color: "text.primary",
+              },
+            },
+          }}
         >
           {path && (
             <MenuItem
@@ -380,21 +384,19 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
     Mousetrap.bind("c", () => setActiveTabKey("gallery-chapter-panel"));
     Mousetrap.bind("e", () => setActiveTabKey("gallery-edit-panel"));
     Mousetrap.bind("f", () => setActiveTabKey("gallery-file-info-panel"));
-    Mousetrap.bind(",", () => setCollapsed(!collapsed));
 
     return () => {
       Mousetrap.unbind("a");
       Mousetrap.unbind("c");
       Mousetrap.unbind("e");
       Mousetrap.unbind("f");
-      Mousetrap.unbind(",");
     };
   });
 
   const title = galleryTitle(gallery);
 
   return (
-    <Row>
+    <Box sx={{ display: "flex", flexWrap: "wrap", mx: -1.75 }}>
       <Helmet>
         <title>{title}</title>
       </Helmet>
@@ -402,17 +404,17 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
       <Box
         className="gallery-tabs"
         sx={{
+          flex: { xl: "0 0 450px" },
+          maxWidth: { xl: "450px" },
           maxHeight: "calc(100vh - 4rem)",
           overflow: "auto",
           overflowWrap: "break-word",
           wordWrap: "break-word",
+          order: { xs: 2, xl: 1 },
           pl: "15px",
           pr: "15px",
           position: "relative",
           width: "100%",
-          display: collapsed ? "none" : "block",
-          flex: { xl: "0 0 450px" },
-          maxWidth: { xl: "450px" },
         }}
       >
         <Box>
@@ -425,12 +427,14 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
             }}
           >
             {gallery.studio && (
-              <Typography
-                variant="h1"
+              <Box
+                className="gallery-studio-image"
                 sx={{
-                  textAlign: "center",
                   flex: { lg: "0 0 25%" },
                   order: { lg: 2 },
+                  display: "flex",
+                  justifyContent: "center",
+                  mb: { xs: 2, lg: 0 },
                   "& img": {
                     maxHeight: "100%",
                     maxWidth: "100%",
@@ -445,7 +449,7 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
                     className="studio-logo"
                   />
                 </Link>
-              </Typography>
+              </Box>
             )}
             <Typography
               variant="h3"
@@ -467,120 +471,89 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
             sx={{
               display: "flex",
               justifyContent: "space-between",
-              mt: 1
+              mt: 1,
             }}
           >
-            {!!gallery.date && (
-              <Box
-                component="span"
-                className="date"
-                sx={{ color: "text.secondary" }}
-                data-value={gallery.date}
-              >
-                <FormattedDate value={gallery.date} />
-              </Box>
-            )}
+            <Box
+              component="span"
+              className="date"
+              sx={{ color: "text.secondary" }}
+              data-value={gallery.date}
+            >
+              {!!gallery.date && <FormattedDate value={gallery.date} />}
+            </Box>
           </Box>
+        </Box>
 
+        <Box
+          className="gallery-toolbar"
+          sx={{
+            alignItems: "center",
+            display: "flex",
+            justifyContent: "space-between",
+            mb: 1,
+            mt: 1,
+            pb: 1,
+            width: "100%",
+          }}
+        >
           <Box
-            className="gallery-toolbar"
+            component="span"
+            className="gallery-toolbar-group"
             sx={{
               alignItems: "center",
+              columnGap: 1,
               display: "flex",
-              justifyContent: "space-between",
-              mb: 0.5,
-              mt: 1,
-              pb: 0.5,
               width: "100%",
             }}
           >
-            <Box
-              component="span"
-              className="gallery-toolbar-group"
-              sx={{
-                alignItems: "center",
-                columnGap: 1,
-                display: "flex",
-                width: "100%",
-              }}
-            >
-              <RatingSystem
-                value={gallery.rating100}
-                onSetRating={setRating}
-                clickToRate
-                withoutContext
+            <RatingSystem
+              value={gallery.rating100}
+              onSetRating={setRating}
+              clickToRate
+              withoutContext
+            />
+          </Box>
+          <Box
+            component="span"
+            className="gallery-toolbar-group"
+            sx={{
+              alignItems: "center",
+              columnGap: 1,
+              display: "flex",
+              width: "100%",
+              justifyContent: "flex-end",
+            }}
+          >
+            <Box component="span">
+              <OrganizedButton
+                loading={organizedLoading}
+                organized={gallery.organized}
+                onClick={onOrganizedClick}
               />
             </Box>
-            <Box
-              component="span"
-              className="gallery-toolbar-group"
-              sx={{
-                alignItems: "center",
-                columnGap: 1,
-                display: "flex",
-                width: "100%",
-                justifyContent: "flex-end",
-              }}
-            >
-              <Box component="span">
-                <OrganizedButton
-                  loading={organizedLoading}
-                  organized={gallery.organized}
-                  onClick={onOrganizedClick}
-                />
-              </Box>
-              <Box component="span">{renderOperations()}</Box>
-            </Box>
+            <Box component="span">{renderOperations()}</Box>
           </Box>
         </Box>
         {renderTabs()}
       </Box>
       <Box
-        className="gallery-divider"
-        sx={{
-          display: { xs: "none", xl: "flex" },
-          flex: "0 0 15px",
-          maxWidth: "15px",
-          "& button": {
-            backgroundColor: "transparent",
-            border: 0,
-            color: "primary.main",
-            cursor: "pointer",
-            fontSize: "10px",
-            fontWeight: 800,
-            height: "100%",
-            lineHeight: "100%",
-            padding: 0,
-            textAlign: "center",
-            width: "100%",
-            "&:active, &:focus": {
-              backgroundColor: "transparent",
-              border: 0,
-              boxShadow: "none",
-            },
-          },
-        }}
-      >
-        <Button variant="text" onClick={() => setCollapsed(!collapsed)}>
-          <Icon className="fa-fw" icon={getCollapseButtonIcon()} />
-        </Button>
-      </Box>
-      <Box
         className="gallery-container"
         sx={{
-          flex: { xl: collapsed ? "0 0 calc(100% - 15px)" : "0 0 calc(100% - 450px - 15px)" },
+          flex: { xl: "0 0 calc(100% - 450px)" },
           height: { xl: "calc(100vh - 4rem)" },
-          maxWidth: { xl: collapsed ? "calc(100% - 15px)" : "calc(100% - 450px - 15px)" },
+          maxWidth: { xl: "calc(100% - 450px)" },
           overflow: "auto",
           pl: "15px",
           pr: "15px",
           position: "relative",
           width: "100%",
+          order: { xs: 1, xl: 2 }
         }}
       >
         {renderRightTabs()}
       </Box>
-    </Row>
+    </Box>
   );
 };
 

@@ -186,6 +186,7 @@ const ImagePage: React.FC<IProps> = ({ image }) => {
           anchorEl={anchorEl}
           open={menuOpen}
           onClose={() => setAnchorEl(null)}
+          disableScrollLock
         >
           <MenuItem
             onClick={() => {

@@ -418,6 +418,7 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
         anchorEl={operationsAnchorEl}
         open={operationsMenuOpen}
         onClose={handleOperationsClose}
+        disableScrollLock
       >
         {!!scene.files.length && (
           <MenuItem

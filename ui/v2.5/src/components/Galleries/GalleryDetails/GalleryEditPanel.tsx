@@ -457,14 +457,16 @@ export const GalleryEditPanel: React.FC<IProps> = ({
             >
               <FormattedMessage id="actions.save" />
             </Button>
-            <Button
-              className="edit-button"
-              variant="contained"
-              color="error"
-              onClick={() => onDelete()}
-            >
-              <FormattedMessage id="actions.delete" />
-            </Button>
+            {onDelete && (
+              <Button
+                className="edit-button"
+                variant="outlined"
+                color="error"
+                onClick={() => onDelete()}
+              >
+                <FormattedMessage id="actions.delete" />
+              </Button>
+            )}
           </div>
           <div className="ml-auto text-right d-flex">
             {!isNew && (

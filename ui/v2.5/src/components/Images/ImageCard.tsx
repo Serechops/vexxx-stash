@@ -174,6 +174,9 @@ export const ImageCard: React.FC<IImageCardProps> = PatchComponent(
         )}
         sx={{
           "& .card-section": { display: "none" },
+          "&:hover .preview-button": {
+            opacity: 1,
+          },
           borderRadius: "12px",
           overflow: "hidden",
           boxShadow: 1,
@@ -227,16 +230,32 @@ export const ImageCard: React.FC<IImageCardProps> = PatchComponent(
                   className="preview-button"
                   sx={{
                     position: "absolute",
-                    top: 5,
-                    right: 5,
-                    zIndex: 2
+                    top: "50%",
+                    left: "50%",
+                    transform: "translate(-50%, -50%)",
+                    zIndex: 2,
+                    opacity: 0,
+                    transition: "opacity 0.2s ease-in-out",
                   }}
                 >
-                  <Button onClick={props.onPreview} variant="contained" size="small" sx={{ minWidth: "auto", p: 0.5 }}>
+                  <Button
+                    onClick={props.onPreview}
+                    size="small"
+                    sx={{
+                      minWidth: "auto",
+                      p: 1,
+                      bgcolor: "rgba(0,0,0,0)",
+                      color: "white",
+                      "&:hover": {
+                        bgcolor: "rgba(0,0,0,0)",
+                      },
+                    }}
+                  >
                     <Icon icon={faSearch} />
                   </Button>
                 </Box>
               ) : undefined}
+
             </Box>
           }
           details={undefined}

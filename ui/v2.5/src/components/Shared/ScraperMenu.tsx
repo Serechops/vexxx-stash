@@ -70,6 +70,7 @@ export const ScraperMenu: React.FC<{
           anchorEl={anchorEl}
           open={open}
           onClose={handleClose}
+          disableScrollLock
         >
           <Box className="scraper-filter-container" sx={{ p: 1, display: 'flex', gap: 1 }}>
             <ClearableInput

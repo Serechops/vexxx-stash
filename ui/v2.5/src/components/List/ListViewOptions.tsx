@@ -146,6 +146,7 @@ export const ListViewOptions: React.FC<IListViewOptionsProps> = ({
         open={showOptions}
         anchorEl={anchorEl}
         onClose={handleClose}
+        disableScrollLock
         anchorOrigin={{
           vertical: "bottom",
           horizontal: "left",

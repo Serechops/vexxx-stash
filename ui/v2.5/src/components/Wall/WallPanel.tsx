@@ -1,4 +1,5 @@
 import React, { MouseEvent } from "react";
+import { Box } from "@mui/material";
 import * as GQL from "src/core/generated-graphql";
 import { SceneQueue } from "src/models/sceneQueue";
 import { WallItem, WallItemData, WallItemType } from "./WallItem";
@@ -10,25 +11,30 @@ interface IWallPanelProps<T extends WallItemType> {
   clickHandler?: (e: MouseEvent, item: WallItemData[T]) => void;
 }
 
-const calculateClass = (index: number, count: number) => {
-  // First position and more than one row
-  if (index === 0 && count > 5) return "transform-origin-top-left";
-  // Fifth position and more than one row
-  if (index === 4 && count > 5) return "transform-origin-top-right";
-  // Top row
-  if (index < 5) return "transform-origin-top";
-  // Two or more rows, with full last row and index is last
-  if (count > 9 && count % 5 === 0 && index + 1 === count)
-    return "transform-origin-bottom-right";
-  // Two or more rows, with full last row and index is fifth to last
-  if (count > 9 && count % 5 === 0 && index + 5 === count)
-    return "transform-origin-bottom-left";
-  // Multiple of five minus one
-  if (index % 5 === 4) return "transform-origin-right";
-  // Multiple of five
-  if (index % 5 === 0) return "transform-origin-left";
-  // Position is equal or larger than first position in last row
-  if (count - (count % 5 || 5) <= index + 1) return "transform-origin-bottom";
+import { useZoomContext } from "src/hooks/ZoomContext";
+import { maxZoom } from "src/components/List/ZoomSlider";
+
+const calculateClass = (index: number, count: number, columns: number) => {
+  const isFirstColumn = index % columns === 0;
+  const isLastColumn = index % columns === columns - 1;
+  const isFirstRow = index < columns;
+
+  // Calculate the index of the first item in the last row
+  const lastRowStartIndex = count - (count % columns || columns);
+  const isLastRow = index >= lastRowStartIndex;
+
+  // Corner cases
+  if (index === 0 && !isLastRow) return "transform-origin-top-left";
+  if (index === columns - 1 && !isLastRow) return "transform-origin-top-right";
+  if (isLastRow && index === lastRowStartIndex + columns - 1) return "transform-origin-bottom-right"; // Last item, full row
+  if (isLastRow && index === lastRowStartIndex) return "transform-origin-bottom-left";
+
+  // Edges
+  if (isFirstRow) return "transform-origin-top";
+  if (isLastRow) return "transform-origin-bottom";
+  if (isLastColumn) return "transform-origin-right";
+  if (isFirstColumn) return "transform-origin-left";
+
   // Default
   return "transform-origin-center";
 };
@@ -39,6 +45,14 @@ const WallPanel = <T extends WallItemType>({
   sceneQueue,
   clickHandler,
 }: IWallPanelProps<T>) => {
+  const { getZoom } = useZoomContext();
+  const zoomMode = type === "sceneMarker" ? GQL.FilterMode.SceneMarkers : GQL.FilterMode.Scenes;
+  const zoomIndex = getZoom(zoomMode);
+
+  // Standard Wall is 5 columns, but customized to 6-wide (zoom 0) down to 2-wide (zoom 4)
+  // Maps zoom index to columns: 0->6, 1->5, 2->4, 3->3, 4->2
+  const columns = Math.max(2, 6 - zoomIndex);
+
   function renderItems() {
     return data.map((item, index, arr) => (
       <WallItem
@@ -48,18 +62,31 @@ const WallPanel = <T extends WallItemType>({
         data={item}
         sceneQueue={sceneQueue}
         clickHandler={clickHandler}
-        className={calculateClass(index, arr.length)}
+        className={calculateClass(index, arr.length, columns)}
+        zoomIndex={zoomIndex}
+        columns={columns}
       />
     ));
   }
 
   return (
-    <div className="row">
-      <div className="wall w-100 row justify-content-center">
+
+    <Box className="row">
+      <Box
+        className="stash-wall w-100 row justify-content-center"
+        sx={{
+          margin: "0 auto",
+          maxWidth: 2250,
+          display: "flex",
+          flexWrap: "wrap",
+          justifyContent: "center",
+        }}
+      >
         {renderItems()}
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
+
 };
 
 interface IMarkerWallPanelProps {

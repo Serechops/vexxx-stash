@@ -19,6 +19,7 @@ const CLASSNAME_IMG_CONTAIN = `${CLASSNAME}-img-contain`;
 
 interface IProps {
   gallery: GQL.SlimGalleryDataFragment;
+  zoomIndex?: number;
 }
 
 type Orientation = "landscape" | "portrait";
@@ -27,7 +28,10 @@ function getOrientation(width: number, height: number): Orientation {
   return width > height ? "landscape" : "portrait";
 }
 
-const GalleryWallCard: React.FC<IProps> = ({ gallery }) => {
+// Heights in vh for zoom levels 0-4 (6 columns -> 2 columns approx)
+const ZOOM_HEIGHTS = [15, 20, 25, 33, 50];
+
+const GalleryWallCard: React.FC<IProps> = ({ gallery, zoomIndex = 0 }) => {
   const intl = useIntl();
   const [coverOrientation, setCoverOrientation] =
     React.useState<Orientation>("landscape");
@@ -70,20 +74,24 @@ const GalleryWallCard: React.FC<IProps> = ({ gallery }) => {
   const imgClassname =
     imageOrientation !== coverOrientation ? CLASSNAME_IMG_CONTAIN : "";
 
+  const zoomHeight = ZOOM_HEIGHTS[zoomIndex] ?? 20;
+
   return (
     <Box
       component="section"
-      className={`${CLASSNAME} ${CLASSNAME}-${coverOrientation}`}
+      className={cx(CLASSNAME, `${CLASSNAME}-${coverOrientation}`, "stash-gallery-wall-card")}
       onClick={showLightboxStart}
       onKeyPress={showLightboxStart}
       role="button"
       tabIndex={0}
       sx={{
-        height: "auto",
+        height: `${zoomHeight}vh`,
         padding: "2px",
         position: "relative",
         flexGrow: coverOrientation === "landscape" ? 2 : 1,
-        width: "96vw",
+        width: "auto",
+        minWidth: "150px", // Prevent too small squish
+        maxWidth: "96vw", // Prevent overflow on single item
         "& .rating-stars, & .rating-number": {
           position: "absolute",
           right: "1rem",

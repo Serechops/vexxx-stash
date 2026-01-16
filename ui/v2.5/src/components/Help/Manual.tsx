@@ -3,8 +3,6 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
-  Container,
-  Grid,
   Tabs,
   Tab,
   Box,
@@ -230,19 +228,29 @@ export const Manual: React.FC<IManualProps> = ({
         </Box>
       </DialogTitle>
       <DialogContent dividers sx={{ p: 0, height: '80vh' }}>
-        <Grid container sx={{ height: '100%' }}>
-          <Grid size={{ xs: 12, md: 3 }} sx={{ borderRight: 1, borderColor: 'divider', overflowY: 'auto' }}>
+        <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, height: "100%" }}>
+          <Box
+            sx={{
+              width: { xs: "100%", md: "25%" },
+              borderRight: 1,
+              borderColor: "divider",
+              overflowY: "auto",
+              height: { xs: "auto", md: "100%" },
+              maxHeight: { xs: "40vh", md: "100%" }, // Limit tab height on mobile
+              flexShrink: 0
+            }}
+          >
             <Tabs
-              orientation="vertical"
+              orientation={isSmallScreen ? "horizontal" : "vertical"}
               variant="scrollable"
               value={activeTab}
               onChange={handleTabChange}
               aria-label="Manual navigation"
               sx={{
-                '& .MuiTab-root': {
-                  alignItems: 'flex-start',
-                  textAlign: 'left',
-                  textTransform: 'none',
+                "& .MuiTab-root": {
+                  alignItems: "flex-start",
+                  textAlign: "left",
+                  textTransform: "none",
                 },
               }}
             >
@@ -252,20 +260,31 @@ export const Manual: React.FC<IManualProps> = ({
                   label={c.title}
                   value={c.key}
                   sx={{
-                    pl: c.className === 'indent-1' ? 4 : 2
+                    pl: c.className === "indent-1" ? 4 : 2,
+                    borderBottom: 1,
+                    borderColor: "divider"
                   }}
                 />
               ))}
             </Tabs>
-          </Grid>
-          <Grid size={{ xs: 12, md: 9 }} sx={{ overflowY: 'auto', p: 3 }} onClick={interceptLinkClick}>
+          </Box>
+          <Box
+            sx={{
+              width: { xs: "100%", md: "75%" },
+              overflowY: "auto",
+              p: 3,
+              height: { xs: "auto", md: "100%" },
+              flexGrow: 1
+            }}
+            onClick={interceptLinkClick}
+          >
             {activeContent && (
               <Box>
                 <MarkdownPage page={activeContent.content} />
               </Box>
             )}
-          </Grid>
-        </Grid>
+          </Box>
+        </Box>
       </DialogContent>
     </Dialog>
   );

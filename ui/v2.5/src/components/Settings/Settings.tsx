@@ -6,7 +6,6 @@ import {
   Box,
   Container,
   FormControlLabel,
-  Grid,
   Switch,
   Tab,
   Tabs,
@@ -57,7 +56,7 @@ const SettingTabs: React.FC<{ tab: TabKey }> = ({ tab }) => {
   const theme = useTheme();
   // Responsive sidebar: on small screens, tabs could be horizontal or simpler.
   // Original bootstrap used Col sm={3} md={3} xl={2} for sidebar.
-  const isSmallScreen = useMediaQuery(theme.breakpoints.down('sm'));
+  const isSmallScreen = useMediaQuery(theme.breakpoints.down('md'));
 
   const titleProps = useTitleProps({ id: "settings" });
 
@@ -80,115 +79,136 @@ const SettingTabs: React.FC<{ tab: TabKey }> = ({ tab }) => {
   };
 
   return (
-    <Container maxWidth="xl" sx={{ mt: 3 }}>
+    <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, height: "calc(100vh - 64px)" }}>
       <Helmet {...titleProps} />
-      <Grid container spacing={3}>
-        <Grid size={{ xs: 12, sm: 3, md: 3, xl: 2 }}>
-          <Tabs
-            orientation={isSmallScreen ? "horizontal" : "vertical"}
-            variant="scrollable"
-            value={tab}
-            sx={{
-              borderRight: isSmallScreen ? 0 : 1,
-              borderBottom: isSmallScreen ? 1 : 0,
-              borderColor: 'divider',
-              mb: isSmallScreen ? 2 : 0
-            }}
-          >
-            <Tab
-              label={<FormattedMessage id="config.categories.tasks" />}
-              value="tasks"
-              component={Link}
-              to="/settings?tab=tasks"
-            />
-            <Tab
-              label={<FormattedMessage id="library" />}
-              value="library"
-              component={Link}
-              to="/settings?tab=library"
-            />
-            <Tab
-              label={<FormattedMessage id="config.categories.interface" />}
-              value="interface"
-              component={Link}
-              to="/settings?tab=interface"
-            />
-            <Tab
-              label={<FormattedMessage id="config.categories.security" />}
-              value="security"
-              component={Link}
-              to="/settings?tab=security"
-            />
-            <Tab
-              label={<FormattedMessage id="config.categories.metadata_providers" />}
-              value="metadata-providers"
-              component={Link}
-              to="/settings?tab=metadata-providers"
-            />
-            <Tab
-              label={<FormattedMessage id="config.categories.services" />}
-              value="services"
-              component={Link}
-              to="/settings?tab=services"
-            />
-            <Tab
-              label={<FormattedMessage id="config.categories.system" />}
-              value="system"
-              component={Link}
-              to="/settings?tab=system"
-            />
-            <Tab
-              label={<FormattedMessage id="config.categories.plugins" />}
-              value="plugins"
-              component={Link}
-              to="/settings?tab=plugins"
-            />
-            <Tab
-              label={<FormattedMessage id="config.categories.logs" />}
-              value="logs"
-              component={Link}
-              to="/settings?tab=logs"
-            />
-            <Tab
-              label={<FormattedMessage id="config.categories.tools" />}
-              value="tools"
-              component={Link}
-              to="/settings?tab=tools"
-            />
-            <Tab
-              label={<FormattedMessage id="config.categories.changelog" />}
-              value="changelog"
-              component={Link}
-              to="/settings?tab=changelog"
-            />
-            <Tab
-              label={<FormattedMessage id="config.categories.about" />}
-              value="about"
-              component={Link}
-              to="/settings?tab=about"
-            />
-          </Tabs>
+      <Box
+        sx={{
+          width: { xs: "100%", md: "250px", lg: "300px" },
+          borderRight: { xs: 0, md: 1 },
+          borderBottom: { xs: 1, md: 0 },
+          borderColor: "divider",
+          overflowY: { xs: "hidden", md: "auto" },
+          display: "flex",
+          flexDirection: "column",
+          flexShrink: 0
+        }}
+      >
+        <Tabs
+          orientation={isSmallScreen ? "horizontal" : "vertical"}
+          variant="scrollable"
+          value={tab}
+          allowScrollButtonsMobile
+          scrollButtons="auto"
+          sx={{
+            flexGrow: 1,
+            "& .MuiTab-root": {
+              alignItems: isSmallScreen ? "center" : "flex-start",
+              textAlign: isSmallScreen ? "center" : "left",
+              textTransform: "none",
+              minHeight: 48,
+            },
+          }}
+        >
+          <Tab
+            label={<FormattedMessage id="config.categories.tasks" />}
+            value="tasks"
+            component={Link}
+            to="/settings?tab=tasks"
+          />
+          <Tab
+            label={<FormattedMessage id="library" />}
+            value="library"
+            component={Link}
+            to="/settings?tab=library"
+          />
+          <Tab
+            label={<FormattedMessage id="config.categories.interface" />}
+            value="interface"
+            component={Link}
+            to="/settings?tab=interface"
+          />
+          <Tab
+            label={<FormattedMessage id="config.categories.security" />}
+            value="security"
+            component={Link}
+            to="/settings?tab=security"
+          />
+          <Tab
+            label={<FormattedMessage id="config.categories.metadata_providers" />}
+            value="metadata-providers"
+            component={Link}
+            to="/settings?tab=metadata-providers"
+          />
+          <Tab
+            label={<FormattedMessage id="config.categories.services" />}
+            value="services"
+            component={Link}
+            to="/settings?tab=services"
+          />
+          <Tab
+            label={<FormattedMessage id="config.categories.system" />}
+            value="system"
+            component={Link}
+            to="/settings?tab=system"
+          />
+          <Tab
+            label={<FormattedMessage id="config.categories.plugins" />}
+            value="plugins"
+            component={Link}
+            to="/settings?tab=plugins"
+          />
+          <Tab
+            label={<FormattedMessage id="config.categories.logs" />}
+            value="logs"
+            component={Link}
+            to="/settings?tab=logs"
+          />
+          <Tab
+            label={<FormattedMessage id="config.categories.tools" />}
+            value="tools"
+            component={Link}
+            to="/settings?tab=tools"
+          />
+          <Tab
+            label={<FormattedMessage id="config.categories.changelog" />}
+            value="changelog"
+            component={Link}
+            to="/settings?tab=changelog"
+          />
+          <Tab
+            label={<FormattedMessage id="config.categories.about" />}
+            value="about"
+            component={Link}
+            to="/settings?tab=about"
+          />
+        </Tabs>
 
-          <Box sx={{ mt: 2, px: 2 }}>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={advancedMode}
-                  onChange={() => setAdvancedMode(!advancedMode)}
-                />
-              }
-              label={<FormattedMessage id="config.advanced_mode" />}
-            />
-          </Box>
-        </Grid>
+        <Box sx={{ p: 2, borderTop: 1, borderColor: "divider" }}>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={advancedMode}
+                onChange={() => setAdvancedMode(!advancedMode)}
+              />
+            }
+            label={<FormattedMessage id="config.advanced_mode" />}
+          />
+        </Box>
+      </Box>
 
-        <Grid size={{ xs: 12, sm: 9, md: 9, xl: 10 }}>
-          <Box sx={{ p: 0 }}>
-            {renderContent()}
-          </Box>
-        </Grid>
-      </Grid>
-    </Container>
+      <Box
+        sx={{
+          flexGrow: 1,
+          overflowY: "auto",
+          p: 3,
+          backgroundColor: (theme) => theme.palette.background.default
+        }}
+      >
+        <Container maxWidth="xl" sx={{ p: 0 }}>
+          {renderContent()}
+        </Container>
+      </Box>
+    </Box>
   );
 };
 

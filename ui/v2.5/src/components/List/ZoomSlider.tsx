@@ -3,7 +3,7 @@ import Mousetrap from "mousetrap";
 import { Slider } from "@mui/material";
 
 const minZoom = 0;
-const maxZoom = 4;
+export const maxZoom = 4;
 
 export function useZoomKeybinds(props: {
   zoomIndex: number | undefined;

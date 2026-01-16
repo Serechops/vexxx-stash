@@ -486,75 +486,88 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
   );
 
   const renderTabs = () => (
-    <Box>
-      <ScenePageTabs {...props}>
-        <Tabs
-          value={activeTabKey}
-          onChange={(_, newValue: string) => setActiveTabKey(newValue)}
-          variant="scrollable"
-          scrollButtons="auto"
-          className="mr-auto"
-          sx={{
-            ml: -1.5,
-            '& .MuiTabs-flexContainer': {
-              justifyContent: 'flex-start',
-            },
-            '& .MuiTabs-scroller': {
-              marginLeft: 0,
-              paddingLeft: 0,
-            },
-            '& .MuiButtonBase-root:first-of-type': {
-              paddingLeft: 0,
-              marginLeft: 0,
-            },
-          }}
-        >
-          <Tab
-            value="scene-details-panel"
-            label={<FormattedMessage id="details" />}
+    <Box sx={{ display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
+      <Box
+        sx={{
+          position: "sticky",
+          top: -16, // Accounts for parent Box p: 2
+          zIndex: 10,
+          backgroundColor: "background.paper",
+          mx: -2, // Pull back padding of parent
+          px: 2, // Re-add padding inside sticky container
+          borderBottom: 1,
+          borderColor: "divider",
+        }}
+      >
+        <ScenePageTabs {...props}>
+          <Tabs
+            value={activeTabKey}
+            onChange={(_, newValue: string) => setActiveTabKey(newValue)}
+            variant="scrollable"
+            scrollButtons="auto"
+            allowScrollButtonsMobile
             sx={{
-              pl: 0,
-              ml: 0,
-              minWidth: 'auto',
-              '&.Mui-selected': { pl: 0 }
+              ml: -1.5,
+              "& .MuiTabs-flexContainer": {
+                justifyContent: "flex-start",
+              },
+              "& .MuiTabs-scroller": {
+                marginLeft: 0,
+                paddingLeft: 0,
+              },
+              "& .MuiButtonBase-root:first-of-type": {
+                paddingLeft: 0,
+                marginLeft: 0,
+              },
             }}
-          />
-          {queueScenes.length > 0 && (
-            <Tab value="scene-queue-panel" label={<FormattedMessage id="queue" />} />
-          )}
-          <Tab value="scene-markers-panel" label={<FormattedMessage id="markers" />} />
-          {scene.groups.length > 0 && (
+          >
             <Tab
-              value="scene-group-panel"
-              label={<FormattedMessage id="countables.groups" values={{ count: scene.groups.length }} />}
+              value="scene-details-panel"
+              label={<FormattedMessage id="details" />}
+              sx={{
+                pl: 0,
+                ml: 0,
+                minWidth: 'auto',
+                '&.Mui-selected': { pl: 0 }
+              }}
             />
-          )}
-          {scene.galleries.length >= 1 && (
+            {queueScenes.length > 0 && (
+              <Tab value="scene-queue-panel" label={<FormattedMessage id="queue" />} />
+            )}
+            <Tab value="scene-markers-panel" label={<FormattedMessage id="markers" />} />
+            {scene.groups.length > 0 && (
+              <Tab
+                value="scene-group-panel"
+                label={<FormattedMessage id="countables.groups" values={{ count: scene.groups.length }} />}
+              />
+            )}
+            {scene.galleries.length >= 1 && (
+              <Tab
+                value="scene-galleries-panel"
+                label={<FormattedMessage id="countables.galleries" values={{ count: scene.galleries.length }} />}
+              />
+            )}
+            {scene.files.length > 0 && (
+              <Tab
+                value="scene-segments-panel"
+                label={<FormattedMessage id="segments" defaultMessage="Segments" />}
+              />
+            )}
+            <Tab value="scene-video-filter-panel" label={<FormattedMessage id="effect_filters.name" />} />
             <Tab
-              value="scene-galleries-panel"
-              label={<FormattedMessage id="countables.galleries" values={{ count: scene.galleries.length }} />}
+              value="scene-file-info-panel"
+              label={
+                <>
+                  <FormattedMessage id="file_info" />
+                  <Counter count={scene.files.length} hideZero hideOne />
+                </>
+              }
             />
-          )}
-          {scene.files.length > 0 && (
-            <Tab
-              value="scene-segments-panel"
-              label={<FormattedMessage id="segments" defaultMessage="Segments" />}
-            />
-          )}
-          <Tab value="scene-video-filter-panel" label={<FormattedMessage id="effect_filters.name" />} />
-          <Tab
-            value="scene-file-info-panel"
-            label={
-              <>
-                <FormattedMessage id="file_info" />
-                <Counter count={scene.files.length} hideZero hideOne />
-              </>
-            }
-          />
-          <Tab value="scene-history-panel" label={<FormattedMessage id="history" />} />
-          <Tab value="scene-edit-panel" label={<FormattedMessage id="actions.edit" />} />
-        </Tabs>
-      </ScenePageTabs>
+            <Tab value="scene-history-panel" label={<FormattedMessage id="history" />} />
+            <Tab value="scene-edit-panel" label={<FormattedMessage id="actions.edit" />} />
+          </Tabs>
+        </ScenePageTabs>
+      </Box>
 
       <ScenePageTabContent {...props}>
         <Box hidden={activeTabKey !== "scene-details-panel"}>
@@ -642,11 +655,14 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
         sx={{
           display: "flex",
           flexDirection: "column",
-          maxHeight: "calc(100vh - 4rem)",
-          wordBreak: "break-word",
-          order: { xs: 2, xl: 1 }, // order-last and order-xl-first
-          "&.collapsed": {
-            display: "none", // Assuming collapsed behavior from styles.scss
+          width: "100%",
+          boxSizing: "border-box",
+          p: 2,
+          overflow: "visible", // Override legacy SCSS
+          height: "auto",      // Ensure it expands
+          "& .tab-content": {
+            overflow: "visible !important",
+            height: "auto !important",
           }
         }}
       >
@@ -771,20 +787,6 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
           </Box>
         </Box>
         {renderTabs()}
-      </Box>
-
-      <Box
-        className="scene-divider"
-        sx={{
-          display: { xs: "none", xl: "flex" },
-          alignItems: "center",
-          justifyContent: "center",
-          my: 1
-        }}
-      >
-        <IconButton onClick={() => setCollapsed(!collapsed)}>
-          {getCollapseButtonIcon()}
-        </IconButton>
       </Box>
       <SubmitStashBoxDraft
         type="scene"
@@ -1065,26 +1067,63 @@ const SceneLoader: React.FC<RouteComponentProps<ISceneParams>> = ({
   const isSegment = (scene?.start_point !== null && scene?.start_point !== undefined && scene.start_point > 0) || (scene?.end_point !== null && scene?.end_point !== undefined && scene.end_point > 0);
 
   return (
-    <div className="row">
-      <ScenePage
-        scene={scene}
-        setTimestamp={setTimestamp}
-        queueScenes={queueScenes}
-        queueStart={queueStart}
-        onDelete={onDelete}
-        onQueueNext={() => queueNext(autoPlayOnSelected)}
-        onQueuePrevious={() => queuePrevious(autoPlayOnSelected)}
-        onQueueRandom={() => queueRandom(autoPlayOnSelected)}
-        onQueueSceneClicked={onQueueSceneClicked}
-        continuePlaylist={continuePlaylist}
-        queueHasMoreScenes={queueHasMoreScenes}
-        onQueueLessScenes={onQueueLessScenes}
-        onQueueMoreScenes={onQueueMoreScenes}
-        collapsed={collapsed}
-        setCollapsed={setCollapsed}
-        setContinuePlaylist={setContinuePlaylist}
-      />
-      <div className={`scene-player-container ${collapsed ? "expanded" : ""}`}>
+    <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, height: "calc(100vh - 64px)", overflow: "hidden" }}>
+      <Box
+        sx={{
+          width: { xs: "100%", md: collapsed ? 0 : 450 },
+          minWidth: { md: collapsed ? 0 : 450 },
+          borderRight: { md: 1 },
+          borderColor: "divider",
+          overflowY: "auto",
+          display: { xs: "flex", md: collapsed ? "none" : "flex" },
+          flexDirection: "column",
+          flexShrink: 0,
+          transition: "width 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+          backgroundColor: "background.paper"
+        }}
+      >
+        <ScenePage
+          scene={scene}
+          setTimestamp={setTimestamp}
+          queueScenes={queueScenes}
+          queueStart={queueStart}
+          onDelete={onDelete}
+          onQueueNext={() => queueNext(autoPlayOnSelected)}
+          onQueuePrevious={() => queuePrevious(autoPlayOnSelected)}
+          onQueueRandom={() => queueRandom(autoPlayOnSelected)}
+          onQueueSceneClicked={onQueueSceneClicked}
+          continuePlaylist={continuePlaylist}
+          queueHasMoreScenes={queueHasMoreScenes}
+          onQueueLessScenes={onQueueLessScenes}
+          onQueueMoreScenes={onQueueMoreScenes}
+          collapsed={collapsed}
+          setCollapsed={setCollapsed}
+          setContinuePlaylist={setContinuePlaylist}
+        />
+      </Box>
+
+      {/* Modern Persistent Toggle Divider */}
+      <Box
+        sx={{
+          width: "12px",
+          display: { xs: "none", md: "flex" },
+          alignItems: "center",
+          justifyContent: "center",
+          cursor: "pointer",
+          borderRight: 1,
+          borderColor: "divider",
+          transition: "background-color 0.2s",
+          "&:hover": {
+            backgroundColor: "rgba(255, 255, 255, 0.05)",
+            "& svg": { color: "primary.main" }
+          }
+        }}
+        onClick={() => setCollapsed(!collapsed)}
+      >
+        {collapsed ? <ChevronRightIcon fontSize="small" sx={{ transition: 'color 0.2s' }} /> : <ChevronLeftIcon fontSize="small" sx={{ transition: 'color 0.2s' }} />}
+      </Box>
+
+      <Box sx={{ flexGrow: 1, minWidth: 0, height: "100%", display: "flex", flexDirection: "column", position: "relative", backgroundColor: "black" }}>
         {isSegment ? (
           <SegmentPlayer scene={scene} />
         ) : (
@@ -1101,8 +1140,8 @@ const SceneLoader: React.FC<RouteComponentProps<ISceneParams>> = ({
             onPrevious={() => queuePrevious(true)}
           />
         )}
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 };
 

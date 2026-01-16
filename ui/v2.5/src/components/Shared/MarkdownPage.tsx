@@ -11,12 +11,19 @@ export const MarkdownPage: React.FC<IPageProps> = ({ page }) => {
   const [markdown, setMarkdown] = useState("");
 
   useEffect(() => {
-    if (!markdown) {
-      fetch(page)
-        .then((res) => res.text())
-        .then((text) => setMarkdown(text));
-    }
-  }, [page, markdown]);
+    let isMounted = true;
+    fetch(page)
+      .then((res) => res.text())
+      .then((text) => {
+        if (isMounted) {
+          setMarkdown(text);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [page]);
 
   return (
     <div className="markdown">

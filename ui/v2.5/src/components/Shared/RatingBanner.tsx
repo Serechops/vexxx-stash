@@ -29,8 +29,8 @@ export const RatingBanner: React.FC<IProps> = ({ rating }) => {
     <div
       className={
         isLegacy
-          ? `rating-banner rating-${convertedRating}`
-          : `rating-banner rating-100-${Math.trunc(rating / 5)}`
+          ? `stash-rating-banner rating-banner rating-${convertedRating}`
+          : `stash-rating-banner rating-banner rating-100-${Math.trunc(rating / 5)}`
       }
     >
       <FormattedMessage id="rating" />: {convertedRating}

@@ -141,9 +141,18 @@ const DragHandle: React.FC<{
   }
 
   return (
-    <span onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
+    <Box
+      component="span"
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      sx={{
+        "& .card-drag-handle": {
+          filter: "drop-shadow(1px 1px 1px rgba(0, 0, 0, 0.7))",
+        },
+      }}
+    >
       <Icon className="card-drag-handle" icon={faGripLines} />
-    </span>
+    </Box>
   );
 };
 
@@ -157,10 +166,24 @@ const MoveTarget: React.FC<{ dragSide: DragSide }> = ({ dragSide }) => {
   }
 
   return (
-    <div
+    <Box
       className={`move-target move-target-${dragSide === DragSide.BEFORE ? "before" : "after"
         }`}
-    ></div>
+      sx={{
+        alignItems: "center",
+        backgroundColor: "primary.main",
+        color: "secondary.main",
+        display: "flex",
+        height: "100%",
+        justifyContent: "center",
+        opacity: 0.5,
+        pointerEvents: "none",
+        position: "absolute",
+        width: "10%",
+        left: dragSide === DragSide.BEFORE ? 0 : undefined,
+        right: dragSide === DragSide.AFTER ? 0 : undefined,
+      }}
+    ></Box>
   );
 };
 
@@ -224,15 +247,35 @@ export const GridCard: React.FC<ICardProps> = PatchComponent(
       <Card
         className={cx(
           props.className,
-          "grid-card transition-transform duration-300 hover:scale-105 hover:z-50 hover:shadow-2xl bg-card border-none rounded-md overflow-hidden"
+          "stash-grid-card transition-transform duration-300 hover:scale-105 hover:z-50 hover:shadow-2xl bg-card border-none rounded-md overflow-hidden"
         )}
         onClick={handleImageClick}
         {...dragProps}
-        sx={
-          props.width && !ScreenUtils.isMobile()
+        sx={{
+          ...(props.width && !ScreenUtils.isMobile()
             ? { width: `${props.width}px` }
-            : {}
-        }
+            : {}),
+          // Link styling
+          "& a": {
+            color: "text.primary",
+            textDecoration: "none",
+          },
+          // Hover interactions for overlays
+          "&:hover, &:active": {
+            "& .rating-banner, & .stash-rating-banner, & .studio-overlay, & .stash-studio-overlay": {
+              opacity: 0,
+              transition: "opacity 0.5s",
+            },
+            "& .studio-overlay:hover, & .studio-overlay:active, & .stash-studio-overlay:hover, & .stash-studio-overlay:active": {
+              opacity: 0.75,
+              transition: "opacity 0.5s",
+            },
+          },
+          // Rating banner base transition (if not handled elsewhere)
+          "& .rating-banner, & .stash-rating-banner": {
+            transition: "opacity 0.5s",
+          },
+        }}
       >
         {moveTarget !== undefined && <MoveTarget dragSide={moveTarget} />}
         <Controls>

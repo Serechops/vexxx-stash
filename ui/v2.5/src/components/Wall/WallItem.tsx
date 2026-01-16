@@ -7,6 +7,7 @@ import React, {
   useMemo,
 } from "react";
 import { Link } from "react-router-dom";
+import { Box } from "@mui/material";
 import * as GQL from "src/core/generated-graphql";
 import TextUtils from "src/utils/text";
 import NavUtils from "src/utils/navigation";
@@ -31,6 +32,8 @@ interface IWallItemProps<T extends WallItemType> {
   sceneQueue?: SceneQueue;
   clickHandler?: (e: MouseEvent, item: WallItemData[T]) => void;
   className: string;
+  zoomIndex?: number;
+  columns?: number;
 }
 
 interface IPreviews {
@@ -125,11 +128,11 @@ export const WallItem = <T extends WallItemType>({
   sceneQueue,
   clickHandler,
   className,
+  columns = 5,
 }: IWallItemProps<T>) => {
   const [active, setActive] = useState(false);
   const itemEl = useRef<HTMLDivElement>(null);
   const { configuration: config } = useConfigurationContext();
-
   const showTextContainer = config?.interface.wallShowTitle ?? true;
 
   const previews = useMemo(() => {
@@ -235,25 +238,136 @@ export const WallItem = <T extends WallItemType>({
     if (!showTextContainer) return;
 
     return (
-      <div className="wall-item-text">
+      <Box
+        className="wall-item-text"
+        sx={{
+          background: "linear-gradient(rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.65))",
+          bottom: 0,
+          color: "#444",
+          fontWeight: 700,
+          left: 0,
+          lineHeight: 1,
+          overflow: "hidden",
+          padding: "5px",
+          position: "absolute",
+          textAlign: "center",
+          width: "100%",
+          zIndex: 2000000,
+        }}
+      >
         <div>{title}</div>
         {tags?.map((tag) => (
-          <span key={tag.id} className="wall-tag">
+          <Box
+            component="span"
+            key={tag.id}
+            className="wall-tag"
+            sx={{
+              fontSize: 10,
+              fontWeight: 400,
+              lineHeight: 1,
+              margin: "0 3px",
+            }}
+          >
             {tag.name}
-          </span>
+          </Box>
         ))}
-      </div>
+      </Box>
     );
   };
 
+  const widthPct = 100 / columns;
+  const heightVw = widthPct * 0.5625;
+
   return (
-    <div className="wall-item">
-      <div className={`wall-item-container ${className}`} ref={itemEl}>
-        <Link onClick={onClick} to={linkSrc} className="wall-item-anchor">
+    <Box
+      className="stash-wall-item"
+      sx={{
+        height: `${heightVw}vw`,
+        lineHeight: 0,
+        // maxHeight: 253, // Removed for zoom
+        // maxWidth: 450, // Removed for zoom
+        overflow: "visible",
+        padding: 0,
+        transition: "zIndex 0.5s 0.5s",
+        width: `${widthPct}%`,
+        zIndex: 0,
+        position: "relative",
+
+        "@media (max-width: 576px)": {
+          height: "inherit",
+          maxWidth: "100%",
+          minHeight: 210,
+          width: "100%",
+        },
+
+        "&:hover": {
+          zIndex: 2,
+          "& .wall-item-container": {
+            backgroundColor: "black",
+            position: "relative",
+            transform: "scale(2)",
+            transitionDelay: "0.5s",
+            zIndex: 10,
+          },
+          "& .wall-item-media": {
+            transitionDelay: "0.5s",
+            transitionDuration: "0.5s",
+            zIndex: 10,
+          },
+          "&::before": {
+            opacity: 0.8,
+            transitionDelay: "0.5s",
+          }
+        },
+
+        "&::before": {
+          backgroundColor: "black",
+          bottom: 0,
+          content: '""',
+          left: 0,
+          opacity: 0,
+          pointerEvents: "none",
+          position: "fixed",
+          right: 0,
+          top: 0,
+          transition: "opacity 0.5s 0s ease-in-out",
+          zIndex: -1,
+        }
+      }}
+    >
+      <Box
+        className={`wall-item-container ${className}`}
+        ref={itemEl}
+        sx={{
+          backgroundColor: "black",
+          display: "flex",
+          height: "100%",
+          justifyContent: "center",
+          position: "relative",
+          transition: "all 0.5s 0s",
+          width: "100%",
+          zIndex: 0,
+          "&.transform-origin-top-left": { transformOrigin: "top left" },
+          "&.transform-origin-top-right": { transformOrigin: "top right" },
+          "&.transform-origin-bottom-left": { transformOrigin: "bottom left" },
+          "&.transform-origin-bottom-right": { transformOrigin: "bottom right" },
+          "&.transform-origin-left": { transformOrigin: "left" },
+          "&.transform-origin-right": { transformOrigin: "right" },
+          "&.transform-origin-top": { transformOrigin: "top" },
+          "&.transform-origin-bottom": { transformOrigin: "bottom" },
+          "&.transform-origin-center": { transformOrigin: "center" },
+        }}
+      >
+        <Link
+          onClick={onClick}
+          to={linkSrc}
+          className="wall-item-anchor"
+          style={{ textDecoration: 'none', display: 'block', width: '100%', height: '100%' }}
+        >
           <Preview previews={previews} config={config} active={active} />
           {renderText()}
         </Link>
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 };

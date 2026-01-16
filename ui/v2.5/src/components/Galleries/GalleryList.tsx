@@ -160,21 +160,21 @@ export const GalleryList: React.FC<IGalleryList> = PatchComponent(
           return (
             <Box className="row">
               <Box
-                className={`GalleryWall zoom-${filter.zoomIndex}`}
+                className="GalleryWall stash-gallery-wall"
                 sx={{
                   display: "flex",
                   flexWrap: "wrap",
                   listStyle: "none",
                   margin: 0,
                   padding: 0,
-                  "&.zoom-0": { height: "20vh" },
-                  "&.zoom-1": { height: "25vh" },
-                  "&.zoom-2": { height: "33vh" },
-                  "&.zoom-3": { height: "50vh" }
                 }}
               >
                 {result.data.findGalleries.galleries.map((gallery) => (
-                  <GalleryWallCard key={gallery.id} gallery={gallery} />
+                  <GalleryWallCard
+                    key={gallery.id}
+                    gallery={gallery}
+                    zoomIndex={filter.zoomIndex}
+                  />
                 ))}
               </Box>
             </Box>

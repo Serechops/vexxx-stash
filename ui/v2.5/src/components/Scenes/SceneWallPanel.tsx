@@ -137,12 +137,7 @@ interface ISceneWallProps {
 // HACK: typescript doesn't allow Gallery to accept a parameter for some reason
 const SceneGallery = Gallery as unknown as GalleryI<IScenePhoto>;
 
-const breakpointZoomHeights = [
-  { minWidth: 576, heights: [100, 120, 240, 360] },
-  { minWidth: 768, heights: [120, 160, 240, 480] },
-  { minWidth: 1200, heights: [120, 160, 240, 300] },
-  { minWidth: 1400, heights: [160, 240, 300, 480] },
-];
+
 
 const SceneWall: React.FC<ISceneWallProps> = ({
   scenes,
@@ -197,21 +192,24 @@ const SceneWall: React.FC<ISceneWallProps> = ({
     [history, photos]
   );
 
-  function columns(containerWidth: number) {
-    let preferredSize = 300;
-    let columnCount = containerWidth / preferredSize;
-    return Math.round(columnCount);
-  }
+
 
   const targetRowHeight = useCallback(
     (containerWidth: number) => {
-      let zoomHeight = 280;
-      breakpointZoomHeights.forEach((e) => {
-        if (containerWidth >= e.minWidth) {
-          zoomHeight = e.heights[zoomIndex];
-        }
-      });
-      return zoomHeight;
+      const desiredColumns = Math.max(2, 6 - zoomIndex);
+      // specific logic for small screens if needed, otherwise:
+      if (containerWidth < 576) {
+        // Fallback for mobile, maybe just 1 or 2 columns?
+        // Let's stick to the requested logic but ensure reasonable min height.
+        // Actually, on mobile 6 columns is tiny.
+        // The original logic had breakpoints.
+        // If the user wants 6->2, they probably mean on desktop.
+        // Let's keep a safeguard or just apply the math.
+        // 16:9 aspect ratio assumed (1.777)
+        return containerWidth / desiredColumns / 1.777;
+      }
+
+      return containerWidth / desiredColumns / 1.777;
     },
     [zoomIndex]
   );
@@ -245,7 +243,6 @@ const SceneWall: React.FC<ISceneWallProps> = ({
           onClick={onClick}
           margin={margin}
           direction={direction}
-          columns={columns}
           targetRowHeight={targetRowHeight}
         />
       ) : null}

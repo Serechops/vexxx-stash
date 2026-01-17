@@ -16,7 +16,6 @@ import { OCounterButton } from "../Shared/CountButton";
 
 interface IProps {
   studio: GQL.StudioDataFragment;
-  cardWidth?: number;
   hideParent?: boolean;
   selecting?: boolean;
   selected?: boolean;
@@ -73,7 +72,6 @@ export const StudioCard: React.FC<IProps> = PatchComponent(
   "StudioCard",
   ({
     studio,
-    cardWidth,
     hideParent,
     selecting,
     selected,
@@ -264,7 +262,6 @@ export const StudioCard: React.FC<IProps> = PatchComponent(
         <GridCard
           className="hover:!scale-100 !transition-none"
           url={`/studios/${studio.id}`}
-          width={cardWidth}
           title={studio.name}
           linkClassName="studio-card-header"
           image={

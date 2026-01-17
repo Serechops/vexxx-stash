@@ -338,6 +338,7 @@ export const PerformerList: React.FC<IPerformerList> = PatchComponent(
             <PerformerCardGrid
               performers={performers}
               zoomIndex={filter.zoomIndex}
+              itemsPerPage={filter.itemsPerPage}
               selectedIds={selectedIds}
               onSelectChange={onSelectChange}
               extraCriteria={extraCriteria}

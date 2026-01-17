@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useMemo } from "react";
+import { useContainerDimensions, useCardWidth } from "../Shared/GridCard/GridCard";
 import * as GQL from "src/core/generated-graphql";
 import { SceneQueue } from "src/models/sceneQueue";
 import { SceneCard } from "./SceneCard";
@@ -12,6 +13,7 @@ interface ISceneCardsGrid {
   onSelectChange: (id: string, selected: boolean, shiftKey: boolean) => void;
   fromGroupId?: string;
   loading?: boolean;
+  itemsPerPage?: number;
 }
 
 export const SceneCardsGrid: React.FC<ISceneCardsGrid> = ({
@@ -22,7 +24,24 @@ export const SceneCardsGrid: React.FC<ISceneCardsGrid> = ({
   onSelectChange,
   fromGroupId,
   loading,
+  itemsPerPage,
 }) => {
+  const [componentRef, { width: containerWidth }] = useContainerDimensions();
+  const zoomWidths = [280, 340, 420, 560, 800];
+  const cardWidth = useCardWidth(containerWidth, zoomIndex, zoomWidths);
+  const columnWidth = zoomWidths[zoomIndex] || zoomWidths[0];
+
+  const skeletonCount = useMemo(() => {
+    const defaultCount = itemsPerPage || 20;
+    if (!containerWidth || !columnWidth) return defaultCount;
+    const gap = 24; // 1.5rem
+    const cols = Math.floor(containerWidth / (columnWidth + gap)) || 1;
+    // Scenes are 16:9 + text footer. Factor ~0.7
+    const rows = Math.ceil(window.innerHeight / (columnWidth * 0.7 + gap)) || 1;
+    const viewportFill = cols * rows;
+    return Math.max(viewportFill, defaultCount);
+  }, [containerWidth, columnWidth, itemsPerPage]);
+
   function getGridClass(zoom: number) {
     switch (zoom) {
       case 0:
@@ -45,10 +64,19 @@ export const SceneCardsGrid: React.FC<ISceneCardsGrid> = ({
   }
 
   return (
-    <div className={`grid ${getGridClass(zoomIndex)} gap-6 p-4`}>
+    <div
+      ref={componentRef}
+      style={{
+        display: "grid",
+        gridTemplateColumns: `repeat(auto-fit, minmax(${columnWidth}px, 1fr))`,
+        gap: "1.5rem",
+        padding: "1rem",
+        justifyContent: "center",
+      }}
+    >
       {loading ? (
         // Render Skeletons during load to prevent collapse
-        Array.from({ length: 20 }).map((_, i) => (
+        Array.from({ length: skeletonCount }).map((_, i) => (
           <SceneCardSkeleton key={i} />
         ))
       ) : (

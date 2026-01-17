@@ -37,12 +37,13 @@ export const ImageGridCard: React.FC<IImageCardGrid> = ({
 
   // Calculate how many skeletons we need to fill the viewport
   const skeletonCount = useMemo(() => {
-    if (!containerWidth || !columnWidth) return 20;
+    const defaultCount = itemsPerPage || 20;
+    if (!containerWidth || !columnWidth) return defaultCount;
     const gap = 16; // 1rem
     const cols = Math.floor(containerWidth / (columnWidth + gap)) || 1;
     const rows = Math.ceil(window.innerHeight / (columnWidth * 0.75 + gap)) || 1;
     const viewportFill = cols * rows;
-    return Math.max(viewportFill, itemsPerPage || 12);
+    return Math.max(viewportFill, defaultCount);
   }, [containerWidth, columnWidth, itemsPerPage]);
 
   return (

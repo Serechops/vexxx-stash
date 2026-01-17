@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import * as GQL from "src/core/generated-graphql";
 import { GroupCard } from "./GroupCard";
 import {
@@ -15,6 +15,7 @@ interface IGroupCardGrid {
   fromGroupId?: string;
   onMove?: (srcIds: string[], targetId: string, after: boolean) => void;
   loading?: boolean;
+  itemsPerPage?: number;
 }
 
 const zoomWidths = [280, 340, 420, 560, 800];
@@ -27,15 +28,37 @@ export const GroupCardGrid: React.FC<IGroupCardGrid> = ({
   fromGroupId,
   onMove,
   loading,
+  itemsPerPage,
 }) => {
   const [componentRef, { width: containerWidth }] = useContainerDimensions();
   const cardWidth = useCardWidth(containerWidth, zoomIndex, zoomWidths);
+  const columnWidth = zoomWidths[zoomIndex] || zoomWidths[0];
+
+  const skeletonCount = useMemo(() => {
+    const defaultCount = itemsPerPage || 20;
+    if (!containerWidth || !columnWidth) return defaultCount;
+    const gap = 16; // 1rem
+    const cols = Math.floor(containerWidth / (columnWidth + gap)) || 1;
+    // Groups are 2:3. Factor ~1.5
+    const rows = Math.ceil(window.innerHeight / (columnWidth * 1.5 + gap)) || 1;
+    const viewportFill = cols * rows;
+    return Math.max(viewportFill, defaultCount);
+  }, [containerWidth, columnWidth, itemsPerPage]);
 
   return (
-    <div className="row justify-content-center" ref={componentRef}>
+    <div
+      ref={componentRef}
+      style={{
+        display: "grid",
+        gridTemplateColumns: `repeat(auto-fit, minmax(${columnWidth}px, 1fr))`,
+        gap: "1rem",
+        padding: "1rem",
+        justifyContent: "center",
+      }}
+    >
       {loading ? (
-        Array.from({ length: 20 }).map((_, i) => (
-          <GroupCardSkeleton key={i} cardWidth={cardWidth} zoomIndex={zoomIndex} />
+        Array.from({ length: skeletonCount }).map((_, i) => (
+          <GroupCardSkeleton key={i} />
         ))
       ) : (
         groups.map((p) => (

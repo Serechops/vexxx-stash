@@ -216,6 +216,7 @@ const SceneList: React.FC<{
         scenes={scenes}
         queue={queue}
         zoomIndex={filter.zoomIndex}
+        itemsPerPage={filter.itemsPerPage}
         selectedIds={selectedIds}
         onSelectChange={onSelectChange}
         fromGroupId={fromGroupId}

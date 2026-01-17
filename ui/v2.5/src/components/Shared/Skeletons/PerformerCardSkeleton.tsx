@@ -1,16 +1,10 @@
 import React from "react";
 import { useContainerDimensions } from "../../Shared/GridCard/GridCard";
 
-interface IPerformerCardSkeletonProps {
-    cardWidth?: number;
-    zoomIndex?: number;
-}
-
-export const PerformerCardSkeleton: React.FC<IPerformerCardSkeletonProps> = ({ cardWidth, zoomIndex = 0 }) => {
+export const PerformerCardSkeleton: React.FC = () => {
     return (
         <div
-            className={`performer-card skeleton-card zoom-${zoomIndex} relative rounded-xl overflow-hidden shadow-sm bg-zinc-900 border-none animate-pulse`}
-            style={cardWidth ? { width: cardWidth } : undefined}
+            className={`performer-card skeleton-card relative rounded-xl overflow-hidden shadow-sm bg-zinc-900 border-none animate-pulse`}
         >
             <div className="w-full h-full aspect-[2/3] bg-zinc-800 relative">
                 {/* Simulate Gradient Overlay at bottom */}

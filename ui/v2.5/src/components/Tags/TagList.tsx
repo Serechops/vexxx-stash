@@ -231,6 +231,7 @@ export const TagList: React.FC<ITagList> = PatchComponent(
             <TagCardGrid
               tags={tags}
               zoomIndex={filter.zoomIndex}
+              itemsPerPage={filter.itemsPerPage}
               selectedIds={selectedIds}
               onSelectChange={onSelectChange}
               loading={result.loading}

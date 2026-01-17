@@ -140,6 +140,7 @@ export const StudioList: React.FC<IStudioList> = PatchComponent(
             <StudioCardGrid
               studios={studios}
               zoomIndex={filter.zoomIndex}
+              itemsPerPage={filter.itemsPerPage}
               fromParent={fromParent}
               selectedIds={selectedIds}
               onSelectChange={onSelectChange}

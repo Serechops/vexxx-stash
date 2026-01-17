@@ -1,15 +1,11 @@
 import React from "react";
 
-interface ITagCardSkeletonProps {
-    cardWidth?: number;
-    zoomIndex?: number;
-}
+interface ITagCardSkeletonProps { }
 
-export const TagCardSkeleton: React.FC<ITagCardSkeletonProps> = ({ cardWidth, zoomIndex = 0 }) => {
+export const TagCardSkeleton: React.FC<ITagCardSkeletonProps> = () => {
     return (
         <div
-            className={`tag-card skeleton-card zoom-${zoomIndex} relative rounded-md overflow-hidden shadow-sm bg-card animate-pulse m-2 flex flex-col`}
-            style={cardWidth ? { width: cardWidth } : undefined}
+            className="tag-card skeleton-card relative rounded-md overflow-hidden shadow-sm bg-card animate-pulse flex flex-col w-full h-full"
         >
             {/* Image Aspect Ratio Placeholder - 2:1 */}
             <div className="w-full aspect-[2/1] bg-zinc-800 flex items-center justify-center">

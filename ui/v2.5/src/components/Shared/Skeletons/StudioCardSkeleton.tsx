@@ -1,15 +1,11 @@
 import React from "react";
 
-interface IStudioCardSkeletonProps {
-    cardWidth?: number;
-    zoomIndex?: number;
-}
+interface IStudioCardSkeletonProps { }
 
-export const StudioCardSkeleton: React.FC<IStudioCardSkeletonProps> = ({ cardWidth, zoomIndex = 0 }) => {
+export const StudioCardSkeleton: React.FC<IStudioCardSkeletonProps> = () => {
     return (
         <div
-            className={`studio-card skeleton-card zoom-${zoomIndex} relative rounded-md overflow-hidden shadow-sm bg-card animate-pulse m-2 flex flex-col`}
-            style={cardWidth ? { width: cardWidth } : undefined}
+            className="studio-card skeleton-card relative rounded-md overflow-hidden shadow-sm bg-card animate-pulse flex flex-col w-full h-full"
         >
             {/* Studio Image - Banner Aspect 2:1 */}
             <div className="w-full aspect-[2/1] bg-zinc-800 flex items-center justify-center relative">

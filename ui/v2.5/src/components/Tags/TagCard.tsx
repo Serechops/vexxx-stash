@@ -15,7 +15,6 @@ import { RatingBanner } from "../Shared/RatingBanner";
 
 interface IProps {
   tag: GQL.TagDataFragment | GQL.TagListDataFragment;
-  cardWidth?: number;
   zoomIndex: number;
   selecting?: boolean;
   selected?: boolean;
@@ -229,7 +228,7 @@ const TagCardTitle: React.FC<IProps> = PatchComponent(
 );
 
 export const TagCard: React.FC<IProps> = PatchComponent("TagCard", (props) => {
-  const { tag, cardWidth, zoomIndex, selecting, selected, onSelectedChanged } =
+  const { tag, zoomIndex, selecting, selected, onSelectedChanged } =
     props;
 
   return (
@@ -255,7 +254,6 @@ export const TagCard: React.FC<IProps> = PatchComponent("TagCard", (props) => {
       <GridCard
         className="hover:!scale-100 !transition-none"
         url={`/tags/${tag.id}`}
-        width={cardWidth}
         title={<TagCardTitle {...props} />}
         linkClassName="tag-card-header"
         image={

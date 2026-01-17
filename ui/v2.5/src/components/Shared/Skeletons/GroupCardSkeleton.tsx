@@ -1,15 +1,9 @@
 import React from "react";
 
-interface IGroupCardSkeletonProps {
-    cardWidth?: number;
-    zoomIndex?: number;
-}
-
-export const GroupCardSkeleton: React.FC<IGroupCardSkeletonProps> = ({ cardWidth, zoomIndex = 0 }) => {
+export const GroupCardSkeleton: React.FC = () => {
     return (
         <div
-            className={`group-card skeleton-card zoom-${zoomIndex} relative rounded-xl overflow-hidden shadow-sm bg-zinc-900 animate-pulse m-2`}
-            style={cardWidth ? { width: cardWidth } : undefined}
+            className={`group-card skeleton-card relative rounded-xl overflow-hidden shadow-sm bg-zinc-900 animate-pulse`}
         >
             {/* Image Aspect Ratio Placeholder - Groups are Portrait 2:3 */}
             <div className="w-full aspect-[2/3] bg-zinc-800 relative">

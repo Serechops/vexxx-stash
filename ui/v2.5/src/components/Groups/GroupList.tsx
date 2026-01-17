@@ -430,6 +430,7 @@ export const GroupList: React.FC<IGroupList> = PatchComponent(
             <GroupCardGrid
               groups={result.data?.findGroups.groups ?? []}
               zoomIndex={filter.zoomIndex}
+              itemsPerPage={filter.itemsPerPage}
               selectedIds={selectedIds}
               onSelectChange={onSelectChange}
               fromGroupId={fromGroupId}

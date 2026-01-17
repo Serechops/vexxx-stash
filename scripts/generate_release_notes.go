@@ -70,6 +70,14 @@ func main() {
 	}
 	sb.WriteString("\n---\n\n")
 
+	// Latest Changes
+	if msg, err := getGitCommitMessage(); err == nil && msg != "" {
+		sb.WriteString("## **Latest Changes**\n\n")
+		sb.WriteString("```text\n")
+		sb.WriteString(msg)
+		sb.WriteString("\n```\n\n---\n\n")
+	}
+
 	// Checksums
 	sb.WriteString("## **Verification (SHA-256)**\n\n")
 	sb.WriteString("Verify parity with the repository build by checking the hashes below.\n\n")
@@ -114,6 +122,15 @@ func calculateSHA256(filePath string) (string, error) {
 
 func getGitHash() (string, error) {
 	cmd := exec.Command("git", "rev-parse", "--short", "HEAD")
+	out, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
+func getGitCommitMessage() (string, error) {
+	cmd := exec.Command("git", "log", "-1", "--pretty=format:%B")
 	out, err := cmd.Output()
 	if err != nil {
 		return "", err

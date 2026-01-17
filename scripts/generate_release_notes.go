@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -23,10 +24,15 @@ func main() {
 		version = "dev"
 	}
 	if gitHash == "" {
-		gitHash = "unknown"
+		// try to get it from git directly
+		if h, err := getGitHash(); err == nil {
+			gitHash = h
+		} else {
+			gitHash = "unknown"
+		}
 	}
 	if releaseRepo == "" {
-		releaseRepo = "stashapp/stash"
+		releaseRepo = "Serechops/vexxx-stash"
 	}
 
 	artifacts := []struct {
@@ -104,4 +110,13 @@ func calculateSHA256(filePath string) (string, error) {
 	}
 
 	return hex.EncodeToString(hash.Sum(nil)), nil
+}
+
+func getGitHash() (string, error) {
+	cmd := exec.Command("git", "rev-parse", "--short", "HEAD")
+	out, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), nil
 }

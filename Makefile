@@ -109,6 +109,9 @@ endif
 ifndef OFFICIAL_BUILD
 	$(eval OFFICIAL_BUILD := false)
 endif
+ifndef STASH_RELEASE_REPO
+	$(eval STASH_RELEASE_REPO := Serechops/vexxx-stash)
+endif
 
 .PHONY: build-flags
 build-flags: build-info

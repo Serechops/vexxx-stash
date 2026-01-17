@@ -25,7 +25,7 @@ func getReleaseRepo() string {
 		repo = os.Getenv("STASH_RELEASE_REPO")
 	}
 	if repo == "" {
-		repo = "stashapp/stash"
+		repo = "Serechops/vexxx-stash"
 	}
 	return repo
 }

@@ -1,0 +1,217 @@
+
+import React, { useEffect, useState, useRef } from "react";
+import { Modal, Button, Form, Row, Col, InputGroup } from "react-bootstrap";
+import { useIntl } from "react-intl";
+import { SceneDataFragment } from "src/core/generated-graphql";
+import * as GQL from "src/core/generated-graphql";
+import cx from "classnames";
+import { Icon } from "src/components/Shared/Icon";
+import { faCheckCircle, faCircle } from "@fortawesome/free-solid-svg-icons";
+import { LoadingIndicator } from "src/components/Shared/LoadingIndicator";
+
+interface SceneGalleryDialogProps {
+    scene: SceneDataFragment;
+    show: boolean;
+    onHide: () => void;
+    videoElement: HTMLVideoElement | null;
+}
+
+interface PreviewImage {
+    timestamp: number;
+    dataUrl: string;
+    selected: boolean;
+}
+
+export const SceneGalleryDialog: React.FC<SceneGalleryDialogProps> = ({
+    scene,
+    show,
+    onHide,
+    videoElement,
+}) => {
+    const intl = useIntl();
+    const [imageCount, setImageCount] = useState<number>(20);
+    const [previews, setPreviews] = useState<PreviewImage[]>([]);
+    const [generating, setGenerating] = useState<boolean>(false);
+    const [creating, setCreating] = useState<boolean>(false);
+    const [progress, setProgress] = useState<number>(0);
+
+    const [sceneGenerateGallery] = GQL.useSceneGenerateGalleryMutation();
+
+    const handleGeneratePreviews = async () => {
+        if (!videoElement) return;
+
+        setGenerating(true);
+        setPreviews([]);
+        setProgress(0);
+
+        const duration = videoElement.duration;
+        if (!duration || duration === Infinity) {
+            setGenerating(false);
+            return;
+        }
+
+        const timestamps: number[] = [];
+        // Generate evenly spaced timestamps avoiding start/end extremas
+        const step = duration / (imageCount + 1);
+        for (let i = 1; i <= imageCount; i++) {
+            timestamps.push(step * i);
+        }
+
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+            setGenerating(false);
+            return;
+        }
+
+        // Save current state
+        const originalTime = videoElement.currentTime;
+        const wasPaused = videoElement.paused;
+        if (!wasPaused) videoElement.pause();
+
+        // Use a cloned video element if possible, or just hijack the main one?
+        // Hijacking main one is visible to user.
+        // Let's assume we hijack it but try to be quick.
+        // Or better: Use a hidden off-screen video element source from the same Blob/URL?
+        // Stash uses 'src' attribute. 
+
+        // Actually, capturing form the main video element requires seeking it.
+        // Let's try seeking the main element. It might be jarring.
+        // User experience: The video will jump around. 
+        // Maybe show an overlay "Generating Previews..." so they don't see the jumping?
+
+        const newPreviews: PreviewImage[] = [];
+
+        // Store original volume/muted state
+        const originalVolume = videoElement.volume;
+        const originalMuted = videoElement.muted;
+        videoElement.muted = true;
+
+        try {
+            for (let i = 0; i < timestamps.length; i++) {
+                const t = timestamps[i];
+
+                // Seek
+                videoElement.currentTime = t;
+
+                // Wait for seek
+                await new Promise<void>((resolve) => {
+                    const onSeeked = () => {
+                        videoElement.removeEventListener("seeked", onSeeked);
+                        resolve();
+                    };
+                    videoElement.addEventListener("seeked", onSeeked, { once: true });
+                });
+
+                // Draw
+                canvas.width = videoElement.videoWidth / 4; // 1/4th resolution for preview
+                canvas.height = videoElement.videoHeight / 4;
+                ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+
+                newPreviews.push({
+                    timestamp: t,
+                    dataUrl: canvas.toDataURL("image/jpeg", 0.7),
+                    selected: true,
+                });
+
+                setProgress(Math.round(((i + 1) / timestamps.length) * 100));
+            }
+        } finally {
+            // Restore
+            videoElement.currentTime = originalTime;
+            videoElement.muted = originalMuted;
+            videoElement.volume = originalVolume;
+            // if (!wasPaused) videoElement.play(); // Don't auto play, stay paused is safer
+
+            setPreviews(newPreviews);
+            setGenerating(false);
+        }
+    };
+
+    const handleCreate = async () => {
+        const selected = previews.filter(p => p.selected);
+        if (selected.length === 0) return;
+
+        setCreating(true);
+        try {
+            const timestamps = selected.map(p => p.timestamp);
+            const result = await sceneGenerateGallery({
+                variables: {
+                    scene_id: scene.id,
+                    timestamps: timestamps,
+                    create_input: {
+                        title: `${scene.title ?? scene.id} Gallery`,
+                    }
+                }
+            });
+
+            if (result.data?.sceneGenerateGallery) {
+                onHide();
+                // TODO: Toast notification or navigation?
+                // window.location.href = `/galleries/${result.data.sceneGenerateGallery.id}`;
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setCreating(false);
+        }
+    };
+
+    const toggleSelect = (index: number) => {
+        setPreviews(prev => {
+            const next = [...prev];
+            next[index].selected = !next[index].selected;
+            return next;
+        });
+    };
+
+    return (
+        <Modal show={show} onHide={onHide} size="lg" centered>
+            <Modal.Header closeButton>
+                <Modal.Title>Create Gallery from Scene</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+                <div className="mb-3">
+                    <Form.Label>Number of Images</Form.Label>
+                    <InputGroup>
+                        <Form.Control
+                            type="number"
+                            value={imageCount}
+                            onChange={(e) => setImageCount(parseInt(e.target.value) || 0)}
+                            disabled={generating}
+                        />
+                        <Button onClick={handleGeneratePreviews} disabled={generating || !videoElement}>
+                            {generating ? "Scanning..." : "Generate Previews"}
+                        </Button>
+                    </InputGroup>
+                    {generating && <div className="mt-2">Progress: {progress}%</div>}
+                </div>
+
+                <div className="gallery-preview-grid d-flex flex-wrap gap-2 justify-content-center" style={{ maxHeight: "60vh", overflowY: "auto" }}>
+                    {previews.map((p, i) => (
+                        <div
+                            key={i}
+                            className={cx("position-relative cursor-pointer", { "opacity-50": !p.selected })}
+                            onClick={() => toggleSelect(i)}
+                            style={{ width: "160px", border: p.selected ? "2px solid #28a745" : "2px solid transparent" }}
+                        >
+                            <img src={p.dataUrl} className="w-100" />
+                            <div className="position-absolute top-0 end-0 p-1 text-white text-shadow">
+                                <Icon icon={p.selected ? faCheckCircle : faCircle} color={p.selected ? "green" : "gray"} />
+                            </div>
+                            <div className="position-absolute bottom-0 start-0 p-1 text-white bg-dark bg-opacity-75 small">
+                                {new Date(p.timestamp * 1000).toISOString().substr(11, 8)}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </Modal.Body>
+            <Modal.Footer>
+                <Button variant="secondary" onClick={onHide}>Cancel</Button>
+                <Button variant="primary" onClick={handleCreate} disabled={generating || creating || previews.filter(p => p.selected).length === 0}>
+                    {creating ? <LoadingIndicator inline message="Creating..." /> : `Create Gallery (${previews.filter(p => p.selected).length})`}
+                </Button>
+            </Modal.Footer>
+        </Modal>
+    );
+};

@@ -133,3 +133,9 @@ mutation RenameScenes($input: RenameFilesInput!) {
     error
   }
 }
+
+mutation SceneGenerateGallery($scene_id: ID!, $timestamps: [Float!]!, $create_input: GalleryCreateInput) {
+  sceneGenerateGallery(scene_id: $scene_id, timestamps: $timestamps, create_input: $create_input) {
+    ...GalleryData
+  }
+}

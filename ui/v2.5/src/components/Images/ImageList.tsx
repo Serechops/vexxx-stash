@@ -512,6 +512,8 @@ const ImageListContent: React.FC<{
     );
   }
 
+const EMPTY_IMAGES: GQL.SlimImageDataFragment[] = [];
+
 export const ImageList: React.FC<IImageList> = PatchComponent(
   "ImageList",
   ({ filterHook, view, alterQuery, extraOperations = [], chapters = [] }) => {
@@ -610,7 +612,7 @@ export const ImageList: React.FC<IImageList> = PatchComponent(
       function renderImages() {
         if (!result.data?.findImages && !result.loading) return;
 
-        const images = result.data?.findImages?.images ?? [];
+        const images = result.data?.findImages?.images ?? EMPTY_IMAGES;
 
         return (
           <ImageListImages

@@ -3,6 +3,10 @@ package generate
 import (
 	"context"
 
+	"fmt"
+	"os"
+	"path/filepath"
+
 	"github.com/stashapp/stash/pkg/ffmpeg/transcoder"
 	"github.com/stashapp/stash/pkg/fsutil"
 	"github.com/stashapp/stash/pkg/logger"
@@ -42,6 +46,45 @@ func (g Generator) Screenshot(ctx context.Context, input string, videoWidth int,
 	}
 
 	return ret, nil
+}
+
+func (g Generator) GalleryImages(ctx context.Context, input string, timestamps []float64, outputDir string, imagePrefix string) ([]string, error) {
+	lockCtx := g.LockManager.ReadLock(ctx, input)
+	defer lockCtx.Cancel()
+
+	logger.Infof("Creating gallery images for %s", input)
+
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create output directory: %w", err)
+	}
+
+	var filenames []string
+	for i, t := range timestamps {
+		// Use index-based formatting for order preservation: "001.jpg" or "prefix_001.jpg"
+		var filename string
+		if imagePrefix != "" {
+			filename = fmt.Sprintf("%s_%03d.jpg", imagePrefix, i+1)
+		} else {
+			filename = fmt.Sprintf("%03d.jpg", i+1)
+		}
+		outputPath := filepath.Join(outputDir, filename)
+
+		ssOptions := transcoder.ScreenshotOptions{
+			OutputPath: outputPath,
+			OutputType: transcoder.ScreenshotOutputTypeImage2,
+			Quality:    screenshotQuality,
+		}
+
+		args := transcoder.ScreenshotTime(input, t, ssOptions)
+
+		if err := g.generate(lockCtx, args); err != nil {
+			return filenames, fmt.Errorf("generating image at %f: %w", t, err)
+		}
+
+		filenames = append(filenames, filename)
+	}
+
+	return filenames, nil
 }
 
 type screenshotOptions struct {

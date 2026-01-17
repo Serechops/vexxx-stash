@@ -333,6 +333,9 @@ type Mutation {
   "Generates screenshot at specified time in seconds. Leave empty to generate default screenshot"
   sceneGenerateScreenshot(id: ID!, at: Float): String!
 
+  "Creates a gallery by extracting frames from a scene at the specified timestamps"
+  sceneGenerateGallery(scene_id: ID!, timestamps: [Float!]!, create_input: GalleryCreateInput): Gallery!
+
   sceneMarkerCreate(input: SceneMarkerCreateInput!): SceneMarker
   sceneMarkerUpdate(input: SceneMarkerUpdateInput!): SceneMarker
   bulkSceneMarkerUpdate(input: BulkSceneMarkerUpdateInput!): [SceneMarker!]

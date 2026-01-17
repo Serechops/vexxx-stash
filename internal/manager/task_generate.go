@@ -37,7 +37,9 @@ type GenerateMetadataInput struct {
 	// marker ids to generate for
 	MarkerIDs []string `json:"markerIDs"`
 	// overwrite existing media
-	Overwrite bool `json:"overwrite"`
+	Overwrite  bool `json:"overwrite"`
+	Galleries  bool `json:"galleries"`
+	ImageCount int  `json:"imageCount"`
 }
 
 type GeneratePreviewOptionsInput struct {
@@ -76,6 +78,7 @@ type totalsGenerate struct {
 	interactiveHeatmapSpeeds int64
 	clipPreviews             int64
 	imageThumbnails          int64
+	galleries                int64
 
 	tasks int
 }
@@ -180,6 +183,9 @@ func (j *GenerateJob) Execute(ctx context.Context, progress *job.Progress) error
 		}
 		if j.input.ImageThumbnails {
 			logMsg += fmt.Sprintf(" %d Image Thumbnails", totals.imageThumbnails)
+		}
+		if j.input.Galleries {
+			logMsg += fmt.Sprintf(" %d galleries", totals.galleries)
 		}
 		if logMsg == "Generating" {
 			logMsg = "Nothing selected to generate"
@@ -479,6 +485,22 @@ func (j *GenerateJob) queueSceneJobs(ctx context.Context, g *generate.Generator,
 
 		if task.required() {
 			j.totals.interactiveHeatmapSpeeds++
+			j.totals.tasks++
+			queue <- task
+		}
+	}
+
+	if j.input.Galleries {
+		task := &GenerateGalleryTask{
+			repository: r,
+			Scene:      *scene,
+			Overwrite:  j.overwrite,
+			generator:  g,
+			ImageCount: j.input.ImageCount,
+		}
+
+		if task.required(ctx) {
+			j.totals.galleries++
 			j.totals.tasks++
 			queue <- task
 		}

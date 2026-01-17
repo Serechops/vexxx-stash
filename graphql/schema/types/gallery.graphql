@@ -24,6 +24,7 @@ type Gallery {
 
   chapters: [GalleryChapter!]!
   scenes: [Scene!]!
+  images: [Image!]!
   studio: Studio
   image_count: Int!
   tags: [Tag!]!

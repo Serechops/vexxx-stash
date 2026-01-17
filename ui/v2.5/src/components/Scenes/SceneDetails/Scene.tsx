@@ -13,6 +13,7 @@ import { Helmet } from "react-helmet";
 import * as GQL from "src/core/generated-graphql";
 import {
   mutateMetadataScan,
+  mutateMetadataGenerate,
   useFindScene,
   useSceneIncrementO,
   useSceneGenerateScreenshot,
@@ -26,6 +27,7 @@ import { SceneEditPanel } from "./SceneEditPanel";
 import { ErrorMessage } from "src/components/Shared/ErrorMessage";
 import { LoadingIndicator } from "src/components/Shared/LoadingIndicator";
 import { Counter } from "src/components/Shared/Counter";
+import { ModalComponent } from "src/components/Shared/Modal";
 import { useToast } from "src/hooks/Toast";
 import SceneQueue, { QueuedScene } from "src/models/sceneQueue";
 import { ListFilterModel } from "src/models/list-filter/filter";
@@ -211,6 +213,8 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
   const [isMerging, setIsMerging] = useState(false);
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState<boolean>(false);
   const [isGenerateDialogOpen, setIsGenerateDialogOpen] = useState(false);
+  const [isGenerateGalleryDialogOpen, setIsGenerateGalleryDialogOpen] = useState(false);
+  const [galleryImageCount, setGalleryImageCount] = useState(20);
 
   const onIncrementOClick = async () => {
     try {
@@ -391,6 +395,61 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
     }
   }
 
+  async function onGenerateGalleryConfirm() {
+    try {
+      await mutateMetadataGenerate({
+        sceneIDs: [scene.id],
+        galleries: true,
+        imageCount: galleryImageCount,
+        sprites: false,
+        phashes: false,
+        previews: false,
+        markers: false,
+        transcodes: false,
+      });
+      Toast.success(
+        intl.formatMessage(
+          { id: "config.tasks.added_job_to_queue" },
+          { operation_name: intl.formatMessage({ id: "actions.generate" }) }
+        )
+      );
+    } catch (e) {
+      Toast.error(e);
+    } finally {
+      setIsGenerateGalleryDialogOpen(false);
+    }
+  }
+
+  function maybeRenderSceneGenerateGalleryDialog() {
+    if (isGenerateGalleryDialogOpen) {
+      return (
+        <ModalComponent
+          show
+          header={intl.formatMessage({ id: "actions.generate_gallery" }, { defaultMessage: "Generate Gallery" })}
+          accept={{
+            text: intl.formatMessage({ id: "actions.generate" }),
+            onClick: onGenerateGalleryConfirm
+          }}
+          cancel={{
+            text: intl.formatMessage({ id: "actions.cancel" }),
+            onClick: () => setIsGenerateGalleryDialogOpen(false),
+            variant: "secondary"
+          }}
+        >
+          <div className="form-group">
+            <label><FormattedMessage id={"countables.images"} /></label>
+            <input
+              type="number"
+              className="form-control"
+              value={galleryImageCount}
+              onChange={(e) => setGalleryImageCount(parseInt(e.target.value) || 0)}
+            />
+          </div>
+        </ModalComponent>
+      );
+    }
+  }
+
   const [operationsAnchorEl, setOperationsAnchorEl] = React.useState<null | HTMLElement>(null);
   const operationsMenuOpen = Boolean(operationsAnchorEl);
 
@@ -437,6 +496,14 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
         </MenuItem>
         <MenuItem
           onClick={() => {
+            setIsGenerateGalleryDialogOpen(true);
+            handleOperationsClose();
+          }}
+        >
+          <FormattedMessage id="actions.generate_gallery" defaultMessage="Generate Gallery" />
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
             onGenerateScreenshot(getPlayerPosition());
             handleOperationsClose();
           }}
@@ -451,16 +518,18 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
         >
           <FormattedMessage id="actions.generate_thumb_default" />
         </MenuItem>
-        {boxes.length > 0 && (
-          <MenuItem
-            onClick={() => {
-              setShowDraftModal(true);
-              handleOperationsClose();
-            }}
-          >
-            <FormattedMessage id="actions.submit_stash_box" />
-          </MenuItem>
-        )}
+        {
+          boxes.length > 0 && (
+            <MenuItem
+              onClick={() => {
+                setShowDraftModal(true);
+                handleOperationsClose();
+              }}
+            >
+              <FormattedMessage id="actions.submit_stash_box" />
+            </MenuItem>
+          )
+        }
         <MenuItem
           onClick={() => {
             setIsMerging(true);
@@ -481,7 +550,7 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
             values={{ entityType: intl.formatMessage({ id: "scene" }) }}
           />
         </MenuItem>
-      </Menu>
+      </Menu >
     </>
   );
 
@@ -648,6 +717,7 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
         <title>{title}</title>
       </Helmet>
       {maybeRenderSceneGenerateDialog()}
+      {maybeRenderSceneGenerateGalleryDialog()}
       {maybeRenderMergeDialog()}
       {maybeRenderDeleteDialog()}
       <Box

@@ -20,6 +20,8 @@ type GenerateMetadataOptions struct {
 	InteractiveHeatmapsSpeeds bool                    `json:"interactiveHeatmapsSpeeds"`
 	ImageThumbnails           bool                    `json:"imageThumbnails"`
 	ClipPreviews              bool                    `json:"clipPreviews"`
+	Galleries                 bool                    `json:"galleries"`
+	ImageCount                int                     `json:"imageCount"`
 }
 
 type GeneratePreviewOptions struct {

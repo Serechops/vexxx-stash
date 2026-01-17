@@ -1,6 +1,6 @@
 import React from "react";
 import * as GQL from "src/core/generated-graphql";
-import { BooleanSetting, ModalSetting } from "../Inputs";
+import { BooleanSetting, ModalSetting, NumberSetting } from "../Inputs";
 import {
   VideoPreviewInput,
   VideoPreviewSettingsInput,
@@ -41,6 +41,21 @@ export const GenerateOptions: React.FC<IGenerateOptions> = ({
             checked={options.covers ?? false}
             onChange={(v) => setOptions({ covers: v })}
           />
+          <BooleanSetting
+            id={`${keyPrefix}gallery-task`}
+            heading="Galleries"
+            checked={options.galleries ?? false}
+            onChange={(v) => setOptions({ galleries: v })}
+          />
+          {options.galleries && (
+            <NumberSetting
+              id={`${keyPrefix}gallery-image-count`}
+              heading="Image Count"
+              value={options.imageCount ?? 20}
+              onChange={(v) => setOptions({ imageCount: v })}
+              className="sub-setting"
+            />
+          )}
           <BooleanSetting
             id={`${keyPrefix}preview-task`}
             checked={options.previews ?? false}

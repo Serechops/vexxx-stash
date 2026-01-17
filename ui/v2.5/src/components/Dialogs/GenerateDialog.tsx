@@ -16,12 +16,14 @@ import { SettingsContext } from "../Settings/context";
 
 interface ISceneGenerateDialog {
   selectedIds?: string[];
+  initialOptions?: Partial<GQL.GenerateMetadataInput>;
   onClose: () => void;
   type: "scene"; // TODO - add image generate
 }
 
 export const GenerateDialog: React.FC<ISceneGenerateDialog> = ({
   selectedIds,
+  initialOptions,
   onClose,
   type,
 }) => {
@@ -33,11 +35,14 @@ export const GenerateDialog: React.FC<ISceneGenerateDialog> = ({
       phashes: true,
       previews: true,
       markers: true,
+      galleries: false,
+      imageCount: 20,
       previewOptions: {
         previewSegments: 0,
         previewSegmentDuration: 0,
         previewPreset: GQL.PreviewPreset.Slow,
       },
+      ...initialOptions,
     };
   }
 

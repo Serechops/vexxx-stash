@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -15,6 +17,7 @@ import (
 	"github.com/stashapp/stash/pkg/plugin"
 	"github.com/stashapp/stash/pkg/plugin/hook"
 	"github.com/stashapp/stash/pkg/scene"
+	"github.com/stashapp/stash/pkg/scene/generate"
 	"github.com/stashapp/stash/pkg/sliceutil"
 	"github.com/stashapp/stash/pkg/sliceutil/stringslice"
 	"github.com/stashapp/stash/pkg/utils"
@@ -1333,6 +1336,140 @@ func (r *mutationResolver) SceneGenerateScreenshot(ctx context.Context, id strin
 	}
 
 	return "todo", nil
+}
+
+func (r *mutationResolver) SceneGenerateGallery(ctx context.Context, sceneID string, timestamps []float64, createInput *GalleryCreateInput) (*models.Gallery, error) {
+	id, err := strconv.Atoi(sceneID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid scene id: %w", err)
+	}
+
+	var s *models.Scene
+	if err := r.withTxn(ctx, func(ctx context.Context) error {
+		s, err = r.repository.Scene.Find(ctx, id)
+		return err
+	}); err != nil {
+		return nil, err
+	}
+
+	if s == nil {
+		return nil, fmt.Errorf("scene not found")
+	}
+
+	// Determine output directory
+	sceneDir := filepath.Dir(s.Path)
+	title := s.Title
+	if title == "" {
+		title = strconv.Itoa(s.ID)
+	}
+
+	galleryName := fmt.Sprintf("%s Gallery", title)
+	if createInput != nil && createInput.Title != "" {
+		galleryName = createInput.Title
+	}
+
+	// Sanitize output name
+	replacer := strings.NewReplacer(
+		"<", "",
+		">", "",
+		":", "",
+		"\"", "",
+		"/", "",
+		"\\", "",
+		"|", "",
+		"?", "",
+		"*", "",
+	)
+
+	// Determine clean title for image prefix
+	cleanTitle := replacer.Replace(title)
+	cleanTitle = strings.TrimSpace(cleanTitle)
+
+	// Determine gallery base name
+	galleryName = fmt.Sprintf("%s Gallery", cleanTitle)
+	if createInput != nil && createInput.Title != "" {
+		galleryName = replacer.Replace(createInput.Title)
+		galleryName = strings.TrimSpace(galleryName)
+	}
+
+	// Append timestamp to zip name for uniqueness
+	timestamp := time.Now().Format("20060102-150405")
+	zipBasename := fmt.Sprintf("%s_%s.zip", galleryName, timestamp)
+
+	zipPath := filepath.Join(sceneDir, zipBasename)
+	tempDir := filepath.Join(sceneDir, fmt.Sprintf("%s_%s_temp", galleryName, timestamp))
+
+	if err := os.MkdirAll(tempDir, 0755); err != nil {
+		return nil, fmt.Errorf("creating temp directory: %w", err)
+	}
+
+	gen := generate.Generator{
+		Encoder:      manager.GetInstance().FFMpeg,
+		FFMpegConfig: manager.GetInstance().Config,
+		LockManager:  manager.GetInstance().ReadLockManager,
+		ScenePaths:   manager.GetInstance().Paths.Scene,
+		Overwrite:    true,
+	}
+
+	// Generate Images
+	imagePrefix := fmt.Sprintf("%s_%s", cleanTitle, timestamp)
+	_, err = gen.GalleryImages(ctx, s.Path, timestamps, tempDir, imagePrefix)
+	if err != nil {
+		os.RemoveAll(tempDir)
+		return nil, err
+	}
+
+	// Zip contents
+	if err := utils.Zip(tempDir, zipPath); err != nil {
+		os.RemoveAll(tempDir)
+		return nil, fmt.Errorf("zipping gallery: %w", err)
+	}
+
+	// Clean up temp dir
+	os.RemoveAll(tempDir)
+
+	// Create Gallery Entity
+	newGallery := models.NewGallery()
+	newGallery.Title = galleryName
+	newGallery.Path = zipPath
+
+	now := time.Now()
+	newGallery.Date = &models.Date{Time: now, Precision: models.DatePrecisionDay}
+	newGallery.SceneIDs = models.NewRelatedIDs([]int{s.ID})
+
+	// Assign other properties from input
+	if createInput != nil {
+		if createInput.Rating100 != nil {
+			newGallery.Rating = createInput.Rating100
+		}
+		// ... other fields if needed
+	}
+
+	if err := r.withTxn(ctx, func(ctx context.Context) error {
+		// Create Gallery
+		// Note: We don't populate Files field manually as Scan will handle it.
+		// We set Path and FolderID logic is handled by Scan or we might set it if known?
+		// Stash's GalleryCreate usually handles FolderID if Path is provided?
+		// Checking GalleryCreate implementation, it doesn't seem to set FolderID from Path automatically.
+		// However, the Scan job logic `gallery.ScanHandler` will find this gallery by path or folder and update it/link images.
+
+		if err := r.repository.Gallery.Create(ctx, &newGallery, nil); err != nil {
+			return err
+		}
+
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	// Trigger Scan on the new folder to populate images and link them properly
+	// Using background scan job
+	manager.GetInstance().Scan(ctx, manager.ScanMetadataInput{
+		Paths: []string{zipPath},
+		// Enforce defaults or specific options if needed
+	})
+
+	return r.getGallery(ctx, newGallery.ID)
 }
 
 func (r *mutationResolver) RenameScenes(ctx context.Context, input RenameFilesInput) ([]*RenameResult, error) {

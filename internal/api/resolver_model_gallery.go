@@ -216,3 +216,16 @@ func (r *galleryResolver) Image(ctx context.Context, obj *models.Gallery, index 
 
 	return
 }
+
+func (r *galleryResolver) Images(ctx context.Context, obj *models.Gallery) ([]*models.Image, error) {
+	var ret []*models.Image
+	if err := r.withReadTxn(ctx, func(ctx context.Context) error {
+		var err error
+		ret, err = r.repository.Image.FindByGalleryID(ctx, obj.ID)
+		return err
+	}); err != nil {
+		return nil, err
+	}
+
+	return ret, nil
+}

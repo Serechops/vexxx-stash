@@ -896,16 +896,40 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
       activity.saveActivity = saveActivity;
       activity.incrementPlayCount = incrementPlayCount;
       activity.minimumPlayPercent = minimumPlayPercent;
-      activity.setEnabled(trackActivity);
+      // activity.setEnabled(trackActivity);
     }, [
       getPlayer,
-      scene,
-      vrTag,
+      scene.id,
+      sceneSaveActivity,
+      sceneIncrementPlayCount,
       trackActivity,
       minimumPlayPercent,
-      sceneIncrementPlayCount,
-      sceneSaveActivity,
     ]);
+
+    // Gallery Creator Logic
+    const [showGalleryDialog, setShowGalleryDialog] = useState(false);
+
+    // Add 'g' hotkey
+    useEffect(() => {
+      const handleKeyDown = (e: globalThis.KeyboardEvent) => {
+        // Only trigger if not typing in input
+        if (e.defaultPrevented) return;
+        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+        if (e.key === 'g') {
+          setShowGalleryDialog(true);
+        }
+      };
+
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
+
+    const getVideoElement = () => {
+      const player = getPlayer();
+      if (!player) return null;
+      return player.tech({ IWillNotUseThisInPlugins: true }).el() as HTMLVideoElement;
+    };
 
     // Sync autostart button with config changes
     useEffect(() => {

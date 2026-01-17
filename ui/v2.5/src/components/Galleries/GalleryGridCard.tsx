@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import { Box } from "@mui/material";
 import * as GQL from "src/core/generated-graphql";
 import { GalleryCard } from "./GalleryCard";
@@ -15,6 +15,7 @@ interface IGalleryCardGrid {
   zoomIndex: number;
   onSelectChange: (id: string, selected: boolean, shiftKey: boolean) => void;
   loading?: boolean;
+  itemsPerPage?: number;
 }
 
 const zoomWidths = [280, 340, 420, 560, 800];
@@ -25,6 +26,7 @@ export const GalleryCardGrid: React.FC<IGalleryCardGrid> = ({
   zoomIndex,
   onSelectChange,
   loading,
+  itemsPerPage,
 }) => {
   // Grid hooks (always run)
   const [componentRef, { width: containerWidth }] = useContainerDimensions();
@@ -32,6 +34,16 @@ export const GalleryCardGrid: React.FC<IGalleryCardGrid> = ({
 
   // Use column-width based on zoom level to let browser handle column count
   const columnWidth = zoomWidths[zoomIndex] || zoomWidths[0];
+
+  // Calculate how many skeletons we need to fill the viewport
+  const skeletonCount = useMemo(() => {
+    if (!containerWidth || !columnWidth) return 20;
+    const gap = 16; // 1rem
+    const cols = Math.floor(containerWidth / (columnWidth + gap)) || 1;
+    const rows = Math.ceil(window.innerHeight / (columnWidth * 0.75 + gap)) || 1;
+    const viewportFill = cols * rows;
+    return Math.max(viewportFill, itemsPerPage || 12);
+  }, [containerWidth, columnWidth, itemsPerPage]);
 
   return (
     <Box
@@ -46,7 +58,7 @@ export const GalleryCardGrid: React.FC<IGalleryCardGrid> = ({
       }}
     >
       {loading ? (
-        Array.from({ length: 20 }).map((_, i) => (
+        Array.from({ length: skeletonCount }).map((_, i) => (
           <GalleryCardSkeleton key={i} />
         ))
       ) : (

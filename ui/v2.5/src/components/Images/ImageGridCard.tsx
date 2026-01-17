@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import * as GQL from "src/core/generated-graphql";
 import { ImageCard } from "./ImageCard";
 import {
@@ -14,6 +14,7 @@ interface IImageCardGrid {
   onSelectChange: (id: string, selected: boolean, shiftKey: boolean) => void;
   onPreview: (index: number, ev: React.MouseEvent<Element, MouseEvent>) => void;
   loading?: boolean;
+  itemsPerPage?: number;
 }
 
 const zoomWidths = [280, 340, 420, 560, 800];
@@ -25,6 +26,7 @@ export const ImageGridCard: React.FC<IImageCardGrid> = ({
   onSelectChange,
   onPreview,
   loading,
+  itemsPerPage,
 }) => {
   // Use column-width based on zoom level to let browser handle column count
   const columnWidth = zoomWidths[zoomIndex] || zoomWidths[0];
@@ -33,9 +35,20 @@ export const ImageGridCard: React.FC<IImageCardGrid> = ({
   const [componentRef, { width: containerWidth }] = useContainerDimensions();
   const cardWidth = useCardWidth(containerWidth, zoomIndex, zoomWidths);
 
+  // Calculate how many skeletons we need to fill the viewport
+  const skeletonCount = useMemo(() => {
+    if (!containerWidth || !columnWidth) return 20;
+    const gap = 16; // 1rem
+    const cols = Math.floor(containerWidth / (columnWidth + gap)) || 1;
+    const rows = Math.ceil(window.innerHeight / (columnWidth * 0.75 + gap)) || 1;
+    const viewportFill = cols * rows;
+    return Math.max(viewportFill, itemsPerPage || 12);
+  }, [containerWidth, columnWidth, itemsPerPage]);
+
   return (
     <div
       className="image-grid"
+      ref={componentRef}
       style={{
         display: "grid",
         gridTemplateColumns: `repeat(auto-fit, minmax(${columnWidth}px, 1fr))`,
@@ -44,8 +57,8 @@ export const ImageGridCard: React.FC<IImageCardGrid> = ({
       }}
     >
       {loading ? (
-        Array.from({ length: 20 }).map((_, i) => (
-          <ImageCardSkeleton key={i} zoomIndex={zoomIndex} />
+        Array.from({ length: skeletonCount }).map((_, i) => (
+          <ImageCardSkeleton key={i} />
         ))
       ) : (
         images.map((image, index) => {

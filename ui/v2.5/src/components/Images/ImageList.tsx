@@ -251,6 +251,7 @@ const ImageListImages: React.FC<IImageListImages> = ({
         images={images}
         selectedIds={selectedIds}
         zoomIndex={filter.zoomIndex}
+        itemsPerPage={filter.itemsPerPage}
         onSelectChange={onSelectChange}
         onPreview={onPreview}
         loading={loading}

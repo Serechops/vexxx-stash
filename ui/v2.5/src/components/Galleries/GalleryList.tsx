@@ -144,8 +144,8 @@ export const GalleryList: React.FC<IGalleryList> = PatchComponent(
               galleries={galleries}
               selectedIds={selectedIds}
               zoomIndex={filter.zoomIndex}
+              itemsPerPage={filter.itemsPerPage}
               onSelectChange={onSelectChange}
-              isMasonry={isMasonry}
               loading={result.loading}
             />
           );

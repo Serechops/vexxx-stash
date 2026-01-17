@@ -33,23 +33,14 @@ export const ImageGridCard: React.FC<IImageCardGrid> = ({
   const [componentRef, { width: containerWidth }] = useContainerDimensions();
   const cardWidth = useCardWidth(containerWidth, zoomIndex, zoomWidths);
 
-  // Track orientation for each image by ID
-  const [orientations, setOrientations] = useState<Record<string, boolean>>({});
-
-  const handleOrientationDetected = useCallback((imageId: string, isLandscape: boolean) => {
-    setOrientations(prev => {
-      if (prev[imageId] === isLandscape) return prev;
-      return { ...prev, [imageId]: isLandscape };
-    });
-  }, []);
-
   return (
     <div
-      className="image-magazine-grid"
+      className="image-grid"
       style={{
-        columnWidth: `${columnWidth}px`,
-        columnGap: "1rem",
-        display: "block",
+        display: "grid",
+        gridTemplateColumns: `repeat(auto-fit, minmax(${columnWidth}px, 1fr))`,
+        gap: "1rem",
+        justifyContent: "center",
       }}
     >
       {loading ? (
@@ -57,24 +48,24 @@ export const ImageGridCard: React.FC<IImageCardGrid> = ({
           <ImageCardSkeleton key={i} zoomIndex={zoomIndex} />
         ))
       ) : (
-        images.map((image, index) => (
-          <ImageCard
-            key={image.id}
-            // cardWidth is handled by the column responsive width
-            image={image}
-            zoomIndex={zoomIndex}
-            selecting={selectedIds.size > 0}
-            selected={selectedIds.has(image.id)}
-            onSelectedChanged={(selected: boolean, shiftKey: boolean) =>
-              onSelectChange(image.id, selected, shiftKey)
-            }
-            onPreview={
-              selectedIds.size < 1 ? (ev) => onPreview(index, ev) : undefined
-            }
-            onOrientationDetected={handleOrientationDetected}
-            isLandscape={orientations[image.id]}
-          />
-        ))
+        images.map((image, index) => {
+          return (
+            <ImageCard
+              key={image.id}
+              // cardWidth is handled by the column responsive width
+              image={image}
+              zoomIndex={zoomIndex}
+              selecting={selectedIds.size > 0}
+              selected={selectedIds.has(image.id)}
+              onSelectedChanged={(selected: boolean, shiftKey: boolean) =>
+                onSelectChange(image.id, selected, shiftKey)
+              }
+              onPreview={
+                selectedIds.size < 1 ? (ev) => onPreview(index, ev) : undefined
+              }
+            />
+          );
+        })
       )}
     </div>
   );

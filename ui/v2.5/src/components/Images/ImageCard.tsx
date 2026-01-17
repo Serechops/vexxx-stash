@@ -25,8 +25,6 @@ interface IImageCardProps {
   zoomIndex: number;
   onSelectedChanged?: (selected: boolean, shiftKey: boolean) => void;
   onPreview?: (ev: MouseEvent) => void;
-  onOrientationDetected?: (imageId: string, isLandscape: boolean) => void;
-  isLandscape?: boolean;
 }
 
 export const ImageCard: React.FC<IImageCardProps> = PatchComponent(
@@ -39,20 +37,6 @@ export const ImageCard: React.FC<IImageCardProps> = PatchComponent(
           : undefined,
       [props.image]
     );
-
-    // Determine orientation and notify parent
-    const isLandscape = useMemo(() => {
-      const width = file?.width ? file.width : 0;
-      const height = file?.height ? file.height : 0;
-      return width > height;
-    }, [file]);
-
-    // Notify parent of orientation on mount/change
-    React.useEffect(() => {
-      if (props.onOrientationDetected) {
-        props.onOrientationDetected(props.image.id, isLandscape);
-      }
-    }, [props.image.id, isLandscape, props.onOrientationDetected]);
 
     function maybeRenderTagPopoverButton() {
       if (props.image.tags.length <= 0) return;
@@ -148,14 +132,6 @@ export const ImageCard: React.FC<IImageCardProps> = PatchComponent(
       }
     }
 
-    const isPortrait = useMemo(() => !isLandscape, [isLandscape]);
-
-    const orientationClass = props.isLandscape === true
-      ? "image-card-landscape"
-      : props.isLandscape === false
-        ? "image-card-portrait"
-        : "";
-
     const source =
       props.image.paths.preview != ""
         ? props.image.paths.preview ?? ""
@@ -165,10 +141,7 @@ export const ImageCard: React.FC<IImageCardProps> = PatchComponent(
 
     return (
       <Box
-        className={cx(
-          "image-card",
-          orientationClass
-        )}
+        className="image-card"
         sx={{
           "& .card-section": { display: "none" },
           "&:hover .preview-button": {
@@ -184,12 +157,6 @@ export const ImageCard: React.FC<IImageCardProps> = PatchComponent(
           bgcolor: "grey.900",
           p: 0,
           transition: "none",
-          "&.image-card-landscape": {
-            gridColumn: { md: "span 2" }
-          },
-          "&.image-card-portrait": {
-            gridColumn: "span 1"
-          }
         }}
       >
         <GridCard
@@ -199,13 +166,15 @@ export const ImageCard: React.FC<IImageCardProps> = PatchComponent(
           linkClassName="image-card-link"
           image={
             <Box
-              className={cx("image-card-preview w-full", { portrait: isPortrait })}
+              className={cx("image-card-preview w-full")}
               sx={{
                 display: "flex",
                 justifyContent: "center",
                 mb: "5px",
                 position: "relative",
-                width: "100%"
+                width: "100%",
+                aspectRatio: "4/3",
+                bgcolor: "black",
               }}
             >
               <Box
@@ -217,7 +186,7 @@ export const ImageCard: React.FC<IImageCardProps> = PatchComponent(
                 sx={{
                   height: "100%",
                   objectFit: "contain",
-                  objectPosition: "top",
+                  objectPosition: "center",
                   width: "100%",
                   display: "block"
                 }}

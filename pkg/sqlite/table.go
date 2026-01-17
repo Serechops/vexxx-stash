@@ -825,17 +825,6 @@ func (t *relatedFilesTable) replaceJoins(ctx context.Context, id int, fileIDs []
 	return t.insertJoins(ctx, id, firstPrimary, fileIDs)
 }
 
-// destroyJoins destroys all entries in the table with the provided fileIDs
-func (t *relatedFilesTable) destroyJoins(ctx context.Context, fileIDs []models.FileID) error {
-	q := dialect.Delete(t.table.table).Where(t.table.table.Col("file_id").In(fileIDs))
-
-	if _, err := exec(ctx, q); err != nil {
-		return fmt.Errorf("destroying file joins in %s: %w", t.table.table.GetTable(), err)
-	}
-
-	return nil
-}
-
 func (t *relatedFilesTable) setPrimary(ctx context.Context, id int, fileID models.FileID) error {
 	table := t.table.table
 
@@ -1138,7 +1127,14 @@ func exec(ctx context.Context, stmt sqler) (sql.Result, error) {
 	}
 
 	logger.Tracef("SQL: %s [%v]", sql, args)
+	start := time.Now()
 	ret, err := tx.ExecContext(ctx, sql, args...)
+	elapsed := time.Since(start)
+
+	if elapsed > slowQueryThreshold {
+		logger.Warnf("SLOW EXEC (%v): %s [%v]", elapsed, sql, args)
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("executing `%s` [%v]: %w", sql, args, err)
 	}
@@ -1155,13 +1151,25 @@ func count(ctx context.Context, q *goqu.SelectDataset) (int, error) {
 	return count, nil
 }
 
+// slowQueryThreshold is the duration above which queries are logged as warnings
+const slowQueryThreshold = 500 * time.Millisecond
+
 func queryFunc(ctx context.Context, query *goqu.SelectDataset, single bool, f func(rows *sqlx.Rows) error) error {
 	q, args, err := query.ToSQL()
 	if err != nil {
 		return err
 	}
 
+	start := time.Now()
 	rows, err := dbWrapper.QueryxContext(ctx, q, args...)
+	elapsed := time.Since(start)
+
+	// Log slow queries at Warn level, all queries at Trace level
+	if elapsed > slowQueryThreshold {
+		logger.Warnf("SLOW QUERY (%v): %s [%v]", elapsed, q, args)
+	} else {
+		logger.Tracef("SQL (%v): %s [%v]", elapsed, q, args)
+	}
 
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return fmt.Errorf("querying `%s` [%v]: %w", q, args, err)
@@ -1190,7 +1198,17 @@ func querySimple(ctx context.Context, query *goqu.SelectDataset, out interface{}
 		return err
 	}
 
+	start := time.Now()
 	rows, err := dbWrapper.QueryxContext(ctx, q, args...)
+	elapsed := time.Since(start)
+
+	// Log slow queries at Warn level, all queries at Trace level
+	if elapsed > slowQueryThreshold {
+		logger.Warnf("SLOW QUERY (%v): %s [%v]", elapsed, q, args)
+	} else {
+		logger.Tracef("SQL (%v): %s [%v]", elapsed, q, args)
+	}
+
 	if err != nil {
 		return fmt.Errorf("querying `%s` [%v]: %w", q, args, err)
 	}

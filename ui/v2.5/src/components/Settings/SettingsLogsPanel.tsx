@@ -5,6 +5,8 @@ import { useLoggingSubscribe, queryLogs } from "src/core/StashService";
 import { SelectSetting } from "./Inputs";
 import { SettingSection } from "./SettingSection";
 import { JobTable } from "./Tasks/JobTable";
+import { useConfigurationContext } from "src/hooks/Config";
+import { useSettings } from "./context";
 
 function convertTime(logEntry: GQL.LogEntryDataFragment) {
   function pad(val: number) {
@@ -72,11 +74,27 @@ const MAX_LOG_ENTRIES = 50000;
 const MAX_DISPLAY_LOG_ENTRIES = 1000;
 const logLevels = ["Trace", "Debug", "Info", "Warning", "Error"];
 
+// Map backend config values to frontend names
+const configToLogLevel = (configLevel: string): string => {
+  const level = configLevel.charAt(0).toUpperCase() + configLevel.slice(1).toLowerCase();
+  return logLevels.includes(level) ? level : "Info";
+};
+
 export const SettingsLogsPanel: React.FC = () => {
   const [entries, setEntries] = useState<LogEntry[]>([]);
   const { data, error } = useLoggingSubscribe();
-  const [logLevel, setLogLevel] = useState<string>("Info");
   const intl = useIntl();
+
+  // Get current config and update function
+  const { configuration } = useConfigurationContext();
+  const { saveGeneral, general } = useSettings();
+
+  // Get current backend log level from config (prefer local state, fall back to configuration)
+  const logLevel = general?.logLevel
+    ? configToLogLevel(general.logLevel)
+    : configuration?.general?.logLevel
+      ? configToLogLevel(configuration.general.logLevel)
+      : "Info";
 
   useEffect(() => {
     async function getInitialLogs() {
@@ -104,6 +122,16 @@ export const SettingsLogsPanel: React.FC = () => {
     });
   }, [data]);
 
+  // Filter entries based on current log level
+  function filterByLogLevel(logEntry: LogEntry) {
+    if (logLevel === "Trace") return true;
+
+    const logLevelIndex = logLevels.indexOf(logLevel);
+    const levelIndex = logLevels.indexOf(logEntry.level);
+
+    return levelIndex >= logLevelIndex;
+  }
+
   const displayEntries = entries
     .filter(filterByLogLevel)
     .slice(0, MAX_DISPLAY_LOG_ENTRIES);
@@ -118,13 +146,9 @@ export const SettingsLogsPanel: React.FC = () => {
     }
   }
 
-  function filterByLogLevel(logEntry: LogEntry) {
-    if (logLevel === "Trace") return true;
-
-    const logLevelIndex = logLevels.indexOf(logLevel);
-    const levelIndex = logLevels.indexOf(logEntry.level);
-
-    return levelIndex >= logLevelIndex;
+  // Handle log level change
+  function handleLogLevelChange(level: string) {
+    saveGeneral({ logLevel: level });
   }
 
   return (
@@ -135,8 +159,9 @@ export const SettingsLogsPanel: React.FC = () => {
         <SelectSetting
           id="log-level"
           headingID="config.logs.log_level"
+          subHeadingID="config.logs.log_level_desc"
           value={logLevel}
-          onChange={(v) => setLogLevel(v)}
+          onChange={(v) => handleLogLevelChange(v)}
         >
           {logLevels.map((level) => (
             <option key={level} value={level}>

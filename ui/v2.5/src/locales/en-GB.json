@@ -455,7 +455,8 @@
       "media_content_extensions": "Media content extensions"
     },
     "logs": {
-      "log_level": "Log Level"
+      "log_level": "Log Level",
+      "log_level_desc": "Controls what logs are recorded and displayed. Set to Debug or Trace to see more detailed logs."
     },
     "plugins": {
       "available_plugins": "Available Plugins",

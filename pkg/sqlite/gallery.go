@@ -748,7 +748,32 @@ func (qb *GalleryStore) Query(ctx context.Context, galleryFilter *models.Gallery
 		return nil, 0, err
 	}
 
-	idsResult, countResult, err := query.executeFind(ctx)
+	// TWO-PHASE OPTIMIZATION: Split Count and ID optimizations
+	var idsResult []int
+	var countResult int
+
+	// 1. Optimize Count
+	// If the query is unfiltered (ignoring sort), we can use the fast count query
+	if qb.isUnfilteredQuery(galleryFilter, findFilter) {
+		countResult, err = qb.countFast(ctx)
+	} else {
+		countResult, err = query.executeCount(ctx)
+	}
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// 2. Optimize IDs
+	if qb.canUseFastIDs(galleryFilter, findFilter) {
+		idsResult, err = qb.findIDsFast(ctx, findFilter)
+
+		// Fall back to standard ID query if fast ID query fails
+		if err != nil {
+			idsResult, err = query.findIDs(ctx)
+		}
+	} else {
+		idsResult, err = query.findIDs(ctx)
+	}
 	if err != nil {
 		return nil, 0, err
 	}
@@ -759,6 +784,131 @@ func (qb *GalleryStore) Query(ctx context.Context, galleryFilter *models.Gallery
 	}
 
 	return galleries, countResult, nil
+}
+
+// canUseFastIDs checks if we can use the fast IDs query path
+func (qb *GalleryStore) canUseFastIDs(galleryFilter *models.GalleryFilterType, findFilter *models.FindFilterType) bool {
+	if !qb.isUnfilteredQuery(galleryFilter, findFilter) {
+		return false
+	}
+
+	if findFilter == nil || findFilter.Sort == nil {
+		return true
+	}
+
+	sort := *findFilter.Sort
+	fastSortColumns := map[string]bool{
+		"date":       true,
+		"created_at": true,
+		"updated_at": true,
+		"rating":     true,
+		"organized":  true,
+		"id":         true,
+		"random":     true,
+		"title":      true,
+	}
+
+	return fastSortColumns[sort]
+}
+
+// isUnfilteredQuery checks if the query has no filters applied
+func (qb *GalleryStore) isUnfilteredQuery(galleryFilter *models.GalleryFilterType, findFilter *models.FindFilterType) bool {
+	if galleryFilter != nil {
+		f := galleryFilter
+		if f.And != nil || f.Or != nil || f.Not != nil {
+			return false
+		}
+		if f.Path != nil || f.Title != nil || f.Details != nil {
+			return false
+		}
+		if f.Rating100 != nil || f.Date != nil || f.Organized != nil {
+			return false
+		}
+		if f.Studios != nil || f.Performers != nil || f.Tags != nil {
+			return false
+		}
+		if f.PerformerCount != nil || f.TagCount != nil || f.ImageCount != nil {
+			return false
+		}
+		if f.IsMissing != nil || f.URL != nil {
+			return false
+		}
+		if f.Scenes != nil || f.HasChapters != nil {
+			return false
+		}
+	}
+
+	if findFilter != nil && findFilter.Q != nil && *findFilter.Q != "" {
+		return false
+	}
+
+	return true
+}
+
+// findIDsFast executes a simplified query directly on the galleries table
+func (qb *GalleryStore) findIDsFast(ctx context.Context, findFilter *models.FindFilterType) ([]int, error) {
+	sort := "title"
+	direction := "ASC"
+
+	if findFilter != nil {
+		if findFilter.Sort != nil && *findFilter.Sort != "" {
+			sort = *findFilter.Sort
+		}
+		if findFilter.Direction != nil {
+			if *findFilter.Direction == models.SortDirectionEnumDesc {
+				direction = "DESC"
+			}
+		}
+	}
+
+	var orderBy string
+	switch sort {
+	case "random":
+		orderBy = "ORDER BY RANDOM()"
+	case "title":
+		orderBy = fmt.Sprintf("ORDER BY galleries.title COLLATE NATURAL_CI %s", direction)
+	default:
+		orderBy = fmt.Sprintf("ORDER BY galleries.%s %s", sort, direction)
+	}
+
+	page := 1
+	perPage := 25
+	if findFilter != nil {
+		if findFilter.Page != nil && *findFilter.Page > 0 {
+			page = *findFilter.Page
+		}
+		if findFilter.PerPage != nil && *findFilter.PerPage > 0 {
+			perPage = *findFilter.PerPage
+		}
+	}
+
+	offset := (page - 1) * perPage
+
+	sql := fmt.Sprintf(
+		"SELECT galleries.id FROM galleries %s LIMIT %d OFFSET %d",
+		orderBy, perPage, offset,
+	)
+
+	var result []struct {
+		ID int `db:"id"`
+	}
+
+	if err := dbWrapper.Select(ctx, &result, sql); err != nil {
+		return nil, fmt.Errorf("fast IDs query failed: %w", err)
+	}
+
+	ids := make([]int, len(result))
+	for i, r := range result {
+		ids[i] = r.ID
+	}
+
+	return ids, nil
+}
+
+// countFast returns the total count using a simple query
+func (qb *GalleryStore) countFast(ctx context.Context) (int, error) {
+	q := dialect.Select(goqu.COUNT("*")).From(qb.table())
+	return count(ctx, q)
 }
 
 func (qb *GalleryStore) QueryCount(ctx context.Context, galleryFilter *models.GalleryFilterType, findFilter *models.FindFilterType) (int, error) {

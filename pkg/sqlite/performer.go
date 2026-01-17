@@ -650,7 +650,22 @@ func (qb *PerformerStore) Query(ctx context.Context, performerFilter *models.Per
 		return nil, 0, err
 	}
 
-	idsResult, countResult, err := query.executeFind(ctx)
+	// TWO-PHASE OPTIMIZATION: Use fast path for simple unfiltered queries
+	var idsResult []int
+	var countResult int
+
+	if qb.canUseFastIDs(performerFilter, findFilter) {
+		idsResult, err = qb.findIDsFast(ctx, findFilter)
+		if err == nil {
+			countResult, err = qb.countFast(ctx)
+		}
+		if err != nil {
+			idsResult, countResult, err = query.executeFind(ctx)
+		}
+	} else {
+		idsResult, countResult, err = query.executeFind(ctx)
+	}
+
 	if err != nil {
 		return nil, 0, err
 	}
@@ -661,6 +676,132 @@ func (qb *PerformerStore) Query(ctx context.Context, performerFilter *models.Per
 	}
 
 	return performers, countResult, nil
+}
+
+// canUseFastIDs checks if we can use the fast IDs query path
+func (qb *PerformerStore) canUseFastIDs(performerFilter *models.PerformerFilterType, findFilter *models.FindFilterType) bool {
+	if !qb.isUnfilteredQuery(performerFilter, findFilter) {
+		return false
+	}
+
+	if findFilter == nil || findFilter.Sort == nil {
+		return true
+	}
+
+	sort := *findFilter.Sort
+	fastSortColumns := map[string]bool{
+		"name":       true,
+		"birthdate":  true,
+		"created_at": true,
+		"updated_at": true,
+		"rating":     true,
+		"favorite":   true,
+		"id":         true,
+		"random":     true,
+	}
+
+	return fastSortColumns[sort]
+}
+
+// isUnfilteredQuery checks if the query has no filters applied
+func (qb *PerformerStore) isUnfilteredQuery(performerFilter *models.PerformerFilterType, findFilter *models.FindFilterType) bool {
+	if performerFilter != nil {
+		f := performerFilter
+		if f.And != nil || f.Or != nil || f.Not != nil {
+			return false
+		}
+		if f.Name != nil || f.Disambiguation != nil || f.Details != nil {
+			return false
+		}
+		if f.Rating100 != nil || f.Birthdate != nil || f.DeathDate != nil {
+			return false
+		}
+		if f.Studios != nil || f.Tags != nil {
+			return false
+		}
+		if f.SceneCount != nil || f.ImageCount != nil || f.GalleryCount != nil {
+			return false
+		}
+		if f.IsMissing != nil || f.URL != nil {
+			return false
+		}
+		if f.Gender != nil || f.Ethnicity != nil || f.Country != nil {
+			return false
+		}
+		if f.IgnoreAutoTag != nil {
+			return false
+		}
+	}
+
+	if findFilter != nil && findFilter.Q != nil && *findFilter.Q != "" {
+		return false
+	}
+
+	return true
+}
+
+// findIDsFast executes a simplified query directly on the performers table
+func (qb *PerformerStore) findIDsFast(ctx context.Context, findFilter *models.FindFilterType) ([]int, error) {
+	sort := "name"
+	direction := "ASC"
+
+	if findFilter != nil {
+		if findFilter.Sort != nil && *findFilter.Sort != "" {
+			sort = *findFilter.Sort
+		}
+		if findFilter.Direction != nil {
+			if *findFilter.Direction == models.SortDirectionEnumDesc {
+				direction = "DESC"
+			}
+		}
+	}
+
+	var orderBy string
+	switch sort {
+	case "random":
+		orderBy = "ORDER BY RANDOM()"
+	default:
+		orderBy = fmt.Sprintf("ORDER BY performers.%s %s", sort, direction)
+	}
+
+	page := 1
+	perPage := 25
+	if findFilter != nil {
+		if findFilter.Page != nil && *findFilter.Page > 0 {
+			page = *findFilter.Page
+		}
+		if findFilter.PerPage != nil && *findFilter.PerPage > 0 {
+			perPage = *findFilter.PerPage
+		}
+	}
+
+	offset := (page - 1) * perPage
+
+	sql := fmt.Sprintf(
+		"SELECT performers.id FROM performers %s LIMIT %d OFFSET %d",
+		orderBy, perPage, offset,
+	)
+
+	var result []struct {
+		ID int `db:"id"`
+	}
+
+	if err := dbWrapper.Select(ctx, &result, sql); err != nil {
+		return nil, fmt.Errorf("fast IDs query failed: %w", err)
+	}
+
+	ids := make([]int, len(result))
+	for i, r := range result {
+		ids[i] = r.ID
+	}
+
+	return ids, nil
+}
+
+// countFast returns the total count using a simple query
+func (qb *PerformerStore) countFast(ctx context.Context) (int, error) {
+	q := dialect.Select(goqu.COUNT("*")).From(qb.table())
+	return count(ctx, q)
 }
 
 func (qb *PerformerStore) QueryCount(ctx context.Context, performerFilter *models.PerformerFilterType, findFilter *models.FindFilterType) (int, error) {

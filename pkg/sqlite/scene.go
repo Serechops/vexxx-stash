@@ -1063,13 +1063,149 @@ func (qb *SceneStore) Query(ctx context.Context, options models.SceneQueryOption
 		return nil, fmt.Errorf("error querying aggregate fields: %w", err)
 	}
 
-	idsResult, err := query.findIDs(ctx)
+	// TWO-PHASE OPTIMIZATION: Use fast path for simple unfiltered queries
+	var idsResult []int
+	if qb.canUseFastIDs(options) {
+		idsResult, err = qb.findIDsFast(ctx, options.FindFilter)
+		if err != nil {
+			idsResult, err = query.findIDs(ctx)
+		}
+	} else {
+		idsResult, err = query.findIDs(ctx)
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("error finding IDs: %w", err)
 	}
 
 	result.IDs = idsResult
 	return result, nil
+}
+
+// canUseFastIDs checks if we can use the fast IDs query path
+func (qb *SceneStore) canUseFastIDs(options models.SceneQueryOptions) bool {
+	if !qb.isUnfilteredQuery(options) {
+		return false
+	}
+
+	if options.FindFilter == nil || options.FindFilter.Sort == nil {
+		return true
+	}
+
+	sort := *options.FindFilter.Sort
+	fastSortColumns := map[string]bool{
+		"date":          true,
+		"created_at":    true,
+		"updated_at":    true,
+		"rating":        true,
+		"o_counter":     true,
+		"organized":     true,
+		"id":            true,
+		"random":        true,
+		"play_count":    true,
+		"play_duration": true,
+		"resume_time":   true,
+	}
+
+	return fastSortColumns[sort]
+}
+
+// isUnfilteredQuery checks if the query has no filters applied
+func (qb *SceneStore) isUnfilteredQuery(options models.SceneQueryOptions) bool {
+	if options.SceneFilter != nil {
+		f := options.SceneFilter
+		if f.And != nil || f.Or != nil || f.Not != nil {
+			return false
+		}
+		if f.Path != nil || f.Title != nil || f.Code != nil || f.Details != nil {
+			return false
+		}
+		if f.Rating100 != nil || f.Date != nil || f.Organized != nil {
+			return false
+		}
+		if f.Studios != nil || f.Performers != nil || f.Tags != nil || f.Galleries != nil {
+			return false
+		}
+		if f.PerformerCount != nil || f.TagCount != nil || f.PerformerAge != nil {
+			return false
+		}
+		if f.Resolution != nil || f.OCounter != nil || f.IsMissing != nil {
+			return false
+		}
+		if f.URL != nil || f.Director != nil || f.HasMarkers != nil {
+			return false
+		}
+		if f.Interactive != nil || f.InteractiveSpeed != nil {
+			return false
+		}
+		if f.Groups != nil || f.PlayCount != nil || f.PlayDuration != nil {
+			return false
+		}
+	}
+
+	if options.FindFilter != nil && options.FindFilter.Q != nil && *options.FindFilter.Q != "" {
+		return false
+	}
+
+	return true
+}
+
+// findIDsFast executes a simplified query directly on the scenes table
+func (qb *SceneStore) findIDsFast(ctx context.Context, findFilter *models.FindFilterType) ([]int, error) {
+	sort := "date"
+	direction := "DESC"
+
+	if findFilter != nil {
+		if findFilter.Sort != nil && *findFilter.Sort != "" {
+			sort = *findFilter.Sort
+		}
+		if findFilter.Direction != nil {
+			if *findFilter.Direction == models.SortDirectionEnumAsc {
+				direction = "ASC"
+			}
+		}
+	}
+
+	var orderBy string
+	switch sort {
+	case "random":
+		orderBy = "ORDER BY RANDOM()"
+	default:
+		orderBy = fmt.Sprintf("ORDER BY scenes.%s %s", sort, direction)
+	}
+
+	page := 1
+	perPage := 25
+	if findFilter != nil {
+		if findFilter.Page != nil && *findFilter.Page > 0 {
+			page = *findFilter.Page
+		}
+		if findFilter.PerPage != nil && *findFilter.PerPage > 0 {
+			perPage = *findFilter.PerPage
+		}
+	}
+
+	offset := (page - 1) * perPage
+
+	sql := fmt.Sprintf(
+		"SELECT scenes.id FROM scenes %s LIMIT %d OFFSET %d",
+		orderBy, perPage, offset,
+	)
+
+	var result []struct {
+		ID int `db:"id"`
+	}
+
+	if err := dbWrapper.Select(ctx, &result, sql); err != nil {
+		return nil, fmt.Errorf("fast IDs query failed: %w", err)
+	}
+
+	ids := make([]int, len(result))
+	for i, r := range result {
+		ids[i] = r.ID
+	}
+
+	return ids, nil
 }
 
 func (qb *SceneStore) queryGroupedFields(ctx context.Context, options models.SceneQueryOptions, query queryBuilder) (*models.SceneQueryResult, error) {

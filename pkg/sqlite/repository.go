@@ -6,9 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 
+	"github.com/stashapp/stash/pkg/logger"
 	"github.com/stashapp/stash/pkg/models"
 )
 
@@ -84,8 +86,16 @@ func (r *repository) runIdsQuery(ctx context.Context, query string, args []inter
 		Int int `db:"id"`
 	}
 
+	start := time.Now()
 	if err := dbWrapper.Select(ctx, &result, query, args...); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return []int{}, fmt.Errorf("running query: %s [%v]: %w", query, args, err)
+	}
+	elapsed := time.Since(start)
+
+	if elapsed > 500*time.Millisecond {
+		logger.Warnf("SLOW IDS QUERY (%v): %s [%v]", elapsed, query, args)
+	} else {
+		logger.Tracef("IDS QUERY (%v): %s [%v]", elapsed, query, args)
 	}
 
 	vsm := make([]int, len(result))

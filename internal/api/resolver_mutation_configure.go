@@ -338,9 +338,14 @@ func (r *mutationResolver) ConfigureGeneral(ctx context.Context, input ConfigGen
 	r.setConfigBool(config.LogAccess, input.LogAccess)
 
 	if input.LogLevel != nil && *input.LogLevel != c.GetLogLevel() {
+		oldLevel := c.GetLogLevel()
 		c.SetString(config.LogLevel, *input.LogLevel)
 		logger := manager.GetInstance().Logger
 		logger.SetLogLevel(*input.LogLevel)
+		logger.Infof("Log level changed from %s to %s", oldLevel, *input.LogLevel)
+		// Test debug/trace logging to verify it's working
+		logger.Debugf("DEBUG: If you see this, debug logging is enabled")
+		logger.Tracef("TRACE: If you see this, trace logging is enabled")
 	}
 
 	if input.LogFileMaxSize != nil && *input.LogFileMaxSize != c.GetLogFileMaxSize() {

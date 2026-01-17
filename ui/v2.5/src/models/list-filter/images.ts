@@ -23,7 +23,7 @@ import { ListFilterOptions, MediaSortByOptions } from "./filter-options";
 import { DisplayMode } from "./types";
 import { GalleriesCriterionOption } from "./criteria/galleries";
 
-const defaultSortBy = "path";
+const defaultSortBy = "date";
 
 const sortByOptions = [
   "filesize",

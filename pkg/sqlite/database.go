@@ -34,7 +34,7 @@ const (
 	cacheSizeEnv = "STASH_SQLITE_CACHE_SIZE"
 )
 
-var appSchemaVersion uint = 79
+var appSchemaVersion uint = 81
 
 //go:embed migrations/*.sql
 var migrationsBox embed.FS
@@ -106,13 +106,14 @@ func NewDatabase() *Database {
 	potentialSceneStore := NewPotentialSceneStore()
 
 	r := &storeRepository{}
+	statsStore := NewStatsStore()
 	*r = storeRepository{
 		Blobs:          blobStore,
 		File:           fileStore,
 		Folder:         folderStore,
 		Scene:          NewSceneStore(r, blobStore),
 		SceneMarker:    NewSceneMarkerStore(),
-		Image:          NewImageStore(r),
+		Image:          NewImageStore(r, statsStore),
 		Gallery:        galleryStore,
 		GalleryChapter: NewGalleryChapterStore(),
 		Performer:      performerStore,
@@ -252,10 +253,16 @@ func (db *Database) open(disableForeignKeys bool, writable bool) (*sqlx.DB, erro
 	}
 
 	// #5155 - set the cache size if the environment variable is set
-	// default is -2000 which is 2MB
+	// default is -2000 which is 2MB.
+	// Optimization: Increase to -65536 (64MB) as per high-performance recommendations
 	if cacheSize := os.Getenv(cacheSizeEnv); cacheSize != "" {
 		url += "&_cache_size=" + cacheSize
+	} else {
+		url += "&_cache_size=-65536"
 	}
+
+	// Optimization: Enable memory-mapped I/O (30GB) and in-memory temp store
+	url += "&_mmap_size=30000000000&_temp_store=memory"
 
 	conn, err := sqlx.Open(sqlite3Driver, url)
 	if err != nil {

@@ -7,8 +7,10 @@ import (
 	"fmt"
 	"path/filepath"
 	"slices"
+	"time"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/stashapp/stash/pkg/logger"
 	"github.com/stashapp/stash/pkg/models"
 	"github.com/stashapp/stash/pkg/sliceutil"
 	"gopkg.in/guregu/null.v4"
@@ -188,14 +190,16 @@ type ImageStore struct {
 	tableMgr *table
 	oCounterManager
 
-	repo *storeRepository
+	repo  *storeRepository
+	stats *StatsStore
 }
 
-func NewImageStore(r *storeRepository) *ImageStore {
+func NewImageStore(r *storeRepository, stats *StatsStore) *ImageStore {
 	return &ImageStore{
 		tableMgr:        imageTableMgr,
 		oCounterManager: oCounterManager{imageTableMgr},
 		repo:            r,
+		stats:           stats,
 	}
 }
 
@@ -282,6 +286,14 @@ func (qb *ImageStore) Create(ctx context.Context, newObject *models.Image, fileI
 	}
 
 	*newObject = *updated
+
+	// Update stats cache
+	if qb.stats != nil {
+		if err := qb.stats.IncrementCount(ctx, StatsKeyImageCount, 1); err != nil {
+			// Log but don't fail - cache is best-effort
+			logger.Warnf("failed to update image count cache: %v", err)
+		}
+	}
 
 	return nil
 }
@@ -378,7 +390,20 @@ func (qb *ImageStore) Update(ctx context.Context, updatedObject *models.Image) e
 }
 
 func (qb *ImageStore) Destroy(ctx context.Context, id int) error {
-	return qb.tableMgr.destroyExisting(ctx, []int{id})
+	err := qb.tableMgr.destroyExisting(ctx, []int{id})
+	if err != nil {
+		return err
+	}
+
+	// Update stats cache
+	if qb.stats != nil {
+		if err := qb.stats.IncrementCount(ctx, StatsKeyImageCount, -1); err != nil {
+			// Log but don't fail - cache is best-effort
+			logger.Warnf("failed to update image count cache: %v", err)
+		}
+	}
+
+	return nil
 }
 
 // returns nil, nil if not found
@@ -841,29 +866,180 @@ func (qb *ImageStore) makeQuery(ctx context.Context, imageFilter *models.ImageFi
 }
 
 func (qb *ImageStore) Query(ctx context.Context, options models.ImageQueryOptions) (*models.ImageQueryResult, error) {
+	start := time.Now()
+	logger.Infof("ImageStore.Query START: Count=%v, Megapixels=%v, TotalSize=%v",
+		options.Count, options.Megapixels, options.TotalSize)
+
 	query, err := qb.makeQuery(ctx, options.ImageFilter, options.FindFilter)
 	if err != nil {
 		return nil, err
 	}
+	makeQueryTime := time.Since(start)
 
 	result, err := qb.queryGroupedFields(ctx, options, *query)
 	if err != nil {
 		return nil, fmt.Errorf("error querying aggregate fields: %w", err)
 	}
+	groupedFieldsTime := time.Since(start) - makeQueryTime
 
-	idsResult, err := query.findIDs(ctx)
+	idsStart := time.Now()
+
+	// TWO-PHASE OPTIMIZATION: Use fast path for simple unfiltered queries
+	var idsResult []int
+	if qb.canUseFastIDs(options) {
+		idsResult, err = qb.findIDsFast(ctx, options.FindFilter)
+		if err != nil {
+			logger.Warnf("Fast IDs query failed, falling back to standard: %v", err)
+			idsResult, err = query.findIDs(ctx)
+		} else {
+			logger.Infof("FAST IDS PATH used")
+		}
+	} else {
+		idsResult, err = query.findIDs(ctx)
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("error finding IDs: %w", err)
 	}
+	idsTime := time.Since(idsStart)
 
 	result.IDs = idsResult
+
+	totalTime := time.Since(start)
+	logger.Infof("ImageStore.Query END: total=%v (makeQuery=%v, groupedFields=%v, findIDs=%v), count=%d, ids=%d",
+		totalTime, makeQueryTime, groupedFieldsTime, idsTime, result.Count, len(result.IDs))
+
 	return result, nil
 }
 
+// canUseFastIDs checks if we can use the fast IDs query path
+// This is true when no filters are applied and sort is on an indexed column
+func (qb *ImageStore) canUseFastIDs(options models.ImageQueryOptions) bool {
+	// Must have no filter
+	if !qb.isUnfilteredQuery(options) {
+		return false
+	}
+
+	// Check sort column is indexed
+	if options.FindFilter == nil || options.FindFilter.Sort == nil {
+		return true // default sort should be fast
+	}
+
+	sort := *options.FindFilter.Sort
+	// These columns have indexes and don't require JOINs
+	fastSortColumns := map[string]bool{
+		"date":       true,
+		"created_at": true,
+		"updated_at": true,
+		"rating":     true,
+		"o_counter":  true,
+		"organized":  true,
+		"id":         true,
+		"random":     true,
+	}
+
+	return fastSortColumns[sort]
+}
+
+// findIDsFast executes a simplified query directly on the images table
+// This avoids expensive JOINs when no filtering is needed
+func (qb *ImageStore) findIDsFast(ctx context.Context, findFilter *models.FindFilterType) ([]int, error) {
+	// Build sort clause
+	sort := "date"
+	direction := "DESC"
+
+	if findFilter != nil {
+		if findFilter.Sort != nil && *findFilter.Sort != "" {
+			sort = *findFilter.Sort
+		}
+		if findFilter.Direction != nil {
+			if *findFilter.Direction == models.SortDirectionEnumAsc {
+				direction = "ASC"
+			}
+		}
+	}
+
+	// Handle special sort cases
+	var orderBy string
+	switch sort {
+	case "random":
+		orderBy = "ORDER BY RANDOM()"
+	default:
+		orderBy = fmt.Sprintf("ORDER BY images.%s %s", sort, direction)
+	}
+
+	// Build pagination
+	page := 1
+	perPage := 25
+	if findFilter != nil {
+		if findFilter.Page != nil && *findFilter.Page > 0 {
+			page = *findFilter.Page
+		}
+		if findFilter.PerPage != nil && *findFilter.PerPage > 0 {
+			perPage = *findFilter.PerPage
+		}
+	}
+
+	offset := (page - 1) * perPage
+
+	// Build the fast query - NO JOINS, just images table
+	sql := fmt.Sprintf(
+		"SELECT images.id FROM images %s LIMIT %d OFFSET %d",
+		orderBy, perPage, offset,
+	)
+
+	start := time.Now()
+	var result []struct {
+		ID int `db:"id"`
+	}
+
+	if err := dbWrapper.Select(ctx, &result, sql); err != nil {
+		return nil, fmt.Errorf("fast IDs query failed: %w", err)
+	}
+
+	elapsed := time.Since(start)
+	logger.Debugf("Fast IDs query took %v: %s", elapsed, sql)
+
+	ids := make([]int, len(result))
+	for i, r := range result {
+		ids[i] = r.ID
+	}
+
+	return ids, nil
+}
+
 func (qb *ImageStore) queryGroupedFields(ctx context.Context, options models.ImageQueryOptions, query queryBuilder) (*models.ImageQueryResult, error) {
+	logger.Debugf("queryGroupedFields called: Count=%v, Megapixels=%v, TotalSize=%v",
+		options.Count, options.Megapixels, options.TotalSize)
+
 	if !options.Count && !options.Megapixels && !options.TotalSize {
 		// nothing to do - return empty result
+		logger.Debugf("queryGroupedFields: no aggregates requested, returning empty")
 		return models.NewImageQueryResult(qb), nil
+	}
+
+	// Fast path: If only count is requested and no filter is applied, use cached count
+	isUnfiltered := qb.isUnfilteredQuery(options)
+	logger.Debugf("queryGroupedFields: isUnfiltered=%v, stats=%v", isUnfiltered, qb.stats != nil)
+
+	if options.Count && !options.Megapixels && !options.TotalSize && isUnfiltered {
+		if qb.stats != nil {
+			cachedCount, err := qb.stats.GetCount(ctx, StatsKeyImageCount)
+			logger.Debugf("queryGroupedFields: cached count lookup: count=%d, err=%v", cachedCount, err)
+			if err == nil && cachedCount > 0 {
+				logger.Infof("FAST PATH: Using cached image count: %d", cachedCount)
+				ret := models.NewImageQueryResult(qb)
+				ret.Count = cachedCount
+				return ret, nil
+			}
+			// Fall through to slow path if cache fails
+			logger.Warnf("SLOW PATH: Cache miss or error, falling back to COUNT(*)")
+		} else {
+			logger.Warnf("SLOW PATH: stats is nil, cannot use cache")
+		}
+	} else {
+		logger.Infof("SLOW PATH: Filter applied or megapixels/totalsize requested (Count=%v, Megapixels=%v, TotalSize=%v, Unfiltered=%v)",
+			options.Count, options.Megapixels, options.TotalSize, isUnfiltered)
 	}
 
 	aggregateQuery := imageRepository.newQuery()
@@ -919,6 +1095,53 @@ func (qb *ImageStore) queryGroupedFields(ctx context.Context, options models.Ima
 	ret.Megapixels = out.Megapixels.Float64
 	ret.TotalSize = out.Size.Float64
 	return ret, nil
+}
+
+// isUnfilteredQuery checks if the query has no filters applied
+func (qb *ImageStore) isUnfilteredQuery(options models.ImageQueryOptions) bool {
+	// Check if ImageFilter is nil or empty
+	if options.ImageFilter != nil {
+		// If any filter field is set, it's filtered
+		// We check if the filter is effectively empty by checking common fields
+		f := options.ImageFilter
+		if f.And != nil || f.Or != nil || f.Not != nil {
+			logger.Debugf("isUnfilteredQuery: false - And/Or/Not set")
+			return false
+		}
+		if f.Path != nil || f.Title != nil || f.Code != nil || f.Details != nil {
+			logger.Debugf("isUnfilteredQuery: false - Path/Title/Code/Details set")
+			return false
+		}
+		if f.Rating100 != nil || f.Date != nil || f.Organized != nil {
+			logger.Debugf("isUnfilteredQuery: false - Rating100/Date/Organized set")
+			return false
+		}
+		if f.Studios != nil || f.Performers != nil || f.Tags != nil || f.Galleries != nil {
+			logger.Debugf("isUnfilteredQuery: false - Studios/Performers/Tags/Galleries set")
+			return false
+		}
+		if f.PerformerCount != nil || f.TagCount != nil || f.PerformerAge != nil {
+			logger.Debugf("isUnfilteredQuery: false - PerformerCount/TagCount/PerformerAge set")
+			return false
+		}
+		if f.Checksum != nil || f.Resolution != nil || f.OCounter != nil || f.IsMissing != nil {
+			logger.Debugf("isUnfilteredQuery: false - Checksum/Resolution/OCounter/IsMissing set")
+			return false
+		}
+		if f.URL != nil || f.Photographer != nil {
+			logger.Debugf("isUnfilteredQuery: false - URL/Photographer set")
+			return false
+		}
+	}
+
+	// Check if FindFilter has a search query
+	if options.FindFilter != nil && options.FindFilter.Q != nil && *options.FindFilter.Q != "" {
+		logger.Debugf("isUnfilteredQuery: false - search query Q='%s'", *options.FindFilter.Q)
+		return false
+	}
+
+	logger.Debugf("isUnfilteredQuery: true - no filters detected")
+	return true
 }
 
 func (qb *ImageStore) QueryCount(ctx context.Context, imageFilter *models.ImageFilterType, findFilter *models.FindFilterType) (int, error) {
@@ -992,7 +1215,7 @@ func (qb *ImageStore) setImageSortAndPagination(q *queryBuilder, findFilter *mod
 		case "path":
 			addFilesJoin()
 			addFolderJoin()
-			sortClause = " ORDER BY COALESCE(folders.path, '') || COALESCE(files.basename, '') COLLATE NATURAL_CI " + direction
+			sortClause = " ORDER BY folders.path COLLATE NATURAL_CI " + direction + ", files.basename COLLATE NATURAL_CI " + direction
 		case "file_count":
 			sortClause = getCountSort(imageTable, imagesFilesTable, imageIDColumn, direction)
 		case "tag_count":
@@ -1013,7 +1236,7 @@ func (qb *ImageStore) setImageSortAndPagination(q *queryBuilder, findFilter *mod
 		case "title":
 			addFilesJoin()
 			addFolderJoin()
-			sortClause = " ORDER BY COALESCE(images.title, files.basename) COLLATE NATURAL_CI " + direction + ", folders.path COLLATE NATURAL_CI " + direction
+			sortClause = " ORDER BY images.title COLLATE NATURAL_CI " + direction + ", files.basename COLLATE NATURAL_CI " + direction + ", folders.path COLLATE NATURAL_CI " + direction
 		default:
 			sortClause = getSort(sort, direction, "images")
 		}

@@ -298,6 +298,7 @@ const GroupListContent: React.FC<{
           filter={filter}
           totalCount={totalCount}
           onChangePage={onChangePage}
+          hidePagination={true}
           allowSkeleton={true}
         >
           {renderContent(

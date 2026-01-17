@@ -117,6 +117,7 @@ build-flags: build-info
 	$(eval BUILD_LDFLAGS += -X 'github.com/stashapp/stash/internal/build.githash=$(GITHASH)')
 	$(eval BUILD_LDFLAGS += -X 'github.com/stashapp/stash/internal/build.version=$(STASH_VERSION)')
 	$(eval BUILD_LDFLAGS += -X 'github.com/stashapp/stash/internal/build.officialBuild=$(OFFICIAL_BUILD)')
+	$(eval BUILD_LDFLAGS += -X 'github.com/stashapp/stash/internal/build.releaseRepo=$(STASH_RELEASE_REPO)')
 	$(eval BUILD_FLAGS := -v -tags "$(GO_BUILD_TAGS)" $(GO_BUILD_FLAGS) -ldflags "$(BUILD_LDFLAGS)")
 
 .PHONY: stash
@@ -258,6 +259,7 @@ build-cc-all:
 	make build-cc-linux-arm32v7
 	make build-cc-linux-arm32v6
 	make build-cc-freebsd
+	STASH_VERSION=$(STASH_VERSION) GITHASH=$(GITHASH) STASH_RELEASE_REPO=$(STASH_RELEASE_REPO) go run scripts/generate_release_notes.go
 
 .PHONY: touch-ui
 touch-ui:

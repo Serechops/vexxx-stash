@@ -20,9 +20,12 @@ import (
 )
 
 func getReleaseRepo() string {
-	repo := os.Getenv("STASH_RELEASE_REPO")
+	repo := build.ReleaseRepo()
 	if repo == "" {
-		return "stashapp/stash"
+		repo = os.Getenv("STASH_RELEASE_REPO")
+	}
+	if repo == "" {
+		repo = "stashapp/stash"
 	}
 	return repo
 }

@@ -65,7 +65,11 @@ export const SettingsAboutPanel: React.FC = () => {
                   id: "config.about.build_hash",
                 })}
               </h3>
-              <div className="value">{hashString}</div>
+              <div className="value">
+                <ExternalLink href={`https://github.com/${latestRepo}/commit/${hashString}`}>
+                  {hashString}
+                </ExternalLink>
+              </div>
             </div>
             <div>
               <Button
@@ -109,7 +113,11 @@ export const SettingsAboutPanel: React.FC = () => {
         >
           <ConstantSetting
             headingID="config.about.build_hash"
-            value={gitHash}
+            value={(
+              <ExternalLink href={`https://github.com/${currentRepo}/commit/${gitHash}`}>
+                {gitHash}
+              </ExternalLink>
+            )}
           />
           <ConstantSetting
             headingID="config.about.build_time"

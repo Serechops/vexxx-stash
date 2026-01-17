@@ -9,9 +9,14 @@ var version string
 var buildstamp string
 var githash string
 var officialBuild string
+var releaseRepo string
 
 func Version() (string, string, string) {
 	return version, githash, buildstamp
+}
+
+func ReleaseRepo() string {
+	return releaseRepo
 }
 
 func VersionString() string {

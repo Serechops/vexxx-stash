@@ -305,6 +305,7 @@ func (r *queryResolver) Version(ctx context.Context) (*Version, error) {
 		Version:   &version,
 		Hash:      hash,
 		BuildTime: buildtime,
+		Repo:      getReleaseRepo(),
 	}, nil
 }
 
@@ -323,6 +324,7 @@ func (r *queryResolver) Latestversion(ctx context.Context) (*LatestVersion, erro
 		Shorthash:   latestRelease.ShortHash,
 		ReleaseDate: latestRelease.Date,
 		URL:         latestRelease.Url,
+		Repo:        latestRelease.Repo,
 	}, nil
 }
 

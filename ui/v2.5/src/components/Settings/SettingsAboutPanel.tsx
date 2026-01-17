@@ -1,7 +1,7 @@
 import React from "react";
 import { Button } from "@mui/material";
 import { useIntl } from "react-intl";
-import { useLatestVersion } from "src/core/StashService";
+import { useLatestVersion, useVersion } from "src/core/StashService";
 import { ExternalLink } from "../Shared/ExternalLink";
 import { ConstantSetting, SettingGroup } from "./Inputs";
 import { SettingSection } from "./SettingSection";
@@ -20,6 +20,10 @@ export const SettingsAboutPanel: React.FC = () => {
     refetch,
     networkStatus,
   } = useLatestVersion();
+  const { data: dataVersion } = useVersion();
+
+  const currentRepo = (dataVersion?.version as any)?.repo || "stashapp/stash";
+  const latestRepo = (dataLatest?.latestversion as any)?.repo || "stashapp/stash";
 
   function renderLatestVersion() {
     if (errorLatest) {
@@ -64,10 +68,12 @@ export const SettingsAboutPanel: React.FC = () => {
               <div className="value">{hashString}</div>
             </div>
             <div>
-              <Button href={dataLatest.latestversion.url} variant="contained">
-                {intl.formatMessage({ id: "actions.download" })}
-              </Button>
-              <Button onClick={() => refetch()} variant="outlined" sx={{ ml: 1 }}>
+              <Button
+                href="https://www.patreon.com/c/Creat1veB1te"
+                variant="contained"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 {intl.formatMessage({
                   id: "config.about.check_for_new_version",
                 })}
@@ -78,6 +84,16 @@ export const SettingsAboutPanel: React.FC = () => {
             headingID="config.about.release_date"
             value={dataLatest.latestversion.release_date}
           />
+          {latestRepo !== currentRepo && (
+            <ConstantSetting
+              heading="Release Repository"
+              value={(
+                <ExternalLink href={`https://github.com/${latestRepo}`}>
+                  {latestRepo}
+                </ExternalLink>
+              )}
+            />
+          )}
         </SettingGroup>
       );
     }
@@ -88,7 +104,7 @@ export const SettingsAboutPanel: React.FC = () => {
       <SettingSection headingID="config.about.version">
         <SettingGroup
           settingProps={{
-            heading: stashVersion,
+            heading: `${stashVersion}${currentRepo !== "stashapp/stash" ? ` (${currentRepo})` : ""}`,
           }}
         >
           <ConstantSetting
@@ -114,7 +130,7 @@ export const SettingsAboutPanel: React.FC = () => {
                 { id: "config.about.stash_home" },
                 {
                   url: (
-                    <ExternalLink href="https://github.com/stashapp/stash">
+                    <ExternalLink href={`https://github.com/${currentRepo}`}>
                       GitHub
                     </ExternalLink>
                   ),

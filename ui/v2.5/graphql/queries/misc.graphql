@@ -35,6 +35,7 @@ query Version {
     version
     hash
     build_time
+    repo
   }
 }
 
@@ -44,6 +45,7 @@ query LatestVersion {
     shorthash
     release_date
     url
+    repo
   }
 }
 

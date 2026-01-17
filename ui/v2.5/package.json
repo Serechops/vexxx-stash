@@ -4,6 +4,7 @@
   "homepage": "./",
   "type": "module",
   "scripts": {
+    "generate-cc": "make -C ../.. generate && make -C ../.. ui && docker pull stashapp/compiler && cd ../.. && docker run --rm -v \".:/stash\" -e STASH_VERSION -e GITHASH -e BUILD_DATE -e OFFICIAL_BUILD -e STASH_RELEASE_REPO -w /stash stashapp/compiler /bin/bash -c \"make build-cc-all\"",
     "server": "make -C ../.. server-start GITHASH=dev STASH_VERSION=dev BUILD_DATE=2026-01-01",
     "all": "make -C ../.. ui && make -C ../.. build && pnpm run dev",
     "release": "make -C ../.. build-release",

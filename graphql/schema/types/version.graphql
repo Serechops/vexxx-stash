@@ -2,6 +2,7 @@ type Version {
   version: String
   hash: String!
   build_time: String!
+  repo: String!
 }
 
 type LatestVersion {
@@ -9,4 +10,5 @@ type LatestVersion {
   shorthash: String!
   release_date: String!
   url: String!
+  repo: String!
 }

@@ -46,8 +46,8 @@ export const SceneCardsGrid: React.FC<ISceneCardsGrid> = ({
 
   return (
     <div className={`grid ${getGridClass(zoomIndex)} gap-6 p-4`}>
-      {loading && scenes.length === 0 ? (
-        // Render Skeletons
+      {loading ? (
+        // Render Skeletons during load to prevent collapse
         Array.from({ length: 20 }).map((_, i) => (
           <SceneCardSkeleton key={i} />
         ))

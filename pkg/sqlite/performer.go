@@ -654,16 +654,25 @@ func (qb *PerformerStore) Query(ctx context.Context, performerFilter *models.Per
 	var idsResult []int
 	var countResult int
 
+	// 1. Optimize Count
+	// If the query is unfiltered (ignoring sort), we can use the fast count query
+	if qb.isUnfilteredQuery(performerFilter, findFilter) {
+		countResult, err = qb.countFast(ctx)
+	} else {
+		countResult, err = query.executeCount(ctx)
+	}
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// 2. Optimize IDs
 	if qb.canUseFastIDs(performerFilter, findFilter) {
 		idsResult, err = qb.findIDsFast(ctx, findFilter)
-		if err == nil {
-			countResult, err = qb.countFast(ctx)
-		}
 		if err != nil {
-			idsResult, countResult, err = query.executeFind(ctx)
+			idsResult, err = query.findIDs(ctx)
 		}
 	} else {
-		idsResult, countResult, err = query.executeFind(ctx)
+		idsResult, err = query.findIDs(ctx)
 	}
 
 	if err != nil {

@@ -43,7 +43,7 @@ export const PerformerCardGrid: React.FC<IPerformerCardGrid> = ({
         }
       }}
     >
-      {loading && performers.length === 0 ? (
+      {loading ? (
         Array.from({ length: 20 }).map((_, i) => (
           <PerformerCardSkeleton key={i} cardWidth={cardWidth} zoomIndex={zoomIndex} />
         ))

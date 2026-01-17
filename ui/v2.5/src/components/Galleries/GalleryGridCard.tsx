@@ -7,12 +7,15 @@ import {
   useContainerDimensions,
 } from "../Shared/GridCard/GridCard";
 
+import { GalleryCardSkeleton } from "../Shared/Skeletons/GalleryCardSkeleton";
+
 interface IGalleryCardGrid {
   galleries: GQL.SlimGalleryDataFragment[];
   selectedIds: Set<string>;
   zoomIndex: number;
   onSelectChange: (id: string, selected: boolean, shiftKey: boolean) => void;
   isMasonry?: boolean;
+  loading?: boolean;
 }
 
 const zoomWidths = [280, 340, 420, 560, 800];
@@ -23,6 +26,7 @@ export const GalleryCardGrid: React.FC<IGalleryCardGrid> = ({
   zoomIndex,
   onSelectChange,
   isMasonry = true,
+  loading,
 }) => {
   // Grid hooks (always run)
   const [componentRef, { width: containerWidth }] = useContainerDimensions();
@@ -54,21 +58,27 @@ export const GalleryCardGrid: React.FC<IGalleryCardGrid> = ({
           width: "100%"
         }}
       >
-        {galleries.map((gallery) => (
-          <GalleryCard
-            key={gallery.id}
-            gallery={gallery}
-            zoomIndex={zoomIndex}
-            selecting={selectedIds.size > 0}
-            selected={selectedIds.has(gallery.id)}
-            onSelectedChanged={(selected: boolean, shiftKey: boolean) =>
-              onSelectChange(gallery.id, selected, shiftKey)
-            }
-            onOrientationDetected={handleOrientationDetected}
-            isLandscape={orientations[gallery.id]}
-            isMasonry={isMasonry}
-          />
-        ))}
+        {loading ? (
+          Array.from({ length: 20 }).map((_, i) => (
+            <GalleryCardSkeleton key={i} isMasonry={true} />
+          ))
+        ) : (
+          galleries.map((gallery) => (
+            <GalleryCard
+              key={gallery.id}
+              gallery={gallery}
+              zoomIndex={zoomIndex}
+              selecting={selectedIds.size > 0}
+              selected={selectedIds.has(gallery.id)}
+              onSelectedChanged={(selected: boolean, shiftKey: boolean) =>
+                onSelectChange(gallery.id, selected, shiftKey)
+              }
+              onOrientationDetected={handleOrientationDetected}
+              isLandscape={orientations[gallery.id]}
+              isMasonry={isMasonry}
+            />
+          ))
+        )}
       </Box>
     );
   }
@@ -85,24 +95,30 @@ export const GalleryCardGrid: React.FC<IGalleryCardGrid> = ({
         padding: "0 1rem",
       }}
     >
-      {galleries.map((gallery) => (
-        <GalleryCard
-          key={gallery.id}
-          cardWidth={cardWidth}
-          gallery={gallery}
-          zoomIndex={zoomIndex}
-          selecting={selectedIds.size > 0}
-          selected={selectedIds.has(gallery.id)}
-          onSelectedChanged={(selected: boolean, shiftKey: boolean) =>
-            onSelectChange(gallery.id, selected, shiftKey)
-          }
-          // We might not need orientation tracking for Grid if we want rigid squares, 
-          // but keeping it doesn't hurt.
-          onOrientationDetected={handleOrientationDetected}
-          isLandscape={orientations[gallery.id]}
-          isMasonry={isMasonry}
-        />
-      ))}
+      {loading ? (
+        Array.from({ length: 20 }).map((_, i) => (
+          <GalleryCardSkeleton key={i} isMasonry={false} />
+        ))
+      ) : (
+        galleries.map((gallery) => (
+          <GalleryCard
+            key={gallery.id}
+            cardWidth={cardWidth}
+            gallery={gallery}
+            zoomIndex={zoomIndex}
+            selecting={selectedIds.size > 0}
+            selected={selectedIds.has(gallery.id)}
+            onSelectedChanged={(selected: boolean, shiftKey: boolean) =>
+              onSelectChange(gallery.id, selected, shiftKey)
+            }
+            // We might not need orientation tracking for Grid if we want rigid squares, 
+            // but keeping it doesn't hurt.
+            onOrientationDetected={handleOrientationDetected}
+            isLandscape={orientations[gallery.id]}
+            isMasonry={isMasonry}
+          />
+        ))
+      )}
     </Box>
   );
 };

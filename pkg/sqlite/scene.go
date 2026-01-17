@@ -1065,6 +1065,9 @@ func (qb *SceneStore) Query(ctx context.Context, options models.SceneQueryOption
 
 	// TWO-PHASE OPTIMIZATION: Use fast path for simple unfiltered queries
 	var idsResult []int
+	if qb.isUnfilteredQuery(options) {
+	}
+
 	if qb.canUseFastIDs(options) {
 		idsResult, err = qb.findIDsFast(ctx, options.FindFilter)
 		if err != nil {
@@ -1105,6 +1108,7 @@ func (qb *SceneStore) canUseFastIDs(options models.SceneQueryOptions) bool {
 		"play_count":    true,
 		"play_duration": true,
 		"resume_time":   true,
+		"title":         true,
 	}
 
 	return fastSortColumns[sort]
@@ -1170,6 +1174,8 @@ func (qb *SceneStore) findIDsFast(ctx context.Context, findFilter *models.FindFi
 	switch sort {
 	case "random":
 		orderBy = "ORDER BY RANDOM()"
+	case "title":
+		orderBy = fmt.Sprintf("ORDER BY scenes.title COLLATE NATURAL_CI %s", direction)
 	default:
 		orderBy = fmt.Sprintf("ORDER BY scenes.%s %s", sort, direction)
 	}
@@ -1212,6 +1218,17 @@ func (qb *SceneStore) queryGroupedFields(ctx context.Context, options models.Sce
 	if !options.Count && !options.TotalDuration && !options.TotalSize {
 		// nothing to do - return empty result
 		return models.NewSceneQueryResult(qb), nil
+	}
+
+	// Optimization: If only Count is requested and query is unfiltered, use cached Count
+	if options.Count && !options.TotalDuration && !options.TotalSize && qb.isUnfilteredQuery(options) {
+		count, err := qb.Count(ctx)
+		if err == nil {
+			ret := models.NewSceneQueryResult(qb)
+			ret.Count = count
+			return ret, nil
+		}
+		// Fall through on error
 	}
 
 	aggregateQuery := sceneRepository.newQuery()

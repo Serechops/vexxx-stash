@@ -206,7 +206,7 @@ const SceneList: React.FC<{
 }> = ({ scenes, filter, selectedIds, onSelectChange, fromGroupId, loading }) => {
   const queue = useMemo(() => SceneQueue.fromListFilterModel(filter), [filter]);
 
-  if (scenes.length === 0 && filter.displayMode !== DisplayMode.Tagger) {
+  if (scenes.length === 0 && filter.displayMode !== DisplayMode.Tagger && !loading) {
     return null;
   }
 

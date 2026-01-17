@@ -131,16 +131,19 @@ export const StudioList: React.FC<IStudioList> = PatchComponent(
       }
 
       function renderStudios() {
-        if (!result.data?.findStudios) return;
+        if (!result.data?.findStudios && !result.loading) return;
+
+        const studios = result.data?.findStudios?.studios ?? [];
 
         if (filter.displayMode === DisplayMode.Grid) {
           return (
             <StudioCardGrid
-              studios={result.data.findStudios.studios}
+              studios={studios}
               zoomIndex={filter.zoomIndex}
               fromParent={fromParent}
               selectedIds={selectedIds}
               onSelectChange={onSelectChange}
+              loading={result.loading}
             />
           );
         }
@@ -151,7 +154,7 @@ export const StudioList: React.FC<IStudioList> = PatchComponent(
           return <h1>TODO</h1>;
         }
         if (filter.displayMode === DisplayMode.Tagger) {
-          return <StudioTagger studios={result.data.findStudios.studios} />;
+          return <StudioTagger studios={studios} />;
         }
       }
 
@@ -203,6 +206,7 @@ export const StudioList: React.FC<IStudioList> = PatchComponent(
           renderContent={renderContent}
           renderEditDialog={renderEditDialog}
           renderDeleteDialog={renderDeleteDialog}
+          allowSkeleton
         />
       </ItemListContext>
     );

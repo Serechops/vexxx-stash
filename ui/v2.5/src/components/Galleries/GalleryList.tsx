@@ -134,23 +134,26 @@ export const GalleryList: React.FC<IGalleryList> = PatchComponent(
       }
 
       function renderGalleries() {
-        if (!result.data?.findGalleries) return;
+        if (!result.data?.findGalleries && !result.loading) return;
+
+        const galleries = result.data?.findGalleries?.galleries ?? [];
 
         if (filter.displayMode === DisplayMode.Grid) {
           return (
             <GalleryCardGrid
-              galleries={result.data.findGalleries.galleries}
+              galleries={galleries}
               selectedIds={selectedIds}
               zoomIndex={filter.zoomIndex}
               onSelectChange={onSelectChange}
               isMasonry={isMasonry}
+              loading={result.loading}
             />
           );
         }
         if (filter.displayMode === DisplayMode.List) {
           return (
             <GalleryListTable
-              galleries={result.data.findGalleries.galleries}
+              galleries={galleries}
               selectedIds={selectedIds}
               onSelectChange={onSelectChange}
             />
@@ -169,7 +172,7 @@ export const GalleryList: React.FC<IGalleryList> = PatchComponent(
                   padding: 0,
                 }}
               >
-                {result.data.findGalleries.galleries.map((gallery) => (
+                {galleries.map((gallery) => (
                   <GalleryWallCard
                     key={gallery.id}
                     gallery={gallery}
@@ -226,6 +229,7 @@ export const GalleryList: React.FC<IGalleryList> = PatchComponent(
           renderContent={renderContent}
           renderEditDialog={renderEditDialog}
           renderDeleteDialog={renderDeleteDialog}
+          allowSkeleton
         />
       </ItemListContext>
     );

@@ -222,15 +222,18 @@ export const TagList: React.FC<ITagList> = PatchComponent(
       }
 
       function renderTags() {
-        if (!result.data?.findTags) return;
+        if (!result.data?.findTags && !result.loading) return;
+
+        const tags = result.data?.findTags?.tags ?? [];
 
         if (filter.displayMode === DisplayMode.Grid) {
           return (
             <TagCardGrid
-              tags={result.data.findTags.tags}
+              tags={tags}
               zoomIndex={filter.zoomIndex}
               selectedIds={selectedIds}
               onSelectChange={onSelectChange}
+              loading={result.loading}
             />
           );
         }
@@ -256,7 +259,7 @@ export const TagList: React.FC<ITagList> = PatchComponent(
             </ModalComponent>
           );
 
-          const tagElements = result.data.findTags.tags.map((tag) => {
+          const tagElements = tags.map((tag) => {
             return (
               <Grid container key={tag.id} className="tag-list-row" alignItems="center" sx={{ py: 1.25, borderBottom: '1px solid rgba(255, 255, 255, 0.12)' }}>
                 <Grid sx={{ flexGrow: 1, pl: 2 }}>
@@ -425,6 +428,7 @@ export const TagList: React.FC<ITagList> = PatchComponent(
           renderContent={renderContent}
           renderEditDialog={renderEditDialog}
           renderDeleteDialog={renderDeleteDialog}
+          allowSkeleton
         />
       </ItemListContext>
     );

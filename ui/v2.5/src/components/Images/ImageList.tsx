@@ -158,6 +158,7 @@ interface IImageListImages {
   slideshowRunning: boolean;
   setSlideshowRunning: (running: boolean) => void;
   chapters?: GQL.GalleryChapterDataFragment[];
+  loading?: boolean;
 }
 
 const ImageListImages: React.FC<IImageListImages> = ({
@@ -170,6 +171,7 @@ const ImageListImages: React.FC<IImageListImages> = ({
   slideshowRunning,
   setSlideshowRunning,
   chapters = [],
+  loading,
 }) => {
   const handleLightBoxPage = useCallback(
     (props: { direction?: number; page?: number }) => {
@@ -251,6 +253,7 @@ const ImageListImages: React.FC<IImageListImages> = ({
         zoomIndex={filter.zoomIndex}
         onSelectChange={onSelectChange}
         onPreview={onPreview}
+        loading={loading}
       />
     );
   }
@@ -489,6 +492,7 @@ const ImageListContent: React.FC<{
           onChangePage={onChangePage}
           metadataByline={metadataByline}
           hidePagination={true}
+          allowSkeleton={true}
         >
           {renderContent(result, effectiveFilter, selectedIds, onSelectChange, onChangePage, pages)}
         </PagedList>
@@ -603,12 +607,14 @@ export const ImageList: React.FC<IImageList> = PatchComponent(
       }
 
       function renderImages() {
-        if (!result.data?.findImages) return;
+        if (!result.data?.findImages && !result.loading) return;
+
+        const images = result.data?.findImages?.images ?? [];
 
         return (
           <ImageListImages
             filter={filter}
-            images={result.data.findImages.images}
+            images={images}
             onChangePage={onChangePage}
             onSelectChange={onSelectChange}
             pageCount={pageCount}
@@ -616,6 +622,7 @@ export const ImageList: React.FC<IImageList> = PatchComponent(
             slideshowRunning={slideshowRunning}
             setSlideshowRunning={setSlideshowRunning}
             chapters={chapters}
+            loading={result.loading}
           />
         );
       }

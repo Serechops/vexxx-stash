@@ -298,6 +298,7 @@ const GroupListContent: React.FC<{
           filter={filter}
           totalCount={totalCount}
           onChangePage={onChangePage}
+          allowSkeleton={true}
         >
           {renderContent(
             result,
@@ -432,6 +433,7 @@ export const GroupList: React.FC<IGroupList> = PatchComponent(
               onSelectChange={onSelectChange}
               fromGroupId={fromGroupId}
               onMove={onMove}
+              loading={result.loading}
             />
           )}
         </>

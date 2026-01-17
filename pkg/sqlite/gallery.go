@@ -847,8 +847,8 @@ func (qb *GalleryStore) isUnfilteredQuery(galleryFilter *models.GalleryFilterTyp
 
 // findIDsFast executes a simplified query directly on the galleries table
 func (qb *GalleryStore) findIDsFast(ctx context.Context, findFilter *models.FindFilterType) ([]int, error) {
-	sort := "title"
-	direction := "ASC"
+	sort := "date"
+	direction := "DESC"
 
 	if findFilter != nil {
 		if findFilter.Sort != nil && *findFilter.Sort != "" {
@@ -857,6 +857,8 @@ func (qb *GalleryStore) findIDsFast(ctx context.Context, findFilter *models.Find
 		if findFilter.Direction != nil {
 			if *findFilter.Direction == models.SortDirectionEnumDesc {
 				direction = "DESC"
+			} else {
+				direction = "ASC"
 			}
 		}
 	}
@@ -941,7 +943,7 @@ func (qb *GalleryStore) setGallerySort(query *queryBuilder, findFilter *models.F
 		return nil
 	}
 
-	sort := findFilter.GetSort("path")
+	sort := findFilter.GetSort("date")
 	direction := findFilter.GetDirection()
 
 	// CVE-2024-32231 - ensure sort is in the list of allowed sorts

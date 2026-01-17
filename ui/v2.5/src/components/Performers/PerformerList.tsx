@@ -329,12 +329,14 @@ export const PerformerList: React.FC<IPerformerList> = PatchComponent(
       }
 
       function renderPerformers() {
-        if (!result.data?.findPerformers) return;
+        if (!result.data?.findPerformers && !result.loading) return;
+
+        const performers = result.data?.findPerformers?.performers ?? [];
 
         if (filter.displayMode === DisplayMode.Grid) {
           return (
             <PerformerCardGrid
-              performers={result.data.findPerformers.performers}
+              performers={performers}
               zoomIndex={filter.zoomIndex}
               selectedIds={selectedIds}
               onSelectChange={onSelectChange}
@@ -346,7 +348,7 @@ export const PerformerList: React.FC<IPerformerList> = PatchComponent(
         if (filter.displayMode === DisplayMode.List) {
           return (
             <PerformerListTable
-              performers={result.data.findPerformers.performers}
+              performers={performers}
               selectedIds={selectedIds}
               onSelectChange={onSelectChange}
             />
@@ -355,7 +357,7 @@ export const PerformerList: React.FC<IPerformerList> = PatchComponent(
         if (filter.displayMode === DisplayMode.Tagger) {
           return (
             <PerformerTagger
-              performers={result.data.findPerformers.performers}
+              performers={performers}
             />
           );
         }

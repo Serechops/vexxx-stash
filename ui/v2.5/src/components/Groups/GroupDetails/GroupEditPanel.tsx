@@ -10,7 +10,9 @@ import {
 import { LoadingIndicator } from "src/components/Shared/LoadingIndicator";
 import { DetailsEditNavbar } from "src/components/Shared/DetailsEditNavbar";
 import { useToast } from "src/hooks/Toast";
-import { Dialog, DialogContent, DialogActions, Box, Button } from "@mui/material";
+import { Dialog, DialogContent, DialogActions, Box, Button, IconButton } from "@mui/material";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faFileArrowDown } from "@fortawesome/free-solid-svg-icons";
 import TextUtils from "src/utils/text";
 import ImageUtils from "src/utils/image";
 import { useFormik } from "formik";
@@ -93,6 +95,7 @@ export const GroupEditPanel: React.FC<IGroupEditPanel> = ({
     director: yup.string().ensure(),
     urls: yupUniqueStringList(intl),
     synopsis: yup.string().ensure(),
+    trailer_url: yup.string().ensure(),
     front_image: yup.string().nullable().optional(),
     back_image: yup.string().nullable().optional(),
   });
@@ -113,6 +116,7 @@ export const GroupEditPanel: React.FC<IGroupEditPanel> = ({
     director: group?.director ?? "",
     urls: group?.urls ?? [],
     synopsis: group?.synopsis ?? "",
+    trailer_url: group?.trailer_url ?? "",
   };
 
   type InputValues = yup.InferType<typeof schema>;
@@ -468,6 +472,51 @@ export const GroupEditPanel: React.FC<IGroupEditPanel> = ({
     return renderField("scenes", title, control);
   }
 
+  function renderTrailerUrlField() {
+    const title = intl.formatMessage({ id: "trailer_url" });
+
+    // Check for AdultEmpire URL
+    const aeUrl = (formik.values.urls || []).find((u) =>
+      u.toLowerCase().includes("adultempire.com") || u.toLowerCase().includes("adultdvdempire.com")
+    );
+
+    let onAutoFill = undefined;
+
+    if (aeUrl) {
+      const match = aeUrl.match(/(?:adultempire\.com|adultdvdempire\.com)\/(\d+)\//);
+      if (match && match[1]) {
+        const generatedUrl = `https://trailer.adultempire.com/hls/trailer/${match[1]}/master.m3u8`;
+        onAutoFill = () => formik.setFieldValue("trailer_url", generatedUrl);
+      }
+    }
+
+    const control = (
+      <div className="d-flex align-items-center">
+        <input
+          type="text"
+          className="form-control"
+          name="trailer_url"
+          value={formik.values.trailer_url || ""}
+          onChange={formik.handleChange}
+          onBlur={formik.handleBlur}
+          placeholder={intl.formatMessage({ id: "trailer_url" })}
+        />
+        {onAutoFill && (
+          <IconButton
+            size="small"
+            className="ml-2 scrape-url-button text-input"
+            onClick={onAutoFill}
+            title={intl.formatMessage({ id: "scrape" })}
+          >
+            <FontAwesomeIcon icon={faFileArrowDown} />
+          </IconButton>
+        )}
+      </div>
+    );
+
+    return renderField("trailer_url", title, control);
+  }
+
   // TODO: CSS class
   return (
     <div>
@@ -502,6 +551,7 @@ export const GroupEditPanel: React.FC<IGroupEditPanel> = ({
         {renderInputField("director")}
         {renderURLListField("urls", onScrapeGroupURL, urlScrapable)}
         {renderInputField("synopsis", "textarea")}
+        {renderTrailerUrlField()}
         {renderTagsField()}
       </Box>
 

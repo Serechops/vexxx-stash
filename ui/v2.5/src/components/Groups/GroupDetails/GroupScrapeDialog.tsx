@@ -90,6 +90,9 @@ export const GroupScrapeDialog: React.FC<IGroupScrapeDialogProps> = ({
   const [backImage, setBackImage] = useState<ScrapeResult<string>>(
     new ScrapeResult<string>(group.back_image, scraped.back_image)
   );
+  const [trailerUrl, setTrailerUrl] = useState<ScrapeResult<string>>(
+    new ScrapeResult<string>(group.trailer_url, scraped.trailer_url)
+  );
 
 
   const [newStudio, setNewStudio] = useState<GQL.ScrapedStudio | undefined>(
@@ -117,6 +120,7 @@ export const GroupScrapeDialog: React.FC<IGroupScrapeDialogProps> = ({
     studio,
     tags,
     urls,
+    trailerUrl,
     frontImage,
     backImage,
   ];
@@ -141,6 +145,7 @@ export const GroupScrapeDialog: React.FC<IGroupScrapeDialogProps> = ({
       date: date.getNewValue(),
       director: director.getNewValue(),
       synopsis: synopsis.getNewValue(),
+      trailer_url: trailerUrl.getNewValue(),
       studio: newStudioValue,
       tags: tags.getNewValue(),
       urls: urls.getNewValue(),
@@ -202,6 +207,12 @@ export const GroupScrapeDialog: React.FC<IGroupScrapeDialogProps> = ({
           title={intl.formatMessage({ id: "urls" })}
           result={urls}
           onChange={(value) => setURLs(value)}
+        />
+        <ScrapedInputGroupRow
+          field="trailer_url"
+          title={intl.formatMessage({ id: "trailer_url" })}
+          result={trailerUrl}
+          onChange={(value) => setTrailerUrl(value)}
         />
         {scrapedTagsRow}
         <ScrapedImageRow

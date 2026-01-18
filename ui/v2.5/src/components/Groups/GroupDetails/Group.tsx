@@ -41,10 +41,13 @@ import {
   TabTitleCounter,
   useTabKey,
 } from "src/components/Shared/DetailsPage/Tabs";
-import { Tabs, Tab, Button, Box } from "@mui/material";
+import { Tabs, Tab, Button, Box, IconButton } from "@mui/material";
 import { GroupSubGroupsPanel } from "./GroupSubGroupsPanel";
 import { GroupPerformersPanel } from "./GroupPerformersPanel";
 import { goBackOrReplace } from "src/utils/history";
+import { TrailerPlayer } from "./TrailerPlayer";
+import PlayArrowIcon from "@mui/icons-material/PlayArrow";
+import MovieIcon from "@mui/icons-material/Movie";
 
 const validTabs = ["default", "scenes", "performers", "subgroups"] as const;
 type TabKey = (typeof validTabs)[number];
@@ -176,6 +179,7 @@ const GroupPage: React.FC<IProps> = ({ group, tabKey }) => {
   // Editing state
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState<boolean>(false);
+  const [showTrailer, setShowTrailer] = useState<boolean>(false);
 
   // Editing group state
   const [frontImage, setFrontImage] = useState<string | null>();
@@ -426,6 +430,24 @@ const GroupPage: React.FC<IProps> = ({ group, tabKey }) => {
                 clickToRate
                 withoutContext
               />
+              {group.trailer_url && !isEditing && (
+                <IconButton
+                  color="primary"
+                  onClick={() => setShowTrailer(true)}
+                  className="ml-2"
+                  title={intl.formatMessage({ id: "watch_trailer" })}
+                >
+                  <MovieIcon />
+                </IconButton>
+              )}
+              {showTrailer && group.trailer_url && (
+                <Box sx={{ mt: 2, maxWidth: 800 }}>
+                  <TrailerPlayer
+                    url={group.trailer_url}
+                    onClose={() => setShowTrailer(false)}
+                  />
+                </Box>
+              )}
               {!isEditing && (
                 <GroupDetailsPanel
                   group={group}

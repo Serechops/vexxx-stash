@@ -101,6 +101,7 @@ fragment ScrapedGroupData on ScrapedGroup {
   director
   urls
   synopsis
+  trailer_url
   front_image
   back_image
 
@@ -122,6 +123,7 @@ fragment ScrapedSceneGroupData on ScrapedGroup {
   director
   urls
   synopsis
+  trailer_url
   front_image
   back_image
 

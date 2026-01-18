@@ -28,6 +28,7 @@ func groupFromGroupCreateInput(ctx context.Context, input GroupCreateInput) (*mo
 	newGroup.Rating = input.Rating100
 	newGroup.Director = translator.string(input.Director)
 	newGroup.Synopsis = translator.string(input.Synopsis)
+	newGroup.TrailerURL = translator.string(input.TrailerURL)
 
 	var err error
 
@@ -131,6 +132,7 @@ func groupPartialFromGroupUpdateInput(translator changesetTranslator, input Grou
 	updatedGroup.Rating = translator.optionalInt(input.Rating100, "rating100")
 	updatedGroup.Director = translator.optionalString(input.Director, "director")
 	updatedGroup.Synopsis = translator.optionalString(input.Synopsis, "synopsis")
+	updatedGroup.TrailerURL = translator.optionalString(input.TrailerURL, "trailer_url")
 
 	updatedGroup.Date, err = translator.optionalDate(input.Date, "date")
 	if err != nil {

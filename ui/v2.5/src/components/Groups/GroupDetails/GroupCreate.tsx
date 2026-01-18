@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { Grid, Typography } from "@mui/material";
 import * as GQL from "src/core/generated-graphql";
 import { useGroupCreate } from "src/core/StashService";
 import { useHistory, useLocation } from "react-router-dom";
@@ -62,8 +63,11 @@ const GroupCreate: React.FC = () => {
 
   // TODO: CSS class
   return (
-    <div className="row">
-      <div className="group-details mb-3 col">
+    <Grid container spacing={2} className="group-details">
+      <Grid size={{ xs: 12, md: 4 }}>
+        <Typography variant="h6" align="center" gutterBottom>
+          {intl.formatMessage({ id: "images" })}
+        </Typography>
         <div className="logo w-100">
           {encodingImage ? (
             <LoadingIndicator
@@ -76,18 +80,20 @@ const GroupCreate: React.FC = () => {
             </div>
           )}
         </div>
+      </Grid>
 
+      <Grid size={{ xs: 12, md: 8 }}>
         <GroupEditPanel
           group={group}
           onSubmit={onSave}
           onCancel={() => history.push("/groups")}
-          onDelete={() => {}}
+          onDelete={() => { }}
           setFrontImage={setFrontImage}
           setBackImage={setBackImage}
           setEncodingImage={setEncodingImage}
         />
-      </div>
-    </div>
+      </Grid>
+    </Grid>
   );
 };
 

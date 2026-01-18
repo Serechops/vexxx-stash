@@ -10,6 +10,7 @@ import (
 	"github.com/stashapp/stash/pkg/match"
 	"github.com/stashapp/stash/pkg/models"
 	"github.com/stashapp/stash/pkg/scraper"
+	"github.com/stashapp/stash/pkg/scraper/trailer"
 	"github.com/stashapp/stash/pkg/sliceutil"
 	"github.com/stashapp/stash/pkg/sliceutil/stringslice"
 )
@@ -128,7 +129,27 @@ func (r *queryResolver) ScrapeGroupURL(ctx context.Context, url string) (*models
 		BackImage:  ret.BackImage,
 	}
 
+	// Try to scrape trailer URL for AdultEmpire groups
+	if trailerURL := r.scrapeAdultEmpireTrailer(ctx, url); trailerURL != "" {
+		group.TrailerURL = &trailerURL
+	}
+
 	return group, nil
+}
+
+// scrapeAdultEmpireTrailer attempts to extract a trailer URL for AdultEmpire groups
+func (r *queryResolver) scrapeAdultEmpireTrailer(ctx context.Context, url string) string {
+	if !trailer.IsAdultEmpireURL(url) {
+		return ""
+	}
+
+	scraper := trailer.NewAdultEmpireScraper()
+	trailerURL, err := scraper.ScrapeTrailerFromGroupURL(ctx, url)
+	if err != nil {
+		// Log error but don't fail the scrape
+		return ""
+	}
+	return trailerURL
 }
 
 func (r *queryResolver) ScrapeSingleScene(ctx context.Context, source scraper.Source, input ScrapeSingleSceneInput) ([]*models.ScrapedScene, error) {

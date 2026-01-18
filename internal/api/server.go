@@ -221,6 +221,7 @@ func Initialize() (*Server, error) {
 	r.Mount("/downloads", server.getDownloadsRoutes())
 	r.Mount("/plugin", server.getPluginRoutes())
 	r.Mount("/scheduled-tasks", server.getScheduledTaskRoutes())
+	r.Mount("/proxy", server.getProxyRoutes())
 
 	r.HandleFunc("/css", cssHandler(cfg))
 	r.HandleFunc("/javascript", javascriptHandler(cfg))
@@ -425,6 +426,13 @@ func (s *Server) getScheduledTaskRoutes() chi.Router {
 	return scheduledTaskRoutes{}.Routes()
 }
 
+func (s *Server) getProxyRoutes() chi.Router {
+	repo := s.manager.Repository
+	return proxyRoutes{
+		routes: routes{txnManager: repo.TxnManager},
+	}.Routes()
+}
+
 func copyFile(w io.Writer, path string) error {
 	f, err := os.Open(path)
 	if err != nil {
@@ -569,6 +577,7 @@ func setPageSecurityHeaders(w http.ResponseWriter, r *http.Request, plugins []*p
 		"'self'",
 		"http://www.gstatic.com",
 		"https://www.gstatic.com",
+		"https://cdn.jsdelivr.net", // HLS.js for trailer player
 		"'unsafe-inline'",
 		"'unsafe-eval'",
 	}
@@ -576,11 +585,12 @@ func setPageSecurityHeaders(w http.ResponseWriter, r *http.Request, plugins []*p
 		"'self'",
 		"'unsafe-inline'",
 	}
-	mediaSrc := "blob: 'self' https://*.project1content.com https://*.project1service.com https://*.algolia.net https://*.adulttime.com https://*.adulttimecdn.com https://*.gammacdn.com"
+	mediaSrc := "blob: 'self' https: https://*.project1content.com https://*.project1service.com https://*.algolia.net https://*.adulttime.com https://*.adulttimecdn.com https://*.gammacdn.com"
 
 	// Workaround Safari bug https://bugs.webkit.org/show_bug.cgi?id=201591
 	// Allows websocket requests to any origin
-	connectSrcSlice = append(connectSrcSlice, "ws:", "wss:")
+	// Also allow https: for HLS segment fetching
+	connectSrcSlice = append(connectSrcSlice, "ws:", "wss:", "https:")
 
 	// The graphql playground pulls its frontend from a cdn
 	if r.URL.Path == playgroundEndpoint {

@@ -17,6 +17,8 @@ type Group {
   director: String
   synopsis: String
   urls: [String!]!
+  "URL to the group trailer video (external or local)"
+  trailer_url: String
   tags: [Tag!]!
   created_at: Time!
   updated_at: Time!
@@ -60,6 +62,7 @@ input GroupCreateInput {
   director: String
   synopsis: String
   urls: [String!]
+  trailer_url: String
   tag_ids: [ID!]
 
   containing_groups: [GroupDescriptionInput!]
@@ -84,6 +87,7 @@ input GroupUpdateInput {
   director: String
   synopsis: String
   urls: [String!]
+  trailer_url: String
   tag_ids: [ID!]
 
   containing_groups: [GroupDescriptionInput!]

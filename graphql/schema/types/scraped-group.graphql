@@ -43,6 +43,7 @@ type ScrapedGroup {
   director: String
   urls: [String!]
   synopsis: String
+  trailer_url: String
   studio: ScrapedStudio
   tags: [ScrapedTag!]
 

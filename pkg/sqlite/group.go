@@ -43,6 +43,7 @@ type groupRow struct {
 	StudioID    null.Int    `db:"studio_id,omitempty"`
 	Director    zero.String `db:"director"`
 	Description zero.String `db:"description"`
+	TrailerURL  zero.String `db:"trailer_url"`
 	CreatedAt   Timestamp   `db:"created_at"`
 	UpdatedAt   Timestamp   `db:"updated_at"`
 
@@ -62,23 +63,25 @@ func (r *groupRow) fromGroup(o models.Group) {
 	r.StudioID = intFromPtr(o.StudioID)
 	r.Director = zero.StringFrom(o.Director)
 	r.Description = zero.StringFrom(o.Synopsis)
+	r.TrailerURL = zero.StringFrom(o.TrailerURL)
 	r.CreatedAt = Timestamp{Timestamp: o.CreatedAt}
 	r.UpdatedAt = Timestamp{Timestamp: o.UpdatedAt}
 }
 
 func (r *groupRow) resolve() *models.Group {
 	ret := &models.Group{
-		ID:        r.ID,
-		Name:      r.Name.String,
-		Aliases:   r.Aliases.String,
-		Duration:  nullIntPtr(r.Duration),
-		Date:      r.Date.DatePtr(r.DatePrecision),
-		Rating:    nullIntPtr(r.Rating),
-		StudioID:  nullIntPtr(r.StudioID),
-		Director:  r.Director.String,
-		Synopsis:  r.Description.String,
-		CreatedAt: r.CreatedAt.Timestamp,
-		UpdatedAt: r.UpdatedAt.Timestamp,
+		ID:         r.ID,
+		Name:       r.Name.String,
+		Aliases:    r.Aliases.String,
+		Duration:   nullIntPtr(r.Duration),
+		Date:       r.Date.DatePtr(r.DatePrecision),
+		Rating:     nullIntPtr(r.Rating),
+		StudioID:   nullIntPtr(r.StudioID),
+		Director:   r.Director.String,
+		Synopsis:   r.Description.String,
+		TrailerURL: r.TrailerURL.String,
+		CreatedAt:  r.CreatedAt.Timestamp,
+		UpdatedAt:  r.UpdatedAt.Timestamp,
 	}
 
 	return ret
@@ -97,6 +100,7 @@ func (r *groupRowRecord) fromPartial(o models.GroupPartial) {
 	r.setNullInt("studio_id", o.StudioID)
 	r.setNullString("director", o.Director)
 	r.setNullString("description", o.Synopsis)
+	r.setNullString("trailer_url", o.TrailerURL)
 	r.setTimestamp("created_at", o.CreatedAt)
 	r.setTimestamp("updated_at", o.UpdatedAt)
 }

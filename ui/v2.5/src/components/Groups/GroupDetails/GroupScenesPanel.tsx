@@ -7,6 +7,7 @@ import {
 import { ListFilterModel } from "src/models/list-filter/filter";
 import { FilteredSceneList } from "src/components/Scenes/SceneList";
 import { View } from "src/components/List/views";
+import { GroupHero } from "./GroupHero";
 
 interface IGroupScenesPanel {
   active: boolean;
@@ -64,14 +65,17 @@ export const GroupScenesPanel: React.FC<IGroupScenesPanel> = ({
 
   if (group && group.id) {
     return (
-      <FilteredSceneList
-        filterHook={filterHook}
-        defaultSort="group_scene_number"
-        alterQuery={active}
-        view={View.GroupScenes}
-        fromGroupId={group.id}
-        hideFeatured={true}
-      />
+      <>
+        <GroupHero group={group} />
+        <FilteredSceneList
+          filterHook={filterHook}
+          defaultSort="group_scene_number"
+          alterQuery={active}
+          view={View.GroupScenes}
+          fromGroupId={group.id}
+          hideFeatured={true}
+        />
+      </>
     );
   }
   return <></>;

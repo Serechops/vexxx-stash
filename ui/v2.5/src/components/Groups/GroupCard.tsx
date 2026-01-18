@@ -1,12 +1,14 @@
 import React, { useMemo, useState } from "react";
+import { Box, Typography } from "@mui/material";
 import { Link, useHistory } from "react-router-dom";
 import * as GQL from "src/core/generated-graphql";
 import { PatchComponent } from "src/patch";
 import { GridCard } from "../Shared/GridCard/GridCard";
 import { TagLink } from "../Shared/TagLink";
 import { RatingBanner } from "../Shared/RatingBanner";
-import cx from "classnames";
 import InfoIcon from "@mui/icons-material/Info";
+import LocalOfferIcon from "@mui/icons-material/LocalOffer";
+import cx from "classnames";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import FolderCopyIcon from "@mui/icons-material/FolderCopy";
 import { OCounterButton } from "../Shared/CountButton";
@@ -140,27 +142,136 @@ export const GroupCard: React.FC<IProps> = PatchComponent(
         >
           {/* FRONT FACE */}
           <div className="scene-card-front relative w-full h-full backface-hidden top-0 left-0">
-            <GridCard
-              className={`group-card zoom-${zoomIndex} !rounded-xl overflow-hidden shadow-md hover:shadow-xl !border-none !bg-gray-900 !p-0 !m-0 hover:!scale-100 !transition-none`}
-              objectId={group.id}
-              onMove={onMove}
-              url={`/groups/${group.id}`}
-              width={undefined}
-              title={undefined}
-              image={<GroupCardImage group={group} />}
-              overlays={
-                <GroupCardFrontOverlays
-                  group={group}
-                  setIsFlipped={setIsFlipped}
-                />
-              }
-              details={undefined}
-              popovers={undefined} // Popovers removed for cleaner look, available on back
-              selected={selected}
-              selecting={selecting}
-              onSelectedChanged={onSelectedChanged}
-              thumbnailSectionClassName="h-full w-full relative !p-0 !m-0"
-            />
+            <Box
+              className="group-card-front"
+              onClick={(e) => {
+                // Handle click?
+                // GroupCard logic usually handles nav or flip.
+                // The original used GridCard with overlays.
+                // If we want nav, we use Link.
+                // BUT GroupCard has a flip button.
+              }}
+              sx={{
+                position: "relative",
+                width: "100%",
+                height: "100%",
+                borderRadius: "12px",
+                overflow: "hidden",
+                backgroundColor: "grey.900",
+                "&:hover .overlay-content": {
+                  background: "linear-gradient(to top, rgba(0, 0, 0, 0.95) 20%, rgba(0, 0, 0, 0.7) 60%, transparent 100%)",
+                },
+                "&:hover .info-button": {
+                  opacity: 1
+                }
+              }}
+            >
+              <Link
+                to={selecting ? "#" : `/groups/${group.id}`}
+                onClick={(e) => {
+                  if (selecting) {
+                    e.preventDefault();
+                  }
+                }}
+                style={{ textDecoration: 'none', color: 'inherit', display: 'block', height: '100%', width: '100%' }}
+              >
+                {/* Media */}
+                <Box sx={{ width: "100%", height: "100%", bgcolor: "black" }}>
+                  <img
+                    loading="lazy"
+                    alt={group.name ?? ""}
+                    src={group.front_image_path ?? ""}
+                    className="w-full h-full object-cover transition-transform duration-700"
+                  />
+                </Box>
+
+                {/* Top Section: Rating & Info Flip */}
+                <Box sx={{ position: "absolute", top: 0, left: 0, right: 0, p: 1, display: "flex", justifyContent: "space-between", alignItems: "flex-start", zIndex: 16, pointerEvents: "none" }}>
+                  <Box sx={{ display: "flex", gap: 0.5, pointerEvents: "auto" }}>
+                    {group.rating100 && (
+                      <RatingBanner rating={group.rating100} />
+                    )}
+                  </Box>
+                  <Box sx={{ pointerEvents: "auto" }}>
+                    <button
+                      className="info-button p-1.5 rounded-full bg-black/60 hover:bg-black/80 text-white backdrop-blur-sm transition-colors opacity-0"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        setIsFlipped(true);
+                      }}
+                      title="View Details"
+                    >
+                      <InfoIcon sx={{ height: 16, width: 16 }} />
+                    </button>
+                  </Box>
+                </Box>
+
+                {/* Selecting Checkbox */}
+                {selecting && (
+                  <Box sx={{ position: "absolute", top: "0.5rem", left: "0.5rem", zIndex: 30 }}>
+                    <input
+                      type="checkbox"
+                      checked={selected}
+                      readOnly
+                      style={{ cursor: "pointer", height: "1.25rem", width: "1.25rem" }}
+                    />
+                  </Box>
+                )}
+
+                {/* Gradient Overlay & Content */}
+                <Box
+                  className="overlay-content"
+                  sx={{
+                    position: "absolute",
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    background: "linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.4) 70%, transparent 100%)",
+                    padding: "12px",
+                    color: "#fff",
+                    transition: "background 0.3s ease",
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "flex-end",
+                    pointerEvents: "none"
+                  }}
+                >
+                  <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+                    <Typography
+                      variant="subtitle1"
+                      sx={{
+                        fontWeight: 700,
+                        lineHeight: 1.2,
+                        textShadow: "0 2px 4px rgba(0, 0, 0, 0.8)",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        fontSize: "1.1rem"
+                      }}
+                    >
+                      {group.name}
+                    </Typography>
+
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, fontSize: "0.8rem", color: "rgba(255,255,255,0.8)" }}>
+                      {group.date && <span>{group.date}</span>}
+                      {group.scenes.length > 0 && (
+                        <span style={{ display: "flex", alignItems: "center", gap: "2px" }}>
+                          <div style={{ width: 4, height: 4, background: "rgba(255,255,255,0.5)", borderRadius: "50%", marginRight: "4px" }}></div>
+                          {group.scenes.length} scenes
+                        </span>
+                      )}
+                      {group.o_counter && (
+                        <span style={{ display: "flex", alignItems: "center", gap: "2px" }}>
+                          <div style={{ width: 4, height: 4, background: "rgba(255,255,255,0.5)", borderRadius: "50%", marginRight: "4px" }}></div>
+                          <LocalOfferIcon sx={{ fontSize: 14 }} /> {group.o_counter}
+                        </span>
+                      )}
+                    </Box>
+                  </Box>
+                </Box>
+              </Link>
+            </Box>
           </div>
 
           {/* BACK FACE */}

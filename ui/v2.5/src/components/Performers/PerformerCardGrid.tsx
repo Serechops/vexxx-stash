@@ -30,7 +30,6 @@ export const PerformerCardGrid: React.FC<IPerformerCardGrid> = ({
   itemsPerPage,
 }) => {
   const [componentRef, { width: containerWidth }] = useContainerDimensions();
-  const cardWidth = useCardWidth(containerWidth, zoomIndex, zoomWidths);
   const columnWidth = zoomWidths[zoomIndex] || zoomWidths[0];
 
   const skeletonCount = useMemo(() => {
@@ -63,7 +62,6 @@ export const PerformerCardGrid: React.FC<IPerformerCardGrid> = ({
         performers.map((p) => (
           <PerformerCard
             key={p.id}
-            cardWidth={cardWidth}
             performer={p}
             zoomIndex={zoomIndex}
             selecting={selectedIds.size > 0}

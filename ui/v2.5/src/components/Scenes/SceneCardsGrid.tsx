@@ -68,7 +68,7 @@ export const SceneCardsGrid: React.FC<ISceneCardsGrid> = ({
       ref={componentRef}
       style={{
         display: "grid",
-        gridTemplateColumns: `repeat(auto-fit, minmax(${columnWidth}px, 1fr))`,
+        gridTemplateColumns: `repeat(auto-fill, minmax(${columnWidth}px, ${columnWidth}px))`,
         gap: "1.5rem",
         padding: "1rem",
         justifyContent: "center",

@@ -26,4 +26,3 @@ export const PerformerScenesPanel: React.FC<IPerformerDetailsProps> =
       </>
     );
   });
-

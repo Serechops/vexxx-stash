@@ -47,44 +47,20 @@ interface IPerformerCardProps {
   extraCriteria?: IPerformerCardExtraCriteria;
 }
 
-const PerformerCardPopovers: React.FC<IPerformerCardProps> = PatchComponent(
-  "PerformerCard.Popovers",
-  ({ performer, extraCriteria }) => {
-    // Keep popovers for hover extra info if needed, or integrate them?
-    // User asked for "compact meta overlay". Popovers usually appear ON HOVER below or inside.
-    // Let's keep existing popover count buttons but maybe style them small?
-    // Actually, popovers usually sit outside the card flow or at the bottom.
-    // In GridCard, {props.popovers} is rendered LAST.
-    // If we want a clean card, maybe we hide them or make them very subtle.
-    // Let's return null for now to declutter, OR keep them if the user likes utility.
-    // User said "subtle compact meta overlay along the very bottom".
-    // I will include the critical counts in the overlay if possible, or just keeping them hidden for clean look.
-    // Let's keep them but ensure they don't break layout.
+export const PerformerCard: React.FC<IPerformerCardProps> = PatchComponent(
+  "PerformerCard",
+  (props: IPerformerCardProps) => {
+    const {
+      performer,
+      cardWidth,
+      selecting,
+      selected,
+      onSelectedChanged,
+      ageFromDate
+    } = props;
 
-    // Actually most modern designs hide these counts until hover or click.
-    // I'll keep the logic but wrap it to be unobtrusive.
-    function maybeRenderCounts() {
-      // ... existing logic simplified ...
-      if (!performer.scene_count && !performer.image_count) return null;
-
-      return (
-        <div className="flex gap-2 text-xs text-gray-300 mt-1">
-          {performer.scene_count && <span>{performer.scene_count} scenes</span>}
-          {performer.image_count && <span>{performer.image_count} images</span>}
-        </div>
-      )
-    }
-    return null; // DISABLING Popovers for now to achieve the requested clean look.
-  }
-);
-
-const PerformerCardOverlays: React.FC<IPerformerCardProps> = PatchComponent(
-  "PerformerCard.Overlays",
-  ({ performer, ageFromDate }) => {
-    const { configuration } = useConfigurationContext();
-    const uiConfig = configuration?.ui;
+    const [isHovered, setIsHovered] = React.useState(false);
     const [updatePerformer] = usePerformerUpdate();
-    const intl = useIntl();
 
     function onToggleFavorite(v: boolean) {
       if (performer.id) {
@@ -104,119 +80,60 @@ const PerformerCardOverlays: React.FC<IPerformerCardProps> = PatchComponent(
       ageFromDate ?? performer.death_date
     );
 
+    const handleCardClick = (e: React.MouseEvent) => {
+      if (selecting && onSelectedChanged) {
+        onSelectedChanged(!selected, e.shiftKey);
+        e.preventDefault();
+      }
+    };
+
     return (
       <Box
+        className={cx("performer-card", { "selected": selected })}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        onClick={handleCardClick}
         sx={{
-          position: "absolute",
-          inset: 0,
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "between",
-          p: 1,
-          pointerEvents: "none",
-          zIndex: 1
-        }}
-      >
-        {/* Top Section: Favorite & Rating */}
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", pointerEvents: "auto" }}>
-          <Box sx={{ display: "flex", gap: 0.5 }}>
-            {performer.rating100 && (
-              <Box sx={{ fontSize: "0.75rem", px: 0.75, py: 0.25, borderRadius: "4px", bgcolor: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)" }}>
-                <RatingBanner rating={performer.rating100} />
-              </Box>
-            )}
-          </Box>
-          <FavoriteIcon
-            favorite={performer.favorite}
-            onToggleFavorite={onToggleFavorite}
-            size="1x"
-            className="transition-colors drop-shadow-md"
-            sx={{
-              color: performer.favorite
-                ? "#ff5252 !important"
-                : "rgba(255, 255, 255, 0.5)",
-              "&:hover": {
-                color: performer.favorite ? "#ff1744 !important" : "#ffffff",
-              },
-            }}
-          />
-        </Box>
-
-        {/* Bottom Section: Meta Overlay */}
-        <Box sx={{ mt: "auto", pointerEvents: "auto", position: "relative" }}>
-          {/* Gradient Background */}
-          <Box
-            sx={{
-              position: "absolute",
-              insetX: "-8px",
-              bottom: "-8px",
-              height: "66%",
-              backgroundImage: "linear-gradient(to top, rgba(0,0,0,1), rgba(0,0,0,0.8) 40%, transparent)",
-              zIndex: -1,
-              left: "-8px",
-              right: "-8px"
-            }}
-          />
-
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25, color: "#fff", pb: 0.5 }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <Typography
-                variant="subtitle1"
-                sx={{
-                  fontWeight: "bold",
-                  fontSize: "1.125rem",
-                  lineHeight: "1.2",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                  textShadow: "0 1px 2px rgba(0,0,0,0.5)"
-                }}
-              >
-                {performer.name}
-              </Typography>
-              {performer.country && (
-                <CountryFlag country={performer.country} className="opacity-90 w-4 h-auto shadow-sm" />
-              )}
-            </Box>
-
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1, fontSize: "0.75rem", color: "grey.400", fontWeight: "medium" }}>
-              {age !== 0 && <Typography variant="caption" sx={{ color: "inherit" }}>{age} years</Typography>}
-              {performer.scene_count > 0 && (
-                <>
-                  <Box sx={{ width: 4, height: 4, bgcolor: "grey.600", borderRadius: "50%" }} />
-                  <Typography variant="caption" sx={{ color: "inherit" }}>{performer.scene_count} scenes</Typography>
-                </>
-              )}
-            </Box>
-          </Box>
-        </Box>
-      </Box>
-    );
-  }
-);
-
-// We merge Title and Details into Overlays, so these can be null/noop
-const PerformerCardDetails = () => null;
-const PerformerCardTitle = () => null;
-
-const PerformerCardImage: React.FC<IPerformerCardProps> = PatchComponent(
-  "PerformerCard.Image",
-  ({ performer }) => {
-    return (
-      <Box
-        sx={{
-          width: "100%",
-          height: "100%",
-          bgcolor: "grey.900",
           position: "relative",
+          borderRadius: "12px",
           overflow: "hidden",
-          "&:hover img": {
-            transform: "scale(1.05)"
+          backgroundColor: "grey.900",
+          transition: "all 0.3s ease",
+          height: "100%",
+          width: cardWidth ? cardWidth : "100%",
+          "&:hover": {
+            transform: "scale(1.02)",
+            boxShadow: "0 10px 30px rgba(0, 0, 0, 0.5)",
+            zIndex: 20,
+            "& .overlay-content": {
+              background: "linear-gradient(to top, rgba(0, 0, 0, 0.95) 20%, rgba(0, 0, 0, 0.7) 60%, transparent 100%)",
+            }
+          },
+          "&.selected": {
+            boxShadow: (theme) => `0 0 0 3px ${theme.palette.primary.main}`,
           }
         }}
       >
-        <Box sx={{ position: "relative", width: "100%", pb: "150%" }}>
-          <Box sx={{ position: "absolute", inset: 0 }}>
+        <Link
+          to={selecting ? "#" : `/performers/${performer.id}`}
+          onClick={(e) => {
+            if (selecting) {
+              e.preventDefault();
+            }
+          }}
+          style={{ textDecoration: 'none', color: 'inherit', display: 'block', height: '100%', width: '100%' }}
+        >
+          {/* Media Container: Full Bleed */}
+          <Box
+            className="overlay-media"
+            sx={{
+              position: "relative",
+              width: "100%",
+              height: "100%",
+              aspectRatio: "2/3", // Performers are usually portrait.
+              bgcolor: "black",
+            }}
+          >
             <Box
               component="img"
               loading="lazy"
@@ -226,75 +143,128 @@ const PerformerCardImage: React.FC<IPerformerCardProps> = PatchComponent(
                 width: "100%",
                 height: "100%",
                 objectFit: "cover",
-                objectPosition: "top",
+                objectPosition: "top", // Face usually at top
                 transition: "transform 0.7s"
               }}
             />
           </Box>
-        </Box>
 
-        {/* Hover Highlight Overlay */}
-        <Box
-          className="hover-highlight"
-          sx={{
-            position: "absolute",
-            inset: 0,
-            bgcolor: "rgba(255, 255, 255, 0)",
-            transition: "background-color 0.3s",
-            pointerEvents: "none",
-            "&:hover": {
-              bgcolor: "rgba(255, 255, 255, 0.05)"
-            }
-          }}
-        />
-      </Box>
-    );
-  }
-);
+          {/* Top Section: Rating & Favorite */}
+          <Box sx={{ position: "absolute", top: 0, left: 0, right: 0, p: 1, display: "flex", justifyContent: "space-between", alignItems: "flex-start", zIndex: 16, pointerEvents: "none" }}>
+            <Box sx={{ display: "flex", gap: 0.5, pointerEvents: "auto" }}>
+              {performer.rating100 && (
+                <RatingBanner rating={performer.rating100} />
+              )}
+            </Box>
+            <Box sx={{ pointerEvents: "auto" }}>
+              <FavoriteIcon
+                favorite={performer.favorite}
+                onToggleFavorite={onToggleFavorite}
+                size="1x"
+                className="transition-colors drop-shadow-md"
+                sx={{
+                  color: performer.favorite
+                    ? "#ff5252 !important"
+                    : "rgba(255, 255, 255, 0.5)",
+                  "&:hover": {
+                    color: performer.favorite ? "#ff1744 !important" : "#ffffff",
+                  },
+                }}
+              />
+            </Box>
+          </Box>
 
-export const PerformerCard: React.FC<IPerformerCardProps> = PatchComponent(
-  "PerformerCard",
-  (props) => {
-    const {
-      performer,
-      cardWidth,
-      selecting,
-      selected,
-      onSelectedChanged,
-      zoomIndex,
-    } = props;
+          {/* Selecting Checkbox */}
+          {selecting && (
+            <Box sx={{ position: "absolute", top: "0.5rem", left: "0.5rem", zIndex: 30 }}>
+              <input
+                type="checkbox"
+                checked={selected}
+                readOnly
+                style={{ cursor: "pointer", height: "1.25rem", width: "1.25rem" }}
+              />
+            </Box>
+          )}
 
-    return (
-      <Box
-        className={`performer-card zoom-${zoomIndex}`}
-        sx={{
-          "& .card-section": { display: "none" },
-          borderRadius: "12px",
-          overflow: "hidden",
-          boxShadow: 1,
-          "&:hover": {
-            boxShadow: 3
-          },
-          border: "none",
-          bgcolor: "grey.900",
-          p: 0,
-          transition: "none",
-          width: cardWidth
-        }}
-      >
-        <GridCard
-          url={`/performers/${performer.id}`}
-          width={cardWidth}
-          title={undefined}
-          image={<PerformerCardImage {...props} />}
-          overlays={<PerformerCardOverlays {...props} />}
-          details={undefined}
-          popovers={undefined}
-          selected={selected}
-          selecting={selecting}
-          onSelectedChanged={onSelectedChanged}
-          thumbnailSectionClassName="h-full w-full relative !p-0 !m-0"
-        />
+
+          {/* Gradient Overlay & Content */}
+          <Box
+            className="overlay-content"
+            sx={{
+              position: "absolute",
+              bottom: 0,
+              left: 0,
+              right: 0,
+              background: "linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.4) 70%, transparent 100%)",
+              padding: "12px",
+              color: "#fff",
+              transition: "background 0.3s ease",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "flex-end",
+              pointerEvents: "none"
+            }}
+          >
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <Typography
+                  variant="subtitle1"
+                  sx={{
+                    fontWeight: 700,
+                    lineHeight: 1.2,
+                    textShadow: "0 2px 4px rgba(0, 0, 0, 0.8)",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    fontSize: "1.1rem"
+                  }}
+                >
+                  {performer.name}
+                </Typography>
+                {performer.country && (
+                  <CountryFlag country={performer.country} className="opacity-90 w-4 h-auto shadow-sm" />
+                )}
+              </Box>
+
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, fontSize: "0.8rem", color: "rgba(255,255,255,0.8)" }}>
+                {age !== 0 && <span>{age} years</span>}
+                {performer.scene_count > 0 && (
+                  <span style={{ display: "flex", alignItems: "center", gap: "2px" }}>
+                    <div style={{ width: 4, height: 4, background: "rgba(255,255,255,0.5)", borderRadius: "50%", marginRight: "4px" }}></div>
+                    {performer.scene_count} scenes
+                  </span>
+                )}
+              </Box>
+            </Box>
+
+            {/* Expanded Content (Slide Up) - More details? */}
+            <Box
+              className={cx("overlay-slide-content", { visible: isHovered })}
+              sx={{
+                maxHeight: 0,
+                overflow: "hidden",
+                opacity: 0,
+                transition: "all 0.3s ease-in-out",
+                "&.visible": {
+                  maxHeight: "100px",
+                  opacity: 1,
+                  mt: "8px",
+                }
+              }}
+            >
+              {/* Extra details like Years Active, Career Length, or just spacers if nothing else */}
+              {/* For now, maybe just tag count or image count if significant? */}
+              <Box sx={{ display: "flex", gap: 2, fontSize: "0.75rem", color: "rgba(255,255,255,0.7)" }}>
+                {performer.image_count > 0 && (
+                  <span>{performer.image_count} images</span>
+                )}
+                {performer.gallery_count > 0 && (
+                  <span>{performer.gallery_count} galleries</span>
+                )}
+              </Box>
+            </Box>
+          </Box>
+        </Link>
       </Box>
     );
   }

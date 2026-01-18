@@ -452,6 +452,8 @@ export const FilteredSceneList = (props: IFilteredScenes) => {
     setShowSidebar,
   });
 
+
+
   useEffect(() => {
     Mousetrap.bind("e", () => {
       if (hasSelection) {
@@ -660,7 +662,7 @@ export const FilteredSceneList = (props: IFilteredScenes) => {
   return (
     <TaggerContext>
       <div
-        className={cx("item-list-container scene-list", {
+        className={cx("scene-list", "item-list-container", {
           "hide-sidebar": !showSidebar,
         })}
       >

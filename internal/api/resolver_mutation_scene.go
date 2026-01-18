@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/stashapp/stash/internal/manager"
+	"github.com/stashapp/stash/internal/manager/config"
 	"github.com/stashapp/stash/pkg/file"
 	"github.com/stashapp/stash/pkg/logger"
 	"github.com/stashapp/stash/pkg/models"
@@ -1428,32 +1429,59 @@ func (r *mutationResolver) SceneGenerateGallery(ctx context.Context, sceneID str
 	// Clean up temp dir
 	os.RemoveAll(tempDir)
 
-	// Create Gallery Entity
-	newGallery := models.NewGallery()
-	newGallery.Title = galleryName
-	newGallery.Path = zipPath
-
-	now := time.Now()
-	newGallery.Date = &models.Date{Time: now, Precision: models.DatePrecisionDay}
-	newGallery.SceneIDs = models.NewRelatedIDs([]int{s.ID})
-
-	// Assign other properties from input
-	if createInput != nil {
-		if createInput.Rating100 != nil {
-			newGallery.Rating = createInput.Rating100
-		}
-		// ... other fields if needed
+	finfo, err := os.Stat(zipPath)
+	if err != nil {
+		return nil, fmt.Errorf("stat zip file: %w", err)
 	}
 
+	// Register the Zip file and create the Gallery in a single transaction.
+	// This ensures consistency and satisfies backend transaction requirements.
+	var newGallery models.Gallery
 	if err := r.withTxn(ctx, func(ctx context.Context) error {
-		// Create Gallery
-		// Note: We don't populate Files field manually as Scan will handle it.
-		// We set Path and FolderID logic is handled by Scan or we might set it if known?
-		// Stash's GalleryCreate usually handles FolderID if Path is provided?
-		// Checking GalleryCreate implementation, it doesn't seem to set FolderID from Path automatically.
-		// However, the Scan job logic `gallery.ScanHandler` will find this gallery by path or folder and update it/link images.
+		folderPath := filepath.Dir(zipPath)
+		folder, err := r.repository.Folder.FindByPath(ctx, folderPath, true)
+		if err != nil {
+			return fmt.Errorf("finding folder: %w", err)
+		}
+		if folder == nil {
+			folder = &models.Folder{
+				Path: folderPath,
+			}
+			if err := r.repository.Folder.Create(ctx, folder); err != nil {
+				return fmt.Errorf("creating folder: %w", err)
+			}
+		}
 
-		if err := r.repository.Gallery.Create(ctx, &newGallery, nil); err != nil {
+		zipFile := &models.BaseFile{
+			Path:     zipPath,
+			Basename: filepath.Base(zipPath),
+			DirEntry: models.DirEntry{
+				ModTime: finfo.ModTime(),
+			},
+			ParentFolderID: folder.ID,
+			Size:           finfo.Size(),
+		}
+
+		if err := r.repository.File.Create(ctx, zipFile); err != nil {
+			return fmt.Errorf("creating file record for zip: %w", err)
+		}
+
+		// Create Gallery Entity
+		newGallery = models.NewGallery()
+		newGallery.Title = galleryName
+
+		now := time.Now()
+		newGallery.Date = &models.Date{Time: now, Precision: models.DatePrecisionDay}
+		newGallery.SceneIDs = models.NewRelatedIDs([]int{s.ID})
+
+		// Assign other properties from input
+		if createInput != nil {
+			if createInput.Rating100 != nil {
+				newGallery.Rating = createInput.Rating100
+			}
+		}
+
+		if err := r.repository.Gallery.Create(ctx, &newGallery, []models.FileID{zipFile.ID}); err != nil {
 			return err
 		}
 
@@ -1462,11 +1490,15 @@ func (r *mutationResolver) SceneGenerateGallery(ctx context.Context, sceneID str
 		return nil, err
 	}
 
-	// Trigger Scan on the new folder to populate images and link them properly
-	// Using background scan job
+	// Trigger Scan on the new folder to populate images and link them properly.
+	// We force a rescan because the file was just manually registered,
+	// and we want the scanner to descend into the zip contents.
 	manager.GetInstance().Scan(ctx, manager.ScanMetadataInput{
 		Paths: []string{zipPath},
-		// Enforce defaults or specific options if needed
+		ScanMetadataOptions: config.ScanMetadataOptions{
+			Rescan:                 true,
+			ScanGenerateThumbnails: true,
+		},
 	})
 
 	return r.getGallery(ctx, newGallery.ID)

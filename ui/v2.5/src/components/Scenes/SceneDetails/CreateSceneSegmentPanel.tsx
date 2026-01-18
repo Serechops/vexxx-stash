@@ -1,9 +1,5 @@
 import React, { useState } from "react";
 import {
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
     Button,
     TextField,
     Grid,
@@ -14,8 +10,14 @@ import {
     List,
     ListItem,
     ListItemText,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    Card,
+    CardContent
 } from "@mui/material";
-import { useIntl } from "react-intl";
+import { FormattedMessage, useIntl } from "react-intl";
 import * as GQL from "src/core/generated-graphql";
 import { useToast } from "src/hooks/Toast";
 
@@ -24,14 +26,12 @@ import TextUtils from "src/utils/text";
 interface IProps {
     fileId: string;
     fileDuration?: number;
-    onClose: () => void;
     onSuccess: (sceneId: string) => void;
 }
 
-export const CreateSceneSegmentDialog: React.FC<IProps> = ({
+export const CreateSceneSegmentPanel: React.FC<IProps> = ({
     fileId,
     fileDuration,
-    onClose,
     onSuccess,
 }) => {
     const intl = useIntl();
@@ -50,7 +50,7 @@ export const CreateSceneSegmentDialog: React.FC<IProps> = ({
     const [checking, setChecking] = useState(false);
     const [showMatches, setShowMatches] = useState(false);
 
-    // Batch scan state (existing)
+    // Batch scan state
     const [isBatchScan, setIsBatchScan] = useState(false);
     const [scanWindowStr, setScanWindowStr] = useState("30");
     const [scanIncrementStr, setScanIncrementStr] = useState("5");
@@ -58,7 +58,6 @@ export const CreateSceneSegmentDialog: React.FC<IProps> = ({
     const [totalProgress, setTotalProgress] = useState(0);
 
     const handleCheckMatches = async () => {
-        // ... (existing validation)
         const startPoint = TextUtils.timestampToSeconds(startPointStr);
         const endPoint = TextUtils.timestampToSeconds(endPointStr);
 
@@ -84,7 +83,6 @@ export const CreateSceneSegmentDialog: React.FC<IProps> = ({
 
         try {
             const phashes: string[] = [];
-            // ... (batch generation logic)
             if (isBatchScan) {
                 const window = parseInt(scanWindowStr, 10);
                 const increment = parseInt(scanIncrementStr, 10);
@@ -169,7 +167,6 @@ export const CreateSceneSegmentDialog: React.FC<IProps> = ({
         }
     };
 
-
     const handleSave = async () => {
         if (!title) {
             Toast.error("Title is required");
@@ -202,98 +199,103 @@ export const CreateSceneSegmentDialog: React.FC<IProps> = ({
         }
     };
 
-
     return (
-        <>
-            <Dialog open onClose={onClose} maxWidth="sm" fullWidth>
-                <DialogTitle>Create Scene Segment</DialogTitle>
-                <DialogContent>
-                    <Box component="form" sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
-                        <TextField
-                            label="Title"
-                            value={title}
-                            onChange={(e) => setTitle(e.target.value)}
-                            placeholder="Enter title"
-                            fullWidth
+        <Card sx={{ mb: 3 }}>
+            <CardContent>
+                <Typography variant="h6" gutterBottom>
+                    Create Scene Segment
+                </Typography>
+                <Box component="form" sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+                    <TextField
+                        label="Title"
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                        placeholder="Enter title"
+                        size="small"
+                        fullWidth
+                    />
+                    <Grid container spacing={2}>
+                        <Grid size={{ xs: 6 }}>
+                            <TextField
+                                label="Start Point (MM:SS)"
+                                value={startPointStr}
+                                onChange={(e) => setStartPointStr(e.target.value)}
+                                placeholder="0"
+                                size="small"
+                                fullWidth
+                            />
+                        </Grid>
+                        <Grid size={{ xs: 6 }}>
+                            <TextField
+                                label="End Point (MM:SS)"
+                                value={endPointStr}
+                                onChange={(e) => setEndPointStr(e.target.value)}
+                                placeholder="MM:SS"
+                                size="small"
+                                fullWidth
+                            />
+                        </Grid>
+                    </Grid>
+
+                    <Box display="flex" alignItems="center">
+                        <FormControlLabel
+                            control={
+                                <Checkbox
+                                    checked={isBatchScan}
+                                    onChange={(e) => setIsBatchScan(e.target.checked)}
+                                    id="batch-scan-toggle"
+                                    size="small"
+                                />
+                            }
+                            label={<Typography variant="body2">Fuzzy Scan</Typography>}
                         />
+                    </Box>
+
+                    {isBatchScan && (
                         <Grid container spacing={2}>
                             <Grid size={{ xs: 6 }}>
                                 <TextField
-                                    label="Start Point (MM:SS)"
-                                    value={startPointStr}
-                                    onChange={(e) => setStartPointStr(e.target.value)}
-                                    placeholder="0"
+                                    label="Window (+/- sec)"
+                                    type="number"
+                                    value={scanWindowStr}
+                                    onChange={(e) => setScanWindowStr(e.target.value)}
+                                    size="small"
                                     fullWidth
                                 />
                             </Grid>
                             <Grid size={{ xs: 6 }}>
                                 <TextField
-                                    label="End Point (MM:SS)"
-                                    value={endPointStr}
-                                    onChange={(e) => setEndPointStr(e.target.value)}
-                                    placeholder="MM:SS"
+                                    label="Increment (sec)"
+                                    type="number"
+                                    value={scanIncrementStr}
+                                    onChange={(e) => setScanIncrementStr(e.target.value)}
+                                    size="small"
                                     fullWidth
                                 />
                             </Grid>
                         </Grid>
+                    )}
 
-                        <Box display="flex" alignItems="center">
-                            <FormControlLabel
-                                control={
-                                    <Checkbox
-                                        checked={isBatchScan}
-                                        onChange={(e) => setIsBatchScan(e.target.checked)}
-                                        id="batch-scan-toggle"
-                                    />
-                                }
-                                label="Fuzzy Scan"
-                            />
-                        </Box>
-
-                        {isBatchScan && (
-                            <Grid container spacing={2}>
-                                <Grid size={{ xs: 6 }}>
-                                    <TextField
-                                        label="Window (+/- sec)"
-                                        type="number"
-                                        value={scanWindowStr}
-                                        onChange={(e) => setScanWindowStr(e.target.value)}
-                                        fullWidth
-                                    />
-                                </Grid>
-                                <Grid size={{ xs: 6 }}>
-                                    <TextField
-                                        label="Increment (sec)"
-                                        type="number"
-                                        value={scanIncrementStr}
-                                        onChange={(e) => setScanIncrementStr(e.target.value)}
-                                        fullWidth
-                                    />
-                                </Grid>
-                            </Grid>
-                        )}
-
+                    <Box display="flex" justifyContent="space-between" alignItems="center">
                         <Button
                             variant="outlined"
                             size="small"
                             onClick={handleCheckMatches}
                             disabled={checking}
-                            sx={{ alignSelf: 'flex-start' }}
                         >
                             {checking ? `Scanning ${progress}/${totalProgress}...` : "Check Matches"}
                         </Button>
-                    </Box>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={onClose} color="inherit">
-                        Cancel
-                    </Button>
-                    <Button onClick={handleSave} variant="contained" color="primary">
-                        Create
-                    </Button>
-                </DialogActions>
-            </Dialog>
 
+                        <Box sx={{ display: 'flex', gap: 1 }}>
+                            <Button onClick={handleSave} variant="contained" color="primary" size="small">
+                                <FormattedMessage id="actions.create" />
+                            </Button>
+                        </Box>
+                    </Box>
+                </Box>
+            </CardContent>
+
+            {/* Match dialog remains as a dialog for better UX when reviewing extensive match lists */}
             <Dialog open={showMatches} onClose={() => setShowMatches(false)} maxWidth="lg" fullWidth>
                 <DialogTitle>Potential Matches</DialogTitle>
                 <DialogContent>
@@ -333,7 +335,7 @@ export const CreateSceneSegmentDialog: React.FC<IProps> = ({
                     <Button onClick={() => setShowMatches(false)}>Close</Button>
                 </DialogActions>
             </Dialog>
-        </>
+        </Card>
     );
 
 };

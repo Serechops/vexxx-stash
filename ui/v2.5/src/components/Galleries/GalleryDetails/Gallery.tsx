@@ -256,7 +256,20 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
 
     return (
       <>
-        <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 2 }}>
+        <Box
+          sx={{
+            position: "sticky",
+            top: 0,
+            zIndex: 10,
+            backgroundColor: "background.paper",
+            mx: -2,
+            px: 2,
+            borderBottom: 1,
+            borderColor: "divider",
+            mb: 2,
+            pt: 1
+          }}
+        >
           <Tabs
             value={activeTabKey}
             onChange={(_, k) => setActiveTabKey(k)}
@@ -336,7 +349,20 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
 
     return (
       <>
-        <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 2 }}>
+        <Box
+          sx={{
+            position: "sticky",
+            top: 0,
+            zIndex: 10,
+            backgroundColor: "background.paper",
+            mx: -2,
+            px: 2,
+            borderBottom: 1,
+            borderColor: "divider",
+            mb: 2,
+            pt: 1
+          }}
+        >
           <Tabs
             value={add ? "add" : "images"}
             onChange={(_, k) => setMainTabKey(k)}
@@ -401,13 +427,13 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
       <Box
         className="gallery-tabs"
         sx={{
-          flex: { xl: "0 0 450px" },
-          maxWidth: { xl: "450px" },
-          maxHeight: "calc(100vh - 4rem)",
+          flex: { md: "0 0 450px" },
+          maxWidth: { md: "450px" },
+          maxHeight: { md: "calc(100vh - 4rem)" },
           overflow: "auto",
           overflowWrap: "break-word",
           wordWrap: "break-word",
-          order: { xs: 2, xl: 1 },
+          order: { xs: 2, md: 1 },
           pl: "15px",
           pr: "15px",
           position: "relative",
@@ -454,7 +480,7 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
               sx={{
                 flex: { lg: "0 0 75%" },
                 order: { lg: 1 },
-                fontSize: { xs: "1.5rem", xl: "1.75rem" },
+                fontSize: { xs: "1.5rem", md: "1.75rem" },
                 mt: "30px",
                 mb: 0
               }}
@@ -537,15 +563,15 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
       <Box
         className="gallery-container"
         sx={{
-          flex: { xl: "0 0 calc(100% - 450px)" },
-          height: { xl: "calc(100vh - 4rem)" },
-          maxWidth: { xl: "calc(100% - 450px)" },
+          flex: { md: "0 0 calc(100% - 450px)" },
+          height: { md: "calc(100vh - 4rem)" },
+          maxWidth: { md: "calc(100% - 450px)" },
           overflow: "auto",
           pl: "15px",
           pr: "15px",
           position: "relative",
           width: "100%",
-          order: { xs: 1, xl: 2 }
+          order: { xs: 1, md: 2 }
         }}
       >
         {renderRightTabs()}

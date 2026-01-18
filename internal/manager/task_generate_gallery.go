@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/stashapp/stash/internal/manager/config"
 	"github.com/stashapp/stash/pkg/logger"
 	"github.com/stashapp/stash/pkg/models"
 	"github.com/stashapp/stash/pkg/scene/generate"
@@ -114,29 +115,70 @@ func (t *GenerateGalleryTask) Start(ctx context.Context) {
 	// Clean up temp dir
 	os.RemoveAll(tempDir)
 
-	// Create Gallery Entity
-	newGallery := models.NewGallery()
-	newGallery.Title = galleryName
-	newGallery.Path = zipPath
-	// Organized = false by default on NewGallery? usually empty/false.
-
-	now := time.Now()
-	newGallery.Date = &models.Date{Time: now, Precision: models.DatePrecisionDay}
-	newGallery.SceneIDs = models.NewRelatedIDs([]int{t.Scene.ID})
-
-	// Transaction to create
-	err = t.repository.WithTxn(ctx, func(ctx context.Context) error {
-		return t.repository.Gallery.Create(ctx, &newGallery, nil)
-	})
-
+	// Register the Zip file in the database first.
+	// This ensures the scanner associates images with the correct Gallery entity.
+	finfo, err := os.Stat(zipPath)
 	if err != nil {
-		logger.Errorf("Failed to create gallery entity for scene %d: %v", t.Scene.ID, err)
+		logger.Errorf("Failed to stat zip file: %v", err)
 		return
 	}
 
-	// Trigger Scan for this gallery to populate images
+	// Register the Zip file and create the Gallery in a single transaction.
+	// This ensures consistency and satisfies backend transaction requirements.
+	err = t.repository.WithTxn(ctx, func(ctx context.Context) error {
+		folderPath := filepath.Dir(zipPath)
+		folder, err := t.repository.Folder.FindByPath(ctx, folderPath, true)
+		if err != nil {
+			return fmt.Errorf("finding folder: %w", err)
+		}
+		if folder == nil {
+			folder = &models.Folder{
+				Path: folderPath,
+			}
+			if err := t.repository.Folder.Create(ctx, folder); err != nil {
+				return fmt.Errorf("creating folder: %w", err)
+			}
+		}
+
+		zipFile := &models.BaseFile{
+			Path:     zipPath,
+			Basename: filepath.Base(zipPath),
+			DirEntry: models.DirEntry{
+				ModTime: finfo.ModTime(),
+			},
+			ParentFolderID: folder.ID,
+			Size:           finfo.Size(),
+		}
+
+		if err := t.repository.File.Create(ctx, zipFile); err != nil {
+			return fmt.Errorf("creating file record for zip: %w", err)
+		}
+
+		// Create Gallery Entity linked to the Zip file
+		newGallery := models.NewGallery()
+		newGallery.Title = galleryName
+
+		now := time.Now()
+		newGallery.Date = &models.Date{Time: now, Precision: models.DatePrecisionDay}
+		newGallery.SceneIDs = models.NewRelatedIDs([]int{t.Scene.ID})
+
+		return t.repository.Gallery.Create(ctx, &newGallery, []models.FileID{zipFile.ID})
+	})
+
+	if err != nil {
+		logger.Errorf("Failed to create gallery records for scene %d: %v", t.Scene.ID, err)
+		return
+	}
+
+	// Trigger Scan for this gallery to populate images.
+	// We force a rescan because the file was just manually registered,
+	// and we want the scanner to descend into the zip contents.
 	instance.Scan(ctx, ScanMetadataInput{
 		Paths: []string{zipPath},
+		ScanMetadataOptions: config.ScanMetadataOptions{
+			Rescan:                 true,
+			ScanGenerateThumbnails: true,
+		},
 	})
 }
 

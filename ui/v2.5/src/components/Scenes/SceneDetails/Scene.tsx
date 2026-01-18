@@ -425,19 +425,19 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
       return (
         <ModalComponent
           show
-          header={intl.formatMessage({ id: "actions.generate_gallery" }, { defaultMessage: "Generate Gallery" })}
+          header={intl.formatMessage({ id: "Generate Gallery" })}
           accept={{
             text: intl.formatMessage({ id: "actions.generate" }),
             onClick: onGenerateGalleryConfirm
           }}
           cancel={{
-            text: intl.formatMessage({ id: "actions.cancel" }),
+            text: intl.formatMessage({ id: "Cancel" }),
             onClick: () => setIsGenerateGalleryDialogOpen(false),
             variant: "secondary"
           }}
         >
           <div className="form-group">
-            <label><FormattedMessage id={"countables.images"} /></label>
+            <label><FormattedMessage id="number_of_images" defaultMessage="Number of Images" /></label>
             <input
               type="number"
               className="form-control"
@@ -500,7 +500,7 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
             handleOperationsClose();
           }}
         >
-          <FormattedMessage id="actions.generate_gallery" defaultMessage="Generate Gallery" />
+          <FormattedMessage id="actions.create_gallery" defaultMessage="Generate Gallery" />
         </MenuItem>
         <MenuItem
           onClick={() => {

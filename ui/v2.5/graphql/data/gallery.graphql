@@ -39,6 +39,9 @@ fragment GalleryData on Gallery {
   scenes {
     ...SlimSceneData
   }
+  images {
+    ...SlimImageData
+  }
 }
 
 fragment SelectGalleryData on Gallery {

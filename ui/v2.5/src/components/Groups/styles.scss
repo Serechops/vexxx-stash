@@ -1,0 +1,18 @@
+// Group Card Styles (restored from stash-develop)
+
+.group-card {
+    width: 240px;
+
+    @media (max-width: 576px) {
+        width: 100%;
+    }
+
+    &.card {
+        padding: 0 0 1rem;
+    }
+
+    &-image {
+        object-fit: contain;
+        width: 100%;
+    }
+}

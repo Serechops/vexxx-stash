@@ -1,0 +1,56 @@
+// Performer Card Styles (restored from stash-develop)
+
+.performer-card {
+    width: 20rem;
+
+    @media (max-width: 576px) {
+        width: 100%;
+    }
+
+    &.card {
+        padding: 0 0 1rem 0;
+    }
+
+    &-image {
+        aspect-ratio: 2/3;
+        min-width: 11.25rem;
+        object-fit: cover;
+        object-position: top;
+        width: 100%;
+    }
+
+    button.btn.favorite-button {
+        padding: 0;
+        position: absolute;
+        right: 5px;
+        top: 10px;
+    }
+
+    &:hover button.btn.favorite-button.not-favorite {
+        opacity: 1;
+    }
+}
+
+// Performer Detail Page Styles
+#performer-page {
+    .performer-image-container {
+        .btn {
+            box-shadow: none;
+        }
+
+        .performer {
+            max-height: calc(100vh - 6rem);
+            max-width: 100%;
+        }
+    }
+
+    .performer-head {
+        display: inline-block;
+        vertical-align: top;
+    }
+
+    .quality-group {
+        display: inline-flex;
+        margin-top: 0.25rem;
+    }
+}

@@ -48,7 +48,7 @@ export const PerformerCardGrid: React.FC<IPerformerCardGrid> = ({
       ref={componentRef}
       style={{
         display: "grid",
-        gridTemplateColumns: `repeat(auto-fit, minmax(${columnWidth}px, 1fr))`,
+        gridTemplateColumns: `repeat(auto-fill, minmax(${columnWidth}px, ${columnWidth}px))`,
         gap: "1rem",
         padding: "1rem",
         justifyContent: "center",

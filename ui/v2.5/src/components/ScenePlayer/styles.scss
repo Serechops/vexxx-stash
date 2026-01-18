@@ -12,11 +12,11 @@ $sceneTabWidth: 450px;
 .VideoPlayer {
   display: flex;
   flex-direction: column;
-  max-height: calc(100vh - #{$menuHeight});
+  min-height: calc(100vh - #{$menuHeight}); // Changed from max-height to allow content expansion
   padding-bottom: 0.25rem;
 
   @media (min-width: 1200px) {
-    height: 100vh;
+    min-height: 100vh; // Changed from fixed height to min-height
   }
 
   &.portrait .video-wrapper {
@@ -654,7 +654,7 @@ $sceneTabWidth: 450px;
   .scene-tabs {
     flex: 0 0 $sceneTabWidth;
     max-width: $sceneTabWidth;
-    overflow: auto;
+    overflow: visible; // Changed from 'auto' to prevent height clipping
 
     &.collapsed {
       display: none;
@@ -663,8 +663,8 @@ $sceneTabWidth: 450px;
     .tab-content {
       flex: 1 1 auto;
       min-height: 15rem;
-      overflow-x: hidden;
-      overflow-y: auto;
+      overflow-x: visible;
+      overflow-y: visible;
     }
   }
 

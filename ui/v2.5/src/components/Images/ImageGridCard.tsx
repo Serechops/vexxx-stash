@@ -6,6 +6,7 @@ import {
   useContainerDimensions,
 } from "../Shared/GridCard/GridCard";
 import { ImageCardSkeleton } from "../Shared/Skeletons/ImageCardSkeleton";
+import { CARD_ZOOM_WIDTHS } from "src/constants/grid";
 
 interface IImageCardGrid {
   images: GQL.SlimImageDataFragment[];
@@ -17,8 +18,6 @@ interface IImageCardGrid {
   itemsPerPage?: number;
 }
 
-const zoomWidths = [280, 340, 420, 560, 800];
-
 export const ImageGridCard: React.FC<IImageCardGrid> = ({
   images,
   selectedIds,
@@ -29,11 +28,11 @@ export const ImageGridCard: React.FC<IImageCardGrid> = ({
   itemsPerPage,
 }) => {
   // Use column-width based on zoom level to let browser handle column count
-  const columnWidth = zoomWidths[zoomIndex] || zoomWidths[0];
+  const columnWidth = CARD_ZOOM_WIDTHS[zoomIndex] || CARD_ZOOM_WIDTHS[0];
 
   // Grid hooks (always run to keep hooks consistent)
   const [componentRef, { width: containerWidth }] = useContainerDimensions();
-  const cardWidth = useCardWidth(containerWidth, zoomIndex, zoomWidths);
+  const cardWidth = useCardWidth(containerWidth, zoomIndex, CARD_ZOOM_WIDTHS);
 
   // Calculate how many skeletons we need to fill the viewport
   const skeletonCount = useMemo(() => {

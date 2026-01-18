@@ -33,6 +33,14 @@ $dark-text: #18181b; // Zinc-900
 $textfield-bg: rgba(24, 24, 27, 0.3);
 $card-bg: #18181b; // Zinc-900 for slight contrast
 
+// Grid Layout Variables
+$grid-gap: 1rem;
+$grid-gap-large: 1.5rem;
+
+// Semantic Colors (for card favorite icons, etc.)
+$favorite-color: #ff7373;
+$not-favorite-color: rgba(191, 204, 214, 0.5);
+
 $card-cap-bg: rgba(#000, 0.03);
 
 @import "node_modules/bootstrap/scss/bootstrap";

@@ -4,6 +4,7 @@ import * as GQL from "src/core/generated-graphql";
 import { SceneQueue } from "src/models/sceneQueue";
 import { SceneCard } from "./SceneCard";
 import { SceneCardSkeleton } from "../Shared/Skeletons/SceneCardSkeleton";
+import { CARD_ZOOM_WIDTHS } from "src/constants/grid";
 
 interface ISceneCardsGrid {
   scenes: GQL.SlimSceneDataFragment[];
@@ -27,9 +28,8 @@ export const SceneCardsGrid: React.FC<ISceneCardsGrid> = ({
   itemsPerPage,
 }) => {
   const [componentRef, { width: containerWidth }] = useContainerDimensions();
-  const zoomWidths = [280, 340, 420, 560, 800];
-  const cardWidth = useCardWidth(containerWidth, zoomIndex, zoomWidths);
-  const columnWidth = zoomWidths[zoomIndex] || zoomWidths[0];
+  const cardWidth = useCardWidth(containerWidth, zoomIndex, CARD_ZOOM_WIDTHS);
+  const columnWidth = CARD_ZOOM_WIDTHS[zoomIndex] || CARD_ZOOM_WIDTHS[0];
 
   const skeletonCount = useMemo(() => {
     const defaultCount = itemsPerPage || 20;

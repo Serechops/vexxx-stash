@@ -350,7 +350,7 @@ button.btn.favorite-button {
   transition: opacity 0.5s;
 
   &.not-favorite {
-    color: rgba(191, 204, 214, 0.5);
+    color: $not-favorite-color;
     filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.9));
 
     &.hide-not-favorite {
@@ -359,7 +359,7 @@ button.btn.favorite-button {
   }
 
   &.favorite {
-    color: #ff7373;
+    color: $favorite-color;
     filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.9));
   }
 

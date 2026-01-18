@@ -1138,7 +1138,7 @@ div.dropdown-menu {
   height: 100%;
 
   svg {
-    color: #ff7373;
+    color: $favorite-color;
 
     @include media-breakpoint-down(xs) {
       margin: 0;

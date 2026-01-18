@@ -7,6 +7,7 @@ import {
   useCardWidth,
   useContainerDimensions,
 } from "../Shared/GridCard/GridCard";
+import { CARD_ZOOM_WIDTHS } from "src/constants/grid";
 
 interface IPerformerCardGrid {
   performers: GQL.PerformerDataFragment[];
@@ -18,8 +19,6 @@ interface IPerformerCardGrid {
   itemsPerPage?: number;
 }
 
-const zoomWidths = [280, 340, 420, 560, 800];
-
 export const PerformerCardGrid: React.FC<IPerformerCardGrid> = ({
   performers,
   selectedIds,
@@ -30,7 +29,7 @@ export const PerformerCardGrid: React.FC<IPerformerCardGrid> = ({
   itemsPerPage,
 }) => {
   const [componentRef, { width: containerWidth }] = useContainerDimensions();
-  const columnWidth = zoomWidths[zoomIndex] || zoomWidths[0];
+  const columnWidth = CARD_ZOOM_WIDTHS[zoomIndex] || CARD_ZOOM_WIDTHS[0];
 
   const skeletonCount = useMemo(() => {
     const defaultCount = itemsPerPage || 20;

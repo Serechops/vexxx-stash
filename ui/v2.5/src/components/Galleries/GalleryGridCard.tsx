@@ -8,6 +8,7 @@ import {
 } from "../Shared/GridCard/GridCard";
 
 import { GalleryCardSkeleton } from "../Shared/Skeletons/GalleryCardSkeleton";
+import { CARD_ZOOM_WIDTHS } from "src/constants/grid";
 
 interface IGalleryCardGrid {
   galleries: GQL.SlimGalleryDataFragment[];
@@ -17,8 +18,6 @@ interface IGalleryCardGrid {
   loading?: boolean;
   itemsPerPage?: number;
 }
-
-const zoomWidths = [280, 340, 420, 560, 800];
 
 export const GalleryCardGrid: React.FC<IGalleryCardGrid> = ({
   galleries,
@@ -30,10 +29,10 @@ export const GalleryCardGrid: React.FC<IGalleryCardGrid> = ({
 }) => {
   // Grid hooks (always run)
   const [componentRef, { width: containerWidth }] = useContainerDimensions();
-  const cardWidth = useCardWidth(containerWidth, zoomIndex, zoomWidths);
+  const cardWidth = useCardWidth(containerWidth, zoomIndex, CARD_ZOOM_WIDTHS);
 
   // Use column-width based on zoom level to let browser handle column count
-  const columnWidth = zoomWidths[zoomIndex] || zoomWidths[0];
+  const columnWidth = CARD_ZOOM_WIDTHS[zoomIndex] || CARD_ZOOM_WIDTHS[0];
 
   // Calculate how many skeletons we need to fill the viewport
   const skeletonCount = useMemo(() => {

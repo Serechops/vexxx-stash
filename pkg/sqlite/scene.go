@@ -1121,7 +1121,13 @@ func (qb *SceneStore) isUnfilteredQuery(options models.SceneQueryOptions) bool {
 		if f.And != nil || f.Or != nil || f.Not != nil {
 			return false
 		}
-		if f.Path != nil || f.Title != nil || f.Code != nil || f.Details != nil {
+		if f.ID != nil || f.Path != nil || f.Title != nil || f.Code != nil || f.Details != nil {
+			return false
+		}
+		if f.Director != nil || f.URL != nil {
+			return false
+		}
+		if f.Oshash != nil || f.Checksum != nil || f.Phash != nil || f.PhashDistance != nil {
 			return false
 		}
 		if f.Rating100 != nil || f.Date != nil || f.Organized != nil {
@@ -1130,19 +1136,43 @@ func (qb *SceneStore) isUnfilteredQuery(options models.SceneQueryOptions) bool {
 		if f.Studios != nil || f.Performers != nil || f.Tags != nil || f.Galleries != nil {
 			return false
 		}
-		if f.PerformerCount != nil || f.TagCount != nil || f.PerformerAge != nil {
+		if f.Movies != nil || f.Groups != nil {
 			return false
 		}
-		if f.Resolution != nil || f.OCounter != nil || f.IsMissing != nil {
+		if f.PerformerCount != nil || f.TagCount != nil || f.FileCount != nil {
 			return false
 		}
-		if f.URL != nil || f.Director != nil || f.HasMarkers != nil {
+		if f.PerformerTags != nil || f.PerformerFavorite != nil || f.PerformerAge != nil {
 			return false
 		}
-		if f.Interactive != nil || f.InteractiveSpeed != nil {
+		if f.Resolution != nil || f.Orientation != nil || f.Framerate != nil || f.Bitrate != nil {
 			return false
 		}
-		if f.Groups != nil || f.PlayCount != nil || f.PlayDuration != nil {
+		if f.VideoCodec != nil || f.AudioCodec != nil || f.Duration != nil {
+			return false
+		}
+		if f.OCounter != nil || f.IsMissing != nil || f.Duplicated != nil {
+			return false
+		}
+		if f.HasMarkers != nil || f.HasPreview != nil {
+			return false
+		}
+		if f.Interactive != nil || f.InteractiveSpeed != nil || f.Captions != nil {
+			return false
+		}
+		if f.ResumeTime != nil || f.PlayCount != nil || f.PlayDuration != nil || f.LastPlayedAt != nil {
+			return false
+		}
+		if f.StashID != nil || f.StashIDEndpoint != nil {
+			return false
+		}
+		if f.GalleriesFilter != nil || f.PerformersFilter != nil || f.StudiosFilter != nil || f.TagsFilter != nil {
+			return false
+		}
+		if f.GroupsFilter != nil || f.MoviesFilter != nil || f.MarkersFilter != nil || f.FilesFilter != nil {
+			return false
+		}
+		if f.CreatedAt != nil || f.UpdatedAt != nil {
 			return false
 		}
 	}

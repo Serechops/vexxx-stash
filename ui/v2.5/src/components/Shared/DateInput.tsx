@@ -77,7 +77,7 @@ const _DateInput: React.FC<IProps> = (props: IProps) => {
     <Box>
       <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5 }}>
         <TextField
-          className="date-input text-input"
+          className="date-input vexxx-date-input text-input"
           disabled={props.disabled}
           value={props.value}
           onChange={(e) => props.onValueChange(e.target.value)}

@@ -26,6 +26,7 @@ export const LoadingIndicator: React.FC<ILoadingProps> = PatchComponent(
 
       <Fade in={true} style={{ transitionDelay: "200ms" }}>
         <Box
+          className="vexxx-loading"
           sx={{
             width: inline ? "auto" : "100%",
             display: inline ? "inline-flex" : "flex",
@@ -40,12 +41,14 @@ export const LoadingIndicator: React.FC<ILoadingProps> = PatchComponent(
           }}
         >
           <CircularProgress
+            className="vexxx-loading-spinner"
             size={small ? 20 : 40}
             role="status"
             aria-label={typeof text === "string" ? text : undefined}
           />
           {message !== "" && (
             <Typography
+              className="vexxx-loading-text"
               variant="h6"
               sx={{ marginTop: inline ? 0 : "1rem" }}
             >

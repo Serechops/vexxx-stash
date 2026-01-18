@@ -874,3 +874,150 @@ input[type="range"].double-range-slider-max {
     overflow-y: auto;
   }
 }
+
+.scene-select-option {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+
+  .scene-select-row {
+    align-items: center;
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  .scene-select-image {
+    background-color: #000;
+    border-radius: 3px;
+    height: 50px;
+    margin-right: 10px;
+    object-fit: cover;
+    width: 89px;
+  }
+
+  .scene-select-details {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+
+    .scene-select-title {
+      font-weight: bold;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .scene-select-studio,
+    .scene-select-date,
+    .scene-select-code {
+      color: #8a9ba8;
+      font-size: 0.85em;
+      margin-right: 0.5em;
+    }
+  }
+
+  .scene-select-alias {
+    color: #8a9ba8;
+    font-size: 0.85em;
+    font-style: italic;
+    margin-left: 10px;
+  }
+}
+
+// Hybrid Styling Pilot - Semantic Classes
+.vexxx-scene-list-item {
+  // Structure handled by MUI Grid
+  position: relative;
+}
+
+.vexxx-scene-list-image {
+  border-radius: 4px;
+  height: 60px;
+  object-fit: cover;
+  width: 80px;
+
+  &.placeholder {
+    background-color: #eee;
+  }
+}
+
+// .vexxx-scene-list-title
+// .vexxx-scene-list-meta
+// Typography handled by MUI/utility classes for now
+
+// DetailImage semantic class
+.vexxx-detail-image {
+  display: block;
+  max-width: 100%;
+}
+
+// Alert semantic classes
+.vexxx-alert {
+  // MUI Dialog - customize appearance if needed
+  position: relative;
+}
+
+.vexxx-alert-content {
+  // MUI DialogContent
+  position: relative;
+}
+
+.vexxx-alert-actions {
+  // MUI DialogActions
+  position: relative;
+}
+
+// LoadingIndicator semantic classes
+.vexxx-loading {
+  // Wrapper box, layout handled by sx
+  position: relative;
+}
+
+.vexxx-loading-spinner {
+  // MUI CircularProgress
+  display: inline-block;
+}
+
+.vexxx-loading-text {
+  // MUI Typography
+  display: block;
+}
+
+// Card semantic classes (Phase 2)
+.vexxx-scene-card {
+  // SceneCard wrapper - customize borders, shadows
+  position: relative;
+}
+
+.vexxx-performer-card {
+  // PerformerCard wrapper - customize borders, shadows
+  position: relative;
+}
+
+.vexxx-group-card {
+  // GroupCard wrapper - customize borders, shadows
+  position: relative;
+}
+
+// Navigation semantic classes (Phase 2)
+.vexxx-sidebar {
+  // Sidebar container
+  position: relative;
+}
+
+.vexxx-navbar {
+  // Main navigation bar (AppBar)
+  position: relative;
+}
+
+// Form semantic classes (Phase 2)
+.vexxx-filter-select {
+  // FilterSelect dropdown
+  position: relative;
+}
+
+.vexxx-date-input {
+  // DateInput field
+  position: relative;
+}

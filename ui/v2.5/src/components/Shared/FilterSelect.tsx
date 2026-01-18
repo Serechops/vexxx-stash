@@ -92,7 +92,7 @@ const SelectComponent = <T, IsMulti extends boolean>(
     defaultOptions: true,
     isClearable: true,
     value: selectedOptions ?? null,
-    className: cx("react-select", props.className),
+    className: cx("react-select", "vexxx-filter-select", props.className),
     classNamePrefix: "react-select",
     noOptionsMessage: () => noOptionsMessage,
     placeholder: isDisabled ? "" : placeholder,

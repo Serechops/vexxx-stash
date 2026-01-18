@@ -818,7 +818,10 @@ func (qb *GalleryStore) isUnfilteredQuery(galleryFilter *models.GalleryFilterTyp
 		if f.And != nil || f.Or != nil || f.Not != nil {
 			return false
 		}
-		if f.Path != nil || f.Title != nil || f.Details != nil {
+		if f.ID != nil || f.Path != nil || f.Title != nil || f.Details != nil {
+			return false
+		}
+		if f.Code != nil || f.Photographer != nil || f.Checksum != nil || f.IsZip != nil {
 			return false
 		}
 		if f.Rating100 != nil || f.Date != nil || f.Organized != nil {
@@ -827,13 +830,25 @@ func (qb *GalleryStore) isUnfilteredQuery(galleryFilter *models.GalleryFilterTyp
 		if f.Studios != nil || f.Performers != nil || f.Tags != nil {
 			return false
 		}
-		if f.PerformerCount != nil || f.TagCount != nil || f.ImageCount != nil {
+		if f.PerformerCount != nil || f.TagCount != nil || f.ImageCount != nil || f.FileCount != nil {
+			return false
+		}
+		if f.PerformerTags != nil || f.PerformerFavorite != nil || f.PerformerAge != nil {
 			return false
 		}
 		if f.IsMissing != nil || f.URL != nil {
 			return false
 		}
-		if f.Scenes != nil || f.HasChapters != nil {
+		if f.Scenes != nil || f.HasChapters != nil || f.AverageResolution != nil {
+			return false
+		}
+		if f.ScenesFilter != nil || f.ImagesFilter != nil || f.PerformersFilter != nil {
+			return false
+		}
+		if f.StudiosFilter != nil || f.TagsFilter != nil || f.FilesFilter != nil || f.FoldersFilter != nil {
+			return false
+		}
+		if f.CreatedAt != nil || f.UpdatedAt != nil {
 			return false
 		}
 	}

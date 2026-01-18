@@ -768,7 +768,7 @@ export const SceneEditPanel: React.FC<IProps> = ({
             <div className="ml-auto text-right d-flex">
               <ButtonGroup className="scraper-group">
                 <ScraperMenu
-                  toggle={intl.formatMessage({ id: "actions.scrape_with" })}
+                  toggle={intl.formatMessage({ id: "Scrape With..." })}
                   stashBoxes={stashConfig?.general.stashBoxes ?? []}
                   scrapers={fragmentScrapers}
                   onScraperClicked={onScrapeClicked}

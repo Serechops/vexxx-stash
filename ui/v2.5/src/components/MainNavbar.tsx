@@ -379,7 +379,7 @@ export const MainNavbar: React.FC = () => {
       <AppBar
         position="fixed"
         color="default"
-        className="top-nav !bg-background/90 backdrop-blur-xs border-b border-white/5 shadow-sm transition-all duration-300"
+        className="top-nav vexxx-navbar !bg-background/90 backdrop-blur-xs border-b border-white/5 shadow-sm transition-all duration-300"
         elevation={0}
       >
         <Toolbar variant="dense" sx={{ minHeight: 48, height: 48, py: 0 }}>

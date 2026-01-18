@@ -39,7 +39,7 @@ export const Sidebar: React.FC<
   );
 
   return (
-    <div ref={ref} className="sidebar !bg-card text-card-foreground border-r border-border shadow-2xl z-40 transform transition-transform duration-300">
+    <div ref={ref} className="sidebar vexxx-sidebar !bg-card text-card-foreground border-r border-border shadow-2xl z-40 transform transition-transform duration-300">
       {children}
     </div>
   );

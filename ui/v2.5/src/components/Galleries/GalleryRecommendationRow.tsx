@@ -51,8 +51,6 @@ export const GalleryRecommendationRow: React.FC<IProps> = (props) => {
               key={g.id}
               gallery={g}
               zoomIndex={1}
-              isMasonry={false}
-              cardWidth={320}
             />
           ))}
       </Carousel>

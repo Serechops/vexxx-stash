@@ -1,11 +1,12 @@
 import React, { useMemo } from "react";
 import { useIntl } from "react-intl";
 import * as GQL from "src/core/generated-graphql";
-import { Typography } from "@mui/material";
-import { Row, Col } from "src/components/Shared/Layouts";
+import { Typography, Grid, IconButton } from "@mui/material";
 import { Scene, SceneSelect } from "src/components/Scenes/SceneSelect";
 import cx from "classnames";
 import { NumberField } from "src/utils/form";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faTrash } from "@fortawesome/free-solid-svg-icons";
 
 export interface ISceneEntry {
     scene: Scene;
@@ -90,17 +91,30 @@ export const GroupSceneTable: React.FC<IProps> = (props) => {
         return (
             <>
                 {value.map((m, i) => (
-                    <Row key={m.scene.id} className="group-row">
-                        <Col xs={9}>
-                            <SceneSelect
-                                onSelect={(items) => onSceneSet(i, items)}
-                                values={[m.scene!]}
-                                excludeIds={sceneIDs}
-                            />
-                        </Col>
-                        <Col xs={3}>
+                    <Grid container key={m.scene.id} className="vexxx-scene-list-item align-items-center py-2 border-bottom" spacing={2}>
+                        <Grid size="auto">
+                            {m.scene.paths?.screenshot ? (
+                                <img
+                                    src={m.scene.paths.screenshot}
+                                    className="vexxx-scene-list-image"
+                                    alt={m.scene.title || ""}
+                                />
+                            ) : (
+                                <div className="vexxx-scene-list-image placeholder" />
+                            )}
+                        </Grid>
+                        <Grid size="grow" className="vexxx-scene-list-details">
+                            <Typography variant="body2" component="div" className="vexxx-scene-list-title font-weight-bold">
+                                {m.scene.title}
+                            </Typography>
+                            <Typography variant="caption" color="textSecondary" className="vexxx-scene-list-meta">
+                                {m.scene.code && <span className="vexxx-scene-list-code mr-2">{m.scene.code}</span>}
+                                {m.scene.date}
+                            </Typography>
+                        </Grid>
+                        <Grid size={{ xs: 3 }}>
                             <NumberField
-                                className="text-input"
+                                className="vexxx-scene-list-input text-input"
                                 value={m.scene_index ?? ""}
                                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                                     updateFieldChanged(
@@ -111,35 +125,48 @@ export const GroupSceneTable: React.FC<IProps> = (props) => {
                                     );
                                 }}
                             />
-                        </Col>
-                    </Row>
+                        </Grid>
+                        <Grid size="auto">
+                            <IconButton
+                                size="small"
+                                color="secondary"
+                                onClick={() => onSceneSet(i, [])} // Empty array removes the scene
+                                title={intl.formatMessage({ id: "actions.delete" })}
+                                className="vexxx-scene-list-delete"
+                            >
+                                <FontAwesomeIcon icon={faTrash} />
+                            </IconButton>
+                        </Grid>
+                    </Grid>
                 ))}
-                <Row className="group-row">
-                    <Col xs={9}>
+                <Grid container className="group-row mt-3" spacing={2}>
+                    <Grid size="grow">
                         <SceneSelect
                             onSelect={(items) => onNewSceneSet(items)}
                             values={[]}
                             excludeIds={sceneIDs}
                             className="bg-secondary"
-                            noSelectionString={intl.formatMessage({ id: "Select Scene" })}
+                            noSelectionString={intl.formatMessage({ id: "actions.select_entity" }, { entityType: intl.formatMessage({ id: "scene" }) })}
                         />
-                    </Col>
-                    <Col xs={3} />
-                </Row>
+                    </Grid>
+                    <Grid size={{ xs: 3 }} />
+                    <Grid size="auto" style={{ width: 40 }} /> {/* Spacer for delete button alignment */}
+                </Grid>
             </>
         );
     }
 
     return (
         <div className={cx("group-table", { "no-groups": !value.length })}>
-            <Row className="group-table-header">
-                <Col xs={9}></Col>
-                <Col xs={3}>
-                    <Typography variant="body2" className="group-scene-number-header">
+            <Grid container className="group-table-header mb-2" spacing={2}>
+                <Grid size="grow" />
+                <Grid size={{ xs: 3 }}>
+                    <Typography variant="body2" className="group-scene-number-header text-center">
                         {intl.formatMessage({ id: "group_scene_number" })}
                     </Typography>
-                </Col>
-            </Row>
+                </Grid>
+                <Grid size="auto" style={{ width: 40 }} />
+            </Grid>
             {renderTableData()}
         </div>
     );

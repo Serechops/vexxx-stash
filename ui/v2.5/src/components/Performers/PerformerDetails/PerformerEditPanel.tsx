@@ -502,7 +502,7 @@ export const PerformerEditPanel: React.FC<IPerformerDetails> = ({
           color="secondary"
           onClick={openScraperMenu}
         >
-          <FormattedMessage id="actions.scrape_with" />
+          <FormattedMessage id="Scrape With..." />
         </Button>
         <Menu
           id="performer-scraper-menu"

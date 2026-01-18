@@ -143,7 +143,7 @@ export const GroupCard: React.FC<IProps> = PatchComponent(
           {/* FRONT FACE */}
           <div className="scene-card-front relative w-full h-full backface-hidden top-0 left-0">
             <Box
-              className="group-card-front"
+              className="group-card-front vexxx-group-card"
               onClick={(e) => {
                 // Handle click?
                 // GroupCard logic usually handles nav or flip.

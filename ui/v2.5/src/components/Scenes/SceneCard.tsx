@@ -286,6 +286,7 @@ const FlipCard = PatchComponent(
               }}
               className={cx(
                 "scene-card",
+                "vexxx-scene-card",
                 props.selected ? "selected" : ""
               )}
             >

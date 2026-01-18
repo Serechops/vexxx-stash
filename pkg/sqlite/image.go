@@ -1108,8 +1108,8 @@ func (qb *ImageStore) isUnfilteredQuery(options models.ImageQueryOptions) bool {
 			logger.Debugf("isUnfilteredQuery: false - And/Or/Not set")
 			return false
 		}
-		if f.Path != nil || f.Title != nil || f.Code != nil || f.Details != nil {
-			logger.Debugf("isUnfilteredQuery: false - Path/Title/Code/Details set")
+		if f.ID != nil || f.Path != nil || f.Title != nil || f.Code != nil || f.Details != nil {
+			logger.Debugf("isUnfilteredQuery: false - ID/Path/Title/Code/Details set")
 			return false
 		}
 		if f.Rating100 != nil || f.Date != nil || f.Organized != nil {
@@ -1120,16 +1120,28 @@ func (qb *ImageStore) isUnfilteredQuery(options models.ImageQueryOptions) bool {
 			logger.Debugf("isUnfilteredQuery: false - Studios/Performers/Tags/Galleries set")
 			return false
 		}
-		if f.PerformerCount != nil || f.TagCount != nil || f.PerformerAge != nil {
-			logger.Debugf("isUnfilteredQuery: false - PerformerCount/TagCount/PerformerAge set")
+		if f.PerformerCount != nil || f.TagCount != nil || f.PerformerAge != nil || f.FileCount != nil {
+			logger.Debugf("isUnfilteredQuery: false - PerformerCount/TagCount/PerformerAge/FileCount set")
 			return false
 		}
-		if f.Checksum != nil || f.Resolution != nil || f.OCounter != nil || f.IsMissing != nil {
-			logger.Debugf("isUnfilteredQuery: false - Checksum/Resolution/OCounter/IsMissing set")
+		if f.PerformerTags != nil || f.PerformerFavorite != nil {
+			logger.Debugf("isUnfilteredQuery: false - PerformerTags/PerformerFavorite set")
+			return false
+		}
+		if f.Checksum != nil || f.Resolution != nil || f.OCounter != nil || f.IsMissing != nil || f.Orientation != nil {
+			logger.Debugf("isUnfilteredQuery: false - Checksum/Resolution/OCounter/IsMissing/Orientation set")
 			return false
 		}
 		if f.URL != nil || f.Photographer != nil {
 			logger.Debugf("isUnfilteredQuery: false - URL/Photographer set")
+			return false
+		}
+		if f.GalleriesFilter != nil || f.PerformersFilter != nil || f.StudiosFilter != nil || f.TagsFilter != nil {
+			logger.Debugf("isUnfilteredQuery: false - GalleriesFilter/PerformersFilter/StudiosFilter/TagsFilter set")
+			return false
+		}
+		if f.FilesFilter != nil || f.CreatedAt != nil || f.UpdatedAt != nil {
+			logger.Debugf("isUnfilteredQuery: false - FilesFilter/CreatedAt/UpdatedAt set")
 			return false
 		}
 	}

@@ -22,11 +22,11 @@ export const AlertModal: React.FC<IAlertModalProps> = PatchComponent(
     onCancel,
   }) => {
     return (
-      <Dialog open={!!show} onClose={onCancel}>
-        <DialogContent>
+      <Dialog open={!!show} onClose={onCancel} className="vexxx-alert">
+        <DialogContent className="vexxx-alert-content">
           <DialogContentText>{text}</DialogContentText>
         </DialogContent>
-        <DialogActions>
+        <DialogActions className="vexxx-alert-actions">
           <Button variant="contained" color={confirmVariant} onClick={() => onConfirm()}>
             {confirmButtonText ?? <FormattedMessage id="actions.confirm" />}
           </Button>

@@ -89,7 +89,7 @@ export const PerformerCard: React.FC<IPerformerCardProps> = PatchComponent(
 
     return (
       <Box
-        className={cx("performer-card", { "selected": selected })}
+        className={cx("performer-card", "vexxx-performer-card", { "selected": selected })}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         onClick={handleCardClick}

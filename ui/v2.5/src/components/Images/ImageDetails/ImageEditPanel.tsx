@@ -464,7 +464,7 @@ export const ImageEditPanel: React.FC<IProps> = ({
           <div className="ml-auto text-right d-flex">
             {!isNew && (
               <ScraperMenu
-                toggle={intl.formatMessage({ id: "actions.scrape_with" })}
+                toggle={intl.formatMessage({ id: "Scrape With..." })}
                 scrapers={fragmentScrapers}
                 onScraperClicked={onScrapeClicked}
                 onReloadScrapers={onReloadScrapers}

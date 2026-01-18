@@ -716,28 +716,71 @@ func (qb *PerformerStore) canUseFastIDs(performerFilter *models.PerformerFilterT
 func (qb *PerformerStore) isUnfilteredQuery(performerFilter *models.PerformerFilterType, findFilter *models.FindFilterType) bool {
 	if performerFilter != nil {
 		f := performerFilter
+		// Check all filter fields - if any is set, we cannot use the fast path
 		if f.And != nil || f.Or != nil || f.Not != nil {
 			return false
 		}
 		if f.Name != nil || f.Disambiguation != nil || f.Details != nil {
 			return false
 		}
-		if f.Rating100 != nil || f.Birthdate != nil || f.DeathDate != nil {
+		if f.FilterFavorites != nil {
 			return false
 		}
-		if f.Studios != nil || f.Tags != nil {
+		if f.BirthYear != nil || f.Age != nil || f.DeathYear != nil {
 			return false
 		}
-		if f.SceneCount != nil || f.ImageCount != nil || f.GalleryCount != nil {
+		if f.Ethnicity != nil || f.Country != nil || f.EyeColor != nil {
+			return false
+		}
+		if f.Height != nil || f.HeightCm != nil || f.Measurements != nil {
+			return false
+		}
+		if f.FakeTits != nil || f.PenisLength != nil || f.Circumcised != nil {
+			return false
+		}
+		if f.CareerLength != nil || f.Tattoos != nil || f.Piercings != nil || f.Aliases != nil {
+			return false
+		}
+		if f.Gender != nil || f.HairColor != nil || f.Weight != nil {
 			return false
 		}
 		if f.IsMissing != nil || f.URL != nil {
 			return false
 		}
-		if f.Gender != nil || f.Ethnicity != nil || f.Country != nil {
+		if f.Tags != nil || f.TagCount != nil {
+			return false
+		}
+		if f.SceneCount != nil || f.ImageCount != nil || f.GalleryCount != nil {
+			return false
+		}
+		if f.PlayCount != nil || f.OCounter != nil {
+			return false
+		}
+		if f.StashID != nil || f.StashIDEndpoint != nil {
+			return false
+		}
+		if f.Rating100 != nil {
+			return false
+		}
+		if f.Studios != nil || f.Tags != nil || f.Groups != nil {
+			return false
+		}
+		if f.Performers != nil {
 			return false
 		}
 		if f.IgnoreAutoTag != nil {
+			return false
+		}
+		if f.Birthdate != nil || f.DeathDate != nil {
+			return false
+		}
+		if f.ScenesFilter != nil || f.ImagesFilter != nil || f.GalleriesFilter != nil || f.TagsFilter != nil {
+			return false
+		}
+		if f.CreatedAt != nil || f.UpdatedAt != nil {
+			return false
+		}
+		if len(f.CustomFields) > 0 {
 			return false
 		}
 	}

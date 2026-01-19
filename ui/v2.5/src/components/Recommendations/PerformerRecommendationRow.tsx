@@ -5,6 +5,7 @@ import { LoadingIndicator } from '../Shared/LoadingIndicator';
 import { AlertModal as Alert } from '../Shared/Alert';
 import { PerformerCard } from '../Performers/PerformerCard';
 import Carousel from '../Shared/Carousel';
+import { RecommendationRow } from '../FrontPage/RecommendationRow';
 
 interface PerformerRecommendationRowProps {
     limit?: number;
@@ -58,9 +59,12 @@ export const PerformerRecommendationRow: React.FC<PerformerRecommendationRowProp
     }
 
     return (
-        <Box className="performer-recommendation-row" sx={{ mt: 4, mb: 6 }}>
-            <Typography variant="h5" sx={{ mb: 2, ml: 2, fontWeight: 'bold' }}>{title}</Typography>
-            <Carousel>
+        <RecommendationRow
+            header={title}
+            link={<></>}
+            className="performer-recommendations"
+        >
+            <Carousel itemWidth={280} gap={16}>
                 {recommendations.map((r, idx) => {
                     let perf: PerformerDataFragment | undefined;
 
@@ -96,7 +100,7 @@ export const PerformerRecommendationRow: React.FC<PerformerRecommendationRowProp
                         const badgeColor = scorePct > 80 ? "success.main" : scorePct > 50 ? "warning.main" : "info.main";
 
                         return (
-                            <Box key={r.id} sx={{ height: "100%", p: 1, display: "flex", flexDirection: "column" }}>
+                            <Box key={r.id} sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
                                 <Box
                                     sx={{
                                         mb: 1,
@@ -134,6 +138,6 @@ export const PerformerRecommendationRow: React.FC<PerformerRecommendationRowProp
                     return null;
                 })}
             </Carousel>
-        </Box>
+        </RecommendationRow>
     );
 };

@@ -30,121 +30,154 @@ export const DiscoverPage: React.FC = () => {
     };
 
     return (
-        <Container maxWidth="xl" sx={{ py: 4 }}>
+        <Box
+            sx={{
+                bgcolor: "background.default",
+                minHeight: "100vh",
+                position: "relative",
+                width: "100vw",
+                marginLeft: "calc(50% - 50vw)",
+                marginRight: "calc(50% - 50vw)",
+                maxWidth: "none",
+                overflowX: "hidden",
+                "& > *": { maxWidth: "none" },
+            }}
+        >
             <Helmet>
                 <title>Discover</title>
             </Helmet>
 
-            <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-                <Typography variant="h4" component="h1" className="text-primary font-bold">
-                    <FormattedMessage id="discover" defaultMessage="Discover" />
-                </Typography>
-                <Button
-                    variant="contained"
-                    onClick={onRebuild}
-                    disabled={rebuilding}
-                    startIcon={rebuilding ? <LoadingIndicator /> : <RefreshIcon />}
-                >
-                    <FormattedMessage id="rebuild_profile" defaultMessage="Refresh Recommendations" />
-                </Button>
-            </Box>
-
-            <Grid container spacing={4}>
-                {/* Left Column: Content Profile */}
-                <Grid size={{ xs: 12, md: 4, lg: 3 }}>
-                    <Box sx={{ position: 'sticky', top: 20 }}>
-                        <ContentProfileCard />
+            {/* Content Container for Header & Dashboard */}
+            <Box sx={{ px: { xs: 2, md: 6 }, pt: 4 }}>
+                <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+                    <Typography variant="h4" component="h1" className="text-primary font-bold">
+                        <FormattedMessage id="discover your content" defaultMessage="Discover Your Content" />
+                    </Typography>
+                    <Button
+                        variant="contained"
+                        onClick={onRebuild}
+                        disabled={rebuilding}
+                        startIcon={rebuilding ? <LoadingIndicator /> : <RefreshIcon />}
+                    >
+                        <FormattedMessage id="rebuild_profile" defaultMessage="Refresh Recommendations" />
+                    </Button>
+                </Box>
+                {/* Dashboard Banner */}
+                <Box sx={{ mb: 6 }}>
+                    <Grid container spacing={3}>
+                        {/* Content Profile Summary */}
+                        <Grid size={{ xs: 12, md: 6 }}>
+                            <ContentProfileCard />
+                        </Grid>
 
                         {/* Tuning Controls */}
-                        <Card sx={{ mt: 3 }}>
-                            <CardHeader title="Tuning" />
-                            <CardContent>
-                                <Box mb={2}>
-                                    <Typography gutterBottom>Tags: {(tagWeight * 100).toFixed(0)}%</Typography>
-                                    <Slider
-                                        value={tagWeight}
-                                        onChange={(_, v) => setTagWeight(v as number)}
-                                        step={0.1}
-                                        min={0}
-                                        max={1}
-                                        marks
-                                    />
-                                </Box>
-                                <Box mb={2}>
-                                    <Typography gutterBottom>Performers: {(performerWeight * 100).toFixed(0)}%</Typography>
-                                    <Slider
-                                        value={performerWeight}
-                                        onChange={(_, v) => setPerformerWeight(v as number)}
-                                        step={0.1}
-                                        min={0}
-                                        max={1}
-                                        marks
-                                    />
-                                </Box>
-                                <Box>
-                                    <Typography gutterBottom>Studio: {(studioWeight * 100).toFixed(0)}%</Typography>
-                                    <Slider
-                                        value={studioWeight}
-                                        onChange={(_, v) => setStudioWeight(v as number)}
-                                        step={0.1}
-                                        min={0}
-                                        max={1}
-                                        marks
-                                    />
-                                </Box>
-                            </CardContent>
-                        </Card>
-                    </Box>
-                </Grid>
+                        <Grid size={{ xs: 12, md: 6 }}>
+                            <Card sx={{ height: '100%' }}>
+                                <CardHeader
+                                    title="Recommendation Tuning"
+                                    subheader="Adjust how much influence each factor has on your recommendations"
+                                />
+                                <CardContent>
+                                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                                        <Box>
+                                            <Box display="flex" justifyContent="space-between">
+                                                <Typography variant="subtitle2">Tags</Typography>
+                                                <Typography variant="caption" color="text.secondary">{(tagWeight * 100).toFixed(0)}%</Typography>
+                                            </Box>
+                                            <Slider
+                                                value={tagWeight}
+                                                onChange={(_, v) => setTagWeight(v as number)}
+                                                step={0.1}
+                                                min={0}
+                                                max={1}
+                                                marks
+                                                valueLabelDisplay="auto"
+                                            />
+                                        </Box>
+                                        <Box>
+                                            <Box display="flex" justifyContent="space-between">
+                                                <Typography variant="subtitle2">Performers</Typography>
+                                                <Typography variant="caption" color="text.secondary">{(performerWeight * 100).toFixed(0)}%</Typography>
+                                            </Box>
+                                            <Slider
+                                                value={performerWeight}
+                                                onChange={(_, v) => setPerformerWeight(v as number)}
+                                                step={0.1}
+                                                min={0}
+                                                max={1}
+                                                marks
+                                                valueLabelDisplay="auto"
+                                            />
+                                        </Box>
+                                        <Box>
+                                            <Box display="flex" justifyContent="space-between">
+                                                <Typography variant="subtitle2">Studios</Typography>
+                                                <Typography variant="caption" color="text.secondary">{(studioWeight * 100).toFixed(0)}%</Typography>
+                                            </Box>
+                                            <Slider
+                                                value={studioWeight}
+                                                onChange={(_, v) => setStudioWeight(v as number)}
+                                                step={0.1}
+                                                min={0}
+                                                max={1}
+                                                marks
+                                                valueLabelDisplay="auto"
+                                            />
+                                        </Box>
+                                    </Box>
+                                </CardContent>
+                            </Card>
+                        </Grid>
+                    </Grid>
+                </Box>
+            </Box>
 
-                {/* Right Column: Recommendations */}
-                <Grid size={{ xs: 12, md: 8, lg: 9 }}>
+            {/* Full Width Recommendations */}
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 6, pb: 8 }}>
 
-                    {/* Top Performers (StashDB) */}
-                    <PerformerRecommendationRow
-                        title="Top Performers (StashDB)"
-                        source={RecommendationSource.Stashdb}
-                        limit={20}
-                        tagWeight={tagWeight}
-                        performerWeight={performerWeight}
-                        studioWeight={studioWeight}
-                    />
+                {/* Top Performers (StashDB) */}
+                <PerformerRecommendationRow
+                    title="Recommended Performers (StashDB)"
+                    source={RecommendationSource.Stashdb}
+                    limit={20}
+                    tagWeight={tagWeight}
+                    performerWeight={performerWeight}
+                    studioWeight={studioWeight}
+                />
 
-                    {/* StashDB Scenes */}
-                    <RecommendationCarousel
-                        title="Recommended Scenes (StashDB)"
-                        source={RecommendationSource.Stashdb}
-                        limit={40}
-                        excludeOwned={true}
-                        tagWeight={tagWeight}
-                        performerWeight={performerWeight}
-                        studioWeight={studioWeight}
-                    />
+                {/* StashDB Scenes */}
+                <RecommendationCarousel
+                    title="Recommended Scenes (StashDB)"
+                    source={RecommendationSource.Stashdb}
+                    limit={40}
+                    excludeOwned={true}
+                    tagWeight={tagWeight}
+                    performerWeight={performerWeight}
+                    studioWeight={studioWeight}
+                />
 
-                    {/* Local Gems: Performers */}
-                    <PerformerRecommendationRow
-                        title="Local Performers (Rediscover Your Collection)"
-                        limit={20}
-                        source={RecommendationSource.Local}
-                        tagWeight={tagWeight}
-                        performerWeight={performerWeight}
-                        studioWeight={studioWeight}
-                    />
+                {/* Local Gems: Performers */}
+                <PerformerRecommendationRow
+                    title="Local Performers"
+                    limit={20}
+                    source={RecommendationSource.Local}
+                    tagWeight={tagWeight}
+                    performerWeight={performerWeight}
+                    studioWeight={studioWeight}
+                />
 
-                    {/* Local Gems: Scenes */}
-                    <RecommendationCarousel
-                        title="Local Scenes (Rediscover)"
-                        source={RecommendationSource.Local}
-                        limit={40}
-                        excludeOwned={false}
-                        tagWeight={tagWeight}
-                        performerWeight={performerWeight}
-                        studioWeight={studioWeight}
-                    />
-
-                </Grid>
-            </Grid>
-        </Container>
+                {/* Local Gems: Scenes */}
+                <RecommendationCarousel
+                    title="Local Scenes"
+                    source={RecommendationSource.Local}
+                    limit={40}
+                    excludeOwned={false}
+                    tagWeight={tagWeight}
+                    performerWeight={performerWeight}
+                    studioWeight={studioWeight}
+                />
+            </Box>
+        </Box>
     );
 };
 

@@ -5,6 +5,7 @@ import { LoadingIndicator } from '../Shared/LoadingIndicator';
 import { AlertModal as Alert } from '../Shared/Alert';
 import { SceneCard } from '../Scenes/SceneCard';
 import Carousel from '../Shared/Carousel';
+import { RecommendationRow } from '../FrontPage/RecommendationRow';
 
 function scrapedToSlim(scraped: ScrapedSceneDataFragment, trailerUrl?: string): SlimSceneDataFragment {
     return {
@@ -98,9 +99,12 @@ export const RecommendationCarousel: React.FC<RecommendationCarouselProps> = ({
     }
 
     return (
-        <Box className="recommendation-carousel" sx={{ mt: 4, mb: 4 }}>
-            <Typography variant="h5" sx={{ mb: 2, ml: 2 }}>{title}</Typography>
-            <Carousel>
+        <RecommendationRow
+            header={title}
+            link={<></>}
+            className="scene-recommendations"
+        >
+            <Carousel itemWidth={320} gap={16}>
                 {recommendations.map((r, idx) => {
                     // Calculate Score Badge Color
                     const scorePct = Math.round(r.score * 100);
@@ -163,6 +167,6 @@ export const RecommendationCarousel: React.FC<RecommendationCarouselProps> = ({
                     return null;
                 })}
             </Carousel>
-        </Box>
+        </RecommendationRow>
     );
 };

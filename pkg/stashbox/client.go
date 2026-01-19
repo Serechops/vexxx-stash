@@ -97,3 +97,7 @@ func NewClient(box models.StashBox, options ...ClientOption) *Client {
 func (c Client) GetUser(ctx context.Context) (*graphql.Me, error) {
 	return c.client.Me(ctx)
 }
+
+func (c Client) GetEndpoint() string {
+	return c.box.Endpoint
+}

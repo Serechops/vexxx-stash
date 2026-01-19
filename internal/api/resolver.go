@@ -117,6 +117,13 @@ func (r *Resolver) ConfigResult() ConfigResultResolver {
 	return &configResultResolver{r}
 }
 
+func (r *Resolver) ContentProfile() ContentProfileResolver {
+	return &contentProfileResolver{r}
+}
+func (r *Resolver) Recommendation() RecommendationResolver {
+	return &recommendationResolver{r}
+}
+
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
 type subscriptionResolver struct{ *Resolver }
@@ -142,6 +149,9 @@ type folderResolver struct{ *Resolver }
 type savedFilterResolver struct{ *Resolver }
 type pluginResolver struct{ *Resolver }
 type configResultResolver struct{ *Resolver }
+
+type contentProfileResolver struct{ *Resolver }
+type recommendationResolver struct{ *Resolver }
 
 func (r *Resolver) withTxn(ctx context.Context, fn func(ctx context.Context) error) error {
 	return r.repository.WithTxn(ctx, fn)

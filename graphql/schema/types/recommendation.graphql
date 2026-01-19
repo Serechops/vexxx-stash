@@ -1,0 +1,143 @@
+# Content Profile and Recommendation System Types
+
+"""
+ContentProfile stores computed user preference weights for intelligent recommendations.
+"""
+type ContentProfile {
+  id: ID!
+  profile_type: String!
+  profile_key: String
+  created_at: Time!
+  updated_at: Time!
+  
+  """Top weighted tags from the user's viewing history"""
+  top_tags(limit: Int): [WeightedTag!]!
+  
+  """Top weighted performers from the user's viewing history"""
+  top_performers(limit: Int): [WeightedPerformer!]!
+  
+  """Top weighted studios from the user's viewing history"""
+  top_studios(limit: Int): [WeightedStudio!]!
+  
+  """Top weighted physical attributes from favorite performers"""
+  top_attributes(limit: Int): [WeightedAttribute!]!
+}
+
+"""A tag with its computed recommendation weight"""
+type WeightedTag {
+  tag: Tag!
+  weight: Float!
+}
+
+"""A performer with their computed recommendation weight"""
+type WeightedPerformer {
+  performer: Performer!
+  weight: Float!
+}
+
+"""A studio with its computed recommendation weight"""
+type WeightedStudio {
+  studio: Studio!
+  weight: Float!
+}
+
+"""A performer attribute (e.g., hair color, ethnicity) with its computed weight"""
+type WeightedAttribute {
+  name: String!
+  value: String!
+  weight: Float!
+}
+
+"""A single recommendation result with scoring metadata"""
+type Recommendation {
+  """Type of recommended content: scene, performer, or studio"""
+  type: String!
+  
+  """Local entity ID (0 if from StashDB only)"""
+  id: ID!
+  
+  """StashDB ID for external content"""
+  stash_db_id: String
+  
+  """Display name of the recommended content"""
+  name: String!
+  
+  """Recommendation score (0-1, higher = better match)"""
+  score: Float!
+  
+  """Human-readable explanation of why this was recommended"""
+  reason: String!
+  
+  """Preview image URL"""
+  image_url: String
+  
+  """Resolved scene (only populated if type == 'scene')"""
+  scene: Scene
+  
+  """Resolved performer (only populated if type == 'performer')"""
+  performer: Performer
+  
+  """Resolved studio (only populated if type == 'studio')"""
+  studio: Studio
+  
+  """Resolved StashDB scene (only populated if type == 'stashdb_scene')"""
+  stash_db_scene: ScrapedScene
+}
+
+"""Where to source recommendations from"""
+enum RecommendationSource {
+  """Local library only"""
+  LOCAL
+  
+  """StashDB only (discover new content)"""
+  STASHDB
+  
+  """Both local and StashDB"""
+  BOTH
+}
+
+"""Options for recommendation queries"""
+input RecommendationOptions {
+  """Maximum number of results to return (default: 20)"""
+  limit: Int
+  
+  """Source for recommendations"""
+  source: RecommendationSource
+  
+  """Exclude already-owned content when querying StashDB"""
+  exclude_owned: Boolean
+  
+  """Minimum score threshold (0-1)"""
+  min_score: Float
+  
+  """Weight override for tags (0-1) - default 0.5"""
+  tag_weight: Float
+  
+  """Weight override for performers (0-1) - default 0.3"""
+  performer_weight: Float
+  
+  """Weight override for studios (0-1) - default 0.2"""
+  studio_weight: Float
+}
+
+extend type Query {
+  """Get the user's content profile with computed preference weights"""
+  userContentProfile: ContentProfile
+  
+  """Get recommended scenes based on the user's content profile"""
+  recommendScenes(options: RecommendationOptions): [Recommendation!]!
+  
+  """Get recommended performers based on the user's content profile"""
+  recommendPerformers(options: RecommendationOptions): [Recommendation!]!
+  
+  """Get scenes similar to a specific scene"""
+  similarScenes(scene_id: ID!, limit: Int): [Recommendation!]!
+  
+  """Get performers similar to a specific performer"""
+  similarPerformers(performer_id: ID!, limit: Int): [Recommendation!]!
+}
+
+extend type Mutation {
+  """Rebuild the user's content profile from current library data"""
+  rebuildContentProfile: ContentProfile!
+}

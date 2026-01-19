@@ -50,6 +50,7 @@ import { CustomLocalesSettings } from "./CustomLocalesSettings";
 
 const allMenuItems = [
   { id: "scenes", headingID: "scenes" },
+  { id: "discover", headingID: "discover" },
   { id: "images", headingID: "images" },
   { id: "groups", headingID: "groups" },
   { id: "markers", headingID: "markers" },

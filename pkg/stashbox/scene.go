@@ -479,3 +479,8 @@ func appendFingerprintsUnique(v []*graphql.FingerprintInput, toAdd ...*graphql.F
 
 	return v
 }
+
+// QueryScenes queries stash-box using the structured input.
+func (c Client) QueryScenes(ctx context.Context, input graphql.SceneQueryInput) (*graphql.QueryScenes, error) {
+	return c.client.QueryScenes(ctx, input)
+}

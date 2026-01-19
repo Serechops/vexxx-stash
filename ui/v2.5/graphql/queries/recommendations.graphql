@@ -1,0 +1,57 @@
+query ContentProfile {
+    userContentProfile {
+        id
+        updated_at
+        topTags: top_tags { tag { id name } weight }
+        topPerformers: top_performers { 
+            performer { 
+                id 
+                name 
+                image_path
+            } 
+            weight 
+        }
+        topStudios: top_studios { 
+            studio { 
+                id 
+                name 
+                image_path
+            } 
+            weight 
+        }
+        topAttributes: top_attributes { name value weight }
+    }
+}
+
+query RecommendScenes($options: RecommendationOptions) {
+    recommendScenes(options: $options) {
+        type
+        id
+        stash_db_id
+        name
+        score
+        reason
+        scene {
+            ...SlimSceneData
+        }
+        stash_db_scene {
+            ...ScrapedSceneData
+        }
+    }
+}
+
+query SimilarScenes($scene_id: ID!) {
+    similarScenes(scene_id: $scene_id) {
+        type
+        id
+        name
+        score
+        reason
+        scene {
+            ...SlimSceneData
+        }
+        stash_db_scene {
+            ...ScrapedSceneData
+        }
+    }
+}

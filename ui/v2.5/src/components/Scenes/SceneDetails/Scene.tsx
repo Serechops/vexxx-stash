@@ -88,6 +88,10 @@ const SceneSegmentsPanel = lazyComponent(
   () => import("./SceneSegmentsPanel").then(module => ({ default: module.SceneSegmentsPanel }))
 ) as React.FC<{ scene: GQL.SceneDataFragment }>;
 
+const SimilarScenesPanel = lazyComponent(
+  () => import("../../Recommendations/SimilarItemsPanel").then(module => ({ default: module.SimilarScenesPanel }))
+) as React.FC<{ sceneId: string }>;
+
 const VideoFrameRateResolution: React.FC<{
   width?: number;
   height?: number;
@@ -641,6 +645,7 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
       <ScenePageTabContent {...props}>
         <Box hidden={activeTabKey !== "scene-details-panel"}>
           <SceneDetailPanel scene={scene} />
+          <SimilarScenesPanel sceneId={scene.id} />
         </Box>
         <Box hidden={activeTabKey !== "scene-queue-panel"}>
           <QueueViewer

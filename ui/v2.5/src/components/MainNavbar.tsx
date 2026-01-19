@@ -38,6 +38,7 @@ import { SettingsButton } from "./SettingsButton";
 import {
   faBars,
   faChartColumn,
+  faCompass,
   faFilm,
   faImage,
   faImages,
@@ -64,6 +65,10 @@ const messages = defineMessages({
   scenes: {
     id: "scenes",
     defaultMessage: "Scenes",
+  },
+  discover: {
+    id: "discover",
+    defaultMessage: "Discover",
   },
   images: {
     id: "images",
@@ -115,6 +120,13 @@ const allMenuItems: IMenuItem[] = [
     icon: faPlayCircle,
     hotkey: "g s",
     userCreatable: true,
+  },
+  {
+    name: "discover",
+    message: messages.discover,
+    href: "/discover",
+    icon: faCompass,
+    hotkey: "g d",
   },
   {
     name: "images",

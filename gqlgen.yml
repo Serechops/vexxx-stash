@@ -140,4 +140,21 @@ models:
     fields:
       plugins:
         resolver: true
-  
+  # Content Profile and Recommendation types
+  ContentProfile:
+    model: github.com/stashapp/stash/pkg/models.ContentProfile
+  WeightedTag:
+    model: github.com/stashapp/stash/pkg/models.WeightedTag
+  WeightedPerformer:
+    model: github.com/stashapp/stash/pkg/models.WeightedPerformer
+  WeightedStudio:
+    model: github.com/stashapp/stash/pkg/models.WeightedStudio
+  WeightedAttribute:
+    model: github.com/stashapp/stash/pkg/models.WeightedAttribute
+  Recommendation:
+    model: github.com/stashapp/stash/pkg/models.RecommendationResult
+  RecommendationOptions:
+    model: github.com/stashapp/stash/pkg/models.RecommendationOptions
+  RecommendationSource:
+    model: github.com/stashapp/stash/pkg/models.RecommendationSource
+

@@ -80,6 +80,7 @@ const Tags = lazyComponent(() => import("./components/Tags/Tags"));
 const Images = lazyComponent(() => import("./components/Images/Images"));
 const Setup = lazyComponent(() => import("./components/Setup/Setup"));
 const Migrate = lazyComponent(() => import("./components/Setup/Migrate"));
+const Discover = lazyComponent(() => import("./components/Recommendations/DiscoverPage"));
 
 const SceneFilenameParser = lazyComponent(
   () => import("./components/SceneFilenameParser/SceneFilenameParser")
@@ -270,6 +271,8 @@ export const App: React.FC = () => {
             <Route path="/tags" component={Tags} />
             <Route path="/studios" component={Studios} />
             <Route path="/groups" component={Groups} />
+            <Route path="/groups" component={Groups} />
+            <Route path="/discover" component={Discover} />
             <Route path="/stats" component={Stats} />
             <Route path="/settings" component={Settings} />
             <Route

@@ -317,6 +317,14 @@ func (s *Manager) OptimiseDatabase(ctx context.Context) int {
 	return s.JobManager.Add(ctx, "Optimising database...", &j)
 }
 
+func (s *Manager) RebuildContentProfile(ctx context.Context) int {
+	j := RebuildContentProfileJob{
+		Repository: s.Repository,
+	}
+
+	return s.JobManager.Add(ctx, "Rebuilding content profile...", &j)
+}
+
 func (s *Manager) MigrateHash(ctx context.Context) int {
 	j := job.MakeJobExec(func(ctx context.Context, progress *job.Progress) error {
 		fileNamingAlgo := config.GetInstance().GetVideoFileNamingAlgorithm()

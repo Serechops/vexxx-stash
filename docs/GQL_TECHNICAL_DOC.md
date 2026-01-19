@@ -267,3 +267,55 @@ When the "Identify" task runs, it updates the database with new metadata (Title,
 *   **Fix**: The `SceneRenamer` callback (in `task_identify.go`) **must explicitly reload** the scene from the database (`r.Scene.Find(ctx, id)`) before calling `RenameSceneFile`. This ensures the renamer sees the latest metadata committed by the identification process.
 *   **Error Handling**: The `RenameSceneFile` function returns a `RenameResult` struct. This struct may contain an error string in `RenameResult.Error` even if the function itself returns `nil`. **Always** check `res.Error` to catch template generation issues.
 
+---
+
+## 11. Resolving Schema-Code Circular Dependencies
+
+When introducing significant new schema sections (like `ContentProfile` and `Recommendation`), you may encounter a **hard circular dependency** that prevents `gqlgen` from running.
+
+### The Deadlock Scenario
+1.  You add `recommendation.graphql` with new types.
+2.  You run `go generate`.
+3.  `gqlgen` updates `generated_exec.go` to require `ContentProfileResolver` and `RecommendationResolver`.
+4.  Your `resolver.go` does not yet implement these interfaces.
+5.  **Compilation Error**: `generated_exec.go` fails to compile because the `ResolverRoot` interface isn't satisfied.
+6.  **Catch-22**: You try to fix it by writing the resolver, but `gqlgen` needs the Go code to compile to introspect types for the *next* generation (especially when using schema-first approaches that bind to existing models).
+
+### The Fix Strategy (Manual Intervention)
+
+If you get stuck in a state where `go generate` fails due to compilation errors caused by the *previous* generation:
+
+1.  **Isolate the Schema**: Temporarily rename the new schema file (e.g., `recommendation.graphql` -> `recommendation.graphql.bak`).
+2.  **Clean State Usage**: Run `go generate` to revert `generated_exec.go` to a state that compiles (without the new fields).
+3.  **Re-Introduce Schema**: Rename the file back.
+4.  **Stub the Resolver**: Create a *minimal* `internal/api/resolver_recommendation.go` that just satisfies the interface (return `nil` or empty structs).
+    *   *Critical*: Use `internal/api/temp_stubs.go` if needed to define dummy interfaces just to satisfy the compiler for the moment.
+5.  **Regenerate**: Run `go generate`.
+6.  **Implement Logic**: Now that the generation loop is stable, implement the actual logic.
+
+### Type Mismatch Pitfalls (Maps vs Slices)
+*   **Schema**: GraphQL usually returns Lists (`[WeightedTag!]!`).
+*   **Model**: Go internal models might use Maps for efficiency (`map[int]float64`).
+*   **Solution**: Do **not** try to force the generated model to be a map. Let generated models be structs/slices. Use **helper functions** in the resolver to convert:
+    *   `toTagWeightMap(slice)` for internal processing.
+
+---
+
+## 12. Apollo Cache Collisions (The "Duplicate ID" Trap)
+
+When mixing data from different sources (e.g., Local Database + External StashDB), you must ensure that every entity returned in a connection or list has a **globally unique ID** from the perspective of the Apollo Client cache.
+
+### The Problem
+If your GraphQL resolver returns multiple disparate items that all share the same `id` (e.g., `id: "0"` or `id: null`), Apollo Client's normalization logic will assume they are the **same entity**.
+*   **Symptom**: The UI renders a list where every item looks identical to the first one (e.g., repeating the same title/image 10 times), even though the network response contains unique data for each item.
+
+### The Fix
+1.  **Use String IDs**: Ensure your GraphQL `ID` type maps to a specific `string` field in your Go struct, not `int`.
+    *   *Why?* Local IDs are usually integers (1, 2, 3), but external keys are often UUIDs or hashes. using `int` forces external items to be `0` or requires fake negative integers.
+2.  **Populate Unique Keys**: For external items, map their UUID (`stash_id`, `remote_site_id`) to the `id` field.
+3.  **Frontend Keys**: Ensure your React iterators use `key={item.id}`.
+
+### Example (Recommendation System)
+*   **Before**: `RecommendationResult.ID` was `int`. StashDB recommendations had no local ID, so they defaulted to `0`. Apollo merged them all.
+*   **After**: Changed `RecommendationResult.ID` to `string`. StashDB items now use their UUID as the ID. Apollo treats them as distinct entities.
+

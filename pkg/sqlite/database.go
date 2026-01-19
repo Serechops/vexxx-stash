@@ -34,7 +34,7 @@ const (
 	cacheSizeEnv = "STASH_SQLITE_CACHE_SIZE"
 )
 
-var appSchemaVersion uint = 82
+var appSchemaVersion uint = 83
 
 //go:embed migrations/*.sql
 var migrationsBox embed.FS
@@ -80,6 +80,7 @@ type storeRepository struct {
 	Tag            *TagStore
 	Group          *GroupStore
 	PotentialScene *PotentialSceneStore
+	ContentProfile *ContentProfileStore
 }
 
 type Database struct {
@@ -122,6 +123,7 @@ func NewDatabase() *Database {
 		Group:          NewGroupStore(blobStore),
 		SavedFilter:    NewSavedFilterStore(),
 		PotentialScene: potentialSceneStore,
+		ContentProfile: NewContentProfileStore(),
 	}
 
 	ret := &Database{

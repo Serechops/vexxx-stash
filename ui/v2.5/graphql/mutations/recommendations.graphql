@@ -1,0 +1,6 @@
+mutation RebuildContentProfile {
+    rebuildContentProfile { 
+        id 
+        updated_at 
+    }
+}

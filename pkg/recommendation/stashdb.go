@@ -501,10 +501,97 @@ func (e *Engine) DiscoverPerformersFromStashDB(ctx context.Context, profile *mod
 
 			seen[stashID] = true
 
-			// Score logic:
-			// Base score comes from the source performer's weight?
-			// Maybe 0.8 * sourceWeight?
-			score := item.w * 0.9
+			// Calculate Similarity Score
+			simScore := 0.0
+			criteriaCount := 0
+
+			// 1. Gender (Fundamental)
+			if perf.Gender != nil && p.Gender != nil && string(*perf.Gender) == string(*p.Gender) {
+				simScore += 1.0 // Basic gatekeeper
+				criteriaCount++
+			} else if perf.Gender != nil {
+				criteriaCount++
+			}
+
+			// 2. Ethnicity (High importance)
+			if perf.Ethnicity != "" && p.Ethnicity != nil {
+				// Simple string check, ideally map to ENUM but strings often differ slightly
+				// "caucasian" vs "white", etc. But here we rely on StashDB returning consistent enums if possible
+				if perf.Ethnicity == *p.Ethnicity {
+					simScore += 1.0
+				}
+				criteriaCount++
+			} else if perf.Ethnicity != "" {
+				criteriaCount++
+			}
+
+			// 3. Country (Medium importance)
+			if perf.Country != "" && p.Country != nil {
+				if perf.Country == *p.Country {
+					simScore += 1.0
+				}
+				criteriaCount++
+			} else if perf.Country != "" {
+				criteriaCount++
+			}
+
+			// 4. Hair Color
+			if perf.HairColor != "" && p.HairColor != nil {
+				if perf.HairColor == *p.HairColor {
+					simScore += 1.0
+				}
+				criteriaCount++
+			} else if perf.HairColor != "" {
+				criteriaCount++
+			}
+
+			// 5. Eye Color
+			if perf.EyeColor != "" && p.EyeColor != nil {
+				if perf.EyeColor == *p.EyeColor {
+					simScore += 1.0
+				}
+				criteriaCount++
+			} else if perf.EyeColor != "" {
+				criteriaCount++
+			}
+
+			// 6. Age (Approximate)
+			if perf.Birthdate != nil && p.Birthdate != nil {
+				// Parse StashDB date (YYYY-MM-DD or YYYY)
+				localYear := perf.Birthdate.Year()
+				remoteYear, _ := time.Parse("2006-01-02", *p.Birthdate) // Try full date
+				if remoteYear.IsZero() {
+					remoteYear, _ = time.Parse("2006", *p.Birthdate) // Try year only
+				}
+
+				if !remoteYear.IsZero() {
+					diff := localYear - remoteYear.Year()
+					if diff < 0 {
+						diff = -diff
+					}
+
+					if diff <= 3 {
+						simScore += 1.0
+					} else if diff <= 5 {
+						simScore += 0.5
+					}
+					criteriaCount++
+				}
+			} else if perf.Birthdate != nil {
+				criteriaCount++
+			}
+
+			// Normalize Similarity Score (0.0 - 1.0)
+			finalSim := 0.0
+			if criteriaCount > 0 {
+				finalSim = simScore / float64(criteriaCount)
+			}
+
+			// Weighted Score: 60% Similarity, 40% Seed Weight
+			score := (finalSim * 0.7) + (item.w * 0.3)
+			if score > 0.99 {
+				score = 0.99
+			} // Cap slightly below 1
 
 			var name string
 			if p.Name != nil {
@@ -517,7 +604,7 @@ func (e *Engine) DiscoverPerformersFromStashDB(ctx context.Context, profile *mod
 				StashID:          &stashID,
 				Name:             name,
 				Score:            score,
-				Reason:           fmt.Sprintf("Similar to %s", perf.Name),
+				Reason:           fmt.Sprintf("Similar to %s (%.0f%% match)", perf.Name, finalSim*100),
 				StashDBPerformer: p,
 			}
 			recommendations = append(recommendations, rec)

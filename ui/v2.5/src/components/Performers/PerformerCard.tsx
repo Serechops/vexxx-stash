@@ -36,7 +36,7 @@ export interface IPerformerCardExtraCriteria {
   performer?: ILabeledId;
 }
 
-interface IPerformerCardProps {
+export interface IPerformerCardProps {
   performer: GQL.PerformerDataFragment;
   cardWidth?: number;
   ageFromDate?: string;
@@ -45,6 +45,7 @@ interface IPerformerCardProps {
   zoomIndex?: number;
   onSelectedChanged?: (selected: boolean, shiftKey: boolean) => void;
   extraCriteria?: IPerformerCardExtraCriteria;
+  link?: string;
 }
 
 export const PerformerCard: React.FC<IPerformerCardProps> = PatchComponent(
@@ -56,7 +57,8 @@ export const PerformerCard: React.FC<IPerformerCardProps> = PatchComponent(
       selecting,
       selected,
       onSelectedChanged,
-      ageFromDate
+      ageFromDate,
+      link
     } = props;
 
     const [isHovered, setIsHovered] = React.useState(false);
@@ -85,6 +87,43 @@ export const PerformerCard: React.FC<IPerformerCardProps> = PatchComponent(
         onSelectedChanged(!selected, e.shiftKey);
         e.preventDefault();
       }
+    }
+
+    const LinkWrapper: React.FC = ({ children }) => {
+      if (selecting) {
+        return (
+          <div
+            onClick={(e) => {
+              e.preventDefault();
+            }}
+            style={{ display: 'block', height: '100%', width: '100%' }}
+          >
+            {children}
+          </div>
+        );
+      }
+
+      if (link) {
+        return (
+          <a
+            href={link}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ textDecoration: 'none', color: 'inherit', display: 'block', height: '100%', width: '100%' }}
+          >
+            {children}
+          </a>
+        );
+      }
+
+      return (
+        <Link
+          to={`/performers/${performer.id}`}
+          style={{ textDecoration: 'none', color: 'inherit', display: 'block', height: '100%', width: '100%' }}
+        >
+          {children}
+        </Link>
+      );
     };
 
     return (
@@ -114,18 +153,10 @@ export const PerformerCard: React.FC<IPerformerCardProps> = PatchComponent(
           }
         }}
       >
-        <Link
-          to={selecting ? "#" : `/performers/${performer.id}`}
-          onClick={(e) => {
-            if (selecting) {
-              e.preventDefault();
-            }
-          }}
-          style={{ textDecoration: 'none', color: 'inherit', display: 'block', height: '100%', width: '100%' }}
-        >
-          {/* Media Container: Full Bleed */}
+        <LinkWrapper>          {/* Media Container: Full Bleed */}
           <Box
             className="overlay-media"
+            // ...
             sx={{
               position: "relative",
               width: "100%",
@@ -264,7 +295,7 @@ export const PerformerCard: React.FC<IPerformerCardProps> = PatchComponent(
               </Box>
             </Box>
           </Box>
-        </Link>
+        </LinkWrapper>
       </Box>
     );
   }

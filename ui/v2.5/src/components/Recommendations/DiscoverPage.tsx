@@ -100,21 +100,43 @@ export const DiscoverPage: React.FC = () => {
                 {/* Right Column: Recommendations */}
                 <Grid size={{ xs: 12, md: 8, lg: 9 }}>
 
-                    {/* Top Performers */}
+                    {/* Top Performers (StashDB) */}
                     <PerformerRecommendationRow
-                        title="Top Performers For You"
+                        title="Top Performers (StashDB)"
+                        source={RecommendationSource.Stashdb}
                         limit={20}
                         tagWeight={tagWeight}
                         performerWeight={performerWeight}
                         studioWeight={studioWeight}
                     />
 
-                    {/* Unified Recommendations Row */}
+                    {/* StashDB Scenes */}
                     <RecommendationCarousel
-                        title="Recommended Scenes"
-                        source={RecommendationSource.Both}
+                        title="Recommended Scenes (StashDB)"
+                        source={RecommendationSource.Stashdb}
                         limit={40}
                         excludeOwned={true}
+                        tagWeight={tagWeight}
+                        performerWeight={performerWeight}
+                        studioWeight={studioWeight}
+                    />
+
+                    {/* Local Gems: Performers */}
+                    <PerformerRecommendationRow
+                        title="Local Performers (Rediscover Your Collection)"
+                        limit={20}
+                        source={RecommendationSource.Local}
+                        tagWeight={tagWeight}
+                        performerWeight={performerWeight}
+                        studioWeight={studioWeight}
+                    />
+
+                    {/* Local Gems: Scenes */}
+                    <RecommendationCarousel
+                        title="Local Scenes (Rediscover)"
+                        source={RecommendationSource.Local}
+                        limit={40}
+                        excludeOwned={false}
                         tagWeight={tagWeight}
                         performerWeight={performerWeight}
                         studioWeight={studioWeight}

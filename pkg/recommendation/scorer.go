@@ -195,14 +195,20 @@ func (s *Scorer) scorePerformerAttributes(performer *models.Performer) float64 {
 	return totalScore / float64(attrCount)
 }
 
-// RecommendUnwatchedScenes returns scenes the user hasn't watched, scored by preference.
-func (s *Scorer) RecommendUnwatchedScenes(ctx context.Context, limit int, minScore float64, tagW, perfW, studioW float64) ([]models.RecommendationResult, error) {
-	// Query scenes with 0 play duration (unwatched)
+// RecommendScenes returns scenes scored by preference, optionally including watched ones.
+func (s *Scorer) RecommendScenes(ctx context.Context, limit int, minScore float64, includeWatched bool, tagW, perfW, studioW float64) ([]models.RecommendationResult, error) {
+	// Query scenes
 	findFilter := &models.FindFilterType{
-		PerPage: intPtr(200), // Get a good sample
+		PerPage: intPtr(500), // Get a good sample for scoring
 	}
-	sceneFilter := &models.SceneFilterType{
-		// Play duration is 0 means unwatched
+	sceneFilter := &models.SceneFilterType{}
+
+	// If we ONLY want unwatched, filter by play duration 0
+	if !includeWatched {
+		sceneFilter.PlayDuration = &models.IntCriterionInput{
+			Value:    0,
+			Modifier: models.CriterionModifierEquals,
+		}
 	}
 
 	result, err := s.sceneReader.Query(ctx, models.SceneQueryOptions{
@@ -224,11 +230,7 @@ func (s *Scorer) RecommendUnwatchedScenes(ctx context.Context, limit int, minSco
 	// Score and filter
 	var recommendations []models.RecommendationResult
 	for _, scene := range scenes {
-		// Skip already watched scenes
-		if scene.PlayDuration > 0 {
-			continue
-		}
-
+		// Calculate score
 		score, reason := s.ScoreScene(ctx, scene, tagW, perfW, studioW)
 		if score < minScore {
 			continue
@@ -240,6 +242,7 @@ func (s *Scorer) RecommendUnwatchedScenes(ctx context.Context, limit int, minSco
 			Name:   scene.GetTitle(),
 			Score:  score,
 			Reason: reason,
+			Scene:  scene,
 		}
 
 		recommendations = append(recommendations, rec)
@@ -256,6 +259,11 @@ func (s *Scorer) RecommendUnwatchedScenes(ctx context.Context, limit int, minSco
 	}
 
 	return recommendations, nil
+}
+
+// RecommendUnwatchedScenes is a convenience wrapper for RecommendScenes with includeWatched=false
+func (s *Scorer) RecommendUnwatchedScenes(ctx context.Context, limit int, minScore float64, tagW, perfW, studioW float64) ([]models.RecommendationResult, error) {
+	return s.RecommendScenes(ctx, limit, minScore, false, tagW, perfW, studioW)
 }
 
 // SimilarScenes finds scenes similar to a given scene based on shared tags/performers.
@@ -348,6 +356,57 @@ func (s *Scorer) SimilarScenes(ctx context.Context, sceneID int, limit int) ([]m
 		return recommendations[i].Score > recommendations[j].Score
 	})
 
+	if limit > 0 && len(recommendations) > limit {
+		recommendations = recommendations[:limit]
+	}
+
+	return recommendations, nil
+}
+
+// --- Utility Functions ---
+
+// RecommendPerformers returns performers scored by preference.
+func (s *Scorer) RecommendPerformers(ctx context.Context, limit int, minScore float64) ([]models.RecommendationResult, error) {
+	// Query all performers (paginated or large limit)
+	// For now, let's fetch a reasonable number to score
+	findFilter := &models.FindFilterType{
+		PerPage: intPtr(500), // Check top 500 performers? Or maybe query all?
+		// We can't really "query all" cleanly without batches, but 1000 is likely enough for local discovery
+	}
+	// TODO: Iterate all if needed, but 500 is a good start for performance
+
+	result, _, err := s.performerReader.Query(ctx, &models.PerformerFilterType{}, findFilter)
+	if err != nil {
+		return nil, err
+	}
+
+	var recommendations []models.RecommendationResult
+	for _, perf := range result {
+		// Calculate score
+		score, reason := s.ScorePerformer(ctx, perf)
+
+		if score < minScore {
+			continue
+		}
+
+		rec := models.RecommendationResult{
+			Type:      "performer",
+			ID:        strconv.Itoa(perf.ID),
+			Name:      perf.Name,
+			Score:     score,
+			Reason:    reason,
+			Performer: perf,
+		}
+
+		recommendations = append(recommendations, rec)
+	}
+
+	// Sort by score descending
+	sort.Slice(recommendations, func(i, j int) bool {
+		return recommendations[i].Score > recommendations[j].Score
+	})
+
+	// Limit
 	if limit > 0 && len(recommendations) > limit {
 		recommendations = recommendations[:limit]
 	}

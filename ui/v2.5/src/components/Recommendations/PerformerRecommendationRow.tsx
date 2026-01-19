@@ -12,6 +12,7 @@ interface PerformerRecommendationRowProps {
     tagWeight?: number;
     performerWeight?: number;
     studioWeight?: number;
+    source?: RecommendationSource;
 }
 
 export const PerformerRecommendationRow: React.FC<PerformerRecommendationRowProps> = ({
@@ -20,13 +21,13 @@ export const PerformerRecommendationRow: React.FC<PerformerRecommendationRowProp
     tagWeight,
     performerWeight,
     studioWeight,
+    source = RecommendationSource.Both,
 }) => {
     const { data, loading, error } = useRecommendPerformersQuery({
         variables: {
             options: {
                 limit,
-                // Default to BOTH to include StashDB discovery
-                source: RecommendationSource.Both,
+                source,
                 tag_weight: tagWeight,
                 performer_weight: performerWeight,
                 studio_weight: studioWeight,
@@ -41,9 +42,7 @@ export const PerformerRecommendationRow: React.FC<PerformerRecommendationRowProp
         return <Alert text={error.message} show onConfirm={() => { }} onCancel={() => { }} />;
     }
 
-    console.log("PerformerRecommendationRow Data:", data);
     const recommendations = data?.recommendPerformers || [];
-    console.log("Performer Recommendations Array:", recommendations);
 
     if (recommendations.length === 0) {
         return (
@@ -92,18 +91,42 @@ export const PerformerRecommendationRow: React.FC<PerformerRecommendationRowProp
                     }
 
                     if (perf) {
+                        // Badge Styling (Copied from RecommendationCarousel)
+                        const scorePct = Math.round(r.score * 100);
+                        const badgeColor = scorePct > 80 ? "success.main" : scorePct > 50 ? "warning.main" : "info.main";
+
                         return (
-                            <Box key={r.id} sx={{ height: "100%", p: 1 }}>
-                                <PerformerCard performer={perf} />
-                                {/* Overlay Reason/Score if desired, layout similar to scenes? 
-                                    For now just listing them is a huge win. */}
-                                <Box sx={{ mt: 1, textAlign: 'center' }}>
-                                    <Typography variant="caption" display="block" color="primary.main" fontWeight="bold">
-                                        {(r.score * 100).toFixed(0)}% Match
-                                    </Typography>
-                                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                            <Box key={r.id} sx={{ height: "100%", p: 1, display: "flex", flexDirection: "column" }}>
+                                <Box
+                                    sx={{
+                                        mb: 1,
+                                        padding: "4px 8px",
+                                        borderRadius: "4px",
+                                        backgroundColor: "background.paper",
+                                        borderLeft: "4px solid",
+                                        borderColor: badgeColor,
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        alignItems: "flex-start",
+                                        boxShadow: 1
+                                    }}
+                                >
+                                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                                        <Typography variant="subtitle2" sx={{ fontWeight: "bold", lineHeight: 1 }}>
+                                            {scorePct}% Match
+                                        </Typography>
+                                    </Box>
+                                    <Typography variant="caption" sx={{ fontSize: "0.7rem", opacity: 0.7, mt: 0.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>
                                         {r.reason}
                                     </Typography>
+                                </Box>
+
+
+                                <Box sx={{ flexGrow: 1 }}>
+                                    <PerformerCard
+                                        performer={perf}
+                                        link={r.stash_db_performer ? `https://stashdb.org/performers/${r.id}` : undefined}
+                                    />
                                 </Box>
                             </Box>
                         );

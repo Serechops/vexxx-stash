@@ -245,6 +245,12 @@ func (r *recommendationResolver) Scene(ctx context.Context, obj *models.Recommen
 	if obj.Type != "scene" || obj.ID == "" {
 		return nil, nil
 	}
+
+	// Return pre-populated scene if available
+	if obj.Scene != nil {
+		return obj.Scene, nil
+	}
+
 	id, err := strconv.Atoi(obj.ID)
 	if err != nil {
 		return nil, nil // Not a local ID
@@ -408,7 +414,17 @@ func (r *queryResolver) RecommendScenes(ctx context.Context, options *models.Rec
 	// 1. Local Recommendations
 	if source == models.RecommendationSourceLocal || source == models.RecommendationSourceBoth {
 		err = r.withReadTxn(ctx, func(ctx context.Context) error {
-			results, err := scorer.RecommendUnwatchedScenes(ctx, limit, minScore, tagW, perfW, studioW)
+			// Check ExcludeOwned option (default false for local usually, but let's respect the flag)
+			// For local scenes, "ExcludeOwned" loosely translates to "Exclude Watched"
+			// because "Owned" isn't really a concept for local files, but "Watched" is.
+			// However, in the UI "Local Scenes (Rediscover)" explicitly wants to show watched stuff.
+			// The UI passes excludeOwned={false}.
+			includeWatched := true
+			if options != nil && options.ExcludeOwned != nil && *options.ExcludeOwned {
+				includeWatched = false
+			}
+
+			results, err := scorer.RecommendScenes(ctx, limit, minScore, includeWatched, tagW, perfW, studioW)
 			if err != nil {
 				return err
 			}
@@ -516,45 +532,40 @@ func (r *queryResolver) RecommendPerformers(ctx context.Context, options *models
 
 	// 1. Local Recommendations (Profile based)
 	if source == models.RecommendationSourceLocal || source == models.RecommendationSourceBoth {
-		type weighted struct {
-			id int
-			w  float64
-		}
-		var sorted []weighted
+		err = r.withReadTxn(ctx, func(ctx context.Context) error {
+			profileData := &recommendation.ProfileData{
+				TagWeights:       toTagWeightMap(profile.TagWeights),
+				PerformerWeights: toPerformerWeightMap(profile.PerformerWeights),
+				StudioWeights:    toStudioWeightMap(profile.StudioWeights),
+				AttributeWeights: toAttributeWeightMap(profile.AttributeWeights),
+			}
 
-		for _, pw := range profile.PerformerWeights {
-			sorted = append(sorted, weighted{pw.PerformerID, pw.Weight})
-		}
-		sort.Slice(sorted, func(i, j int) bool {
-			return sorted[i].w > sorted[j].w
+			scorer := recommendation.NewScorer(
+				profileData,
+				r.repository.Scene,
+				r.repository.Performer,
+				r.repository.Studio,
+				r.repository.Tag,
+			)
+
+			results, err := scorer.RecommendPerformers(ctx, limit, 0.1) // 0.1 min score
+			if err != nil {
+				return err
+			}
+
+			for i := range results {
+				item := &results[i]
+				key := fmt.Sprintf("local:%s", item.ID)
+				if seen[key] {
+					continue
+				}
+				seen[key] = true
+				searchResults = append(searchResults, item)
+			}
+			return nil
 		})
-
-		for _, item := range sorted {
-			if len(searchResults) >= limit {
-				break
-			}
-
-			perf, err := r.repository.Performer.Find(ctx, item.id)
-			if err != nil || perf == nil {
-				continue
-			}
-
-			// Dedupe
-			key := fmt.Sprintf("local:%d", perf.ID)
-			if seen[key] {
-				continue
-			}
-			seen[key] = true
-
-			rec := &models.RecommendationResult{
-				Type:      "performer",
-				ID:        strconv.Itoa(perf.ID),
-				Name:      perf.Name,
-				Score:     item.w,
-				Reason:    "Top Performer in your profile",
-				Performer: perf,
-			}
-			searchResults = append(searchResults, rec)
+		if err != nil {
+			return nil, err
 		}
 	}
 

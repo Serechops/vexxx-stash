@@ -82,6 +82,9 @@ type Recommendation {
   
   """Resolved StashDB scene (only populated if type == 'stashdb_scene')"""
   stash_db_scene: ScrapedScene
+
+  """Resolved StashDB performer (only populated if type == 'stashdb_performer')"""
+  stash_db_performer: ScrapedPerformer
 }
 
 """Where to source recommendations from"""

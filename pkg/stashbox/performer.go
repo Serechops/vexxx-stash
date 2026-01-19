@@ -60,6 +60,35 @@ func (c Client) queryPerformer(ctx context.Context, queryStr string) ([]*models.
 	return ret, nil
 }
 
+// QueryPerformersByInput queries stash-box for performers using the full input struct.
+func (c Client) QueryPerformersByInput(ctx context.Context, input graphql.PerformerQueryInput) ([]*models.ScrapedPerformer, error) {
+	res, err := c.client.QueryPerformers(ctx, input)
+	if err != nil {
+		return nil, err
+	}
+
+	if res == nil || res.GetQueryPerformers() == nil {
+		return nil, nil
+	}
+
+	var ret []*models.ScrapedPerformer
+	var ignoredTags []string
+
+	for _, fragment := range res.GetQueryPerformers().Performers {
+		performer := performerFragmentToScrapedPerformer(*fragment)
+
+		// exclude tags that match the excludeTagRE
+		var thisIgnoredTags []string
+		performer.Tags, thisIgnoredTags = scraper.FilterTags(c.excludeTagRE, performer.Tags)
+		ignoredTags = sliceutil.AppendUniques(ignoredTags, thisIgnoredTags)
+
+		ret = append(ret, performer)
+	}
+
+	scraper.LogIgnoredTags(ignoredTags)
+	return ret, nil
+}
+
 // QueryPerformers queries stash-box for performers using a list of names.
 func (c Client) QueryPerformers(ctx context.Context, names []string) ([][]*models.ScrapedPerformer, error) {
 	ret := make([][]*models.ScrapedPerformer, len(names))

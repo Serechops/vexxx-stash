@@ -471,8 +471,133 @@ func (r *queryResolver) RecommendScenes(ctx context.Context, options *models.Rec
 }
 
 func (r *queryResolver) RecommendPerformers(ctx context.Context, options *models.RecommendationOptions) ([]*models.RecommendationResult, error) {
-	// TODO: Implement performer recommendation logic
-	return []*models.RecommendationResult{}, nil
+	// Get profile
+	profile, err := r.UserContentProfile(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	limit := 20
+	if options != nil && options.Limit != nil {
+		limit = *options.Limit
+	}
+
+	// Determine weights
+	// (Reusing tag/perf/studio weights from options if needed for filtering/sorting)
+	// For Performers, we mainly use AttributeMatch or direct Performer Weight?
+	// Currently DiscoverPerformersFromStashDB uses AttributeWeights internally.
+
+	// Initialize Engine
+	var stashBoxClient *stashbox.Client
+	boxes := manager.GetInstance().Config.GetStashBoxes()
+	if len(boxes) > 0 {
+		stashBoxClient = r.newStashBoxClient(*boxes[0])
+	}
+
+	engine := recommendation.NewEngine(
+		r.repository.Scene,
+		r.repository.Performer,
+		r.repository.Studio,
+		r.repository.Tag,
+		r.repository.Gallery,
+		r.repository.Image,
+		r.repository.ContentProfile,
+		stashBoxClient,
+	)
+
+	// Determine source
+	source := models.RecommendationSourceLocal
+	if options != nil && options.Source != nil {
+		source = *options.Source
+	}
+
+	var searchResults []*models.RecommendationResult
+	seen := make(map[string]bool)
+
+	// 1. Local Recommendations (Profile based)
+	if source == models.RecommendationSourceLocal || source == models.RecommendationSourceBoth {
+		type weighted struct {
+			id int
+			w  float64
+		}
+		var sorted []weighted
+
+		for _, pw := range profile.PerformerWeights {
+			sorted = append(sorted, weighted{pw.PerformerID, pw.Weight})
+		}
+		sort.Slice(sorted, func(i, j int) bool {
+			return sorted[i].w > sorted[j].w
+		})
+
+		for _, item := range sorted {
+			if len(searchResults) >= limit {
+				break
+			}
+
+			perf, err := r.repository.Performer.Find(ctx, item.id)
+			if err != nil || perf == nil {
+				continue
+			}
+
+			// Dedupe
+			key := fmt.Sprintf("local:%d", perf.ID)
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+
+			rec := &models.RecommendationResult{
+				Type:      "performer",
+				ID:        strconv.Itoa(perf.ID),
+				Name:      perf.Name,
+				Score:     item.w,
+				Reason:    "Top Performer in your profile",
+				Performer: perf,
+			}
+			searchResults = append(searchResults, rec)
+		}
+	}
+
+	// 2. StashDB Recommendations
+	if source == models.RecommendationSourceStashDB || source == models.RecommendationSourceBoth {
+		err = r.withReadTxn(ctx, func(ctx context.Context) error {
+			if engine.StashBoxClient == nil {
+				return nil
+			}
+
+			results, err := engine.DiscoverPerformersFromStashDB(ctx, profile, limit)
+			if err != nil {
+				return err
+			}
+
+			for i := range results {
+				item := &results[i]
+				var key string
+				if item.StashID != nil {
+					key = fmt.Sprintf("stashdb:%s", *item.StashID)
+				} else {
+					key = fmt.Sprintf("stashdb:%s", item.Name)
+				}
+
+				if seen[key] {
+					continue
+				}
+				seen[key] = true
+				searchResults = append(searchResults, item)
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Sort combined results by Score descending
+	sort.Slice(searchResults, func(i, j int) bool {
+		return searchResults[i].Score > searchResults[j].Score
+	})
+
+	return searchResults, nil
 }
 
 func (r *queryResolver) SimilarScenes(ctx context.Context, sceneID string, limit *int) ([]*models.RecommendationResult, error) {

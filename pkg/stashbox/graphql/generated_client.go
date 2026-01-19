@@ -24,6 +24,7 @@ type StashBoxGraphQLClient interface {
 	Me(ctx context.Context, interceptors ...clientv2.RequestInterceptor) (*Me, error)
 	SubmitSceneDraft(ctx context.Context, input SceneDraftInput, interceptors ...clientv2.RequestInterceptor) (*SubmitSceneDraft, error)
 	SubmitPerformerDraft(ctx context.Context, input PerformerDraftInput, interceptors ...clientv2.RequestInterceptor) (*SubmitPerformerDraft, error)
+	QueryPerformers(ctx context.Context, input PerformerQueryInput, interceptors ...clientv2.RequestInterceptor) (*QueryPerformers, error)
 }
 
 type Client struct {
@@ -922,6 +923,24 @@ func (t *SubmitPerformerDraft_SubmitPerformerDraft) GetID() *string {
 	return t.ID
 }
 
+type QueryPerformers_QueryPerformers struct {
+	Count      int                  "json:\"count\" graphql:\"count\""
+	Performers []*PerformerFragment "json:\"performers\" graphql:\"performers\""
+}
+
+func (t *QueryPerformers_QueryPerformers) GetCount() int {
+	if t == nil {
+		t = &QueryPerformers_QueryPerformers{}
+	}
+	return t.Count
+}
+func (t *QueryPerformers_QueryPerformers) GetPerformers() []*PerformerFragment {
+	if t == nil {
+		t = &QueryPerformers_QueryPerformers{}
+	}
+	return t.Performers
+}
+
 type FindSceneByFingerprint struct {
 	FindSceneByFingerprint []*SceneFragment "json:\"findSceneByFingerprint\" graphql:\"findSceneByFingerprint\""
 }
@@ -1085,6 +1104,17 @@ func (t *SubmitPerformerDraft) GetSubmitPerformerDraft() *SubmitPerformerDraft_S
 		t = &SubmitPerformerDraft{}
 	}
 	return &t.SubmitPerformerDraft
+}
+
+type QueryPerformers struct {
+	QueryPerformers QueryPerformers_QueryPerformers "json:\"queryPerformers\" graphql:\"queryPerformers\""
+}
+
+func (t *QueryPerformers) GetQueryPerformers() *QueryPerformers_QueryPerformers {
+	if t == nil {
+		t = &QueryPerformers{}
+	}
+	return &t.QueryPerformers
 }
 
 const FindSceneByFingerprintDocument = `query FindSceneByFingerprint ($fingerprint: FingerprintQueryInput!) {
@@ -2326,6 +2356,88 @@ func (c *Client) SubmitPerformerDraft(ctx context.Context, input PerformerDraftI
 	return &res, nil
 }
 
+const QueryPerformersDocument = `query QueryPerformers ($input: PerformerQueryInput!) {
+	queryPerformers(input: $input) {
+		count
+		performers {
+			... PerformerFragment
+		}
+	}
+}
+fragment PerformerFragment on Performer {
+	id
+	name
+	disambiguation
+	aliases
+	gender
+	merged_ids
+	deleted
+	merged_into_id
+	urls {
+		... URLFragment
+	}
+	images {
+		... ImageFragment
+	}
+	birth_date
+	death_date
+	ethnicity
+	country
+	eye_color
+	hair_color
+	height
+	measurements {
+		... MeasurementsFragment
+	}
+	breast_type
+	career_start_year
+	career_end_year
+	tattoos {
+		... BodyModificationFragment
+	}
+	piercings {
+		... BodyModificationFragment
+	}
+}
+fragment URLFragment on URL {
+	url
+	type
+}
+fragment ImageFragment on Image {
+	id
+	url
+	width
+	height
+}
+fragment MeasurementsFragment on Measurements {
+	band_size
+	cup_size
+	waist
+	hip
+}
+fragment BodyModificationFragment on BodyModification {
+	location
+	description
+}
+`
+
+func (c *Client) QueryPerformers(ctx context.Context, input PerformerQueryInput, interceptors ...clientv2.RequestInterceptor) (*QueryPerformers, error) {
+	vars := map[string]any{
+		"input": input,
+	}
+
+	var res QueryPerformers
+	if err := c.Client.Post(ctx, "QueryPerformers", QueryPerformersDocument, &res, vars, interceptors...); err != nil {
+		if c.Client.ParseDataWhenErrors {
+			return &res, err
+		}
+
+		return nil, err
+	}
+
+	return &res, nil
+}
+
 var DocumentOperationNames = map[string]string{
 	FindSceneByFingerprintDocument:        "FindSceneByFingerprint",
 	FindScenesByFullFingerprintsDocument:  "FindScenesByFullFingerprints",
@@ -2342,4 +2454,5 @@ var DocumentOperationNames = map[string]string{
 	MeDocument:                            "Me",
 	SubmitSceneDraftDocument:              "SubmitSceneDraft",
 	SubmitPerformerDraftDocument:          "SubmitPerformerDraft",
+	QueryPerformersDocument:               "QueryPerformers",
 }

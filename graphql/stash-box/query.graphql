@@ -218,3 +218,12 @@ mutation SubmitPerformerDraft($input: PerformerDraftInput!) {
     id
   }
 }
+
+query QueryPerformers($input: PerformerQueryInput!) {
+  queryPerformers(input: $input) {
+    count
+    performers {
+      ...PerformerFragment
+    }
+  }
+}

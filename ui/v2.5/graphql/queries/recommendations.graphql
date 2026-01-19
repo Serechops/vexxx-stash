@@ -53,5 +53,36 @@ query SimilarScenes($scene_id: ID!) {
         stash_db_scene {
             ...ScrapedSceneData
         }
+        }
+    }
+
+query RecommendPerformers($options: RecommendationOptions) {
+    recommendPerformers(options: $options) {
+        type
+        id
+        name
+        score
+        reason
+        performer {
+            ...PerformerData
+        }
+        stash_db_performer {
+            name
+            gender
+            birthdate
+            ethnicity
+            country
+            eye_color
+            hair_color
+            height
+            images
+        }
+    }
+}
+
+mutation RebuildContentProfile {
+    rebuildContentProfile {
+        id
+        updated_at
     }
 }

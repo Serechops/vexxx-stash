@@ -317,5 +317,23 @@ If your GraphQL resolver returns multiple disparate items that all share the sam
 
 ### Example (Recommendation System)
 *   **Before**: `RecommendationResult.ID` was `int`. StashDB recommendations had no local ID, so they defaulted to `0`. Apollo merged them all.
-*   **After**: Changed `RecommendationResult.ID` to `string`. StashDB items now use their UUID as the ID. Apollo treats them as distinct entities.
+
+## 13. Recommendation Engine Tuning & Discovery
+
+The recommendation system was expanded to support **Discovery** (finding content not in the local library) by querying **StashDB**.
+
+### 1. Attribute-Based Similarity
+Instead of relying on a single "User Profile" vector, we implemented an **Item-to-Item Similarity** strategy for finding new performers.
+*   **Strategy**: Identify the user's top N local performers. For each one, query StashDB for performers with matching static attributes (Gender, Ethnicity, Eye Color, Hair Color, Age Range).
+*   **Why?** Aggregating attributes into a single "average user" profile often creates a generic persona that matches nobody. Querying based on specific "seed" performers preserves distinctive traits.
+
+### 2. Frontend-Backend Contract
+*   **Weights**: The backend exposes `tag_weight`, `performer_weight`, etc., via `RecommendationOptions` to allow real-time tuning via UI sliders.
+*   **Source Enum**: The query must explicitly request `source: BOTH` or `STASHDB` to trigger external queries. Defaults to `LOCAL`.
+
+### 3. Data Mapping (StashDB vs Local)
+*   **Structure Mismatch**: StashDB returns a `ScrapedPerformer` object, which differs from the local `Performer` object.
+*   **Frontend Adaptation**: The GraphQL query selects data from *both* `performer` (local) and `stash_db_performer` (remote). The React component checks which field is populated and maps it to a common interface (`PerformerDataFragment`) for the Card component.
+*   **Pitfall**: `images` on StashDB is a list of strings (`[String!]`), whereas local might expect an object structure. Always verify scalar types in the schema.
+
 

@@ -78,15 +78,17 @@ func NewContentProfilePartial() ContentProfilePartial {
 
 // RecommendationResult represents a single recommendation with scoring metadata.
 type RecommendationResult struct {
-	Type         string        `json:"type"`           // "scene", "performer", "studio"
-	ID           string        `json:"id"`             // Local entity ID (0 if from StashDB only)
-	StashID      *string       `json:"stash_id"`       // StashDB ID for external content
-	Name         string        `json:"name"`           // Display name
-	Score        float64       `json:"score"`          // Recommendation score (0-1, higher = better match)
-	Reason       string        `json:"reason"`         // Human-readable explanation
-	ImageURL     *string       `json:"image_url"`      // Preview image URL
-	Scene        *Scene        `json:"scene"`          // Populated if type is "scene"
-	StashDBScene *ScrapedScene `json:"stash_db_scene"` // Populated if type is "stashdb"
+	Type             string            `json:"type"`               // "scene", "performer", "studio"
+	ID               string            `json:"id"`                 // Local entity ID (0 if from StashDB only)
+	StashID          *string           `json:"stash_id"`           // StashDB ID for external content
+	Name             string            `json:"name"`               // Display name
+	Score            float64           `json:"score"`              // Recommendation score (0-1, higher = better match)
+	Reason           string            `json:"reason"`             // Human-readable explanation
+	ImageURL         *string           `json:"image_url"`          // Preview image URL
+	Scene            *Scene            `json:"scene"`              // Populated if type is "scene"
+	StashDBScene     *ScrapedScene     `json:"stash_db_scene"`     // Populated if type is "stashdb_scene"
+	Performer        *Performer        `json:"performer"`          // Populated if type is "performer"
+	StashDBPerformer *ScrapedPerformer `json:"stash_db_performer"` // Populated if type is "stashdb_performer"
 }
 
 // RecommendationOptions configures recommendation queries.

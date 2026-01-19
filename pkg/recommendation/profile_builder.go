@@ -55,6 +55,9 @@ func (pb *ProfileBuilder) BuildUserProfile(ctx context.Context) (*ProfileData, e
 	attributeWeights["ethnicity"] = make(map[string]float64)
 	attributeWeights["hair_color"] = make(map[string]float64)
 	attributeWeights["eye_color"] = make(map[string]float64)
+	attributeWeights["country"] = make(map[string]float64)
+	attributeWeights["height"] = make(map[string]float64)
+	attributeWeights["age"] = make(map[string]float64)
 
 	// Query all scenes (paginated for large libraries)
 	const pageSize = 100
@@ -135,6 +138,47 @@ func (pb *ProfileBuilder) BuildUserProfile(ctx context.Context) (*ProfileData, e
 				}
 				if performer.EyeColor != "" {
 					attributeWeights["eye_color"][performer.EyeColor] += score
+				}
+				if performer.Country != "" {
+					attributeWeights["country"][performer.Country] += score
+				}
+				if performer.Height != nil && *performer.Height > 0 {
+					h := *performer.Height
+					var bucket string
+					switch {
+					case h < 150:
+						bucket = "Tiny (<150cm)"
+					case h < 160:
+						bucket = "Small (150-160cm)"
+					case h < 170:
+						bucket = "Average (160-170cm)"
+					case h < 180:
+						bucket = "Tall (170-180cm)"
+					default:
+						bucket = "Very Tall (>180cm)"
+					}
+					attributeWeights["height"][bucket] += score
+				}
+				if performer.Birthdate != nil {
+					// Approximate Age using Birth Year
+					year := performer.Birthdate.Year()
+
+					if year > 1900 {
+						currentYear := time.Now().Year()
+						age := currentYear - year
+						var bucket string
+						switch {
+						case age < 25:
+							bucket = "18-25"
+						case age < 35:
+							bucket = "25-35"
+						case age < 45:
+							bucket = "35-45"
+						default:
+							bucket = "45+"
+						}
+						attributeWeights["age"][bucket] += score
+					}
 				}
 
 				// Favorite performers get a boost

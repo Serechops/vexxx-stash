@@ -102,10 +102,45 @@ export const RecommendationCarousel: React.FC<RecommendationCarouselProps> = ({
             <Typography variant="h5" sx={{ mb: 2, ml: 2 }}>{title}</Typography>
             <Carousel>
                 {recommendations.map((r, idx) => {
+                    // Calculate Score Badge Color
+                    const scorePct = Math.round(r.score * 100);
+                    const badgeColor = scorePct > 80 ? "success.main" : scorePct > 50 ? "warning.main" : "info.main";
+
+                    const Badge = () => (
+                        <Box
+                            sx={{
+                                mb: 1,
+                                padding: "4px 8px",
+                                borderRadius: "4px",
+                                backgroundColor: "background.paper",
+                                borderLeft: "4px solid",
+                                borderColor: badgeColor,
+                                display: "flex",
+                                flexDirection: "column",
+                                alignItems: "flex-start",
+                                boxShadow: 1
+                            }}
+                        >
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                                <Typography variant="subtitle2" sx={{ fontWeight: "bold", lineHeight: 1 }}>
+                                    {scorePct}% Match
+                                </Typography>
+                            </Box>
+                            {r.reason && (
+                                <Typography variant="caption" sx={{ fontSize: "0.7rem", opacity: 0.7, mt: 0.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>
+                                    {r.reason}
+                                </Typography>
+                            )}
+                        </Box>
+                    );
+
                     if (r.type === 'scene' && r.scene) {
                         return (
-                            <Box key={r.id} sx={{ height: "100%" }}>
-                                <SceneCard scene={r.scene} />
+                            <Box key={r.id} sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
+                                <Badge />
+                                <Box sx={{ flexGrow: 1, position: "relative" }}>
+                                    <SceneCard scene={r.scene} />
+                                </Box>
                             </Box>
                         );
                     }
@@ -114,11 +149,14 @@ export const RecommendationCarousel: React.FC<RecommendationCarouselProps> = ({
                         const slimScene = scrapedToSlim(scene);
 
                         return (
-                            <Box key={r.stash_db_id || r.id} sx={{ height: "100%" }}>
-                                <SceneCard
-                                    scene={slimScene}
-                                    link={scene.urls?.[0] || undefined}
-                                />
+                            <Box key={r.stash_db_id || r.id} sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
+                                <Badge />
+                                <Box sx={{ flexGrow: 1, position: "relative" }}>
+                                    <SceneCard
+                                        scene={slimScene}
+                                        link={scene.urls?.[0] || undefined}
+                                    />
+                                </Box>
                             </Box>
                         );
                     }

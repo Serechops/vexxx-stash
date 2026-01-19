@@ -6,6 +6,7 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import { RecommendationSource, useRebuildContentProfileMutation } from '../../core/generated-graphql';
 import { ContentProfileCard } from './ContentProfileCard';
 import { RecommendationCarousel } from './RecommendationCarousel';
+import { PerformerRecommendationRow } from './PerformerRecommendationRow';
 import { useToast } from 'src/hooks/Toast';
 import { LoadingIndicator } from 'src/components/Shared/LoadingIndicator';
 import { useState } from 'react';
@@ -99,20 +100,19 @@ export const DiscoverPage: React.FC = () => {
                 {/* Right Column: Recommendations */}
                 <Grid size={{ xs: 12, md: 8, lg: 9 }}>
 
-                    {/* Local Recommendations */}
-                    <RecommendationCarousel
-                        title="From Your Library"
-                        source={RecommendationSource.Local}
+                    {/* Top Performers */}
+                    <PerformerRecommendationRow
+                        title="Top Performers For You"
                         limit={20}
                         tagWeight={tagWeight}
                         performerWeight={performerWeight}
                         studioWeight={studioWeight}
                     />
 
-                    {/* StashDB Recommendations */}
+                    {/* Unified Recommendations Row */}
                     <RecommendationCarousel
-                        title="Discover from StashDB"
-                        source={RecommendationSource.Stashdb}
+                        title="Recommended Scenes"
+                        source={RecommendationSource.Both}
                         limit={40}
                         excludeOwned={true}
                         tagWeight={tagWeight}

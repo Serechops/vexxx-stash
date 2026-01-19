@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"time"
 
+	"github.com/stashapp/stash/pkg/logger"
 	"github.com/stashapp/stash/pkg/models"
 	"github.com/stashapp/stash/pkg/stashbox/graphql"
 )
@@ -191,6 +193,33 @@ func (e *Engine) DiscoverFromStashDB(ctx context.Context, profile *models.Conten
 			scrapedScene.Studio = scrapedStudio
 		}
 
+		// Map Performers
+		if len(sceneFragment.Performers) > 0 {
+			for _, p := range sceneFragment.Performers {
+				if p.Performer == nil {
+					continue
+				}
+
+				// Map Performer
+				name := p.Performer.Name
+				var gender *string
+				if p.Performer.Gender != nil {
+					g := p.Performer.Gender.String()
+					gender = &g
+				}
+
+				scrapedPerf := &models.ScrapedPerformer{
+					Name:   &name,
+					Gender: gender,
+				}
+				if len(p.Performer.Images) > 0 {
+					img := p.Performer.Images[0].URL
+					scrapedPerf.Images = []string{img}
+				}
+				scrapedScene.Performers = append(scrapedScene.Performers, scrapedPerf)
+			}
+		}
+
 		rec := models.RecommendationResult{
 			Type:         "stashdb_scene", // Distinct type
 			ID:           stashID,         // Use UUID as cache key
@@ -295,4 +324,274 @@ func (e *Engine) getTopPerformersWithStashIDs(ctx context.Context, profile *mode
 		}
 	}
 	return ret, nil
+}
+
+func (e *Engine) DiscoverPerformersFromStashDB(ctx context.Context, profile *models.ContentProfile, limit int) ([]models.RecommendationResult, error) {
+	if e.StashBoxClient == nil {
+		return nil, fmt.Errorf("stashdb client not configured")
+	}
+
+	logger.Infof("Starting DiscoverPerformersFromStashDB")
+
+	// 1. Get Top Local Performers
+	// We use the traits of your favorite performers to find similar ones
+	type weighted struct {
+		id int
+		w  float64
+	}
+	var sorted []weighted
+	for _, pw := range profile.PerformerWeights {
+		sorted = append(sorted, weighted{pw.PerformerID, pw.Weight})
+	}
+	sort.Slice(sorted, func(i, j int) bool {
+		return sorted[i].w > sorted[j].w
+	})
+
+	// Limit to top 5
+	if len(sorted) > 5 {
+		sorted = sorted[:5]
+	}
+
+	logger.Infof("Found %d top local performers to use as seeds", len(sorted))
+
+	var recommendations []models.RecommendationResult
+	seen := make(map[string]bool)
+
+	// Helper to build criteria from a local performer
+	buildQuery := func(p *models.Performer) *graphql.PerformerQueryInput {
+		q := &graphql.PerformerQueryInput{
+			Page:      1,
+			PerPage:   5, // Fetch small batch per performer
+			Sort:      graphql.PerformerSortEnumSceneCount,
+			Direction: graphql.SortDirectionEnumDesc,
+		}
+
+		validCriteria := 0
+
+		if p.Gender != nil {
+			g := graphql.GenderFilterEnum(p.Gender.String())
+			q.Gender = &g
+			validCriteria++
+		}
+
+		if p.HairColor != "" {
+			if val, ok := mapHairColor(p.HairColor); ok {
+				q.HairColor = &graphql.HairColorCriterionInput{
+					Value:    &val,
+					Modifier: graphql.CriterionModifierEquals,
+				}
+				validCriteria++
+			}
+		}
+
+		if p.EyeColor != "" {
+			if val, ok := mapEyeColor(p.EyeColor); ok {
+				q.EyeColor = &graphql.EyeColorCriterionInput{
+					Value:    &val,
+					Modifier: graphql.CriterionModifierEquals,
+				}
+				validCriteria++
+			}
+		}
+
+		if p.Ethnicity != "" {
+			if val, ok := mapEthnicity(p.Ethnicity); ok {
+				q.Ethnicity = &val
+				validCriteria++
+			}
+		}
+
+		if p.Country != "" {
+			val := p.Country
+			// INCLUDES is safer than EQUALS for country
+			q.Country = &graphql.StringCriterionInput{
+				Value:    val,
+				Modifier: graphql.CriterionModifierIncludes,
+			}
+			validCriteria++
+		}
+
+		if p.Birthdate != nil {
+			// Calculate Age
+			currentYear := time.Now().Year()
+			age := currentYear - p.Birthdate.Year()
+			if age >= 18 {
+				// Search for similar age range (+/- 3 years)
+				// Or use simple buckets like user requested: < 25, etc.
+				// Let's use loose range to find peers
+
+				// Wait, the user successfully used buckets in their example query:
+				// age: { value: 25, modifier: LESS_THAN }
+				// Let's replicate strict bucketing if possible, or just exact age +/- deviation?
+				// User's example: age: 22 matches < 25.
+
+				// Let's bucket them to broad categories
+				val := 0
+				var mod graphql.CriterionModifier
+
+				switch {
+				case age < 25:
+					val = 25
+					mod = graphql.CriterionModifierLessThan
+				case age < 35:
+					val = 35
+					mod = graphql.CriterionModifierLessThan
+				case age < 45:
+					val = 45
+					mod = graphql.CriterionModifierLessThan
+				default:
+					val = 45
+					mod = graphql.CriterionModifierGreaterThan
+				}
+
+				q.Age = &graphql.IntCriterionInput{
+					Value:    val,
+					Modifier: mod,
+				}
+				validCriteria++
+			}
+		}
+
+		if validCriteria < 2 {
+			return nil // Not enough info to build a meaningful query
+		}
+		return q
+	}
+
+	for _, item := range sorted {
+		if len(recommendations) >= limit {
+			break
+		}
+
+		perf, err := e.PerformerRepo.Find(ctx, item.id)
+		if err != nil || perf == nil {
+			continue
+		}
+
+		query := buildQuery(perf)
+		if query == nil {
+			continue
+		}
+
+		results, err := e.StashBoxClient.QueryPerformersByInput(ctx, *query)
+		if err != nil {
+			continue
+		}
+
+		for _, p := range results {
+			if p.RemoteSiteID == nil || *p.RemoteSiteID == "" {
+				continue
+			}
+			stashID := *p.RemoteSiteID
+
+			if seen[stashID] {
+				continue
+			}
+
+			// Dedupe Local check
+			count, _ := e.PerformerRepo.QueryCount(ctx, &models.PerformerFilterType{
+				StashID: &models.StringCriterionInput{
+					Value:    stashID,
+					Modifier: models.CriterionModifierEquals,
+				},
+			}, nil)
+			if count > 0 {
+				continue
+			}
+
+			seen[stashID] = true
+
+			// Score logic:
+			// Base score comes from the source performer's weight?
+			// Maybe 0.8 * sourceWeight?
+			score := item.w * 0.9
+
+			var name string
+			if p.Name != nil {
+				name = *p.Name
+			}
+
+			rec := models.RecommendationResult{
+				Type:             "stashdb_performer",
+				ID:               stashID,
+				StashID:          &stashID,
+				Name:             name,
+				Score:            score,
+				Reason:           fmt.Sprintf("Similar to %s", perf.Name),
+				StashDBPerformer: p,
+			}
+			recommendations = append(recommendations, rec)
+
+			if len(recommendations) >= limit {
+				break
+			}
+		}
+	}
+
+	logger.Infof("Total unique recommendations found: %d", len(recommendations))
+
+	return recommendations, nil
+}
+
+// Helpers to map strings to Enums
+func mapHairColor(s string) (graphql.HairColorEnum, bool) {
+	switch s {
+	case "Blonde", "Blond":
+		return graphql.HairColorEnumBlonde, true
+	case "Brunette", "Brown":
+		return graphql.HairColorEnumBrunette, true
+	case "Black":
+		return graphql.HairColorEnumBlack, true
+	case "Red":
+		return graphql.HairColorEnumRed, true
+	case "Auburn":
+		return graphql.HairColorEnumAuburn, true
+	case "Grey", "Gray":
+		return graphql.HairColorEnumGrey, true
+	case "Bald":
+		return graphql.HairColorEnumBald, true
+	case "White":
+		return graphql.HairColorEnumWhite, true
+	}
+	return "", false
+}
+
+func mapEyeColor(s string) (graphql.EyeColorEnum, bool) {
+	switch s {
+	case "Blue":
+		return graphql.EyeColorEnumBlue, true
+	case "Brown":
+		return graphql.EyeColorEnumBrown, true
+	case "Green":
+		return graphql.EyeColorEnumGreen, true
+	case "Hazel":
+		return graphql.EyeColorEnumHazel, true
+	case "Grey", "Gray":
+		return graphql.EyeColorEnumGrey, true
+	case "Red":
+		return graphql.EyeColorEnumRed, true
+	}
+	return "", false
+}
+
+func mapEthnicity(s string) (graphql.EthnicityFilterEnum, bool) {
+	switch s {
+	case "white", "caucasian":
+		return graphql.EthnicityFilterEnumCaucasian, true
+	case "black", "african american":
+		return graphql.EthnicityFilterEnumBlack, true
+	case "asian":
+		return graphql.EthnicityFilterEnumAsian, true
+	case "hispanic", "latin", "latino", "latina":
+		return graphql.EthnicityFilterEnumLatin, true
+	case "middle eastern":
+		return graphql.EthnicityFilterEnumMiddleEastern, true
+	case "mixed":
+		return graphql.EthnicityFilterEnumMixed, true
+	case "indian":
+		return graphql.EthnicityFilterEnumIndian, true
+	case "other":
+		return graphql.EthnicityFilterEnumOther, true
+	}
+	return "", false
 }

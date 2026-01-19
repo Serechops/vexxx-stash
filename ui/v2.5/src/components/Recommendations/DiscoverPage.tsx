@@ -156,7 +156,17 @@ export const DiscoverPage: React.FC = () => {
                     studioWeight={studioWeight}
                 />
 
-                {/* Local Gems: Performers */}
+                {/* Attribute Match: Performers (Visual Match) */}
+                <PerformerRecommendationRow
+                    title="Recommended Performers Based on Visual Attributes"
+                    limit={20}
+                    source={RecommendationSource.Local}
+                    tagWeight={tagWeight}
+                    performerWeight={0.0} // Force 0.0 to maximize Attribute weight
+                    studioWeight={studioWeight}
+                />
+
+                {/* Local Gems: Performers (User Controlled) */}
                 <PerformerRecommendationRow
                     title="Local Performers"
                     limit={20}
@@ -165,6 +175,8 @@ export const DiscoverPage: React.FC = () => {
                     performerWeight={performerWeight}
                     studioWeight={studioWeight}
                 />
+
+
 
                 {/* Local Gems: Scenes */}
                 <RecommendationCarousel

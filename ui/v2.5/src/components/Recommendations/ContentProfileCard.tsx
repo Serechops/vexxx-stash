@@ -1,6 +1,6 @@
-import React from 'react';
-import { Card, CardHeader, CardContent, Button, Divider, Typography, Chip, Avatar, Tooltip } from '@mui/material';
-import { Refresh } from '@mui/icons-material';
+import React, { useState } from 'react';
+import { Card, CardHeader, CardContent, Button, Divider, Typography, Chip, Avatar, Tooltip, IconButton, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
+import { Refresh, HelpOutline } from '@mui/icons-material';
 import { Link } from 'react-router-dom';
 import { useContentProfileQuery, useRebuildContentProfileMutation } from '../../core/generated-graphql';
 import { LoadingIndicator } from '../Shared/LoadingIndicator';
@@ -9,6 +9,7 @@ import { AlertModal as Alert } from '../Shared/Alert';
 export const ContentProfileCard: React.FC = () => {
     const { data, loading, error, refetch } = useContentProfileQuery();
     const [rebuildProfile, { loading: rebuilding }] = useRebuildContentProfileMutation();
+    const [showInfo, setShowInfo] = useState(false);
 
     const handleRebuild = async () => {
         try {
@@ -31,15 +32,23 @@ export const ContentProfileCard: React.FC = () => {
                 title="Content Profile"
                 subheader={`Last updated: ${new Date(profile.updated_at).toLocaleDateString()}`}
                 action={
-                    <Button
-                        startIcon={<Refresh />}
-                        onClick={handleRebuild}
-                        disabled={rebuilding}
-                        variant="outlined"
-                        size="small"
-                    >
-                        {rebuilding ? 'Rebuilding...' : 'Rebuild'}
-                    </Button>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <IconButton
+                            onClick={() => setShowInfo(true)}
+                            size="small"
+                        >
+                            <HelpOutline />
+                        </IconButton>
+                        <Button
+                            startIcon={<Refresh />}
+                            onClick={handleRebuild}
+                            disabled={rebuilding}
+                            variant="outlined"
+                            size="small"
+                        >
+                            {rebuilding ? 'Rebuilding...' : 'Rebuild'}
+                        </Button>
+                    </div>
                 }
             />
             <Divider />
@@ -93,6 +102,47 @@ export const ContentProfileCard: React.FC = () => {
                     </div>
                 </div>
             </CardContent>
+
+            <Dialog open={showInfo} onClose={() => setShowInfo(false)} maxWidth="sm">
+                <DialogTitle>How Recommendations Work</DialogTitle>
+                <DialogContent dividers>
+                    <Typography variant="h6" gutterBottom>Generation</Typography>
+                    <Typography paragraph variant="body2">
+                        Your Content Profile is built by analyzing your local library usage. It looks at your most watched scenes, highest rated content, and recurring tags/performers to build a "fingerprint" of your preferences.
+                    </Typography>
+
+                    <Typography variant="h6" gutterBottom>Tuning Weights</Typography>
+                    <Typography paragraph variant="body2">
+                        The sliders on the dashboard allow you to control how much influence each factor has:
+                        <ul>
+                            <li><strong>Tags:</strong> Prioritizes content matching your top tags (e.g., "Blonde", "Outdoor").</li>
+                            <li><strong>Performers:</strong> Prioritizes your favorite performers.</li>
+                            <li><strong>Studios:</strong> Prioritizes content from your preferred studios.</li>
+                        </ul>
+                    </Typography>
+
+                    <Typography variant="h6" gutterBottom>Scoring Logic</Typography>
+                    <Typography variant="subtitle2">Scene Recommendations</Typography>
+                    <Typography paragraph variant="body2">
+                        Score = (Visual Match % × .50) + (Profile Affinity % × .50)
+                        <br />
+                        <span style={{ fontSize: '0.8em', color: 'gray' }}>Combines how well the scene matches your tags/performers with your historical preference for that studio/category.</span>
+                    </Typography>
+                    <Typography variant="subtitle2">Performer Recommendations</Typography>
+                    <Typography paragraph variant="body2">
+                        Score = (History % × Weight) + (Attribute Match % × (1 - Weight))
+                        <br />
+                        <span style={{ fontSize: '0.8em', color: 'gray' }}>
+                            <strong>Local Performers:</strong> Balances your Viewing History (Favorites) with Attribute Matching (Lookalikes).
+                            <br />
+                            <strong>Visual Match:</strong> Ignores history and finds performers who strictly match your physical preference (Hair, Eyes, Ethnicity).
+                        </span>
+                    </Typography>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setShowInfo(false)}>Close</Button>
+                </DialogActions>
+            </Dialog>
         </Card>
     );
 };

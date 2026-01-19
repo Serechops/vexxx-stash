@@ -110,7 +110,7 @@ func (s *Scorer) ScoreScene(ctx context.Context, scene *models.Scene, tagWeight,
 }
 
 // ScorePerformer computes a recommendation score for a performer.
-func (s *Scorer) ScorePerformer(ctx context.Context, performer *models.Performer) (float64, string) {
+func (s *Scorer) ScorePerformer(ctx context.Context, performer *models.Performer, appearanceWeight, historyWeight float64) (float64, string) {
 	if s.profile == nil {
 		return 0, ""
 	}
@@ -118,16 +118,16 @@ func (s *Scorer) ScorePerformer(ctx context.Context, performer *models.Performer
 	var totalScore float64
 	var reasons []string
 
-	// Direct performer weight
+	// Direct performer weight (Viewing History)
 	if weight, ok := s.profile.PerformerWeights[performer.ID]; ok {
-		totalScore += weight * 0.5
+		totalScore += weight * historyWeight
 		reasons = append(reasons, "viewing history")
 	}
 
-	// Attribute matching
+	// Attribute matching (Appearance)
 	attrScore := s.scorePerformerAttributes(performer)
 	if attrScore > 0 {
-		totalScore += attrScore * 0.5
+		totalScore += attrScore * appearanceWeight
 		reasons = append(reasons, "matching attributes")
 	}
 
@@ -366,7 +366,7 @@ func (s *Scorer) SimilarScenes(ctx context.Context, sceneID int, limit int) ([]m
 // --- Utility Functions ---
 
 // RecommendPerformers returns performers scored by preference.
-func (s *Scorer) RecommendPerformers(ctx context.Context, limit int, minScore float64) ([]models.RecommendationResult, error) {
+func (s *Scorer) RecommendPerformers(ctx context.Context, limit int, minScore float64, appearanceWeight, historyWeight float64) ([]models.RecommendationResult, error) {
 	// Query all performers (paginated or large limit)
 	// For now, let's fetch a reasonable number to score
 	findFilter := &models.FindFilterType{
@@ -383,7 +383,7 @@ func (s *Scorer) RecommendPerformers(ctx context.Context, limit int, minScore fl
 	var recommendations []models.RecommendationResult
 	for _, perf := range result {
 		// Calculate score
-		score, reason := s.ScorePerformer(ctx, perf)
+		score, reason := s.ScorePerformer(ctx, perf, appearanceWeight, historyWeight)
 
 		if score < minScore {
 			continue

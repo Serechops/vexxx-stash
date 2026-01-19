@@ -548,7 +548,25 @@ func (r *queryResolver) RecommendPerformers(ctx context.Context, options *models
 				r.repository.Tag,
 			)
 
-			results, err := scorer.RecommendPerformers(ctx, limit, 0.1) // 0.1 min score
+			// Determine weights (Default 0.5/0.5)
+			// Use PerformerWeight to balance History vs Attributes
+			// PerformerWeight 1.0 = 100% History, 0% Attributes
+			// PerformerWeight 0.0 = 0% History, 100% Attributes
+			histW := 0.5
+			appW := 0.5
+			if options != nil && options.PerformerWeight != nil {
+				histW = *options.PerformerWeight
+				// Ensure simple complementary weight, capped at 1.0
+				if histW > 1.0 {
+					histW = 1.0
+				}
+				if histW < 0.0 {
+					histW = 0.0
+				}
+				appW = 1.0 - histW
+			}
+
+			results, err := scorer.RecommendPerformers(ctx, limit, 0.1, appW, histW) // 0.1 min score
 			if err != nil {
 				return err
 			}

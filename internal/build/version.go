@@ -41,7 +41,7 @@ func VersionString() string {
 	if buildstamp != "" {
 		versionString += " - " + buildstamp
 	}
-	return versionString
+	return "Vexxx Edition " + versionString
 }
 
 func IsOfficial() bool {

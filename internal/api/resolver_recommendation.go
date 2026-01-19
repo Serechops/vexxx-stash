@@ -594,7 +594,18 @@ func (r *queryResolver) RecommendPerformers(ctx context.Context, options *models
 				return nil
 			}
 
-			results, err := engine.DiscoverPerformersFromStashDB(ctx, profile, limit)
+			tagW := 0.5
+			perfW := 0.5
+			if options != nil {
+				if options.TagWeight != nil {
+					tagW = *options.TagWeight
+				}
+				if options.PerformerWeight != nil {
+					perfW = *options.PerformerWeight
+				}
+			}
+
+			results, err := engine.DiscoverPerformersFromStashDB(ctx, profile, limit, tagW, perfW)
 			if err != nil {
 				return err
 			}

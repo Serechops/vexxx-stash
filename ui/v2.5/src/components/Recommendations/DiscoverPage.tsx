@@ -137,7 +137,7 @@ export const DiscoverPage: React.FC = () => {
 
                 {/* Top Performers (StashDB) */}
                 <PerformerRecommendationRow
-                    title="Recommended Performers (StashDB)"
+                    title="Recommended Performers (StashDB - Based on User Weightings)"
                     source={RecommendationSource.Stashdb}
                     limit={20}
                     tagWeight={tagWeight}
@@ -145,9 +145,19 @@ export const DiscoverPage: React.FC = () => {
                     studioWeight={studioWeight}
                 />
 
+                {/* StashDB Visual Match */}
+                <PerformerRecommendationRow
+                    title="Recommended Performers (StashDB - Visual Match)"
+                    source={RecommendationSource.Stashdb}
+                    limit={20}
+                    tagWeight={tagWeight}
+                    performerWeight={0.0} // Suggest Attribute preference
+                    studioWeight={studioWeight}
+                />
+
                 {/* StashDB Scenes */}
                 <RecommendationCarousel
-                    title="Recommended Scenes (StashDB)"
+                    title="Recommended Scenes (StashDB - Based on User Weightings)"
                     source={RecommendationSource.Stashdb}
                     limit={40}
                     excludeOwned={true}
@@ -158,7 +168,7 @@ export const DiscoverPage: React.FC = () => {
 
                 {/* Attribute Match: Performers (Visual Match) */}
                 <PerformerRecommendationRow
-                    title="Recommended Performers Based on Visual Attributes"
+                    title="Recommended Performers (Local - Visual Match)"
                     limit={20}
                     source={RecommendationSource.Local}
                     tagWeight={tagWeight}
@@ -168,7 +178,7 @@ export const DiscoverPage: React.FC = () => {
 
                 {/* Local Gems: Performers (User Controlled) */}
                 <PerformerRecommendationRow
-                    title="Local Performers"
+                    title="Local Performers (Based on User Weightings)"
                     limit={20}
                     source={RecommendationSource.Local}
                     tagWeight={tagWeight}
@@ -180,7 +190,7 @@ export const DiscoverPage: React.FC = () => {
 
                 {/* Local Gems: Scenes */}
                 <RecommendationCarousel
-                    title="Local Scenes"
+                    title="Local Scenes (Based on User Weightings)"
                     source={RecommendationSource.Local}
                     limit={40}
                     excludeOwned={false}

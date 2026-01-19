@@ -12,6 +12,11 @@ import {
     Container,
     Paper,
     FormHelperText,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogContentText,
+    DialogActions,
 } from "@mui/material";
 import { FormattedMessage, useIntl } from "react-intl";
 import { useTitleProps } from "src/hooks/title";
@@ -87,6 +92,8 @@ const Renamer: React.FC = () => {
         setTabValue(newValue);
     };
 
+    const [showWarning, setShowWarning] = useState(false);
+
     // Load initial state
     useEffect(() => {
         if (config?.configuration?.renamer) {
@@ -97,7 +104,16 @@ const Renamer: React.FC = () => {
         }
     }, [config]);
 
-    const handleSave = async () => {
+    const handleSave = () => {
+        if (enabled || moveFiles) {
+            setShowWarning(true);
+        } else {
+            confirmSave();
+        }
+    };
+
+    const confirmSave = async () => {
+        setShowWarning(false);
         try {
             await configureRenamer({
                 variables: {
@@ -218,6 +234,27 @@ const Renamer: React.FC = () => {
                     <RenamerTools />
                 </CustomTabPanel>
             </Box>
+
+            <Dialog
+                open={showWarning}
+                onClose={() => setShowWarning(false)}
+            >
+                <DialogTitle>Warning</DialogTitle>
+                <DialogContent>
+                    <DialogContentText>
+                        Enabling automatic renaming or moving of files can have destructive or inadvertent effects.
+                        Any changes made to your files are solely your responsibility.
+                        <br /><br />
+                        Are you sure you want to proceed?
+                    </DialogContentText>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setShowWarning(false)}>Cancel</Button>
+                    <Button onClick={confirmSave} variant="contained" autoFocus>
+                        I Understand & Save
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Container>
     );
 };

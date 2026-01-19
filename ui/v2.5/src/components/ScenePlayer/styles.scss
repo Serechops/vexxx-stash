@@ -12,11 +12,11 @@ $sceneTabWidth: 450px;
 .VideoPlayer {
   display: flex;
   flex-direction: column;
-  min-height: calc(100vh - #{$menuHeight}); // Changed from max-height to allow content expansion
-  padding-bottom: 0.25rem;
+  min-height: 0; // Standardize to 0 for mobile
+  padding-bottom: 0;
 
   @media (min-width: 1200px) {
-    min-height: 100vh; // Changed from fixed height to min-height
+    min-height: 100vh;
   }
 
   &.portrait .video-wrapper {
@@ -477,7 +477,7 @@ $sceneTabWidth: 450px;
 
 .scene-tabs,
 .scene-player-container {
-  padding-left: 15px;
+  padding-left: 0; // Use MUI padding instead
   position: relative;
   width: 100%;
 }
@@ -636,7 +636,7 @@ $sceneTabWidth: 450px;
 
 @media (max-width: 1199px) {
   .scene-tabs {
-    padding-right: 15px;
+    padding-right: 0; // Use MUI padding instead
   }
 
   .scene-player-container {

@@ -732,7 +732,8 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
           flexDirection: "column",
           width: "100%",
           boxSizing: "border-box",
-          p: 2,
+          p: { xs: 1, md: 2 },
+          pt: { xs: 0, md: 2 },
           overflow: "visible", // Override legacy SCSS
           height: "auto",      // Ensure it expands
           "& .tab-content": {
@@ -772,7 +773,7 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
                     sx={{
                       maxHeight: "8rem",
                       maxWidth: "100%",
-                      mt: 2
+                      mt: { xs: 0, lg: 2 }
                     }}
                   />
                 </Link>
@@ -784,7 +785,7 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
                 flex: { lg: "0 0 75%" },
                 order: { lg: 1 },
                 fontSize: { xs: "1.75rem", xl: "1.5rem" },
-                mt: 4,
+                mt: { xs: 1, lg: 4 },
                 width: "100%",
                 textAlign: { xs: "center", lg: "left" }
               }}
@@ -1142,19 +1143,25 @@ const SceneLoader: React.FC<RouteComponentProps<ISceneParams>> = ({
   const isSegment = (scene?.start_point !== null && scene?.start_point !== undefined && scene.start_point > 0) || (scene?.end_point !== null && scene?.end_point !== undefined && scene.end_point > 0);
 
   return (
-    <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, height: "calc(100vh - 64px)", overflow: "hidden" }}>
+    <Box sx={{
+      display: "flex",
+      flexDirection: { xs: "column-reverse", md: "row" },
+      height: { xs: "auto", md: "calc(100vh - 64px)" },
+      overflow: { xs: "visible", md: "hidden" }
+    }}>
       <Box
         sx={{
           width: { xs: "100%", md: collapsed ? 0 : 450 },
           minWidth: { md: collapsed ? 0 : 450 },
           borderRight: { md: 1 },
           borderColor: "divider",
-          overflowY: "auto",
+          overflowY: { xs: "visible", md: "auto" },
           display: { xs: "flex", md: collapsed ? "none" : "flex" },
           flexDirection: "column",
           flexShrink: 0,
           transition: "width 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-          backgroundColor: "background.paper"
+          backgroundColor: "background.paper",
+          height: { xs: "auto", md: "100%" }
         }}
       >
         <ScenePage
@@ -1198,7 +1205,16 @@ const SceneLoader: React.FC<RouteComponentProps<ISceneParams>> = ({
         {collapsed ? <ChevronRightIcon fontSize="small" sx={{ transition: 'color 0.2s' }} /> : <ChevronLeftIcon fontSize="small" sx={{ transition: 'color 0.2s' }} />}
       </Box>
 
-      <Box sx={{ flexGrow: 1, minWidth: 0, height: "100%", display: "flex", flexDirection: "column", position: "relative", backgroundColor: "black" }}>
+      <Box sx={{
+        flexGrow: 1,
+        minWidth: 0,
+        height: { xs: "auto", md: "100%" },
+        aspectRatio: { xs: "16/9", md: "auto" },
+        display: "flex",
+        flexDirection: "column",
+        position: "relative",
+        backgroundColor: "black"
+      }}>
         {isSegment ? (
           <SegmentPlayer scene={scene} />
         ) : (

@@ -21,7 +21,7 @@ for (const cmd of preCommands) {
 }
 
 // Docker command needs to run from the root directory
-const rootDir = path.resolve(__dirname, '../../');
+const rootDir = path.resolve(__dirname, '../../../');
 const dockerCmd = `docker run --rm -v ".:/stash" -e STASH_VERSION -e GITHASH -e BUILD_DATE -e OFFICIAL_BUILD -e STASH_RELEASE_REPO -w /stash stashapp/compiler /bin/bash -c "make build-cc-all"`;
 
 console.log(`[Vexxx] Running Docker cross-compilation from ${rootDir}...`);

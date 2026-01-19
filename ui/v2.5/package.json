@@ -4,7 +4,7 @@
   "homepage": "./",
   "type": "module",
   "scripts": {
-    "generate-cc": "node scripts/generate-cc.js",
+    "generate-cc": "node scripts/generate-cc.cjs",
     "server": "make -C ../.. server-start GITHASH=dev STASH_VERSION=dev BUILD_DATE=2026-01-01",
     "all": "make -C ../.. ui && make -C ../.. build && pnpm run dev",
     "release": "make -C ../.. build-release",

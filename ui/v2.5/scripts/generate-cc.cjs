@@ -195,13 +195,77 @@ if (!isDryRun) {
 console.log(`[Vexxx] Building Docker image for export...`);
 const dockerBuildCmd = `make docker-build STASH_VERSION=${STASH_VERSION} GITHASH=${process.env.GITHASH || 'dev'}`;
 console.log(`> ${dockerBuildCmd}`);
-if (!isDryRun) spawnSync(dockerBuildCmd, { shell: true, stdio: 'inherit' });
+if (!isDryRun) {
+    const buildResult = spawnSync(dockerBuildCmd, { shell: true, stdio: 'inherit', cwd: rootDir });
+    if (buildResult.status !== 0) process.exit(buildResult.status);
+}
 
-console.log(`[Vexxx] Saving Docker image to dist/stash-docker.tar...`);
-if (!isDryRun) spawnSync('docker save -o dist/stash-docker.tar stash/build', { shell: true, stdio: 'inherit' });
+console.log(`[Vexxx] Saving and compressing Docker image to dist/stash-docker.tar.gz...`);
+if (!isDryRun) {
+    const fs = require('fs');
+    const zlib = require('zlib');
+    const { spawn } = require('child_process');
 
-console.log(`[Vexxx] Compressing Docker image to dist/stash-docker.tar.gz...`);
-if (!isDryRun) spawnSync('gzip -f dist/stash-docker.tar', { shell: true, stdio: 'inherit' });
+    const distDir = path.join(rootDir, 'dist');
+    if (!fs.existsSync(distDir)) {
+        fs.mkdirSync(distDir, { recursive: true });
+    }
 
-console.log('[Vexxx] All artifacts generated successfully.');
-process.exit(0);
+    const outFile = path.join(distDir, 'stash-docker.tar.gz');
+    const outStream = fs.createWriteStream(outFile);
+    const gzip = zlib.createGzip();
+
+    // Spawn docker save and pipe to gzip -> file
+    const dockerSave = spawn('docker', ['save', 'stash/build'], { cwd: rootDir, shell: true });
+
+    dockerSave.stdout.pipe(gzip).pipe(outStream);
+
+    dockerSave.stderr.on('data', (data) => {
+        process.stderr.write(data);
+    });
+
+    dockerSave.on('close', (code) => {
+        if (code !== 0) {
+            console.error(`docker save process exited with code ${code}`);
+            process.exit(code);
+        } else {
+            generateReleaseNotes();
+        }
+    });
+} else {
+    // For dry run, we just exit since we can't async wait in this sync script structure easily without bigger refactor,
+    // or just print what we would do.
+    console.log('[Vexxx] All artifacts generated successfully (Dry Run).');
+    process.exit(0);
+}
+
+function generateReleaseNotes() {
+    console.log('[Vexxx] Generating release notes...');
+    // We need to run this from the root dir so it finds the 'dist' folder correctly relative to itself if it relied on CWD, 
+    // but the script uses 'dist' directly. Let's run from rootDir.
+    const releaseNotesCmd = `go run scripts/generate_release_notes.go`;
+    console.log(`> ${releaseNotesCmd}`);
+
+    // Check if we have env vars, if not use defaults or passed ones
+    const version = STASH_VERSION; // Captured from closure
+
+    const result = spawnSync(releaseNotesCmd, {
+        shell: true,
+        stdio: 'inherit',
+        cwd: rootDir,
+        env: {
+            ...process.env,
+            STASH_VERSION: version,
+            GITHASH: process.env.GITHASH || 'dev',
+            STASH_RELEASE_REPO: process.env.STASH_RELEASE_REPO || 'Serechops/vexxx-stash'
+        }
+    });
+
+    if (result.status !== 0) {
+        console.error('Failed to generate release notes');
+        process.exit(result.status);
+    }
+
+    console.log('[Vexxx] All artifacts generated successfully.');
+    process.exit(0);
+}

@@ -45,6 +45,7 @@ func main() {
 		{"Linux", "stash-linux", "Linux (64-bit)"},
 		{"Raspberry Pi 4", "stash-linux-arm64v8", "Linux ARM64 (Raspberry Pi 4, etc.)"},
 		{"FreeBSD", "stash-freebsd", "FreeBSD (64-bit)"},
+		{"Docker Image", "stash-docker.tar.gz", "Docker Image (Offline Load)"},
 	}
 
 	var sb strings.Builder

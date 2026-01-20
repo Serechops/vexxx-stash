@@ -50,6 +50,7 @@ const Slider: React.FC<ISliderProps> = (sliderProps: ISliderProps) => {
       </Box>
       <Typography
         variant="body2"
+        component="div"
         sx={{ width: '15%', textAlign: 'right', cursor: 'pointer' }}
         onClick={() => sliderProps.setValue(sliderProps.range.default)}
         onKeyPress={() => sliderProps.setValue(sliderProps.range.default)}

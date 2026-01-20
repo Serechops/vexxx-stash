@@ -147,7 +147,7 @@ export const CleanOptions: React.FC<ICleanOptions> = ({
     <>
       <BooleanSetting
         id={`${keyPrefix}dry-run`}
-        headingID="config.tasks.clean.dry_run"
+        headingID="Clean: Dry Run"
         checked={options.dryRun}
         onChange={(v) => setOptions({ dryRun: v })}
       />

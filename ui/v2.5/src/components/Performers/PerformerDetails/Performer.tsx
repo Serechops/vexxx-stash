@@ -149,7 +149,7 @@ const PerformerTabs: React.FC<{
     <>
       <Box className="performer-tabs-container">
         <Tabs
-          value={tabKey}
+          value={tabKey ?? populatedDefaultTab}
           onChange={(_, k) => setTabKey(k)}
           variant="scrollable"
           scrollButtons="auto"

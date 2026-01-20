@@ -64,3 +64,4 @@ node_modules
 dist
 .DS_Store
 /.local*
+.agent/workflows/upstream-sync.md

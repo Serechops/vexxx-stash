@@ -154,8 +154,7 @@ if (!STASH_VERSION && (isRC || isRelease)) {
 console.log(`[Vexxx] Starting cross-compilation for version: ${STASH_VERSION || '(auto from git)'}`);
 
 if (isDryRun) {
-    console.log('[Dry Run] Exiting before build steps.');
-    process.exit(0);
+    console.log('[Dry Run] Build steps will be skipped (printing commands only).');
 }
 
 // Commands to run relative to ui/v2.5
@@ -167,8 +166,10 @@ const preCommands = [
 
 for (const cmd of preCommands) {
     console.log(`> ${cmd}`);
-    const result = spawnSync(cmd, { shell: true, stdio: 'inherit' });
-    if (result.status !== 0) process.exit(result.status || 1);
+    if (!isDryRun) {
+        const result = spawnSync(cmd, { shell: true, stdio: 'inherit' });
+        if (result.status !== 0) process.exit(result.status || 1);
+    }
 }
 
 // Docker command needs to run from the root directory
@@ -178,11 +179,29 @@ const dockerCmd = `docker run --rm -v ".:/stash" -e STASH_VERSION -e GITHASH -e 
 console.log(`[Vexxx] Running Docker cross-compilation from ${rootDir}...`);
 console.log(`> ${dockerCmd}`);
 
-const result = spawnSync(dockerCmd, {
-    shell: true,
-    stdio: 'inherit',
-    cwd: rootDir,
-    env: { ...process.env, STASH_VERSION } // Pass the version into the env for docker run -e
-});
+if (!isDryRun) {
+    const result = spawnSync(dockerCmd, {
+        shell: true,
+        stdio: 'inherit',
+        cwd: rootDir,
+        env: { ...process.env, STASH_VERSION } // Pass the version into the env for docker run -e
+    });
 
-process.exit(result.status || 0);
+    if (result.status !== 0) {
+        process.exit(result.status);
+    }
+}
+
+console.log(`[Vexxx] Building Docker image for export...`);
+const dockerBuildCmd = `make docker-build STASH_VERSION=${STASH_VERSION} GITHASH=${process.env.GITHASH || 'dev'}`;
+console.log(`> ${dockerBuildCmd}`);
+if (!isDryRun) spawnSync(dockerBuildCmd, { shell: true, stdio: 'inherit' });
+
+console.log(`[Vexxx] Saving Docker image to dist/stash-docker.tar...`);
+if (!isDryRun) spawnSync('docker save -o dist/stash-docker.tar stash/build', { shell: true, stdio: 'inherit' });
+
+console.log(`[Vexxx] Compressing Docker image to dist/stash-docker.tar.gz...`);
+if (!isDryRun) spawnSync('gzip -f dist/stash-docker.tar', { shell: true, stdio: 'inherit' });
+
+console.log('[Vexxx] All artifacts generated successfully.');
+process.exit(0);

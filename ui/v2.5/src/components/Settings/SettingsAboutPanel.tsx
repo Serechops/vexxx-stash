@@ -92,7 +92,7 @@ export const SettingsAboutPanel: React.FC = () => {
           </div>
           <ConstantSetting
             headingID="config.about.release_date"
-            value={dataLatest.latestversion.release_date}
+            value={dataLatest.latestversion.release_date || (stashVersion === latestVersionString ? buildTime : "")}
           />
           {latestRepo !== currentRepo && (
             <ConstantSetting

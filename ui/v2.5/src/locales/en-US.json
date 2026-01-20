@@ -11,6 +11,9 @@
                 "ignore_organized": "Ignore organized scenes"
             }
         },
+        "about": {
+            "commit_hash": "Commit Hash"
+        },
         "ui": {
             "custom_locales": {
                 "heading": "Custom localization",

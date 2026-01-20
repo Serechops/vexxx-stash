@@ -43,14 +43,31 @@ export const SettingsAboutPanel: React.FC = () => {
         />
       );
     } else {
-      let heading = dataLatest.latestversion.version;
+      const latestVersionString = dataLatest.latestversion.version;
+      let heading: React.ReactNode = latestVersionString;
       const hashString = dataLatest.latestversion.shorthash;
-      if (gitHash !== hashString) {
-        heading +=
-          " " +
-          intl.formatMessage({
-            id: "config.about.new_version_notice",
-          });
+
+      // Check if we are running a dev build of this version (e.g. v1.0.0-5-g...)
+      // If so, we are effectively ahead of the release, so don't show "New version available"
+      const isDevBuildOfLatest = stashVersion && stashVersion.startsWith(latestVersionString) && stashVersion !== latestVersionString;
+
+      if (gitHash !== hashString && !isDevBuildOfLatest) {
+        heading = (
+          <span>
+            <ExternalLink href={dataLatest.latestversion.url}>
+              {heading}
+            </ExternalLink>{" "}
+            {intl.formatMessage({
+              id: "config.about.new_version_notice",
+            })}
+          </span>
+        );
+      } else {
+        heading = (
+          <ExternalLink href={dataLatest.latestversion.url}>
+            {heading}
+          </ExternalLink>
+        );
       }
       return (
         <SettingGroup
@@ -59,18 +76,7 @@ export const SettingsAboutPanel: React.FC = () => {
           }}
         >
           <div className="setting">
-            <div>
-              <h3>
-                {intl.formatMessage({
-                  id: "config.about.build_hash",
-                })}
-              </h3>
-              <div className="value">
-                <ExternalLink href={`https://github.com/${latestRepo}/commit/${hashString}`}>
-                  {hashString}
-                </ExternalLink>
-              </div>
-            </div>
+
             <div>
               <Button
                 href="https://www.patreon.com/c/Creat1veB1te"

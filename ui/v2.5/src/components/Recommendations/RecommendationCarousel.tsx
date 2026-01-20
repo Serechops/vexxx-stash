@@ -2,6 +2,7 @@ import React from 'react';
 import { Box, Typography } from '@mui/material';
 import { useRecommendScenesQuery, RecommendationSource, ScrapedSceneDataFragment, SlimSceneDataFragment } from '../../core/generated-graphql';
 import { LoadingIndicator } from '../Shared/LoadingIndicator';
+import { SceneCardSkeleton } from '../Shared/Skeletons/SceneCardSkeleton';
 import { AlertModal as Alert } from '../Shared/Alert';
 import { SceneCard } from '../Scenes/SceneCard';
 import Carousel from '../Shared/Carousel';
@@ -89,7 +90,21 @@ export const RecommendationCarousel: React.FC<RecommendationCarouselProps> = ({
         }
     });
 
-    if (loading) return <LoadingIndicator />;
+    if (loading) {
+        return (
+            <RecommendationRow
+                header={title}
+                link={<></>}
+                className="scene-recommendations"
+            >
+                <Carousel itemWidth={320} gap={16}>
+                    {[...Array(4)].map((_, i) => (
+                        <SceneCardSkeleton key={i} />
+                    ))}
+                </Carousel>
+            </RecommendationRow>
+        );
+    }
     if (error) return <Alert text={error.message} show onConfirm={() => { }} onCancel={() => { }} />;
 
     const recommendations = data?.recommendScenes || [];
@@ -113,7 +128,7 @@ export const RecommendationCarousel: React.FC<RecommendationCarouselProps> = ({
                     const Badge = () => (
                         <Box
                             className="recommendation-badge-container"
-                            style={{ borderColor: badgeColor }}
+                            sx={{ borderColor: badgeColor }}
                         >
                             <Box className="recommendation-badge-header">
                                 <Typography variant="subtitle2" className="recommendation-badge-score">

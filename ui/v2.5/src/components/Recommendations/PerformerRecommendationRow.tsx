@@ -2,6 +2,7 @@ import React from 'react';
 import { Box, Typography } from '@mui/material';
 import { useRecommendPerformersQuery, RecommendationSource, PerformerDataFragment } from '../../core/generated-graphql';
 import { LoadingIndicator } from '../Shared/LoadingIndicator';
+import { PerformerCardSkeleton } from '../Shared/Skeletons/PerformerCardSkeleton';
 import { AlertModal as Alert } from '../Shared/Alert';
 import { PerformerCard } from '../Performers/PerformerCard';
 import Carousel from '../Shared/Carousel';
@@ -37,7 +38,21 @@ export const PerformerRecommendationRow: React.FC<PerformerRecommendationRowProp
         fetchPolicy: "network-only"
     });
 
-    if (loading) return <LoadingIndicator />;
+    if (loading) {
+        return (
+            <RecommendationRow
+                header={title}
+                link={<></>}
+                className="performer-recommendations"
+            >
+                <Carousel itemWidth={280} gap={16}>
+                    {[...Array(6)].map((_, i) => (
+                        <PerformerCardSkeleton key={i} />
+                    ))}
+                </Carousel>
+            </RecommendationRow>
+        );
+    }
     if (error) {
         console.error("PerformerRecommendationRow Error:", error);
         return <Alert text={error.message} show onConfirm={() => { }} onCancel={() => { }} />;
@@ -103,7 +118,7 @@ export const PerformerRecommendationRow: React.FC<PerformerRecommendationRowProp
                             <Box key={r.id} className="recommendation-item-wrapper">
                                 <Box
                                     className="recommendation-badge-container"
-                                    style={{ borderColor: badgeColor }}
+                                    sx={{ borderColor: badgeColor }}
                                 >
                                     <Box className="recommendation-badge-header">
                                         <Typography variant="subtitle2" className="recommendation-badge-score">

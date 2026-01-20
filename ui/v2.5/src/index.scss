@@ -20,6 +20,8 @@ $sidebar-width: 250px;
 @import "src/components/Groups/styles.scss";
 @import "src/components/Galleries/styles.scss";
 @import "src/components/Images/styles.scss";
+@import "src/components/Tags/styles.scss";
+@import "src/components/Studios/styles.scss";
 
 @import "src/components/Setup/styles.scss";
 @import "src/components/Shared/styles.scss";
@@ -28,7 +30,11 @@ $sidebar-width: 250px;
 @import "src/components/Shared/PackageManager/styles.scss";
 
 @import "src/components/Tagger/styles.scss";
+@import "src/components/Recommendations/styles.scss";
+@import "src/components/Settings/styles.scss";
+@import "src/hooks/styles.scss";
 @import "src/hooks/Interactive/interactive.scss";
+@import "src/hooks/Lightbox/styles.scss";
 
 
 @import "flag-icons/css/flag-icons.min.css";

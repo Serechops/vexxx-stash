@@ -128,7 +128,7 @@ const StudioBatchUpdateModal: React.FC<IStudioBatchUpdateModal> = ({
       }}
       disabled={!isIdle}
     >
-      <FormControl component="fieldset" sx={{ mb: 2 }}>
+      <FormControl component="fieldset" className="tagger-form-group">
         <Typography variant="subtitle1" gutterBottom>
           <FormattedMessage id="studio_tagger.studio_selection" />
         </Typography>
@@ -151,7 +151,7 @@ const StudioBatchUpdateModal: React.FC<IStudioBatchUpdateModal> = ({
           />
         </RadioGroup>
       </FormControl>
-      <FormControl component="fieldset" sx={{ mb: 2 }}>
+      <FormControl component="fieldset" className="tagger-form-group">
         <Typography variant="subtitle1" gutterBottom>
           <FormattedMessage id="studio_tagger.tag_status" />
         </Typography>
@@ -181,7 +181,7 @@ const StudioBatchUpdateModal: React.FC<IStudioBatchUpdateModal> = ({
             <FormattedMessage id="studio_tagger.refreshing_will_update_the_data" />
           </FormHelperText>
         </RadioGroup>
-        <Box sx={{ mt: 2 }}>
+        <Box className="tagger-input-group">
           <FormControlLabel
             control={
               <Checkbox
@@ -266,7 +266,7 @@ const StudioBatchAddModal: React.FC<IStudioBatchAddModal> = ({
       <FormHelperText>
         <FormattedMessage id="studio_tagger.any_names_entered_will_be_queried" />
       </FormHelperText>
-      <Box sx={{ mt: 1 }}>
+      <Box className="tagger-input-group">
         <FormControlLabel
           control={
             <Checkbox
@@ -499,7 +499,7 @@ const StudioTaggerList: React.FC<IStudioTaggerListProps> = ({
           <Stack direction="row" spacing={1}>
             <TextField
               size="small"
-              className="text-input"
+
               defaultValue={studio.name ?? ""}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                 setQueries({
@@ -511,7 +511,7 @@ const StudioTaggerList: React.FC<IStudioTaggerListProps> = ({
                 e.key === "Enter" &&
                 doBoxSearch(studio.id, queries[studio.id] ?? studio.name ?? "")
               }
-              sx={{ flexGrow: 1 }}
+              className="text-input tagger-flex-grow"
             />
             <Button
               variant="outlined"
@@ -556,7 +556,7 @@ const StudioTaggerList: React.FC<IStudioTaggerListProps> = ({
         subContent = (
           <Box key={studio.id}>
             <Stack direction="row" spacing={1} className="StudioTagger-box-link" alignItems="center">
-              <Box sx={{ flexGrow: 1 }}>{link}</Box>
+              <Box className="tagger-flex-grow">{link}</Box>
               <Button
                 variant="outlined"
                 onClick={() =>
@@ -574,7 +574,7 @@ const StudioTaggerList: React.FC<IStudioTaggerListProps> = ({
             {error[studio.id] && (
               <Box color="error.main" mt={1}>
                 <Typography component="strong" fontWeight="bold">
-                  <Box component="span" sx={{ mr: 1 }}>Error:</Box>
+                  <Box component="span" className="tagger-error-label">Error:</Box>
                   {error[studio.id]?.message}
                 </Typography>
                 <div>{error[studio.id]?.details}</div>
@@ -650,7 +650,7 @@ const StudioTaggerList: React.FC<IStudioTaggerListProps> = ({
     });
 
   return (
-    <Paper sx={{ p: 2 }}>
+    <Paper className="tagger-content-paper">
       {showBatchUpdate && (
         <StudioBatchUpdateModal
           close={() => setShowBatchUpdate(false)}
@@ -672,11 +672,11 @@ const StudioTaggerList: React.FC<IStudioTaggerListProps> = ({
           setBatchAddParents={setBatchAddParents}
         />
       )}
-      <Box ml="auto" mb={3}>
+      <Box className="tagger-action-header">
         <Button variant="outlined" onClick={() => setShowBatchAdd(true)}>
           <FormattedMessage id="studio_tagger.batch_add_studios" />
         </Button>
-        <Button variant="outlined" sx={{ ml: 3 }} onClick={() => setShowBatchUpdate(true)}>
+        <Button variant="outlined" className="tagger-button-spacer" onClick={() => setShowBatchUpdate(true)}>
           <FormattedMessage id="studio_tagger.batch_update_studios" />
         </Button>
       </Box>
@@ -792,7 +792,7 @@ export const StudioTagger: React.FC<ITaggerProps> = ({ studios }) => {
           ? batchJob.progress * 100
           : undefined;
       return (
-        <Box sx={{ px: 2 }}>
+        <Box className="tagger-status-container">
           <Typography variant="h6">
             <FormattedMessage id="studio_tagger.status_tagging_studios" />
           </Typography>

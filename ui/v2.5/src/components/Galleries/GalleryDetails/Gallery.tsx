@@ -256,20 +256,7 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
 
     return (
       <>
-        <Box
-          sx={{
-            position: "sticky",
-            top: 0,
-            zIndex: 10,
-            backgroundColor: "background.paper",
-            mx: -2,
-            px: 2,
-            borderBottom: 1,
-            borderColor: "divider",
-            mb: 2,
-            pt: 1
-          }}
-        >
+        <Box className="gallery-sticky-tabs">
           <Tabs
             value={activeTabKey}
             onChange={(_, k) => setActiveTabKey(k)}
@@ -294,7 +281,7 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
             {path ? (
               <Tab
                 label={
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box className="gallery-tab-label">
                     <FormattedMessage id="file_info" />
                     <Counter count={gallery.files.length} hideZero hideOne />
                   </Box>
@@ -349,20 +336,7 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
 
     return (
       <>
-        <Box
-          sx={{
-            position: "sticky",
-            top: 0,
-            zIndex: 10,
-            backgroundColor: "background.paper",
-            mx: -2,
-            px: 2,
-            borderBottom: 1,
-            borderColor: "divider",
-            mb: 2,
-            pt: 1
-          }}
-        >
+        <Box className="gallery-sticky-tabs">
           <Tabs
             value={add ? "add" : "images"}
             onChange={(_, k) => setMainTabKey(k)}
@@ -419,52 +393,16 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
   const title = galleryTitle(gallery);
 
   return (
-    <Box sx={{ display: "flex", flexWrap: "wrap", mx: -1.75 }}>
+    <Box className="gallery-page">
       <Helmet>
         <title>{title}</title>
       </Helmet>
       {maybeRenderDeleteDialog()}
-      <Box
-        className="gallery-tabs"
-        sx={{
-          flex: { md: "0 0 450px" },
-          maxWidth: { md: "450px" },
-          maxHeight: { md: "calc(100vh - 4rem)" },
-          overflow: "auto",
-          overflowWrap: "break-word",
-          wordWrap: "break-word",
-          order: { xs: 2, md: 1 },
-          pl: "15px",
-          pr: "15px",
-          position: "relative",
-          width: "100%",
-        }}
-      >
+      <Box className="gallery-tabs gallery-tabs-sidebar">
         <Box>
-          <Box
-            className="gallery-header-container"
-            sx={{
-              display: { lg: "flex" },
-              alignItems: { lg: "center" },
-              justifyContent: { lg: "space-between" },
-            }}
-          >
+          <Box className="gallery-header-container">
             {gallery.studio && (
-              <Box
-                className="gallery-studio-image"
-                sx={{
-                  flex: { lg: "0 0 25%" },
-                  order: { lg: 2 },
-                  display: "flex",
-                  justifyContent: "center",
-                  mb: { xs: 2, lg: 0 },
-                  "& img": {
-                    maxHeight: "100%",
-                    maxWidth: "100%",
-                    objectFit: "contain"
-                  }
-                }}
-              >
+              <Box className="gallery-studio-image">
                 <Link to={`/studios/${gallery.studio.id}`}>
                   <img
                     src={gallery.studio.image_path ?? ""}
@@ -477,30 +415,15 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
             <Typography
               variant="h3"
               className={cx("gallery-header", { "no-studio": !gallery.studio })}
-              sx={{
-                flex: { lg: "0 0 75%" },
-                order: { lg: 1 },
-                fontSize: { xs: "1.5rem", md: "1.75rem" },
-                mt: "30px",
-                mb: 0
-              }}
             >
               <TruncatedText lineCount={2} text={title} />
             </Typography>
           </Box>
 
-          <Box
-            className="gallery-subheader"
-            sx={{
-              display: "flex",
-              justifyContent: "space-between",
-              mt: 1,
-            }}
-          >
+          <Box className="gallery-subheader">
             <Box
               component="span"
               className="date"
-              sx={{ color: "text.secondary" }}
               data-value={gallery.date}
             >
               {!!gallery.date && <FormattedDate value={gallery.date} />}
@@ -508,27 +431,10 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
           </Box>
         </Box>
 
-        <Box
-          className="gallery-toolbar"
-          sx={{
-            alignItems: "center",
-            display: "flex",
-            justifyContent: "space-between",
-            mb: 1,
-            mt: 1,
-            pb: 1,
-            width: "100%",
-          }}
-        >
+        <Box className="gallery-toolbar">
           <Box
             component="span"
             className="gallery-toolbar-group"
-            sx={{
-              alignItems: "center",
-              columnGap: 1,
-              display: "flex",
-              width: "100%",
-            }}
           >
             <RatingSystem
               value={gallery.rating100}
@@ -539,14 +445,7 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
           </Box>
           <Box
             component="span"
-            className="gallery-toolbar-group"
-            sx={{
-              alignItems: "center",
-              columnGap: 1,
-              display: "flex",
-              width: "100%",
-              justifyContent: "flex-end",
-            }}
+            className="gallery-toolbar-group end"
           >
             <Box component="span">
               <OrganizedButton
@@ -560,20 +459,7 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
         </Box>
         {renderTabs()}
       </Box>
-      <Box
-        className="gallery-container"
-        sx={{
-          flex: { md: "0 0 calc(100% - 450px)" },
-          height: { md: "calc(100vh - 4rem)" },
-          maxWidth: { md: "calc(100% - 450px)" },
-          overflow: "auto",
-          pl: "15px",
-          pr: "15px",
-          position: "relative",
-          width: "100%",
-          order: { xs: 1, md: 2 }
-        }}
-      >
+      <Box className="gallery-container gallery-content-container">
         {renderRightTabs()}
       </Box>
     </Box>

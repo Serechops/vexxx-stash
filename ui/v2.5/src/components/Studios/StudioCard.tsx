@@ -29,7 +29,7 @@ function maybeRenderParent(
 ) {
   if (!hideParent && studio.parent_studio) {
     return (
-      <Box sx={{ mt: 0.5, fontSize: "0.875rem" }}>
+      <Box className="studio-relation">
         <FormattedMessage
           id="part_of"
           values={{
@@ -48,7 +48,7 @@ function maybeRenderParent(
 function maybeRenderChildren(studio: GQL.StudioDataFragment) {
   if (studio.child_studios.length > 0) {
     return (
-      <Box sx={{ mt: 0.5, fontSize: "0.875rem" }}>
+      <Box className="studio-relation">
         <FormattedMessage
           id="parent_of"
           values={{
@@ -169,15 +169,8 @@ export const StudioCard: React.FC<IProps> = PatchComponent(
         <HoverPopover placement="bottom" content={popoverContent}>
           <Button
             variant="text"
+            className="studio-tag-popover-button"
             size="small"
-            sx={{
-              minWidth: 0,
-              px: 1,
-              color: "text.primary",
-              "& span": {
-                ml: 0.5
-              }
-            }}
           >
             <LocalOfferIcon fontSize="small" />
             <span>{studio.tags.length}</span>
@@ -240,61 +233,30 @@ export const StudioCard: React.FC<IProps> = PatchComponent(
     }
 
     return (
-      <Box
-        className={`studio-card zoom-${zoomIndex}`}
-        sx={{
-          "& .favorite-button": {
-            position: "absolute",
-            top: 10,
-            right: 5,
-            p: 0,
-            zIndex: 1,
-            "&.not-favorite": {
-              opacity: 0,
-              transition: "opacity 0.2s"
-            }
-          },
-          "&:hover .favorite-button.not-favorite": {
-            opacity: 1
-          }
-        }}
-      >
+      <Box className={`studio-card zoom-${zoomIndex}`}>
         <GridCard
           className="hover:!scale-100 !transition-none"
           url={`/studios/${studio.id}`}
           title={studio.name}
           linkClassName="studio-card-header"
           image={
-            <Box sx={{ position: "relative", width: "100%", pb: "50%" }}>
-              <Box
-                sx={{
-                  position: "absolute",
-                  inset: 0,
-                  p: 1,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
+            <Box className="studio-card-image-container">
+              <Box className="studio-card-image-wrapper">
                 <Box
                   component="img"
                   loading="lazy"
                   alt={studio.name}
                   src={studio.image_path ?? ""}
-                  sx={{
-                    maxWidth: "100%",
-                    maxHeight: "100%",
-                    objectFit: "contain",
-                  }}
+                  className="studio-card-image"
                 />
               </Box>
             </Box>
           }
           details={
-            <Box sx={{ minHeight: "3.5rem" }}>
+            <Box className="studio-details-container">
               {maybeRenderParent(studio, hideParent)}
               {maybeRenderChildren(studio)}
-              <Box sx={{ mt: 1 }}>
+              <Box className="rating-banner-container">
                 <RatingBanner rating={studio.rating100} />
               </Box>
             </Box>

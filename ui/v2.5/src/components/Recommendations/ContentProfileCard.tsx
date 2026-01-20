@@ -32,7 +32,7 @@ export const ContentProfileCard: React.FC = () => {
                 title="Content Profile"
                 subheader={`Last updated: ${new Date(profile.updated_at).toLocaleDateString()}`}
                 action={
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <div className="profile-action-container">
                         <IconButton
                             onClick={() => setShowInfo(true)}
                             size="small"
@@ -55,9 +55,9 @@ export const ContentProfileCard: React.FC = () => {
             <CardContent>
                 <div className="profile-section">
                     <Typography variant="subtitle2" gutterBottom>Top Tags</Typography>
-                    <div className="tags-container" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1rem' }}>
+                    <div className="tags-container profile-tags-container">
                         {profile.topTags.map((t) => (
-                            <Link key={t.tag.id} to={`/tags/${t.tag.id}`} style={{ textDecoration: 'none' }}>
+                            <Link key={t.tag.id} to={`/tags/${t.tag.id}`} className="profile-link">
                                 <Tooltip title={`Weight: ${t.weight.toFixed(2)}`}>
                                     <Chip label={t.tag.name} size="small" clickable />
                                 </Tooltip>
@@ -68,14 +68,14 @@ export const ContentProfileCard: React.FC = () => {
 
                 <div className="profile-section">
                     <Typography variant="subtitle2" gutterBottom>Top Performers</Typography>
-                    <div className="performers-container" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1rem' }}>
+                    <div className="performers-container profile-performers-container">
                         {profile.topPerformers.map((p) => (
                             <Link key={p.performer.id} to={`/performers/${p.performer.id}`}>
                                 <Tooltip title={`${p.performer.name} (${p.weight.toFixed(2)})`}>
                                     <Avatar
                                         src={p.performer.image_path || undefined}
                                         alt={p.performer.name}
-                                        sx={{ width: 64, height: 64 }}
+                                        className="profile-performer-avatar"
                                     />
                                 </Tooltip>
                             </Link>
@@ -85,7 +85,7 @@ export const ContentProfileCard: React.FC = () => {
 
                 <div className="profile-section">
                     <Typography variant="subtitle2" gutterBottom>Top Studios</Typography>
-                    <div className="studios-container" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                    <div className="studios-container profile-studios-container">
                         {profile.topStudios.map((s) => (
                             <Link key={s.studio.id} to={`/studios/${s.studio.id}`}>
                                 <Tooltip title={`${s.studio.name} (${s.weight.toFixed(2)})`}>
@@ -93,8 +93,7 @@ export const ContentProfileCard: React.FC = () => {
                                         src={s.studio.image_path || undefined}
                                         alt={s.studio.name}
                                         variant="rounded"
-                                        sx={{ width: 80, height: 60 }}
-                                        imgProps={{ style: { objectFit: 'contain' } }}
+                                        className="profile-studio-avatar"
                                     />
                                 </Tooltip>
                             </Link>
@@ -126,13 +125,13 @@ export const ContentProfileCard: React.FC = () => {
                     <Typography paragraph variant="body2">
                         Score = (Visual Match % × .50) + (Profile Affinity % × .50)
                         <br />
-                        <span style={{ fontSize: '0.8em', color: 'gray' }}>Combines how well the scene matches your tags/performers with your historical preference for that studio/category.</span>
+                        <span className="scoring-logic-note">Combines how well the scene matches your tags/performers with your historical preference for that studio/category.</span>
                     </Typography>
                     <Typography variant="subtitle2">Performer Recommendations</Typography>
                     <Typography paragraph variant="body2">
                         Score = (History % × Weight) + (Attribute Match % × (1 - Weight))
                         <br />
-                        <span style={{ fontSize: '0.8em', color: 'gray' }}>
+                        <span className="scoring-logic-note">
                             <strong>Local Performers:</strong> Balances your Viewing History (Favorites) with Attribute Matching (Lookalikes).
                             <br />
                             <strong>Visual Match:</strong> Ignores history and finds performers who strictly match your physical preference (Hair, Eyes, Ethnicity).

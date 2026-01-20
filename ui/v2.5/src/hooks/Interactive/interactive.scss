@@ -22,6 +22,11 @@ div.scene-interactive-status {
   .status-text {
     margin-left: 0.5rem;
   }
+
+  .interactive-status-icon {
+    animation: pulse 1s infinite;
+    font-size: 10px;
+  }
 }
 
 @keyframes fadepulse {

@@ -43,8 +43,8 @@ const TaggerSceneDetails: React.FC<ITaggerSceneDetails> = ({ scene }) => {
   return (
     <Box className="original-scene-details">
       <Collapse in={open}>
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-          <Box sx={{ flex: { xs: '1 1 100%', lg: '1 1 48%' } }}>
+        <Box className="tagger-scene-details-container">
+          <Box className="tagger-scene-column">
             <Typography variant="h6">{objectTitle(scene)}</Typography>
             <Typography variant="subtitle1" color="textSecondary">
               {scene.studio?.name}
@@ -53,15 +53,14 @@ const TaggerSceneDetails: React.FC<ITaggerSceneDetails> = ({ scene }) => {
             </Typography>
             <TruncatedText text={scene.details ?? ""} lineCount={3} />
           </Box>
-          <Box sx={{ flex: { xs: '1 1 100%', lg: '1 1 48%' } }}>
+          <Box className="tagger-scene-column">
             <div>
               {sorted.map((performer) => (
                 <Grid container key={performer.id} className="performer-tag-container">
                   <Grid
-                    className="performer-tag zoom-2"
+                    className="performer-tag zoom-2 performer-thumbnail-grid"
                     component={Link}
                     to={`/performers/${performer.id}`}
-                    sx={{ m: "auto" }}
                   >
                     <img
                       loading="lazy"
@@ -198,7 +197,7 @@ export const TaggerScene: React.FC<PropsWithChildren<ITaggerScene>> = ({
         value={displayValue}
         onChange={(e) => setQueryString(e.target.value)}
         onKeyDown={(e) => e.key === "Enter" && query()}
-        sx={isOverridden ? { '& .MuiOutlinedInput-root': { backgroundColor: '#2a4a5e' } } : undefined}
+        className={isOverridden ? "tagger-query-override" : undefined}
         slotProps={{
           input: {
             startAdornment: (
@@ -265,7 +264,7 @@ export const TaggerScene: React.FC<PropsWithChildren<ITaggerScene>> = ({
       <Grid container spacing={2}>
         <Grid
           size={{ xs: 12, sm: "grow", lg: 6 }}
-          sx={{ overflow: "hidden", alignItems: "center", display: "flex", flexDirection: { xs: "column", sm: "row" } }}
+          className="scene-card-container"
         >
           <Box className="scene-card" mr={3}>
             <Link to={url}>
@@ -280,15 +279,15 @@ export const TaggerScene: React.FC<PropsWithChildren<ITaggerScene>> = ({
               {maybeRenderSpriteIcon()}
             </Link>
           </Box>
-          <Box className="scene-link" sx={{ overflow: "hidden" }} component={Link} to={url}>
+          <Box className="scene-link scene-link-container" component={Link} to={url}>
             <TruncatedText text={objectTitle(scene)} lineCount={2} />
           </Box>
           {/* Full file path for identification */}
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 1, wordBreak: 'break-all' }}>
+          <Typography variant="body2" color="text.secondary" className="scene-path">
             {objectPath(scene)}
           </Typography>
         </Grid>
-        <Grid size={{ xs: 12, md: 6 }} sx={{ my: 1 }}>
+        <Grid size={{ xs: 12, md: 6 }} className="scene-query-column">
           <Box>
             {renderQueryForm()}
             {scrapeSceneFragment ? (

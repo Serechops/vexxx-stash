@@ -51,7 +51,7 @@ export const ToastProvider: React.FC = ({ children }) => {
         <Alert
           severity={toast.variant === "danger" ? "error" : toast.variant === "warning" ? "warning" : "success"}
           variant="filled"
-          sx={{ width: '100%' }}
+          className="toast-alert"
           action={
             toast.variant === "danger" ? (
               <IconButton

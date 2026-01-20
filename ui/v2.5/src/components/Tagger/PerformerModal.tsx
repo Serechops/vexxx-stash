@@ -91,14 +91,14 @@ const PerformerModal: React.FC<IPerformerModalProps> = ({
     if (!text) return;
 
     return (
-      <Grid container spacing={0} sx={{ mb: 1 }}>
+      <Grid container spacing={0} className="performer-modal-field-row">
         <Grid size={5} className="performer-create-modal-field" key={name}>
           {!create && (
             <Button
               onClick={() => toggleField(name)}
               variant="outlined"
               color={excluded[name] ? "inherit" : "success"}
-              sx={{ minWidth: 0, p: 0.5, mr: 1 }}
+              className="performer-modal-toggle-btn"
             >
               <Icon icon={excluded[name] ? faTimes : faCheck} />
             </Button>
@@ -128,14 +128,14 @@ const PerformerModal: React.FC<IPerformerModalProps> = ({
     if (!text) return;
 
     return (
-      <Grid container spacing={0} sx={{ mb: 1 }}>
+      <Grid container spacing={0} className="performer-modal-field-row">
         <Grid size={5} className="performer-create-modal-field" key={name}>
           {!create && (
             <Button
               onClick={() => toggleField(name)}
               variant="outlined"
               color={excluded[name] ? "inherit" : "success"}
-              sx={{ minWidth: 0, p: 0.5, mr: 1 }}
+              className="performer-modal-toggle-btn"
             >
               <Icon icon={excluded[name] ? faTimes : faCheck} />
             </Button>
@@ -170,8 +170,7 @@ const PerformerModal: React.FC<IPerformerModalProps> = ({
               onClick={() => toggleField("image")}
               variant="outlined"
               color={excluded.image ? "inherit" : "success"}
-              className="performer-image-exclude"
-              sx={{ minWidth: 0, p: 0.5 }}
+              className="performer-image-exclude-btn performer-modal-image-exclude-btn"
             >
               <Icon icon={excluded.image ? faTimes : faCheck} />
             </Button>
@@ -179,7 +178,8 @@ const PerformerModal: React.FC<IPerformerModalProps> = ({
           <Box
             component="img"
             src={images[imageIndex]}
-            sx={{ display: imageState !== "loaded" ? "none" : "block", width: "100%" }}
+            style={{ display: imageState !== "loaded" ? "none" : "block" }}
+            className="w-100"
             alt=""
             onLoad={() => handleLoad(imageIndex)}
             onError={handleError}
@@ -188,7 +188,7 @@ const PerformerModal: React.FC<IPerformerModalProps> = ({
             <LoadingIndicator message="Loading image..." />
           )}
           {imageState === "error" && (
-            <Box sx={{ height: "100%", display: "flex", justifyContent: "center", alignItems: "center" }}>
+            <Box className="performer-modal-image-error">
               <b>Error loading image.</b>
             </Box>
           )}
@@ -197,7 +197,7 @@ const PerformerModal: React.FC<IPerformerModalProps> = ({
           <Button onClick={setPrev} disabled={images.length === 1} variant="outlined">
             <Icon icon={faArrowLeft} />
           </Button>
-          <Typography variant="h5" sx={{ flexGrow: 1, textAlign: "center" }}>
+          <Typography variant="h5" className="performer-modal-image-title">
             Select performer image
             <br />
             {imageIndex + 1} of {images.length}
@@ -215,7 +215,7 @@ const PerformerModal: React.FC<IPerformerModalProps> = ({
     if (!base) return;
 
     return (
-      <Typography variant="h6" sx={{ mt: 2 }}>
+      <Typography variant="h6" className="performer-modal-link">
         <ExternalLink href={`${base}performers/${performer.remote_site_id}`}>
           <FormattedMessage id="stashbox.source" />
           <Icon icon={faExternalLinkAlt} className="ml-2" />

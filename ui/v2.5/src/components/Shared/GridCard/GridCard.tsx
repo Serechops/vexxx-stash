@@ -145,11 +145,7 @@ const DragHandle: React.FC<{
       component="span"
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
-      sx={{
-        "& .card-drag-handle": {
-          filter: "drop-shadow(1px 1px 1px rgba(0, 0, 0, 0.7))",
-        },
-      }}
+      className="card-drag-handle-container"
     >
       <Icon className="card-drag-handle" icon={faGripLines} />
     </Box>
@@ -167,22 +163,7 @@ const MoveTarget: React.FC<{ dragSide: DragSide }> = ({ dragSide }) => {
 
   return (
     <Box
-      className={`move-target move-target-${dragSide === DragSide.BEFORE ? "before" : "after"
-        }`}
-      sx={{
-        alignItems: "center",
-        backgroundColor: "primary.main",
-        color: "secondary.main",
-        display: "flex",
-        height: "100%",
-        justifyContent: "center",
-        opacity: 0.5,
-        pointerEvents: "none",
-        position: "absolute",
-        width: "10%",
-        left: dragSide === DragSide.BEFORE ? 0 : undefined,
-        right: dragSide === DragSide.AFTER ? 0 : undefined,
-      }}
+      className={`move-target move-target-${dragSide === DragSide.BEFORE ? "before" : "after"}`}
     ></Box>
   );
 };
@@ -237,7 +218,7 @@ export const GridCard: React.FC<ICardProps> = PatchComponent(
         const percentStr = percentValue + "%";
         return (
           <div title={Math.round(percentValue) + "%"} className="progress-bar">
-            <Box className="progress-indicator" sx={{ width: percentStr }} />
+            <Box className="progress-indicator" style={{ width: percentStr }} />
           </div>
         );
       }
@@ -251,31 +232,11 @@ export const GridCard: React.FC<ICardProps> = PatchComponent(
         )}
         onClick={handleImageClick}
         {...dragProps}
-        sx={{
-          ...(props.width && !ScreenUtils.isMobile()
+        style={
+          props.width && !ScreenUtils.isMobile()
             ? { width: `${props.width}px` }
-            : {}),
-          // Link styling
-          "& a": {
-            color: "text.primary",
-            textDecoration: "none",
-          },
-          // Hover interactions for overlays
-          "&:hover, &:active": {
-            "& .rating-banner, & .stash-rating-banner, & .studio-overlay, & .stash-studio-overlay": {
-              opacity: 0,
-              transition: "opacity 0.5s",
-            },
-            "& .studio-overlay:hover, & .studio-overlay:active, & .stash-studio-overlay:hover, & .stash-studio-overlay:active": {
-              opacity: 0.75,
-              transition: "opacity 0.5s",
-            },
-          },
-          // Rating banner base transition (if not handled elsewhere)
-          "& .rating-banner, & .stash-rating-banner": {
-            transition: "opacity 0.5s",
-          },
-        }}
+            : {}
+        }
       >
         {moveTarget !== undefined && <MoveTarget dragSide={moveTarget} />}
         <Controls>

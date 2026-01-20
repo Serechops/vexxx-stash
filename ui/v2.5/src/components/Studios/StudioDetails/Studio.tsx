@@ -169,26 +169,10 @@ const StudioTabs: React.FC<{
   }, [potentialData]);
 
   const TabLabel: React.FC<{ messageID: string; count: number }> = ({ messageID, count }) => (
-    <Box sx={{ position: 'relative', display: 'inline-flex', alignItems: 'center', pr: count > 0 ? 3 : 0 }}>
+    <Box className={cx("studio-tab-label", { "has-count": count > 0 })}>
       <FormattedMessage id={messageID} />
       {count > 0 && (
-        <Box
-          sx={{
-            position: 'absolute',
-            top: -8,
-            right: -4,
-            backgroundColor: 'primary.main',
-            color: 'primary.contrastText',
-            borderRadius: '10px',
-            px: 0.75,
-            py: 0.25,
-            fontSize: '0.7rem',
-            fontWeight: 600,
-            lineHeight: 1,
-            minWidth: '20px',
-            textAlign: 'center',
-          }}
-        >
+        <Box className="studio-tab-badge">
           {abbreviateCounter && count >= 1000 ? `${Math.floor(count / 1000)}k` : count}
         </Box>
       )}
@@ -486,11 +470,7 @@ const StudioPage: React.FC<IProps> = ({ studio, tabKey }) => {
   return (
     <Box
       id="studio-page"
-      sx={{
-        display: "flex",
-        flexWrap: "wrap",
-        mx: -1.5,
-      }}
+      className="studio-page"
     >
       <Helmet>
         <title>{studio.name ?? intl.formatMessage({ id: "studio" })}</title>
@@ -498,43 +478,15 @@ const StudioPage: React.FC<IProps> = ({ studio, tabKey }) => {
 
       <Box
         className={headerClassName}
-        sx={{
-          width: "100%",
-          position: "relative",
-          mb: 4,
-          "&.collapsed": {
-            "& .logo": {
-              maxHeight: "200px",
-            },
-          },
-          "&.full-width": {
-            maxWidth: "100%",
-          },
-        }}
       >
         <BackgroundImage
           imagePath={studio.image_path ?? undefined}
           show={enableBackgroundImage && !isEditing}
         />
-        <Box
-          className="detail-container"
-          sx={{
-            px: { xs: 2, sm: 4, md: 5 },
-            py: 4,
-          }}
-        >
+        <Box className="detail-container">
           <HeaderImage encodingImage={encodingImage}>
             {studioImage && (
-              <Box
-                sx={{
-                  mb: 4,
-                  "& .logo": {
-                    maxHeight: "50vh",
-                    maxWidth: "100%",
-                    objectFit: "contain",
-                  },
-                }}
-              >
+              <Box className="studio-logo-container">
                 <DetailImage
                   className="logo"
                   alt={studio.name}
@@ -544,23 +496,7 @@ const StudioPage: React.FC<IProps> = ({ studio, tabKey }) => {
             )}
           </HeaderImage>
           <Box className="row">
-            <Box
-              className="studio-head col"
-              sx={{
-                "& .name-icons": {
-                  display: "inline-flex",
-                  alignItems: "center",
-                  ml: 2,
-                  verticalAlign: "middle",
-                  "& .not-favorite": {
-                    color: "rgba(191, 204, 214, 0.5)",
-                  },
-                  "& .favorite": {
-                    color: "#ff7373",
-                  },
-                },
-              }}
-            >
+            <Box className="studio-head col">
               <DetailTitle name={studio.name ?? ""} classNamePrefix="studio">
                 {!isEditing && (
                   <ExpandCollapseButton
@@ -578,23 +514,7 @@ const StudioPage: React.FC<IProps> = ({ studio, tabKey }) => {
               </DetailTitle>
 
               <AliasList aliases={studio.aliases} />
-              <Box
-                className="quality-group"
-                sx={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  mt: 0.5,
-                  "& .rating-stars-precision-full .star-rating-number": {
-                    minWidth: "0.75rem",
-                  },
-                  "& .rating-stars-precision-half .star-rating-number, & .rating-stars-precision-tenth .star-rating-number": {
-                    minWidth: "1.45rem",
-                  },
-                  "& .rating-stars-precision-quarter .star-rating-number": {
-                    minWidth: "2rem",
-                  },
-                }}
-              >
+              <Box className="quality-group">
                 <RatingSystem
                   value={studio.rating100}
                   onSetRating={(value) => setRating(value)}
@@ -646,7 +566,7 @@ const StudioPage: React.FC<IProps> = ({ studio, tabKey }) => {
         <CompressedStudioDetailsPanel studio={studio} />
       )}
 
-      <Box className="detail-body" sx={{ width: "100%", px: { xs: 2, sm: 4, md: 5 } }}>
+      <Box className="detail-body">
         <Box className="studio-body">
           <Box className="studio-tabs">
             {!isEditing && (

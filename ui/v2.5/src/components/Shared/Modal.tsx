@@ -74,13 +74,13 @@ export const ModalComponent: React.FC<IModal> = ({
     >
       <DialogTitle>
         <Box display="flex" alignItems="center">
-          {icon && (isFaIcon(icon) ? <Icon icon={icon} className="mr-2" /> : <Box component="span" sx={{ mr: 1, display: "flex", alignItems: "center" }}>{icon}</Box>)}
+          {icon && (isFaIcon(icon) ? <Icon icon={icon} className="mr-2" /> : <Box component="span" className="modal-icon-container">{icon}</Box>)}
           <span>{header ?? ""}</span>
         </Box>
       </DialogTitle>
       <DialogContent dividers>{children}</DialogContent>
       <DialogActions>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+        <Box className="modal-footer-content">
           <Box>
             {leftFooterButtons}
           </Box>

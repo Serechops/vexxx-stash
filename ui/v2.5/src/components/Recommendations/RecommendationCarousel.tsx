@@ -112,26 +112,16 @@ export const RecommendationCarousel: React.FC<RecommendationCarouselProps> = ({
 
                     const Badge = () => (
                         <Box
-                            sx={{
-                                mb: 1,
-                                padding: "4px 8px",
-                                borderRadius: "4px",
-                                backgroundColor: "background.paper",
-                                borderLeft: "4px solid",
-                                borderColor: badgeColor,
-                                display: "flex",
-                                flexDirection: "column",
-                                alignItems: "flex-start",
-                                boxShadow: 1
-                            }}
+                            className="recommendation-badge-container"
+                            style={{ borderColor: badgeColor }}
                         >
-                            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                                <Typography variant="subtitle2" sx={{ fontWeight: "bold", lineHeight: 1 }}>
+                            <Box className="recommendation-badge-header">
+                                <Typography variant="subtitle2" className="recommendation-badge-score">
                                     {scorePct}% Match
                                 </Typography>
                             </Box>
                             {r.reason && (
-                                <Typography variant="caption" sx={{ fontSize: "0.7rem", opacity: 0.7, mt: 0.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>
+                                <Typography variant="caption" className="recommendation-badge-reason">
                                     {r.reason}
                                 </Typography>
                             )}
@@ -140,9 +130,9 @@ export const RecommendationCarousel: React.FC<RecommendationCarouselProps> = ({
 
                     if (r.type === 'scene' && r.scene) {
                         return (
-                            <Box key={r.id} sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
+                            <Box key={r.id} className="recommendation-item-wrapper">
                                 <Badge />
-                                <Box sx={{ flexGrow: 1, position: "relative" }}>
+                                <Box className="recommendation-item-content">
                                     <SceneCard scene={r.scene} />
                                 </Box>
                             </Box>
@@ -153,9 +143,9 @@ export const RecommendationCarousel: React.FC<RecommendationCarouselProps> = ({
                         const slimScene = scrapedToSlim(scene);
 
                         return (
-                            <Box key={r.stash_db_id || r.id} sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
+                            <Box key={r.stash_db_id || r.id} className="recommendation-item-wrapper">
                                 <Badge />
-                                <Box sx={{ flexGrow: 1, position: "relative" }}>
+                                <Box className="recommendation-item-content">
                                     <SceneCard
                                         scene={slimScene}
                                         link={scene.urls?.[0] || undefined}

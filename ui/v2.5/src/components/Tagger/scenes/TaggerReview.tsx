@@ -35,7 +35,7 @@ const EntityBadge: React.FC<{ isNew: boolean }> = ({ isNew }) => (
         size="small"
         color={isNew ? "success" : "info"}
         label={isNew ? "new" : "updated"}
-        sx={{ ml: 0.5 }}
+        className="review-badge"
     />
 );
 
@@ -50,14 +50,14 @@ const SceneCard: React.FC<{ group: ISceneGroup; defaultExpanded?: boolean }> = (
         <Accordion defaultExpanded={defaultExpanded} className="tagger-review-section">
             <AccordionSummary
                 expandIcon={<Icon icon={faChevronDown} />}
-                sx={{ display: 'flex', alignItems: 'center' }}
+                className="review-summary"
             >
-                <Stack direction="row" alignItems="center" spacing={1} sx={{ flex: 1 }}>
+                <Stack direction="row" alignItems="center" spacing={1} className="review-header-stack">
                     <Icon icon={faFilm} />
                     <Link to={`/scenes/${group.sceneId}`} className="tagger-review-entry-name" onClick={(e) => e.stopPropagation()}>
                         {group.sceneTitle}
                     </Link>
-                    <Typography variant="caption" color="textSecondary" sx={{ ml: 'auto', mr: 1 }}>
+                    <Typography variant="caption" color="textSecondary" className="review-timestamp">
                         {formatTime(group.timestamp)}
                     </Typography>
                 </Stack>

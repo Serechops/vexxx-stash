@@ -104,18 +104,6 @@ export const HoverScrubber: React.FC<IHoverScrubber> = ({
       className={cx("hover-scrubber", {
         "hover-scrubber-inactive": !totalSprites,
       })}
-      sx={{
-        bottom: 0,
-        height: "20px",
-        overflow: "hidden",
-        position: "absolute",
-        width: "100%",
-        "&.hover-scrubber-inactive": {
-          "& .hover-scrubber-area": {
-            cursor: "inherit"
-          }
-        }
-      }}
     >
       <Box
         className="hover-scrubber-area"
@@ -125,32 +113,12 @@ export const HoverScrubber: React.FC<IHoverScrubber> = ({
         onTouchEnd={onLeave}
         onTouchCancel={onLeave}
         onClick={onScrubberClick}
-        sx={{
-          cursor: "col-resize",
-          height: "100%",
-          position: "absolute",
-          width: "100%",
-          zIndex: 1
-        }}
       />
-      <Box
-        className="hover-scrubber-indicator"
-        sx={{
-          bottom: 0,
-          height: "4px",
-          position: "absolute",
-          width: "100%"
-        }}
-      >
+      <Box className="hover-scrubber-indicator">
         {activeIndex !== undefined && (
           <Box
             className="hover-scrubber-indicator-marker"
             style={indicatorStyle}
-            sx={{
-              backgroundColor: "primary.main",
-              height: "100%",
-              transition: "width 0.1s"
-            }}
           />
         )}
       </Box>

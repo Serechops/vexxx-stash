@@ -1,0 +1,54 @@
+// Styles for Lightbox module
+@import "../../styles/theme";
+
+.lightbox-options-container {
+    min-width: 300px;
+    padding: 1rem; // p: 2
+}
+
+.lightbox-display-mode-select {
+    background-color: transparent;
+}
+
+.lightbox-nav-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+
+    svg {
+        filter: drop-shadow(2px 2px 2px black);
+        font-size: 4rem;
+        opacity: 0.4;
+
+        &:hover {
+            opacity: 1;
+        }
+    }
+
+    &.left {
+        left: 0;
+    }
+
+    &.right {
+        right: 0;
+    }
+}
+
+.lightbox-thumb-nav-btn {
+    svg {
+        font-size: 4rem;
+        opacity: 0.4;
+
+        &:hover {
+            opacity: 1;
+        }
+    }
+}
+
+.lightbox-thumb-nav-icon {
+    margin-right: 1rem; // mr: 2
+}
+
+.lightbox-thumb-nav-icon-right {
+    margin-left: 1rem; // ml: 2
+}

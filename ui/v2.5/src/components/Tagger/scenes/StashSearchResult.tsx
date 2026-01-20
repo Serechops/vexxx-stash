@@ -199,7 +199,7 @@ const getFingerprintStatus = (
         )}
         {checksumMatch && (
           <Typography fontWeight="bold" component="div">
-            <Box component="span" sx={{ mr: 1 }}>
+            <Box component="span" className="success-icon-container">
               <SuccessIcon />
             </Box>
             <FormattedMessage
@@ -831,7 +831,7 @@ const StashSearchResult: React.FC<IStashSearchResultProps> = ({
 
   return (
     <>
-      <Grid size={isActive ? { lg: 6 } : {}} sx={{ width: "100%" }}>
+      <Grid size={isActive ? { lg: 6 } : {}} className="stash-search-result-container">
         <Grid container spacing={0}>
           {maybeRenderCoverImage()}
           <Box className="scene-metadata" display="flex" flexDirection="column" justifyContent="center">
@@ -908,23 +908,10 @@ export const SceneSearchResults: React.FC<ISceneSearchResults> = ({
     }
   }, [scenes, selectedResult]);
 
-  function getSx(i: number) {
-    return {
-      mt: 2,
-      mx: 0,
-      cursor: "pointer",
-      ...(i === selectedResult
-        ? {
-          backgroundColor: "action.selected",
-          border: "1px solid",
-          borderColor: "primary.main",
-        }
-        : {}),
-    };
-  }
+
 
   return (
-    <Box component="ul" sx={{ p: 0, m: 0, mt: 3, listStyle: "none" }}>
+    <Box component="ul" className="scene-search-results-list">
       {scenes.map((s, i) => (
         // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions, react/no-array-index-key
         <Box
@@ -932,7 +919,6 @@ export const SceneSearchResults: React.FC<ISceneSearchResults> = ({
           // eslint-disable-next-line react/no-array-index-key
           key={i}
           onClick={() => setSelectedResult(i)}
-          sx={getSx(i)}
           className={cx("search-result", {
             "selected-result active": i === selectedResult,
           })}

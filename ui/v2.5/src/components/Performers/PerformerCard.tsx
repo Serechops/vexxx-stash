@@ -132,123 +132,54 @@ export const PerformerCard: React.FC<IPerformerCardProps> = PatchComponent(
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         onClick={handleCardClick}
-        sx={{
-          position: "relative",
-          borderRadius: "12px",
-          overflow: "hidden",
-          backgroundColor: "grey.900",
-          transition: "all 0.3s ease",
-          height: "100%",
-          width: cardWidth ? cardWidth : "100%",
-          "&:hover": {
-            transform: "scale(1.02)",
-            boxShadow: "0 10px 30px rgba(0, 0, 0, 0.5)",
-            zIndex: 20,
-            "& .overlay-content": {
-              background: "linear-gradient(to top, rgba(0, 0, 0, 0.95) 20%, rgba(0, 0, 0, 0.7) 60%, transparent 100%)",
-            }
-          },
-          "&.selected": {
-            boxShadow: (theme) => `0 0 0 3px ${theme.palette.primary.main}`,
-          }
-        }}
+        style={{ width: cardWidth ? cardWidth : undefined }}
       >
-        <LinkWrapper>          {/* Media Container: Full Bleed */}
-          <Box
-            className="overlay-media"
-            // ...
-            sx={{
-              position: "relative",
-              width: "100%",
-              height: "100%",
-              aspectRatio: "2/3", // Performers are usually portrait.
-              bgcolor: "black",
-            }}
-          >
+        <LinkWrapper>
+          {/* Media Container: Full Bleed */}
+          <Box className="performer-card-media">
             <Box
               component="img"
               loading="lazy"
               alt={performer.name ?? ""}
               src={performer.image_path ?? ""}
-              sx={{
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-                objectPosition: "top", // Face usually at top
-                transition: "transform 0.7s"
-              }}
             />
           </Box>
 
           {/* Top Section: Rating & Favorite */}
-          <Box sx={{ position: "absolute", top: 0, left: 0, right: 0, p: 1, display: "flex", justifyContent: "space-between", alignItems: "flex-start", zIndex: 16, pointerEvents: "none" }}>
-            <Box sx={{ display: "flex", gap: 0.5, pointerEvents: "auto" }}>
+          <Box className="performer-card-top">
+            <Box className="performer-card-rating">
               {performer.rating100 && (
                 <RatingBanner rating={performer.rating100} />
               )}
             </Box>
-            <Box sx={{ pointerEvents: "auto" }}>
+            <Box className="performer-card-favorite">
               <FavoriteIcon
                 favorite={performer.favorite}
                 onToggleFavorite={onToggleFavorite}
                 size="1x"
-                className="transition-colors drop-shadow-md"
-                sx={{
-                  color: performer.favorite
-                    ? "#ff5252 !important"
-                    : "rgba(255, 255, 255, 0.5)",
-                  "&:hover": {
-                    color: performer.favorite ? "#ff1744 !important" : "#ffffff",
-                  },
-                }}
+                className={cx("favorite-icon", "transition-colors", "drop-shadow-md", { "is-favorite": performer.favorite })}
               />
             </Box>
           </Box>
 
           {/* Selecting Checkbox */}
           {selecting && (
-            <Box sx={{ position: "absolute", top: "0.5rem", left: "0.5rem", zIndex: 30 }}>
+            <Box className="performer-card-checkbox">
               <input
                 type="checkbox"
                 checked={selected}
                 readOnly
-                style={{ cursor: "pointer", height: "1.25rem", width: "1.25rem" }}
               />
             </Box>
           )}
 
-
           {/* Gradient Overlay & Content */}
-          <Box
-            className="overlay-content"
-            sx={{
-              position: "absolute",
-              bottom: 0,
-              left: 0,
-              right: 0,
-              background: "linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.4) 70%, transparent 100%)",
-              padding: "12px",
-              color: "#fff",
-              transition: "background 0.3s ease",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "flex-end",
-              pointerEvents: "none"
-            }}
-          >
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Box className="performer-card-overlay">
+            <Box className="performer-card-info">
+              <Box className="performer-card-name-row">
                 <Typography
                   variant="subtitle1"
-                  sx={{
-                    fontWeight: 700,
-                    lineHeight: 1.2,
-                    textShadow: "0 2px 4px rgba(0, 0, 0, 0.8)",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                    fontSize: "1.1rem"
-                  }}
+                  className="performer-card-name"
                 >
                   {performer.name}
                 </Typography>
@@ -257,35 +188,20 @@ export const PerformerCard: React.FC<IPerformerCardProps> = PatchComponent(
                 )}
               </Box>
 
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1, fontSize: "0.8rem", color: "rgba(255,255,255,0.8)" }}>
+              <Box className="performer-card-meta">
                 {age !== 0 && <span>{age} years</span>}
                 {performer.scene_count > 0 && (
                   <span style={{ display: "flex", alignItems: "center", gap: "2px" }}>
-                    <div style={{ width: 4, height: 4, background: "rgba(255,255,255,0.5)", borderRadius: "50%", marginRight: "4px" }}></div>
+                    <div className="performer-card-meta-separator"></div>
                     {performer.scene_count} scenes
                   </span>
                 )}
               </Box>
             </Box>
 
-            {/* Expanded Content (Slide Up) - More details? */}
-            <Box
-              className={cx("overlay-slide-content", { visible: isHovered })}
-              sx={{
-                maxHeight: 0,
-                overflow: "hidden",
-                opacity: 0,
-                transition: "all 0.3s ease-in-out",
-                "&.visible": {
-                  maxHeight: "100px",
-                  opacity: 1,
-                  mt: "8px",
-                }
-              }}
-            >
-              {/* Extra details like Years Active, Career Length, or just spacers if nothing else */}
-              {/* For now, maybe just tag count or image count if significant? */}
-              <Box sx={{ display: "flex", gap: 2, fontSize: "0.75rem", color: "rgba(255,255,255,0.7)" }}>
+            {/* Expanded Content (Slide Up) */}
+            <Box className={cx("performer-card-slide", { visible: isHovered })}>
+              <Box className="performer-card-extra">
                 {performer.image_count > 0 && (
                   <span>{performer.image_count} images</span>
                 )}

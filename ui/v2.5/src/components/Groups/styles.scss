@@ -1,5 +1,4 @@
-// Group Card Styles (restored from stash-develop)
-
+// Group Card Styles
 .group-card {
     width: 240px;
 
@@ -15,4 +14,112 @@
         object-fit: contain;
         width: 100%;
     }
+}
+
+.group-card-front {
+    background-color: $gray-900;
+    border-radius: 12px;
+    height: 100%;
+    overflow: hidden;
+    position: relative;
+    width: 100%;
+
+    &:hover {
+        .overlay-content {
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.95) 20%, rgba(0, 0, 0, 0.7) 60%, transparent 100%);
+        }
+
+        .info-button {
+            opacity: 1;
+        }
+    }
+}
+
+.group-card-media {
+    background-color: black;
+    height: 100%;
+    width: 100%;
+}
+
+.group-card-top {
+    align-items: flex-start;
+    display: flex;
+    justify-content: space-between;
+    left: 0;
+    padding: 0.5rem; // p: 1
+    pointer-events: none;
+    position: absolute;
+    right: 0;
+    top: 0;
+    z-index: 16;
+}
+
+.group-card-top-content {
+    pointer-events: auto;
+}
+
+.group-card-select {
+    left: 0.5rem;
+    position: absolute;
+    top: 0.5rem;
+    z-index: 30;
+}
+
+.group-card-overlay {
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.4) 70%, transparent 100%);
+    bottom: 0;
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    left: 0;
+    padding: 12px;
+    pointer-events: none;
+    position: absolute;
+    right: 0;
+    transition: background 0.3s ease;
+}
+
+.group-card-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+    white-space: nowrap;
+}
+
+.group-card-info {
+    align-items: center;
+    color: rgba(255, 255, 255, 0.8);
+    display: flex;
+    font-size: 0.8rem;
+    gap: 0.5rem; // gap: 1
+}
+
+// Group Detail Styles
+.group-tab-label {
+    align-items: center;
+    display: inline-flex;
+    position: relative;
+
+    &.has-count {
+        padding-right: 1.5rem; // pr: 3
+    }
+}
+
+.group-tab-badge {
+    background-color: $primary;
+    border-radius: 10px;
+    color: $white;
+    font-size: 0.7rem;
+    font-weight: 600;
+    line-height: 1;
+    min-width: 20px;
+    padding: 0.25rem 0.75rem;
+    position: absolute;
+    right: -4px;
+    text-align: center;
+    top: -8px;
 }

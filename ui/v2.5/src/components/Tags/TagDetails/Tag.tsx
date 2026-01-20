@@ -158,26 +158,10 @@ const TagTabs: React.FC<{
   }, [showAllDetails, tag.children.length]);
 
   const TabLabel: React.FC<{ messageID: string; count: number }> = ({ messageID, count }) => (
-    <Box sx={{ position: 'relative', display: 'inline-flex', alignItems: 'center', pr: count > 0 ? 3 : 0 }}>
+    <Box className={cx("tag-tab-label", { "has-count": count > 0 })}>
       <FormattedMessage id={messageID} />
       {count > 0 && (
-        <Box
-          sx={{
-            position: 'absolute',
-            top: -8,
-            right: -4,
-            backgroundColor: 'primary.main',
-            color: 'primary.contrastText',
-            borderRadius: '10px',
-            px: 0.75,
-            py: 0.25,
-            fontSize: '0.7rem',
-            fontWeight: 600,
-            lineHeight: 1,
-            minWidth: '20px',
-            textAlign: 'center',
-          }}
-        >
+        <Box className="tag-tab-badge">
           {abbreviateCounter && count >= 1000 ? `${Math.floor(count / 1000)}k` : count}
         </Box>
       )}
@@ -505,11 +489,7 @@ const TagPage: React.FC<IProps> = ({ tag, tabKey }) => {
   return (
     <Box
       id="tag-page"
-      sx={{
-        display: "flex",
-        flexWrap: "wrap",
-        mx: -1.5,
-      }}
+      className="tag-page"
     >
       <Helmet>
         <title>{tag.name}</title>
@@ -517,65 +497,21 @@ const TagPage: React.FC<IProps> = ({ tag, tabKey }) => {
 
       <Box
         className={headerClassName}
-        sx={{
-          width: "100%",
-          position: "relative",
-          mb: 4,
-          "&.collapsed": {
-            "& .logo": {
-              maxHeight: "200px",
-            },
-          },
-          "&.full-width": {
-            maxWidth: "100%",
-          },
-        }}
       >
         <BackgroundImage
           imagePath={tag.image_path ?? undefined}
           show={enableBackgroundImage && !isEditing}
         />
-        <Box
-          className="detail-container"
-          sx={{
-            px: { xs: 2, sm: 4, md: 5 },
-            py: 4,
-          }}
-        >
+        <Box className="detail-container">
           <HeaderImage encodingImage={encodingImage}>
             {tagImage && (
-              <Box
-                sx={{
-                  mb: 4,
-                  "& .logo": {
-                    maxHeight: "50vh",
-                    maxWidth: "100%",
-                    objectFit: "contain",
-                  },
-                }}
-              >
+              <Box className="tag-logo-container">
                 <DetailImage className="logo" alt={tag.name} src={tagImage} />
               </Box>
             )}
           </HeaderImage>
           <Box className="row">
-            <Box
-              className="tag-head col"
-              sx={{
-                "& .name-icons": {
-                  display: "inline-flex",
-                  alignItems: "center",
-                  ml: 2,
-                  verticalAlign: "middle",
-                  "& .not-favorite": {
-                    color: "rgba(191, 204, 214, 0.5)",
-                  },
-                  "& .favorite": {
-                    color: "#ff7373",
-                  },
-                },
-              }}
-            >
+            <Box className="tag-head col">
               <DetailTitle name={tag.name} classNamePrefix="tag">
                 {!isEditing && (
                   <ExpandCollapseButton
@@ -633,7 +569,7 @@ const TagPage: React.FC<IProps> = ({ tag, tabKey }) => {
         <CompressedTagDetailsPanel tag={tag} />
       )}
 
-      <Box className="detail-body" sx={{ width: "100%", px: { xs: 2, sm: 4, md: 5 } }}>
+      <Box className="detail-body">
         <Box className="tag-body">
           <Box className="tag-tabs">
             {!isEditing && (

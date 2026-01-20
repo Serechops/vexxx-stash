@@ -64,6 +64,39 @@ button.collapse-button {
     text-decoration: none;
   }
 
+  // Link styling
+  a {
+    color: $text-color;
+    text-decoration: none;
+  }
+
+  // Hover interactions for overlays
+  &:hover,
+  &:active {
+
+    .rating-banner,
+    .stash-rating-banner,
+    .studio-overlay,
+    .stash-studio-overlay {
+      opacity: 0;
+      transition: opacity 0.5s;
+    }
+
+    .studio-overlay:hover,
+    .studio-overlay:active,
+    .stash-studio-overlay:hover,
+    .stash-studio-overlay:active {
+      opacity: 0.75;
+      transition: opacity 0.5s;
+    }
+  }
+
+  // Rating banner base transition
+  .rating-banner,
+  .stash-rating-banner {
+    transition: opacity 0.5s;
+  }
+
   .progress-bar {
     background-color: #73859f80;
     bottom: 5px;
@@ -105,6 +138,10 @@ button.collapse-button {
     cursor: move;
   }
 
+  .card-drag-handle-container .card-drag-handle {
+    filter: drop-shadow(1px 1px 1px rgba(0, 0, 0, 0.7));
+  }
+
   .card-check {
     padding-left: 15px;
 
@@ -126,11 +163,118 @@ button.collapse-button {
   }
 }
 
+// Move Target Styles
+.move-target {
+  align-items: center;
+  background-color: $primary;
+  color: $secondary;
+  display: flex;
+  height: 100%;
+  justify-content: center;
+  opacity: 0.5;
+  pointer-events: none;
+  position: absolute;
+  width: 10%;
 
+  &.move-target-before {
+    left: 0;
+  }
 
+  &.move-target-after {
+    right: 0;
+  }
+}
 
+// Loading Indicator
+.loading-indicator {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  justify-content: center;
+  opacity: 1;
+  padding-top: 2rem;
+  width: 100%;
 
+  .loading-message {
+    margin-top: 1rem;
+  }
 
+  &.loading-inline {
+    display: inline-flex;
+    flex-direction: row;
+    justify-content: flex-start;
+    margin-left: 0.5rem;
+    padding-top: 0;
+    width: auto;
+
+    .loading-message {
+      margin-top: 0;
+    }
+  }
+
+  &.loading-card {
+    padding: 1rem;
+    padding-top: 1rem; // Overrides base
+  }
+}
+
+// Hover Scrubber
+.hover-scrubber {
+  bottom: 0;
+  height: 20px;
+  overflow: hidden;
+  position: absolute;
+  width: 100%;
+
+  .hover-scrubber-area {
+    cursor: col-resize;
+    height: 100%;
+    position: absolute;
+    width: 100%;
+    z-index: 1;
+  }
+
+  &.hover-scrubber-inactive .hover-scrubber-area {
+    cursor: inherit;
+  }
+
+  .hover-scrubber-indicator {
+    bottom: 0;
+    height: 4px;
+    position: absolute;
+    width: 100%;
+  }
+
+  .hover-scrubber-indicator-marker {
+    background-color: $primary;
+    height: 100%;
+    transition: width 0.1s;
+  }
+}
+
+// Truncated Text
+.truncated-text {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  white-space: pre-line;
+
+  &.inline {
+    display: inline;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    -webkit-line-clamp: unset;
+    -webkit-box-orient: unset;
+  }
+}
+
+.truncated-text-inline {
+  display: inline;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 .input-group-prepend {
   .btn {
@@ -141,6 +285,80 @@ button.collapse-button {
 
 .ModalComponent .modal-footer {
   justify-content: space-between;
+}
+
+// Modal Styles
+.modal-icon-container {
+  align-items: center;
+  display: flex;
+  margin-right: 0.5rem;
+}
+
+.modal-footer-content {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+}
+
+// Scrape Dialog
+.scrape-dialog-container {
+  max-height: calc(100vh - 14rem);
+  overflow-y: auto;
+  padding-right: 15px;
+
+  .column-label {
+    color: $text-muted;
+    font-size: 0.85em;
+  }
+
+  .string-list-input {
+    width: 100%;
+  }
+
+  .image-selection-parent {
+    min-width: 100%;
+  }
+
+  .image-selection {
+    .select-buttons {
+      align-items: center;
+      display: flex;
+      justify-content: space-between;
+      margin-top: 1rem;
+
+      .image-index {
+        flex-grow: 1;
+        text-align: center;
+      }
+    }
+
+    .loading {
+      opacity: 0.5;
+    }
+
+    .LoadingIndicator {
+      height: 100%;
+      position: absolute;
+      top: 0;
+    }
+  }
+}
+
+.scrape-header-offset {
+  @include media-breakpoint-up(lg) {
+    margin-left: 25%;
+  }
+}
+
+.scrape-header-row {
+  display: none;
+  padding-left: 1.5rem; // px: 3
+  padding-right: 1.5rem; // px: 3
+  padding-top: 1.5rem; // pt: 3
+
+  @include media-breakpoint-up(lg) {
+    display: flex;
+  }
 }
 
 .scrape-url-button:disabled {

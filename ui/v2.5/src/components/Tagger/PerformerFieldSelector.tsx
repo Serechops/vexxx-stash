@@ -30,13 +30,13 @@ const PerformerFieldSelect: React.FC<IProps> = ({
     });
 
   const renderField = (field: string) => (
-    <Grid size={{ xs: 6 }} key={field} sx={{ mb: 1 }}>
+    <Grid size={{ xs: 6 }} key={field} className="field-selector-row">
       <Button
         onClick={() => toggleField(field)}
         variant="outlined"
         color={excluded[field] ? "inherit" : "success"}
         size="small"
-        sx={{ mr: 1.5 }}
+        className="field-selector-toggle-btn"
       >
         <Icon icon={excluded[field] ? faTimes : faCheck} />
       </Button>
@@ -56,7 +56,7 @@ const PerformerFieldSelect: React.FC<IProps> = ({
       }}
     >
       <Typography variant="h6" gutterBottom>Select tagged fields</Typography>
-      <Typography variant="body2" sx={{ mb: 2 }}>
+      <Typography variant="body2" className="config-helper-text">
         These fields will be tagged by default. Click the button to toggle.
       </Typography>
       <Grid container>{PERFORMER_FIELDS.map((f) => renderField(f))}</Grid>

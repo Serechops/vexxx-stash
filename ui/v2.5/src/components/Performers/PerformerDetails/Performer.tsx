@@ -135,26 +135,10 @@ const PerformerTabs: React.FC<{
   });
 
   const TabLabel: React.FC<{ messageID: string; count: number }> = ({ messageID, count }) => (
-    <Box sx={{ position: 'relative', display: 'inline-flex', alignItems: 'center', pr: count > 0 ? 3 : 0 }}>
+    <Box className="performer-tab-label" style={{ paddingRight: count > 0 ? '1.5rem' : 0 }}>
       <FormattedMessage id={messageID} />
       {count > 0 && (
-        <Box
-          sx={{
-            position: 'absolute',
-            top: -8,
-            right: -4,
-            backgroundColor: 'primary.main',
-            color: 'primary.contrastText',
-            borderRadius: '10px',
-            px: 0.75,
-            py: 0.25,
-            fontSize: '0.7rem',
-            fontWeight: 600,
-            lineHeight: 1,
-            minWidth: '20px',
-            textAlign: 'center',
-          }}
-        >
+        <Box className="performer-tab-label-badge">
           {abbreviateCounter && count >= 1000 ? `${Math.floor(count / 1000)}k` : count}
         </Box>
       )}
@@ -163,7 +147,7 @@ const PerformerTabs: React.FC<{
 
   return (
     <>
-      <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 2 }}>
+      <Box className="performer-tabs-container">
         <Tabs
           value={tabKey}
           onChange={(_, k) => setTabKey(k)}
@@ -451,42 +435,19 @@ const PerformerPage: React.FC<IProps> = PatchComponent(
     });
 
     return (
-      <Box id="performer-page" sx={{ display: "flex", flexWrap: "wrap", mx: -1.75 }}>
+      <Box id="performer-page" className="performer-page">
         <Helmet>
           <title>{performer.name}</title>
         </Helmet>
 
         <Box
-          className={headerClassName}
-          sx={{
-            bgcolor: "background.paper",
-            minHeight: "15rem",
-            overflow: isEditing ? "visible" : "hidden",
-            p: 2,
-            position: "relative",
-            transition: "0.3s",
-            width: "100%",
-            zIndex: 11,
-            "&.collapsed .detail-header-image img": {
-              maxWidth: "11rem"
-            },
-            "&.full-width .detail-header-image img": {
-              maxWidth: "22rem"
-            }
-          }}
+          className={cx(headerClassName, "performer-detail-header")}
         >
           <BackgroundImage
             imagePath={activeImage ?? undefined}
             show={enableBackgroundImage && !isEditing}
           />
-          <Box
-            className="detail-container"
-            sx={{
-              height: "100%",
-              position: "relative",
-              zIndex: 20
-            }}
-          >
+          <Box className="detail-container performer-detail-container">
             <PerformerHeaderImage
               activeImage={activeImage}
               collapsed={collapsed}
@@ -494,8 +455,8 @@ const PerformerPage: React.FC<IProps> = PatchComponent(
               lightboxImages={lightboxImages}
               performer={performer}
             />
-            <Box className="row" sx={{ display: "flex", flexWrap: "wrap", mx: -1.875 }}>
-              <Box className="performer-head col" sx={{ flex: 1, px: 1.875 }}>
+            <Box className="performer-row">
+              <Box className="performer-head col">
                 <DetailTitle
                   name={performer.name}
                   disambiguation={performer.disambiguation ?? undefined}
@@ -507,7 +468,7 @@ const PerformerPage: React.FC<IProps> = PatchComponent(
                       setCollapsed={(v) => setCollapsed(v)}
                     />
                   )}
-                  <Box component="span" className="name-icons" sx={{ ml: 1.25 }}>
+                  <Box component="span" className="name-icons performer-name-icons">
                     <FavoriteIcon
                       favorite={performer.favorite}
                       onToggleFavorite={(v) => setFavorite(v)}
@@ -516,7 +477,7 @@ const PerformerPage: React.FC<IProps> = PatchComponent(
                   </Box>
                 </DetailTitle>
                 <AliasList aliases={performer.alias_list} />
-                <Box className="quality-group" sx={{ display: "flex", alignItems: "center", gap: 1, my: 1 }}>
+                <Box className="performer-quality-group">
                   <RatingSystem
                     value={performer.rating100}
                     onSetRating={(value) => setRating(value)}
@@ -544,8 +505,8 @@ const PerformerPage: React.FC<IProps> = PatchComponent(
                     setEncodingImage={setEncodingImage}
                   />
                 ) : (
-                  <Box sx={{ flex: 1 }}>
-                    <Box className="row" sx={{ display: "flex", flexWrap: "wrap", mx: -1.875 }}>
+                  <Box className="performer-edit-nav">
+                    <Box className="performer-row">
                       <DetailsEditNavbar
                         objectName={
                           performer?.name ??
@@ -581,21 +542,7 @@ const PerformerPage: React.FC<IProps> = PatchComponent(
           <CompressedPerformerDetailsPanel performer={performer} />
         )}
 
-        <Box
-          className="detail-body"
-          sx={{
-            mx: 1.875,
-            width: "100%",
-            "& nav": {
-              alignContent: "center",
-              borderBottom: "solid 2px rgba(255, 255, 255, 0.05)",
-              display: "flex",
-              justifyContent: "center",
-              m: 0,
-              p: "5px 0"
-            }
-          }}
-        >
+        <Box className="detail-body performer-detail-body">
           <Box className="performer-body">
             <Box className="performer-tabs">
               {!isEditing && (

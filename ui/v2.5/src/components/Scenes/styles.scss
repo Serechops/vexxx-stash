@@ -115,3 +115,268 @@
         }
     }
 }
+
+// ============================================
+// Scene Page Layout (Scene.tsx)
+// ============================================
+
+// Main layout container - horizontal split on desktop, vertical on mobile
+.scene-layout {
+    display: flex;
+    flex-direction: column-reverse;
+    height: auto;
+    overflow: visible;
+
+    @include media-breakpoint-up(md) {
+        flex-direction: row;
+        height: calc(100vh - 64px);
+        overflow: hidden;
+    }
+}
+
+// Left panel containing scene details and tabs
+.scene-detail-panel {
+    background-color: $card-bg;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    overflow-y: visible;
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    width: 100%;
+
+    @include media-breakpoint-up(md) {
+        border-right: 1px solid $secondary;
+        height: 100%;
+        min-width: 450px;
+        overflow-y: auto;
+        width: 450px;
+
+        &.collapsed {
+            display: none;
+            min-width: 0;
+            width: 0;
+        }
+    }
+}
+
+// Toggle divider between detail panel and player
+.scene-toggle-divider {
+    align-items: center;
+    border-right: 1px solid $secondary;
+    cursor: pointer;
+    display: none;
+    justify-content: center;
+    transition: background-color 0.2s;
+    width: 12px;
+
+    @include media-breakpoint-up(md) {
+        display: flex;
+    }
+
+    &:hover {
+        background-color: rgba(255, 255, 255, 0.05);
+
+        svg {
+            color: $primary;
+        }
+    }
+
+    svg {
+        transition: color 0.2s;
+    }
+}
+
+// Main player container
+.scene-player-container {
+    background-color: black;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    min-width: 0;
+    position: relative;
+
+    @include media-breakpoint-down(sm) {
+        aspect-ratio: 16/9;
+        height: auto;
+    }
+
+    @include media-breakpoint-up(md) {
+        height: 100%;
+    }
+}
+
+// ============================================
+// Scene Page Content (ScenePage component)
+// ============================================
+
+// Main scene tabs container
+.scene-tabs {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    overflow: visible;
+    padding: 0.5rem;
+    width: 100%;
+
+    @include media-breakpoint-up(md) {
+        padding: 1rem;
+        padding-top: 1rem;
+    }
+
+    // Override legacy .tab-content overflow
+    .tab-content {
+        height: auto !important;
+        overflow: visible !important;
+    }
+}
+
+// Scene header with studio logo and title
+.scene-header-container {
+    align-items: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    margin-bottom: 1rem;
+
+    @include media-breakpoint-up(md) {
+        flex-direction: row;
+        justify-content: space-between;
+    }
+}
+
+// Studio logo area in scene detail
+.scene-studio-image {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1rem;
+
+    @include media-breakpoint-up(lg) {
+        flex: 0 0 25%;
+        margin-bottom: 0;
+        order: 2;
+    }
+
+    .studio-logo {
+        max-height: 8rem;
+        max-width: 100%;
+
+        @include media-breakpoint-up(lg) {
+            margin-top: 1rem;
+        }
+    }
+}
+
+// Scene title/header text
+.scene-header {
+    font-size: 1.75rem;
+    margin-top: 0.5rem;
+    text-align: center;
+    width: 100%;
+
+    @include media-breakpoint-up(lg) {
+        flex: 0 0 75%;
+        margin-top: 2rem;
+        order: 1;
+        text-align: left;
+    }
+
+    @include media-breakpoint-up(xl) {
+        font-size: 1.5rem;
+    }
+
+    &.no-studio {
+        flex: 0 0 100%;
+    }
+}
+
+// Scene subheader with date and resolution
+.scene-subheader {
+    align-items: center;
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    margin-top: 0.5rem;
+
+    .date {
+        color: $text-muted;
+    }
+}
+
+// Frame rate and resolution display
+.scene-video-info {
+    color: $text-muted;
+    font-size: 0.875rem;
+}
+
+// Scene toolbar with rating, counters, and operations
+.scene-toolbar {
+    align-items: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    margin-top: 0.5rem;
+    padding-bottom: 0.25rem;
+    width: 100%;
+}
+
+// Grouped toolbar items
+.scene-toolbar-group {
+    align-items: center;
+    display: flex;
+    gap: 0.25rem;
+}
+
+// ============================================
+// Scene Tabs Container
+// ============================================
+
+.scene-tabs-container {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+}
+
+// Sticky tabs header
+.scene-tabs-header {
+    background-color: $card-bg;
+    border-bottom: 1px solid $secondary;
+    margin-left: -1rem;
+    margin-right: -1rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    position: sticky;
+    top: -1rem; // Accounts for parent padding
+    z-index: 10;
+}
+
+// MUI Tabs styling for scene page
+.scene-tabs-nav {
+    margin-left: -0.75rem;
+
+    .MuiTabs-flexContainer {
+        justify-content: flex-start;
+    }
+
+    .MuiTabs-scroller {
+        margin-left: 0;
+        padding-left: 0;
+    }
+
+    .MuiButtonBase-root:first-of-type {
+        margin-left: 0;
+        padding-left: 0;
+    }
+}
+
+// First tab special styling
+.scene-tab-first {
+    margin-left: 0;
+    min-width: auto;
+    padding-left: 0;
+
+    &.Mui-selected {
+        padding-left: 0;
+    }
+}

@@ -4,6 +4,7 @@ import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Fade from "@mui/material/Fade";
 import { useIntl } from "react-intl";
+import cx from "classnames";
 import { PatchComponent } from "src/patch";
 
 interface ILoadingProps {
@@ -26,19 +27,7 @@ export const LoadingIndicator: React.FC<ILoadingProps> = PatchComponent(
 
       <Fade in={true} style={{ transitionDelay: "200ms" }}>
         <Box
-          className="vexxx-loading"
-          sx={{
-            width: inline ? "auto" : "100%",
-            display: inline ? "inline-flex" : "flex",
-            flexDirection: inline ? "row" : "column",
-            alignItems: "center",
-            justifyContent: inline ? "flex-start" : "center",
-            paddingTop: !card && !inline ? "2rem" : 0,
-            padding: card ? 2 : undefined,
-            marginLeft: inline ? "0.5rem" : 0,
-            gap: 1,
-            opacity: 1, // Override default opacity from Fade if needed, but Fade handles it
-          }}
+          className={cx("vexxx-loading", "loading-indicator", { "loading-inline": inline, "loading-card": card })}
         >
           <CircularProgress
             className="vexxx-loading-spinner"
@@ -48,9 +37,8 @@ export const LoadingIndicator: React.FC<ILoadingProps> = PatchComponent(
           />
           {message !== "" && (
             <Typography
-              className="vexxx-loading-text"
+              className="vexxx-loading-text loading-message"
               variant="h6"
-              sx={{ marginTop: inline ? 0 : "1rem" }}
             >
               {message ?? text}
             </Typography>

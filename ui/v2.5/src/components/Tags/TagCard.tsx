@@ -105,7 +105,7 @@ const TagCardOverlays: React.FC<IProps> = PatchComponent(
             onClick={() => onToggleFavorite!(!tag.favorite)}
             color={tag.favorite ? "error" : "default"}
           >
-            <FavoriteIcon sx={{ fontSize: '2rem' }} />
+            <FavoriteIcon />
           </IconButton>
         </Link>
       );
@@ -147,7 +147,7 @@ const TagCardDetails: React.FC<IProps> = PatchComponent(
       if (tag.parents.length === 1) {
         const parent = tag.parents[0];
         return (
-          <Box sx={{ mt: 0.5, fontSize: "0.875rem" }}>
+          <Box className="tag-relation">
             <FormattedMessage
               id="sub_tag_of"
               values={{
@@ -160,7 +160,7 @@ const TagCardDetails: React.FC<IProps> = PatchComponent(
 
       if (tag.parents.length > 1) {
         return (
-          <Box sx={{ mt: 0.5, fontSize: "0.875rem" }}>
+          <Box className="tag-relation">
             <FormattedMessage
               id="sub_tag_of"
               values={{
@@ -183,7 +183,7 @@ const TagCardDetails: React.FC<IProps> = PatchComponent(
     function maybeRenderChildren() {
       if (tag.children.length > 0) {
         return (
-          <Box sx={{ mt: 0.5, fontSize: "0.875rem" }}>
+          <Box className="tag-relation">
             <FormattedMessage
               id="parent_of"
               values={{
@@ -204,14 +204,7 @@ const TagCardDetails: React.FC<IProps> = PatchComponent(
     }
 
     return (
-      <Box
-        sx={{
-          minHeight: "4rem",
-          "& .tag-description": {
-            mb: 1
-          }
-        }}
-      >
+      <Box className="tag-details">
         {maybeRenderDescription()}
         {maybeRenderParents()}
         {maybeRenderChildren()}
@@ -232,52 +225,21 @@ export const TagCard: React.FC<IProps> = PatchComponent("TagCard", (props) => {
     props;
 
   return (
-    <Box
-      className={`tag-card zoom-${zoomIndex}`}
-      sx={{
-        "& .favorite-button": {
-          position: "absolute",
-          top: 10,
-          right: 5,
-          p: 0,
-          zIndex: 1,
-          "&.not-favorite": {
-            opacity: 0,
-            transition: "opacity 0.2s"
-          }
-        },
-        "&:hover .favorite-button.not-favorite": {
-          opacity: 1
-        }
-      }}
-    >
+    <Box className={`tag-card zoom-${zoomIndex}`}>
       <GridCard
         className="hover:!scale-100 !transition-none"
         url={`/tags/${tag.id}`}
         title={<TagCardTitle {...props} />}
         linkClassName="tag-card-header"
         image={
-          <Box sx={{ position: "relative", width: "100%", pb: "50%" }}>
-            <Box
-              sx={{
-                position: "absolute",
-                inset: 0,
-                p: 1,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
+          <Box className="tag-card-image-container">
+            <Box className="tag-card-image-wrapper">
               <Box
                 component="img"
                 loading="lazy"
                 alt={tag.name}
                 src={tag.image_path ?? ""}
-                sx={{
-                  maxWidth: "100%",
-                  maxHeight: "100%",
-                  objectFit: "contain",
-                }}
+                className="tag-card-image"
               />
             </Box>
           </Box>

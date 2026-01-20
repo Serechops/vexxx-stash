@@ -99,7 +99,7 @@ const Blacklist: React.FC<{
           }}
         />
       </Box>
-      <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+      <Typography variant="body2" color="textSecondary" className="config-helper-text">
         {intl.formatMessage(
           { id: "component_tagger.config.blacklist_desc" },
           { chars_require_escape: <code>[\\^$.|?*+()</code> }
@@ -112,7 +112,7 @@ const Blacklist: React.FC<{
             label={item.toString()}
             onDelete={() => removeBlacklistItem(index)}
             deleteIcon={<Icon icon={faTimes} />}
-            sx={{ mb: 1 }}
+            className="config-chip"
           />
         ))}
       </Stack>
@@ -155,12 +155,12 @@ const Config: React.FC<IConfigProps> = ({ show }) => {
 
   return (
     <Collapse in={show}>
-      <Paper sx={{ p: 2, mt: 2 }}>
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-          <Typography variant="h5" sx={{ width: '100%' }}>
+      <Paper className="config-paper">
+        <Box className="config-flex-container">
+          <Typography variant="h5" className="config-section-header">
             <FormattedMessage id="configuration" />
           </Typography>
-          <Box sx={{ flexBasis: { xs: '100%', md: '48%' } }}>
+          <Box className="config-column">
             <Box mb={3}>
               <Typography variant="subtitle1" gutterBottom>
                 <FormattedMessage id="component_tagger.config.performer_genders.heading" />
@@ -217,7 +217,7 @@ const Config: React.FC<IConfigProps> = ({ show }) => {
                     })
                   }
                   disabled={!config.setTags}
-                  sx={{ minWidth: 120 }}
+                  className="config-input-min-width-120"
                 >
                   <MenuItem value="merge">
                     {intl.formatMessage({ id: "actions.merge" })}
@@ -247,7 +247,7 @@ const Config: React.FC<IConfigProps> = ({ show }) => {
                       mode: e.target.value as ParseMode,
                     })
                   }
-                  sx={{ minWidth: 120 }}
+                  className="config-input-min-width-120"
                 >
                   <MenuItem value="auto">
                     {intl.formatMessage({
@@ -304,7 +304,7 @@ const Config: React.FC<IConfigProps> = ({ show }) => {
               </FormHelperText>
             </Box>
           </Box>
-          <Box sx={{ flexBasis: { xs: '100%', md: '48%' } }}>
+          <Box className="config-column">
             <Blacklist
               list={config.blacklist}
               setList={(blacklist) => setConfig({ ...config, blacklist })}

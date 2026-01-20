@@ -150,7 +150,7 @@ export const Tagger: React.FC<ITaggerProps> = ({ scenes, queue }) => {
           value={currentSource?.id || ""}
           disabled={loading || !sources.length}
           onChange={handleSourceSelect}
-          sx={{ minWidth: 200 }}
+          className="scene-tagger-source-select"
         >
           {!sources.length && <MenuItem value="">No scraper sources</MenuItem>}
           {sources.map((i) => (
@@ -380,7 +380,7 @@ export const Tagger: React.FC<ITaggerProps> = ({ scenes, queue }) => {
                 placeholder="Enter query text for all scenes..."
                 value={globalQueryOverride}
                 onChange={(e) => setGlobalQueryOverride(e.target.value)}
-                sx={{ width: '50%' }}
+                className="scene-tagger-query-input"
               />
             )}
           </Stack>

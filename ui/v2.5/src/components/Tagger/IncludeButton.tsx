@@ -18,8 +18,7 @@ export const IncludeExcludeButton: React.FC<IIncludeExcludeButton> = ({
     onClick={() => setExclude(!exclude)}
     disabled={disabled}
     size="small"
-    sx={{ color: exclude ? 'error.main' : 'success.main' }}
-    className="include-exclude-button"
+    className={`include-exclude-button ${exclude ? 'excluded' : 'included'}`}
   >
     <Icon className="fa-fw" icon={exclude ? faTimes : faCheck} />
   </IconButton>

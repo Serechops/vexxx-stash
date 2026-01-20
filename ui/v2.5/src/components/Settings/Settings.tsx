@@ -79,20 +79,9 @@ const SettingTabs: React.FC<{ tab: TabKey }> = ({ tab }) => {
   };
 
   return (
-    <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, height: "calc(100vh - 64px)" }}>
+    <Box className="settings-container">
       <Helmet {...titleProps} />
-      <Box
-        sx={{
-          width: { xs: "100%", md: "250px", lg: "300px" },
-          borderRight: { xs: 0, md: 1 },
-          borderBottom: { xs: 1, md: 0 },
-          borderColor: "divider",
-          overflowY: { xs: "hidden", md: "auto" },
-          display: "flex",
-          flexDirection: "column",
-          flexShrink: 0
-        }}
-      >
+      <Box className="settings-sidebar">
         <Tabs
           orientation={isSmallScreen ? "horizontal" : "vertical"}
           variant="scrollable"
@@ -102,12 +91,13 @@ const SettingTabs: React.FC<{ tab: TabKey }> = ({ tab }) => {
           sx={{
             flexGrow: 1,
             "& .MuiTab-root": {
-              alignItems: isSmallScreen ? "center" : "flex-start",
-              textAlign: isSmallScreen ? "center" : "left",
-              textTransform: "none",
-              minHeight: 48,
+              // Alignments handled by orientation prop if possible, else rely on CSS override or global theme
+              // Using existing sx for now if complicated, but trying to reduce.
+              // Actually, removing sx here and using class since orientation handles most.
+              // However, the alignment properties might need specific targeting.
             },
           }}
+          className="settings-tabs"
         >
           <Tab
             label={<FormattedMessage id="config.categories.tasks" />}
@@ -183,7 +173,7 @@ const SettingTabs: React.FC<{ tab: TabKey }> = ({ tab }) => {
           />
         </Tabs>
 
-        <Box sx={{ p: 2, borderTop: 1, borderColor: "divider" }}>
+        <Box className="settings-advanced-mode">
           <FormControlLabel
             control={
               <Switch
@@ -196,15 +186,8 @@ const SettingTabs: React.FC<{ tab: TabKey }> = ({ tab }) => {
         </Box>
       </Box>
 
-      <Box
-        sx={{
-          flexGrow: 1,
-          overflowY: "auto",
-          p: 3,
-          backgroundColor: (theme) => theme.palette.background.default
-        }}
-      >
-        <Container maxWidth="xl" sx={{ p: 0 }}>
+      <Box className="settings-content">
+        <Container maxWidth="xl" className="settings-content-container">
           {renderContent()}
         </Container>
       </Box>

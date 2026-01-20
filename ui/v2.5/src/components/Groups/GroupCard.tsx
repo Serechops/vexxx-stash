@@ -151,20 +151,6 @@ export const GroupCard: React.FC<IProps> = PatchComponent(
                 // If we want nav, we use Link.
                 // BUT GroupCard has a flip button.
               }}
-              sx={{
-                position: "relative",
-                width: "100%",
-                height: "100%",
-                borderRadius: "12px",
-                overflow: "hidden",
-                backgroundColor: "grey.900",
-                "&:hover .overlay-content": {
-                  background: "linear-gradient(to top, rgba(0, 0, 0, 0.95) 20%, rgba(0, 0, 0, 0.7) 60%, transparent 100%)",
-                },
-                "&:hover .info-button": {
-                  opacity: 1
-                }
-              }}
             >
               <Link
                 to={selecting ? "#" : `/groups/${group.id}`}
@@ -176,7 +162,7 @@ export const GroupCard: React.FC<IProps> = PatchComponent(
                 style={{ textDecoration: 'none', color: 'inherit', display: 'block', height: '100%', width: '100%' }}
               >
                 {/* Media */}
-                <Box sx={{ width: "100%", height: "100%", bgcolor: "black" }}>
+                <Box className="group-card-media">
                   <img
                     loading="lazy"
                     alt={group.name ?? ""}
@@ -186,13 +172,13 @@ export const GroupCard: React.FC<IProps> = PatchComponent(
                 </Box>
 
                 {/* Top Section: Rating & Info Flip */}
-                <Box sx={{ position: "absolute", top: 0, left: 0, right: 0, p: 1, display: "flex", justifyContent: "space-between", alignItems: "flex-start", zIndex: 16, pointerEvents: "none" }}>
-                  <Box sx={{ display: "flex", gap: 0.5, pointerEvents: "auto" }}>
+                <Box className="group-card-top">
+                  <Box className="group-card-top-content">
                     {group.rating100 && (
                       <RatingBanner rating={group.rating100} />
                     )}
                   </Box>
-                  <Box sx={{ pointerEvents: "auto" }}>
+                  <Box className="group-card-top-content">
                     <button
                       className="info-button p-1.5 rounded-full bg-black/60 hover:bg-black/80 text-white backdrop-blur-sm transition-colors opacity-0"
                       onClick={(e) => {
@@ -209,7 +195,7 @@ export const GroupCard: React.FC<IProps> = PatchComponent(
 
                 {/* Selecting Checkbox */}
                 {selecting && (
-                  <Box sx={{ position: "absolute", top: "0.5rem", left: "0.5rem", zIndex: 30 }}>
+                  <Box className="group-card-select">
                     <input
                       type="checkbox"
                       checked={selected}
@@ -219,41 +205,16 @@ export const GroupCard: React.FC<IProps> = PatchComponent(
                   </Box>
                 )}
 
-                {/* Gradient Overlay & Content */}
-                <Box
-                  className="overlay-content"
-                  sx={{
-                    position: "absolute",
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    background: "linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.4) 70%, transparent 100%)",
-                    padding: "12px",
-                    color: "#fff",
-                    transition: "background 0.3s ease",
-                    display: "flex",
-                    flexDirection: "column",
-                    justifyContent: "flex-end",
-                    pointerEvents: "none"
-                  }}
-                >
+                <Box className="overlay-content group-card-overlay">
                   <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
                     <Typography
                       variant="subtitle1"
-                      sx={{
-                        fontWeight: 700,
-                        lineHeight: 1.2,
-                        textShadow: "0 2px 4px rgba(0, 0, 0, 0.8)",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                        fontSize: "1.1rem"
-                      }}
+                      className="group-card-title"
                     >
                       {group.name}
                     </Typography>
 
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, fontSize: "0.8rem", color: "rgba(255,255,255,0.8)" }}>
+                    <Box className="group-card-info">
                       {group.date && <span>{group.date}</span>}
                       {group.scenes.length > 0 && (
                         <span style={{ display: "flex", alignItems: "center", gap: "2px" }}>

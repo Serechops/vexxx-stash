@@ -7,7 +7,7 @@ import {
   InteractiveContext,
 } from "./context";
 
-export const SceneInteractiveStatus: React.FC = ({}) => {
+export const SceneInteractiveStatus: React.FC = ({ }) => {
   const { state, error } = React.useContext(InteractiveContext);
 
   function getStateClass() {
@@ -35,7 +35,7 @@ export const SceneInteractiveStatus: React.FC = ({}) => {
 
   return (
     <div className={`scene-interactive-status ${getStateClass()}`}>
-      <FiberManualRecordIcon sx={{ fontSize: 10, animation: 'pulse 1s infinite' }} />
+      <FiberManualRecordIcon className="interactive-status-icon" />
       <span className="status-text">
         <FormattedMessage id={connectionStateLabel(state)} />
         {error && <span>: {error}</span>}

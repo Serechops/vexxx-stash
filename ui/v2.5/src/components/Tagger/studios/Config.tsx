@@ -49,12 +49,12 @@ const Config: React.FC<IConfigProps> = ({ show, config, setConfig }) => {
   return (
     <>
       <Collapse in={show}>
-        <Paper sx={{ p: 2, mt: 2 }}>
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-            <Typography variant="h5" sx={{ width: '100%' }}>
+        <Paper className="config-paper">
+          <Box className="config-flex-container">
+            <Typography variant="h5" className="config-section-header">
               <FormattedMessage id="configuration" />
             </Typography>
-            <Box sx={{ flexBasis: { xs: '100%', md: '48%' } }}>
+            <Box className="config-column">
               <Box mb={3}>
                 <FormControlLabel
                   control={
@@ -80,7 +80,7 @@ const Config: React.FC<IConfigProps> = ({ show, config, setConfig }) => {
                 <Typography variant="h6" gutterBottom>
                   <FormattedMessage id="studio_tagger.config.excluded_fields" />
                 </Typography>
-                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 1 }}>
+                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap className="config-chip-stack">
                   {excludedFields.length > 0 ? (
                     excludedFields.map((f) => (
                       <Chip key={f} size="small" label={<FormattedMessage id={f} />} />
@@ -97,14 +97,14 @@ const Config: React.FC<IConfigProps> = ({ show, config, setConfig }) => {
                 <Button
                   onClick={() => setShowExclusionModal(true)}
                   variant="outlined"
-                  sx={{ mt: 1 }}
+                  className="config-button-top"
                 >
                   <FormattedMessage id="studio_tagger.config.edit_excluded_fields" />
                 </Button>
               </Box>
 
               <Box mb={3}>
-                <Stack direction="row" alignItems="center" spacing={2} sx={{ mt: 2 }}>
+                <Stack direction="row" alignItems="center" spacing={2} className="config-section-top">
                   <Typography>
                     <FormattedMessage id="studio_tagger.config.active_stash-box_instance" />
                   </Typography>
@@ -114,7 +114,7 @@ const Config: React.FC<IConfigProps> = ({ show, config, setConfig }) => {
                     value={config.selectedEndpoint || ""}
                     disabled={!stashBoxes.length}
                     onChange={handleInstanceSelect}
-                    sx={{ minWidth: 250 }}
+                    className="config-input-min-width-250"
                   >
                     {!stashBoxes.length && (
                       <MenuItem value="">

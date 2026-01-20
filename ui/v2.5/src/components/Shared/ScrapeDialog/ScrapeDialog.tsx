@@ -75,55 +75,17 @@ export const ScrapeDialog: React.FC<
       hideAccept={props.hideApply}
     >
       <Box
-        className="dialog-container" // Keep this className if needed for scrolling behavior managed by JS, otherwise replace with sx for containment
-        sx={{
-          maxHeight: 'calc(100vh - 14rem)',
-          overflowY: 'auto',
-          paddingRight: '15px',
-          "& .column-label": {
-            color: "text.secondary",
-            fontSize: "0.85em",
-          },
-          "& .string-list-input": {
-            width: "100%",
-          },
-          "& .image-selection-parent": {
-            minWidth: "100%",
-          },
-          "& .image-selection": {
-            "& .select-buttons": {
-              alignItems: "center",
-              display: "flex",
-              justifyContent: "space-between",
-              marginTop: "1rem",
-              "& .image-index": {
-                flexGrow: 1,
-                textAlign: "center",
-              }
-            },
-            "& .loading": {
-              opacity: 0.5,
-            },
-            "& .LoadingIndicator": { // This class might be internal to LoadingIndicator or used as wrapper if LoadingIndicator is not yet fully migrated? Wait, LoadingIndicator was migrated to not use this class internally but we might wrap it?
-              // Actually LoadingIndicator component doesn't emit this class anymore. So this style might be dead or needing update on usage site.
-              // If ScrapeDialog renders LoadingIndicator, we used to target it.
-              // Let's assume we need to style the container of the loader if it exists.
-              height: "100%",
-              position: "absolute",
-              top: 0,
-            }
-          }
-        }}
+        className="dialog-container scrape-dialog-container"
       >
         <ScrapeDialogContext.Provider value={contextState}>
           <Box p={2}>
             <Grid container className="px-3 pt-3">
-              <Grid size={{ xs: 12, lg: 9 }} sx={{ ml: { lg: '25%' } }}>
+              <Grid size={{ xs: 12, lg: 9 }} className="scrape-header-offset">
                 {/* Using margin-left 25% to offset 3 cols in 12 col grid */}
                 {/* Or better: use Grid with empty item */}
               </Grid>
             </Grid>
-            <Grid container spacing={2} sx={{ display: { xs: 'none', lg: 'flex' }, px: 3, pt: 3 }}>
+            <Grid container spacing={2} className="scrape-header-row">
               <Grid size={{ lg: 3 }}></Grid>
               <Grid size={{ lg: 9 }}>
                 <Grid container spacing={2}>

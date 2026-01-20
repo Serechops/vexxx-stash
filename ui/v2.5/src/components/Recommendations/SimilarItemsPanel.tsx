@@ -25,13 +25,13 @@ export const SimilarScenesPanel: React.FC<SimilarScenesPanelProps> = ({ sceneId 
     }
 
     return (
-        <Box className="similar-scenes-panel" sx={{ mt: 4, mb: 4 }}>
-            <Typography variant="h5" sx={{ mb: 2 }}>Similar Scenes</Typography>
+        <Box className="similar-scenes-panel similar-items-panel">
+            <Typography variant="h5" className="similar-items-header">Similar Scenes</Typography>
             <Carousel>
                 {recommendations.map((r) => {
                     if (r.scene) {
                         return (
-                            <Box key={r.id} sx={{ height: "100%" }}>
+                            <Box key={r.id} className="similar-items-card-wrapper">
                                 <SceneCard scene={r.scene} />
                             </Box>
                         );

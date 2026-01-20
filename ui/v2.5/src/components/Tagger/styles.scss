@@ -58,6 +58,7 @@
 
 .search-result {
   background-color: rgba(24, 24, 27, 0.3);
+  margin-top: 1rem; // mt: 2
   padding: 1rem 0;
 
   &:hover {
@@ -83,7 +84,8 @@
 }
 
 .selected-result {
-  background-color: $secondary;
+  background-color: rgba(255, 255, 255, 0.08); // action.selected approx
+  border: 1px solid $primary;
   border-radius: 3px;
 
   &:hover {
@@ -95,6 +97,21 @@
   &:hover {
     cursor: pointer;
   }
+}
+
+.scene-search-results-list {
+  list-style: none;
+  margin: 0;
+  margin-top: 1rem; // mt: 2 or 3
+  padding: 0;
+}
+
+.stash-search-result-container {
+  width: 100%;
+}
+
+.success-icon-container {
+  margin-right: 0.5rem; // mr: 1
 }
 
 .scene-image {
@@ -110,6 +127,173 @@
 
 .select-existing {
   width: 2rem;
+}
+
+.include-exclude-button {
+  display: inline-block;
+  margin-right: 0.38rem; // mr: 0.38em -> 0.38rem approx
+  padding: 0.2rem; // 0.2em
+
+  &.excluded {
+    color: $danger;
+  }
+
+  &.included {
+    color: $success;
+  }
+}
+
+.tagger-form-group {
+  margin-bottom: 1rem; // mb: 2
+}
+
+.tagger-input-group {
+  margin-top: 1rem; // mt: 2
+}
+
+.tagger-content-paper {
+  padding: 1rem; // p: 2
+}
+
+.tagger-action-header {
+  margin-bottom: 1.5rem; // mb: 3
+  margin-left: auto;
+}
+
+.tagger-flex-grow {
+  flex-grow: 1;
+}
+
+.tagger-button-spacer {
+  margin-left: 1.5rem; // ml: 3
+}
+
+.tagger-error-label {
+  margin-right: 0.5rem; // mr: 1
+}
+
+.tagger-status-container {
+  padding-left: 1rem; // px: 2
+  padding-right: 1rem;
+}
+
+.tagger-content-container {
+  @include media-breakpoint-up(md) {
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
+// Config Styles
+.config-paper {
+  margin-top: 1rem; // mt: 2
+  padding: 1rem; // p: 2
+}
+
+.config-flex-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem; // gap: 3
+}
+
+.config-section-header {
+  width: 100%;
+}
+
+.config-column {
+  flex-basis: 100%;
+
+  @include media-breakpoint-up(md) {
+    flex-basis: 48%;
+  }
+}
+
+.config-input-min-width-250 {
+  min-width: 250px;
+}
+
+.config-input-min-width-120 {
+  min-width: 120px;
+}
+
+.config-chip-stack {
+  margin-bottom: 0.5rem; // mb: 1
+}
+
+.config-chip {
+  margin-bottom: 0.5rem; // mb: 1
+}
+
+.config-helper-text {
+  margin-bottom: 1rem; // mb: 2
+}
+
+.config-button-top {
+  margin-top: 0.5rem; // mt: 1
+}
+
+.config-section-top {
+  margin-top: 1rem; // mt: 2
+}
+
+// Performer Modal Styles
+.performer-modal-field-row {
+  margin-bottom: 0.5rem; // mb: 1
+}
+
+.performer-modal-toggle-btn {
+  margin-right: 0.5rem; // mr: 1
+  min-width: 0;
+  padding: 0.25rem; // p: 0.5
+}
+
+.performer-modal-image-exclude-btn {
+  min-width: 0;
+  padding: 0.25rem; // p: 0.5
+}
+
+.performer-modal-image-error {
+  align-items: center;
+  display: flex;
+  height: 100%;
+  justify-content: center;
+}
+
+.performer-modal-image-title {
+  flex-grow: 1;
+  text-align: center;
+}
+
+.performer-modal-link {
+  margin-top: 1rem; // mt: 2
+}
+
+// Field Selector Styles
+.field-selector-row {
+  margin-bottom: 0.5rem; // mb: 1
+}
+
+.field-selector-toggle-btn {
+  margin-right: 0.75rem; // mr: 1.5
+}
+
+// Tagger Review Styles
+.review-badge {
+  margin-left: 0.25rem; // ml: 0.5
+}
+
+.review-summary {
+  align-items: center;
+  display: flex;
+}
+
+.review-header-stack {
+  flex: 1;
+}
+
+.review-timestamp {
+  margin-left: auto;
+  margin-right: 0.5rem; // mr: 1
 }
 
 .entity-name {
@@ -547,4 +731,63 @@ li.active .optional-field.excluded .scene-link {
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     padding-top: 0.75rem;
   }
+}
+
+// SceneTagger Styles
+.scene-tagger-source-select {
+  min-width: 200px;
+}
+
+.scene-tagger-query-input {
+  width: 50%;
+}
+
+// TaggerScene Styles
+.tagger-scene-details-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem; // gap: 2
+}
+
+.tagger-scene-column {
+  flex: 1 1 100%;
+
+  @include media-breakpoint-up(lg) {
+    flex: 1 1 48%;
+  }
+}
+
+.performer-thumbnail-grid {
+  margin: auto;
+}
+
+.tagger-query-override {
+  .MuiOutlinedInput-root {
+    background-color: #2a4a5e;
+  }
+}
+
+.scene-card-container {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  @include media-breakpoint-up(sm) {
+    flex-direction: row;
+  }
+}
+
+.scene-link-container {
+  overflow: hidden;
+}
+
+.scene-path {
+  margin-top: 0.5rem; // mt: 1
+  word-break: break-all;
+}
+
+.scene-query-column {
+  margin-top: 0.5rem; // my: 1
+  margin-bottom: 0.5rem;
 }

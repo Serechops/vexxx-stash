@@ -122,7 +122,7 @@ const PerformerBatchUpdateModal: React.FC<IPerformerBatchUpdateModal> = ({
       }}
       disabled={!isIdle}
     >
-      <FormControl component="fieldset" sx={{ mb: 2 }}>
+      <FormControl component="fieldset" className="tagger-form-group">
         <Typography variant="subtitle1" gutterBottom>
           <FormattedMessage id="performer_tagger.performer_selection" />
         </Typography>
@@ -145,7 +145,7 @@ const PerformerBatchUpdateModal: React.FC<IPerformerBatchUpdateModal> = ({
           />
         </RadioGroup>
       </FormControl>
-      <FormControl component="fieldset" sx={{ mb: 2 }}>
+      <FormControl component="fieldset" className="tagger-form-group">
         <Typography variant="subtitle1" gutterBottom>
           <FormattedMessage id="performer_tagger.tag_status" />
         </Typography>
@@ -429,7 +429,7 @@ const PerformerTaggerList: React.FC<IPerformerTaggerListProps> = ({
           <Stack direction="row" spacing={1}>
             <TextField
               size="small"
-              className="text-input"
+
               defaultValue={performer.name ?? ""}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                 setQueries({
@@ -444,7 +444,7 @@ const PerformerTaggerList: React.FC<IPerformerTaggerListProps> = ({
                   queries[performer.id] ?? performer.name ?? ""
                 )
               }
-              sx={{ flexGrow: 1 }}
+              className="text-input tagger-flex-grow"
             />
             <Button
               variant="outlined"
@@ -494,7 +494,7 @@ const PerformerTaggerList: React.FC<IPerformerTaggerListProps> = ({
         subContent = (
           <div key={performer.id}>
             <Stack direction="row" spacing={1} className="PerformerTagger-box-link" alignItems="center">
-              <Box sx={{ flexGrow: 1 }}>{link}</Box>
+              <Box className="tagger-flex-grow">{link}</Box>
               <Button
                 variant="outlined"
                 onClick={() =>
@@ -516,7 +516,7 @@ const PerformerTaggerList: React.FC<IPerformerTaggerListProps> = ({
             {error[performer.id] && (
               <Box color="error.main" mt={1}>
                 <Typography component="strong">
-                  <Box component="span" sx={{ mr: 1 }}>Error:</Box>
+                  <Box component="span" className="tagger-error-label">Error:</Box>
                   {error[performer.id]?.message}
                 </Typography>
                 <div>{error[performer.id]?.details}</div>
@@ -570,7 +570,7 @@ const PerformerTaggerList: React.FC<IPerformerTaggerListProps> = ({
               endpoint={selectedEndpoint.endpoint}
             />
           )}
-          <Paper className="performer-card" sx={{ p: 0, m: 0 }}>
+          <Paper className="performer-card">
             <img src={performer.image_path ?? ""} alt="" />
           </Paper>
           <div className={`${CLASSNAME}-details`}>
@@ -596,7 +596,7 @@ const PerformerTaggerList: React.FC<IPerformerTaggerListProps> = ({
     });
 
   return (
-    <Paper sx={{ p: 2 }}>
+    <Paper className="tagger-content-paper">
       {showBatchUpdate && (
         <PerformerBatchUpdateModal
           close={() => setShowBatchUpdate(false)}
@@ -615,15 +615,15 @@ const PerformerTaggerList: React.FC<IPerformerTaggerListProps> = ({
         />
       )}
 
-      <Box ml="auto" mb={3}>
+      <Box className="tagger-action-header">
         <Button variant="outlined" onClick={() => setShowBatchAdd(true)}>
           <FormattedMessage id="performer_tagger.batch_add_performers" />
         </Button>
-        <Button variant="outlined" sx={{ ml: 3 }} onClick={() => setShowBatchUpdate(true)}>
+        <Button variant="outlined" className="tagger-button-spacer" onClick={() => setShowBatchUpdate(true)}>
           <FormattedMessage id="performer_tagger.batch_update_performers" />
         </Button>
       </Box>
-      <Box className="tagger-container" sx={{ mx: { md: "auto" } }}>{renderPerformers()}</Box>
+      <Box className="tagger-container tagger-content-container">{renderPerformers()}</Box>
     </Paper>
   );
 };
@@ -730,7 +730,7 @@ export const PerformerTagger: React.FC<ITaggerProps> = ({ performers }) => {
           ? batchJob.progress * 100
           : undefined;
       return (
-        <Box sx={{ px: 2 }}>
+        <Box className="tagger-status-container">
           <Typography variant="h6">
             <FormattedMessage id="performer_tagger.status_tagging_performers" />
           </Typography>
@@ -746,7 +746,7 @@ export const PerformerTagger: React.FC<ITaggerProps> = ({ performers }) => {
 
     if (batchJobID !== undefined) {
       return (
-        <Box sx={{ px: 2 }}>
+        <Box className="tagger-status-container">
           <Typography variant="h6">
             <FormattedMessage id="performer_tagger.status_tagging_job_queued" />
           </Typography>
@@ -767,7 +767,7 @@ export const PerformerTagger: React.FC<ITaggerProps> = ({ performers }) => {
         defaultActiveTab="Tagger.md"
       />
       {renderStatus()}
-      <Box className="tagger-container" sx={{ mx: { md: "auto" } }}>
+      <Box className="tagger-container tagger-content-container">
         {selectedEndpointIndex !== -1 && selectedEndpoint ? (
           <>
             <Box display="flex" mb={2}>
@@ -775,7 +775,7 @@ export const PerformerTagger: React.FC<ITaggerProps> = ({ performers }) => {
                 {intl.formatMessage({ id: showHideConfigId })}
               </Button>
               <Button
-                sx={{ ml: "auto" }}
+                className="tagger-action-header"
                 onClick={() => setShowManual(true)}
                 title={intl.formatMessage({ id: "help" })}
                 variant="text"

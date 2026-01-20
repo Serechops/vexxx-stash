@@ -26,22 +26,15 @@ export const SettingSection: React.FC<PropsWithChildren<ISettingGroup>> = ({
     <Box
       component="section"
       id={id}
-      sx={{
-        "&:not(:first-of-type)": {
-          marginTop: "1.5em",
-        },
-        "& .MuiCard-root": {
-          padding: 0,
-        },
-      }}
+      className="setting-section"
     >
-      <Typography variant="h4" component="h1" sx={{ fontSize: "2rem" }}>
+      <Typography variant="h4" component="h1" className="setting-section-header">
         {headingID ? intl.formatMessage({ id: headingID }) : undefined}
       </Typography>
       {subHeadingID ? (
         <Typography
           variant="body2"
-          sx={{ fontSize: "0.8rem", marginTop: "0.5rem" }}
+          className="setting-section-subheader"
         >
           {intl.formatMessage({ id: subHeadingID })}
         </Typography>

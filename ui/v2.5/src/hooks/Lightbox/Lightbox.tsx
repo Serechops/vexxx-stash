@@ -610,7 +610,7 @@ export const LightboxComponent: React.FC<IProps> = ({
   // field lose focus on input. Use function instead.
   function renderOptionsForm() {
     return (
-      <Box sx={{ p: 2, minWidth: 300 }}>
+      <Box className="lightbox-options-container">
         {slideshowEnabled ? (
           <Grid container spacing={2} alignItems="center" className="mb-2">
             <Grid size={{ xs: 4 }}>
@@ -651,6 +651,7 @@ export const LightboxComponent: React.FC<IProps> = ({
               SelectProps={{
                 MenuProps: {
                   style: { zIndex: 2200 },
+                  className: "lightbox-display-mode-select",
                 },
               }}
             >
@@ -849,20 +850,8 @@ export const LightboxComponent: React.FC<IProps> = ({
           {allowNavigation && (
             <IconButton
               onClick={() => handleLeft(true)}
-              className="d-none d-lg-block minimal z-[1045]"
+              className="d-none d-lg-block minimal z-[1045] lightbox-nav-btn left"
               size="large"
-              sx={{
-                position: "absolute",
-                left: 0,
-                top: "50%",
-                transform: "translateY(-50%)",
-                "& svg": {
-                  fontSize: "4rem",
-                  opacity: 0.4,
-                  "&:hover": { opacity: 1 },
-                  filter: "drop-shadow(2px 2px 2px black)",
-                },
-              }}
             >
               <ChevronLeftIcon />
             </IconButton>
@@ -913,20 +902,8 @@ export const LightboxComponent: React.FC<IProps> = ({
           {allowNavigation && (
             <IconButton
               onClick={() => handleRight(true)}
-              className="d-none d-lg-block minimal z-[1045]"
+              className="d-none d-lg-block minimal z-[1045] lightbox-nav-btn right"
               size="large"
-              sx={{
-                position: "absolute",
-                right: 0,
-                top: "50%",
-                transform: "translateY(-50%)",
-                "& svg": {
-                  fontSize: "4rem",
-                  opacity: 0.4,
-                  "&:hover": { opacity: 1 },
-                  filter: "drop-shadow(2px 2px 2px black)",
-                },
-              }}
             >
               <ChevronRightIcon />
             </IconButton>
@@ -941,20 +918,18 @@ export const LightboxComponent: React.FC<IProps> = ({
           >
             <IconButton
               onClick={() => setIndex(images.length - 1)}
-              className="minimal z-[1045]"
+              className="minimal z-[1045] lightbox-thumb-nav-btn"
               size="large"
-              sx={{ "& svg": { fontSize: "4rem", opacity: 0.4, "&:hover": { opacity: 1 } } }}
             >
-              <ArrowBackIcon sx={{ mr: 2 }} />
+              <ArrowBackIcon className="lightbox-thumb-nav-icon" />
             </IconButton>
             {navItems}
             <IconButton
               onClick={() => setIndex(0)}
-              className="minimal z-[1045]"
+              className="minimal z-[1045] lightbox-thumb-nav-btn"
               size="large"
-              sx={{ "& svg": { fontSize: "4rem", opacity: 0.4, "&:hover": { opacity: 1 } } }}
             >
-              <ArrowForwardIcon sx={{ ml: 2 }} />
+              <ArrowForwardIcon className="lightbox-thumb-nav-icon-right" />
             </IconButton>
           </div>
         )}

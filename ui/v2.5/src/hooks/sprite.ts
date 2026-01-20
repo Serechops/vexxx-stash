@@ -44,21 +44,31 @@ export function useSpriteInfo(vttPath: string | undefined) {
   >();
 
   useEffect(() => {
+    let active = true;
+
     if (!vttPath) {
       setSpriteInfo(undefined);
       return;
     }
 
     fetch(vttPath).then((response) => {
+      if (!active) return;
+
       if (!response.ok) {
         setSpriteInfo(null);
         return;
       }
 
       response.text().then((text) => {
-        setSpriteInfo(getSpriteInfo(vttPath, text));
+        if (active) {
+          setSpriteInfo(getSpriteInfo(vttPath, text));
+        }
       });
     });
+
+    return () => {
+      active = false;
+    };
   }, [vttPath]);
 
   return spriteInfo;

@@ -121,7 +121,7 @@ export const ImageCard: React.FC<IImageCardProps> = PatchComponent(
               position: "relative",
               width: "100%",
               height: "100%",
-              aspectRatio: "4/3", // Maintain aspect ratio for grid alignment? Or full fill? overlay card uses 16/9. Image cards are usually 4/3.
+              aspectRatio: "4/3",
               bgcolor: "black",
             }}
           >
@@ -134,7 +134,7 @@ export const ImageCard: React.FC<IImageCardProps> = PatchComponent(
               sx={{
                 height: "100%",
                 width: "100%",
-                objectFit: "cover", // Full fill
+                objectFit: "cover",
                 objectPosition: "center",
                 display: "block"
               }}
@@ -151,7 +151,7 @@ export const ImageCard: React.FC<IImageCardProps> = PatchComponent(
                   opacity: 0,
                   transition: "opacity 0.2s",
                   "&:hover": { opacity: 1 },
-                  ".image-card:hover &": { opacity: 0.8 } // Show on card hover? GridCard logic was explicit onPreview button.
+                  ".image-card:hover &": { opacity: 0.8 }
                 }}
               >
                 <Button
@@ -167,29 +167,6 @@ export const ImageCard: React.FC<IImageCardProps> = PatchComponent(
               </Box>
             )}
           </Box>
-
-          {/* Top Section: Rating & Studio */}
-          <Box sx={{ position: "absolute", top: 0, left: 0, right: 0, p: 1, display: "flex", justifyContent: "space-between", alignItems: "flex-start", zIndex: 10, pointerEvents: "none" }}>
-            <Box sx={{ display: "flex", gap: 0.5, pointerEvents: "auto" }}>
-              <RatingBanner rating={image.rating100} />
-            </Box>
-            <Box sx={{ pointerEvents: "auto" }}>
-              <StudioOverlay studio={image.studio} />
-            </Box>
-          </Box>
-
-          {/* Selecting Checkbox */}
-          {selecting && (
-            <Box sx={{ position: "absolute", top: "0.5rem", left: "0.5rem", zIndex: 30 }}>
-              <input
-                type="checkbox"
-                checked={selected}
-                readOnly
-                style={{ cursor: "pointer", height: "1.25rem", width: "1.25rem" }}
-              />
-            </Box>
-          )}
-
 
           {/* Gradient Overlay & Content */}
           <Box
@@ -292,6 +269,28 @@ export const ImageCard: React.FC<IImageCardProps> = PatchComponent(
             </Box>
           </Box>
         </Link>
+
+        {/* Top Section: Rating & Studio */}
+        <Box sx={{ position: "absolute", top: 0, left: 0, right: 0, p: 1, display: "flex", justifyContent: "space-between", alignItems: "flex-start", zIndex: 10, pointerEvents: "none" }}>
+          <Box sx={{ display: "flex", gap: 0.5, pointerEvents: "auto" }}>
+            <RatingBanner rating={image.rating100} />
+          </Box>
+          <Box sx={{ pointerEvents: "auto" }}>
+            <StudioOverlay studio={image.studio} />
+          </Box>
+        </Box>
+
+        {/* Selecting Checkbox */}
+        {selecting && (
+          <Box sx={{ position: "absolute", top: "0.5rem", left: "0.5rem", zIndex: 30 }}>
+            <input
+              type="checkbox"
+              checked={selected}
+              readOnly
+              style={{ cursor: "pointer", height: "1.25rem", width: "1.25rem" }}
+            />
+          </Box>
+        )}
       </Box>
     );
   }

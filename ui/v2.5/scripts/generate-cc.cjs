@@ -128,12 +128,19 @@ if (!STASH_VERSION && (isRC || isRelease)) {
     console.log(`Target Version:   ${STASH_VERSION}`);
 
     if (isDryRun) {
-        console.log('[Dry Run] Skipping git tag creation.');
+        console.log('[Dry Run] Skipping git tag creation and push.');
     } else {
         console.log(`[Git] Creating tag ${STASH_VERSION}...`);
         const tagResult = spawnSync('git', ['tag', '-a', STASH_VERSION, '-m', `Release ${STASH_VERSION}`], { stdio: 'inherit' });
         if (tagResult.status !== 0) {
             console.error('Failed to create git tag.');
+            process.exit(1);
+        }
+
+        console.log(`[Git] Pushing tag ${STASH_VERSION}...`);
+        const pushResult = spawnSync('git', ['push', 'origin', STASH_VERSION], { stdio: 'inherit' });
+        if (pushResult.status !== 0) {
+            console.error('Failed to push git tag.');
             process.exit(1);
         }
     }

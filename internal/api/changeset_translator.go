@@ -530,11 +530,3 @@ func groupScenesFromInput(input []*GroupSceneInput) ([]models.GroupScene, error)
 
 	return ret, nil
 }
-
-func (t changesetTranslator) groupScenes(value []*GroupSceneInput, field string) ([]models.GroupScene, error) {
-	if !t.hasField(field) {
-		return nil, nil
-	}
-
-	return groupScenesFromInput(value)
-}

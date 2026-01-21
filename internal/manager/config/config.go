@@ -1458,7 +1458,6 @@ func (i *Config) GetJavascriptPath() string {
 
 func (i *Config) GetJavascript() string {
 	fn := i.GetJavascriptPath()
-
 	exists, _ := fsutil.FileExists(fn)
 	if !exists {
 		return ""

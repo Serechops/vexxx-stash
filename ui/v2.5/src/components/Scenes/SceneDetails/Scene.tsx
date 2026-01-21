@@ -88,6 +88,10 @@ const SceneSegmentsPanel = lazyComponent(
   () => import("./SceneSegmentsPanel").then(module => ({ default: module.SceneSegmentsPanel }))
 ) as React.FC<{ scene: GQL.SceneDataFragment }>;
 
+const StashFaceIdentification = lazyComponent(
+  () => import("src/components/StashFace/StashFaceIdentification").then(module => ({ default: module.StashFaceIdentification }))
+) as React.FC<{ scene: GQL.SceneDataFragment }>;
+
 const SimilarScenesPanel = lazyComponent(
   () => import("../../Recommendations/SimilarItemsPanel").then(module => ({ default: module.SimilarScenesPanel }))
 ) as React.FC<{ sceneId: string }>;
@@ -251,6 +255,7 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
     Mousetrap.bind("q", () => setActiveTabKey("scene-queue-panel"));
     Mousetrap.bind("e", () => setActiveTabKey("scene-edit-panel"));
     Mousetrap.bind("k", () => setActiveTabKey("scene-markers-panel"));
+    Mousetrap.bind("s", () => setActiveTabKey("stashface-panel"));
     Mousetrap.bind("i", () => setActiveTabKey("scene-file-info-panel"));
     Mousetrap.bind("h", () => setActiveTabKey("scene-history-panel"));
     Mousetrap.bind("o", () => {
@@ -272,6 +277,7 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
       Mousetrap.unbind("q");
       Mousetrap.unbind("e");
       Mousetrap.unbind("k");
+      Mousetrap.unbind("s");
       Mousetrap.unbind("i");
       Mousetrap.unbind("h");
       Mousetrap.unbind("o");
@@ -597,6 +603,7 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
                 label={<FormattedMessage id="segments" defaultMessage="Segments" />}
               />
             )}
+            <Tab value="stashface-panel" label="StashFace" />
             <Tab value="scene-video-filter-panel" label={<FormattedMessage id="effect_filters.name" />} />
             <Tab
               value="scene-file-info-panel"
@@ -652,6 +659,9 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
             )}
           </Box>
         )}
+        <Box hidden={activeTabKey !== "stashface-panel"}>
+          <StashFaceIdentification scene={scene} />
+        </Box>
         <Box hidden={activeTabKey !== "scene-video-filter-panel"}>
           <SceneVideoFilterPanel scene={scene} />
         </Box>
@@ -672,8 +682,8 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
         <Box hidden={activeTabKey !== "scene-history-panel"}>
           <SceneHistoryPanel scene={scene} />
         </Box>
-      </ScenePageTabContent>
-    </Box>
+      </ScenePageTabContent >
+    </Box >
   );
 
   function getCollapseButtonIcon() {

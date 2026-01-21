@@ -52,6 +52,11 @@ export default defineConfig(() => {
           changeOrigin: true,
           secure: false,
         },
+        "/stashface": {
+          target: "http://localhost:9999",
+          changeOrigin: true,
+          secure: false,
+        },
       },
     },
     publicDir: "public",

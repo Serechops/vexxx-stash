@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"runtime"
 	"strings"
 	"time"
 
@@ -27,96 +26,8 @@ func getReleaseRepo() string {
 }
 
 const apiAcceptHeader string = "application/vnd.github.v3+json"
-const developmentTag string = "latest_develop"
+
 const defaultSHLength int = 8 // default length of SHA short hash returned by <git rev-parse --short HEAD>
-
-var stashReleases = func() map[string]string {
-	return map[string]string{
-		"darwin/amd64":  "stash-macos",
-		"darwin/arm64":  "stash-macos",
-		"linux/amd64":   "stash-linux",
-		"windows/amd64": "stash-win.exe",
-		"linux/arm":     "stash-linux-arm32v6",
-		"linux/arm64":   "stash-linux-arm64v8",
-		"linux/armv7":   "stash-linux-arm32v7",
-	}
-}
-
-// isMacOSBundle checks if the application is running from within a macOS .app bundle
-func isMacOSBundle() bool {
-	exec, err := os.Executable()
-	return err == nil && strings.Contains(exec, "Stash.app/")
-}
-
-// getWantedRelease determines which release variant to download based on platform and bundle type
-func getWantedRelease(platform string) string {
-	release := stashReleases()[platform]
-
-	// On macOS, check if running from .app bundle
-	if runtime.GOOS == "darwin" && isMacOSBundle() {
-		return "Stash.app.zip"
-	}
-
-	return release
-}
-
-type githubReleasesResponse struct {
-	Url              string
-	Assets_url       string
-	Upload_url       string
-	Html_url         string
-	Id               int64
-	Node_id          string
-	Tag_name         string
-	Target_commitish string
-	Name             string
-	Draft            bool
-	Author           githubAuthor
-	Prerelease       bool
-	Created_at       string
-	Published_at     string
-	Assets           []githubAsset
-	Tarball_url      string
-	Zipball_url      string
-	Body             string
-}
-
-type githubAuthor struct {
-	Login               string
-	Id                  int64
-	Node_id             string
-	Avatar_url          string
-	Gravatar_id         string
-	Url                 string
-	Html_url            string
-	Followers_url       string
-	Following_url       string
-	Gists_url           string
-	Starred_url         string
-	Subscriptions_url   string
-	Organizations_url   string
-	Repos_url           string
-	Events_url          string
-	Received_events_url string
-	Type                string
-	Site_admin          bool
-}
-
-type githubAsset struct {
-	Url                  string
-	Id                   int64
-	Node_id              string
-	Name                 string
-	Label                string
-	Uploader             githubAuthor
-	Content_type         string
-	State                string
-	Size                 int64
-	Download_count       int64
-	Created_at           string
-	Updated_at           string
-	Browser_download_url string
-}
 
 type githubTagResponse struct {
 	Name        string
@@ -234,13 +145,6 @@ func GetLatestRelease(ctx context.Context) (*LatestRelease, error) {
 		Url:       releaseUrl,
 		Repo:      repo,
 	}, nil
-}
-
-func getReleaseHash(ctx context.Context, tagName string) (string, error) {
-	// ... (helper logic if needed, but we refactored GetLatestRelease to bypass this)
-	// We can likely remove getReleaseHash if unused, but avoiding massive deletion unless sure.
-	// Current GetLatestRelease doesn't call it.
-	return "", nil
 }
 
 func printLatestVersion(ctx context.Context) {

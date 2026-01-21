@@ -37,6 +37,7 @@ import (
 	"github.com/stashapp/stash/pkg/fsutil"
 	"github.com/stashapp/stash/pkg/logger"
 	"github.com/stashapp/stash/pkg/plugin"
+	"github.com/stashapp/stash/pkg/stashface"
 	"github.com/stashapp/stash/pkg/utils"
 	"github.com/stashapp/stash/ui"
 )
@@ -54,6 +55,8 @@ type Server struct {
 	displayAddress string
 
 	manager *manager.Manager
+
+	stashFaceController *stashface.Controller
 }
 
 // TODO - os.DirFS doesn't implement ReadDir, so re-implement it here
@@ -120,6 +123,10 @@ func Initialize() (*Server, error) {
 		},
 		displayAddress: displayAddress,
 		manager:        mgr,
+		stashFaceController: stashface.NewController(
+			cfg.GetPythonPath(),
+			filepath.Join(cfg.GetGeneratedPath(), "stashface"),
+		),
 	}
 
 	r.Use(middleware.Heartbeat("/healthz"))
@@ -222,6 +229,7 @@ func Initialize() (*Server, error) {
 	r.Mount("/plugin", server.getPluginRoutes())
 	r.Mount("/scheduled-tasks", server.getScheduledTaskRoutes())
 	r.Mount("/proxy", server.getProxyRoutes())
+	r.Mount("/stashface", server.getStashFaceRoutes())
 
 	r.HandleFunc("/css", cssHandler(cfg))
 	r.HandleFunc("/javascript", javascriptHandler(cfg))
@@ -430,6 +438,14 @@ func (s *Server) getProxyRoutes() chi.Router {
 	repo := s.manager.Repository
 	return proxyRoutes{
 		routes: routes{txnManager: repo.TxnManager},
+	}.Routes()
+}
+
+func (s *Server) getStashFaceRoutes() chi.Router {
+	return stashFaceRoutes{
+		routes:      routes{txnManager: s.manager.Repository.TxnManager},
+		controller:  s.stashFaceController,
+		sceneFinder: s.manager.Repository.Scene,
 	}.Routes()
 }
 

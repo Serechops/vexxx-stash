@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Mousetrap from "mousetrap";
 import {
   Button,
@@ -16,6 +16,7 @@ import SquareIcon from "@mui/icons-material/Square";
 import LocalOfferIcon from "@mui/icons-material/LocalOffer";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import { ZoomSelect } from "./ZoomSlider";
+import { useCurrentUser } from "src/hooks/UserContext";
 
 interface IListViewOptionsProps {
   zoomIndex?: number;
@@ -69,6 +70,15 @@ export const ListViewOptions: React.FC<IListViewOptionsProps> = ({
   displayModeOptions,
 }) => {
   const intl = useIntl();
+  const { isViewer } = useCurrentUser();
+
+  // Filter out Tagger mode for viewer users - they cannot use tagger functionality
+  const filteredDisplayModeOptions = useMemo(() => {
+    if (isViewer) {
+      return displayModeOptions.filter((mode) => mode !== DisplayMode.Tagger);
+    }
+    return displayModeOptions;
+  }, [displayModeOptions, isViewer]);
 
   const overlayTarget = useRef<HTMLButtonElement>(null);
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
@@ -76,22 +86,22 @@ export const ListViewOptions: React.FC<IListViewOptionsProps> = ({
 
   useEffect(() => {
     Mousetrap.bind("v g", () => {
-      if (displayModeOptions.includes(DisplayMode.Grid)) {
+      if (filteredDisplayModeOptions.includes(DisplayMode.Grid)) {
         onSetDisplayMode(DisplayMode.Grid);
       }
     });
     Mousetrap.bind("v l", () => {
-      if (displayModeOptions.includes(DisplayMode.List)) {
+      if (filteredDisplayModeOptions.includes(DisplayMode.List)) {
         onSetDisplayMode(DisplayMode.List);
       }
     });
     Mousetrap.bind("v w", () => {
-      if (displayModeOptions.includes(DisplayMode.Wall)) {
+      if (filteredDisplayModeOptions.includes(DisplayMode.Wall)) {
         onSetDisplayMode(DisplayMode.Wall);
       }
     });
     Mousetrap.bind("v t", () => {
-      if (displayModeOptions.includes(DisplayMode.Tagger)) {
+      if (filteredDisplayModeOptions.includes(DisplayMode.Tagger)) {
         onSetDisplayMode(DisplayMode.Tagger);
       }
     });
@@ -165,7 +175,7 @@ export const ListViewOptions: React.FC<IListViewOptionsProps> = ({
                 />
               </Box>
             ) : null}
-            {displayModeOptions.map((option) => (
+            {filteredDisplayModeOptions.map((option) => (
               <MenuItem
                 key={option}
                 selected={displayMode === option}
@@ -192,12 +202,21 @@ export const ListViewButtonGroup: React.FC<IListViewOptionsProps> = ({
   displayModeOptions,
 }) => {
   const intl = useIntl();
+  const { isViewer } = useCurrentUser();
+
+  // Filter out Tagger mode for viewer users - they cannot use tagger functionality
+  const filteredDisplayModeOptions = useMemo(() => {
+    if (isViewer) {
+      return displayModeOptions.filter((mode) => mode !== DisplayMode.Tagger);
+    }
+    return displayModeOptions;
+  }, [displayModeOptions, isViewer]);
 
   return (
     <>
-      {displayModeOptions.length > 1 && (
+      {filteredDisplayModeOptions.length > 1 && (
         <ButtonGroup size="small">
-          {displayModeOptions.map((option) => (
+          {filteredDisplayModeOptions.map((option) => (
             <Tooltip
               key={option}
               title={getLabel(intl, option)}

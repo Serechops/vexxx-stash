@@ -277,6 +277,18 @@ type Query {
 
   # LatestVersion
   latestversion: LatestVersion!
+
+  # User management
+  "Get the currently authenticated user"
+  currentUser: CurrentUser
+  "Find a user by ID (admin only)"
+  findUser(id: ID!): User
+  "List all users (admin only)"
+  findUsers: [User!]!
+  "Get user count statistics"
+  userCount: UserCountResult!
+  "List sessions for a user (admin only)"
+  findUserSessions(user_id: ID!): [UserSession!]!
 }
 
 type Mutation {
@@ -679,3 +691,24 @@ extend type Mutation {
   configureMovieFy(input: MovieFyConfigInput!): Boolean!
 }
 
+# User Management
+extend type Mutation {
+  "Create a new user (admin only)"
+  userCreate(input: UserCreateInput!): User!
+  "Update an existing user (admin only)"
+  userUpdate(input: UserUpdateInput!): User!
+  "Delete a user (admin only)"
+  userDestroy(id: ID!): Boolean!
+  "Regenerate API key for a user (admin only)"
+  userRegenerateAPIKey(id: ID!): String!
+  
+  "Change own password (any authenticated user)"
+  changeOwnPassword(current_password: String!, new_password: String!): Boolean!
+  "Regenerate own API key (any authenticated user)"
+  regenerateOwnAPIKey: String!
+  
+  "Terminate a specific user session (admin only)"
+  sessionDestroy(id: ID!): Boolean!
+  "Terminate all sessions for a user (admin only)"
+  sessionDestroyByUser(user_id: ID!): Boolean!
+}

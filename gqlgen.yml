@@ -157,4 +157,14 @@ models:
     model: github.com/stashapp/stash/pkg/models.RecommendationOptions
   RecommendationSource:
     model: github.com/stashapp/stash/pkg/models.RecommendationSource
-
+  # User types - multi-user support
+  User:
+    model: github.com/stashapp/stash/pkg/models.User
+  UserSession:
+    model: github.com/stashapp/stash/pkg/models.UserSession
+  UserRole:
+    model: github.com/stashapp/stash/pkg/models.UserRole
+  UserCreateInput:
+    model: github.com/stashapp/stash/pkg/models.UserCreateInput
+  UserUpdateInput:
+    model: github.com/stashapp/stash/pkg/models.UserUpdateInput

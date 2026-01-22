@@ -1,0 +1,35 @@
+mutation UserCreate($input: UserCreateInput!) {
+  userCreate(input: $input) {
+    ...UserData
+  }
+}
+
+mutation UserUpdate($input: UserUpdateInput!) {
+  userUpdate(input: $input) {
+    ...UserData
+  }
+}
+
+mutation UserDestroy($id: ID!) {
+  userDestroy(id: $id)
+}
+
+mutation UserRegenerateAPIKey($id: ID!) {
+  userRegenerateAPIKey(id: $id)
+}
+
+mutation ChangeOwnPassword($current_password: String!, $new_password: String!) {
+  changeOwnPassword(current_password: $current_password, new_password: $new_password)
+}
+
+mutation RegenerateOwnAPIKey {
+  regenerateOwnAPIKey
+}
+
+mutation SessionDestroy($id: ID!) {
+  sessionDestroy(id: $id)
+}
+
+mutation SessionDestroyByUser($user_id: ID!) {
+  sessionDestroyByUser(user_id: $user_id)
+}

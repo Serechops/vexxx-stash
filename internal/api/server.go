@@ -181,6 +181,10 @@ func Initialize() (*Server, error) {
 
 	gqlSrv := gqlHandler.New(NewExecutableSchema(Config{Resolvers: resolver}))
 	gqlSrv.SetRecoverFunc(recoverFunc)
+
+	// Add mutation authorization middleware for multi-user support
+	gqlSrv.AroundOperations(MutationMiddleware(repo.User, repo.TxnManager))
+
 	gqlSrv.AddTransport(gqlTransport.Websocket{
 		Upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {

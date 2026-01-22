@@ -15,6 +15,7 @@ import {
 } from "@mui/material";
 
 import { useTitleProps } from "src/hooks/title";
+import { useCurrentUser } from "src/hooks/UserContext";
 import { SettingsAboutPanel } from "./SettingsAboutPanel";
 import { SettingsConfigurationPanel } from "./SettingsSystemPanel";
 import { SettingsInterfacePanel } from "./SettingsInterfacePanel/SettingsInterfacePanel";
@@ -27,6 +28,7 @@ import { SettingsServicesPanel } from "./SettingsServicesPanel";
 import { SettingsContext, useSettings } from "./context";
 import { SettingsLibraryPanel } from "./SettingsLibraryPanel";
 import { SettingsSecurityPanel } from "./SettingsSecurityPanel";
+import { SettingsUsersPanel } from "./SettingsUsersPanel";
 import Changelog from "../Changelog/Changelog";
 
 const validTabs = [
@@ -34,6 +36,7 @@ const validTabs = [
   "library",
   "interface",
   "security",
+  "users",
   "metadata-providers",
   "services",
   "system",
@@ -53,6 +56,7 @@ function isTabKey(tab: string | null): tab is TabKey {
 
 const SettingTabs: React.FC<{ tab: TabKey }> = ({ tab }) => {
   const { advancedMode, setAdvancedMode } = useSettings();
+  const { canManageUsers, canModifySettings } = useCurrentUser();
   const theme = useTheme();
   // Responsive sidebar: on small screens, tabs could be horizontal or simpler.
   // Original bootstrap used Col sm={3} md={3} xl={2} for sidebar.
@@ -65,6 +69,7 @@ const SettingTabs: React.FC<{ tab: TabKey }> = ({ tab }) => {
       case "library": return <SettingsLibraryPanel />;
       case "interface": return <SettingsInterfacePanel />;
       case "security": return <SettingsSecurityPanel />;
+      case "users": return <SettingsUsersPanel />;
       case "tasks": return <SettingsTasksPanel />;
       case "services": return <SettingsServicesPanel />;
       case "tools": return <SettingsToolsPanel />;
@@ -123,6 +128,14 @@ const SettingTabs: React.FC<{ tab: TabKey }> = ({ tab }) => {
             component={Link}
             to="/settings?tab=security"
           />
+          {canManageUsers && (
+            <Tab
+              label={<FormattedMessage id="config.categories.users" defaultMessage="Users" />}
+              value="users"
+              component={Link}
+              to="/settings?tab=users"
+            />
+          )}
           <Tab
             label={<FormattedMessage id="config.categories.metadata_providers" />}
             value="metadata-providers"

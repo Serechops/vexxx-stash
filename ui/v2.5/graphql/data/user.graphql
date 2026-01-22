@@ -1,0 +1,32 @@
+fragment UserData on User {
+  id
+  username
+  role
+  api_key
+  created_at
+  updated_at
+  last_login_at
+  is_active
+}
+
+fragment CurrentUserData on CurrentUser {
+  id
+  username
+  role
+  permissions {
+    can_modify
+    can_delete
+    can_manage_users
+    can_run_tasks
+    can_modify_settings
+  }
+}
+
+fragment UserSessionData on UserSession {
+  id
+  user_id
+  expires_at
+  created_at
+  ip_address
+  user_agent
+}

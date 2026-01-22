@@ -133,5 +133,6 @@ func (db *Database) Repository() models.Repository {
 		SavedFilter:    db.SavedFilter,
 		PotentialScene: db.PotentialScene,
 		ContentProfile: db.ContentProfile,
+		User:           db.User,
 	}
 }

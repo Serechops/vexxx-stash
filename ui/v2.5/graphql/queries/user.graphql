@@ -1,0 +1,30 @@
+query CurrentUser {
+  currentUser {
+    ...CurrentUserData
+  }
+}
+
+query FindUsers {
+  findUsers {
+    ...UserData
+  }
+}
+
+query FindUser($id: ID!) {
+  findUser(id: $id) {
+    ...UserData
+  }
+}
+
+query UserCount {
+  userCount {
+    count
+    admin_count
+  }
+}
+
+query FindUserSessions($user_id: ID!) {
+  findUserSessions(user_id: $user_id) {
+    ...UserSessionData
+  }
+}

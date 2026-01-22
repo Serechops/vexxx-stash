@@ -47,6 +47,8 @@ import { lazyComponent } from "./utils/lazyComponent";
 import { isPlatformUniquelyRenderedByApple } from "./utils/apple";
 import Event from "./hooks/event";
 import { SettingsContext } from "./components/Settings/context";
+import { UserProvider } from "./hooks/UserContext";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 
 import { PluginRoutes, PluginsLoader } from "./plugins";
 
@@ -275,17 +277,19 @@ export const App: React.FC = () => {
             <Route path="/groups" component={Groups} />
             <Route path="/discover" component={Discover} />
             <Route path="/stats" component={Stats} />
-            <Route path="/settings" component={Settings} />
-            <Route
+            <ProtectedRoute adminOnly path="/settings" component={Settings} />
+            <ProtectedRoute
+              adminOnly
               path="/sceneFilenameParser"
               component={SceneFilenameParser}
             />
-            <Route
+            <ProtectedRoute
+              adminOnly
               path="/sceneDuplicateChecker"
               component={SceneDuplicateChecker}
             />
-            <Route path="/moviefy" component={MovieFy} />
-            <Route path="/renamer" component={Renamer} />
+            <ProtectedRoute adminOnly path="/moviefy" component={MovieFy} />
+            <ProtectedRoute adminOnly path="/renamer" component={Renamer} />
             <Route path="/setup" component={Setup} />
             <Route path="/migrate" component={Migrate} />
             <PluginRoutes />
@@ -382,12 +386,14 @@ export const App: React.FC = () => {
                       <LightboxProvider>
                         <ManualProvider>
                           <InteractiveProvider>
-                            <SettingsContext>
-                              <Helmet {...titleProps} />
-                              <GlobalSearch />
-                              {maybeRenderNavbar()}
-                              <MainContainer>{renderContent()}</MainContainer>
-                            </SettingsContext>
+                            <UserProvider>
+                              <SettingsContext>
+                                <Helmet {...titleProps} />
+                                <GlobalSearch />
+                                {maybeRenderNavbar()}
+                                <MainContainer>{renderContent()}</MainContainer>
+                              </SettingsContext>
+                            </UserProvider>
                           </InteractiveProvider>
                         </ManualProvider>
                       </LightboxProvider>

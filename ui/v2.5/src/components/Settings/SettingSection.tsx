@@ -6,7 +6,9 @@ import { useSettings } from "./context";
 interface ISettingGroup {
   id?: string;
   headingID?: string;
+  headingDefault?: string;
   subHeadingID?: string;
+  subHeadingDefault?: string;
   advanced?: boolean;
 }
 
@@ -14,7 +16,9 @@ export const SettingSection: React.FC<PropsWithChildren<ISettingGroup>> = ({
   id,
   children,
   headingID,
+  headingDefault,
   subHeadingID,
+  subHeadingDefault,
   advanced,
 }) => {
   const intl = useIntl();
@@ -29,14 +33,14 @@ export const SettingSection: React.FC<PropsWithChildren<ISettingGroup>> = ({
       className="setting-section"
     >
       <Typography variant="h4" component="h1" className="setting-section-header">
-        {headingID ? intl.formatMessage({ id: headingID }) : undefined}
+        {headingID ? intl.formatMessage({ id: headingID, defaultMessage: headingDefault }) : headingDefault}
       </Typography>
-      {subHeadingID ? (
+      {subHeadingID || subHeadingDefault ? (
         <Typography
           variant="body2"
           className="setting-section-subheader"
         >
-          {intl.formatMessage({ id: subHeadingID })}
+          {subHeadingID ? intl.formatMessage({ id: subHeadingID, defaultMessage: subHeadingDefault }) : subHeadingDefault}
         </Typography>
       ) : undefined}
       <Card>{children}</Card>

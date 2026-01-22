@@ -1,0 +1,66 @@
+# User role enum - determines access level
+enum UserRole {
+  ADMIN
+  VIEWER
+}
+
+# User represents a user account in the system
+type User {
+  id: ID!
+  username: String!
+  role: UserRole!
+  api_key: String
+  created_at: Time!
+  updated_at: Time!
+  last_login_at: Time
+  is_active: Boolean!
+}
+
+# UserSession represents an active login session
+type UserSession {
+  id: ID!
+  user_id: ID!
+  expires_at: Time!
+  created_at: Time!
+  ip_address: String
+  user_agent: String
+}
+
+# CurrentUser represents the currently authenticated user with permissions
+type CurrentUser {
+  id: ID!
+  username: String!
+  role: UserRole!
+  permissions: UserPermissions!
+}
+
+# UserPermissions contains the permission flags for the current user
+type UserPermissions {
+  can_modify: Boolean!
+  can_delete: Boolean!
+  can_manage_users: Boolean!
+  can_run_tasks: Boolean!
+  can_modify_settings: Boolean!
+}
+
+# Input for creating a new user
+input UserCreateInput {
+  username: String!
+  password: String!
+  role: UserRole!
+}
+
+# Input for updating an existing user
+input UserUpdateInput {
+  id: ID!
+  username: String
+  password: String
+  role: UserRole
+  is_active: Boolean
+}
+
+# Result type for user count queries
+type UserCountResult {
+  count: Int!
+  admin_count: Int!
+}

@@ -1044,6 +1044,9 @@ func (qb *SceneStore) makeQuery(ctx context.Context, sceneFilter *models.SceneFi
 		return nil, err
 	}
 
+	// Apply exclude_ids filter from FindFilterType
+	query.applyExcludeIDs("scenes.id", findFilter.ExcludeIds)
+
 	if err := qb.setSceneSort(&query, findFilter); err != nil {
 		return nil, err
 	}

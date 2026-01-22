@@ -11,6 +11,8 @@ input FindFilterType {
   # TODO - this should be refactored to not use a string
   sort: String
   direction: SortDirectionEnum
+  "IDs to exclude from results"
+  exclude_ids: [ID!]
 }
 
 type SavedFindFilterType {

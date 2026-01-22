@@ -90,7 +90,8 @@ func (s mappedConfig) process(ctx context.Context, q mappedQuery, common commonM
 			if len(found) > 0 {
 				result := s.postProcess(ctx, q, attrConfig, found)
 
-				// HACK - if the key is URLs, then we need to set the value as a multi-value
+				// Multi-value handling: URLs field requires special handling as it can
+				// legitimately contain multiple values from a single scrape operation
 				isMulti := isMulti != nil && isMulti(k)
 				if isMulti {
 					ret = ret.setMultiValue(0, k, result)
@@ -163,8 +164,9 @@ const (
 )
 
 func (s *mappedSceneScraperConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	// HACK - unmarshal to map first, then remove known scene sub-fields, then
-	// remarshal to yaml and pass that down to the base map
+	// Workaround: Go's YAML library doesn't natively support struct composition
+	// where an embedded struct has arbitrary fields alongside typed child fields.
+	// We unmarshal to map, extract known fields, then re-marshal separately.
 	parentMap := make(map[string]interface{})
 	if err := unmarshal(parentMap); err != nil {
 		return err
@@ -222,8 +224,9 @@ type mappedGalleryScraperConfig struct {
 type _mappedGalleryScraperConfig mappedGalleryScraperConfig
 
 func (s *mappedGalleryScraperConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	// HACK - unmarshal to map first, then remove known scene sub-fields, then
-	// remarshal to yaml and pass that down to the base map
+	// Workaround: Go's YAML library doesn't natively support struct composition
+	// where an embedded struct has arbitrary fields alongside typed child fields.
+	// We unmarshal to map, extract known fields, then re-marshal separately.
 	parentMap := make(map[string]interface{})
 	if err := unmarshal(parentMap); err != nil {
 		return err
@@ -276,8 +279,9 @@ type mappedImageScraperConfig struct {
 type _mappedImageScraperConfig mappedImageScraperConfig
 
 func (s *mappedImageScraperConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	// HACK - unmarshal to map first, then remove known scene sub-fields, then
-	// remarshal to yaml and pass that down to the base map
+	// Workaround: Go's YAML library doesn't natively support struct composition
+	// where an embedded struct has arbitrary fields alongside typed child fields.
+	// We unmarshal to map, extract known fields, then re-marshal separately.
 	parentMap := make(map[string]interface{})
 	if err := unmarshal(parentMap); err != nil {
 		return err
@@ -332,8 +336,9 @@ const (
 )
 
 func (s *mappedPerformerScraperConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	// HACK - unmarshal to map first, then remove known scene sub-fields, then
-	// remarshal to yaml and pass that down to the base map
+	// Workaround: Go's YAML library doesn't natively support struct composition
+	// where an embedded struct has arbitrary fields alongside typed child fields.
+	// We unmarshal to map, extract known fields, then re-marshal separately.
 	parentMap := make(map[string]interface{})
 	if err := unmarshal(parentMap); err != nil {
 		return err
@@ -386,8 +391,9 @@ const (
 )
 
 func (s *mappedMovieScraperConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	// HACK - unmarshal to map first, then remove known movie sub-fields, then
-	// remarshal to yaml and pass that down to the base map
+	// Workaround: Go's YAML library doesn't natively support struct composition
+	// where an embedded struct has arbitrary fields alongside typed child fields.
+	// We unmarshal to map, extract known fields, then re-marshal separately.
 	parentMap := make(map[string]interface{})
 	if err := unmarshal(parentMap); err != nil {
 		return err

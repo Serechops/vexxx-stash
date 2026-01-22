@@ -54,7 +54,8 @@ type stashFindPerformerNamePerformer struct {
 func (p stashFindPerformerNamePerformer) toPerformer() *models.ScrapedPerformer {
 	return &models.ScrapedPerformer{
 		Name: &p.Name,
-		// HACK - put id into the URL field
+		// Workaround: Store source Stash ID in URL field for later lookup.
+		// ScrapedPerformer lacks a dedicated source_id field.
 		URL: &p.ID,
 	}
 }
@@ -274,8 +275,8 @@ func (s *stashScraper) scrapeByName(ctx context.Context, name string, ty ScrapeC
 				return nil, err
 			}
 
-			// HACK - put id into the URL field
-			// put id into the URL field
+			// Workaround: Store source Stash ID in URLs field for later lookup.
+			// ScrapedScene lacks a dedicated source_id field.
 			converted.URLs = []string{scene.ID}
 			ret = append(ret, converted)
 		}

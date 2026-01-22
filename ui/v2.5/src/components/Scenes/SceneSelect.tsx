@@ -79,17 +79,14 @@ const _SceneSelect: React.FC<
     filter.itemsPerPage = maxOptionsShown;
     filter.sortBy = "title";
     filter.sortDirection = GQL.SortDirectionEnum.Asc;
+    filter.excludeIds = exclude;
 
     if (props.extraCriteria) {
       filter.criteria = [...props.extraCriteria];
     }
 
     const query = await queryFindScenesForSelect(filter);
-    let ret = query.data.findScenes.scenes.filter((scene) => {
-      // HACK - we should probably exclude these in the backend query, but
-      // this will do in the short-term
-      return !exclude.includes(scene.id.toString());
-    });
+    const ret = query.data.findScenes.scenes;
 
     return sceneSelectSort(input, ret).map((scene) => ({
       value: scene.id,

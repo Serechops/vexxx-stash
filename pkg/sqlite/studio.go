@@ -553,6 +553,9 @@ func (qb *StudioStore) makeQuery(ctx context.Context, studioFilter *models.Studi
 		return nil, err
 	}
 
+	// Apply exclude_ids filter from FindFilterType
+	query.applyExcludeIDs("studios.id", findFilter.ExcludeIds)
+
 	var err error
 	query.sortAndPagination, err = qb.getStudioSort(findFilter)
 	if err != nil {

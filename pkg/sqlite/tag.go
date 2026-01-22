@@ -662,6 +662,9 @@ func (qb *TagStore) Query(ctx context.Context, tagFilter *models.TagFilterType, 
 		return nil, 0, err
 	}
 
+	// Apply exclude_ids filter from FindFilterType
+	query.applyExcludeIDs("tags.id", findFilter.ExcludeIds)
+
 	var err error
 	query.sortAndPagination, err = qb.getTagSort(&query, findFilter)
 	if err != nil {

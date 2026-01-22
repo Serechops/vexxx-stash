@@ -506,6 +506,9 @@ func (qb *GroupStore) makeQuery(ctx context.Context, groupFilter *models.GroupFi
 		return nil, err
 	}
 
+	// Apply exclude_ids filter from FindFilterType
+	query.applyExcludeIDs("groups.id", findFilter.ExcludeIds)
+
 	if err := qb.setGroupSort(&query, findFilter); err != nil {
 		return nil, err
 	}

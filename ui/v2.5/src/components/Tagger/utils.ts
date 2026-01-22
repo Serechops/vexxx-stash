@@ -161,7 +161,7 @@ export const parsePath = (filePath: string) => {
   const fileName = pathComponents[pathComponents.length - 1];
 
   const ext = fileName.match(/\.[a-z0-9]*$/)?.[0] ?? "";
-  const file = fileName.slice(0, ext.length * -1);
+  const file = ext.length > 0 ? fileName.slice(0, -ext.length) : fileName;
 
   // remove any .. or . paths
   const paths = (

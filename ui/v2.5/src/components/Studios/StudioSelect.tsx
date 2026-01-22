@@ -83,12 +83,9 @@ const _StudioSelect: React.FC<
     filter.itemsPerPage = maxOptionsShown;
     filter.sortBy = "name";
     filter.sortDirection = GQL.SortDirectionEnum.Asc;
+    filter.excludeIds = exclude;
     const query = await queryFindStudiosForSelect(filter);
-    let ret = query.data.findStudios.studios.filter((studio) => {
-      // HACK - we should probably exclude these in the backend query, but
-      // this will do in the short-term
-      return !exclude.includes(studio.id.toString());
-    });
+    const ret = query.data.findStudios.studios;
 
     return studioSelectSort(input, ret).map((studio) => ({
       value: studio.id,

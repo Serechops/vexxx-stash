@@ -67,17 +67,24 @@ const UserDialog: React.FC<UserDialogProps> = ({
   onSave,
 }) => {
   const intl = useIntl();
-  const [formData, setFormData] = useState<UserFormData>(
-    user
-      ? {
-          username: user.username,
-          password: "",
-          role: user.role,
-          is_active: user.is_active,
-        }
-      : defaultFormData
-  );
+  const [formData, setFormData] = useState<UserFormData>(defaultFormData);
   const [saving, setSaving] = useState(false);
+
+  // Reset form data when dialog opens or user changes
+  React.useEffect(() => {
+    if (open) {
+      setFormData(
+        user
+          ? {
+              username: user.username,
+              password: "",
+              role: user.role,
+              is_active: user.is_active,
+            }
+          : defaultFormData
+      );
+    }
+  }, [open, user]);
 
   const handleSave = async () => {
     setSaving(true);

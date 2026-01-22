@@ -55,6 +55,7 @@ export class ListFilterModel {
   public criteria: Array<Criterion> = [];
   public randomSeed = -1;
   private defaultZoomIndex: number = 1;
+  public excludeIds: string[] = [];
 
   public constructor(
     mode: FilterMode,
@@ -450,6 +451,8 @@ export class ListFilterModel {
       per_page: this.itemsPerPage,
       sort: this.getSortBy(),
       direction: this.sortDirection,
+      exclude_ids:
+        this.excludeIds.length > 0 ? this.excludeIds : undefined,
     };
   }
 

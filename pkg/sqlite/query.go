@@ -112,6 +112,19 @@ func (qb *queryBuilder) addArg(args ...interface{}) {
 	qb.args = append(qb.args, args...)
 }
 
+// applyExcludeIDs adds a WHERE clause to exclude specific IDs from the query results.
+// The idColumn should be the fully qualified column name (e.g., "tags.id").
+func (qb *queryBuilder) applyExcludeIDs(idColumn string, excludeIDs []string) {
+	if len(excludeIDs) == 0 {
+		return
+	}
+	clause := idColumn + " NOT IN " + getInBinding(len(excludeIDs))
+	qb.addWhere(clause)
+	for _, id := range excludeIDs {
+		qb.addArg(id)
+	}
+}
+
 func (qb *queryBuilder) hasJoin(alias string) bool {
 	for _, j := range qb.joins {
 		if j.alias() == alias {

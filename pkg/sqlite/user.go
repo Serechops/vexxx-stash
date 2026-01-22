@@ -169,9 +169,9 @@ func (qb *UserStore) Update(ctx context.Context, id int, partial models.UserPart
 		return nil, err
 	}
 
-	r := userRowFromPartial(partial)
+	r := userRecordFromPartial(partial)
 
-	if !r.IsEmpty() {
+	if len(r) > 0 {
 		if err := qb.tableMgr.updateByID(ctx, id, r); err != nil {
 			return nil, fmt.Errorf("updating user: %w", err)
 		}
@@ -180,51 +180,29 @@ func (qb *UserStore) Update(ctx context.Context, id int, partial models.UserPart
 	return qb.Find(ctx, id)
 }
 
-type userRowPartial struct {
-	Username     *string    `db:"username" goqu:"omitempty"`
-	PasswordHash *string    `db:"password_hash" goqu:"omitempty"`
-	Role         *string    `db:"role" goqu:"omitempty"`
-	APIKey       *string    `db:"api_key" goqu:"omitempty"`
-	UpdatedAt    *Timestamp `db:"updated_at" goqu:"omitempty"`
-	LastLoginAt  *Timestamp `db:"last_login_at" goqu:"omitempty"`
-	IsActive     *bool      `db:"is_active" goqu:"omitempty"`
-}
-
-func (r userRowPartial) IsEmpty() bool {
-	return r.Username == nil &&
-		r.PasswordHash == nil &&
-		r.Role == nil &&
-		r.APIKey == nil &&
-		r.UpdatedAt == nil &&
-		r.LastLoginAt == nil &&
-		r.IsActive == nil
-}
-
-func userRowFromPartial(partial models.UserPartial) userRowPartial {
-	r := userRowPartial{}
+func userRecordFromPartial(partial models.UserPartial) exp.Record {
+	r := exp.Record{}
 
 	if partial.Username.Set {
-		r.Username = &partial.Username.Value
+		r["username"] = partial.Username.Value
 	}
 	if partial.PasswordHash.Set {
-		r.PasswordHash = &partial.PasswordHash.Value
+		r["password_hash"] = partial.PasswordHash.Value
 	}
 	if partial.Role.Set {
-		r.Role = &partial.Role.Value
+		r["role"] = partial.Role.Value
 	}
 	if partial.APIKey.Set {
-		r.APIKey = &partial.APIKey.Value
+		r["api_key"] = partial.APIKey.Value
 	}
 	if partial.UpdatedAt.Set {
-		ts := Timestamp{Timestamp: partial.UpdatedAt.Value}
-		r.UpdatedAt = &ts
+		r["updated_at"] = Timestamp{Timestamp: partial.UpdatedAt.Value}
 	}
 	if partial.LastLoginAt.Set {
-		ts := Timestamp{Timestamp: partial.LastLoginAt.Value}
-		r.LastLoginAt = &ts
+		r["last_login_at"] = Timestamp{Timestamp: partial.LastLoginAt.Value}
 	}
 	if partial.IsActive.Set {
-		r.IsActive = &partial.IsActive.Value
+		r["is_active"] = partial.IsActive.Value
 	}
 
 	return r

@@ -58,6 +58,8 @@ type FindFilterType struct {
 	PerPage   *int               `json:"per_page"`
 	Sort      *string            `json:"sort"`
 	Direction *SortDirectionEnum `json:"direction"`
+	// IDs to exclude from results
+	ExcludeIds []string `json:"exclude_ids"`
 }
 
 func (ff FindFilterType) GetSort(defaultSort string) string {

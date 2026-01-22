@@ -366,8 +366,8 @@ func (c *postScraper) postScrapeScene(ctx context.Context, scene models.ScrapedS
 		return nil, err
 	}
 
-	// HACK - if movies was returned but not groups, add the groups from the movies
-	// if groups was returned but not movies, add the movies from the groups for backward compatibility
+	// Backward compatibility: Sync movies and groups fields bidirectionally.
+	// If only one is populated, derive the other for API compatibility.
 	if len(scene.Movies) > 0 && len(scene.Groups) == 0 {
 		for _, m := range scene.Movies {
 			g := m.ScrapedGroup()

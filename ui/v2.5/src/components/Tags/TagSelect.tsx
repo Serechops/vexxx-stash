@@ -82,12 +82,9 @@ const _TagSelect: React.FC<TagSelectProps> = (props) => {
     filter.itemsPerPage = maxOptionsShown;
     filter.sortBy = "name";
     filter.sortDirection = GQL.SortDirectionEnum.Asc;
+    filter.excludeIds = exclude;
     const query = await queryFindTagsForSelect(filter);
-    let ret = query.data.findTags.tags.filter((tag) => {
-      // HACK - we should probably exclude these in the backend query, but
-      // this will do in the short-term
-      return !exclude.includes(tag.id.toString());
-    });
+    const ret = query.data.findTags.tags;
 
     return tagSelectSort(input, ret).map((tag) => ({
       value: tag.id,

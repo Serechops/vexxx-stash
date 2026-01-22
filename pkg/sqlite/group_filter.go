@@ -157,7 +157,8 @@ func (qb *groupFilterHandler) performersCriterionHandler(performers *models.Mult
 				args = append(args, arg)
 			}
 
-			// Hack, can't apply args to join, nor inner join on a left join, so use CTE instead
+			// Use CTE for performer filtering - cleaner than nested subqueries
+			// and works around goqu's join parameter limitations
 			f.addWith(`groups_performers AS (
 				SELECT groups_scenes.group_id, performers_scenes.performer_id
 				FROM groups_scenes

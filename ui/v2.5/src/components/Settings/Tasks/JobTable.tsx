@@ -9,7 +9,7 @@ import {
   faMemory,
   faMicrochip,
 } from "@fortawesome/free-solid-svg-icons";
-import moment from "moment/min/moment-with-locales";
+import { formatRelativeTime } from "src/utils/date";
 import React, { useEffect, useState } from "react";
 import { useIntl } from "react-intl";
 import { Icon } from "src/components/Shared/Icon";
@@ -141,7 +141,7 @@ const Task: React.FC<IJob> = ({ job }) => {
           />
         </div>
         {job.status === GQL.JobStatus.Running && job.startTime && (
-          <span className="eta">{moment(job.startTime).fromNow(true)}</span>
+          <span className="eta">{formatRelativeTime(job.startTime)}</span>
         )}
       </div>
 

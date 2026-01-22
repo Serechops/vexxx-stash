@@ -48,6 +48,7 @@
     "@react-hook/resize-observer": "^1.2.6",
     "@silvermine/videojs-airplay": "^1.2.0",
     "@silvermine/videojs-chromecast": "^1.4.1",
+    "@tanstack/react-virtual": "^3.13.18",
     "@types/react-router-dom": "^5.3.3",
     "apollo-upload-client": "^18.0.1",
     "base64-blob": "^1.4.1",

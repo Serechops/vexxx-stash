@@ -15,7 +15,7 @@ import { DeleteScenesDialog } from "./DeleteScenesDialog";
 import { RenameScenesDialog } from "./RenameScenesDialog";
 import { GenerateDialog } from "../Dialogs/GenerateDialog";
 import { ExportDialog } from "../Shared/ExportDialog";
-import { SceneCardsGrid } from "./SceneCardsGrid";
+import { SmartSceneCardsGrid } from "./VirtualizedSceneCardsGrid";
 import { FeaturedScene } from "./FeaturedScene";
 import { TaggerContext } from "../Tagger/context";
 import { IdentifyDialog } from "../Dialogs/IdentifyDialog/IdentifyDialog";
@@ -212,7 +212,7 @@ const SceneList: React.FC<{
 
   if (filter.displayMode === DisplayMode.Grid) {
     return (
-      <SceneCardsGrid
+      <SmartSceneCardsGrid
         scenes={scenes}
         queue={queue}
         zoomIndex={filter.zoomIndex}
@@ -221,6 +221,7 @@ const SceneList: React.FC<{
         onSelectChange={onSelectChange}
         fromGroupId={fromGroupId}
         loading={loading}
+        virtualizationThreshold={50}
       />
     );
   }

@@ -23,7 +23,7 @@ import Gallery, { RenderImageProps } from "react-photo-gallery";
 import { ExportDialog } from "../Shared/ExportDialog";
 import { objectTitle } from "src/core/files";
 import { useConfigurationContext } from "src/hooks/Config";
-import { ImageGridCard } from "./ImageGridCard";
+import { SmartImageGridCard } from "./VirtualizedImageGridCard";
 import { View } from "../List/views";
 import { IItemListOperation, FilteredListToolbar } from "../List/FilteredListToolbar";
 import { FileSize } from "../Shared/FileSize";
@@ -247,7 +247,7 @@ const ImageListImages: React.FC<IImageListImages> = ({
 
   if (filter.displayMode === DisplayMode.Grid) {
     return (
-      <ImageGridCard
+      <SmartImageGridCard
         images={images}
         selectedIds={selectedIds}
         zoomIndex={filter.zoomIndex}
@@ -255,6 +255,7 @@ const ImageListImages: React.FC<IImageListImages> = ({
         onSelectChange={onSelectChange}
         onPreview={onPreview}
         loading={loading}
+        virtualizationThreshold={50}
       />
     );
   }

@@ -72,7 +72,6 @@ export const EditTagsDialog: React.FC<IListOperationProps> = (
   });
 
   function setParentTagIDs(value: React.SetStateAction<GQL.BulkUpdateIds>) {
-    console.log(value);
     setParentTagIDs_(value);
   }
 

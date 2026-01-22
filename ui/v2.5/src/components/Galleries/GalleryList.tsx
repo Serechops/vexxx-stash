@@ -14,7 +14,7 @@ import { EditGalleriesDialog } from "./EditGalleriesDialog";
 import { DeleteGalleriesDialog } from "./DeleteGalleriesDialog";
 import { ExportDialog } from "../Shared/ExportDialog";
 import { GalleryListTable } from "./GalleryListTable";
-import { GalleryCardGrid } from "./GalleryGridCard";
+import { SmartGalleryCardGrid } from "./VirtualizedGalleryCardGrid";
 import { View } from "../List/views";
 import { PatchComponent } from "src/patch";
 import { IItemListOperation } from "../List/FilteredListToolbar";
@@ -140,13 +140,14 @@ export const GalleryList: React.FC<IGalleryList> = PatchComponent(
 
         if (filter.displayMode === DisplayMode.Grid) {
           return (
-            <GalleryCardGrid
+            <SmartGalleryCardGrid
               galleries={galleries}
               selectedIds={selectedIds}
               zoomIndex={filter.zoomIndex}
               itemsPerPage={filter.itemsPerPage}
               onSelectChange={onSelectChange}
               loading={result.loading}
+              virtualizationThreshold={50}
             />
           );
         }

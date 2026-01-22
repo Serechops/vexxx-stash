@@ -21,7 +21,7 @@ import { PerformerListTable } from "./PerformerListTable";
 import { EditPerformersDialog } from "./EditPerformersDialog";
 import { cmToImperial, cmToInches, kgToLbs } from "src/utils/units";
 import TextUtils from "src/utils/text";
-import { PerformerCardGrid } from "./PerformerCardGrid";
+import { SmartPerformerCardGrid } from "./VirtualizedPerformerCardGrid";
 import { PerformerMergeModal } from "./PerformerMergeDialog";
 import { View } from "../List/views";
 import { IItemListOperation } from "../List/FilteredListToolbar";
@@ -335,7 +335,7 @@ export const PerformerList: React.FC<IPerformerList> = PatchComponent(
 
         if (filter.displayMode === DisplayMode.Grid) {
           return (
-            <PerformerCardGrid
+            <SmartPerformerCardGrid
               performers={performers}
               zoomIndex={filter.zoomIndex}
               itemsPerPage={filter.itemsPerPage}
@@ -343,6 +343,7 @@ export const PerformerList: React.FC<IPerformerList> = PatchComponent(
               onSelectChange={onSelectChange}
               extraCriteria={extraCriteria}
               loading={result.loading}
+              virtualizationThreshold={50}
             />
           );
         }

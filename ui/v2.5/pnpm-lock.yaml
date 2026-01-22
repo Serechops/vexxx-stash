@@ -65,6 +65,9 @@ importers:
       '@silvermine/videojs-chromecast':
         specifier: ^1.4.1
         version: 1.5.0(video.js@7.21.7)
+      '@tanstack/react-virtual':
+        specifier: ^3.13.18
+        version: 3.13.18(react-dom@17.0.2(react@17.0.2))(react@17.0.2)
       '@types/react-router-dom':
         specifier: ^5.3.3
         version: 5.3.3
@@ -2019,6 +2022,15 @@ packages:
     resolution: {integrity: sha512-oDWu0WT6NORWqpUHf5xg+GoLlxA/YV7guNDOGsDV51gOqYiKb2HoPXodDfhdzwHczUmPFmbyPwfSC1E+etAOmQ==}
     peerDependencies:
       video.js: '>= 6 < 9'
+
+  '@tanstack/react-virtual@3.13.18':
+    resolution: {integrity: sha512-dZkhyfahpvlaV0rIKnvQiVoWPyURppl6w4m9IwMDpuIjcJ1sD9YGWrt0wISvgU7ewACXx2Ct46WPgI6qAD4v6A==}
+    peerDependencies:
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+      react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+
+  '@tanstack/virtual-core@3.13.18':
+    resolution: {integrity: sha512-Mx86Hqu1k39icq2Zusq+Ey2J6dDWTjDvEv43PJtRCoEYTLyfaPnxIQ6iy7YAOK0NV/qOEmZQ/uCufrppZxTgcg==}
 
   '@theguild/federation-composition@0.20.1':
     resolution: {integrity: sha512-lwYYKCeHmstOtbMtzxC0BQKWsUPYbEVRVdJ3EqR4jSpcF4gvNf3MOJv6yuvq6QsKqgYZURKRBszmg7VEDoi5Aw==}
@@ -7702,6 +7714,14 @@ snapshots:
     dependencies:
       video.js: 7.21.7
       webcomponents.js: https://codeload.github.com/webcomponents/webcomponentsjs/tar.gz/8a2e40557b177e2cca0def2553f84c8269c8f93e
+
+  '@tanstack/react-virtual@3.13.18(react-dom@17.0.2(react@17.0.2))(react@17.0.2)':
+    dependencies:
+      '@tanstack/virtual-core': 3.13.18
+      react: 17.0.2
+      react-dom: 17.0.2(react@17.0.2)
+
+  '@tanstack/virtual-core@3.13.18': {}
 
   '@theguild/federation-composition@0.20.1(graphql@16.11.0)':
     dependencies:

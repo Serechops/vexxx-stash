@@ -16,6 +16,7 @@
 
 import React from "react";
 import { SvgIconProps } from "@mui/material";
+import { logger } from "src/utils/logger";
 
 // MUI Icons imports - add more as needed
 import AddIcon from "@mui/icons-material/Add";
@@ -284,7 +285,7 @@ export const MuiIcon: React.FC<MuiIconProps> = ({ icon, ...props }) => {
     const IconComponent = iconMap[icon];
     
     if (!IconComponent) {
-        console.warn(`MuiIcon: Unknown icon "${icon}". Add it to iconMap or use FontAwesome.`);
+        logger.warn(`MuiIcon: Unknown icon "${icon}". Add it to iconMap or use FontAwesome.`);
         return <HelpOutlineIcon {...props} />;
     }
     

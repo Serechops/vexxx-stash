@@ -133,11 +133,13 @@ func (f *FFMpeg) initHWSupport(ctx context.Context) {
 		}
 	}
 
-	outstr := fmt.Sprintf("[InitHWSupport] Supported HW codecs [%d]:\n", len(hwCodecSupport))
+	// Use strings.Builder for efficient string concatenation
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("[InitHWSupport] Supported HW codecs [%d]:\n", len(hwCodecSupport)))
 	for _, codec := range hwCodecSupport {
-		outstr += fmt.Sprintf("\t%s - %s\n", codec.Name, codec.CodeName)
+		sb.WriteString(fmt.Sprintf("\t%s - %s\n", codec.Name, codec.CodeName))
 	}
-	logger.Info(outstr)
+	logger.Info(sb.String())
 
 	f.hwCodecSupportMutex.Lock()
 	defer f.hwCodecSupportMutex.Unlock()
@@ -149,6 +151,28 @@ func (f *FFMpeg) hwCanFullHWTranscode(ctx context.Context, codec VideoCodec, vf 
 		return false
 	}
 
+	// Check cache first - key is based on file path, codec, and requested height
+	cacheKey := fmt.Sprintf("%s:%s:%d", vf.Path, codec.CodeName, reqHeight)
+
+	f.hwTranscodeCacheMutex.RLock()
+	if result, ok := f.hwTranscodeCache[cacheKey]; ok {
+		f.hwTranscodeCacheMutex.RUnlock()
+		return result
+	}
+	f.hwTranscodeCacheMutex.RUnlock()
+
+	// Not in cache, perform the test
+	result := f.testFullHWTranscode(ctx, codec, vf, reqHeight)
+
+	// Store result in cache
+	f.hwTranscodeCacheMutex.Lock()
+	f.hwTranscodeCache[cacheKey] = result
+	f.hwTranscodeCacheMutex.Unlock()
+
+	return result
+}
+
+func (f *FFMpeg) testFullHWTranscode(ctx context.Context, codec VideoCodec, vf *models.VideoFile, reqHeight int) bool {
 	var args Args
 	args = append(args, "-hide_banner")
 	args = args.LogLevel(LogLevelWarning)

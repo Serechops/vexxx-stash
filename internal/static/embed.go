@@ -4,8 +4,9 @@ package static
 import (
 	"embed"
 	"fmt"
-	"io"
 	"io/fs"
+
+	"github.com/stashapp/stash/pkg/utils"
 )
 
 //go:embed performer performer_male performer_sfw scene image gallery tag studio group
@@ -59,7 +60,8 @@ func Open(path string) fs.File {
 // It will panic if an error occurs.
 func ReadAll(path string) []byte {
 	f := Open(path)
-	ret, err := io.ReadAll(f)
+	defer f.Close()
+	ret, err := utils.ReadAllBuffered(f)
 	if err != nil {
 		panic(fmt.Sprintf("reading static file: %v", err))
 	}

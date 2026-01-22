@@ -9,6 +9,7 @@ import { Button } from "@mui/material";
 import * as GQL from "src/core/generated-graphql";
 import TextUtils from "src/utils/text";
 import { Icon } from "src/components/Shared/Icon";
+import { logger } from "src/utils/logger";
 import {
   faChevronRight,
   faChevronLeft,
@@ -130,7 +131,7 @@ export const ScenePlayerScrubber: React.FC<IScenePlayerScrubberProps> = ({
       });
     });
 
-    console.log("[Scrubber] Generated sprite items", { count: newSprites.length });
+    logger.debug("[Scrubber] Generated sprite items", { count: newSprites.length });
 
     setScrubWidth(totalWidth);
     setSpriteItems(newSprites);

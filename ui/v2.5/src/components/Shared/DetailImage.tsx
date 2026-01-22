@@ -38,6 +38,6 @@ export const DetailImage = PatchComponent(
       fixWidth();
     }, [props.src]);
 
-    return <img ref={imgRef} onLoad={() => fixWidth()} className="vexxx-detail-image" {...props} />;
+    return <img ref={imgRef} onLoad={() => fixWidth()} className="vexxx-detail-image" loading="lazy" {...props} />;
   }
 );

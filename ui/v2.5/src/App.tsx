@@ -14,6 +14,7 @@ import { ToastProvider } from "src/hooks/Toast";
 import { LightboxProvider } from "src/hooks/Lightbox/context";
 import { ZoomProvider } from "src/hooks/ZoomContext";
 import { initPolyfills } from "src/polyfills";
+import { logger } from "src/utils/logger";
 
 import locales, { registerCountry } from "src/locales";
 import {
@@ -54,7 +55,7 @@ import "./pluginApi";
 import { ConnectionMonitor } from "./ConnectionMonitor";
 import { PatchFunction } from "./patch";
 
-import moment from "moment/min/moment-with-locales";
+import { setDateLocale } from "./utils/date";
 import { ErrorMessage } from "./components/Shared/ErrorMessage";
 import cx from "classnames";
 import { ThemeProvider } from "@mui/material/styles";
@@ -170,7 +171,7 @@ export const App: React.FC = () => {
           setCustomMessages(await res.json());
         }
       } catch (err) {
-        console.log(err);
+        logger.debug("Failed to load custom locales", err);
       }
     })();
   }, []);
@@ -207,7 +208,7 @@ export const App: React.FC = () => {
       });
 
       setMessages(newMessages);
-      moment.locale([language, defaultLocale]);
+      setDateLocale([language, defaultLocale]);
     };
 
     setLocale();

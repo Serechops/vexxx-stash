@@ -221,12 +221,17 @@ type FFMpeg struct {
 	version             Version
 	hwCodecSupport      []VideoCodec
 	hwCodecSupportMutex sync.RWMutex
+
+	// Cache for full HW transcode capability per file+codec+resolution
+	hwTranscodeCache      map[string]bool
+	hwTranscodeCacheMutex sync.RWMutex
 }
 
 // Creates a new FFMpeg encoder
 func NewEncoder(ffmpegPath string) *FFMpeg {
 	ret := &FFMpeg{
-		ffmpeg: ffmpegPath,
+		ffmpeg:           ffmpegPath,
+		hwTranscodeCache: make(map[string]bool),
 	}
 	if err := ret.getVersion(); err != nil {
 		logger.Warnf("FFMpeg version not detected %v", err)

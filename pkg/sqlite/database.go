@@ -93,6 +93,10 @@ type Database struct {
 	schemaVersion uint
 
 	lockChan chan struct{}
+
+	// Caches provides LRU caching for frequently accessed entities.
+	// Initialized via InitCaches().
+	Caches *EntityCaches
 }
 
 func NewDatabase() *Database {
@@ -136,6 +140,34 @@ func NewDatabase() *Database {
 
 func (db *Database) SetBlobStoreOptions(options BlobStoreOptions) {
 	*db.Blobs = *NewBlobStore(options)
+}
+
+// InitCaches initializes the entity caches with the given configuration.
+// If config is nil, default configuration is used.
+// This should be called after the database is opened.
+func (db *Database) InitCaches(config *CacheConfig) {
+	if config == nil {
+		defaultConfig := DefaultCacheConfig()
+		config = &defaultConfig
+	}
+	db.Caches = NewEntityCaches(*config, db)
+}
+
+// InvalidateCache invalidates specific entity from caches after mutations.
+func (db *Database) InvalidateCache(entityType string, id int) {
+	if db.Caches == nil {
+		return
+	}
+	switch entityType {
+	case "scene":
+		db.Caches.InvalidateScene(id)
+	case "performer":
+		db.Caches.InvalidatePerformer(id)
+	case "studio":
+		db.Caches.InvalidateStudio(id)
+	case "tag":
+		db.Caches.InvalidateTag(id)
+	}
 }
 
 // Ready returns an error if the database is not ready to begin transactions.

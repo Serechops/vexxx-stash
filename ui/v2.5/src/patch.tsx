@@ -105,21 +105,27 @@ export function PatchFunction<T extends Function>(name: string, fn: T) {
 }
 
 // patches a component and registers it in the pluginapi components object
+// Wraps the component in React.memo for performance optimization
 export function PatchComponent<T>(
   component: string,
   fn: React.FC<T>
-): React.FC<T> {
+): React.MemoExoticComponent<React.FC<T>> {
   const ret = PatchFunction(component, fn);
 
   // register with the plugin api
   RegisterComponent(component, ret);
-  return ret as React.FC<T>;
+  
+  // Wrap in React.memo to prevent unnecessary re-renders
+  // when parent re-renders but props haven't changed
+  const memoized = React.memo(ret as React.FC<T>);
+  memoized.displayName = component;
+  return memoized;
 }
 
 // patches a component and registers it in the pluginapi components object
 export function PatchContainerComponent<T = {}>(
   component: string
-): React.FC<React.PropsWithChildren<T>> {
+): React.MemoExoticComponent<React.FC<React.PropsWithChildren<T>>> {
   const fn: React.FC<React.PropsWithChildren<T>> = (
     props: React.PropsWithChildren<T>
   ) => {

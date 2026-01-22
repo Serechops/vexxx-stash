@@ -30,6 +30,7 @@ import (
 	"github.com/vearutop/statigz"
 	"github.com/vektah/gqlparser/v2/ast"
 
+	apiDebug "github.com/stashapp/stash/internal/api/debug"
 	"github.com/stashapp/stash/internal/api/loaders"
 	"github.com/stashapp/stash/internal/build"
 	"github.com/stashapp/stash/internal/manager"
@@ -230,6 +231,16 @@ func Initialize() (*Server, error) {
 	r.Mount("/scheduled-tasks", server.getScheduledTaskRoutes())
 	r.Mount("/proxy", server.getProxyRoutes())
 	r.Mount("/stashface", server.getStashFaceRoutes())
+
+	// Debug endpoints for profiling and metrics
+	// Enable via STASH_DEBUG=1 environment variable or debug config
+	debugEnabled := os.Getenv("STASH_DEBUG") == "1"
+	pprofEnabled := os.Getenv("STASH_PPROF") == "1"
+	r.Mount("/debug", apiDebug.Handler(apiDebug.Config{
+		Enabled:       debugEnabled,
+		EnablePprof:   pprofEnabled,
+		EnableMetrics: true, // Metrics always enabled when debug is enabled
+	}))
 
 	r.HandleFunc("/css", cssHandler(cfg))
 	r.HandleFunc("/javascript", javascriptHandler(cfg))

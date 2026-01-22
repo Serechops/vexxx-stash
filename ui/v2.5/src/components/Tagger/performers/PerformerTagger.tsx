@@ -571,7 +571,7 @@ const PerformerTaggerList: React.FC<IPerformerTaggerListProps> = ({
             />
           )}
           <Paper className="performer-card">
-            <img src={performer.image_path ?? ""} alt="" />
+            <img src={performer.image_path ?? ""} alt="" loading="lazy" />
           </Paper>
           <div className={`${CLASSNAME}-details`}>
             <Link

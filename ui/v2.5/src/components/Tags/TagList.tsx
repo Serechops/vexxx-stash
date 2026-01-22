@@ -24,7 +24,7 @@ import { tagRelationHook } from "../../core/tags";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { TagMergeModal } from "./TagMergeDialog";
 import { Tag } from "./TagSelect";
-import { TagCardGrid } from "./TagCardGrid";
+import { SmartTagCardGrid } from "./VirtualizedTagCardGrid";
 import { EditTagsDialog } from "./EditTagsDialog";
 import { View } from "../List/views";
 import { IItemListOperation } from "../List/FilteredListToolbar";
@@ -228,13 +228,14 @@ export const TagList: React.FC<ITagList> = PatchComponent(
 
         if (filter.displayMode === DisplayMode.Grid) {
           return (
-            <TagCardGrid
+            <SmartTagCardGrid
               tags={tags}
               zoomIndex={filter.zoomIndex}
               itemsPerPage={filter.itemsPerPage}
               selectedIds={selectedIds}
               onSelectChange={onSelectChange}
               loading={result.loading}
+              virtualizationThreshold={50}
             />
           );
         }

@@ -14,7 +14,7 @@ import {
 import { ItemListContext, showWhenSelected } from "../List/ItemList";
 import { ExportDialog } from "../Shared/ExportDialog";
 import { DeleteEntityDialog } from "../Shared/DeleteEntityDialog";
-import { GroupCardGrid } from "./GroupCardGrid";
+import { SmartGroupCardGrid } from "./VirtualizedGroupCardGrid";
 import { EditGroupsDialog } from "./EditGroupsDialog";
 import { View } from "../List/views";
 import {
@@ -427,7 +427,7 @@ export const GroupList: React.FC<IGroupList> = PatchComponent(
             onClose={() => setIsExportDialogOpen(false)}
           />
           {filter.displayMode === DisplayMode.Grid && (
-            <GroupCardGrid
+            <SmartGroupCardGrid
               groups={result.data?.findGroups.groups ?? []}
               zoomIndex={filter.zoomIndex}
               itemsPerPage={filter.itemsPerPage}
@@ -436,6 +436,7 @@ export const GroupList: React.FC<IGroupList> = PatchComponent(
               fromGroupId={fromGroupId}
               onMove={onMove}
               loading={result.loading}
+              virtualizationThreshold={50}
             />
           )}
         </>

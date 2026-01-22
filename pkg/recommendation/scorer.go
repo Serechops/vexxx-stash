@@ -4,6 +4,7 @@ import (
 	"context"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/stashapp/stash/pkg/models"
 )
@@ -424,10 +425,17 @@ func joinReasons(reasons []string) string {
 		return reasons[0]
 	}
 
-	result := reasons[0]
+	// Use strings.Builder to avoid repeated string allocations
+	var b strings.Builder
+	// Pre-calculate approximate size: avg 20 chars per reason + separators
+	b.Grow(len(reasons) * 22)
+
+	b.WriteString(reasons[0])
 	for i := 1; i < len(reasons)-1; i++ {
-		result += ", " + reasons[i]
+		b.WriteString(", ")
+		b.WriteString(reasons[i])
 	}
-	result += " and " + reasons[len(reasons)-1]
-	return result
+	b.WriteString(" and ")
+	b.WriteString(reasons[len(reasons)-1])
+	return b.String()
 }

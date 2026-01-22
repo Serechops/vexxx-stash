@@ -14,7 +14,7 @@ export const BackgroundImage: React.FC<{
         <div className="background-image-container">
           <picture>
             <source src={imagePath} />
-            <img className="background-image" src={imagePath} alt={alt} />
+            <img className="background-image" src={imagePath} alt={alt} loading="lazy" />
           </picture>
         </div>
       );

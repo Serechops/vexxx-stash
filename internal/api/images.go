@@ -3,7 +3,6 @@ package api
 import (
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"os"
 	"strings"
@@ -12,6 +11,7 @@ import (
 	"github.com/stashapp/stash/pkg/hash"
 	"github.com/stashapp/stash/pkg/logger"
 	"github.com/stashapp/stash/pkg/models"
+	"github.com/stashapp/stash/pkg/utils"
 )
 
 type imageBox struct {
@@ -70,7 +70,8 @@ func (box *imageBox) GetRandomImageByName(name string) ([]byte, error) {
 	}
 	defer img.Close()
 
-	return io.ReadAll(img)
+	// Use pooled buffer for reading
+	return utils.ReadAllBuffered(img)
 }
 
 var performerBox *imageBox

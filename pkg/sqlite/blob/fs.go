@@ -12,6 +12,7 @@ import (
 	"github.com/stashapp/stash/pkg/file"
 	"github.com/stashapp/stash/pkg/fsutil"
 	"github.com/stashapp/stash/pkg/logger"
+	"github.com/stashapp/stash/pkg/utils"
 )
 
 const (
@@ -59,7 +60,8 @@ func (s *FilesystemReader) Read(ctx context.Context, checksum string) ([]byte, e
 
 	defer f.Close()
 
-	return io.ReadAll(f)
+	// Use pooled buffer for reading to reduce GC pressure
+	return utils.ReadAllBuffered(f)
 }
 
 type FilesystemStore struct {

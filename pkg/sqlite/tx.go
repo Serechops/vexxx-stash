@@ -8,6 +8,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/stashapp/stash/pkg/logger"
+	"github.com/stashapp/stash/pkg/metrics"
 )
 
 const (
@@ -26,8 +27,12 @@ type stmt struct {
 	query string
 }
 
-func logSQL(start time.Time, query string, args ...interface{}) {
+func logSQL(start time.Time, query string, err error, args ...interface{}) {
 	since := time.Since(start)
+	
+	// Record metrics
+	metrics.RecordDBQuery(since, err)
+	
 	if since >= slowLogTime {
 		logger.Debugf("SLOW SQL [%v]: %s, args: %v", since, query, args)
 	} else {
@@ -55,7 +60,7 @@ func (*dbWrapperType) Get(ctx context.Context, dest interface{}, query string, a
 
 	start := time.Now()
 	err = tx.GetContext(ctx, dest, query, args...)
-	logSQL(start, query, args...)
+	logSQL(start, query, err, args...)
 
 	return sqlError(err, query, args...)
 }
@@ -68,7 +73,7 @@ func (*dbWrapperType) Select(ctx context.Context, dest interface{}, query string
 
 	start := time.Now()
 	err = tx.SelectContext(ctx, dest, query, args...)
-	logSQL(start, query, args...)
+	logSQL(start, query, err, args...)
 
 	return sqlError(err, query, args...)
 }
@@ -81,7 +86,7 @@ func (*dbWrapperType) Queryx(ctx context.Context, query string, args ...interfac
 
 	start := time.Now()
 	ret, err := tx.QueryxContext(ctx, query, args...)
-	logSQL(start, query, args...)
+	logSQL(start, query, err, args...)
 
 	return ret, sqlError(err, query, args...)
 }
@@ -98,7 +103,7 @@ func (*dbWrapperType) NamedExec(ctx context.Context, query string, arg interface
 
 	start := time.Now()
 	ret, err := tx.NamedExecContext(ctx, query, arg)
-	logSQL(start, query, arg)
+	logSQL(start, query, err, arg)
 
 	return ret, sqlError(err, query, arg)
 }
@@ -111,7 +116,7 @@ func (*dbWrapperType) Exec(ctx context.Context, query string, args ...interface{
 
 	start := time.Now()
 	ret, err := tx.ExecContext(ctx, query, args...)
-	logSQL(start, query, args...)
+	logSQL(start, query, err, args...)
 
 	return ret, sqlError(err, query, args...)
 }
@@ -143,7 +148,7 @@ func (*dbWrapperType) ExecStmt(ctx context.Context, stmt *stmt, args ...interfac
 
 	start := time.Now()
 	ret, err := stmt.ExecContext(ctx, args...)
-	logSQL(start, stmt.query, args...)
+	logSQL(start, stmt.query, err, args...)
 
 	return ret, sqlError(err, stmt.query, args...)
 }

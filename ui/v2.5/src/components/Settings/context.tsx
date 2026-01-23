@@ -4,7 +4,7 @@ import {
   faTimesCircle,
 } from "@fortawesome/free-solid-svg-icons";
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { CircularProgress } from "@mui/material";
+import { CircularProgress, Box, Fade } from "@mui/material";
 import { IUIConfig } from "src/core/config";
 import * as GQL from "src/core/generated-graphql";
 import {
@@ -532,15 +532,13 @@ export const SettingsContext: React.FC = ({ children }) => {
   }
 
   function maybeRenderLoadingIndicator() {
-    if (updateSuccess === false) {
-      return (
-        <div className="loading-indicator failed">
-          <Icon icon={faTimesCircle} className="fa-fw" />
-        </div>
-      );
-    }
+    let content: JSX.Element | undefined;
+    let className = "";
 
-    if (
+    if (updateSuccess === false) {
+      className = "failed";
+      content = <Icon icon={faTimesCircle} className="fa-fw" />;
+    } else if (
       pendingGeneral ||
       pendingInterface ||
       pendingDefaults ||
@@ -549,20 +547,48 @@ export const SettingsContext: React.FC = ({ children }) => {
       pendingUI ||
       pendingPlugins
     ) {
-      return (
-        <div className="loading-indicator">
-          <CircularProgress />
-        </div>
-      );
+      content = <CircularProgress size={20} />;
+    } else if (updateSuccess) {
+      className = "success";
+      content = <Icon icon={faCheckCircle} className="fa-fw" />;
     }
 
-    if (updateSuccess) {
-      return (
-        <div className="loading-indicator success">
-          <Icon icon={faCheckCircle} className="fa-fw" />
-        </div>
-      );
-    }
+    if (!content) return;
+
+    return (
+      <Fade in={!!content}>
+        <Box
+          sx={{
+            position: "fixed",
+            top: "64px",
+            right: "24px",
+            zIndex: 2000,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "10px",
+            borderRadius: "50%",
+            backgroundColor: "background.paper",
+            boxShadow: 3,
+            lineHeight: 0,
+            backdropFilter: "blur(4px)",
+            border: "1px solid",
+            borderColor: "divider",
+            width: "40px",
+            height: "40px",
+            "&.failed": {
+              color: "error.main",
+            },
+            "&.success": {
+              color: "success.main",
+            },
+          }}
+          className={className}
+        >
+          {content}
+        </Box>
+      </Fade>
+    );
   }
 
   return (

@@ -391,6 +391,44 @@ func (s *Manager) AnonymiseDatabase(download bool) (string, string, error) {
 	return outPath, outName, nil
 }
 
+// isDockerized checks if the application is running inside a Docker container
+func isDockerized() bool {
+	// Check for .dockerenv file (present in Docker containers)
+	if _, err := os.Stat("/.dockerenv"); err == nil {
+		return true
+	}
+
+	// Check cgroups for docker (Linux)
+	if runtime.GOOS == "linux" {
+		if cgroups, err := os.ReadFile("/proc/self/cgroup"); err == nil {
+			if contains(string(cgroups), "docker") || contains(string(cgroups), "kubepods") {
+				return true
+			}
+		}
+	}
+
+	// Check for DOCKER_CONTAINER environment variable (can be set in Dockerfile)
+	if os.Getenv("DOCKER_CONTAINER") != "" {
+		return true
+	}
+
+	return false
+}
+
+// contains checks if substr is in s (simple helper to avoid strings import)
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsAt(s, substr))
+}
+
+func containsAt(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *Manager) GetSystemStatus() *SystemStatus {
 	workingDir := fsutil.GetWorkingDirectory()
 	homeDir := fsutil.GetHomeDirectory()
@@ -430,6 +468,7 @@ func (s *Manager) GetSystemStatus() *SystemStatus {
 		ConfigPath:     &configFile,
 		FfmpegPath:     &ffmpegPath,
 		FfprobePath:    &ffprobePath,
+		IsDocker:       isDockerized(),
 	}
 }
 

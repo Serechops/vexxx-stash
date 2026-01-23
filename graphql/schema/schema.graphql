@@ -247,6 +247,10 @@ type Query {
     locale: String = "en"
   ): Directory!
   validateStashBoxCredentials(input: StashBoxInput!): StashBoxValidationResult!
+  "Validates a library path. Returns Docker-specific guidance if running in a container and path doesn't exist."
+  validateLibraryPath(path: String!): LibraryPathValidationResult!
+  "Returns the list of mounted volumes when running in Docker. Empty if not in Docker."
+  dockerMountedVolumes: [DockerMountedVolume!]!
 
   # System status
   systemStatus: SystemStatus!

@@ -13,6 +13,20 @@ import * as GQL from "src/core/generated-graphql";
 const CURRENT_USER_QUERY = GQL.CurrentUserDocument;
 const USER_COUNT_QUERY = GQL.UserCountDocument;
 
+// Helper to create user count mock
+const createUserCountMock = (count: number, adminCount: number = 0): MockedResponse => ({
+  request: { query: USER_COUNT_QUERY },
+  result: {
+    data: {
+      userCount: {
+        __typename: "UserCount" as const,
+        count,
+        admin_count: adminCount,
+      },
+    },
+  },
+});
+
 const createWrapper =
   (mocks: MockedResponse[]) =>
   ({ children }: { children: React.ReactNode }) =>
@@ -39,6 +53,7 @@ describe("UserContext", () => {
           request: { query: CURRENT_USER_QUERY },
           result: { data: { currentUser: null } },
         },
+        createUserCountMock(1), // Has users
       ];
 
       const { result } = renderHook(() => useCurrentUser(), {
@@ -48,12 +63,13 @@ describe("UserContext", () => {
       expect(result.current.loading).toBe(true);
     });
 
-    it("should return null user when not logged in", async () => {
+    it("should return null user when not logged in but users exist", async () => {
       const mocks: MockedResponse[] = [
         {
           request: { query: CURRENT_USER_QUERY },
           result: { data: { currentUser: null } },
         },
+        createUserCountMock(1), // Has users, so not in setup mode
       ];
 
       const { result, waitForNextUpdate } = renderHook(() => useCurrentUser(), {
@@ -66,6 +82,35 @@ describe("UserContext", () => {
       expect(result.current.user).toBeNull();
       expect(result.current.isAdmin).toBe(false);
       expect(result.current.isViewer).toBe(false);
+      expect(result.current.isSetupMode).toBe(false);
+    });
+
+    it("should grant admin access in setup mode (no users exist)", async () => {
+      const mocks: MockedResponse[] = [
+        {
+          request: { query: CURRENT_USER_QUERY },
+          result: { data: { currentUser: null } },
+        },
+        createUserCountMock(0), // No users - setup mode!
+      ];
+
+      const { result, waitForNextUpdate } = renderHook(() => useCurrentUser(), {
+        wrapper: createWrapper(mocks),
+      });
+
+      await waitForNextUpdate();
+
+      expect(result.current.loading).toBe(false);
+      expect(result.current.user).toBeNull();
+      expect(result.current.isSetupMode).toBe(true);
+      // In setup mode, should have full admin access
+      expect(result.current.isAdmin).toBe(true);
+      expect(result.current.isViewer).toBe(false);
+      expect(result.current.canModify).toBe(true);
+      expect(result.current.canDelete).toBe(true);
+      expect(result.current.canManageUsers).toBe(true);
+      expect(result.current.canRunTasks).toBe(true);
+      expect(result.current.canModifySettings).toBe(true);
     });
 
     // Note: Tests for admin/viewer user permissions require more complex Apollo 
@@ -95,6 +140,7 @@ describe("UserContext", () => {
           request: { query: CURRENT_USER_QUERY },
           result: { data: { currentUser: adminUser } },
         },
+        createUserCountMock(1, 1),
       ];
 
       const { result, waitForNextUpdate } = renderHook(() => useCurrentUser(), {
@@ -106,6 +152,7 @@ describe("UserContext", () => {
       expect(result.current.loading).toBe(false);
       expect(result.current.user).toBeTruthy();
       expect(result.current.user?.username).toBe("admin");
+      expect(result.current.isSetupMode).toBe(false);
       // Permission values from the mock should be correctly propagated
       expect(result.current.canModify).toBe(true);
       expect(result.current.canDelete).toBe(true);
@@ -137,6 +184,7 @@ describe("UserContext", () => {
           request: { query: CURRENT_USER_QUERY },
           result: { data: { currentUser: viewerUser } },
         },
+        createUserCountMock(2, 1),
       ];
 
       const { result, waitForNextUpdate } = renderHook(() => useCurrentUser(), {
@@ -148,6 +196,7 @@ describe("UserContext", () => {
       expect(result.current.loading).toBe(false);
       expect(result.current.user).toBeTruthy();
       expect(result.current.user?.username).toBe("viewer");
+      expect(result.current.isSetupMode).toBe(false);
       // Viewer permissions should be restricted
       expect(result.current.canModify).toBe(false);
       expect(result.current.canDelete).toBe(false);
@@ -156,12 +205,13 @@ describe("UserContext", () => {
       expect(result.current.canModifySettings).toBe(false);
     });
 
-    it("should use default permissions when user is null (backward compat)", async () => {
+    it("should use default permissions when user is null but users exist (backward compat)", async () => {
       const mocks: MockedResponse[] = [
         {
           request: { query: CURRENT_USER_QUERY },
           result: { data: { currentUser: null } },
         },
+        createUserCountMock(1), // Has users
       ];
 
       const { result, waitForNextUpdate } = renderHook(() => useCurrentUser(), {
@@ -171,7 +221,8 @@ describe("UserContext", () => {
       await waitForNextUpdate();
 
       expect(result.current.loading).toBe(false);
-      // When no user, defaults should be true for backward compatibility
+      expect(result.current.isSetupMode).toBe(false);
+      // When no user but users exist, defaults should be true for backward compatibility
       // except canManageUsers which defaults to false
       expect(result.current.canModify).toBe(true);
       expect(result.current.canDelete).toBe(true);
@@ -184,18 +235,7 @@ describe("UserContext", () => {
   describe("useMultiUserEnabled", () => {
     it("should return false when user count is 0", async () => {
       const mocks: MockedResponse[] = [
-        {
-          request: { query: USER_COUNT_QUERY },
-          result: { 
-            data: { 
-              userCount: { 
-                __typename: "UserCount" as const,
-                count: 0, 
-                admin_count: 0 
-              } 
-            } 
-          },
-        },
+        createUserCountMock(0),
       ];
 
       const { result, waitForNextUpdate } = renderHook(() => useMultiUserEnabled(), {
@@ -210,18 +250,7 @@ describe("UserContext", () => {
 
     it("should return true when users exist", async () => {
       const mocks: MockedResponse[] = [
-        {
-          request: { query: USER_COUNT_QUERY },
-          result: { 
-            data: { 
-              userCount: { 
-                __typename: "UserCount" as const,
-                count: 3, 
-                admin_count: 1 
-              } 
-            } 
-          },
-        },
+        createUserCountMock(3, 1),
       ];
 
       const { result, waitForNextUpdate } = renderHook(() => useMultiUserEnabled(), {

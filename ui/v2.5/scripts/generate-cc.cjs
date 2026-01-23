@@ -200,10 +200,9 @@ if (!isDryRun) {
     if (buildResult.status !== 0) process.exit(buildResult.status);
 }
 
-console.log(`[Vexxx] Saving and compressing Docker image to dist/stash-docker.tar.gz...`);
+console.log(`[Vexxx] Saving Docker image to dist/vexxx-docker.tar...`);
 if (!isDryRun) {
     const fs = require('fs');
-    const zlib = require('zlib');
     const { spawn } = require('child_process');
 
     const distDir = path.join(rootDir, 'dist');
@@ -211,14 +210,13 @@ if (!isDryRun) {
         fs.mkdirSync(distDir, { recursive: true });
     }
 
-    const outFile = path.join(distDir, 'stash-docker.tar.gz');
+    const outFile = path.join(distDir, 'vexxx-docker.tar');
     const outStream = fs.createWriteStream(outFile);
-    const gzip = zlib.createGzip();
 
-    // Spawn docker save and pipe to gzip -> file
+    // Save Docker image directly to tar (no compression)
     const dockerSave = spawn('docker', ['save', 'stash/build'], { cwd: rootDir, shell: true });
 
-    dockerSave.stdout.pipe(gzip).pipe(outStream);
+    dockerSave.stdout.pipe(outStream);
 
     dockerSave.stderr.on('data', (data) => {
         process.stderr.write(data);
@@ -229,6 +227,7 @@ if (!isDryRun) {
             console.error(`docker save process exited with code ${code}`);
             process.exit(code);
         } else {
+            console.log(`[Vexxx] Docker image saved to ${outFile}`);
             generateReleaseNotes();
         }
     });

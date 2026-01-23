@@ -40,5 +40,7 @@ FROM alpine:latest
 RUN apk add --no-cache ca-certificates vips-tools ffmpeg
 COPY --from=backend /stash/stash /usr/bin/
 ENV STASH_CONFIG_FILE=/root/.stash/config.yml
+# Set Docker container environment variable for detection
+ENV DOCKER_CONTAINER=1
 EXPOSE 9999
 ENTRYPOINT ["stash"]

@@ -1,7 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 import {
-  Button,
   Collapse,
   TextField,
   InputAdornment,
@@ -12,8 +11,11 @@ import {
   IconButton,
   Box,
   Typography,
+  Chip,
 } from "@mui/material";
-import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CloseIcon from "@mui/icons-material/Close";
 import { LoadingIndicator } from "../LoadingIndicator";
 import { useDebounce } from "src/hooks/debounce";
@@ -41,11 +43,12 @@ const _FolderSelect: React.FC<IProps> = ({
   hideError = false,
 }) => {
   const intl = useIntl();
-  const [showBrowser, setShowBrowser] = useState(false);
+  // Start expanded when collapsible, so users can see directory contents immediately
+  const [showBrowser, setShowBrowser] = useState(true);
   const [path, setPath] = useState(currentDirectory);
 
   // Sync internal state with prop changes
-  React.useEffect(() => {
+  useEffect(() => {
     setPath(currentDirectory);
   }, [currentDirectory]);
 
@@ -55,8 +58,10 @@ const _FolderSelect: React.FC<IProps> = ({
     hideError
   );
 
-  const selectableDirectories =
-    (currentDirectory ? directories : defaultDirectories) ?? defaultDirectories;
+  // Use directories from query when we have them, otherwise fall back to defaults
+  const selectableDirectories = directories ?? defaultDirectories;
+  const hasDirectories = selectableDirectories.length > 0;
+  const isValidPath = !error && !loading && currentDirectory.length > 0;
 
   const debouncedSetDirectory = useDebounce(setPath, 250);
 
@@ -107,85 +112,124 @@ const _FolderSelect: React.FC<IProps> = ({
           endAdornment: (
             <InputAdornment position="end">
               {appendButton}
-              {collapsible && (
-                <IconButton
-                  onClick={() => setShowBrowser(!showBrowser)}
-                  size="small"
-                >
-                  <MoreHorizIcon fontSize="small" />
-                </IconButton>
-              )}
-              {(loading || error) && (
-                <Box display="flex" alignItems="center" ml={1}>
-                  {loading ? (
-                    <LoadingIndicator inline small message="" />
-                  ) : (
-                    !hideError && (
-                      <CloseIcon fontSize="small" color="error" sx={{ ml: 1.5 }} />
-                    )
-                  )}
-                </Box>
-              )}
+              {/* Show status indicators */}
+              <Box display="flex" alignItems="center" gap={0.5}>
+                {loading && (
+                  <LoadingIndicator inline small message="" />
+                )}
+                {!loading && isValidPath && (
+                  <CheckCircleIcon fontSize="small" color="success" />
+                )}
+                {!loading && error && !hideError && (
+                  <CloseIcon fontSize="small" color="error" />
+                )}
+                {collapsible && hasDirectories && (
+                  <IconButton
+                    onClick={() => setShowBrowser(!showBrowser)}
+                    size="small"
+                    title={showBrowser 
+                      ? intl.formatMessage({ id: "actions.hide" }) 
+                      : intl.formatMessage({ id: "actions.show" })}
+                  >
+                    {showBrowser ? (
+                      <ExpandLessIcon fontSize="small" />
+                    ) : (
+                      <ExpandMoreIcon fontSize="small" />
+                    )}
+                  </IconButton>
+                )}
+              </Box>
             </InputAdornment>
           ),
         }}
       />
 
+      {/* Show subdirectory count when collapsed */}
+      {collapsible && !showBrowser && hasDirectories && (
+        <Box sx={{ mt: 0.5 }}>
+          <Chip
+            size="small"
+            label={intl.formatMessage(
+              { id: "folder_select.subdirectories_available" },
+              { count: selectableDirectories.length }
+            )}
+            onClick={() => setShowBrowser(true)}
+            sx={{ cursor: "pointer" }}
+          />
+        </Box>
+      )}
+
       {!hideError && error !== undefined && (
-        <Typography variant="h6" color="error" className="mt-4 text-break">
-          Error: {error.message}
+        <Typography variant="body2" color="error" sx={{ mt: 1 }}>
+          {error.message}
         </Typography>
       )}
 
       <Collapse in={!collapsible || showBrowser}>
-        <List
-          dense
-          sx={{
-            listStyleType: "none",
-            margin: 0,
-            maxHeight: "30vw",
-            overflowX: "auto",
-            paddingBottom: "0.5rem",
-            paddingTop: "1rem",
-            scrollbarWidth: "none", // Hide scrollbar for standard look if desired, or keep default
-            "&::-webkit-scrollbar": {
-              height: "8px",
-            },
-            "&::-webkit-scrollbar-thumb": {
-              background: "#888",
-              borderRadius: "4px",
-            }
-          }}
-        >
-          {topDirectory}
-          {selectableDirectories.map((dir) => (
-            <ListItem
-              key={dir}
-              disablePadding
-            >
-              <ListItemButton
-                onClick={() => setInstant(dir)}
-                disabled={loading}
-                sx={{
-                  whiteSpace: "nowrap",
-                  "& .MuiListItemText-primary": {
-                    "&::before": {
-                      content: '"├ \uD83D\uDCC1"',
-                      display: "inline-block",
-                      paddingRight: "1rem",
-                      transform: "scale(1.5)",
-                    }
-                  },
-                  "&:last-child .MuiListItemText-primary::before": {
-                    content: '"└ \uD83D\uDCC1"',
-                  }
-                }}
+        {hasDirectories ? (
+          <List
+            dense
+            sx={{
+              listStyleType: "none",
+              margin: 0,
+              maxHeight: "30vh",
+              overflowY: "auto",
+              overflowX: "hidden",
+              paddingBottom: "0.5rem",
+              paddingTop: "1rem",
+              "&::-webkit-scrollbar": {
+                width: "8px",
+              },
+              "&::-webkit-scrollbar-thumb": {
+                background: "#888",
+                borderRadius: "4px",
+              }
+            }}
+          >
+            {topDirectory}
+            {selectableDirectories.map((dir) => (
+              <ListItem
+                key={dir}
+                disablePadding
               >
-                <ListItemText primary={dir} sx={{ "& .MuiTypography-root": { color: "white", fontWeight: 400 } }} />
-              </ListItemButton>
-            </ListItem>
-          ))}
-        </List>
+                <ListItemButton
+                  onClick={() => setInstant(dir)}
+                  disabled={loading}
+                  sx={{
+                    whiteSpace: "nowrap",
+                    "& .MuiListItemText-primary": {
+                      "&::before": {
+                        content: '"├ \uD83D\uDCC1"',
+                        display: "inline-block",
+                        paddingRight: "1rem",
+                        transform: "scale(1.5)",
+                      }
+                    },
+                    "&:last-child .MuiListItemText-primary::before": {
+                      content: '"└ \uD83D\uDCC1"',
+                    }
+                  }}
+                >
+                  <ListItemText 
+                    primary={dir} 
+                    sx={{ 
+                      "& .MuiTypography-root": { 
+                        color: "text.primary", 
+                        fontWeight: 400,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      } 
+                    }} 
+                  />
+                </ListItemButton>
+              </ListItem>
+            ))}
+          </List>
+        ) : !loading && currentDirectory && !error ? (
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1, fontStyle: "italic" }}>
+            <FormattedMessage id="folder_select.no_subdirectories" />
+          </Typography>
+        ) : null}
       </Collapse>
     </>
   );

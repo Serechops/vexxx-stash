@@ -8,6 +8,7 @@ import { ExternalLink } from "../../Shared/ExternalLink";
 import { StashSetting } from "../StashConfiguration";
 import { SettingSection } from "../SettingSection";
 import { BooleanSetting, StringListSetting, StringSetting } from "../Inputs";
+import * as GQL from "src/core/generated-graphql";
 
 interface IProps {
     modalProps?: any;
@@ -17,6 +18,10 @@ export const LibrarySettings: React.FC<IProps> = ({ modalProps }) => {
     const intl = useIntl();
     const { general, loading, error, saveGeneral, defaults, saveDefaults } =
         useSettings();
+    
+    // Query system status to detect Docker mode
+    const { data: systemStatusData } = GQL.useSystemStatusQuery();
+    const isDocker = systemStatusData?.systemStatus?.isDocker ?? false;
 
     function commaDelimitedToList(value: string | undefined) {
         if (value) {
@@ -39,6 +44,7 @@ export const LibrarySettings: React.FC<IProps> = ({ modalProps }) => {
                 value={general.stashes ?? []}
                 onChange={(v) => saveGeneral({ stashes: v })}
                 modalProps={modalProps}
+                isDocker={isDocker}
             />
 
             <SettingSection headingID="config.library.media_content_extensions">

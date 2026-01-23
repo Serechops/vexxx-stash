@@ -337,6 +337,36 @@ type SystemStatus {
   homeDir: String!
   ffmpegPath: String
   ffprobePath: String
+  "True if running inside a Docker container"
+  isDocker: Boolean!
+}
+
+"Result of library path validation"
+type LibraryPathValidationResult {
+  "Whether the path is valid and accessible"
+  valid: Boolean!
+  "Error message if path is invalid"
+  message: String
+  "Whether this appears to be a host path (Windows drive letter, etc.) rather than a container path"
+  isHostPath: Boolean!
+  "Suggested docker mount command if running in Docker and path doesn't exist"
+  dockerMountCommand: String
+  "Suggested container path to use after mounting"
+  suggestedContainerPath: String
+  "List of currently available container paths (mounted volumes)"
+  availableContainerPaths: [String!]
+}
+
+"A mounted volume in Docker"
+type DockerMountedVolume {
+  "The path inside the container"
+  containerPath: String!
+  "The source path on the host (if available)"
+  hostPath: String
+  "Filesystem type"
+  fsType: String
+  "Whether this is a likely media mount point (under /data, /media, /mnt, etc.)"
+  isMediaMount: Boolean!
 }
 
 input MigrateInput {

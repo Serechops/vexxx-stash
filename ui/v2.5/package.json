@@ -61,6 +61,7 @@
     "classnames": "^2.3.2",
     "clsx": "^2.1.1",
     "crypto-js": "^4.2.0",
+    "date-fns": "^4.1.0",
     "event-target-polyfill": "^0.0.4",
     "flag-icons": "^6.6.6",
     "flexbin": "^0.2.0",

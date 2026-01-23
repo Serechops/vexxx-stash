@@ -8,11 +8,16 @@ import { useSettings } from "./context";
 import { useIntl } from "react-intl";
 import { faQuestionCircle } from "@fortawesome/free-solid-svg-icons";
 import { ExternalLink } from "../Shared/ExternalLink";
+import * as GQL from "src/core/generated-graphql";
 
 export const SettingsLibraryPanel: React.FC = () => {
   const intl = useIntl();
   const { general, loading, error, saveGeneral, defaults, saveDefaults } =
     useSettings();
+  
+  // Query system status to detect Docker mode
+  const { data: systemStatusData } = GQL.useSystemStatusQuery();
+  const isDocker = systemStatusData?.systemStatus?.isDocker ?? false;
 
   function commaDelimitedToList(value: string | undefined) {
     if (value) {
@@ -34,6 +39,7 @@ export const SettingsLibraryPanel: React.FC = () => {
       <StashSetting
         value={general.stashes ?? []}
         onChange={(v) => saveGeneral({ stashes: v })}
+        isDocker={isDocker}
       />
 
       <SettingSection headingID="config.library.media_content_extensions">

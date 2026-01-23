@@ -29,6 +29,7 @@
     "close": "Close",
     "confirm": "Confirm",
     "continue": "Continue",
+    "copied": "Copied!",
     "copy_to_clipboard": "Copy to clipboard",
     "create": "Create",
     "create_with_items": "Create with {count} Items",
@@ -361,6 +362,20 @@
       "database": "Database",
       "db_path_head": "Database Path",
       "directory_locations_to_your_content": "Directory locations to your content",
+      "docker": {
+        "detected": "Running in Docker",
+        "path_hint": "When running in Docker, paths must be container paths (e.g., /data/videos), not host paths. Ensure you have mounted your media directories when starting the container.",
+        "path_example": "Example: docker run -v /host/path:/data/videos ... → then add /data/videos here",
+        "path_not_found_title": "Path Not Found in Container",
+        "path_not_found_message": "The path '{path}' doesn't exist inside the Docker container. You need to mount this directory when starting the container.",
+        "mount_instructions": "To mount this directory, restart your container with:",
+        "then_add_path": "Then add this path in Stash:",
+        "restart_required": "After updating your docker run command, restart the container and try again.",
+        "host_path_detected": "This looks like a host system path. Docker containers can only access mounted directories.",
+        "available_paths_title": "Already Mounted Directories",
+        "available_paths_hint": "These directories are already mounted and available. Click one to add it as a library path:",
+        "or_mount_new": "Or mount a new directory"
+      },
       "excluded_image_gallery_patterns_desc": "Regexps of image and gallery files/paths to exclude from Scan and add to Clean",
       "excluded_image_gallery_patterns_head": "Excluded Image/Gallery Patterns",
       "excluded_video_patterns_desc": "Regexps of video files/paths to exclude from Scan and add to Clean",
@@ -1139,6 +1154,10 @@
   "filter_name": "Filter name",
   "filters": "Filters",
   "folder": "Folder",
+  "folder_select": {
+    "subdirectories_available": "{count, plural, one {# subdirectory} other {# subdirectories}} available",
+    "no_subdirectories": "No subdirectories in this folder"
+  },
   "framerate": "Frame Rate",
   "frames_per_second": "{value} fps",
   "front_page": {

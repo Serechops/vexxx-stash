@@ -18,3 +18,23 @@ query ValidateStashBox($input: StashBoxInput!) {
     status
   }
 }
+
+query ValidateLibraryPath($path: String!) {
+  validateLibraryPath(path: $path) {
+    valid
+    message
+    isHostPath
+    dockerMountCommand
+    suggestedContainerPath
+    availableContainerPaths
+  }
+}
+
+query DockerMountedVolumes {
+  dockerMountedVolumes {
+    containerPath
+    hostPath
+    fsType
+    isMediaMount
+  }
+}

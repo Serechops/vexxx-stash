@@ -73,6 +73,17 @@ func authenticateHandler() func(http.Handler) http.Handler {
 
 			ctx := r.Context()
 
+			// Check if we're in setup mode (no users exist in the database).
+			// In this case, allow unauthenticated access even if legacy credentials
+			// exist in the config. This enables initial user creation when all users
+			// have been deleted.
+			if manager.GetInstance().GetUserCount() == 0 {
+				ctx = session.SetCurrentUserID(ctx, "")
+				r = r.WithContext(ctx)
+				next.ServeHTTP(w, r)
+				return
+			}
+
 			if c.HasCredentials() {
 				// authentication is required
 				if userID == "" && !allowUnauthenticated(r) {

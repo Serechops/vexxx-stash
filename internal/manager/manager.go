@@ -486,3 +486,20 @@ func (s *Manager) Shutdown() {
 		logger.Errorf("Error closing database: %s", err)
 	}
 }
+
+// GetUserCount returns the number of users in the database.
+// Returns 0 if no users exist or if there's an error (for setup mode detection).
+// This is used by the authentication middleware to allow access when no users exist.
+func (s *Manager) GetUserCount() int {
+	ctx := context.Background()
+	var count int
+	if err := s.Repository.WithReadTxn(ctx, func(ctx context.Context) error {
+		var err error
+		count, err = s.Repository.User.Count(ctx)
+		return err
+	}); err != nil {
+		logger.Debugf("Error getting user count: %v", err)
+		return 0
+	}
+	return count
+}

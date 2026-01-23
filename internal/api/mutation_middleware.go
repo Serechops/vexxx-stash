@@ -21,10 +21,10 @@ var viewerAllowedMutations = map[string]bool{
 	// Note: actual login/logout is handled by HTTP handlers, not GraphQL
 }
 
-// adminOnlyMutations lists mutations that require admin role
-// If a mutation is not in this list and not in viewerAllowedMutations,
-// it defaults to requiring admin (modify) permission
-var adminOnlyMutations = map[string]bool{
+// adminOnlyMutations lists mutations that require admin role.
+// This is kept for documentation purposes - the middleware logic blocks
+// all non-viewerAllowedMutations for viewer users, so admins get all others.
+var _ = map[string]bool{
 	// User management
 	"userCreate":           true,
 	"userUpdate":           true,
@@ -34,66 +34,66 @@ var adminOnlyMutations = map[string]bool{
 	"sessionDestroyByUser": true,
 
 	// System configuration
-	"configureGeneral":       true,
-	"configureInterface":     true,
-	"configureDefaults":      true,
-	"configureScraping":      true,
-	"configureDLNA":          true,
-	"configureUI":            true,
-	"generateAPIKey":         true,
-	"enableDLNA":             true,
-	"disableDLNA":            true,
-	"addTempDLNAIP":          true,
-	"removeTempDLNAIP":       true,
-	"setDefaultFilter":       true,
-	"deleteDefaultFilter":    true,
+	"configureGeneral":    true,
+	"configureInterface":  true,
+	"configureDefaults":   true,
+	"configureScraping":   true,
+	"configureDLNA":       true,
+	"configureUI":         true,
+	"generateAPIKey":      true,
+	"enableDLNA":          true,
+	"disableDLNA":         true,
+	"addTempDLNAIP":       true,
+	"removeTempDLNAIP":    true,
+	"setDefaultFilter":    true,
+	"deleteDefaultFilter": true,
 
 	// Dangerous operations
-	"shutdown":      true,
-	"stopAllJobs":   true,
-	"migrate":       true,
-	"backup":        true,
+	"shutdown":          true,
+	"stopAllJobs":       true,
+	"migrate":           true,
+	"backup":            true,
 	"anonymiseDatabase": true,
 
 	// Plugin management
-	"reloadPlugins":              true,
-	"runPluginTask":              true,
-	"runPluginOperation":         true,
-	"setPluginsEnabled":          true,
-	"installPackages":            true,
-	"uninstallPackages":          true,
-	"updatePackages":             true,
+	"reloadPlugins":      true,
+	"runPluginTask":      true,
+	"runPluginOperation": true,
+	"setPluginsEnabled":  true,
+	"installPackages":    true,
+	"uninstallPackages":  true,
+	"updatePackages":     true,
 
 	// Scraper management
-	"reloadScrapers":    true,
+	"reloadScrapers": true,
 
 	// System tasks
-	"metadataScan":            true,
-	"metadataIdentify":        true,
-	"metadataAutoTag":         true,
-	"metadataClean":           true,
-	"metadataCleanGenerated":  true,
-	"metadataGenerate":        true,
-	"metadataExport":          true,
-	"exportObjects":           true,
-	"importObjects":           true,
+	"metadataScan":              true,
+	"metadataIdentify":          true,
+	"metadataAutoTag":           true,
+	"metadataClean":             true,
+	"metadataCleanGenerated":    true,
+	"metadataGenerate":          true,
+	"metadataExport":            true,
+	"exportObjects":             true,
+	"importObjects":             true,
 	"stashBoxBatchPerformerTag": true,
 	"stashBoxBatchStudioTag":    true,
-	"migrateHashNaming":       true,
-	"migrateSceneScreenshots": true,
-	"migrateBlobs":            true,
-	"optimiseDatabase":        true,
+	"migrateHashNaming":         true,
+	"migrateSceneScreenshots":   true,
+	"migrateBlobs":              true,
+	"optimiseDatabase":          true,
 
 	// Scene-level generation/modification
 	"sceneGenerateScreenshot": true,
 	"sceneGenerateGallery":    true,
 
 	// Job control
-	"stopJob":       true,
+	"stopJob": true,
 
 	// File operations
-	"moveFiles":          true,
-	"deleteFiles":        true,
+	"moveFiles":   true,
+	"deleteFiles": true,
 }
 
 // MutationMiddleware creates a gqlgen middleware that checks user permissions

@@ -491,6 +491,14 @@ func (s *Manager) Shutdown() {
 // Returns 0 if no users exist or if there's an error (for setup mode detection).
 // This is used by the authentication middleware to allow access when no users exist.
 func (s *Manager) GetUserCount() int {
+	// Check if database is initialized
+	if s.Database == nil {
+		return 0
+	}
+	if err := s.Database.Ready(); err != nil {
+		return 0
+	}
+
 	ctx := context.Background()
 	var count int
 	if err := s.Repository.WithReadTxn(ctx, func(ctx context.Context) error {

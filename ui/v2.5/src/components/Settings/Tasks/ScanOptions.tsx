@@ -26,16 +26,25 @@ export const ScanOptions: React.FC<IScanOptions> = ({
         onChange={(v) => setOptions({ scanGenerateCovers: v })}
       />
       <BooleanSetting
+        id={`${keyPrefix}scan-rescan`}
+        headingID="config.tasks.rescan"
+        tooltipID="config.tasks.rescan_tooltip"
+        checked={options.rescan ?? false}
+        onChange={(v) => setOptions({ rescan: v })}
+      />
+      <BooleanSetting
         id={`${keyPrefix}scan-generate-previews`}
         headingID="config.tasks.generate_video_previews_during_scan"
-        checked={options.scanGeneratePreviews ?? true}
+        checked={options.scanGeneratePreviews ?? false}
         onChange={(v) => setOptions({ scanGeneratePreviews: v })}
       />
       <BooleanSetting
         advanced
         id={`${keyPrefix}scan-generate-image-previews`}
-        headingID="Generate image previews"
-        checked={options.scanGenerateImagePreviews ?? true}
+        className="sub-setting"
+        headingID="config.tasks.generate_previews_during_scan"
+        checked={options.scanGenerateImagePreviews ?? false}
+        disabled={!options.scanGeneratePreviews}
         onChange={(v) => setOptions({ scanGenerateImagePreviews: v })}
       />
 
@@ -43,25 +52,25 @@ export const ScanOptions: React.FC<IScanOptions> = ({
         id={`${keyPrefix}scan-generate-sprites`}
         headingID="config.tasks.generate_sprites_during_scan"
         tooltipID="config.tasks.generate_sprites_during_scan_tooltip"
-        checked={options.scanGenerateSprites ?? true}
+        checked={options.scanGenerateSprites ?? false}
         onChange={(v) => setOptions({ scanGenerateSprites: v })}
       />
       <BooleanSetting
         id={`${keyPrefix}scan-generate-phashes`}
-        checked={options.scanGeneratePhashes ?? true}
+        checked={options.scanGeneratePhashes ?? false}
         headingID="config.tasks.generate_phashes_during_scan"
         tooltipID="config.tasks.generate_phashes_during_scan_tooltip"
         onChange={(v) => setOptions({ scanGeneratePhashes: v })}
       />
       <BooleanSetting
         id={`${keyPrefix}scan-generate-thumbnails`}
-        checked={options.scanGenerateThumbnails ?? true}
+        checked={options.scanGenerateThumbnails ?? false}
         headingID="config.tasks.generate_thumbnails_during_scan"
         onChange={(v) => setOptions({ scanGenerateThumbnails: v })}
       />
       <BooleanSetting
         id={`${keyPrefix}scan-generate-clip-previews`}
-        checked={options.scanGenerateClipPreviews ?? true}
+        checked={options.scanGenerateClipPreviews ?? false}
         headingID="config.tasks.generate_clip_previews_during_scan"
         onChange={(v) => setOptions({ scanGenerateClipPreviews: v })}
       />

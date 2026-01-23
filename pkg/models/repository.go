@@ -30,6 +30,7 @@ type Repository struct {
 	PotentialScene PotentialSceneRepository
 	ContentProfile ContentProfileReaderWriter
 	User           UserReaderWriter
+	Playlist       PlaylistReaderWriter
 }
 
 func (r *Repository) WithTxn(ctx context.Context, fn txn.TxnFunc) error {

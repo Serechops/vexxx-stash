@@ -55,6 +55,7 @@ const allMenuItems = [
   { id: "groups", headingID: "groups" },
   { id: "markers", headingID: "markers" },
   { id: "galleries", headingID: "galleries" },
+  { id: "playlists", headingID: "playlists" },
   { id: "performers", headingID: "performers" },
   { id: "studios", headingID: "studios" },
   { id: "tags", headingID: "tags" },

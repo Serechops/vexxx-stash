@@ -168,3 +168,28 @@ models:
     model: github.com/stashapp/stash/pkg/models.UserCreateInput
   UserUpdateInput:
     model: github.com/stashapp/stash/pkg/models.UserUpdateInput
+  # Playlist types - mixed-media playlists
+  Playlist:
+    model: github.com/stashapp/stash/pkg/models.Playlist
+  PlaylistItem:
+    model: github.com/stashapp/stash/pkg/models.PlaylistItem
+  PlaylistMediaType:
+    model: github.com/stashapp/stash/pkg/models.PlaylistMediaType
+  PlaylistFilterType:
+    model: github.com/stashapp/stash/pkg/models.PlaylistFilterType
+  PlaylistCreateInput:
+    model: github.com/stashapp/stash/pkg/models.PlaylistCreateInput
+  PlaylistUpdateInput:
+    model: github.com/stashapp/stash/pkg/models.PlaylistUpdateInput
+  PlaylistAddItemsInput:
+    model: github.com/stashapp/stash/pkg/models.PlaylistAddItemsInput
+  PlaylistRemoveItemsInput:
+    model: github.com/stashapp/stash/pkg/models.PlaylistRemoveItemsInput
+  PlaylistReorderInput:
+    model: github.com/stashapp/stash/pkg/models.PlaylistReorderInput
+  PlaylistItemInput:
+    model: github.com/stashapp/stash/pkg/models.PlaylistItemInput
+  PlaylistItemPositionInput:
+    model: github.com/stashapp/stash/pkg/models.PlaylistItemPositionInput
+  FindPlaylistsResultType:
+    model: github.com/stashapp/stash/internal/api.FindPlaylistsResultType

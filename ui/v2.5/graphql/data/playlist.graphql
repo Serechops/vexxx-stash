@@ -1,0 +1,52 @@
+fragment PlaylistItemData on PlaylistItem {
+  id
+  position
+  media_type
+  duration_override
+  notes
+  created_at
+  title
+  thumbnail_path
+  effective_duration
+  scene {
+    ...SlimSceneData
+  }
+  image {
+    ...SlimImageData
+  }
+  gallery {
+    ...SlimGalleryData
+  }
+  group {
+    ...SlimGroupData
+  }
+}
+
+fragment PlaylistData on Playlist {
+  id
+  name
+  description
+  duration
+  item_count
+  created_at
+  updated_at
+  cover_image_path
+  user {
+    id
+    username
+  }
+  items {
+    ...PlaylistItemData
+  }
+}
+
+fragment SlimPlaylistData on Playlist {
+  id
+  name
+  description
+  duration
+  item_count
+  created_at
+  updated_at
+  cover_image_path
+}

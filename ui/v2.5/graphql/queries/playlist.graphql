@@ -1,0 +1,17 @@
+query FindPlaylist($id: ID!) {
+  findPlaylist(id: $id) {
+    ...PlaylistData
+  }
+}
+
+query FindPlaylists(
+  $filter: FindFilterType
+  $playlist_filter: PlaylistFilterType
+) {
+  findPlaylists(filter: $filter, playlist_filter: $playlist_filter) {
+    count
+    playlists {
+      ...SlimPlaylistData
+    }
+  }
+}

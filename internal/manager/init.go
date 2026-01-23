@@ -227,35 +227,40 @@ func (s *Manager) postInit(ctx context.Context) error {
 		})
 	}
 
+	var migrationNeeded bool
 	if err := s.Database.Open(s.Config.GetDatabasePath()); err != nil {
 		var migrationNeededErr *sqlite.MigrationNeededError
 		if errors.As(err, &migrationNeededErr) {
 			logger.Warn(err)
+			migrationNeeded = true
 		} else {
 			return err
 		}
 	}
 
-	// Initialize multi-user support now that database is open
-	// Migrate legacy credentials from config to database if needed
-	if err := s.MigrateLegacyCredentials(ctx); err != nil {
-		logger.Warnf("Failed to migrate legacy credentials: %v", err)
-	}
-
-	// Create multi-user config adapter and check if multi-user mode should be enabled
+	// Create multi-user config adapter
 	multiUserConfig := NewMultiUserConfigAdapter(s.Config, s.Repository)
 
-	// Check if there are any users in the database to enable multi-user mode
-	var userCount int
-	if err := s.Repository.WithReadTxn(ctx, func(ctx context.Context) error {
-		var countErr error
-		userCount, countErr = s.Repository.User.Count(ctx)
-		return countErr
-	}); err != nil {
-		logger.Warnf("Failed to check user count for multi-user mode: %v", err)
-	} else if userCount > 0 {
-		multiUserConfig.SetMultiUserEnabled(true)
-		logger.Infof("Multi-user mode enabled with %d user(s)", userCount)
+	// Only perform database-dependent initialization if migration is not needed
+	if !migrationNeeded {
+		// Initialize multi-user support now that database is open
+		// Migrate legacy credentials from config to database if needed
+		if err := s.MigrateLegacyCredentials(ctx); err != nil {
+			logger.Warnf("Failed to migrate legacy credentials: %v", err)
+		}
+
+		// Check if there are any users in the database to enable multi-user mode
+		var userCount int
+		if err := s.Repository.WithReadTxn(ctx, func(ctx context.Context) error {
+			var countErr error
+			userCount, countErr = s.Repository.User.Count(ctx)
+			return countErr
+		}); err != nil {
+			logger.Warnf("Failed to check user count for multi-user mode: %v", err)
+		} else if userCount > 0 {
+			multiUserConfig.SetMultiUserEnabled(true)
+			logger.Infof("Multi-user mode enabled with %d user(s)", userCount)
+		}
 	}
 
 	s.SessionStore = session.NewStore(multiUserConfig)

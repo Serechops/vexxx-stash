@@ -259,6 +259,26 @@ export const queryFindGroupsForSelect = (filter: ListFilterModel) =>
     },
   });
 
+// Playlists
+export const useFindPlaylist = (variables: GQL.FindPlaylistQueryVariables) => {
+  const skip = variables.id === "new" || variables.id === "";
+  return GQL.useFindPlaylistQuery({ variables, skip });
+};
+
+export const useFindPlaylists = (variables: GQL.FindPlaylistsQueryVariables) =>
+  GQL.useFindPlaylistsQuery({ variables });
+
+export const usePlaylistCreate = () => GQL.usePlaylistCreateMutation();
+export const usePlaylistUpdate = () => GQL.usePlaylistUpdateMutation();
+export const usePlaylistDestroy = () => GQL.usePlaylistDestroyMutation();
+export const usePlaylistAddItems = () => GQL.usePlaylistAddItemsMutation();
+export const usePlaylistRemoveItems = () => GQL.usePlaylistRemoveItemsMutation();
+export const usePlaylistReorderItems = () => GQL.usePlaylistReorderItemsMutation();
+export const usePlaylistAddScene = () => GQL.usePlaylistAddSceneMutation();
+export const usePlaylistAddImage = () => GQL.usePlaylistAddImageMutation();
+export const usePlaylistAddGallery = () => GQL.usePlaylistAddGalleryMutation();
+export const usePlaylistAddGroup = () => GQL.usePlaylistAddGroupMutation();
+
 export const useFindSceneMarkers = (filter?: ListFilterModel) =>
   GQL.useFindSceneMarkersQuery({
     skip: filter === undefined,

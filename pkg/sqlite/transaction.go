@@ -134,5 +134,6 @@ func (db *Database) Repository() models.Repository {
 		PotentialScene: db.PotentialScene,
 		ContentProfile: db.ContentProfile,
 		User:           db.User,
+		Playlist:       db.Playlist,
 	}
 }

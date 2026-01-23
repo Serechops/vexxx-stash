@@ -1,0 +1,57 @@
+mutation PlaylistCreate($input: PlaylistCreateInput!) {
+  playlistCreate(input: $input) {
+    ...PlaylistData
+  }
+}
+
+mutation PlaylistUpdate($input: PlaylistUpdateInput!) {
+  playlistUpdate(input: $input) {
+    ...PlaylistData
+  }
+}
+
+mutation PlaylistDestroy($id: ID!) {
+  playlistDestroy(id: $id)
+}
+
+mutation PlaylistAddItems($input: PlaylistAddItemsInput!) {
+  playlistAddItems(input: $input) {
+    ...PlaylistData
+  }
+}
+
+mutation PlaylistRemoveItems($input: PlaylistRemoveItemsInput!) {
+  playlistRemoveItems(input: $input) {
+    ...PlaylistData
+  }
+}
+
+mutation PlaylistReorderItems($input: PlaylistReorderInput!) {
+  playlistReorderItems(input: $input) {
+    ...PlaylistData
+  }
+}
+
+mutation PlaylistAddScene($playlist_id: ID!, $scene_id: ID!) {
+  playlistAddScene(playlist_id: $playlist_id, scene_id: $scene_id) {
+    ...PlaylistData
+  }
+}
+
+mutation PlaylistAddImage($playlist_id: ID!, $image_id: ID!) {
+  playlistAddImage(playlist_id: $playlist_id, image_id: $image_id) {
+    ...PlaylistData
+  }
+}
+
+mutation PlaylistAddGallery($playlist_id: ID!, $gallery_id: ID!) {
+  playlistAddGallery(playlist_id: $playlist_id, gallery_id: $gallery_id) {
+    ...PlaylistData
+  }
+}
+
+mutation PlaylistAddGroup($playlist_id: ID!, $group_id: ID!) {
+  playlistAddGroup(playlist_id: $playlist_id, group_id: $group_id) {
+    ...PlaylistData
+  }
+}

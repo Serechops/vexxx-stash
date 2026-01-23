@@ -712,3 +712,39 @@ extend type Mutation {
   "Terminate all sessions for a user (admin only)"
   sessionDestroyByUser(user_id: ID!): Boolean!
 }
+
+# Playlists
+extend type Query {
+  "Find a playlist by ID"
+  findPlaylist(id: ID!): Playlist
+  "Query playlists"
+  findPlaylists(
+    playlist_filter: PlaylistFilterType
+    filter: FindFilterType
+  ): FindPlaylistsResultType!
+}
+
+extend type Mutation {
+  "Create a new playlist"
+  playlistCreate(input: PlaylistCreateInput!): Playlist!
+  "Update an existing playlist"
+  playlistUpdate(input: PlaylistUpdateInput!): Playlist!
+  "Delete a playlist"
+  playlistDestroy(id: ID!): Boolean!
+  
+  "Add items to a playlist"
+  playlistAddItems(input: PlaylistAddItemsInput!): Playlist!
+  "Remove items from a playlist"
+  playlistRemoveItems(input: PlaylistRemoveItemsInput!): Playlist!
+  "Reorder items in a playlist"
+  playlistReorderItems(input: PlaylistReorderInput!): Playlist!
+  
+  "Quick add: add a scene to a playlist"
+  playlistAddScene(playlist_id: ID!, scene_id: ID!): Playlist!
+  "Quick add: add an image to a playlist"
+  playlistAddImage(playlist_id: ID!, image_id: ID!): Playlist!
+  "Quick add: add a gallery to a playlist"
+  playlistAddGallery(playlist_id: ID!, gallery_id: ID!): Playlist!
+  "Quick add: add a group to a playlist"
+  playlistAddGroup(playlist_id: ID!, group_id: ID!): Playlist!
+}

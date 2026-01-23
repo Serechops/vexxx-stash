@@ -98,3 +98,9 @@ func (BasicFile) IsVisualFile() {}
 func (f *BasicFile) Fingerprints() []models.Fingerprint {
 	return f.BaseFile.Fingerprints
 }
+
+// FindPlaylistsResultType is the result type for the findPlaylists query
+type FindPlaylistsResultType struct {
+	Count     int                `json:"count"`
+	Playlists []*models.Playlist `json:"playlists"`
+}

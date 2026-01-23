@@ -1,0 +1,104 @@
+enum PlaylistMediaType {
+  SCENE
+  IMAGE
+  GALLERY
+  GROUP
+}
+
+type Playlist {
+  id: ID!
+  name: String!
+  description: String
+  "Cached total duration in seconds"
+  duration: Int!
+  "Cached item count"
+  item_count: Int!
+  user: User
+  created_at: Time!
+  updated_at: Time!
+  
+  "Cover image path (resolved from cover media)"
+  cover_image_path: String
+  "All items in this playlist"
+  items: [PlaylistItem!]!
+}
+
+type PlaylistItem {
+  id: ID!
+  "Position in the playlist (0-based)"
+  position: Int!
+  media_type: PlaylistMediaType!
+  "Override duration for non-video content (seconds)"
+  duration_override: Int
+  notes: String
+  created_at: Time!
+  
+  "The scene if media_type is SCENE"
+  scene: Scene
+  "The image if media_type is IMAGE"
+  image: Image
+  "The gallery if media_type is GALLERY"
+  gallery: Gallery
+  "The group if media_type is GROUP"
+  group: Group
+  
+  "Resolved title from the underlying media"
+  title: String!
+  "Resolved thumbnail path from the underlying media"
+  thumbnail_path: String
+  "Effective duration (from media or override)"
+  effective_duration: Int
+}
+
+input PlaylistCreateInput {
+  name: String!
+  description: String
+}
+
+input PlaylistUpdateInput {
+  id: ID!
+  name: String
+  description: String
+  cover_type: PlaylistMediaType
+  cover_id: ID
+}
+
+input PlaylistItemInput {
+  media_type: PlaylistMediaType!
+  media_id: ID!
+  "Override duration for images/galleries (seconds)"
+  duration_override: Int
+  notes: String
+}
+
+input PlaylistAddItemsInput {
+  playlist_id: ID!
+  items: [PlaylistItemInput!]!
+  "Position to insert at (null = append to end)"
+  position: Int
+}
+
+input PlaylistRemoveItemsInput {
+  playlist_id: ID!
+  item_ids: [ID!]!
+}
+
+input PlaylistReorderInput {
+  playlist_id: ID!
+  "Complete new order of item IDs"
+  item_ids: [ID!]!
+}
+
+input PlaylistFilterType {
+  name: StringCriterionInput
+  user_id: IntCriterionInput
+  item_count: IntCriterionInput
+  duration: IntCriterionInput
+  created_at: TimestampCriterionInput
+  updated_at: TimestampCriterionInput
+}
+
+type FindPlaylistsResultType {
+  count: Int!
+  playlists: [Playlist!]!
+}

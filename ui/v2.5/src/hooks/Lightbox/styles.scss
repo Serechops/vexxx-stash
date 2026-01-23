@@ -14,14 +14,21 @@
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
+    background-color: transparent !important;
+
+    &:hover {
+        background-color: transparent !important;
+    }
 
     svg {
         filter: drop-shadow(2px 2px 2px black);
         font-size: 4rem;
         opacity: 0.4;
+        transition: all 0.2s ease;
 
         &:hover {
             opacity: 1;
+            color: $primary;
         }
     }
 
@@ -35,12 +42,20 @@
 }
 
 .lightbox-thumb-nav-btn {
+    background-color: transparent !important;
+
+    &:hover {
+        background-color: transparent !important;
+    }
+
     svg {
         font-size: 4rem;
         opacity: 0.4;
+        transition: all 0.2s ease;
 
         &:hover {
             opacity: 1;
+            color: $primary;
         }
     }
 }

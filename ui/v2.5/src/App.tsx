@@ -81,6 +81,7 @@ const Galleries = lazyComponent(
 const Groups = lazyComponent(() => import("./components/Groups/Groups"));
 const Tags = lazyComponent(() => import("./components/Tags/Tags"));
 const Images = lazyComponent(() => import("./components/Images/Images"));
+const Playlists = lazyComponent(() => import("./components/Playlists/Playlists"));
 const Setup = lazyComponent(() => import("./components/Setup/Setup"));
 const Migrate = lazyComponent(() => import("./components/Setup/Migrate"));
 const Discover = lazyComponent(() => import("./components/Recommendations/DiscoverPage"));
@@ -275,6 +276,7 @@ export const App: React.FC = () => {
             <Route path="/studios" component={Studios} />
             <Route path="/groups" component={Groups} />
             <Route path="/groups" component={Groups} />
+            <Route path="/playlists" component={Playlists} />
             <Route path="/discover" component={Discover} />
             <Route path="/stats" component={Stats} />
             <ProtectedRoute adminOnly path="/settings" component={Settings} />

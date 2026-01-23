@@ -123,6 +123,12 @@ func (r *Resolver) ContentProfile() ContentProfileResolver {
 func (r *Resolver) Recommendation() RecommendationResolver {
 	return &recommendationResolver{r}
 }
+func (r *Resolver) Playlist() PlaylistResolver {
+	return &playlistResolver{r}
+}
+func (r *Resolver) PlaylistItem() PlaylistItemResolver {
+	return &playlistItemResolver{r}
+}
 
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }

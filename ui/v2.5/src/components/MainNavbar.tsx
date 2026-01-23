@@ -42,6 +42,7 @@ import {
   faFilm,
   faImage,
   faImages,
+  faListUl,
   faMapMarkerAlt,
   faPlayCircle,
   faQuestionCircle,
@@ -97,6 +98,10 @@ const messages = defineMessages({
   galleries: {
     id: "galleries",
     defaultMessage: "Galleries",
+  },
+  playlists: {
+    id: "playlists",
+    defaultMessage: "Playlists",
   },
   sceneTagger: {
     id: "sceneTagger",
@@ -156,6 +161,14 @@ const allMenuItems: IMenuItem[] = [
     href: "/galleries",
     icon: faImages,
     hotkey: "g l",
+    userCreatable: true,
+  },
+  {
+    name: "playlists",
+    message: messages.playlists,
+    href: "/playlists",
+    icon: faListUl,
+    hotkey: "g y",
     userCreatable: true,
   },
   {

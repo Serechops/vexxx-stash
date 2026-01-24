@@ -34,6 +34,7 @@ import {
 } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
 import * as GQL from "src/core/generated-graphql";
+import Carousel from "../Shared/Carousel";
 
 // Types
 interface StashFaceServiceStatus {
@@ -333,6 +334,287 @@ const FaceDetectionCard: React.FC<FaceDetectionCardProps> = ({ face, index, onVi
                 </Button>
             </CardContent>
         </Card>
+    );
+};
+
+// MegaFace Results Carousel Component
+interface MegafaceMatch {
+    image: string;
+    name: string;
+    link: string;
+    confidence: string;
+}
+
+interface MegafaceResultsCarouselProps {
+    htmlResult: string;
+}
+
+const MegafaceResultsCarousel: React.FC<MegafaceResultsCarouselProps> = ({ htmlResult }) => {
+    const theme = useTheme();
+    const [parsedResults, setParsedResults] = React.useState<MegafaceMatch[][]>([]);
+
+    React.useEffect(() => {
+        // Robust HTML parsing: find elements that represent a single match (contain an <img> and an <a>),
+        // then group those matches by a sensible ancestor (table/section/div with face/result class).
+        try {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(htmlResult, "text/html");
+
+            // Collect candidate elements that look like a single match card (has both img and a)
+            const candidates: Element[] = [];
+            Array.from(doc.querySelectorAll("body *")).forEach(el => {
+                if (el.querySelector("img") && el.querySelector("a")) {
+                    candidates.push(el);
+                }
+            });
+
+            const getMatchData = (el: Element): MegafaceMatch | null => {
+                const img = el.querySelector("img");
+                const a = el.querySelector("a");
+                const text = el.textContent || "";
+                const confidenceMatch = text.match(/(\d+(?:\.\d+)?)\s*%/);
+                if (!img) return null;
+
+                const src = img.getAttribute("src") || img.getAttribute("data-src") || "";
+                const href = a ? (a.getAttribute("href") || "") : "";
+                const name = a ? (a.textContent || "").trim() : (img.getAttribute("alt") || "Unknown");
+
+                return {
+                    image: src,
+                    name: name || "Unknown",
+                    link: href,
+                    confidence: confidenceMatch ? confidenceMatch[1] : "0",
+                };
+            };
+
+            // Group matches by a meaningful ancestor
+            const groupMap = new Map<Element, MegafaceMatch[]>();
+            const findGroupAncestor = (el: Element): Element => {
+                let cur: Element | null = el;
+                while (cur && cur !== doc.body) {
+                    const tag = cur.tagName.toLowerCase();
+                    const cls = (cur.getAttribute("class") || "").toLowerCase();
+                    if (tag === "table" || tag === "section" || /\b(face|result|row|candidate|match|person)\b/.test(cls)) {
+                        return cur;
+                    }
+                    cur = cur.parentElement;
+                }
+                return el.parentElement || doc.body;
+            };
+
+            candidates.forEach(el => {
+                const match = getMatchData(el);
+                if (!match) return;
+                const group = findGroupAncestor(el);
+                if (!groupMap.has(group)) groupMap.set(group, []);
+                groupMap.get(group)!.push(match);
+            });
+
+            // If grouping produced nothing, fall back to trying to parse tables as before
+            let faceResults: MegafaceMatch[][] = [];
+            if (groupMap.size > 0) {
+                faceResults = Array.from(groupMap.values()).map(arr => arr);
+            } else {
+                const tables = doc.querySelectorAll("table");
+                tables.forEach(table => {
+                    const rows = Array.from(table.querySelectorAll("tr"));
+                    const matches: MegafaceMatch[] = [];
+                    rows.forEach(row => {
+                        const img = row.querySelector("img");
+                        const link = row.querySelector("a");
+                        const text = row.textContent || "";
+                        const confidenceMatch = text.match(/(\d+(?:\.\d+)?)\s*%/);
+                        if (img) {
+                            matches.push({
+                                image: img.getAttribute("src") || img.getAttribute("data-src") || "",
+                                name: link ? (link.textContent || "").trim() : (img.getAttribute("alt") || "Unknown"),
+                                link: link ? (link.getAttribute("href") || "") : "",
+                                confidence: confidenceMatch ? confidenceMatch[1] : "0",
+                            });
+                        }
+                    });
+                    if (matches.length) faceResults.push(matches);
+                });
+            }
+
+            // As a last resort, if we still only have a flat list, split into chunks of 6 to create multiple rows
+            if (faceResults.length === 1 && faceResults[0].length > 8) {
+                const flat = faceResults[0];
+                const chunkSize = 6;
+                faceResults = [];
+                for (let i = 0; i < flat.length; i += chunkSize) {
+                    faceResults.push(flat.slice(i, i + chunkSize));
+                }
+            }
+
+            setParsedResults(faceResults);
+        } catch (e) {
+            // Fallback - return raw HTML so UI can show it
+            setParsedResults([]);
+            console.error("MegaFace parse error:", e);
+        }
+    }, [htmlResult]);
+
+    if (parsedResults.length === 0) {
+        return (
+            <Box
+                sx={{
+                    p: 3,
+                    textAlign: "center",
+                    color: theme.palette.text.secondary,
+                }}
+            >
+                <Typography variant="body2">
+                    Unable to parse MegaFace results. View raw HTML below.
+                </Typography>
+                <Box
+                    sx={{
+                        mt: 2,
+                        p: 2,
+                        bgcolor: theme.palette.background.paper,
+                        borderRadius: 1,
+                        border: `1px solid ${theme.palette.divider}`,
+                        "& img": {
+                            maxWidth: "100px",
+                            height: "auto",
+                            margin: "0.5rem",
+                        },
+                        "& a": {
+                            color: theme.palette.primary.main,
+                        },
+                    }}
+                    dangerouslySetInnerHTML={{ __html: htmlResult }}
+                />
+            </Box>
+        );
+    }
+
+    return (
+        <Box>
+            {parsedResults.map((faceMatches, faceIndex) => (
+                <Box key={faceIndex} sx={{ mb: 4 }}>
+                    <Typography
+                        variant="h6"
+                        sx={{
+                            mb: 2,
+                            pb: 1,
+                            borderBottom: `2px solid ${theme.palette.divider}`,
+                            fontWeight: 600,
+                        }}
+                    >
+                        Face {faceIndex + 1} - Top Matches
+                    </Typography>
+                    
+                    <Carousel itemWidth={180} gap={16} showArrows autoPlay={false}>
+                        {faceMatches.map((match, matchIndex) => {
+                            const confidence = parseFloat(match.confidence);
+                            const badgeColor =
+                                confidence > 80
+                                    ? "success.main"
+                                    : confidence > 50
+                                    ? "warning.main"
+                                    : "info.main";
+
+                            return (
+                                <Box
+                                    key={matchIndex}
+                                    className="recommendation-item-wrapper"
+                                    sx={{ width: 180 }}
+                                >
+                                    {/* Score Badge */}
+                                    <Box
+                                        className="recommendation-badge-container"
+                                        sx={{
+                                            position: "absolute",
+                                            top: 8,
+                                            right: 8,
+                                            zIndex: 1,
+                                            bgcolor: "background.paper",
+                                            borderRadius: 1,
+                                            border: `2px solid`,
+                                            borderColor: badgeColor,
+                                            px: 1,
+                                            py: 0.5,
+                                        }}
+                                    >
+                                        <Typography
+                                            variant="caption"
+                                            sx={{
+                                                fontWeight: 700,
+                                                color: badgeColor,
+                                            }}
+                                        >
+                                            {confidence.toFixed(1)}%
+                                        </Typography>
+                                    </Box>
+
+                                    {/* Match Card */}
+                                    <Card
+                                        sx={{
+                                            height: "100%",
+                                            display: "flex",
+                                            flexDirection: "column",
+                                            transition: "transform 0.2s, box-shadow 0.2s",
+                                            "&:hover": {
+                                                transform: "translateY(-4px)",
+                                                boxShadow: 4,
+                                            },
+                                        }}
+                                    >
+                                        <Box
+                                            sx={{
+                                                width: "100%",
+                                                height: 240,
+                                                overflow: "hidden",
+                                                position: "relative",
+                                            }}
+                                        >
+                                            <img
+                                                src={match.image}
+                                                alt={match.name}
+                                                style={{
+                                                    width: "100%",
+                                                    height: "100%",
+                                                    objectFit: "cover",
+                                                }}
+                                            />
+                                        </Box>
+                                        <CardContent sx={{ flexGrow: 1, p: 1.5 }}>
+                                            <Typography
+                                                variant="subtitle2"
+                                                sx={{
+                                                    fontWeight: 600,
+                                                    mb: 0.5,
+                                                    overflow: "hidden",
+                                                    textOverflow: "ellipsis",
+                                                    whiteSpace: "nowrap",
+                                                }}
+                                            >
+                                                {match.name}
+                                            </Typography>
+                                            <Link
+                                                href={match.link}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                sx={{
+                                                    fontSize: "0.75rem",
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    gap: 0.5,
+                                                }}
+                                            >
+                                                View Profile
+                                                <OpenInNewIcon sx={{ fontSize: "0.875rem" }} />
+                                            </Link>
+                                        </CardContent>
+                                    </Card>
+                                </Box>
+                            );
+                        })}
+                    </Carousel>
+                </Box>
+            ))}
+        </Box>
     );
 };
 
@@ -751,23 +1033,8 @@ export const StashFaceIdentification: React.FC<StashFaceIdentificationProps> = (
                                                 <strong>MegaFace Analysis Complete!</strong> Results from cc1234/megaface on Hugging Face.
                                             </Typography>
                                         </Alert>
-                                        <Card>
-                                            <CardContent>
-                                                <Typography variant="h6" sx={{ mb: 2 }}>
-                                                    MegaFace Performer Matches
-                                                </Typography>
-                                                {/* Render HTML from MegaFace safely */}
-                                                <Box
-                                                    sx={{
-                                                        "& img": { maxWidth: "100%", height: "auto", borderRadius: 1 },
-                                                        "& a": { color: theme.palette.primary.main },
-                                                        "& table": { width: "100%", borderCollapse: "collapse" },
-                                                        "& td, & th": { p: 1, border: `1px solid ${theme.palette.divider}` },
-                                                    }}
-                                                    dangerouslySetInnerHTML={{ __html: megafaceResult }}
-                                                />
-                                            </CardContent>
-                                        </Card>
+                                        {/* MegaFace Results with Carousel */}
+                                        <MegafaceResultsCarousel htmlResult={megafaceResult} />
                                     </Box>
                                 ) : (
                                     <Typography

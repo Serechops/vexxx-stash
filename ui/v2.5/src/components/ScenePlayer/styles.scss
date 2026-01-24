@@ -5,7 +5,6 @@
 @import "@silvermine/videojs-airplay/dist/silvermine-videojs-airplay.css";
 @import "../../styles/theme";
 
-$scrubberHeight: 120px;
 $menuHeight: 4rem;
 $sceneTabWidth: 450px;
 
@@ -15,8 +14,8 @@ $sceneTabWidth: 450px;
   min-height: 0; // Standardize to 0 for mobile
   padding-bottom: 0;
 
-  @media (min-width: 1200px) {
-    min-height: 100vh;
+  @media (min-width: 768px) {
+    height: 100%;
   }
 
   &.portrait .video-wrapper {
@@ -29,9 +28,11 @@ $sceneTabWidth: 450px;
   overflow: hidden;
   position: relative;
   width: 100%;
+  flex-shrink: 1; // Allow shrinking to make room for scrubber
 
-  @media (min-width: 1200px) {
-    height: 100%;
+  @media (min-width: 768px) {
+    height: calc(100% - 150px); // Leave room for 140px scrubber + margins
+    min-height: 300px; // Minimum video height
   }
 }
 
@@ -486,153 +487,7 @@ $sceneTabWidth: 450px;
   padding-right: 15px;
 }
 
-.scrubber-wrapper {
-  display: flex;
-  flex-shrink: 0;
-  margin: 5px 0;
-  overflow: hidden;
-  position: relative;
-}
-
-#scrubber-back {
-  float: left;
-}
-
-#scrubber-forward {
-  float: right;
-}
-
-.scrubber-button {
-  background-color: transparent;
-  border: 1px solid #555;
-  color: $link-color;
-  cursor: pointer;
-  font-size: 1.1rem;
-  font-weight: 800;
-  height: 100%;
-  line-height: $scrubberHeight;
-  padding: 0;
-  text-align: center;
-  width: 1.8rem;
-}
-
-.scrubber-content {
-  cursor: pointer;
-  display: inline-block;
-  flex-grow: 1;
-  height: $scrubberHeight;
-  margin: 0 7px;
-  overflow: hidden;
-  -webkit-overflow-scrolling: touch;
-  position: relative;
-  -webkit-user-select: none;
-  user-select: none;
-
-  &.dragging {
-    cursor: grabbing;
-  }
-}
-
-#scrubber-position-indicator {
-  background-color: rgba(255, 255, 255, 0.7);
-  height: 20px;
-  left: -100%;
-  position: absolute;
-  width: 100%;
-  z-index: 0;
-}
-
-#scrubber-current-position {
-  background-color: #fff;
-  height: 30px;
-  left: 50%;
-  position: absolute;
-  width: 2px;
-  z-index: 1;
-}
-
-.scrubber-viewport {
-  height: 100%;
-  overflow: hidden;
-  position: static;
-}
-
-.scrubber-slider {
-  height: 100%;
-  left: 0;
-  position: absolute;
-  width: 100%;
-}
-
-.scrubber-tags {
-  height: 20px;
-  margin-bottom: 10px;
-  position: relative;
-
-  &-background {
-    background-color: #555;
-    height: 20px;
-    left: 0;
-    position: absolute;
-    right: 0;
-  }
-}
-
-.scrubber-heatmap {
-  background-size: 100% 100%;
-  height: 20px;
-  left: 0;
-  position: absolute;
-  right: 0;
-}
-
-.scrubber-tag {
-  background-color: #000;
-  cursor: pointer;
-  font-size: 10px;
-  height: 20px;
-  padding: 0 10px;
-  position: absolute;
-  transform: translateX(-50%);
-  white-space: nowrap;
-
-  &:hover {
-    background-color: #444;
-    z-index: 1;
-  }
-
-  &:hover::after {
-    border-top: solid 5px #444;
-    z-index: 1;
-  }
-
-  &::after {
-    border-left: solid 5px transparent;
-    border-right: solid 5px transparent;
-    border-top: solid 5px #000;
-    bottom: -5px;
-    content: "";
-    left: 50%;
-    margin-left: -5px;
-    position: absolute;
-  }
-}
-
-.scrubber-item {
-  color: white;
-  display: flex;
-  font-size: 10px;
-  margin: 0 auto;
-  position: absolute;
-  text-align: center;
-  text-shadow: 1px 1px black;
-
-  &-time {
-    align-self: flex-end;
-    display: inline-block;
-    width: 100%;
-  }
-}
+// Scrubber styles now handled by MUI sx props in ScenePlayerScrubber.tsx
 
 @media (max-width: 1199px) {
   .scene-tabs {
@@ -642,11 +497,6 @@ $sceneTabWidth: 450px;
   .scene-player-container {
     padding-left: 0;
     padding-right: 0;
-  }
-
-  .scrubber-wrapper {
-    margin-left: 5px;
-    margin-right: 5px;
   }
 }
 

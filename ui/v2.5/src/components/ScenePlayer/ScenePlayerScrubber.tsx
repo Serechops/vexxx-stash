@@ -5,7 +5,7 @@ import React, {
   useState,
   useCallback,
 } from "react";
-import { Button } from "@mui/material";
+import { Box, IconButton, Typography, alpha, useTheme } from "@mui/material";
 import * as GQL from "src/core/generated-graphql";
 import TextUtils from "src/utils/text";
 import { Icon } from "src/components/Shared/Icon";
@@ -15,6 +15,8 @@ import {
   faChevronLeft,
 } from "@fortawesome/free-solid-svg-icons";
 import { useSpriteInfo } from "src/hooks/sprite";
+
+const SCRUBBER_HEIGHT = 140;
 
 interface IScenePlayerScrubberProps {
   file: GQL.VideoFileDataFragment;
@@ -40,6 +42,7 @@ export const ScenePlayerScrubber: React.FC<IScenePlayerScrubberProps> = ({
   onSeek,
   onScroll,
 }) => {
+  const theme = useTheme();
   const contentEl = useRef<HTMLDivElement>(null);
   const indicatorEl = useRef<HTMLDivElement>(null);
   const sliderEl = useRef<HTMLDivElement>(null);
@@ -52,6 +55,7 @@ export const ScenePlayerScrubber: React.FC<IScenePlayerScrubberProps> = ({
   const _width = useRef(0);
   const [width, setWidth] = useState(0);
   const [scrubWidth, setScrubWidth] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
   const position = useRef(0);
   const setPosition = useCallback(
     (value: number, seek: boolean) => {
@@ -209,8 +213,7 @@ export const ScenePlayerScrubber: React.FC<IScenePlayerScrubberProps> = ({
       const slider = sliderEl.current!;
 
       mouseDown.current = false;
-
-      contentEl.current!.classList.remove("dragging");
+      setIsDragging(false);
 
       let newPosition = position.current;
       const midpointOffset = slider.clientWidth / 2;
@@ -266,7 +269,7 @@ export const ScenePlayerScrubber: React.FC<IScenePlayerScrubberProps> = ({
         onScroll();
       }
 
-      contentEl.current!.classList.add("dragging");
+      setIsDragging(true);
 
       const movement = event.movementX;
       velocity.current = movement;
@@ -307,7 +310,7 @@ export const ScenePlayerScrubber: React.FC<IScenePlayerScrubberProps> = ({
   }
 
   function renderTags() {
-    if (!spriteItems) return;
+    if (!spriteItems) return null;
 
     return scene.scene_markers.map((marker, index) => {
       const duration = (end ?? Number(file.duration)) - start;
@@ -315,73 +318,237 @@ export const ScenePlayerScrubber: React.FC<IScenePlayerScrubberProps> = ({
       if (marker.seconds < start || (end && marker.seconds > end)) return null;
 
       const left = (scrubWidth * (marker.seconds - start)) / duration;
-      const style = { left: `${left}px` };
 
       return (
-        <div
+        <Box
           key={index}
-          className="scrubber-tag"
-          style={style}
           data-marker-id={index}
+          sx={{
+            position: "absolute",
+            left: `${left}px`,
+            transform: "translateX(-50%)",
+            height: 20,
+            px: 1.25,
+            fontSize: "10px",
+            whiteSpace: "nowrap",
+            cursor: "pointer",
+            backgroundColor: alpha(theme.palette.common.black, 0.85),
+            color: theme.palette.common.white,
+            borderRadius: "4px 4px 0 0",
+            display: "flex",
+            alignItems: "center",
+            transition: "background-color 0.2s ease",
+            "&:hover": {
+              backgroundColor: alpha(theme.palette.primary.main, 0.7),
+            },
+            "&::after": {
+              content: '""',
+              position: "absolute",
+              bottom: -5,
+              left: "50%",
+              marginLeft: "-5px",
+              borderLeft: "5px solid transparent",
+              borderRight: "5px solid transparent",
+              borderTop: `5px solid ${alpha(theme.palette.common.black, 0.85)}`,
+            },
+            "&:hover::after": {
+              borderTopColor: alpha(theme.palette.primary.main, 0.7),
+            },
+          }}
         >
           {marker.title || marker.primary_tag.name}
-        </div>
+        </Box>
       );
     });
   }
 
   function renderSprites() {
-    if (!scene.paths.vtt) return;
+    if (!scene.paths.vtt) return null;
 
-    return spriteItems?.map((sprite, index) => {
-      return (
-        <div
-          key={index}
-          className="scrubber-item"
-          style={sprite.style}
-          data-sprite-item-id={index}
+    return spriteItems?.map((sprite, index) => (
+      <Box
+        key={index}
+        data-sprite-item-id={index}
+        sx={{
+          position: "absolute",
+          display: "flex",
+          alignItems: "flex-end",
+          justifyContent: "center",
+          color: theme.palette.common.white,
+          fontSize: "10px",
+          textShadow: "1px 1px 2px rgba(0,0,0,0.8)",
+          ...sprite.style,
+        }}
+      >
+        <Typography
+          variant="caption"
+          sx={{
+            display: "block",
+            width: "100%",
+            textAlign: "center",
+            pb: 0.25,
+            fontSize: "inherit",
+          }}
         >
-          <span className="scrubber-item-time">{sprite.time}</span>
-        </div>
-      );
-    });
+          {sprite.time}
+        </Typography>
+      </Box>
+    ));
   }
 
   return (
-    <div className="scrubber-wrapper">
-      <Button
-        className="scrubber-button"
-        id="scrubber-back"
-        onClick={() => goBack()}
+    <Box
+      className="scrubber-wrapper"
+      sx={{
+        display: "flex",
+        flexShrink: 0,
+        my: 0.5,
+        overflow: "hidden",
+        position: "relative",
+        borderRadius: 1,
+        backgroundColor: alpha(theme.palette.background.paper, 0.5),
+        backdropFilter: "blur(8px)",
+      }}
+    >
+      {/* Back Button */}
+      <IconButton
+        onClick={goBack}
+        size="small"
+        sx={{
+          borderRadius: 0,
+          width: 32,
+          height: SCRUBBER_HEIGHT,
+          color: theme.palette.primary.main,
+          backgroundColor: alpha(theme.palette.background.default, 0.6),
+          border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
+          "&:hover": {
+            backgroundColor: alpha(theme.palette.primary.main, 0.15),
+          },
+        }}
       >
-        <Icon className="fa-fw" icon={faChevronLeft} />
-      </Button>
-      <div ref={contentEl} className="scrubber-content">
-        <div className="scrubber-tags-background" />
-        <div
-          className="scrubber-heatmap"
-          style={{
-            backgroundImage: scene.paths.interactive_heatmap
-              ? `url(${scene.paths.interactive_heatmap})`
-              : undefined,
+        <Icon icon={faChevronLeft} />
+      </IconButton>
+
+      {/* Scrubber Content */}
+      <Box
+        ref={contentEl}
+        sx={{
+          display: "inline-block",
+          flexGrow: 1,
+          height: SCRUBBER_HEIGHT,
+          mx: 0.5,
+          overflow: "hidden",
+          position: "relative",
+          cursor: isDragging ? "grabbing" : "pointer",
+          userSelect: "none",
+          WebkitUserSelect: "none",
+          borderRadius: 0.5,
+        }}
+      >
+        {/* Tags Background */}
+        <Box
+          sx={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            height: 20,
+            backgroundColor: alpha(theme.palette.grey[800], 0.8),
           }}
         />
-        <div ref={indicatorEl} id="scrubber-position-indicator" />
-        <div id="scrubber-current-position" />
-        <div className="scrubber-viewport">
-          <div ref={sliderEl} className="scrubber-slider">
-            <div className="scrubber-tags">{renderTags()}</div>
+
+        {/* Heatmap */}
+        {scene.paths.interactive_heatmap && (
+          <Box
+            sx={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              height: 20,
+              backgroundImage: `url(${scene.paths.interactive_heatmap})`,
+              backgroundSize: "100% 100%",
+            }}
+          />
+        )}
+
+        {/* Position Indicator (progress background) */}
+        <Box
+          ref={indicatorEl}
+          sx={{
+            position: "absolute",
+            left: "-100%",
+            width: "100%",
+            height: 24,
+            backgroundColor: alpha(theme.palette.primary.main, 0.25),
+            zIndex: 0,
+          }}
+        />
+
+        {/* Current Position Line */}
+        <Box
+          sx={{
+            position: "absolute",
+            left: "50%",
+            width: 2,
+            height: 34,
+            backgroundColor: theme.palette.primary.main,
+            boxShadow: `0 0 8px ${alpha(theme.palette.primary.main, 0.6)}`,
+            zIndex: 2,
+          }}
+        />
+
+        {/* Viewport */}
+        <Box
+          sx={{
+            height: "100%",
+            overflow: "hidden",
+            position: "static",
+          }}
+        >
+          {/* Slider */}
+          <Box
+            ref={sliderEl}
+            sx={{
+              height: "100%",
+              left: 0,
+              position: "absolute",
+              width: "100%",
+            }}
+          >
+            {/* Tags */}
+            <Box
+              sx={{
+                height: 20,
+                mb: 1.25,
+                position: "relative",
+              }}
+            >
+              {renderTags()}
+            </Box>
+
+            {/* Sprites */}
             {renderSprites()}
-          </div>
-        </div>
-      </div>
-      <Button
-        className="scrubber-button"
-        id="scrubber-forward"
-        onClick={() => goForward()}
+          </Box>
+        </Box>
+      </Box>
+
+      {/* Forward Button */}
+      <IconButton
+        onClick={goForward}
+        size="small"
+        sx={{
+          borderRadius: 0,
+          width: 32,
+          height: SCRUBBER_HEIGHT,
+          color: theme.palette.primary.main,
+          backgroundColor: alpha(theme.palette.background.default, 0.6),
+          border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
+          "&:hover": {
+            backgroundColor: alpha(theme.palette.primary.main, 0.15),
+          },
+        }}
       >
-        <Icon className="fa-fw" icon={faChevronRight} />
-      </Button>
-    </div>
+        <Icon icon={faChevronRight} />
+      </IconButton>
+    </Box>
   );
 };

@@ -1096,7 +1096,7 @@ const SceneLoader: React.FC<RouteComponentProps<ISceneParams>> = ({
         {collapsed ? <ChevronRightIcon fontSize="small" /> : <ChevronLeftIcon fontSize="small" />}
       </Box>
 
-      <Box className="scene-player-container">
+      <Box className={cx("scene-player-container", { expanded: collapsed })}>
         {isSegment ? (
           <SegmentPlayer scene={scene} />
         ) : (

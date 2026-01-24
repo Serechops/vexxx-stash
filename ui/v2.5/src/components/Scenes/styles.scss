@@ -194,6 +194,7 @@
     flex-grow: 1;
     min-width: 0;
     position: relative;
+    overflow: visible; // Allow scrubber to be visible
 
     @include media-breakpoint-down(sm) {
         aspect-ratio: 16/9;
@@ -202,6 +203,7 @@
 
     @include media-breakpoint-up(md) {
         height: 100%;
+        overflow: hidden; // Contain on larger screens
     }
 }
 

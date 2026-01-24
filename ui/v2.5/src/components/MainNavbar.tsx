@@ -24,7 +24,8 @@ import {
   ListItemText,
   useMediaQuery,
   useTheme,
-  Tooltip
+  Tooltip,
+  Chip
 } from "@mui/material";
 import { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import { Link, NavLink, useLocation, useHistory } from "react-router-dom";
@@ -44,6 +45,7 @@ import {
   faImages,
   faListUl,
   faMapMarkerAlt,
+  faMicrochip,
   faPlayCircle,
   faQuestionCircle,
   faSignOutAlt,
@@ -53,6 +55,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { baseURL } from "src/core/createClient";
 import { PatchComponent } from "src/patch";
+import * as GQL from "src/core/generated-graphql";
 
 interface IMenuItem {
   name: string;
@@ -215,6 +218,25 @@ const MainNavbarUtilityItems = PatchComponent(
   }
 );
 
+// Helper to get a short display name for hardware codec
+function getHWCodecShortName(codecName: string): string {
+  if (codecName.includes("NVENC")) return "NVENC";
+  if (codecName.includes("AMF")) return "AMF";
+  if (codecName.includes("QSV")) return "QSV";
+  if (codecName.includes("VideoToolbox")) return "VT";
+  if (codecName.includes("VAAPI")) return "VAAPI";
+  if (codecName.includes("V4L2M2M")) return "V4L2";
+  if (codecName.includes("Rockchip") || codecName.includes("rkmpp")) return "RKMPP";
+  return codecName;
+}
+
+// Get unique short names from hardware codecs
+function getUniqueHWCodecTypes(codecs: string[]): string[] {
+  const types = new Set<string>();
+  codecs.forEach(c => types.add(getHWCodecShortName(c)));
+  return Array.from(types);
+}
+
 export const MainNavbar: React.FC = () => {
   const history = useHistory();
   const location = useLocation();
@@ -224,6 +246,10 @@ export const MainNavbar: React.FC = () => {
   const isDesktop = useMediaQuery(theme.breakpoints.up('lg'));
 
   const [expanded, setExpanded] = useState(false);
+
+  // Fetch system status for hardware codec info
+  const { data: systemStatusData } = GQL.useSystemStatusQuery();
+  const hardwareCodecs = systemStatusData?.systemStatus.hardwareCodecs ?? [];
 
   // Show all menu items by default, unless config says otherwise
   const menuItems = useMemo(() => {
@@ -309,9 +335,53 @@ export const MainNavbar: React.FC = () => {
 
   const handleDismiss = useCallback(() => setExpanded(false), [setExpanded]);
 
+  function renderHardwareAccelerationChip() {
+    if (hardwareCodecs.length === 0) {
+      return null;
+    }
+
+    const uniqueTypes = getUniqueHWCodecTypes(hardwareCodecs);
+    const chipLabel = uniqueTypes.join(" / ");
+    const tooltipText = hardwareCodecs.join("\n");
+
+    return (
+      <Tooltip
+        title={
+          <Box sx={{ whiteSpace: 'pre-line' }}>
+            <strong>Hardware Encoding:</strong>
+            {"\n"}
+            {tooltipText}
+          </Box>
+        }
+      >
+        <Chip
+          icon={<Icon icon={faMicrochip} />}
+          label={chipLabel}
+          size="small"
+          sx={{
+            mr: 1,
+            height: 24,
+            backgroundColor: 'rgba(76, 175, 80, 0.15)',
+            borderColor: 'rgba(76, 175, 80, 0.5)',
+            border: '1px solid',
+            color: '#81c784',
+            '& .MuiChip-icon': {
+              color: '#81c784',
+            },
+            '& .MuiChip-label': {
+              fontSize: '0.75rem',
+              fontWeight: 500,
+            },
+          }}
+        />
+      </Tooltip>
+    );
+  }
+
   function renderUtilityButtons() {
     return (
       <>
+        {renderHardwareAccelerationChip()}
         <Tooltip title={intl.formatMessage({ id: "Support Me" })}>
           <IconButton
             component="a"

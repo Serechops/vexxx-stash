@@ -7,6 +7,7 @@ import (
 	"math"
 	"os"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -14,6 +15,28 @@ import (
 	"github.com/stashapp/stash/pkg/logger"
 	"github.com/stashapp/stash/pkg/models"
 )
+
+// hwCodecPlatformCompatible returns true if the codec is compatible with the current OS
+func hwCodecPlatformCompatible(codec VideoCodec) bool {
+	switch codec {
+	// VAAPI and V4L2M2M are Linux-only
+	case VideoCodecV264, VideoCodecVVP9, VideoCodecVVPX, VideoCodecR264:
+		return runtime.GOOS == "linux"
+	// VideoToolbox is macOS-only
+	case VideoCodecM264:
+		return runtime.GOOS == "darwin"
+	// AMD AMF is Windows-only (uses D3D11VA)
+	case VideoCodecA264:
+		return runtime.GOOS == "windows"
+	// Rockchip is Linux-only (ARM SoCs)
+	case VideoCodecRK264:
+		return runtime.GOOS == "linux"
+	// NVENC and QSV work on Windows and Linux
+	case VideoCodecN264, VideoCodecN264H, VideoCodecI264, VideoCodecI264C, VideoCodecIVP9:
+		return runtime.GOOS == "windows" || runtime.GOOS == "linux"
+	}
+	return true
+}
 
 var (
 	// Hardware codec's
@@ -68,6 +91,7 @@ func (f *FFMpeg) initHWSupport(ctx context.Context) {
 	for _, codec := range []VideoCodec{
 		VideoCodecN264H,
 		VideoCodecN264,
+		VideoCodecA264, // AMD AMF
 		VideoCodecI264,
 		VideoCodecI264C,
 		VideoCodecV264,
@@ -77,6 +101,12 @@ func (f *FFMpeg) initHWSupport(ctx context.Context) {
 		VideoCodecVVP9,
 		VideoCodecM264,
 	} {
+		// Skip codecs that are not compatible with the current platform
+		if !hwCodecPlatformCompatible(codec) {
+			logger.Tracef("[InitHWSupport] Skipping codec %s: not compatible with %s", codec.Name, runtime.GOOS)
+			continue
+		}
+
 		var args Args
 		args = append(args, "-hide_banner")
 		args = args.LogLevel(LogLevelWarning)
@@ -135,9 +165,14 @@ func (f *FFMpeg) initHWSupport(ctx context.Context) {
 
 	// Use strings.Builder for efficient string concatenation
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("[InitHWSupport] Supported HW codecs [%d]:\n", len(hwCodecSupport)))
-	for _, codec := range hwCodecSupport {
-		sb.WriteString(fmt.Sprintf("\t%s - %s\n", codec.Name, codec.CodeName))
+	sb.WriteString(fmt.Sprintf("[InitHWSupport] Supported HW codecs [%d]", len(hwCodecSupport)))
+	if len(hwCodecSupport) > 0 {
+		sb.WriteString(":\n")
+		for _, codec := range hwCodecSupport {
+			sb.WriteString(fmt.Sprintf("\t%s - %s\n", codec.Name, codec.CodeName))
+		}
+	} else {
+		sb.WriteString(" (enable Debug logging for codec test details)\n")
 	}
 	logger.Info(sb.String())
 
@@ -222,6 +257,14 @@ func (f *FFMpeg) hwDeviceInit(args Args, toCodec VideoCodec, fullhw bool) Args {
 			args = append(args, "-hwaccel_output_format")
 			args = append(args, "cuda")
 		}
+	case VideoCodecA264:
+		// AMD AMF uses D3D11VA for hardware decoding on Windows
+		if fullhw {
+			args = append(args, "-hwaccel")
+			args = append(args, "d3d11va")
+			args = append(args, "-hwaccel_output_format")
+			args = append(args, "d3d11")
+		}
 	case VideoCodecV264,
 		VideoCodecVVP9:
 		args = append(args, "-vaapi_device")
@@ -288,6 +331,12 @@ func (f *FFMpeg) hwFilterInit(toCodec VideoCodec, fullhw bool) VideoFilter {
 		if !fullhw {
 			videoFilter = videoFilter.Append("format=nv12")
 			videoFilter = videoFilter.Append("hwupload_cuda")
+		}
+	case VideoCodecA264:
+		// AMD AMF: just convert to NV12, the encoder handles GPU upload internally
+		// Note: hwupload requires D3D11 device init which adds complexity
+		if !fullhw {
+			videoFilter = videoFilter.Append("format=nv12")
 		}
 	case VideoCodecI264,
 		VideoCodecI264C,
@@ -378,6 +427,12 @@ func (f *FFMpeg) hwApplyFullHWFilter(args VideoFilter, codec VideoCodec, fullhw 
 		if fullhw && f.version.Gteq(Version{major: 5}) { // Added in FFMpeg 5
 			args = args.Append("scale_cuda=format=yuv420p")
 		}
+	case VideoCodecA264:
+		// AMD AMF: for full HW, use software scale with nv12 format
+		// Note: scale_d3d11 is available in some FFmpeg builds but not universal
+		if fullhw {
+			args = args.Append("format=nv12")
+		}
 	case VideoCodecV264, VideoCodecVVP9:
 		if fullhw && f.version.Gteq(Version{major: 3, minor: 1}) { // Added in FFMpeg 3.1
 			args = args.Append("scale_vaapi=format=nv12")
@@ -407,6 +462,9 @@ func (f *FFMpeg) hwApplyScaleTemplate(sargs string, codec VideoCodec, match []in
 		if fullhw && f.version.Gteq(Version{major: 5}) { // Added in FFMpeg 5
 			template += ":format=yuv420p"
 		}
+	case VideoCodecA264:
+		// AMD AMF uses software scaling - h264_amf accepts nv12 input
+		template = "scale=$value"
 	case VideoCodecV264, VideoCodecVVP9:
 		template = "scale_vaapi=$value"
 		if fullhw && f.version.Gteq(Version{major: 3, minor: 1}) { // Added in FFMpeg 3.1
@@ -447,7 +505,8 @@ func (f *FFMpeg) hwCodecMaxRes(codec VideoCodec) (int, int) {
 	case VideoCodecN264,
 		VideoCodecN264H,
 		VideoCodecI264,
-		VideoCodecI264C:
+		VideoCodecI264C,
+		VideoCodecA264: // AMD AMF supports up to 4K
 		return 4096, 4096
 	}
 
@@ -471,6 +530,7 @@ func (f *FFMpeg) hwCodecHLSCompatible() *VideoCodec {
 		switch element {
 		case VideoCodecN264,
 			VideoCodecN264H,
+			VideoCodecA264, // AMD AMF
 			VideoCodecI264,
 			VideoCodecI264C,
 			VideoCodecV264,
@@ -489,6 +549,7 @@ func (f *FFMpeg) hwCodecMP4Compatible() *VideoCodec {
 		switch element {
 		case VideoCodecN264,
 			VideoCodecN264H,
+			VideoCodecA264, // AMD AMF
 			VideoCodecI264,
 			VideoCodecI264C,
 			VideoCodecM264,
@@ -497,6 +558,40 @@ func (f *FFMpeg) hwCodecMP4Compatible() *VideoCodec {
 		}
 	}
 	return nil
+}
+
+// GetHWCodecForMP4 returns a hardware codec suitable for MP4 encoding, or nil if none available.
+// This is the exported version for use by generate package.
+func (f *FFMpeg) GetHWCodecForMP4() *VideoCodec {
+	return f.hwCodecMP4Compatible()
+}
+
+// HWFilterForCodec applies hardware-specific filter adjustments for the given codec.
+// For software codecs or unknown hardware codecs, returns the filter unchanged.
+func (f *FFMpeg) HWFilterForCodec(filter VideoFilter, codec VideoCodec) VideoFilter {
+	// Apply format conversion for hardware codecs that need it
+	switch codec {
+	case VideoCodecA264:
+		// AMD AMF needs NV12 format
+		filter = filter.Append("format=nv12")
+	case VideoCodecN264, VideoCodecN264H:
+		// NVENC can work with NV12
+		filter = filter.Append("format=nv12")
+	case VideoCodecI264, VideoCodecI264C:
+		// QSV needs format conversion
+		filter = filter.Append("format=nv12")
+	case VideoCodecM264:
+		// VideoToolbox needs NV12
+		filter = filter.Append("format=nv12")
+	case VideoCodecV264, VideoCodecVVP9:
+		// VAAPI needs hwupload
+		filter = filter.Append("format=nv12")
+		filter = filter.Append("hwupload")
+	case VideoCodecRK264:
+		// Rockchip needs format conversion
+		filter = filter.Append("format=nv12")
+	}
+	return filter
 }
 
 // Return if a hardware accelerated codec for WebM is available

@@ -339,6 +339,8 @@ type SystemStatus {
   ffprobePath: String
   "True if running inside a Docker container"
   isDocker: Boolean!
+  "List of detected hardware encoder names (e.g., 'H264 NVENC', 'H264 AMF')"
+  hardwareCodecs: [String!]!
 }
 
 "Result of library path validation"

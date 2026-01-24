@@ -48,9 +48,9 @@ func CodecInit(codec VideoCodec) (args Args) {
 		)
 	case VideoCodecN264H:
 		args = append(args,
-			"-profile", "p7",
+			"-preset", "p7",
 			"-tune", "hq",
-			"-profile", "high",
+			"-profile:v", "high",
 			"-rc", "vbr",
 			"-rc-lookahead", "60",
 			"-surfaces", "64",
@@ -75,8 +75,13 @@ func CodecInit(codec VideoCodec) (args Args) {
 			"-qp", "20",
 		)
 	case VideoCodecA264:
+		// AMD AMF encoder settings optimized for stability
 		args = append(args,
-			"-quality", "speed",
+			"-usage", "transcoding",
+			"-quality", "balanced",
+			"-rc", "vbr_latency",
+			"-profile:v", "main",
+			"-level", "4.1",
 		)
 	case VideoCodecM264:
 		args = append(args,

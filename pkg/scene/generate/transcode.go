@@ -66,24 +66,38 @@ func (g Generator) makeTranscode(lockCtx *fsutil.LockContext, hash string, gener
 
 func (g Generator) transcode(input string, options TranscodeOptions) generateFn {
 	return func(lockCtx *fsutil.LockContext, tmpFn string) error {
-		var videoArgs ffmpeg.Args
+		var videoFilter ffmpeg.VideoFilter
 		if options.Width != 0 && options.Height != 0 {
-			var videoFilter ffmpeg.VideoFilter
 			videoFilter = videoFilter.ScaleDimensions(options.Width, options.Height)
+		}
+
+		// Determine codec and args based on hardware encoding availability
+		videoCodec := ffmpeg.VideoCodecLibX264
+		var videoArgs ffmpeg.Args
+
+		if g.UseHardwareEncoding {
+			if hwCodec := g.Encoder.GetHWCodecForMP4(); hwCodec != nil {
+				videoCodec = *hwCodec
+				// Use hardware codec init settings
+				videoArgs = append(videoArgs, ffmpeg.CodecInit(videoCodec)...)
+				// Apply hardware-specific video filter
+				videoFilter = g.Encoder.HWFilterForCodec(videoFilter, videoCodec)
+				logger.Debugf("[Transcode] Using hardware encoder: %s", videoCodec.Name)
+			} else {
+				logger.Debug("[Transcode] Hardware encoding enabled but no compatible codec found, falling back to libx264")
+				videoArgs = g.softwareTranscodeArgs()
+			}
+		} else {
+			videoArgs = g.softwareTranscodeArgs()
+		}
+
+		if videoFilter != "" {
 			videoArgs = videoArgs.VideoFilter(videoFilter)
 		}
 
-		videoArgs = append(videoArgs,
-			"-pix_fmt", "yuv420p",
-			"-profile:v", "high",
-			"-level", "4.2",
-			"-preset", "superfast",
-			"-crf", "23",
-		)
-
 		args := transcoder.Transcode(input, transcoder.TranscodeOptions{
 			OutputPath: tmpFn,
-			VideoCodec: ffmpeg.VideoCodecLibX264,
+			VideoCodec: videoCodec,
 			VideoArgs:  videoArgs,
 			AudioCodec: ffmpeg.AudioCodecAAC,
 
@@ -95,29 +109,51 @@ func (g Generator) transcode(input string, options TranscodeOptions) generateFn 
 	}
 }
 
+// softwareTranscodeArgs returns the video args for software (libx264) encoding
+func (g Generator) softwareTranscodeArgs() ffmpeg.Args {
+	return ffmpeg.Args{
+		"-pix_fmt", "yuv420p",
+		"-profile:v", "high",
+		"-level", "4.2",
+		"-preset", "superfast",
+		"-crf", "23",
+	}
+}
+
 func (g Generator) transcodeVideo(input string, options TranscodeOptions) generateFn {
 	return func(lockCtx *fsutil.LockContext, tmpFn string) error {
-		var videoArgs ffmpeg.Args
+		var videoFilter ffmpeg.VideoFilter
 		if options.Width != 0 && options.Height != 0 {
-			var videoFilter ffmpeg.VideoFilter
 			videoFilter = videoFilter.ScaleDimensions(options.Width, options.Height)
-			videoArgs = videoArgs.VideoFilter(videoFilter)
 		}
 
-		videoArgs = append(videoArgs,
-			"-pix_fmt", "yuv420p",
-			"-profile:v", "high",
-			"-level", "4.2",
-			"-preset", "superfast",
-			"-crf", "23",
-		)
+		// Determine codec and args based on hardware encoding availability
+		videoCodec := ffmpeg.VideoCodecLibX264
+		var videoArgs ffmpeg.Args
+
+		if g.UseHardwareEncoding {
+			if hwCodec := g.Encoder.GetHWCodecForMP4(); hwCodec != nil {
+				videoCodec = *hwCodec
+				videoArgs = append(videoArgs, ffmpeg.CodecInit(videoCodec)...)
+				videoFilter = g.Encoder.HWFilterForCodec(videoFilter, videoCodec)
+				logger.Debugf("[TranscodeVideo] Using hardware encoder: %s", videoCodec.Name)
+			} else {
+				videoArgs = g.softwareTranscodeArgs()
+			}
+		} else {
+			videoArgs = g.softwareTranscodeArgs()
+		}
+
+		if videoFilter != "" {
+			videoArgs = videoArgs.VideoFilter(videoFilter)
+		}
 
 		var audioArgs ffmpeg.Args
 		audioArgs = audioArgs.SkipAudio()
 
 		args := transcoder.Transcode(input, transcoder.TranscodeOptions{
 			OutputPath: tmpFn,
-			VideoCodec: ffmpeg.VideoCodecLibX264,
+			VideoCodec: videoCodec,
 			VideoArgs:  videoArgs,
 			AudioArgs:  audioArgs,
 

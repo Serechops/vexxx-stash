@@ -458,6 +458,12 @@ func (s *Manager) GetSystemStatus() *SystemStatus {
 		ffprobePath = s.FFProbe.Path()
 	}
 
+	// Get hardware codec names
+	var hardwareCodecs []string
+	if s.FFMpeg != nil {
+		hardwareCodecs = s.FFMpeg.GetHardwareCodecNames()
+	}
+
 	return &SystemStatus{
 		Os:             runtime.GOOS,
 		WorkingDir:     workingDir,
@@ -470,6 +476,7 @@ func (s *Manager) GetSystemStatus() *SystemStatus {
 		FfmpegPath:     &ffmpegPath,
 		FfprobePath:    &ffprobePath,
 		IsDocker:       isDockerized(),
+		HardwareCodecs: hardwareCodecs,
 	}
 }
 

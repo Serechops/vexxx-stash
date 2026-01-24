@@ -254,3 +254,13 @@ func (f *FFMpeg) getHWCodecSupport() []VideoCodec {
 	defer f.hwCodecSupportMutex.RUnlock()
 	return f.hwCodecSupport
 }
+
+// GetHardwareCodecNames returns a list of detected hardware encoder names
+func (f *FFMpeg) GetHardwareCodecNames() []string {
+	codecs := f.getHWCodecSupport()
+	names := make([]string, len(codecs))
+	for i, c := range codecs {
+		names[i] = c.Name
+	}
+	return names
+}

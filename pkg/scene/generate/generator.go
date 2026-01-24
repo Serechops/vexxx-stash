@@ -51,12 +51,13 @@ type FFMpegConfig interface {
 }
 
 type Generator struct {
-	Encoder      *ffmpeg.FFMpeg
-	FFMpegConfig FFMpegConfig
-	LockManager  *fsutil.ReadLockManager
-	MarkerPaths  MarkerPaths
-	ScenePaths   ScenePaths
-	Overwrite    bool
+	Encoder             *ffmpeg.FFMpeg
+	FFMpegConfig        FFMpegConfig
+	LockManager         *fsutil.ReadLockManager
+	MarkerPaths         MarkerPaths
+	ScenePaths          ScenePaths
+	Overwrite           bool
+	UseHardwareEncoding bool
 }
 
 type generateFn func(lockCtx *fsutil.LockContext, tmpFn string) error

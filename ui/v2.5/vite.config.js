@@ -57,6 +57,11 @@ export default defineConfig(() => {
           changeOrigin: true,
           secure: false,
         },
+        "/stashtag": {
+          target: "http://localhost:9999",
+          changeOrigin: true,
+          secure: false,
+        },
       },
     },
     publicDir: "public",

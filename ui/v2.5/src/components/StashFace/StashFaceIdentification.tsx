@@ -443,7 +443,7 @@ export const StashFaceIdentification: React.FC<StashFaceIdentificationProps> = (
 
                         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                             Automatically identify performers in this scene using AI face
-                            recognition powered by StashFace API with StashDB integration.
+                            recognition powered by cc1234/stashface on Hugging Face.
                         </Typography>
 
 

@@ -1,6 +1,18 @@
 
 import React, { useEffect, useState, useRef } from "react";
-import { Modal, Button, Form, Row, Col, InputGroup } from "react-bootstrap";
+import {
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    Button,
+    TextField,
+    Box,
+    Typography,
+    InputAdornment,
+    IconButton,
+    LinearProgress,
+} from "@mui/material";
 import { useIntl } from "react-intl";
 import { SceneDataFragment } from "src/core/generated-graphql";
 import * as GQL from "src/core/generated-graphql";
@@ -166,52 +178,90 @@ export const SceneGalleryDialog: React.FC<SceneGalleryDialogProps> = ({
     };
 
     return (
-        <Modal show={show} onHide={onHide} size="lg" centered>
-            <Modal.Header closeButton>
-                <Modal.Title>Create Gallery from Scene</Modal.Title>
-            </Modal.Header>
-            <Modal.Body>
-                <div className="mb-3">
-                    <Form.Label>Number of Images</Form.Label>
-                    <InputGroup>
-                        <Form.Control
+        <Dialog open={show} onClose={onHide} maxWidth="lg" fullWidth>
+            <DialogTitle>Create Gallery from Scene</DialogTitle>
+            <DialogContent>
+                <Box sx={{ mb: 3, mt: 1 }}>
+                    <Typography variant="body2" sx={{ mb: 1 }}>Number of Images</Typography>
+                    <Box sx={{ display: "flex", gap: 1 }}>
+                        <TextField
                             type="number"
+                            size="small"
                             value={imageCount}
-                            onChange={(e) => setImageCount(parseInt(e.target.value) || 0)}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setImageCount(parseInt(e.target.value) || 0)}
                             disabled={generating}
+                            sx={{ width: 120 }}
                         />
-                        <Button onClick={handleGeneratePreviews} disabled={generating || !videoElement}>
+                        <Button
+                            variant="contained"
+                            onClick={handleGeneratePreviews}
+                            disabled={generating || !videoElement}
+                        >
                             {generating ? "Scanning..." : "Generate Previews"}
                         </Button>
-                    </InputGroup>
-                    {generating && <div className="mt-2">Progress: {progress}%</div>}
-                </div>
+                    </Box>
+                    {generating && (
+                        <Box sx={{ mt: 2 }}>
+                            <Typography variant="body2">Progress: {progress}%</Typography>
+                            <LinearProgress variant="determinate" value={progress} sx={{ mt: 1 }} />
+                        </Box>
+                    )}
+                </Box>
 
-                <div className="gallery-preview-grid d-flex flex-wrap gap-2 justify-content-center" style={{ maxHeight: "60vh", overflowY: "auto" }}>
+                <Box
+                    sx={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: 1,
+                        justifyContent: "center",
+                        maxHeight: "60vh",
+                        overflowY: "auto",
+                    }}
+                >
                     {previews.map((p, i) => (
-                        <div
+                        <Box
                             key={i}
-                            className={cx("position-relative cursor-pointer", { "opacity-50": !p.selected })}
                             onClick={() => toggleSelect(i)}
-                            style={{ width: "160px", border: p.selected ? "2px solid #28a745" : "2px solid transparent" }}
+                            sx={{
+                                position: "relative",
+                                cursor: "pointer",
+                                width: 160,
+                                opacity: p.selected ? 1 : 0.5,
+                                border: p.selected ? "2px solid #28a745" : "2px solid transparent",
+                                transition: "opacity 0.2s",
+                            }}
                         >
-                            <img src={p.dataUrl} className="w-100" />
-                            <div className="position-absolute top-0 end-0 p-1 text-white text-shadow">
+                            <img src={p.dataUrl} style={{ width: "100%" }} />
+                            <Box sx={{ position: "absolute", top: 4, right: 4, color: "white" }}>
                                 <Icon icon={p.selected ? faCheckCircle : faCircle} color={p.selected ? "green" : "gray"} />
-                            </div>
-                            <div className="position-absolute bottom-0 start-0 p-1 text-white bg-dark bg-opacity-75 small">
+                            </Box>
+                            <Box
+                                sx={{
+                                    position: "absolute",
+                                    bottom: 0,
+                                    left: 0,
+                                    p: 0.5,
+                                    color: "white",
+                                    backgroundColor: "rgba(0,0,0,0.75)",
+                                    fontSize: "0.75rem",
+                                }}
+                            >
                                 {new Date(p.timestamp * 1000).toISOString().substr(11, 8)}
-                            </div>
-                        </div>
+                            </Box>
+                        </Box>
                     ))}
-                </div>
-            </Modal.Body>
-            <Modal.Footer>
-                <Button variant="secondary" onClick={onHide}>Cancel</Button>
-                <Button variant="primary" onClick={handleCreate} disabled={generating || creating || previews.filter(p => p.selected).length === 0}>
+                </Box>
+            </DialogContent>
+            <DialogActions>
+                <Button onClick={onHide}>Cancel</Button>
+                <Button
+                    variant="contained"
+                    onClick={handleCreate}
+                    disabled={generating || creating || previews.filter(p => p.selected).length === 0}
+                >
                     {creating ? <LoadingIndicator inline message="Creating..." /> : `Create Gallery (${previews.filter(p => p.selected).length})`}
                 </Button>
-            </Modal.Footer>
-        </Modal>
+            </DialogActions>
+        </Dialog>
     );
 };

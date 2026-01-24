@@ -92,6 +92,10 @@ const StashFaceIdentification = lazyComponent(
   () => import("src/components/StashFace/StashFaceIdentification").then(module => ({ default: module.StashFaceIdentification }))
 ) as React.FC<{ scene: GQL.SceneDataFragment }>;
 
+const StashTagIdentification = lazyComponent(
+  () => import("src/components/StashTag/StashTagIdentification").then(module => ({ default: module.StashTagIdentification }))
+) as React.FC<{ scene: GQL.SceneDataFragment }>;
+
 const SimilarScenesPanel = lazyComponent(
   () => import("../../Recommendations/SimilarItemsPanel").then(module => ({ default: module.SimilarScenesPanel }))
 ) as React.FC<{ sceneId: string }>;
@@ -256,6 +260,7 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
     Mousetrap.bind("e", () => setActiveTabKey("scene-edit-panel"));
     Mousetrap.bind("k", () => setActiveTabKey("scene-markers-panel"));
     Mousetrap.bind("s", () => setActiveTabKey("stashface-panel"));
+    Mousetrap.bind("t", () => setActiveTabKey("stashtag-panel"));
     Mousetrap.bind("i", () => setActiveTabKey("scene-file-info-panel"));
     Mousetrap.bind("h", () => setActiveTabKey("scene-history-panel"));
     Mousetrap.bind("o", () => {
@@ -278,6 +283,7 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
       Mousetrap.unbind("e");
       Mousetrap.unbind("k");
       Mousetrap.unbind("s");
+      Mousetrap.unbind("t");
       Mousetrap.unbind("i");
       Mousetrap.unbind("h");
       Mousetrap.unbind("o");
@@ -604,6 +610,7 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
               />
             )}
             <Tab value="stashface-panel" label="StashFace" />
+            <Tab value="stashtag-panel" label="StashTag" />
             <Tab value="scene-video-filter-panel" label={<FormattedMessage id="effect_filters.name" />} />
             <Tab
               value="scene-file-info-panel"
@@ -661,6 +668,9 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
         )}
         <Box hidden={activeTabKey !== "stashface-panel"}>
           <StashFaceIdentification scene={scene} />
+        </Box>
+        <Box hidden={activeTabKey !== "stashtag-panel"}>
+          <StashTagIdentification scene={scene} />
         </Box>
         <Box hidden={activeTabKey !== "scene-video-filter-panel"}>
           <SceneVideoFilterPanel scene={scene} />

@@ -37,10 +37,20 @@ RUN make flags-release flags-pie stash
 
 # Final Runnable Image
 FROM alpine:latest
-RUN apk add --no-cache ca-certificates vips-tools ffmpeg
+RUN apk add --no-cache ca-certificates vips-tools ffmpeg python3 py3-pip
+# Install Python dependencies for AI services (StashFace, StashTag, MegaFace)
+RUN pip3 install --no-cache-dir --break-system-packages gradio_client==1.8.0
 COPY --from=backend /stash/stash /usr/bin/
+# Copy Python AI service scripts
+COPY --from=backend /stash/pkg/stashface/client.py /usr/lib/stash/stashface/client.py
+COPY --from=backend /stash/pkg/stashtag/client.py /usr/lib/stash/stashtag/client.py
+COPY --from=backend /stash/pkg/megaface/client.py /usr/lib/stash/megaface/client.py
 ENV STASH_CONFIG_FILE=/root/.stash/config.yml
 # Set Docker container environment variable for detection
 ENV DOCKER_CONTAINER=1
+# Set Python script paths for the AI services
+ENV STASH_STASHFACE_SCRIPT=/usr/lib/stash/stashface/client.py
+ENV STASH_STASHTAG_SCRIPT=/usr/lib/stash/stashtag/client.py
+ENV STASH_MEGAFACE_SCRIPT=/usr/lib/stash/megaface/client.py
 EXPOSE 9999
 ENTRYPOINT ["stash"]

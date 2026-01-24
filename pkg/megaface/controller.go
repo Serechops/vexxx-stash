@@ -21,28 +21,46 @@ type Controller struct {
 
 // NewController creates a new MegaFace controller.
 func NewController(pythonPath string, tempDir string) *Controller {
-	// Find the python script
-	wd, _ := os.Getwd()
+	// Find the python script - check environment variable first (for Docker)
 	var scriptPath string
 
-	searchPaths := []string{
-		filepath.Join(wd, "pkg", "megaface", "client.py"),
-		filepath.Join(wd, "..", "pkg", "megaface", "client.py"),
-		filepath.Join(wd, "..", "..", "pkg", "megaface", "client.py"),
-	}
-
-	for _, p := range searchPaths {
-		if _, err := os.Stat(p); err == nil {
-			scriptPath = p
-			break
+	if envPath := os.Getenv("STASH_MEGAFACE_SCRIPT"); envPath != "" {
+		if _, err := os.Stat(envPath); err == nil {
+			scriptPath = envPath
+			logger.Debugf("MegaFace: Using script from env var: %s", scriptPath)
 		}
 	}
 
 	if scriptPath == "" {
-		scriptPath = filepath.Join(wd, "pkg", "megaface", "client.py")
-		logger.Warnf("MegaFace: client.py not found in search paths, defaulting to %s", scriptPath)
-	} else {
-		logger.Debugf("MegaFace: Found client.py at %s", scriptPath)
+		wd, _ := os.Getwd()
+		// Get executable directory for native builds
+		exePath, _ := os.Executable()
+		exeDir := filepath.Dir(exePath)
+
+		searchPaths := []string{
+			// Native build: python-services folder next to executable
+			filepath.Join(exeDir, "python-services", "megaface", "client.py"),
+			// Development paths
+			filepath.Join(wd, "pkg", "megaface", "client.py"),
+			filepath.Join(wd, "..", "pkg", "megaface", "client.py"),
+			filepath.Join(wd, "..", "..", "pkg", "megaface", "client.py"),
+			// Docker path
+			"/usr/lib/stash/megaface/client.py",
+		}
+
+		for _, p := range searchPaths {
+			if _, err := os.Stat(p); err == nil {
+				scriptPath = p
+				break
+			}
+		}
+
+		if scriptPath == "" {
+			scriptPath = filepath.Join(wd, "pkg", "megaface", "client.py")
+			logger.Warnf("MegaFace: client.py not found in search paths, defaulting to %s", scriptPath)
+		} else {
+			logger.Debugf("MegaFace: Found client.py at %s", scriptPath)
+		}
 	}
 
 	return &Controller{

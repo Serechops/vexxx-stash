@@ -192,6 +192,69 @@ if (!isDryRun) {
     }
 }
 
+// Copy Python AI service scripts to dist folder for native builds
+console.log(`[Vexxx] Copying Python AI services to dist...`);
+if (!isDryRun) {
+    const fs = require('fs');
+    const distDir = path.join(rootDir, 'dist');
+    const pythonServicesDir = path.join(distDir, 'python-services');
+    
+    // Create directory structure
+    const serviceDirs = ['stashface', 'stashtag', 'megaface'];
+    serviceDirs.forEach(service => {
+        const serviceDir = path.join(pythonServicesDir, service);
+        if (!fs.existsSync(serviceDir)) {
+            fs.mkdirSync(serviceDir, { recursive: true });
+        }
+    });
+    
+    // Copy Python scripts
+    const pythonScripts = [
+        { src: 'pkg/stashface/client.py', dest: 'python-services/stashface/client.py' },
+        { src: 'pkg/stashtag/client.py', dest: 'python-services/stashtag/client.py' },
+        { src: 'pkg/megaface/client.py', dest: 'python-services/megaface/client.py' }
+    ];
+    
+    pythonScripts.forEach(({ src, dest }) => {
+        const srcPath = path.join(rootDir, src);
+        const destPath = path.join(distDir, dest);
+        if (fs.existsSync(srcPath)) {
+            fs.copyFileSync(srcPath, destPath);
+            console.log(`  Copied ${src} -> dist/${dest}`);
+        } else {
+            console.warn(`  Warning: ${src} not found`);
+        }
+    });
+    
+    // Create requirements.txt for Python dependencies
+    const requirementsPath = path.join(pythonServicesDir, 'requirements.txt');
+    fs.writeFileSync(requirementsPath, '# Vexxx AI Services Python Dependencies\ngradio_client==1.8.0\n');
+    console.log(`  Created dist/python-services/requirements.txt`);
+    
+    // Create README for users
+    const readmePath = path.join(pythonServicesDir, 'README.txt');
+    const readmeContent = `Vexxx Python AI Services
+========================
+
+These Python scripts provide AI-powered features:
+- StashFace: Performer face recognition via StashDB
+- StashTag: Automatic scene tagging
+- MegaFace: Second-opinion performer identification
+
+INSTALLATION:
+1. Install Python 3.8+ from https://python.org
+2. Install dependencies: pip install -r requirements.txt
+3. Place this folder next to the Vexxx executable, or set environment variables:
+   - STASH_STASHFACE_SCRIPT=/path/to/stashface/client.py
+   - STASH_STASHTAG_SCRIPT=/path/to/stashtag/client.py
+   - STASH_MEGAFACE_SCRIPT=/path/to/megaface/client.py
+
+The Docker version includes Python and all dependencies pre-installed.
+`;
+    fs.writeFileSync(readmePath, readmeContent);
+    console.log(`  Created dist/python-services/README.txt`);
+}
+
 console.log(`[Vexxx] Building Docker image for export...`);
 const dockerBuildCmd = `make docker-build STASH_VERSION=${STASH_VERSION} GITHASH=${process.env.GITHASH || 'dev'}`;
 console.log(`> ${dockerBuildCmd}`);

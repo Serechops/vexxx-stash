@@ -27,32 +27,46 @@ type Controller struct {
 }
 
 func NewController(pythonPath string, tempDir string) *Controller {
-	// Find the python script. It should be next to this binary or in a known location.
-	// We'll search for it starting from CWD and moving up.
-
-	wd, _ := os.Getwd()
+	// Find the python script - check environment variable first (for Docker)
 	var scriptPath string
 
-	searchPaths := []string{
-		filepath.Join(wd, "pkg", "stashface", "client.py"),
-		filepath.Join(wd, "..", "pkg", "stashface", "client.py"),
-		filepath.Join(wd, "..", "..", "pkg", "stashface", "client.py"),
-		// Fallback to searching relative to executable if possible, but for dev this should suffice
-	}
-
-	for _, p := range searchPaths {
-		if _, err := os.Stat(p); err == nil {
-			scriptPath = p
-			break
+	if envPath := os.Getenv("STASH_STASHFACE_SCRIPT"); envPath != "" {
+		if _, err := os.Stat(envPath); err == nil {
+			scriptPath = envPath
+			logger.Debugf("StashFace: Using script from env var: %s", scriptPath)
 		}
 	}
 
 	if scriptPath == "" {
-		// Fallback to the default if not found (will likely fail later but provides a path)
-		scriptPath = filepath.Join(wd, "pkg", "stashface", "client.py")
-		logger.Warnf("StashFace: client.py not found in search paths, defaulting to %s", scriptPath)
-	} else {
-		logger.Debugf("StashFace: Found client.py at %s", scriptPath)
+		wd, _ := os.Getwd()
+		// Get executable directory for native builds
+		exePath, _ := os.Executable()
+		exeDir := filepath.Dir(exePath)
+
+		searchPaths := []string{
+			// Native build: python-services folder next to executable
+			filepath.Join(exeDir, "python-services", "stashface", "client.py"),
+			// Development paths
+			filepath.Join(wd, "pkg", "stashface", "client.py"),
+			filepath.Join(wd, "..", "pkg", "stashface", "client.py"),
+			filepath.Join(wd, "..", "..", "pkg", "stashface", "client.py"),
+			// Docker path
+			"/usr/lib/stash/stashface/client.py",
+		}
+
+		for _, p := range searchPaths {
+			if _, err := os.Stat(p); err == nil {
+				scriptPath = p
+				break
+			}
+		}
+
+		if scriptPath == "" {
+			scriptPath = filepath.Join(wd, "pkg", "stashface", "client.py")
+			logger.Warnf("StashFace: client.py not found in search paths, defaulting to %s", scriptPath)
+		} else {
+			logger.Debugf("StashFace: Found client.py at %s", scriptPath)
+		}
 	}
 
 	return &Controller{

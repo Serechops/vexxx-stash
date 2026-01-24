@@ -218,6 +218,7 @@ func (r *httpRepository) getFile(ctx context.Context, u url.URL) (io.ReadCloser,
 }
 
 func (r *httpRepository) getLocalFile(ctx context.Context, path string) (fs.File, error) {
+	_ = ctx // preserved for API consistency
 	ret, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get file %q: %w", path, err)

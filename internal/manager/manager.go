@@ -162,7 +162,7 @@ func (s *Manager) RefreshDLNA() {
 	}
 }
 
-func createPackageManager(localPath string, srcPathGetter pkg.SourcePathGetter) *pkg.Manager {
+func createPackageManager(localPath string, srcPathGetter pkg.SourcePathGetter, pythonPath string) *pkg.Manager {
 	const timeout = 10 * time.Second
 	httpClient := &http.Client{
 		Transport: &http.Transport{
@@ -178,15 +178,16 @@ func createPackageManager(localPath string, srcPathGetter pkg.SourcePathGetter) 
 		},
 		PackagePathGetter: srcPathGetter,
 		Client:            httpClient,
+		PythonPath:        pythonPath,
 	}
 }
 
 func (s *Manager) RefreshScraperSourceManager() {
-	s.ScraperPackageManager = createPackageManager(s.Config.GetScrapersPath(), s.Config.GetScraperPackagePathGetter())
+	s.ScraperPackageManager = createPackageManager(s.Config.GetScrapersPath(), s.Config.GetScraperPackagePathGetter(), "")
 }
 
 func (s *Manager) RefreshPluginSourceManager() {
-	s.PluginPackageManager = createPackageManager(s.Config.GetPluginsPath(), s.Config.GetPluginPackagePathGetter())
+	s.PluginPackageManager = createPackageManager(s.Config.GetPluginsPath(), s.Config.GetPluginPackagePathGetter(), s.Config.GetPythonPath())
 }
 
 func setSetupDefaults(input *SetupInput) {

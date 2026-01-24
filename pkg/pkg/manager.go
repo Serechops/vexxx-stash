@@ -9,10 +9,14 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 
 	"github.com/stashapp/stash/pkg/logger"
 	"github.com/stashapp/stash/pkg/models"
+	"github.com/stashapp/stash/pkg/python"
 )
 
 // SourcePathGetter gets the source path for a given package URL.
@@ -30,6 +34,10 @@ type Manager struct {
 	PackagePathGetter SourcePathGetter
 
 	Client *http.Client
+
+	// PythonPath is the configured path to the Python executable.
+	// Used to install Python dependencies via pip.
+	PythonPath string
 
 	cache *repositoryCache
 }
@@ -194,6 +202,12 @@ func (m *Manager) Install(ctx context.Context, spec models.PackageSpecInput) err
 		return fmt.Errorf("installing package: %w", err)
 	}
 
+	// Resolve Python dependencies if requirements.txt exists
+	packageDir := store.packageDir(pkg.ID)
+	if err := m.resolvePythonDependencies(ctx, pkg.ID, packageDir); err != nil {
+		logger.Warnf("failed to install Python dependencies for %s: %v", pkg.ID, err)
+	}
+
 	return nil
 }
 
@@ -263,6 +277,109 @@ func (m *Manager) deletePackageFiles(ctx context.Context, store *Store, id strin
 
 	if err := store.deleteManifest(id); err != nil {
 		return fmt.Errorf("deleting manifest: %w", err)
+	}
+
+	return nil
+}
+
+// resolvePythonDependencies checks for a requirements.txt in the package directory
+// and installs dependencies using pip if found.
+func (m *Manager) resolvePythonDependencies(ctx context.Context, pkgID, packageDir string) error {
+	if m.PythonPath == "" {
+		// No Python configured, skip
+		return nil
+	}
+
+	requirementsPath := filepath.Join(packageDir, "requirements.txt")
+	if _, err := os.Stat(requirementsPath); err == nil {
+		logger.Infof("Installing Python dependencies for plugin %s", pkgID)
+
+		py, err := python.Resolve(m.PythonPath)
+		if err != nil {
+			return fmt.Errorf("resolving python: %w", err)
+		}
+
+		if err := py.CheckAndInstallRequirements(ctx, requirementsPath); err != nil {
+			return fmt.Errorf("installing requirements: %w", err)
+		}
+
+		// Success
+		return nil
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("checking requirements.txt: %w", err)
+	}
+
+	// No requirements.txt, try fallback scanning
+	return m.scanAndInstallDependencies(ctx, pkgID, packageDir)
+}
+
+func (m *Manager) scanAndInstallDependencies(ctx context.Context, pkgID, packageDir string) error {
+	logger.Debugf("Scanning Python dependencies for plugin %s", pkgID)
+
+	imports := make(map[string]struct{})
+	importRegex := regexp.MustCompile(`(?m)^(?:from|import)\s+(\w+)`)
+
+	err := filepath.WalkDir(packageDir, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		if !strings.HasSuffix(d.Name(), ".py") {
+			return nil
+		}
+
+		content, err := os.ReadFile(path)
+		if err != nil {
+			logger.Warnf("failed to read file %s: %v", path, err)
+			return nil
+		}
+
+		matches := importRegex.FindAllStringSubmatch(string(content), -1)
+		for _, match := range matches {
+			if len(match) > 1 {
+				imports[match[1]] = struct{}{}
+			}
+		}
+		return nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("scanning plugin files: %w", err)
+	}
+
+	if len(imports) == 0 {
+		return nil
+	}
+
+	var candidates []string
+	for imp := range imports {
+		candidates = append(candidates, imp)
+	}
+
+	py, err := python.Resolve(m.PythonPath)
+	if err != nil {
+		return fmt.Errorf("resolving python: %w", err)
+	}
+
+	missing, err := py.CheckModules(ctx, candidates)
+	if err != nil {
+		return fmt.Errorf("checking modules: %w", err)
+	}
+
+	if len(missing) == 0 {
+		logger.Debugf("All detected Python dependencies for plugin %s are satisfied", pkgID)
+		return nil
+	}
+
+	logger.Infof("Installing detected missing Python dependencies for plugin %s: %v", pkgID, missing)
+
+	for _, mod := range missing {
+		if err := py.PipInstall(ctx, mod); err != nil {
+			logger.Errorf("Failed to install module %s for plugin %s: %v", mod, pkgID, err)
+			// Continue trying others
+		}
 	}
 
 	return nil

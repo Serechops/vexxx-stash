@@ -76,6 +76,7 @@ func (r *Store) manifestPath(id string) string {
 }
 
 func (r *Store) getManifest(ctx context.Context, packageID string) (*Manifest, error) {
+	_ = ctx // preserved for API consistency
 	pfp := r.manifestPath(packageID)
 
 	data, err := os.ReadFile(pfp)

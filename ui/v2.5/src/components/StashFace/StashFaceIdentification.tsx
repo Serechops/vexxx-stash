@@ -18,6 +18,8 @@ import {
     Badge,
     Link,
     LinearProgress,
+    Tabs,
+    Tab,
 } from "@mui/material";
 import {
     Face as FaceIcon,
@@ -28,6 +30,7 @@ import {
     Search as SearchIcon,
     CheckCircle as CheckCircleIcon,
     Info as InfoIcon,
+    Psychology as PsychologyIcon,
 } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
 import * as GQL from "src/core/generated-graphql";
@@ -186,6 +189,64 @@ class StashFaceService {
     }
 }
 
+/**
+ * MegaFace API Service - Second Opinion Performer Identification
+ */
+interface MegaFaceServiceStatus {
+    status: "available" | "unavailable" | "error";
+    message?: string;
+}
+
+interface MegaFaceIdentifyResponse {
+    success: boolean;
+    result?: string; // HTML output from MegaFace
+    error?: string;
+}
+
+class MegaFaceService {
+    static async checkStatus(): Promise<MegaFaceServiceStatus> {
+        try {
+            const response = await fetch("/megaface/status");
+            return await response.json();
+        } catch (error: any) {
+            console.error("MegaFace status check failed:", error);
+            return { status: "error", message: error.message };
+        }
+    }
+
+    static async identifyFromScreenshot(imageBlob: Blob): Promise<MegaFaceIdentifyResponse> {
+        try {
+            const formData = new FormData();
+            formData.append("image", imageBlob, "screenshot.jpg");
+
+            const response = await fetch("/megaface/identify", {
+                method: "POST",
+                body: formData,
+            });
+
+            return await response.json();
+        } catch (error: any) {
+            console.error("MegaFace identify failed:", error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    static async identifyFromUrl(imageUrl: string): Promise<MegaFaceIdentifyResponse> {
+        try {
+            // Fetch the image first
+            const imageResponse = await fetch(imageUrl);
+            if (!imageResponse.ok) {
+                throw new Error(`Failed to fetch image: ${imageResponse.statusText}`);
+            }
+            const imageBlob = await imageResponse.blob();
+            return await MegaFaceService.identifyFromScreenshot(imageBlob);
+        } catch (error: any) {
+            console.error("MegaFace identify from URL failed:", error);
+            return { success: false, error: error.message };
+        }
+    }
+}
+
 interface FaceDetectionCardProps {
     face: FaceResult;
     index: number;
@@ -300,12 +361,20 @@ export const StashFaceIdentification: React.FC<StashFaceIdentificationProps> = (
     const [showCandidateDialog, setShowCandidateDialog] = useState(false);
     const [generating, setGenerating] = useState(false);
 
+    // MegaFace state
+    const [megafaceStatus, setMegafaceStatus] = useState<MegaFaceServiceStatus | null>(null);
+    const [megafaceLoading, setMegafaceLoading] = useState(false);
+    const [megafaceResult, setMegafaceResult] = useState<string | null>(null);
+    const [megafaceError, setMegafaceError] = useState<string | null>(null);
+    const [resultsTab, setResultsTab] = useState(0);
+
     // Check if scene has sprite and VTT files
     const hasRequiredFiles = scene?.paths?.sprite && scene?.paths?.vtt;
 
-    // Check StashFace service status on mount
+    // Check service statuses on mount
     useEffect(() => {
         checkServiceStatus();
+        checkMegafaceStatus();
     }, []);
 
     const checkServiceStatus = async () => {
@@ -313,7 +382,36 @@ export const StashFaceIdentification: React.FC<StashFaceIdentificationProps> = (
         setServiceStatus(status);
     };
 
+    const checkMegafaceStatus = async () => {
+        const status = await MegaFaceService.checkStatus();
+        setMegafaceStatus(status);
+    };
 
+    const handleMegafaceIdentify = async () => {
+        if (!scene?.paths?.screenshot) {
+            setMegafaceError("No screenshot available for this scene");
+            return;
+        }
+
+        setMegafaceLoading(true);
+        setMegafaceError(null);
+        setMegafaceResult(null);
+
+        try {
+            const result = await MegaFaceService.identifyFromUrl(scene.paths.screenshot);
+            if (result.success && result.result) {
+                setMegafaceResult(result.result);
+                setResultsTab(1); // Switch to MegaFace tab
+                setIsOpen(true);
+            } else {
+                setMegafaceError(result.error || "Failed to identify with MegaFace");
+            }
+        } catch (err: any) {
+            setMegafaceError(err.message);
+        } finally {
+            setMegafaceLoading(false);
+        }
+    };
 
     const handleViewStashDB = (url: string) => {
         window.open(url, "_blank");
@@ -431,7 +529,7 @@ export const StashFaceIdentification: React.FC<StashFaceIdentificationProps> = (
                                 variant="h6"
                                 sx={{ fontSize: "1.1rem", fontWeight: 600 }}
                             >
-                                AI Performer Identification via StashFace
+                                AI Performer Identification
                             </Typography>
                             <Chip
                                 label="StashFace"
@@ -439,16 +537,22 @@ export const StashFaceIdentification: React.FC<StashFaceIdentificationProps> = (
                                 color="primary"
                                 variant="outlined"
                             />
+                            <Chip
+                                label="MegaFace"
+                                size="small"
+                                color="secondary"
+                                variant="outlined"
+                            />
                         </Box>
 
                         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                            Automatically identify performers in this scene using AI face
-                            recognition powered by cc1234/stashface on Hugging Face.
+                            Identify performers using AI face recognition. Use StashFace for
+                            primary detection and MegaFace as a second opinion.
                         </Typography>
 
 
 
-                        <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+                        <Box sx={{ display: "flex", gap: 1, alignItems: "center", flexWrap: "wrap" }}>
                             <Button
                                 variant="contained"
                                 onClick={handleGenerateCandidates}
@@ -459,20 +563,42 @@ export const StashFaceIdentification: React.FC<StashFaceIdentificationProps> = (
                                 {generating ? "Generating..." : "Smart Frame Selection"}
                             </Button>
 
-                            {results && (
+                            <Button
+                                variant="outlined"
+                                size="small"
+                                onClick={handleIdentifyScreenshot}
+                                disabled={loading || serviceStatus?.status !== "available"}
+                                title="Use scene screenshot/cover for StashFace identification"
+                            >
+                                {loading ? "Scanning..." : "StashFace Screenshot"}
+                            </Button>
+
+                            <Button
+                                variant="outlined"
+                                color="secondary"
+                                size="small"
+                                onClick={handleMegafaceIdentify}
+                                startIcon={<PsychologyIcon />}
+                                disabled={megafaceLoading || megafaceStatus?.status !== "available" || !scene?.paths?.screenshot}
+                                title="Get a second opinion using MegaFace"
+                            >
+                                {megafaceLoading ? "Analyzing..." : "MegaFace (2nd Opinion)"}
+                            </Button>
+
+                            {(results || megafaceResult) && (
                                 <Button
                                     variant="outlined"
                                     startIcon={<VisibilityIcon />}
                                     onClick={() => setIsOpen(true)}
                                     sx={{ textTransform: "none" }}
                                 >
-                                    View Results ({results.faces?.length || 0} faces)
+                                    View Results
                                 </Button>
                             )}
 
-                            <Tooltip title="Service Status">
+                            <Tooltip title={`StashFace: ${serviceStatus?.status || "checking..."}, MegaFace: ${megafaceStatus?.status || "checking..."}`}>
                                 <IconButton size="small">
-                                    {serviceStatus?.status === "available" ? (
+                                    {serviceStatus?.status === "available" && megafaceStatus?.status === "available" ? (
                                         <CheckCircleIcon color="success" />
                                     ) : (
                                         <InfoIcon color="warning" />
@@ -481,30 +607,27 @@ export const StashFaceIdentification: React.FC<StashFaceIdentificationProps> = (
                             </Tooltip>
                         </Box>
 
-                        <Box sx={{ mt: 2 }}>
-
-
-                            <Button
-                                variant="outlined"
-                                size="small"
-                                onClick={handleIdentifyScreenshot}
-                                disabled={loading || serviceStatus?.status !== "available"}
-                                title="Use scene screenshot/cover for identification"
-                                sx={{ ml: 1 }}
-                            >
-                                Scan Screenshot
-                            </Button>
-                        </Box>
-
                         {error && (
                             <Alert severity="error" sx={{ mt: 2 }}>
                                 {error}
                             </Alert>
                         )}
 
+                        {megafaceError && (
+                            <Alert severity="error" sx={{ mt: 2 }}>
+                                MegaFace: {megafaceError}
+                            </Alert>
+                        )}
+
                         {serviceStatus?.status !== "available" && (
                             <Alert severity="warning" sx={{ mt: 2 }}>
                                 StashFace service is not available: {serviceStatus?.message}
+                            </Alert>
+                        )}
+
+                        {megafaceStatus?.status !== "available" && megafaceStatus && (
+                            <Alert severity="info" sx={{ mt: 2 }}>
+                                MegaFace service is not available: {megafaceStatus?.message}
                             </Alert>
                         )}
                     </CardContent>
@@ -527,73 +650,137 @@ export const StashFaceIdentification: React.FC<StashFaceIdentificationProps> = (
                 <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                     <FaceIcon color="primary" />
                     <Typography variant="h5" sx={{ flex: 1, fontWeight: 600 }}>
-                        StashFace Performer Identification Results
+                        AI Performer Identification Results
                     </Typography>
                     <IconButton onClick={() => setIsOpen(false)}>
                         <CloseIcon />
                     </IconButton>
                 </DialogTitle>
 
-                <DialogContent dividers sx={{ p: 3 }}>
-                    {results?.error ? (
-                        <Box>
-                            <Alert severity="warning" sx={{ mb: 3 }}>
-                                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                                    Identification Issue
-                                </Typography>
-                                <Typography variant="body2">
-                                    {results.error}
-                                </Typography>
-                            </Alert>
-                        </Box>
-                    ) : results ? (
-                        <Box>
-                            <Alert severity="success" sx={{ mb: 3 }}>
-                                <Typography variant="body2">
-                                    <strong>Analysis Complete!</strong> Found{" "}
-                                    {results.faces_found || results.faces?.length || 0} faces in
-                                    the sprite image.
-                                </Typography>
-                            </Alert>
+                <DialogContent dividers sx={{ p: 0 }}>
+                    {/* Tabs for StashFace and MegaFace results */}
+                    <Tabs
+                        value={resultsTab}
+                        onChange={(_, newValue) => setResultsTab(newValue)}
+                        sx={{ borderBottom: 1, borderColor: "divider", px: 2 }}
+                    >
+                        <Tab
+                            label={`StashFace ${results?.faces?.length ? `(${results.faces.length})` : ""}`}
+                            icon={<FaceIcon />}
+                            iconPosition="start"
+                        />
+                        <Tab
+                            label={`MegaFace ${megafaceResult ? "(1)" : ""}`}
+                            icon={<PsychologyIcon />}
+                            iconPosition="start"
+                        />
+                    </Tabs>
 
-                            {results.faces?.map((face, index) => (
-                                <FaceDetectionCard
-                                    key={index}
-                                    face={face}
-                                    index={index}
-                                    onViewDetails={handleViewFaceDetails}
-                                />
-                            ))}
+                    <Box sx={{ p: 3 }}>
+                        {/* StashFace Tab */}
+                        {resultsTab === 0 && (
+                            <>
+                                {results?.error ? (
+                                    <Box>
+                                        <Alert severity="warning" sx={{ mb: 3 }}>
+                                            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                                                Identification Issue
+                                            </Typography>
+                                            <Typography variant="body2">
+                                                {results.error}
+                                            </Typography>
+                                        </Alert>
+                                    </Box>
+                                ) : results ? (
+                                    <Box>
+                                        <Alert severity="success" sx={{ mb: 3 }}>
+                                            <Typography variant="body2">
+                                                <strong>Analysis Complete!</strong> Found{" "}
+                                                {results.faces_found || results.faces?.length || 0} faces in
+                                                the sprite image.
+                                            </Typography>
+                                        </Alert>
 
-                            {results.processing_info && (
-                                <Card sx={{ mt: 2, backgroundColor: theme.palette.grey[50] }}>
-                                    <CardContent sx={{ p: 2 }}>
-                                        <Typography variant="h6" sx={{ fontSize: "1rem", mb: 1 }}>
-                                            Processing Information
-                                        </Typography>
-                                        <Typography variant="body2" color="text.secondary">
-                                            Sprite Dimensions:{" "}
-                                            {results.processing_info.sprite_dimensions?.width}×
-                                            {results.processing_info.sprite_dimensions?.height}
-                                        </Typography>
-                                        <Typography variant="body2" color="text.secondary">
-                                            VTT Entries Processed:{" "}
-                                            {results.processing_info.vtt_entries_processed}
-                                        </Typography>
-                                    </CardContent>
-                                </Card>
-                            )}
-                        </Box>
-                    ) : (
-                        <Typography
-                            variant="body2"
-                            color="text.secondary"
-                            textAlign="center"
-                        >
-                            No results to display. Click "Identify Performers" to start
-                            analysis.
-                        </Typography>
-                    )}
+                                        {results.faces?.map((face, index) => (
+                                            <FaceDetectionCard
+                                                key={index}
+                                                face={face}
+                                                index={index}
+                                                onViewDetails={handleViewFaceDetails}
+                                            />
+                                        ))}
+
+                                        {results.processing_info && (
+                                            <Card sx={{ mt: 2, backgroundColor: theme.palette.grey[50] }}>
+                                                <CardContent sx={{ p: 2 }}>
+                                                    <Typography variant="h6" sx={{ fontSize: "1rem", mb: 1 }}>
+                                                        Processing Information
+                                                    </Typography>
+                                                    <Typography variant="body2" color="text.secondary">
+                                                        Sprite Dimensions:{" "}
+                                                        {results.processing_info.sprite_dimensions?.width}×
+                                                        {results.processing_info.sprite_dimensions?.height}
+                                                    </Typography>
+                                                    <Typography variant="body2" color="text.secondary">
+                                                        VTT Entries Processed:{" "}
+                                                        {results.processing_info.vtt_entries_processed}
+                                                    </Typography>
+                                                </CardContent>
+                                            </Card>
+                                        )}
+                                    </Box>
+                                ) : (
+                                    <Typography
+                                        variant="body2"
+                                        color="text.secondary"
+                                        textAlign="center"
+                                    >
+                                        No StashFace results yet. Use "Smart Frame Selection" or "StashFace Screenshot" to analyze.
+                                    </Typography>
+                                )}
+                            </>
+                        )}
+
+                        {/* MegaFace Tab */}
+                        {resultsTab === 1 && (
+                            <>
+                                {megafaceResult ? (
+                                    <Box>
+                                        <Alert severity="info" sx={{ mb: 3 }}>
+                                            <Typography variant="body2">
+                                                <strong>MegaFace Analysis Complete!</strong> Results from cc1234/megaface on Hugging Face.
+                                            </Typography>
+                                        </Alert>
+                                        <Card>
+                                            <CardContent>
+                                                <Typography variant="h6" sx={{ mb: 2 }}>
+                                                    MegaFace Performer Matches
+                                                </Typography>
+                                                {/* Render HTML from MegaFace safely */}
+                                                <Box
+                                                    sx={{
+                                                        "& img": { maxWidth: "100%", height: "auto", borderRadius: 1 },
+                                                        "& a": { color: theme.palette.primary.main },
+                                                        "& table": { width: "100%", borderCollapse: "collapse" },
+                                                        "& td, & th": { p: 1, border: `1px solid ${theme.palette.divider}` },
+                                                    }}
+                                                    dangerouslySetInnerHTML={{ __html: megafaceResult }}
+                                                />
+                                            </CardContent>
+                                        </Card>
+                                    </Box>
+                                ) : (
+                                    <Typography
+                                        variant="body2"
+                                        color="text.secondary"
+                                        textAlign="center"
+                                    >
+                                        No MegaFace results yet. Click "MegaFace (2nd Opinion)" to get an alternative identification.
+                                    </Typography>
+                                )}
+                            </>
+                        )}
+                    </Box>
                 </DialogContent>
 
                 <DialogActions sx={{ p: 2 }}>
@@ -601,7 +788,7 @@ export const StashFaceIdentification: React.FC<StashFaceIdentificationProps> = (
                 </DialogActions>
             </Dialog>
 
-            {/* Face Details Dialog */}
+            {/* Frame Selection Dialog */}
             <Dialog
                 open={showCandidateDialog}
                 onClose={() => setShowCandidateDialog(false)}

@@ -37,6 +37,7 @@ import (
 	"github.com/stashapp/stash/internal/manager/config"
 	"github.com/stashapp/stash/pkg/fsutil"
 	"github.com/stashapp/stash/pkg/logger"
+	"github.com/stashapp/stash/pkg/megaface"
 	"github.com/stashapp/stash/pkg/plugin"
 	"github.com/stashapp/stash/pkg/stashface"
 	"github.com/stashapp/stash/pkg/stashtag"
@@ -60,6 +61,7 @@ type Server struct {
 
 	stashFaceController *stashface.Controller
 	stashTagController  *stashtag.Controller
+	megaFaceController  *megaface.Controller
 }
 
 // TODO - os.DirFS doesn't implement ReadDir, so re-implement it here
@@ -133,6 +135,10 @@ func Initialize() (*Server, error) {
 		stashTagController: stashtag.NewController(
 			cfg.GetPythonPath(),
 			filepath.Join(cfg.GetGeneratedPath(), "stashtag"),
+		),
+		megaFaceController: megaface.NewController(
+			cfg.GetPythonPath(),
+			filepath.Join(cfg.GetGeneratedPath(), "megaface"),
 		),
 	}
 
@@ -242,6 +248,7 @@ func Initialize() (*Server, error) {
 	r.Mount("/proxy", server.getProxyRoutes())
 	r.Mount("/stashface", server.getStashFaceRoutes())
 	r.Mount("/stashtag", server.getStashTagRoutes())
+	r.Mount("/megaface", server.getMegaFaceRoutes())
 
 	// Debug endpoints for profiling and metrics
 	// Enable via STASH_DEBUG=1 environment variable or debug config
@@ -475,6 +482,13 @@ func (s *Server) getStashTagRoutes() chi.Router {
 	return stashTagRoutes{
 		routes:     routes{txnManager: s.manager.Repository.TxnManager},
 		controller: s.stashTagController,
+	}.Routes()
+}
+
+func (s *Server) getMegaFaceRoutes() chi.Router {
+	return megaFaceRoutes{
+		routes:     routes{txnManager: s.manager.Repository.TxnManager},
+		controller: s.megaFaceController,
 	}.Routes()
 }
 

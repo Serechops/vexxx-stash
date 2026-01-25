@@ -1,110 +1,271 @@
-# Stash
+# Vexxx
 
-[![Build](https://github.com/stashapp/stash/actions/workflows/build.yml/badge.svg?branch=develop&event=push)](https://github.com/stashapp/stash/actions/workflows/build.yml)
-[![Docker pulls](https://img.shields.io/docker/pulls/stashapp/stash.svg)](https://hub.docker.com/r/stashapp/stash 'DockerHub')
-[![GitHub Sponsors](https://img.shields.io/github/sponsors/stashapp?logo=github)](https://github.com/sponsors/stashapp)
-[![Open Collective backers](https://img.shields.io/opencollective/backers/stashapp?logo=opencollective)](https://opencollective.com/stashapp)
-[![Go Report Card](https://goreportcard.com/badge/github.com/stashapp/stash)](https://goreportcard.com/report/github.com/stashapp/stash)
+### A Feature-Enhanced Fork of Stash
+
+[![Build](https://github.com/Serechops/vexxx-stash/actions/workflows/build.yml/badge.svg?branch=develop&event=push)](https://github.com/Serechops/vexxx-stash/actions/workflows/build.yml)
 [![Discord](https://img.shields.io/discord/559159668438728723.svg?logo=discord)](https://discord.gg/2TsNFKt)
-[![GitHub release (latest by date)](https://img.shields.io/github/v/release/stashapp/stash?logo=github)](https://github.com/stashapp/stash/releases/latest)
-[![GitHub issues by-label](https://img.shields.io/github/issues-raw/stashapp/stash/bounty)](https://github.com/stashapp/stash/labels/bounty)
+[![GitHub release (latest by date)](https://img.shields.io/github/v/release/Serechops/vexxx-stash?logo=github)](https://github.com/Serechops/vexxx-stash/releases/latest)
 
-### **Stash is a self-hosted webapp written in Go which organizes and serves your diverse content collection, catering to both your SFW and NSFW needs.**
+**Vexxx is a fork of [Stash](https://github.com/stashapp/stash) with significant UI/UX improvements, performance optimizations, and powerful new features for managing your media collection.**
 
-![Screenshot of Stash web application interface](docs/readme_assets/demo_image.png)
+![Vexxx Screenshot](docs/readme_assets/demo_image.png)
 
-* Stash gathers information about videos in your collection from the internet, and is extensible through the use of community-built plugins for a large number of content producers and sites.
-* Stash supports a wide variety of both video and image formats.
-* You can tag videos and find them later.
-* Stash provides statistics about performers, tags, studios and more.
+---
 
-You can [watch a SFW demo video](https://vimeo.com/545323354) to see it in action.
+## ✨ What's New in Vexxx
 
-For further information you can consult the [documentation](https://docs.stashapp.cc) or access the in-app manual from within the application (also available at [docs.stashapp.cc/in-app-manual](https://docs.stashapp.cc/in-app-manual)).
+Vexxx builds on Stash's solid foundation with a modernized interface and features designed for power users.
 
-# Installing Stash
+### 🎨 Complete UI Overhaul
 
-Step-by-step instructions are available at [docs.stashapp.cc/installation](https://docs.stashapp.cc/installation/).
+- **React-Bootstrap → MUI v7**: Full migration to Material UI for a modern, consistent design language
+- **Premium Experience**: Hero banners and content highlighting inspired by streaming services like Google TV
+- **Global Search**: Glassmorphic `Cmd+K` / `Ctrl+K` search modal with rich results grid
+  - Keyboard navigation (Arrow keys, Enter)
+  - Multi-type results: Scenes, Performers, Images, Galleries, Studios, Tags
+  - Debounced input for responsive searching
 
-#### Windows Users:
+### ⚡ Enhanced Task System
 
-As of version 0.27.0, Stash no longer supports _Windows 7, 8, Server 2008 and Server 2012._  
-At least Windows 10 or Server 2016 is required.
+- **Concurrent Tasks**: Run up to 4 different tasks simultaneously (Generate, Scan, Plugin tasks, etc.)
+- **Native Scheduled Tasks**: Built-in cron job scheduling for common operations
+  - Scan for new content on a schedule
+  - Run plugin tasks automatically
+  - Scheduled database backups
+  - Custom cron expressions supported
 
-#### Mac Users:
+### 🎬 Scene Segments & Virtual Timelines
 
-As of version 0.29.0, Stash requires _macOS 11 Big Sur_ or later.  
-Stash can still be run through docker on older versions of macOS.
+Create virtual sub-scenes from a single video file without re-encoding:
 
-<img src="docs/readme_assets/windows_logo.svg" width="100%" height="75"> Windows | <img src="docs/readme_assets/mac_logo.svg" width="100%" height="75"> macOS | <img src="docs/readme_assets/linux_logo.svg" width="100%" height="75"> Linux | <img src="docs/readme_assets/docker_logo.svg" width="100%" height="75"> Docker
-:---:|:---:|:---:|:---:
-[Latest Release](https://github.com/stashapp/stash/releases/latest/download/stash-win.exe) <br /> <sup><sub>[Development Preview](https://github.com/stashapp/stash/releases/download/latest_develop/stash-win.exe)</sub></sup> | [Latest Release](https://github.com/stashapp/stash/releases/latest/download/Stash.app.zip) <br /> <sup><sub>[Development Preview](https://github.com/stashapp/stash/releases/download/latest_develop/Stash.app.zip)</sub></sup> | [Latest Release (amd64)](https://github.com/stashapp/stash/releases/latest/download/stash-linux) <br /> <sup><sub>[Development Preview (amd64)](https://github.com/stashapp/stash/releases/download/latest_develop/stash-linux)</sub></sup> <br /> [More Architectures...](https://github.com/stashapp/stash/releases/latest) | [Instructions](docker/production/README.md) <br /> <sup><sub>[Sample docker-compose.yml](docker/production/docker-compose.yml)</sub></sup>
+- Define start/end points to create segment scenes
+- Generate previews, scrubber sprites, and phashes for segments
+- Segments are treated as full scenes (filterable, groupable, taggable)
+- Perfect for multi-scene compilations or extracting highlights
+- **Automated Segment Matching**: Fuzzy scan with configurable window/increment to find matches on StashDB via phash
 
-Download links for other platforms and architectures are available on the [Releases](https://github.com/stashapp/stash/releases) page.
+### 🔍 Missing Scenes Detection
 
-## First Run
+Track scenes you don't own directly from Performer and Studio detail pages:
 
-#### Windows/macOS Users: Security Prompt
+- **StashDB Integration**: Scrape all scenes for a performer or studio from connected StashBoxes
+- **Ownership Detection**: Automatically detects when a tracked scene is added to your library
+- **Three-State Tracking**: Grey (untracked) → Green (tracked) → Blue (owned)
+- **Trailer Previews**: Hover to preview trailers scraped from external sites (AdultTime, Brazzers, RealityKings, etc.)
+- **Background Scraping**: Queue scraping jobs that run asynchronously without blocking the UI
+- **Client-Side Filtering**: Filter missing scenes by studio, performer, tags, or text search
 
-On Windows or macOS, running the app might present a security prompt since the application binary isn't yet signed. 
+### 🎬 MovieFy Integration
 
-- On Windows, bypass this by clicking "more info" and then the "run anyway" button.
-- On macOS, Control+Click the app, click "Open", and then "Open" again.
+External database integration for streamlined group/movie management:
 
-#### ffmpeg
+- **Database Search**: Query an external MovieFy database for movie metadata
+- **Queue Workflow**: Add scenes to a processing queue, edit scene indexes, and batch-create groups
+- **Parked Scenes**: Accumulate scenes before processing with merge logic
+- **Rich Metadata**: Preserve tags, studios, synopsis, and directors during group creation
 
-Stash requires FFmpeg. If you don't have it installed, Stash will prompt you to download a copy during setup. It is recommended that Linux users install `ffmpeg` from their distro's package manager.
+### 🏷️ Bulk Tagger Improvements
 
-# Usage
+- **Native Bulk Actions**: Search All, Create All, Save All buttons
+- **Mass Query Editor**: Append search terms to all query lines at once instead of one at a time
 
-## Quickstart Guide
+### 🔗 Enhanced Group-Scene Linking
 
-Stash is a web-based application. Once the application is running, the interface is available (by default) from `http://localhost:9999`.
+- **Scene Index Support**: Proper `scene_index` handling for ordered group scenes
+- **Instant UI Updates**: Cache eviction for immediate refresh after linking
+- **Auto-Increment**: New scenes automatically get the next available index
+- **Trailer Support**: Scrape and play trailers from AdultEmpire with HLS proxy for CORS-restricted streams
 
-On first run, Stash will prompt you for some configuration options and media directories to index, called "Scanning" in Stash. After scanning, your media will be available for browsing, curating, editing, and tagging.
+### 👥 Multi-User Support with Role-Based Access Control
 
-Stash can pull metadata (performers, tags, descriptions, studios, and more) directly from many sites through the use of [scrapers](https://github.com/stashapp/stash/blob/develop/ui/v2.5/src/docs/en/Manual/Scraping.md), which integrate directly into Stash. Identifying an entire collection will typically require a mix of multiple sources:
-- The stashapp team maintains [StashDB](https://stashdb.org/), a crowd-sourced repository of scene, studio, and performer information. Connecting it to Stash will allow you to automatically identify much of a typical media collection. It runs on our stash-box software and is primarily focused on mainstream digital scenes and studios. Instructions, invite codes, and more can be found in this guide to [Accessing StashDB](https://guidelines.stashdb.org/docs/faq_getting-started/stashdb/accessing-stashdb/).
-- Several community-managed stash-box databases can also be connected to Stash in a similar manner. Each one serves a slightly different niche and follows their own methodology. A rundown of each stash-box, their differences, and the information you need to sign up can be found in this guide to [Accessing Stash-Boxes](https://guidelines.stashdb.org/docs/faq_getting-started/stashdb/accessing-stash-boxes/).
-- Many community-maintained scrapers can also be downloaded, installed, and updated from within Stash, allowing you to pull data from a wide range of other websites and databases. They can be found by navigating to `Settings → Metadata Providers → Available Scrapers → Community (stable)`. These can be trickier to use than a stash-box because every scraper works a little differently. For more information, please visit the [CommunityScrapers repository](https://github.com/stashapp/CommunityScrapers).
-- All of the above methods of scraping data into Stash are also covered in more detail in our [Guide to Scraping](https://docs.stashapp.cc/beginner-guides/guide-to-scraping/).
+Full multi-user authentication and authorization system:
 
-<sub>[StashDB](http://stashdb.org) is the canonical instance of our open source metadata API, [stash-box](https://github.com/stashapp/stash-box).</sub>
+- **User Roles**: ADMIN (full access) and VIEWER (read-only) roles
+- **Admin Capabilities**: Content modifications, system configuration, user management, task execution
+- **Viewer Capabilities**: View all content, change own password, regenerate own API key
+- **Session Management**: Secure session-based and API key authentication
+- **Legacy Migration**: Existing single-user credentials automatically migrated
+- **Route Protection**: Admin-only pages (Settings, Renamer, MovieFy, etc.) protected
+- **UI Filtering**: Features hidden based on permissions (e.g., Tagger mode for viewers)
 
-# Translation
+### 📁 Advanced File Renamer
 
-[![Translate](https://translate.codeberg.org/widget/stash/stash/svg-badge.svg)](https://translate.codeberg.org/engage/stash/)
+Powerful file organization with template-based renaming:
 
-Stash is available in 32 languages (so far!) and it could be in your language too. We use Weblate to coordinate community translations. If you want to help us translate Stash, you can make an account at [Codeberg's Weblate](https://translate.codeberg.org/projects/stash/stash/) to contribute to new or existing languages. Thanks!
+- **Move Files Support**: Physically relocate files to new directories based on metadata
+- **Windows Path Handling**: Robust "Shotgun Lookup" for cross-platform path compatibility
+- **Token Validation**: Strict validation with clear error messages for missing data
+- **Dry-Run Preview**: See all changes before applying with "No changes needed" detection
+- **Auto-Rename on Save**: Optionally trigger renaming when scene metadata is updated
 
-The badge below shows the current translation status of Stash across all supported languages:
+### 🎵 Playlist Player Redesign
 
-[![Translation status](https://translate.codeberg.org/widget/stash/stash/multi-auto.svg)](https://translate.codeberg.org/engage/stash/)
+Complete UI/UX overhaul with Scene.tsx-inspired layout:
 
-# Support & Resources
+- **Split-Panel Layout**: Queue panel (left) + player container (right)
+- **Native Video Controls**: HTML5 controls with simplified navigation overlay
+- **Queue Panel Features**:
+  - Auto-scroll to active item
+  - Visual states: active (highlighted), past (dimmed), playing (icon overlay)
+  - Media type badges and duration display
+  - Previous/Next/Random navigation buttons
+  - Auto-play toggle switch
+- **Keyboard Shortcuts**: `←`/`→` for navigation, `,` to toggle queue panel
+- **Responsive Design**: Column-reverse on mobile, collapsible panel on desktop
+- **Lightbox Improvements**: Clean navigation with icon-only hover effects
 
-Need help or want to get involved? Start with the documentation, then reach out to the community if you need further assistance.
+### 🤖 AI-Powered Features
 
-- Documentation
-  - Official docs: https://docs.stashapp.cc - official guides guides and troubleshooting.
-  - In-app manual: press <kbd>Shift</kbd> + <kbd>?</kbd> in the app or view the manual online: https://docs.stashapp.cc/in-app-manual.
-  - FAQ: https://discourse.stashapp.cc/c/support/faq/28 - common questions and answers.
-  - Community wiki: https://discourse.stashapp.cc/tags/c/community-wiki/22/stash - guides, how-to’s and tips.
-  
-- Community & discussion
-  - Community forum: https://discourse.stashapp.cc - community support, feature requests and discussions.
-  - Discord: https://discord.gg/2TsNFKt - real-time chat and community support.
-  - GitHub discussions: https://github.com/stashapp/stash/discussions - community support and feature discussions.
-  - Lemmy community: https://discuss.online/c/stashapp - Reddit-style community space.
+#### StashFace Performer Identification
 
-- Community scrapers & plugins
-  - Metadata sources: https://docs.stashapp.cc/metadata-sources/
-  - Plugins: https://docs.stashapp.cc/plugins/
-  - Themes: https://docs.stashapp.cc/themes/
-  - Other projects: https://docs.stashapp.cc/other-projects/
+- **Smart Frame Selection**: VTT-aware candidate generation for accurate face detection
+- **High-Resolution Scanning**: 360px grid previews for improved accuracy
+- **Screenshot Scanning**: Use scene cover images for better face detection
+- **Multiple Image Search**: Robust endpoint for batch face matching
+- **Enhanced Results UI**: Larger avatars (80px), clear confidence scores, improved error messages
 
-# For Developers
+#### MegaFace Second Opinion
 
-Pull requests are welcome! 
+- **Dual-Engine Identification**: Run both StashFace and MegaFace for cross-validation
+- **Tabbed Results**: Compare results from both services side-by-side
+- **HTML Results Rendering**: Styled MegaFace output in dedicated container
 
-See [Development](docs/DEVELOPMENT.md) and [Contributing](docs/CONTRIBUTING.md) for information on working with the codebase, getting a local development setup, and contributing changes.
+#### StashTag Scene Tagging
+
+- **Responsive Grid Layout**: 2-column CSS Grid with scrollable results
+- **Polished Result Cards**: Shadows, hover effects, confidence-based backgrounds
+- **Frame Previews**: 180px preview images with centered confidence chips
+
+#### Intelligent Recommendations
+
+- **Dynamic Weight Tuning**: Real-time sliders for Tags, Performers, and Studio weights
+- **Item-to-Item Similarity**: Discover new performers based on your favorites
+- **Attribute Matching**: Find performers by physical attributes (hair color, eye color, etc.)
+- **StashDB Discovery**: Query StashDB using your top local performers as seeds
+- **Match Transparency**: See reasoning and scores for each recommendation
+
+### 🔌 Plugin System Enhancements
+
+- **Automated Dependency Installation**: Pip packages installed automatically during plugin install/update
+- **Collision Detection**: Safe requirement handling protects existing environment packages
+- **Fallback Import Scanner**: Detects dependencies for plugins missing requirements.txt
+- **Python Environment Verification**: Utilities to verify Python setup
+
+### ⚡ Hardware Acceleration
+
+GPU-accelerated video encoding with automatic detection:
+
+- **Supported Encoders**: NVENC (NVIDIA), AMF (AMD), QSV (Intel), VAAPI (Linux), VideoToolbox (macOS)
+- **Platform-Aware Detection**: Only tests compatible codecs for your OS
+- **UI Indicator**: Green chip in navbar shows detected hardware encoders
+- **Task Integration**: Generate Transcodes and preview tasks use GPU when available
+
+### 🚀 Backend Performance Optimizations
+
+**N+1 Query Resolution & Database Indexing**
+
+- Added `GetMany` batch methods to `SceneStore`, `StashIDRepository`, and other repositories
+- New DataLoaders for `SceneTags`, `ScenePerformers`, `SceneGalleryIDs`, `SceneStashIDs`
+- GraphQL resolvers updated to use DataLoaders, eliminating N+1 database queries
+- Strategic indexes added for `stash_id`, `date`, `rating`, `created_at`, `mod_time` on relevant tables
+
+**Query Optimization & Caching**
+
+- Decoupled count and ID retrieval for Gallery, Scene, and Performer queries
+- "Fast path" execution for unfiltered queries and optimized sorts (Title, Name, Date)
+- Stats caching mechanism for improved dashboard performance
+- New SQLite stores for core entities
+
+### 🎨 UI/UX Enhancements
+
+- **Hero Parallax**: Google TV-style fixed-background parallax on the Front Page
+- **Skeleton Loading**: Smooth loading states for all media grids (Scenes, Performers, Groups, etc.)
+- **Layout Stability**: Fixed jarring layout shifts during pagination
+- **Grid Standardization**: Unified column templates and synchronized zoom levels across all media types
+- **Theme Alignment**: Synchronized MUI breakpoints with CSS for consistent responsive behavior
+- **Semantic Variables**: Shared design tokens for colors and spacing
+
+---
+
+## 📦 Installation
+
+### Docker (Recommended)
+
+```bash
+docker pull ghcr.io/serechops/vexxx-stash:latest
+docker run -d \
+  --name vexxx \
+  -p 9999:9999 \
+  -v /path/to/config:/root/.stash \
+  -v /path/to/media:/data \
+  ghcr.io/serechops/vexxx-stash:latest
+```
+
+### Manual Installation
+
+Download the latest release for your platform from the [Releases](https://github.com/Serechops/vexxx-stash/releases) page.
+
+| Platform | Download |
+|:--------:|:--------:|
+| Windows | [stash-win.exe](https://github.com/Serechops/vexxx-stash/releases/latest) |
+| macOS | [Stash.app.zip](https://github.com/Serechops/vexxx-stash/releases/latest) |
+| Linux | [stash-linux](https://github.com/Serechops/vexxx-stash/releases/latest) |
+
+#### Requirements
+
+- **FFmpeg**: Required for video processing. Vexxx will prompt you to download it on first run, or install via your system package manager.
+- **Windows**: Windows 10 or Server 2016+
+- **macOS**: macOS 11 Big Sur or later
+
+---
+
+## 🚀 Quick Start
+
+1. Launch Vexxx - the web interface is available at `http://localhost:9999`
+2. Complete the setup wizard to configure your media directories
+3. Run a scan to index your content
+4. Use `Cmd+K` / `Ctrl+K` to search across your entire library
+
+---
+
+## 🔧 Configuration
+
+Vexxx maintains full compatibility with Stash configuration. Your existing Stash database and settings will work seamlessly.
+
+### Scheduled Tasks
+
+Navigate to **Settings → Tasks → Scheduled Tasks** to configure automated jobs:
+
+```
+# Example: Scan every day at 2 AM
+0 2 * * * scan
+
+# Example: Generate missing content every Sunday
+0 3 * * 0 generate
+```
+
+---
+
+## 📚 Documentation
+
+- [Stash Documentation](https://docs.stashapp.cc) - Core functionality documentation
+- [In-App Manual](https://docs.stashapp.cc/in-app-manual) - Press `Shift+?` in the app
+
+---
+
+## 🌐 Community & Support
+
+- [Discord](https://discord.gg/2TsNFKt) - Real-time chat and community support
+- [Stash Community Forum](https://discourse.stashapp.cc) - Community discussions and support
+
+---
+
+## 📜 Credits
+
+Vexxx is built on the excellent foundation of [Stash](https://github.com/stashapp/stash) by the stashapp team. We're grateful for their work and the community they've built.
+
+---
+
+## 📄 License
+
+Vexxx is released under the same license as Stash. See [LICENSE](LICENSE) for details.

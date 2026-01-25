@@ -189,7 +189,7 @@ GPU-accelerated video encoding with automatic detection:
 
 ## Installation
 
-Please visit my [Patreon](https://www.patreon.com/c/Creat1veB1te) for all installtion details.
+Please visit my [Patreon](https://www.patreon.com/c/Creat1veB1te) for all installation details.
 
 ## 🔧 Configuration
 

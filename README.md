@@ -2,10 +2,6 @@
 
 ### A Feature-Enhanced Fork of Stash
 
-[![Build](https://github.com/Serechops/vexxx-stash/actions/workflows/build.yml/badge.svg?branch=develop&event=push)](https://github.com/Serechops/vexxx-stash/actions/workflows/build.yml)
-[![Discord](https://img.shields.io/discord/559159668438728723.svg?logo=discord)](https://discord.gg/2TsNFKt)
-[![GitHub release (latest by date)](https://img.shields.io/github/v/release/Serechops/vexxx-stash?logo=github)](https://github.com/Serechops/vexxx-stash/releases/latest)
-
 **Vexxx is a fork of [Stash](https://github.com/stashapp/stash) with significant UI/UX improvements, performance optimizations, and powerful new features for managing your media collection.**
 
 ![Vexxx Screenshot](docs/readme_assets/demo_image.png)

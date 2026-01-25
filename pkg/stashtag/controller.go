@@ -61,6 +61,11 @@ func NewController(pythonPath string, tempDir string) *Controller {
 		}
 	}
 
+	// Default to python3 if no Python path configured
+	if pythonPath == "" {
+		pythonPath = "python3"
+	}
+
 	return &Controller{
 		pythonPath: pythonPath,
 		scriptPath: scriptPath,

@@ -187,46 +187,9 @@ GPU-accelerated video encoding with automatic detection:
 
 ---
 
-## 📦 Installation
+## Installation
 
-### Docker (Recommended)
-
-```bash
-docker pull ghcr.io/serechops/vexxx-stash:latest
-docker run -d \
-  --name vexxx \
-  -p 9999:9999 \
-  -v /path/to/config:/root/.stash \
-  -v /path/to/media:/data \
-  ghcr.io/serechops/vexxx-stash:latest
-```
-
-### Manual Installation
-
-Download the latest release for your platform from the [Releases](https://github.com/Serechops/vexxx-stash/releases) page.
-
-| Platform | Download |
-|:--------:|:--------:|
-| Windows | [stash-win.exe](https://github.com/Serechops/vexxx-stash/releases/latest) |
-| macOS | [Stash.app.zip](https://github.com/Serechops/vexxx-stash/releases/latest) |
-| Linux | [stash-linux](https://github.com/Serechops/vexxx-stash/releases/latest) |
-
-#### Requirements
-
-- **FFmpeg**: Required for video processing. Vexxx will prompt you to download it on first run, or install via your system package manager.
-- **Windows**: Windows 10 or Server 2016+
-- **macOS**: macOS 11 Big Sur or later
-
----
-
-## 🚀 Quick Start
-
-1. Launch Vexxx - the web interface is available at `http://localhost:9999`
-2. Complete the setup wizard to configure your media directories
-3. Run a scan to index your content
-4. Use `Cmd+K` / `Ctrl+K` to search across your entire library
-
----
+Please visit my [Patreon](https://www.patreon.com/c/Creat1veB1te) for all installtion details.
 
 ## 🔧 Configuration
 

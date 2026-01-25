@@ -371,7 +371,7 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
         controlBar: {
           pictureInPictureToggle: false,
           volumePanel: {
-            inline: false,
+            inline: true,
           },
           chaptersButton: false,
           progressControl: !isVirtual, // Hide native progress bar for virtual scenes
@@ -650,8 +650,11 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
             : isLandscape,
         },
         touchControls: {
-          disabled: true,
+          seekSeconds: 10,
+          tapTimeout: 300,
+          disableClick: false,
         },
+        doubleClickForFullscreen: false,
       };
       if (!isSafari) {
         player.mobileUi(mobileUiOptions);

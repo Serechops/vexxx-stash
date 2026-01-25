@@ -53,6 +53,41 @@ $sceneTabWidth: 450px;
     display: flex;
   }
 
+  // Modern Overlays for Control Visibility
+  &::before,
+  &::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+    z-index: 1;
+  }
+
+  // Top gradient for status bar/metadata
+  &::before {
+    top: 0;
+    height: 120px;
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.6), transparent);
+  }
+
+  // Bottom gradient for control bar
+  &::after {
+    bottom: 0;
+    height: 160px;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent);
+  }
+
+  &.vjs-user-active {
+
+    &::before,
+    &::after {
+      opacity: 1;
+    }
+  }
+
   // show controls even when an error is displayed
   /* stylelint-disable declaration-no-important */
   &.vjs-error .vjs-control-bar {
@@ -78,22 +113,77 @@ $sceneTabWidth: 450px;
 
   .vjs-big-button-group {
     display: none;
-    height: 80px;
-    justify-content: space-around;
+    height: 100px;
+    justify-content: center; // Center group
+    align-items: center;
+    gap: 40px; // Spacing between buttons
     opacity: 0;
     position: absolute;
-    top: calc(50% - 40px);
-    width: 100%;
-    z-index: 1;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: auto;
+    z-index: 10;
+    transition: opacity 0.3s ease;
 
     .vjs-button {
-      font-size: 4em;
-      height: 100%;
-      width: 80px;
+      background: rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(8px);
+      border: 1.5px solid rgba(255, 255, 255, 0.1);
+      border-radius: 50%;
+      color: #fff;
+      font-size: 2.5em;
+      height: 72px;
+      width: 72px;
+      padding: 0;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      &.vjs-big-play-pause-button {
+        height: 88px;
+        width: 88px;
+        font-size: 3em;
+        background: rgba(255, 255, 255, 0.15);
+        border-color: rgba(255, 255, 255, 0.2);
+
+        &:hover {
+          background: rgba(255, 255, 255, 0.25);
+          transform: scale(1.05);
+        }
+      }
 
       .vjs-icon-placeholder::before {
-        height: 100%;
-        line-height: 80px;
+        height: auto;
+        line-height: 1;
+        position: static;
+      }
+
+      &:hover {
+        background: rgba(0, 0, 0, 0.6);
+        border-color: rgba(255, 255, 255, 0.3);
+        transform: scale(1.1);
+      }
+
+      &:active {
+        transform: scale(0.9);
+      }
+    }
+
+    @media (max-width: 768px) {
+      gap: 24px;
+
+      .vjs-button {
+        height: 60px;
+        width: 60px;
+        font-size: 2em;
+
+        &.vjs-big-play-pause-button {
+          height: 72px;
+          width: 72px;
+          font-size: 2.5em;
+        }
       }
     }
   }
@@ -160,30 +250,147 @@ $sceneTabWidth: 450px;
   }
 
   .vjs-control-bar {
-    background: none;
+    backdrop-filter: blur(2px);
+    border-radius: 16px;
+    bottom: calc(24px + env(safe-area-inset-bottom, 0));
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    height: 64px; // Slightly taller for premium feel
+    margin: 0 calc(16px + env(safe-area-inset-right, 0)) 0 calc(16px + env(safe-area-inset-left, 0));
+    padding: 12px 16px 0 16px;
+    position: absolute;
+    transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    width: calc(100% - 32px - env(safe-area-inset-left, 0) - env(safe-area-inset-right, 0));
+    z-index: 2;
+    overflow: visible;
+
+    @media (max-width: 768px) {
+      height: 56px;
+      bottom: calc(16px + env(safe-area-inset-bottom, 0));
+      margin: 0 12px;
+      width: calc(100% - 24px);
+    }
+
+    @media (max-height: 500px) {
+      // Landscape mobile
+      bottom: calc(8px + env(safe-area-inset-bottom, 0));
+      height: 48px;
+    }
 
     /* Scales control size */
-    font-size: 15px;
+    font-size: 14px; // Slightly smaller base for compactness
 
     &::before {
-      background: linear-gradient(0deg,
-          rgba(0, 0, 0, 0.4) 0%,
-          rgba(0, 0, 0, 0) 100%);
-      bottom: 0;
-      content: "";
-      height: 10rem;
-      pointer-events: none;
-      position: absolute;
-      width: 100%;
+      display: none;
+    }
+
+    // Button Styling
+    .vjs-button {
+      border-radius: 50%;
+      height: 40px;
+      margin: 0 2px;
+      transition: background-color 0.2s ease, transform 0.1s ease;
+      width: 40px;
+      flex-shrink: 0;
+
+      &:hover {
+        background-color: rgba(255, 255, 255, 0.15);
+      }
+
+      &:active {
+        transform: scale(0.9);
+      }
+
+      .vjs-icon-placeholder::before {
+        font-size: 24px;
+        line-height: 40px;
+      }
+
+      @media (max-height: 500px) {
+        height: 32px;
+        width: 32px;
+
+        .vjs-icon-placeholder::before {
+          font-size: 18px;
+          line-height: 32px;
+        }
+      }
+    }
+
+    // Volume Panel Styling
+    .vjs-volume-panel {
+      margin-right: 8px;
+      display: flex;
+      align-items: center;
+      transition: width 0.2s;
+
+      // Horizontal Slider Styling
+      .vjs-volume-control.vjs-volume-horizontal {
+        width: 0; // Collapsed by default
+        height: 36px; // Match button height
+        opacity: 0;
+        transition: width 0.2s, opacity 0.2s;
+        margin-left: 0;
+        background: transparent; // No background box
+      }
+
+      // Show slider on hover
+      &:hover .vjs-volume-control.vjs-volume-horizontal,
+      .vjs-volume-control.vjs-volume-horizontal:active,
+      .vjs-mute-control:focus~.vjs-volume-control.vjs-volume-horizontal,
+      .vjs-volume-control.vjs-volume-horizontal:hover {
+        width: 80px; // Expanded width
+        opacity: 1;
+        margin-left: 8px;
+        visibility: visible;
+      }
+
+      .vjs-volume-bar.vjs-slider-horizontal {
+        background-color: rgba(255, 255, 255, 0.3);
+        border-radius: 2px;
+        height: 4px;
+        margin: 16px 0; // Vertically center within 36px
+        width: 100%;
+
+        .vjs-volume-level {
+          background-color: var(--primary-color, #1976d2);
+          border-radius: 2px;
+          height: 4px;
+
+          &::before {
+            // Thumb
+            background: #fff;
+            border-radius: 50%;
+            content: "";
+            height: 12px;
+            right: -6px;
+            position: absolute;
+            top: -4px;
+            width: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+            transform: scale(0);
+            transition: transform 0.1s;
+          }
+        }
+      }
+
+      // Hover effect for volume slider thumb
+      &:hover .vjs-volume-level::before {
+        transform: scale(1);
+      }
     }
   }
 
   .vjs-time-control {
     align-items: center;
     display: flex;
+    font-family: "Roboto", sans-serif;
+    font-weight: 500;
     justify-content: center;
     min-width: 0;
-    padding: 0 4px;
+    padding: 0 8px;
     pointer-events: none;
 
     .vjs-control-text {
@@ -199,14 +406,60 @@ $sceneTabWidth: 450px;
     display: none;
   }
 
+  // Progress Bar - Absolutely positioned at TOP of control bar
   .vjs-progress-control {
-    bottom: 2.5em;
-    height: 3em;
     position: absolute;
-    width: 100%;
+    top: 0;
+    left: 16px;
+    right: 16px;
+    width: auto;
+    height: 20px; // Larger hitbox
+    display: flex;
+    align-items: flex-start;
+    padding-top: 8px;
 
     .vjs-progress-holder {
-      margin: 0 15px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 2px;
+      height: 4px;
+      margin: 0;
+      width: 100%;
+      cursor: pointer;
+
+      .vjs-play-progress {
+        background: var(--primary-color, #1976d2);
+        border-radius: 2px;
+
+        &::before {
+          // Thumb
+          background: #fff;
+          border-radius: 50%;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+          content: "";
+          height: 12px;
+          position: absolute;
+          right: -6px;
+          top: -4px;
+          transform: scale(0);
+          transition: transform 0.1s;
+          width: 12px;
+          z-index: 10;
+        }
+      }
+
+      .vjs-load-progress {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 2px;
+      }
+
+      &:hover {
+        height: 6px;
+
+        .vjs-play-progress::before {
+          transform: scale(1);
+          top: -3px;
+        }
+      }
     }
   }
 
@@ -366,6 +619,11 @@ $sceneTabWidth: 450px;
     transform: scale(-1, 1);
   }
 
+  // Hidden by default (Desktop)
+  .vjs-mobile-more-button {
+    display: none;
+  }
+
   @media (pointer: coarse) {
     &.vjs-touch-enabled {
       &.vjs-has-started .vjs-big-button-group {
@@ -394,10 +652,26 @@ $sceneTabWidth: 450px;
         bottom: 2.8em;
       }
 
-      // hide the regular seek buttons on touch screens
+      // Hide the regular seek buttons on touch screens as we have the big ones and double-tap
       .vjs-control-bar .vjs-seek-button {
         display: none;
       }
+    }
+  }
+
+  // videojs-mobile-ui seek feedback
+  .vjs-mobile-ui-seek-icon {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(4px);
+    border-radius: 50%;
+    width: 80px;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &::before {
+      font-size: 40px;
     }
   }
 
@@ -413,12 +687,24 @@ $sceneTabWidth: 450px;
   @media (max-width: 768px) {
     .vjs-control-bar {
       .vjs-control {
-        width: 2.5em;
+        width: auto;
+        min-width: 32px;
       }
 
       .vjs-progress-control {
-        height: 2em;
-        width: 100%;
+        height: 24px;
+        flex: 1 1 auto;
+      }
+
+      // Hide non-essential buttons on very narrow screens
+      @media (max-width: 480px) {
+
+        .vjs-playback-rate,
+        .vjs-source-selector,
+        .vjs-airplay-button,
+        .vjs-chromecast-button {
+          display: none;
+        }
       }
 
       .vjs-playback-rate {

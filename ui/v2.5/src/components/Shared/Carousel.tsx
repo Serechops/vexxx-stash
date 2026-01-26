@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from "react";
-import { Box, IconButton, useTheme, useMediaQuery } from "@mui/material";
+import { Box, IconButton, useTheme, useMediaQuery, alpha } from "@mui/material";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 
@@ -22,10 +22,14 @@ export const Carousel: React.FC<CarouselProps> = ({
 }) => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+    const isTablet = useMediaQuery(theme.breakpoints.between("sm", "md"));
     const scrollRef = useRef<HTMLDivElement>(null);
     const [canScrollLeft, setCanScrollLeft] = useState(false);
     const [canScrollRight, setCanScrollRight] = useState(true);
     const [isPaused, setIsPaused] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
+    const [startX, setStartX] = useState(0);
+    const [scrollLeft, setScrollLeft] = useState(0);
 
     const updateScrollButtons = useCallback(() => {
         if (scrollRef.current) {
@@ -51,7 +55,7 @@ export const Carousel: React.FC<CarouselProps> = ({
             if (scrollRef.current) {
                 const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
                 if (scrollLeft >= scrollWidth - clientWidth - 1) {
-                    // Reset to beginning
+                    // Reset to beginning with smooth animation
                     scrollRef.current.scrollTo({ left: 0, behavior: "smooth" });
                 } else {
                     // Scroll by one item width
@@ -65,7 +69,7 @@ export const Carousel: React.FC<CarouselProps> = ({
 
     const scroll = (direction: "left" | "right") => {
         if (scrollRef.current) {
-            const scrollAmount = (itemWidth + gap) * 2;
+            const scrollAmount = (itemWidth + gap) * (isTablet ? 1.5 : 2);
             scrollRef.current.scrollBy({
                 left: direction === "left" ? -scrollAmount : scrollAmount,
                 behavior: "smooth",
@@ -73,31 +77,89 @@ export const Carousel: React.FC<CarouselProps> = ({
         }
     };
 
+    // Touch/mouse drag handlers for mobile-like swipe on desktop
+    const handleMouseDown = (e: React.MouseEvent) => {
+        if (isMobile) return; // Use native touch scroll on mobile
+        setIsDragging(true);
+        setStartX(e.pageX - (scrollRef.current?.offsetLeft || 0));
+        setScrollLeft(scrollRef.current?.scrollLeft || 0);
+    };
+
+    const handleMouseMove = (e: React.MouseEvent) => {
+        if (!isDragging || !scrollRef.current) return;
+        e.preventDefault();
+        const x = e.pageX - (scrollRef.current.offsetLeft || 0);
+        const walk = (x - startX) * 1.5; // Scroll speed multiplier
+        scrollRef.current.scrollLeft = scrollLeft - walk;
+    };
+
+    const handleMouseUp = () => {
+        setIsDragging(false);
+    };
+
     const childArray = React.Children.toArray(children);
+
+    // Calculate responsive item width
+    const responsiveItemWidth = isMobile ? "85vw" : isTablet ? "45vw" : `${itemWidth}px`;
 
     return (
         <Box
-            sx={{ position: "relative" }}
+            sx={{ 
+                position: "relative",
+                // Gradient fade on edges to indicate more content
+                "&::before, &::after": {
+                    content: '""',
+                    position: "absolute",
+                    top: 0,
+                    bottom: 0,
+                    width: { xs: 20, md: 60 },
+                    pointerEvents: "none",
+                    zIndex: 5,
+                    transition: "opacity 0.3s ease",
+                },
+                "&::before": {
+                    left: 0,
+                    background: (t) => `linear-gradient(to right, ${t.palette.background.default}, transparent)`,
+                    opacity: canScrollLeft ? 1 : 0,
+                },
+                "&::after": {
+                    right: 0,
+                    background: (t) => `linear-gradient(to left, ${t.palette.background.default}, transparent)`,
+                    opacity: canScrollRight ? 1 : 0,
+                },
+            }}
             onMouseEnter={() => setIsPaused(true)}
-            onMouseLeave={() => setIsPaused(false)}
+            onMouseLeave={() => {
+                setIsPaused(false);
+                setIsDragging(false);
+            }}
         >
             {/* Left Arrow */}
-            {showArrows && !isMobile && canScrollLeft && (
+            {showArrows && !isMobile && (
                 <IconButton
                     onClick={() => scroll("left")}
                     sx={{
                         position: "absolute",
-                        left: -20,
+                        left: { xs: -16, md: -24 },
                         top: "50%",
                         transform: "translateY(-50%)",
                         zIndex: 10,
-                        bgcolor: "rgba(0, 0, 0, 0.6)",
-                        color: "white",
+                        bgcolor: (t) => alpha(t.palette.background.paper, 0.9),
+                        backdropFilter: "blur(8px)",
+                        color: "text.primary",
+                        border: 1,
+                        borderColor: "divider",
+                        opacity: canScrollLeft ? 1 : 0,
+                        visibility: canScrollLeft ? "visible" : "hidden",
+                        transition: "all 0.2s ease",
                         "&:hover": {
-                            bgcolor: "rgba(0, 0, 0, 0.8)",
+                            bgcolor: "primary.main",
+                            color: "primary.contrastText",
+                            transform: "translateY(-50%) scale(1.1)",
+                            boxShadow: (t) => `0 0 20px ${alpha(t.palette.primary.main, 0.4)}`,
                         },
-                        width: 40,
-                        height: 40,
+                        width: { xs: 36, md: 44 },
+                        height: { xs: 36, md: 44 },
                     }}
                 >
                     <ChevronLeftIcon />
@@ -107,6 +169,10 @@ export const Carousel: React.FC<CarouselProps> = ({
             {/* Scrollable Container */}
             <Box
                 ref={scrollRef}
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseUp}
                 sx={{
                     display: "flex",
                     gap: `${gap}px`,
@@ -119,6 +185,10 @@ export const Carousel: React.FC<CarouselProps> = ({
                     },
                     px: isMobile ? 2 : 0,
                     py: 1,
+                    cursor: isDragging ? "grabbing" : "grab",
+                    userSelect: isDragging ? "none" : "auto",
+                    // Smooth momentum scrolling on iOS
+                    WebkitOverflowScrolling: "touch",
                 }}
             >
                 {childArray.map((child, index) => (
@@ -127,8 +197,12 @@ export const Carousel: React.FC<CarouselProps> = ({
                         sx={{
                             flexShrink: 0,
                             scrollSnapAlign: "start",
-                            width: isMobile ? "85vw" : `${itemWidth}px`,
-                            maxWidth: isMobile ? "85vw" : `${itemWidth}px`,
+                            width: responsiveItemWidth,
+                            maxWidth: responsiveItemWidth,
+                            transition: "transform 0.3s ease, opacity 0.3s ease",
+                            "&:hover": {
+                                transform: isMobile ? "none" : "scale(1.02)",
+                            },
                         }}
                     >
                         {child}
@@ -137,26 +211,65 @@ export const Carousel: React.FC<CarouselProps> = ({
             </Box>
 
             {/* Right Arrow */}
-            {showArrows && !isMobile && canScrollRight && (
+            {showArrows && !isMobile && (
                 <IconButton
                     onClick={() => scroll("right")}
                     sx={{
                         position: "absolute",
-                        right: -20,
+                        right: { xs: -16, md: -24 },
                         top: "50%",
                         transform: "translateY(-50%)",
                         zIndex: 10,
-                        bgcolor: "rgba(0, 0, 0, 0.6)",
-                        color: "white",
+                        bgcolor: (t) => alpha(t.palette.background.paper, 0.9),
+                        backdropFilter: "blur(8px)",
+                        color: "text.primary",
+                        border: 1,
+                        borderColor: "divider",
+                        opacity: canScrollRight ? 1 : 0,
+                        visibility: canScrollRight ? "visible" : "hidden",
+                        transition: "all 0.2s ease",
                         "&:hover": {
-                            bgcolor: "rgba(0, 0, 0, 0.8)",
+                            bgcolor: "primary.main",
+                            color: "primary.contrastText",
+                            transform: "translateY(-50%) scale(1.1)",
+                            boxShadow: (t) => `0 0 20px ${alpha(t.palette.primary.main, 0.4)}`,
                         },
-                        width: 40,
-                        height: 40,
+                        width: { xs: 36, md: 44 },
+                        height: { xs: 36, md: 44 },
                     }}
                 >
                     <ChevronRightIcon />
                 </IconButton>
+            )}
+
+            {/* Mobile scroll indicator dots */}
+            {isMobile && childArray.length > 1 && (
+                <Box
+                    sx={{
+                        display: "flex",
+                        justifyContent: "center",
+                        gap: 0.5,
+                        mt: 2,
+                    }}
+                >
+                    {childArray.slice(0, Math.min(5, childArray.length)).map((_, index) => (
+                        <Box
+                            key={index}
+                            sx={{
+                                width: 6,
+                                height: 6,
+                                borderRadius: "50%",
+                                bgcolor: "grey.600",
+                                transition: "all 0.2s ease",
+                            }}
+                        />
+                    ))}
+                    {childArray.length > 5 && (
+                        <Box sx={{ color: "grey.600", fontSize: "0.75rem", ml: 0.5 }}>
+                            +{childArray.length - 5}
+                        </Box>
+                    )}
+                </Box>
             )}
         </Box>
     );

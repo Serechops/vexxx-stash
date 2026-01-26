@@ -1,13 +1,33 @@
 import React from "react";
+import { Skeleton, Card } from "@mui/material";
 
-interface IImageCardSkeletonProps { }
+interface IImageCardSkeletonProps {
+    width?: number;
+}
 
-export const ImageCardSkeleton: React.FC<IImageCardSkeletonProps> = () => {
+export const ImageCardSkeleton: React.FC<IImageCardSkeletonProps> = ({ width }) => {
     return (
-        <div
-            className="image-card skeleton-card relative rounded-lg overflow-hidden bg-zinc-900 animate-pulse shadow-sm aspect-[4/3] w-full"
+        <Card
+            sx={{
+                width: width ?? "100%",
+                bgcolor: "grey.900",
+                borderRadius: 2,
+                overflow: "hidden",
+                position: "relative",
+                aspectRatio: "4/3",
+            }}
         >
-            <div className="absolute inset-0 bg-zinc-800"></div>
-        </div>
+            <Skeleton 
+                variant="rectangular" 
+                width="100%" 
+                height="100%" 
+                sx={{ 
+                    bgcolor: "grey.800",
+                    position: "absolute",
+                    inset: 0,
+                    transform: "none",
+                }} 
+            />
+        </Card>
     );
 };

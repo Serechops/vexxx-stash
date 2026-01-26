@@ -1,19 +1,62 @@
 import React from "react";
+import { Box, Skeleton, Card } from "@mui/material";
 
-interface IGalleryCardSkeletonProps { }
+interface IGalleryCardSkeletonProps {
+    width?: number;
+}
 
-export const GalleryCardSkeleton: React.FC<IGalleryCardSkeletonProps> = () => {
+export const GalleryCardSkeleton: React.FC<IGalleryCardSkeletonProps> = ({ width }) => {
     return (
-        <div
-            className="gallery-card skeleton-card relative rounded-xl overflow-hidden shadow-sm bg-zinc-900 animate-pulse aspect-[4/3] w-full"
+        <Card
+            sx={{
+                width: width ?? "100%",
+                bgcolor: "grey.900",
+                borderRadius: 3,
+                overflow: "hidden",
+                position: "relative",
+                aspectRatio: "4/3",
+            }}
         >
-            <div className="absolute inset-0 bg-zinc-800">
-                <div className="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-black/80 to-transparent"></div>
-                <div className="absolute bottom-3 left-3 right-3 flex flex-col gap-2">
-                    <div className="h-5 bg-white/10 rounded w-3/4"></div>
-                    <div className="h-3 bg-white/5 rounded w-1/2"></div>
-                </div>
-            </div>
-        </div>
+            {/* Background Skeleton */}
+            <Skeleton 
+                variant="rectangular" 
+                width="100%" 
+                height="100%" 
+                sx={{ 
+                    bgcolor: "grey.800",
+                    position: "absolute",
+                    inset: 0,
+                    transform: "none",
+                }} 
+            />
+            
+            {/* Gradient Overlay */}
+            <Box
+                sx={{
+                    position: "absolute",
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    height: "50%",
+                    background: "linear-gradient(to top, rgba(0,0,0,0.8), transparent)",
+                }}
+            />
+            
+            {/* Content placeholders */}
+            <Box
+                sx={{
+                    position: "absolute",
+                    bottom: 12,
+                    left: 12,
+                    right: 12,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 1,
+                }}
+            >
+                <Skeleton variant="text" width="75%" height={24} sx={{ bgcolor: "rgba(255,255,255,0.1)" }} />
+                <Skeleton variant="text" width="50%" height={16} sx={{ bgcolor: "rgba(255,255,255,0.05)" }} />
+            </Box>
+        </Card>
     );
 };

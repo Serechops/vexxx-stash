@@ -5,7 +5,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { Box, Card, CardContent, Checkbox as MuiCheckbox } from "@mui/material";
+import { Box, Card, Checkbox as MuiCheckbox, alpha } from "@mui/material";
 import { Link } from "react-router-dom";
 import cx from "classnames";
 import { TruncatedText } from "../TruncatedText";
@@ -125,6 +125,19 @@ const Checkbox: React.FC<{
         event.stopPropagation();
       }}
       size="small"
+      sx={{
+        color: "grey.400",
+        bgcolor: (t) => alpha(t.palette.background.paper, 0.8),
+        backdropFilter: "blur(4px)",
+        borderRadius: 1,
+        p: 0.5,
+        "&.Mui-checked": {
+          color: "primary.main",
+        },
+        "&:hover": {
+          bgcolor: (t) => alpha(t.palette.background.paper, 0.95),
+        },
+      }}
     />
   );
 };
@@ -145,6 +158,25 @@ const DragHandle: React.FC<{
       component="span"
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        cursor: "grab",
+        p: 0.5,
+        borderRadius: 1,
+        bgcolor: (t) => alpha(t.palette.background.paper, 0.8),
+        backdropFilter: "blur(4px)",
+        color: "grey.400",
+        transition: "all 0.15s ease",
+        "&:hover": {
+          bgcolor: (t) => alpha(t.palette.background.paper, 0.95),
+          color: "grey.200",
+        },
+        "&:active": {
+          cursor: "grabbing",
+        },
+      }}
       className="card-drag-handle-container"
     >
       <Icon className="card-drag-handle" icon={faGripLines} />
@@ -153,7 +185,27 @@ const DragHandle: React.FC<{
 };
 
 const Controls: React.FC<PropsWithChildren<{}>> = ({ children }) => {
-  return <div className="card-controls">{children}</div>;
+  return (
+    <Box
+      className="card-controls"
+      sx={{
+        position: "absolute",
+        top: 8,
+        left: 8,
+        zIndex: 10,
+        display: "flex",
+        flexDirection: "column",
+        gap: 0.5,
+        opacity: 0,
+        transition: "opacity 0.2s ease",
+        ".stash-grid-card:hover &": {
+          opacity: 1,
+        },
+      }}
+    >
+      {children}
+    </Box>
+  );
 };
 
 const MoveTarget: React.FC<{ dragSide: DragSide }> = ({ dragSide }) => {
@@ -217,26 +269,60 @@ export const GridCard: React.FC<ICardProps> = PatchComponent(
         const percentValue = (100 / props.duration) * props.resumeTime;
         const percentStr = percentValue + "%";
         return (
-          <div title={Math.round(percentValue) + "%"} className="progress-bar">
-            <Box className="progress-indicator" style={{ width: percentStr }} />
-          </div>
+          <Box 
+            title={Math.round(percentValue) + "%"} 
+            className="progress-bar"
+            sx={{
+              position: "absolute",
+              bottom: 0,
+              left: 0,
+              right: 0,
+              height: 3,
+              bgcolor: "rgba(0,0,0,0.5)",
+            }}
+          >
+            <Box 
+              className="progress-indicator" 
+              sx={{ 
+                width: percentStr,
+                height: "100%",
+                bgcolor: "primary.main",
+                borderRadius: "0 2px 2px 0",
+                boxShadow: (t) => `0 0 8px ${alpha(t.palette.primary.main, 0.6)}`,
+              }} 
+            />
+          </Box>
         );
       }
     }
 
     return (
       <Card
-        className={cx(
-          props.className,
-          "stash-grid-card transition-transform duration-300 hover:scale-105 hover:z-50 hover:shadow-2xl bg-card border-none rounded-md overflow-hidden"
-        )}
+        className={cx(props.className, "stash-grid-card")}
         onClick={handleImageClick}
         {...dragProps}
-        style={
-          props.width && !ScreenUtils.isMobile()
-            ? { width: `${props.width}px` }
-            : {}
-        }
+        sx={{
+          position: "relative",
+          bgcolor: "background.paper",
+          border: "none",
+          borderRadius: 2,
+          overflow: "hidden",
+          transition: "transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+          cursor: props.selecting ? "pointer" : "default",
+          width: props.width && !ScreenUtils.isMobile() ? `${props.width}px` : "100%",
+          "&:hover": {
+            transform: ScreenUtils.isMobile() ? "none" : "scale(1.03) translateY(-4px)",
+            zIndex: 50,
+            boxShadow: (t) => `0 20px 40px ${alpha("#000", 0.3)}, 0 0 0 1px ${alpha(t.palette.primary.main, 0.1)}`,
+          },
+          "&:active": {
+            transform: "scale(0.98)",
+          },
+          // Selected state
+          ...(props.selected && {
+            boxShadow: (t) => `0 0 0 2px ${t.palette.primary.main}, 0 8px 16px ${alpha("#000", 0.2)}`,
+          }),
+        }}
       >
         {moveTarget !== undefined && <MoveTarget dragSide={moveTarget} />}
         <Controls>
@@ -252,8 +338,12 @@ export const GridCard: React.FC<ICardProps> = PatchComponent(
           )}
         </Controls>
 
-        <div
+        <Box
           className={cx(props.thumbnailSectionClassName, "thumbnail-section")}
+          sx={{
+            position: "relative",
+            overflow: "hidden",
+          }}
         >
           <Link
             to={props.url}
@@ -264,19 +354,50 @@ export const GridCard: React.FC<ICardProps> = PatchComponent(
           </Link>
           {props.overlays}
           {maybeRenderProgressBar()}
-        </div>
+        </Box>
         {maybeRenderInteractiveHeatmap()}
-        <div className="card-section">
+        <Box 
+          className="card-section"
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
           {props.title && (
-            <Link to={props.url} onClick={handleImageClick}>
-              <h5 className="card-section-title flex-aligned text-sm font-medium px-2 py-2 truncate">
+            <Link 
+              to={props.url} 
+              onClick={handleImageClick}
+              style={{ textDecoration: "none" }}
+            >
+              <Box
+                component="h5"
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 0.5,
+                  fontSize: "0.875rem",
+                  fontWeight: 500,
+                  px: 1.5,
+                  py: 1,
+                  color: "text.primary",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  m: 0,
+                  transition: "color 0.15s ease",
+                  "&:hover": {
+                    color: "primary.light",
+                  },
+                }}
+                className="card-section-title"
+              >
                 {props.pretitleIcon}
                 <TruncatedText text={props.title} lineCount={1} />
-              </h5>
+              </Box>
             </Link>
           )}
           {props.details}
-        </div>
+        </Box>
 
         {props.popovers}
       </Card>

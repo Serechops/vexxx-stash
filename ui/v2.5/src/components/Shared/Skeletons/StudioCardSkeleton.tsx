@@ -1,28 +1,60 @@
 import React from "react";
+import { Box, Skeleton, Card, CardContent } from "@mui/material";
 
-interface IStudioCardSkeletonProps { }
+interface IStudioCardSkeletonProps {
+    width?: number;
+}
 
-export const StudioCardSkeleton: React.FC<IStudioCardSkeletonProps> = () => {
+export const StudioCardSkeleton: React.FC<IStudioCardSkeletonProps> = ({ width }) => {
     return (
-        <div
-            className="studio-card skeleton-card relative rounded-md overflow-hidden shadow-sm bg-card animate-pulse flex flex-col w-full h-full"
+        <Card
+            sx={{
+                width: width ?? "100%",
+                bgcolor: "background.paper",
+                borderRadius: 2,
+                overflow: "hidden",
+                display: "flex",
+                flexDirection: "column",
+                height: "100%",
+            }}
         >
-            {/* Studio Image - Banner Aspect 2:1 */}
-            <div className="w-full aspect-[2/1] bg-zinc-800 flex items-center justify-center relative">
-                {/* Logo placeholder center */}
-                <div className="w-16 h-16 bg-zinc-700/50 rounded-full"></div>
-            </div>
+            {/* Studio Banner - 2:1 Aspect */}
+            <Box sx={{ position: "relative", width: "100%", aspectRatio: "2/1" }}>
+                <Skeleton 
+                    variant="rectangular" 
+                    width="100%" 
+                    height="100%" 
+                    sx={{ 
+                        bgcolor: "grey.800",
+                        transform: "none",
+                    }} 
+                />
+                {/* Center logo placeholder */}
+                <Box
+                    sx={{
+                        position: "absolute",
+                        top: "50%",
+                        left: "50%",
+                        transform: "translate(-50%, -50%)",
+                    }}
+                >
+                    <Skeleton 
+                        variant="circular" 
+                        width={64} 
+                        height={64} 
+                        sx={{ bgcolor: "grey.700" }} 
+                    />
+                </Box>
+            </Box>
 
-            {/* Content Placeholder - Footer (Title + Meta) */}
-            <div className="p-3 flex flex-col gap-2">
-                <div className="h-5 bg-zinc-700 rounded w-1/2"></div>
-
-                {/* Meta / Parent Wrapper */}
-                <div className="mt-2 space-y-2">
-                    <div className="h-3 bg-zinc-800 rounded w-3/4"></div>
-                    <div className="h-3 bg-zinc-800 rounded w-1/4"></div>
-                </div>
-            </div>
-        </div>
+            {/* Content */}
+            <CardContent sx={{ p: 1.5, "&:last-child": { pb: 1.5 } }}>
+                <Skeleton variant="text" width="50%" height={24} sx={{ bgcolor: "grey.700", mb: 1 }} />
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+                    <Skeleton variant="text" width="75%" height={16} sx={{ bgcolor: "grey.800" }} />
+                    <Skeleton variant="text" width="40%" height={16} sx={{ bgcolor: "grey.800" }} />
+                </Box>
+            </CardContent>
+        </Card>
     );
 };

@@ -25,7 +25,10 @@ import {
   useMediaQuery,
   useTheme,
   Tooltip,
-  Chip
+  Chip,
+  alpha,
+  Divider,
+  SwipeableDrawer,
 } from "@mui/material";
 import { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import { Link, NavLink, useLocation, useHistory } from "react-router-dom";
@@ -438,12 +441,41 @@ export const MainNavbar: React.FC = () => {
     <MainNavbarMenuItems>
       {menuItems.map(({ href, icon, message }) => (
         isDrawer ? (
-          <ListItem key={href} disablePadding>
-            <ListItemButton component={NavLink} to={href} onClick={handleDismiss}>
-              <ListItemIcon>
+          <ListItem key={href} disablePadding sx={{ mb: 0.5 }}>
+            <ListItemButton 
+              component={NavLink} 
+              to={href} 
+              onClick={handleDismiss}
+              sx={{
+                borderRadius: 2,
+                mx: 0.5,
+                py: 1.25,
+                transition: 'all 0.15s ease',
+                '&:hover': {
+                  bgcolor: (t) => alpha(t.palette.primary.main, 0.08),
+                },
+                '&.active': {
+                  bgcolor: (t) => alpha(t.palette.primary.main, 0.12),
+                  '& .MuiListItemIcon-root': {
+                    color: 'primary.main',
+                  },
+                  '& .MuiListItemText-primary': {
+                    color: 'primary.main',
+                    fontWeight: 600,
+                  },
+                },
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: 40, color: 'text.secondary' }}>
                 <Icon icon={icon} />
               </ListItemIcon>
-              <ListItemText primary={intl.formatMessage(message)} />
+              <ListItemText 
+                primary={intl.formatMessage(message)} 
+                primaryTypographyProps={{
+                  fontSize: '0.9375rem',
+                  fontWeight: 500,
+                }}
+              />
             </ListItemButton>
           </ListItem>
         ) : (
@@ -455,12 +487,25 @@ export const MainNavbar: React.FC = () => {
             startIcon={<Icon icon={icon} />}
             sx={{
               textTransform: 'none',
-              mx: 0.5,
+              mx: 0.25,
+              px: 1.5,
+              py: 0.75,
+              borderRadius: 1.5,
+              fontSize: '0.875rem',
+              fontWeight: 500,
+              color: 'text.secondary',
+              transition: 'all 0.15s ease',
+              '&:hover': {
+                bgcolor: (t) => alpha(t.palette.primary.main, 0.08),
+                color: 'text.primary',
+              },
               '&.active': {
-                backgroundColor: 'rgba(255, 255, 255, 0.08)',
-              }
+                bgcolor: (t) => alpha(t.palette.primary.main, 0.12),
+                color: 'primary.main',
+                fontWeight: 600,
+              },
             }}
-            activeClassName="active" // NavLink prop
+            activeClassName="active"
           >
             {intl.formatMessage(message)}
           </Button>
@@ -474,8 +519,15 @@ export const MainNavbar: React.FC = () => {
       <AppBar
         position="fixed"
         color="default"
-        className="top-nav vexxx-navbar !bg-background/90 backdrop-blur-xs border-b border-white/5 shadow-sm transition-all duration-300"
         elevation={0}
+        sx={{
+          bgcolor: (t) => alpha(t.palette.background.default, 0.85),
+          backdropFilter: 'blur(12px)',
+          borderBottom: 1,
+          borderColor: (t) => alpha(t.palette.divider, 0.1),
+          transition: 'all 0.3s ease',
+        }}
+        className="top-nav vexxx-navbar"
       >
         <Toolbar variant="dense" sx={{ minHeight: 48, height: 48, py: 0 }}>
           {/* Mobile Drawer Toggle */}
@@ -484,7 +536,14 @@ export const MainNavbar: React.FC = () => {
             aria-label="open drawer"
             edge="start"
             onClick={() => setExpanded(!expanded)}
-            sx={{ mr: 2, display: { lg: 'none' } }}
+            sx={{ 
+              mr: 1, 
+              display: { lg: 'none' },
+              transition: 'transform 0.2s ease',
+              '&:hover': {
+                transform: 'scale(1.1)',
+              },
+            }}
           >
             <Icon icon={faBars} />
           </IconButton>
@@ -494,7 +553,17 @@ export const MainNavbar: React.FC = () => {
             component={Link}
             to="/"
             onClick={handleDismiss}
-            sx={{ display: 'flex', alignItems: 'center', mr: 2, textDecoration: 'none', height: '100%' }}
+            sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              mr: 2, 
+              textDecoration: 'none', 
+              height: '100%',
+              transition: 'opacity 0.2s ease',
+              '&:hover': {
+                opacity: 0.8,
+              },
+            }}
           >
             <img
               src="/vexxx.png"
@@ -512,14 +581,33 @@ export const MainNavbar: React.FC = () => {
           <Box sx={{ flexGrow: { xs: 1, lg: 0 } }} />
 
           {/* Right Side Buttons */}
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
             {!!newPath && (
-              <Box mr={2}>
+              <Box mr={1}>
                 <Button
                   component={Link}
                   to={newPath}
                   variant="contained"
-                  className="bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 border-none rounded-full px-4 py-1.5 shadow-md hover:shadow-pink-500/25 transition-all duration-300 font-bold text-white text-sm"
+                  sx={{
+                    background: 'linear-gradient(135deg, #db2777 0%, #9333ea 100%)',
+                    border: 'none',
+                    borderRadius: '20px',
+                    px: 2.5,
+                    py: 0.75,
+                    fontWeight: 600,
+                    fontSize: '0.8125rem',
+                    textTransform: 'none',
+                    boxShadow: (t) => `0 4px 12px ${alpha('#db2777', 0.3)}`,
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      background: 'linear-gradient(135deg, #ec4899 0%, #a855f7 100%)',
+                      boxShadow: (t) => `0 6px 20px ${alpha('#db2777', 0.4)}`,
+                      transform: 'translateY(-1px)',
+                    },
+                    '&:active': {
+                      transform: 'translateY(0)',
+                    },
+                  }}
                 >
                   <FormattedMessage id="new" defaultMessage="New" />
                 </Button>
@@ -533,19 +621,77 @@ export const MainNavbar: React.FC = () => {
         </Toolbar>
       </AppBar>
 
-      {/* Mobile Drawer */}
-      <Drawer
+      {/* Mobile Drawer - Enhanced with SwipeableDrawer */}
+      <SwipeableDrawer
         anchor="left"
         open={expanded}
         onClose={() => setExpanded(false)}
-        sx={{ display: { lg: 'none' } }}
+        onOpen={() => setExpanded(true)}
+        disableSwipeToOpen={false}
+        swipeAreaWidth={20}
+        sx={{ 
+          display: { lg: 'none' },
+          '& .MuiDrawer-paper': {
+            bgcolor: 'background.paper',
+            backgroundImage: 'none',
+            borderRight: 1,
+            borderColor: 'divider',
+            width: 280,
+          },
+        }}
       >
-        <Box width={250} role="presentation">
-          <List>
+        <Box role="presentation" sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+          {/* Drawer Header */}
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              py: 2,
+              px: 2,
+              borderBottom: 1,
+              borderColor: 'divider',
+            }}
+          >
+            <img
+              src="/vexxx.png"
+              alt="Vexxx"
+              style={{ height: '48px', width: 'auto', objectFit: 'contain' }}
+            />
+          </Box>
+
+          {/* Menu Items */}
+          <List sx={{ flex: 1, py: 1, px: 1 }}>
             {renderMenuItems(true)}
           </List>
+
+          {/* Drawer Footer with Quick Actions */}
+          <Divider />
+          <Box sx={{ p: 2 }}>
+            {!!newPath && (
+              <Button
+                component={Link}
+                to={newPath}
+                fullWidth
+                variant="contained"
+                onClick={handleDismiss}
+                sx={{
+                  background: 'linear-gradient(135deg, #db2777 0%, #9333ea 100%)',
+                  borderRadius: 2,
+                  py: 1.25,
+                  fontWeight: 600,
+                  mb: 1,
+                }}
+              >
+                <FormattedMessage id="new" defaultMessage="New" />
+              </Button>
+            )}
+            <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
+              {renderUtilityButtons()}
+            </Box>
+          </Box>
         </Box>
-      </Drawer>
+      </SwipeableDrawer>
     </>
   );
 };

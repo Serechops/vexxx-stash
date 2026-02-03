@@ -18,6 +18,11 @@ import {
   useFindGallery,
   useGalleryUpdate,
 } from "src/core/StashService";
+import { lazyComponent } from "src/utils/lazyComponent";
+
+const GenerateDialog = lazyComponent(
+  () => import("../../Dialogs/GenerateDialog")
+);
 import { ErrorMessage } from "src/components/Shared/ErrorMessage";
 import { LoadingIndicator } from "src/components/Shared/LoadingIndicator";
 import { Counter } from "src/components/Shared/Counter";
@@ -279,20 +284,16 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
             }}
           >
             <FormattedMessage id="actions.reset_cover" />
-          </MenuItem>
-          <MenuItem
-            onClick={() => {
-              setIsGenerateDialogOpen(true);
-              handleMenuClose();
-            }}
+          </Dropdown.Item>
+          <Dropdown.Item
+            className="bg-secondary text-white"
+            onClick={() => setIsGenerateDialogOpen(true)}
           >
-            <FormattedMessage id="actions.generate" />
-          </MenuItem>
-          <MenuItem
-            onClick={() => {
-              setIsDeleteAlertOpen(true);
-              handleMenuClose();
-            }}
+            {`${intl.formatMessage({ id: "actions.generate" })}…`}
+          </Dropdown.Item>
+          <Dropdown.Item
+            className="bg-secondary text-white"
+            onClick={() => setIsDeleteAlertOpen(true)}
           >
             <FormattedMessage
               id="actions.delete"
@@ -454,9 +455,9 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
       </Helmet>
       {maybeRenderDeleteDialog()}
       {maybeRenderGenerateDialog()}
-      <Box className="gallery-tabs gallery-tabs-sidebar">
-        <Box>
-          <Box className="gallery-header-container">
+      <div className={`gallery-tabs ${collapsed ? "collapsed" : ""}`}>
+        <div>
+          <div className="gallery-header-container">
             {gallery.studio && (
               <Box className="gallery-studio-image">
                 <Link to={`/studios/${gallery.studio.id}`}>

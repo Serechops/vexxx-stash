@@ -14,14 +14,14 @@ import { SettingSection } from "../Settings/SettingSection";
 import { faCogs, faQuestionCircle } from "@fortawesome/free-solid-svg-icons";
 import { SettingsContext } from "../Settings/context";
 
-interface ISceneGenerateDialog {
+interface IGenerateDialog {
   selectedIds?: string[];
   initialOptions?: Partial<GQL.GenerateMetadataInput>;
   onClose: () => void;
   type: "scene" | "image" | "gallery";
 }
 
-export const GenerateDialog: React.FC<ISceneGenerateDialog> = ({
+export const GenerateDialog: React.FC<IGenerateDialog> = ({
   selectedIds,
   initialOptions,
   onClose,
@@ -114,7 +114,7 @@ export const GenerateDialog: React.FC<ISceneGenerateDialog> = ({
               num: selectedIds.length,
               scene: intl.formatMessage(
                 {
-                  id: "countables.scenes",
+                  id: countableId,
                 },
                 {
                   count: selectedIds.length,

@@ -559,7 +559,7 @@ export const ImageList: React.FC<IImageList> = PatchComponent(
         text: intl.formatMessage({ id: "actions.view_random" }),
         onClick: viewRandom,
       },
-      {        text: `${intl.formatMessage({ id: "actions.generate" })}\u2026`,
+      {        text: intl.formatMessage({ id: "actions.generate" }),
         onClick: (result, filter, selectedIds) => {
           showModal(
             <GenerateDialog
@@ -572,7 +572,7 @@ export const ImageList: React.FC<IImageList> = PatchComponent(
         },
         isDisplayed: showWhenSelected,
       },
-      {        text: `${intl.formatMessage({ id: "actions.generate" })}\u2026`,
+      {        text: intl.formatMessage({ id: "actions.generate" }),
         onClick: (result, filter, selectedIds) => {
           showModal(
             <GenerateDialog

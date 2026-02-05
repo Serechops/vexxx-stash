@@ -65,6 +65,28 @@ const ImagePage: React.FC<IProps> = ({ image }) => {
   const [isGenerateDialogOpen, setIsGenerateDialogOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const menuOpen = Boolean(anchorEl);
+  const operationsMenuRef = React.useRef<HTMLDivElement>(null);
+
+  // Manual click-away detection for operations menu
+  React.useEffect(() => {
+    if (!menuOpen) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      const menuPaper = operationsMenuRef.current;
+      const isClickOnMenu = menuPaper && menuPaper.contains(target);
+      const isClickOnAnchor = anchorEl && anchorEl.contains(target);
+
+      if (!isClickOnMenu && !isClickOnAnchor) {
+        setAnchorEl(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [menuOpen, anchorEl]);
 
   async function onSave(input: GQL.ImageUpdateInput) {
     await updateImage({
@@ -202,6 +224,17 @@ const ImagePage: React.FC<IProps> = ({ image }) => {
           open={menuOpen}
           onClose={() => setAnchorEl(null)}
           disableScrollLock
+          hideBackdrop
+          slotProps={{
+            root: {
+              sx: { pointerEvents: 'none' },
+              onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
+            },
+            paper: {
+              ref: operationsMenuRef,
+              sx: { pointerEvents: 'auto' }
+            }
+          }}
         >
           <MenuItem
             onClick={() => {
@@ -217,7 +250,7 @@ const ImagePage: React.FC<IProps> = ({ image }) => {
               setAnchorEl(null);
             }}
           >
-            <FormattedMessage id="actions.generate" />…
+            <FormattedMessage id="actions.generate" />
           </MenuItem>
           <MenuItem
             onClick={() => {

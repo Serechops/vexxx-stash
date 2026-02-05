@@ -468,6 +468,7 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
 
   const [operationsAnchorEl, setOperationsAnchorEl] = React.useState<null | HTMLElement>(null);
   const operationsMenuOpen = Boolean(operationsAnchorEl);
+  const operationsMenuRef = React.useRef<HTMLDivElement>(null);
 
   const handleOperationsClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     setOperationsAnchorEl(event.currentTarget);
@@ -476,6 +477,27 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
   const handleOperationsClose = () => {
     setOperationsAnchorEl(null);
   };
+
+  // Manual click-away detection for operations menu
+  React.useEffect(() => {
+    if (!operationsMenuOpen) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      const menuPaper = operationsMenuRef.current;
+      const isClickOnMenu = menuPaper && menuPaper.contains(target);
+      const isClickOnAnchor = operationsAnchorEl && operationsAnchorEl.contains(target);
+
+      if (!isClickOnMenu && !isClickOnAnchor) {
+        handleOperationsClose();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [operationsMenuOpen, operationsAnchorEl]);
 
   const renderOperations = () => (
     <>
@@ -491,6 +513,17 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
         open={operationsMenuOpen}
         onClose={handleOperationsClose}
         disableScrollLock
+        hideBackdrop
+        slotProps={{
+          root: {
+            sx: { pointerEvents: 'none' },
+            onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
+          },
+          paper: {
+            ref: operationsMenuRef,
+            sx: { pointerEvents: 'auto' }
+          }
+        }}
       >
         {!!scene.files.length && (
           <MenuItem
@@ -508,7 +541,7 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
             handleOperationsClose();
           }}
         >
-          <FormattedMessage id="actions.generate" />\u2026
+          <FormattedMessage id="actions.generate" />
         </MenuItem>
         <MenuItem
           onClick={() => {
@@ -750,38 +783,36 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
           </Box>
 
           <Box className="scene-toolbar">
-            <Box component="span" className="scene-toolbar-group">
-              <RatingSystem
-                value={scene.rating100}
-                onSetRating={setRating}
-                clickToRate
-                withoutContext
-              />
-            </Box>
-            <Box component="span" className="scene-toolbar-group">
-              <Box component="span">
-                <ExternalPlayerButton scene={scene} />
+            <Box className="scene-toolbar-row">
+              <Box className="scene-toolbar-rating">
+                <RatingSystem
+                  value={scene.rating100}
+                  onSetRating={setRating}
+                  clickToRate
+                  withoutContext
+                />
               </Box>
-              <Box component="span">
+              <Box className="scene-toolbar-counters">
                 <ViewCountButton
                   value={scene.play_count ?? 0}
                   onIncrement={() => incrementPlayCount()}
                 />
-              </Box>
-              <Box component="span">
                 <OCounterButton
                   value={scene.o_counter ?? 0}
                   onIncrement={() => onIncrementOClick()}
                 />
               </Box>
-              <Box component="span">
+            </Box>
+            <Box className="scene-toolbar-row">
+              <Box className="scene-toolbar-actions">
+                <ExternalPlayerButton scene={scene} />
                 <OrganizedButton
                   loading={organizedLoading}
                   organized={scene.organized}
                   onClick={onOrganizedClick}
                 />
+                {renderOperations()}
               </Box>
-              <Box component="span">{renderOperations()}</Box>
             </Box>
           </Box>
         </Box>

@@ -60,7 +60,7 @@ export const GalleryList: React.FC<IGalleryList> = PatchComponent(
         onClick: viewRandom,
       },
       {
-        text: `${intl.formatMessage({ id: "actions.generate" })}\u2026`,
+        text: intl.formatMessage({ id: "actions.generate" }),
         onClick: (result, filter, selectedIds) => {
           showModal(
             <GenerateDialog

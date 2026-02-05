@@ -280,6 +280,7 @@ const Stash: React.FC<IStashProps> = ({
           anchorEl={anchorEl}
           open={open}
           onClose={handleClose}
+          hideBackdrop
           MenuListProps={{
             'aria-labelledby': `stash-menu-${index}`,
           }}

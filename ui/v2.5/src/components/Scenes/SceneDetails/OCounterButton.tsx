@@ -88,6 +88,7 @@ export const OCounterButton: React.FC<IOCounterButtonProps> = (
             anchorEl={anchorEl}
             open={open}
             onClose={handleClose}
+            hideBackdrop
           >
             <MenuItem onClick={decrement}>
               <RemoveIcon sx={{ mr: 1 }} />

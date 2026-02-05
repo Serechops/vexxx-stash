@@ -115,6 +115,7 @@ const PageCount: React.FC<{
           anchorEl={anchorEl}
           open={Boolean(anchorEl)}
           onClose={handleMenuClose}
+          hideBackdrop
         >
           {pageOptions.map((s) => (
             <MenuItem
@@ -133,6 +134,7 @@ const PageCount: React.FC<{
           open={Boolean(popoverAnchor)}
           anchorEl={popoverAnchor}
           onClose={() => setPopoverAnchor(null)}
+          hideBackdrop
           anchorOrigin={{
             vertical: pagePopupPlacement === "top" ? "top" : "bottom",
             horizontal: "left",

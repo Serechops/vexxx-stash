@@ -154,6 +154,7 @@ export const ListViewOptions: React.FC<IListViewOptionsProps> = ({
         anchorEl={anchorEl}
         onClose={handleClose}
         disableScrollLock
+        hideBackdrop
         anchorOrigin={{
           vertical: "bottom",
           horizontal: "left",

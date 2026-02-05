@@ -313,17 +313,61 @@
 
 // Scene toolbar with rating, counters, and operations
 .scene-toolbar {
-    align-items: center;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     display: flex;
-    justify-content: space-between;
+    flex-direction: column;
+    gap: 0.75rem;
     margin-bottom: 0.5rem;
     margin-top: 0.5rem;
-    padding-bottom: 0.25rem;
+    padding-bottom: 0.75rem;
     width: 100%;
 }
 
-// Grouped toolbar items
+// Toolbar row container
+.scene-toolbar-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    width: 100%;
+
+    @include media-breakpoint-down(sm) {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+}
+
+// Rating section - grows to fill available space
+.scene-toolbar-rating {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+
+    @include media-breakpoint-down(sm) {
+        width: 100%;
+    }
+}
+
+// Counter buttons section
+.scene-toolbar-counters {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+// Action buttons section
+.scene-toolbar-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    width: 100%;
+}
+
+// Grouped toolbar items (legacy support)
 .scene-toolbar-group {
     align-items: center;
     display: flex;

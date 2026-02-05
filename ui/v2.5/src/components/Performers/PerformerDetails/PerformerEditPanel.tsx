@@ -95,6 +95,7 @@ export const PerformerEditPanel: React.FC<IPerformerDetails> = ({
   const [scraperMenuAnchor, setScraperMenuAnchor] = useState<null | HTMLElement>(
     null
   );
+  const scraperMenuRef = React.useRef<HTMLDivElement>(null);
 
   const openScraperMenu = (event: React.MouseEvent<HTMLElement>) => {
     setScraperMenuAnchor(event.currentTarget);
@@ -103,6 +104,27 @@ export const PerformerEditPanel: React.FC<IPerformerDetails> = ({
   const closeScraperMenu = () => {
     setScraperMenuAnchor(null);
   };
+
+  // Manual click-away detection for scraper menu
+  React.useEffect(() => {
+    if (!scraperMenuAnchor) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      const menuPaper = scraperMenuRef.current;
+      const isClickOnMenu = menuPaper && menuPaper.contains(target);
+      const isClickOnAnchor = scraperMenuAnchor && scraperMenuAnchor.contains(target);
+
+      if (!isClickOnMenu && !isClickOnAnchor) {
+        closeScraperMenu();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [scraperMenuAnchor]);
 
   // Network state
   const [isLoading, setIsLoading] = useState(false);
@@ -510,6 +532,17 @@ export const PerformerEditPanel: React.FC<IPerformerDetails> = ({
           keepMounted
           open={Boolean(scraperMenuAnchor)}
           onClose={closeScraperMenu}
+          hideBackdrop
+          slotProps={{
+            root: {
+              sx: { pointerEvents: 'none' },
+              onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
+            },
+            paper: {
+              ref: scraperMenuRef,
+              sx: { pointerEvents: 'auto' }
+            }
+          }}
         >
           {stashBoxes.map((s, index) => (
             <MenuItem

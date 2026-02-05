@@ -72,6 +72,7 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
   const [activeTabKey, setActiveTabKey] = useState("gallery-details-panel");
   const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
   const menuOpen = Boolean(menuAnchorEl);
+  const operationsMenuRef = React.useRef<HTMLDivElement>(null);
 
   const handleMenuClick = (event: React.MouseEvent<HTMLElement>) => {
     setMenuAnchorEl(event.currentTarget);
@@ -80,6 +81,27 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
   const handleMenuClose = () => {
     setMenuAnchorEl(null);
   };
+
+  // Manual click-away detection for operations menu
+  React.useEffect(() => {
+    if (!menuOpen) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      const menuPaper = operationsMenuRef.current;
+      const isClickOnMenu = menuPaper && menuPaper.contains(target);
+      const isClickOnAnchor = menuAnchorEl && menuAnchorEl.contains(target);
+
+      if (!isClickOnMenu && !isClickOnAnchor) {
+        handleMenuClose();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [menuOpen, menuAnchorEl]);
 
   const setMainTabKey = (newTabKey: string | null) => {
     if (newTabKey === "add") {
@@ -224,11 +246,18 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
           open={menuOpen}
           onClose={handleMenuClose}
           disableScrollLock
+          hideBackdrop
           slotProps={{
+            root: {
+              sx: { pointerEvents: 'none' },
+              onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
+            },
             paper: {
+              ref: operationsMenuRef,
               sx: {
                 bgcolor: "background.paper",
                 color: "text.primary",
+                pointerEvents: 'auto'
               },
             },
           }}
@@ -257,7 +286,7 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
               handleMenuClose();
             }}
           >
-            {`${intl.formatMessage({ id: "actions.generate" })}\u2026`}
+            <FormattedMessage id="actions.generate" />
           </MenuItem>
           <MenuItem
             onClick={() => {

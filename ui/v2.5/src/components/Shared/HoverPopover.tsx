@@ -107,6 +107,7 @@ export const HoverPopover: React.FC<IHoverPopover> = PatchComponent(
           anchorOrigin={anchorOrigin}
           transformOrigin={transformOrigin}
           disableRestoreFocus
+          hideBackdrop
           sx={{ 
             pointerEvents: 'none',
             '& .MuiPopover-paper': {

@@ -113,6 +113,7 @@ const HistoryMenu: React.FC<{
           anchorEl={anchorEl}
           open={open}
           onClose={handleClose}
+          hideBackdrop
           MenuListProps={{
             'aria-labelledby': 'history-button',
           }}

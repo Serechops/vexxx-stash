@@ -185,6 +185,7 @@ export const ParserInput: React.FC<IParserInputProps> = (
             anchorEl={fieldAnchorEl}
             open={Boolean(fieldAnchorEl)}
             onClose={() => setFieldAnchorEl(null)}
+            hideBackdrop
           >
             {validFields.map((item) => (
               <MenuItem key={item.field} onClick={() => addParserField(item)}>
@@ -302,6 +303,7 @@ export const ParserInput: React.FC<IParserInputProps> = (
           anchorEl={recipeAnchorEl}
           open={Boolean(recipeAnchorEl)}
           onClose={() => setRecipeAnchorEl(null)}
+          hideBackdrop
         >
           {builtInRecipes.map((item) => (
             <MenuItem key={item.pattern} onClick={() => setParserRecipe(item)}>

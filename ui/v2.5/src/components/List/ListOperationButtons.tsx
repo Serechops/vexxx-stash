@@ -41,6 +41,7 @@ export const OperationDropdown: React.FC<
       open={open}
       onClose={handleClose}
       onClick={handleClose}
+      hideBackdrop
       slotProps={{
         paper: {
           sx: {

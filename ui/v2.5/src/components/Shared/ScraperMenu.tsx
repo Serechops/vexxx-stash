@@ -26,6 +26,7 @@ export const ScraperMenu: React.FC<{
     const [filter, setFilter] = useState("");
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
     const open = Boolean(anchorEl);
+    const menuRef = React.useRef<HTMLDivElement>(null);
 
     const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
       setAnchorEl(event.currentTarget);
@@ -34,6 +35,27 @@ export const ScraperMenu: React.FC<{
     const handleClose = () => {
       setAnchorEl(null);
     };
+
+    // Manual click-away detection
+    React.useEffect(() => {
+      if (!open) return;
+
+      const handleClickOutside = (event: MouseEvent) => {
+        const target = event.target as Node;
+        const menuPaper = menuRef.current;
+        const isClickOnMenu = menuPaper && menuPaper.contains(target);
+        const isClickOnAnchor = anchorEl && anchorEl.contains(target);
+
+        if (!isClickOnMenu && !isClickOnAnchor) {
+          handleClose();
+        }
+      };
+
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }, [open, anchorEl]);
 
     const filteredStashboxes = useMemo(() => {
       if (!stashBoxes) return [];
@@ -71,6 +93,17 @@ export const ScraperMenu: React.FC<{
           open={open}
           onClose={handleClose}
           disableScrollLock
+          hideBackdrop
+          slotProps={{
+            root: {
+              sx: { pointerEvents: 'none' },
+              onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
+            },
+            paper: {
+              ref: menuRef,
+              sx: { pointerEvents: 'auto' }
+            }
+          }}
         >
           <Box className="scraper-filter-container" sx={{ p: 1, display: 'flex', gap: 1 }}>
             <ClearableInput

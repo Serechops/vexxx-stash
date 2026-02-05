@@ -612,7 +612,7 @@ export const FilteredSceneList = (props: IFilteredScenes) => {
       isDisplayed: () => totalCount > 1,
     },
     {
-      text: `${intl.formatMessage({ id: "actions.generate" })}…`,
+      text: intl.formatMessage({ id: "actions.generate" }),
       onClick: async () =>
         showModal(
           <GenerateDialog

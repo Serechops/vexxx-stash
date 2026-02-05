@@ -288,6 +288,7 @@ export const Tagger: React.FC<ITaggerProps> = ({ scenes, queue }) => {
           anchorEl={massActionsAnchorEl}
           open={Boolean(massActionsAnchorEl)}
           onClose={() => setMassActionsAnchorEl(null)}
+          hideBackdrop
         >
           <MenuItem onClick={() => { doMassCreateTags(); setMassActionsAnchorEl(null); }} disabled={pendingTagsCount === 0}>
             Create All Tags ({pendingTagsCount})

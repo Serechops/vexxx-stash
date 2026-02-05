@@ -172,6 +172,7 @@ const PlaylistCard: React.FC<IPlaylistCardProps> = ({ playlist, onDelete }) => {
         open={Boolean(anchorEl)}
         onClose={handleMenuClose}
         onClick={(e) => e.stopPropagation()}
+        hideBackdrop
       >
         <MenuItem onClick={handleEdit}>
           <Icon icon={faEdit} className="mr-2" />

@@ -89,7 +89,17 @@ export const RatingBar = PatchComponent(
 
         const rect = barRef.current.getBoundingClientRect();
         const x = clientX - rect.left;
-        const ratio = Math.max(0, Math.min(1, x / rect.width));
+        let ratio = Math.max(0, Math.min(1, x / rect.width));
+
+        // Extend clickable area slightly beyond the bar for easier max value selection
+        // If within 5% of the end, snap to max
+        if (ratio > 0.95) {
+          ratio = 1.0;
+        }
+        // If within 2% of the start, snap to min
+        if (ratio < 0.02 && ratio > 0) {
+          ratio = minValue / maxValue;
+        }
 
         // Map 0-1 ratio to 0-maxValue, then round to step
         const rawValue = ratio * maxValue;
@@ -112,6 +122,7 @@ export const RatingBar = PatchComponent(
       },
       [
         maxValue,
+        minValue,
         step,
         currentDisplayValue,
         onSetRating,

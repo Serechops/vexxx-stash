@@ -37,6 +37,7 @@ export const ImageInput: React.FC<IImageInput> = PatchComponent(
     const [isShowDialog, setIsShowDialog] = useState(false);
     const [url, setURL] = useState("");
     const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
+    const popoverRef = React.useRef<HTMLDivElement>(null);
 
     const intl = useIntl();
 
@@ -84,6 +85,27 @@ export const ImageInput: React.FC<IImageInput> = PatchComponent(
 
     const open = Boolean(anchorEl);
     const id = open ? "set-image-popover" : undefined;
+
+    // Manual click-away detection
+    React.useEffect(() => {
+      if (!open) return;
+
+      const handleClickOutside = (event: MouseEvent) => {
+        const target = event.target as Node;
+        const popoverPaper = popoverRef.current;
+        const isClickOnPopover = popoverPaper && popoverPaper.contains(target);
+        const isClickOnAnchor = anchorEl && anchorEl.contains(target);
+
+        if (!isClickOnPopover && !isClickOnAnchor) {
+          handleClose();
+        }
+      };
+
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }, [open, anchorEl]);
 
     function renderDialog() {
       return (
@@ -172,6 +194,17 @@ export const ImageInput: React.FC<IImageInput> = PatchComponent(
           open={open}
           anchorEl={anchorEl}
           onClose={handleClose}
+          hideBackdrop
+          slotProps={{
+            root: {
+              sx: { pointerEvents: 'none' },
+              onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
+            },
+            paper: {
+              ref: popoverRef,
+              sx: { pointerEvents: 'auto' }
+            }
+          }}
           anchorOrigin={{
             vertical: "bottom",
             horizontal: "left",

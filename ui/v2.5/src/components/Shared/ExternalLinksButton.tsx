@@ -56,6 +56,7 @@ export const ExternalLinksButton: React.FC<{
             open={open}
             onClose={handleClose}
             className="external-links-button"
+            hideBackdrop
           >
             {urls.map((url) => (
               <MenuItem

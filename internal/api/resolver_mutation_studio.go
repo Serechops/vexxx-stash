@@ -10,7 +10,6 @@ import (
 	"github.com/stashapp/stash/pkg/plugin/hook"
 	"github.com/stashapp/stash/pkg/sliceutil/stringslice"
 	"github.com/stashapp/stash/pkg/studio"
-	"github.com/stashapp/stash/pkg/utils"
 )
 
 // used to refetch studio after hooks run
@@ -66,7 +65,7 @@ func (r *mutationResolver) StudioCreate(ctx context.Context, input models.Studio
 	var imageData []byte
 	if input.Image != nil {
 		var err error
-		imageData, err = utils.ProcessImageInput(ctx, *input.Image)
+		imageData, err = r.processLocalOrRemoteImage(ctx, *input.Image)
 		if err != nil {
 			return nil, fmt.Errorf("processing image: %w", err)
 		}
@@ -143,7 +142,7 @@ func (r *mutationResolver) StudiosCreate(ctx context.Context, input []*models.St
 		var imageData []byte
 		if i.Image != nil {
 			var err error
-			imageData, err = utils.ProcessImageInput(ctx, *i.Image)
+			imageData, err = r.processLocalOrRemoteImage(ctx, *i.Image)
 			if err != nil {
 				return nil, fmt.Errorf("processing image: %w", err)
 			}
@@ -265,7 +264,7 @@ func (r *mutationResolver) StudioUpdate(ctx context.Context, input models.Studio
 	imageIncluded := translator.hasField("image")
 	if input.Image != nil {
 		var err error
-		imageData, err = utils.ProcessImageInput(ctx, *input.Image)
+		imageData, err = r.processLocalOrRemoteImage(ctx, *input.Image)
 		if err != nil {
 			return nil, fmt.Errorf("processing image: %w", err)
 		}

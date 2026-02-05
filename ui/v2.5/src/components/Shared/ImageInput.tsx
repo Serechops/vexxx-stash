@@ -66,12 +66,37 @@ export const ImageInput: React.FC<IImageInput> = PatchComponent(
       setAnchorEl(null);
     }
 
-    function onConfirmURL() {
+    async function onConfirmURL() {
       if (!onImageURL) {
         return;
       }
 
       setIsShowDialog(false);
+
+      // If the URL points back to this Stash instance, fetch client-side
+      // (browser has auth cookies) and convert to a data URI. This avoids
+      // the backend making an unauthenticated HTTP request to itself, which
+      // fails when authentication is enabled. (stashapp/stash#5538)
+      try {
+        const inputUrl = new URL(url, window.location.origin);
+        if (inputUrl.origin === window.location.origin) {
+          const response = await fetch(url);
+          if (response.ok) {
+            const blob = await response.blob();
+            const dataUri = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result as string);
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+            });
+            onImageURL(dataUri);
+            return;
+          }
+        }
+      } catch {
+        // not a valid URL or fetch failed — fall through to pass as-is
+      }
+
       onImageURL(url);
     }
 

@@ -72,7 +72,7 @@ func (r *mutationResolver) GroupCreate(ctx context.Context, input GroupCreateInp
 	// Process the base 64 encoded image string
 	var frontimageData []byte
 	if input.FrontImage != nil {
-		frontimageData, err = utils.ProcessImageInput(ctx, *input.FrontImage)
+		frontimageData, err = r.processLocalOrRemoteImage(ctx, *input.FrontImage)
 		if err != nil {
 			return nil, fmt.Errorf("processing front image: %w", err)
 		}
@@ -81,7 +81,7 @@ func (r *mutationResolver) GroupCreate(ctx context.Context, input GroupCreateInp
 	// Process the base 64 encoded image string
 	var backimageData []byte
 	if input.BackImage != nil {
-		backimageData, err = utils.ProcessImageInput(ctx, *input.BackImage)
+		backimageData, err = r.processLocalOrRemoteImage(ctx, *input.BackImage)
 		if err != nil {
 			return nil, fmt.Errorf("processing back image: %w", err)
 		}
@@ -186,7 +186,7 @@ func (r *mutationResolver) GroupUpdate(ctx context.Context, input GroupUpdateInp
 	var frontimageData []byte
 	frontImageIncluded := translator.hasField("front_image")
 	if input.FrontImage != nil {
-		frontimageData, err = utils.ProcessImageInput(ctx, *input.FrontImage)
+		frontimageData, err = r.processLocalOrRemoteImage(ctx, *input.FrontImage)
 		if err != nil {
 			return nil, fmt.Errorf("processing front image: %w", err)
 		}
@@ -195,7 +195,7 @@ func (r *mutationResolver) GroupUpdate(ctx context.Context, input GroupUpdateInp
 	var backimageData []byte
 	backImageIncluded := translator.hasField("back_image")
 	if input.BackImage != nil {
-		backimageData, err = utils.ProcessImageInput(ctx, *input.BackImage)
+		backimageData, err = r.processLocalOrRemoteImage(ctx, *input.BackImage)
 		if err != nil {
 			return nil, fmt.Errorf("processing back image: %w", err)
 		}

@@ -104,7 +104,7 @@ func (r *mutationResolver) SceneCreate(ctx context.Context, input models.SceneCr
 	var coverImageData []byte
 	if input.CoverImage != nil {
 		var err error
-		coverImageData, err = utils.ProcessImageInput(ctx, *input.CoverImage)
+		coverImageData, err = r.processLocalOrRemoteImage(ctx, *input.CoverImage)
 		if err != nil {
 			return nil, fmt.Errorf("processing cover image: %w", err)
 		}
@@ -367,7 +367,7 @@ func (r *mutationResolver) sceneUpdate(ctx context.Context, input models.SceneUp
 	coverImageIncluded := translator.hasField("cover_image")
 	if input.CoverImage != nil {
 		var err error
-		coverImageData, err = utils.ProcessImageInput(ctx, *input.CoverImage)
+		coverImageData, err = r.processLocalOrRemoteImage(ctx, *input.CoverImage)
 		if err != nil {
 			return nil, fmt.Errorf("processing cover image: %w", err)
 		}
@@ -655,7 +655,7 @@ func (r *mutationResolver) SceneMerge(ctx context.Context, input SceneMergeInput
 
 		if input.Values.CoverImage != nil {
 			var err error
-			coverImageData, err = utils.ProcessImageInput(ctx, *input.Values.CoverImage)
+			coverImageData, err = r.processLocalOrRemoteImage(ctx, *input.Values.CoverImage)
 			if err != nil {
 				return nil, fmt.Errorf("processing cover image: %w", err)
 			}

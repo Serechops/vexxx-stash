@@ -10,7 +10,6 @@ import (
 	"github.com/stashapp/stash/pkg/models"
 	"github.com/stashapp/stash/pkg/plugin/hook"
 	"github.com/stashapp/stash/pkg/sliceutil/stringslice"
-	"github.com/stashapp/stash/pkg/utils"
 )
 
 // used to refetch group after hooks run
@@ -65,7 +64,7 @@ func (r *mutationResolver) MovieCreate(ctx context.Context, input MovieCreateInp
 	// Process the base 64 encoded image string
 	var frontimageData []byte
 	if input.FrontImage != nil {
-		frontimageData, err = utils.ProcessImageInput(ctx, *input.FrontImage)
+		frontimageData, err = r.processLocalOrRemoteImage(ctx, *input.FrontImage)
 		if err != nil {
 			return nil, fmt.Errorf("processing front image: %w", err)
 		}
@@ -74,7 +73,7 @@ func (r *mutationResolver) MovieCreate(ctx context.Context, input MovieCreateInp
 	// Process the base 64 encoded image string
 	var backimageData []byte
 	if input.BackImage != nil {
-		backimageData, err = utils.ProcessImageInput(ctx, *input.BackImage)
+		backimageData, err = r.processLocalOrRemoteImage(ctx, *input.BackImage)
 		if err != nil {
 			return nil, fmt.Errorf("processing back image: %w", err)
 		}
@@ -158,7 +157,7 @@ func (r *mutationResolver) MovieUpdate(ctx context.Context, input MovieUpdateInp
 	var frontimageData []byte
 	frontImageIncluded := translator.hasField("front_image")
 	if input.FrontImage != nil {
-		frontimageData, err = utils.ProcessImageInput(ctx, *input.FrontImage)
+		frontimageData, err = r.processLocalOrRemoteImage(ctx, *input.FrontImage)
 		if err != nil {
 			return nil, fmt.Errorf("processing front image: %w", err)
 		}
@@ -167,7 +166,7 @@ func (r *mutationResolver) MovieUpdate(ctx context.Context, input MovieUpdateInp
 	var backimageData []byte
 	backImageIncluded := translator.hasField("back_image")
 	if input.BackImage != nil {
-		backimageData, err = utils.ProcessImageInput(ctx, *input.BackImage)
+		backimageData, err = r.processLocalOrRemoteImage(ctx, *input.BackImage)
 		if err != nil {
 			return nil, fmt.Errorf("processing back image: %w", err)
 		}

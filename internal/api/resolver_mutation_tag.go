@@ -11,7 +11,6 @@ import (
 	"github.com/stashapp/stash/pkg/plugin/hook"
 	"github.com/stashapp/stash/pkg/sliceutil/stringslice"
 	"github.com/stashapp/stash/pkg/tag"
-	"github.com/stashapp/stash/pkg/utils"
 )
 
 func (r *mutationResolver) getTag(ctx context.Context, id int) (ret *models.Tag, err error) {
@@ -63,7 +62,7 @@ func (r *mutationResolver) TagCreate(ctx context.Context, input TagCreateInput) 
 	// Process the base 64 encoded image string
 	var imageData []byte
 	if input.Image != nil {
-		imageData, err = utils.ProcessImageInput(ctx, *input.Image)
+		imageData, err = r.processLocalOrRemoteImage(ctx, *input.Image)
 		if err != nil {
 			return nil, fmt.Errorf("processing image: %w", err)
 		}
@@ -142,7 +141,7 @@ func (r *mutationResolver) TagsCreate(ctx context.Context, input []*TagCreateInp
 		}
 
 		if i.Image != nil {
-			d.imageData, err = utils.ProcessImageInput(ctx, *i.Image)
+			d.imageData, err = r.processLocalOrRemoteImage(ctx, *i.Image)
 			if err != nil {
 				return nil, fmt.Errorf("processing image for tag %s: %w", d.newTag.Name, err)
 			}
@@ -246,7 +245,7 @@ func (r *mutationResolver) TagUpdate(ctx context.Context, input TagUpdateInput) 
 	var imageData []byte
 	imageIncluded := translator.hasField("image")
 	if input.Image != nil {
-		imageData, err = utils.ProcessImageInput(ctx, *input.Image)
+		imageData, err = r.processLocalOrRemoteImage(ctx, *input.Image)
 		if err != nil {
 			return nil, fmt.Errorf("processing image: %w", err)
 		}

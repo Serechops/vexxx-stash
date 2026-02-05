@@ -104,10 +104,10 @@ type tagRepositoryType struct {
 	aliases  stringRepository
 	stashIDs stashIDRepository
 
-	scenes    joinRepository
-	images    joinRepository
-	galleries joinRepository
-	studios   joinRepository
+	scenes     joinRepository
+	images     joinRepository
+	galleries  joinRepository
+	performers joinRepository
 }
 
 var (
@@ -153,13 +153,13 @@ var (
 			fkColumn:     galleryIDColumn,
 			foreignTable: galleryTable,
 		},
-		studios: joinRepository{
+		performers: joinRepository{
 			repository: repository{
-				tableName: studiosTagsTable,
+				tableName: performersTagsTable,
 				idColumn:  tagIDColumn,
 			},
-			fkColumn:     studioIDColumn,
-			foreignTable: studioTable,
+			fkColumn:     performerIDColumn,
+			foreignTable: performerTable,
 		},
 	}
 )

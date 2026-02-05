@@ -129,11 +129,11 @@ func (qb *tagFilterHandler) criterionHandler() criterionHandler {
 		},
 
 		&relatedFilterHandler{
-			relatedIDCol:   "studios_tags.studio_id",
-			relatedRepo:    studioRepository.repository,
-			relatedHandler: &studioFilterHandler{tagFilter.StudiosFilter},
+			relatedIDCol:   "performers_tags.performer_id",
+			relatedRepo:    performerRepository.repository,
+			relatedHandler: &performerFilterHandler{tagFilter.PerformersFilter},
 			joinFn: func(f *filterBuilder) {
-				tagRepository.studios.innerJoin(f, "", "tags.id")
+				tagRepository.performers.innerJoin(f, "", "tags.id")
 			},
 		},
 	}

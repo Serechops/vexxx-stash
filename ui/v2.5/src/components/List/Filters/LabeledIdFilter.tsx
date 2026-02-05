@@ -518,8 +518,8 @@ export function makeQueryVariables(query: string, extraProps: {}) {
 interface IFilterType {
   scenes_filter?: InputMaybe<SceneFilterType>;
   scene_count?: InputMaybe<IntCriterionInput>;
-  performer_count?: InputMaybe<IntCriterionInput>;
   performers_filter?: InputMaybe<PerformerFilterType>;
+  performer_count?: InputMaybe<IntCriterionInput>;
   galleries_filter?: InputMaybe<GalleryFilterType>;
   gallery_count?: InputMaybe<IntCriterionInput>;
   studios_filter?: InputMaybe<StudioFilterType>;
@@ -529,11 +529,7 @@ interface IFilterType {
 export function setObjectFilter(
   out: IFilterType,
   mode: FilterMode,
-  relatedFilterOutput:
-    | SceneFilterType
-    | PerformerFilterType
-    | GalleryFilterType
-    | StudioFilterType
+  relatedFilterOutput: SceneFilterType | PerformerFilterType | GalleryFilterType
 ) {
   const empty = Object.keys(relatedFilterOutput).length === 0;
 
@@ -567,16 +563,6 @@ export function setObjectFilter(
         };
       }
       out.galleries_filter = relatedFilterOutput as GalleryFilterType;
-      break;
-    case FilterMode.Studios:
-      // if empty, only get objects with studios
-      if (empty) {
-        out.studio_count = {
-          modifier: CriterionModifier.GreaterThan,
-          value: 0,
-        };
-      }
-      out.studios_filter = relatedFilterOutput as StudioFilterType;
       break;
     default:
       throw new Error("Invalid filter mode");

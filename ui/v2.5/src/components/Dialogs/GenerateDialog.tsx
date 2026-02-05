@@ -18,7 +18,7 @@ interface ISceneGenerateDialog {
   selectedIds?: string[];
   initialOptions?: Partial<GQL.GenerateMetadataInput>;
   onClose: () => void;
-  type: "scene"; // TODO - add image generate
+  type: "scene" | "image";
 }
 
 export const GenerateDialog: React.FC<ISceneGenerateDialog> = ({
@@ -27,6 +27,9 @@ export const GenerateDialog: React.FC<ISceneGenerateDialog> = ({
   onClose,
   type,
 }) => {
+  const sceneIDs = type === "scene" ? selectedIds : undefined;
+  const imageIDs = type === "image" ? selectedIds : undefined;
+
   const { configuration } = useConfigurationContext();
 
   function getDefaultOptions(): GQL.GenerateMetadataInput {
@@ -146,7 +149,8 @@ export const GenerateDialog: React.FC<ISceneGenerateDialog> = ({
     try {
       await mutateMetadataGenerate({
         ...options,
-        sceneIDs: selectedIds,
+        sceneIDs,
+        imageIDs,
       });
       Toast.success(
         intl.formatMessage(

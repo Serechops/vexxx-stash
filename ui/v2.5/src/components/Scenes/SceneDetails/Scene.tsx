@@ -508,7 +508,7 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
             handleOperationsClose();
           }}
         >
-          <FormattedMessage id="actions.generate" />
+          <FormattedMessage id="actions.generate" />\u2026
         </MenuItem>
         <MenuItem
           onClick={() => {

@@ -69,6 +69,13 @@ export const ScanOptions: React.FC<IScanOptions> = ({
         onChange={(v) => setOptions({ scanGenerateThumbnails: v })}
       />
       <BooleanSetting
+        id="scan-generate-image-phashes"
+        checked={options.scanGenerateImagePhashes ?? false}
+        headingID="config.tasks.generate_image_phashes_during_scan"
+        tooltipID="config.tasks.generate_image_phashes_during_scan_tooltip"
+        onChange={(v) => setOptions({ scanGenerateImagePhashes: v })}
+      />
+      <BooleanSetting
         id={`${keyPrefix}scan-generate-clip-previews`}
         checked={options.scanGenerateClipPreviews ?? false}
         headingID="config.tasks.generate_clip_previews_during_scan"

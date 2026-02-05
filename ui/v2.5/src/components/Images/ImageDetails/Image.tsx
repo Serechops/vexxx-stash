@@ -35,6 +35,7 @@ import cx from "classnames";
 import { TruncatedText } from "src/components/Shared/TruncatedText";
 import { goBackOrReplace } from "src/utils/history";
 import { FormattedDate } from "src/components/Shared/Date";
+import { GenerateDialog } from "src/components/Dialogs/GenerateDialog";
 
 interface IProps {
   image: GQL.ImageDataFragment;
@@ -61,6 +62,7 @@ const ImagePage: React.FC<IProps> = ({ image }) => {
   const [activeTabKey, setActiveTabKey] = useState(0);
 
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState<boolean>(false);
+  const [isGenerateDialogOpen, setIsGenerateDialogOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const menuOpen = Boolean(anchorEl);
 
@@ -171,6 +173,20 @@ const ImagePage: React.FC<IProps> = ({ image }) => {
     }
   }
 
+  function maybeRenderGenerateDialog() {
+    if (isGenerateDialogOpen) {
+      return (
+        <GenerateDialog
+          selectedIds={[image.id]}
+          onClose={() => {
+            setIsGenerateDialogOpen(false);
+          }}
+          type="image"
+        />
+      );
+    }
+  }
+
   function renderOperations() {
     return (
       <>
@@ -194,6 +210,14 @@ const ImagePage: React.FC<IProps> = ({ image }) => {
             }}
           >
             <FormattedMessage id="actions.rescan" />
+          </MenuItem>
+          <MenuItem
+            onClick={() => {
+              setIsGenerateDialogOpen(true);
+              setAnchorEl(null);
+            }}
+          >
+            <FormattedMessage id="actions.generate" />…
           </MenuItem>
           <MenuItem
             onClick={() => {
@@ -313,6 +337,7 @@ const ImagePage: React.FC<IProps> = ({ image }) => {
       </Helmet>
 
       {maybeRenderDeleteDialog()}
+      {maybeRenderGenerateDialog()}
       <Box
         className="image-tabs"
         sx={{

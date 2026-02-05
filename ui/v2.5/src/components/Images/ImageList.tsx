@@ -28,6 +28,7 @@ import { View } from "../List/views";
 import { IItemListOperation, FilteredListToolbar } from "../List/FilteredListToolbar";
 import { FileSize } from "../Shared/FileSize";
 import { PatchComponent } from "src/patch";
+import { GenerateDialog } from "../Dialogs/GenerateDialog";
 import { FilterTags } from "../List/FilterTags";
 import { PagedList } from "../List/PagedList";
 import { useFilterOperations } from "../List/util";
@@ -552,11 +553,37 @@ export const ImageList: React.FC<IImageList> = PatchComponent(
       }
     }
 
-    const otherOperations = [
+    const otherOperations: IItemListOperation<GQL.FindImagesQueryResult>[] = [
       ...extraOperations,
       {
         text: intl.formatMessage({ id: "actions.view_random" }),
         onClick: viewRandom,
+      },
+      {        text: `${intl.formatMessage({ id: "actions.generate" })}\u2026`,
+        onClick: (result, filter, selectedIds) => {
+          showModal(
+            <GenerateDialog
+              type="image"
+              selectedIds={Array.from(selectedIds.values())}
+              onClose={() => closeModal()}
+            />
+          );
+          return Promise.resolve();
+        },
+        isDisplayed: showWhenSelected,
+      },
+      {        text: `${intl.formatMessage({ id: "actions.generate" })}\u2026`,
+        onClick: (result, filter, selectedIds) => {
+          showModal(
+            <GenerateDialog
+              type="image"
+              selectedIds={Array.from(selectedIds.values())}
+              onClose={() => closeModal()}
+            />
+          );
+          return Promise.resolve();
+        },
+        isDisplayed: showWhenSelected,
       },
       {
         text: intl.formatMessage({ id: "actions.export" }),

@@ -18,6 +18,8 @@ import { SmartGalleryCardGrid } from "./VirtualizedGalleryCardGrid";
 import { View } from "../List/views";
 import { PatchComponent } from "src/patch";
 import { IItemListOperation } from "../List/FilteredListToolbar";
+import { GenerateDialog } from "../Dialogs/GenerateDialog";
+import { useModal } from "src/hooks/modal";
 
 function getItems(result: GQL.FindGalleriesQueryResult) {
   return result?.data?.findGalleries?.galleries ?? [];
@@ -41,6 +43,7 @@ export const GalleryList: React.FC<IGalleryList> = PatchComponent(
     const history = useHistory();
     const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
     const [isExportAll, setIsExportAll] = useState(false);
+    const { showModal, closeModal } = useModal();
 
     const [isMasonry, setIsMasonry] = useState(true);
 
@@ -55,6 +58,20 @@ export const GalleryList: React.FC<IGalleryList> = PatchComponent(
       {
         text: intl.formatMessage({ id: "actions.view_random" }),
         onClick: viewRandom,
+      },
+      {
+        text: `${intl.formatMessage({ id: "actions.generate" })}\u2026`,
+        onClick: (result, filter, selectedIds) => {
+          showModal(
+            <GenerateDialog
+              type="gallery"
+              selectedIds={Array.from(selectedIds.values())}
+              onClose={() => closeModal()}
+            />
+          );
+          return Promise.resolve();
+        },
+        isDisplayed: showWhenSelected,
       },
       {
         text: intl.formatMessage({ id: "actions.export" }),

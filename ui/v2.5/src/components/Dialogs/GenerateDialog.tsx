@@ -18,7 +18,7 @@ interface ISceneGenerateDialog {
   selectedIds?: string[];
   initialOptions?: Partial<GQL.GenerateMetadataInput>;
   onClose: () => void;
-  type: "scene" | "image";
+  type: "scene" | "image" | "gallery";
 }
 
 export const GenerateDialog: React.FC<ISceneGenerateDialog> = ({
@@ -29,6 +29,7 @@ export const GenerateDialog: React.FC<ISceneGenerateDialog> = ({
 }) => {
   const sceneIDs = type === "scene" ? selectedIds : undefined;
   const imageIDs = type === "image" ? selectedIds : undefined;
+  const galleryIDs = type === "gallery" ? selectedIds : undefined;
 
   const { configuration } = useConfigurationContext();
 
@@ -97,6 +98,13 @@ export const GenerateDialog: React.FC<ISceneGenerateDialog> = ({
   }, [configuration, configRead]);
 
   const selectionStatus = useMemo(() => {
+    const countableIds: Record<typeof type, string> = {
+      scene: "countables.scenes",
+      image: "countables.images",
+      gallery: "countables.galleries",
+    };
+    const countableId = countableIds[type];
+
     if (selectedIds) {
       return (
         <Box id="selected-generate-ids" sx={{ mb: 2 }}>
@@ -126,7 +134,7 @@ export const GenerateDialog: React.FC<ISceneGenerateDialog> = ({
             num: intl.formatMessage({ id: "all" }),
             scene: intl.formatMessage(
               {
-                id: "countables.scenes",
+                id: countableId,
               },
               {
                 count: 0,
@@ -143,7 +151,7 @@ export const GenerateDialog: React.FC<ISceneGenerateDialog> = ({
         <div>{message}</div>
       </Box>
     );
-  }, [selectedIds, intl]);
+  }, [selectedIds, intl, type]);
 
   async function onGenerate() {
     try {
@@ -151,6 +159,7 @@ export const GenerateDialog: React.FC<ISceneGenerateDialog> = ({
         ...options,
         sceneIDs,
         imageIDs,
+        galleryIDs,
       });
       Toast.success(
         intl.formatMessage(

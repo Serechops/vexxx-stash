@@ -41,6 +41,11 @@ import { useScrollToTopOnMount } from "src/hooks/scrollToTop";
 import { RatingSystem } from "src/components/Shared/Rating/RatingSystem";
 import cx from "classnames";
 import { useRatingKeybinds } from "src/hooks/keybinds";
+import { lazyComponent } from "src/utils/lazyComponent";
+
+const GenerateDialog = lazyComponent(
+  () => import("../../Dialogs/GenerateDialog")
+);
 import { useConfigurationContext } from "src/hooks/Config";
 import { TruncatedText } from "src/components/Shared/TruncatedText";
 import { goBackOrReplace } from "src/utils/history";
@@ -171,6 +176,7 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
   }
 
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState<boolean>(false);
+  const [isGenerateDialogOpen, setIsGenerateDialogOpen] = useState(false);
 
   function onDeleteDialogClosed(deleted: boolean) {
     setIsDeleteAlertOpen(false);
@@ -185,6 +191,18 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
         <DeleteGalleriesDialog
           selected={[{ ...gallery, image_count: NaN }]}
           onClose={onDeleteDialogClosed}
+        />
+      );
+    }
+  }
+
+  function maybeRenderGenerateDialog() {
+    if (isGenerateDialogOpen) {
+      return (
+        <GenerateDialog
+          selectedIds={[gallery.id]}
+          onClose={() => setIsGenerateDialogOpen(false)}
+          type="gallery"
         />
       );
     }
@@ -232,6 +250,14 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
             }}
           >
             <FormattedMessage id="actions.reset_cover" />
+          </MenuItem>
+          <MenuItem
+            onClick={() => {
+              setIsGenerateDialogOpen(true);
+              handleMenuClose();
+            }}
+          >
+            {`${intl.formatMessage({ id: "actions.generate" })}\u2026`}
           </MenuItem>
           <MenuItem
             onClick={() => {
@@ -398,6 +424,7 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
         <title>{title}</title>
       </Helmet>
       {maybeRenderDeleteDialog()}
+      {maybeRenderGenerateDialog()}
       <Box className="gallery-tabs gallery-tabs-sidebar">
         <Box>
           <Box className="gallery-header-container">

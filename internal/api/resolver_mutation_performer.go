@@ -43,7 +43,7 @@ func (r *mutationResolver) PerformerCreate(ctx context.Context, input models.Per
 
 	newPerformer.Name = strings.TrimSpace(input.Name)
 	newPerformer.Disambiguation = translator.string(input.Disambiguation)
-	newPerformer.Aliases = models.NewRelatedStrings(stringslice.TrimSpace(input.AliasList))
+	newPerformer.Aliases = models.NewRelatedStrings(stringslice.UniqueExcludeFold(stringslice.TrimSpace(input.AliasList), newPerformer.Name))
 	newPerformer.Gender = input.Gender
 	newPerformer.Ethnicity = translator.string(input.Ethnicity)
 	newPerformer.Country = translator.string(input.Country)
@@ -424,6 +424,22 @@ func performerPartialFromInput(input models.PerformerUpdateInput, translator cha
 	// prefer alias_list over aliases
 	if translator.hasField("alias_list") {
 		updatedPerformer.Aliases = translator.updateStrings(input.AliasList, "alias_list")
+
+		// if name is changing and aliases are being updated, sanitize aliases
+		if translator.hasField("name") {
+			if updatedPerformer.Aliases != nil && updatedPerformer.Aliases.Mode == models.RelationshipUpdateModeSet {
+				// trim spaces from all aliases
+				trimmed := make([]string, len(updatedPerformer.Aliases.Values))
+				for i, v := range updatedPerformer.Aliases.Values {
+					trimmed[i] = strings.TrimSpace(v)
+				}
+
+				// apply UniqueExcludeFold with the new name
+				if updatedPerformer.Name.Set {
+					updatedPerformer.Aliases.Values = stringslice.UniqueExcludeFold(trimmed, updatedPerformer.Name.Value)
+				}
+			}
+		}
 	}
 
 	updatedPerformer.TagIDs, err = translator.updateIds(input.TagIds, "tag_ids")
@@ -563,6 +579,22 @@ func (r *mutationResolver) BulkPerformerUpdate(ctx context.Context, input BulkPe
 	// prefer alias_list over aliases
 	if translator.hasField("alias_list") {
 		updatedPerformer.Aliases = translator.updateStringsBulk(input.AliasList, "alias_list")
+
+		// if name is changing and aliases are being updated, sanitize aliases
+		if translator.hasField("name") {
+			if updatedPerformer.Aliases != nil && updatedPerformer.Aliases.Mode == models.RelationshipUpdateModeSet {
+				// trim spaces from all aliases
+				trimmed := make([]string, len(updatedPerformer.Aliases.Values))
+				for i, v := range updatedPerformer.Aliases.Values {
+					trimmed[i] = strings.TrimSpace(v)
+				}
+
+				// apply UniqueExcludeFold with the new name
+				if updatedPerformer.Name.Set {
+					updatedPerformer.Aliases.Values = stringslice.UniqueExcludeFold(trimmed, updatedPerformer.Name.Value)
+				}
+			}
+		}
 	}
 
 	updatedPerformer.TagIDs, err = translator.updateIdsBulk(input.TagIds, "tag_ids")

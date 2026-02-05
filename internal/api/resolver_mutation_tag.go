@@ -35,7 +35,7 @@ func (r *mutationResolver) TagCreate(ctx context.Context, input TagCreateInput) 
 
 	newTag.Name = strings.TrimSpace(input.Name)
 	newTag.SortName = translator.string(input.SortName)
-	newTag.Aliases = models.NewRelatedStrings(stringslice.TrimSpace(input.Aliases))
+	newTag.Aliases = models.NewRelatedStrings(stringslice.UniqueExcludeFold(stringslice.TrimSpace(input.Aliases), newTag.Name))
 	newTag.Favorite = translator.bool(input.Favorite)
 	newTag.Description = translator.string(input.Description)
 	newTag.IgnoreAutoTag = translator.bool(input.IgnoreAutoTag)
@@ -209,6 +209,22 @@ func (r *mutationResolver) TagUpdate(ctx context.Context, input TagUpdateInput) 
 
 	updatedTag.Aliases = translator.updateStrings(input.Aliases, "aliases")
 
+	// if name is changing and aliases are being updated, sanitize aliases
+	if translator.hasField("name") && translator.hasField("aliases") {
+		if updatedTag.Aliases != nil && updatedTag.Aliases.Mode == models.RelationshipUpdateModeSet {
+			// trim spaces from all aliases
+			trimmed := make([]string, len(updatedTag.Aliases.Values))
+			for i, v := range updatedTag.Aliases.Values {
+				trimmed[i] = strings.TrimSpace(v)
+			}
+
+			// apply UniqueExcludeFold with the new name
+			if updatedTag.Name.Set {
+				updatedTag.Aliases.Values = stringslice.UniqueExcludeFold(trimmed, updatedTag.Name.Value)
+			}
+		}
+	}
+
 	var updateStashIDInputs models.StashIDInputs
 	for _, sid := range input.StashIds {
 		if sid != nil {
@@ -284,6 +300,8 @@ func (r *mutationResolver) BulkTagUpdate(ctx context.Context, input BulkTagUpdat
 	updatedTag.IgnoreAutoTag = translator.optionalBool(input.IgnoreAutoTag, "ignore_auto_tag")
 
 	updatedTag.Aliases = translator.updateStringsBulk(input.Aliases, "aliases")
+
+	// Note: bulk update does not support name changes, so we don't need to sanitize aliases for name changes
 
 	updatedTag.ParentIDs, err = translator.updateIdsBulk(input.ParentIds, "parent_ids")
 	if err != nil {

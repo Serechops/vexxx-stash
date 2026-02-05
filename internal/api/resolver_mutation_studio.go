@@ -38,7 +38,7 @@ func (r *mutationResolver) StudioCreate(ctx context.Context, input models.Studio
 	newStudio.Favorite = translator.bool(input.Favorite)
 	newStudio.Details = translator.string(input.Details)
 	newStudio.IgnoreAutoTag = translator.bool(input.IgnoreAutoTag)
-	newStudio.Aliases = models.NewRelatedStrings(stringslice.TrimSpace(input.Aliases))
+	newStudio.Aliases = models.NewRelatedStrings(stringslice.UniqueExcludeFold(stringslice.TrimSpace(input.Aliases), newStudio.Name))
 	newStudio.StashIDs = models.NewRelatedStashIDs(models.StashIDInputs(input.StashIds).ToStashIDs())
 
 	var err error
@@ -212,6 +212,22 @@ func (r *mutationResolver) StudioUpdate(ctx context.Context, input models.Studio
 	updatedStudio.Favorite = translator.optionalBool(input.Favorite, "favorite")
 	updatedStudio.IgnoreAutoTag = translator.optionalBool(input.IgnoreAutoTag, "ignore_auto_tag")
 	updatedStudio.Aliases = translator.updateStrings(input.Aliases, "aliases")
+
+	// if name is changing and aliases are being updated, sanitize aliases
+	if translator.hasField("name") && translator.hasField("aliases") {
+		if updatedStudio.Aliases != nil && updatedStudio.Aliases.Mode == models.RelationshipUpdateModeSet {
+			// trim spaces from all aliases
+			trimmed := make([]string, len(updatedStudio.Aliases.Values))
+			for i, v := range updatedStudio.Aliases.Values {
+				trimmed[i] = strings.TrimSpace(v)
+			}
+
+			// apply UniqueExcludeFold with the new name
+			if updatedStudio.Name.Set {
+				updatedStudio.Aliases.Values = stringslice.UniqueExcludeFold(trimmed, updatedStudio.Name.Value)
+			}
+		}
+	}
 	updatedStudio.StashIDs = translator.updateStashIDs(input.StashIds, "stash_ids")
 
 	updatedStudio.ParentID, err = translator.optionalIntFromString(input.ParentID, "parent_id")

@@ -130,6 +130,39 @@ type ScanMetadataOptions {
   scanGenerateClipPreviews: Boolean!
 }
 
+"Input for synchronous single file scan"
+input ScanFileInput {
+  "Path to the file to scan"
+  path: String!
+
+  "Forces a rescan even if modification time is unchanged"
+  rescan: Boolean
+}
+
+"Status of a scanned file"
+enum ScanFileStatus {
+  "File was newly created"
+  NEW
+  "File was updated (modification time changed)"
+  UPDATED
+  "File was renamed/moved from another location"
+  RENAMED
+  "File was unchanged"
+  UNCHANGED
+  "File was skipped (filtered out)"
+  SKIPPED
+}
+
+"Result of a synchronous file scan"
+type ScanFileResult {
+  "The scanned file, if successfully scanned"
+  file: BaseFile
+  "The status of the scan operation"
+  status: ScanFileStatus!
+  "Error message if the scan failed"
+  error: String
+}
+
 input CleanMetadataInput {
   paths: [String!]
 

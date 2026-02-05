@@ -24,6 +24,45 @@ func (r *mutationResolver) MetadataScan(ctx context.Context, input manager.ScanM
 	return strconv.Itoa(jobID), nil
 }
 
+func (r *mutationResolver) ScanFile(ctx context.Context, input ScanFileInput) (*ScanFileResult, error) {
+	// Convert API input to manager input
+	mgrInput := manager.ScanFileInput{
+		Path:   input.Path,
+		Rescan: input.Rescan != nil && *input.Rescan,
+	}
+
+	result, err := manager.GetInstance().ScanFile(ctx, mgrInput)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert manager status to API status
+	var status ScanFileStatus
+	switch result.Status {
+	case manager.ScanFileStatusNew:
+		status = ScanFileStatusNew
+	case manager.ScanFileStatusUpdated:
+		status = ScanFileStatusUpdated
+	case manager.ScanFileStatusRenamed:
+		status = ScanFileStatusRenamed
+	case manager.ScanFileStatusUnchanged:
+		status = ScanFileStatusUnchanged
+	case manager.ScanFileStatusSkipped:
+		status = ScanFileStatusSkipped
+	default:
+		status = ScanFileStatusUnchanged
+	}
+
+	// Convert the file to BaseFile interface
+	file := convertBaseFile(result.File)
+
+	return &ScanFileResult{
+		File:   file,
+		Status: status,
+		Error:  result.Error,
+	}, nil
+}
+
 func (r *mutationResolver) MetadataImport(ctx context.Context) (string, error) {
 	jobID, err := manager.GetInstance().Import(ctx)
 	if err != nil {

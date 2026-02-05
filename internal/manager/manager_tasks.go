@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strconv"
 	"sync"
 	"time"
@@ -13,9 +14,14 @@ import (
 	file_image "github.com/stashapp/stash/pkg/file/image"
 	"github.com/stashapp/stash/pkg/file/video"
 	"github.com/stashapp/stash/pkg/fsutil"
+	"github.com/stashapp/stash/pkg/gallery"
+	"github.com/stashapp/stash/pkg/image"
 	"github.com/stashapp/stash/pkg/job"
 	"github.com/stashapp/stash/pkg/logger"
 	"github.com/stashapp/stash/pkg/models"
+	"github.com/stashapp/stash/pkg/models/paths"
+	"github.com/stashapp/stash/pkg/plugin"
+	"github.com/stashapp/stash/pkg/scene"
 )
 
 func useAsVideo(pathname string) bool {
@@ -133,6 +139,200 @@ func (s *Manager) Scan(ctx context.Context, input ScanMetadataInput) (int, error
 	}
 
 	return s.JobManager.Add(ctx, "Scanning...", &scanJob), nil
+}
+
+// ScanFileInput is the input for the synchronous ScanFile operation
+type ScanFileInput struct {
+	Path   string `json:"path"`
+	Rescan bool   `json:"rescan"`
+}
+
+// ScanFileStatus represents the status of a scanned file
+type ScanFileStatus string
+
+const (
+	ScanFileStatusNew       ScanFileStatus = "NEW"
+	ScanFileStatusUpdated   ScanFileStatus = "UPDATED"
+	ScanFileStatusRenamed   ScanFileStatus = "RENAMED"
+	ScanFileStatusUnchanged ScanFileStatus = "UNCHANGED"
+	ScanFileStatusSkipped   ScanFileStatus = "SKIPPED"
+)
+
+// ScanFileResult is the result of a synchronous file scan
+type ScanFileResult struct {
+	File   models.File    `json:"file"`
+	Status ScanFileStatus `json:"status"`
+	Error  *string        `json:"error"`
+}
+
+// ScanFile synchronously scans a single file and returns the result
+func (s *Manager) ScanFile(ctx context.Context, input ScanFileInput) (*ScanFileResult, error) {
+	if err := s.validateFFmpeg(); err != nil {
+		return nil, err
+	}
+
+	cfg := config.GetInstance()
+	repo := s.Repository
+
+	// Verify the path is within a configured stash path
+	stashPaths := cfg.GetStashPaths()
+	stashConfig := stashPaths.GetStashFromDirPath(input.Path)
+	if stashConfig == nil {
+		errMsg := fmt.Sprintf("path %s is not within any configured library path", input.Path)
+		return &ScanFileResult{
+			Status: ScanFileStatusSkipped,
+			Error:  &errMsg,
+		}, nil
+	}
+
+	// Check if the file exists
+	fs := &file.OsFS{}
+	info, err := fs.Lstat(input.Path)
+	if err != nil {
+		errMsg := fmt.Sprintf("failed to stat file: %v", err)
+		return &ScanFileResult{
+			Status: ScanFileStatusSkipped,
+			Error:  &errMsg,
+		}, nil
+	}
+
+	// Only scan regular files, not directories
+	if info.IsDir() {
+		errMsg := "path is a directory, not a file"
+		return &ScanFileResult{
+			Status: ScanFileStatusSkipped,
+			Error:  &errMsg,
+		}, nil
+	}
+
+	// Create scanner with minimal configuration for single file
+	scanner := &file.Scanner{
+		Repository: file.NewRepository(s.Repository),
+		FileDecorators: []file.Decorator{
+			&file.FilteredDecorator{
+				Decorator: &video.Decorator{
+					FFProbe: s.FFProbe,
+				},
+				Filter: file.FilterFunc(videoFileFilter),
+			},
+			&file.FilteredDecorator{
+				Decorator: &file_image.Decorator{
+					FFProbe: s.FFProbe,
+				},
+				Filter: file.FilterFunc(imageFileFilter),
+			},
+		},
+		FingerprintCalculator:  &fingerprintCalculator{s.Config},
+		FS:                     fs,
+		ZipFileExtensions:      cfg.GetGalleryExtensions(),
+		ScanFilters:            []file.PathFilter{newScanFilter(cfg, repo, time.Time{})},
+		HandlerRequiredFilters: []file.Filter{newHandlerRequiredFilter(cfg, repo)},
+		Rescan:                 input.Rescan,
+	}
+
+	// Create handlers - use nil task queue for synchronous operation
+	scanner.FileHandlers = getScanHandlersSync(cfg, repo, s.Paths, s.PluginCache)
+
+	// Create the scanned file
+	size, err := file.GetFileSize(fs, input.Path, info)
+	if err != nil {
+		return nil, fmt.Errorf("getting file size: %w", err)
+	}
+
+	scannedFile := file.ScannedFile{
+		BaseFile: &models.BaseFile{
+			DirEntry: models.DirEntry{
+				ModTime: file.ModTime(info),
+			},
+			Path:     input.Path,
+			Basename: filepath.Base(input.Path),
+			Size:     size,
+		},
+		FS:   fs,
+		Info: info,
+	}
+
+	// Check if file passes the filter
+	if !scanner.AcceptEntry(ctx, input.Path, info) {
+		return &ScanFileResult{
+			Status: ScanFileStatusSkipped,
+		}, nil
+	}
+
+	// Scan the file
+	result, err := scanner.ScanFile(ctx, scannedFile)
+	if err != nil {
+		return nil, fmt.Errorf("scanning file: %w", err)
+	}
+
+	// Determine the status
+	var status ScanFileStatus
+	switch {
+	case result == nil:
+		status = ScanFileStatusUnchanged
+	case result.New:
+		status = ScanFileStatusNew
+	case result.Renamed:
+		status = ScanFileStatusRenamed
+	case result.Updated:
+		status = ScanFileStatusUpdated
+	default:
+		status = ScanFileStatusUnchanged
+	}
+
+	var scannedFileResult models.File
+	if result != nil {
+		scannedFileResult = result.File
+	}
+
+	// Notify subscribers
+	s.scanSubs.notify()
+
+	return &ScanFileResult{
+		File:   scannedFileResult,
+		Status: status,
+	}, nil
+}
+
+// getScanHandlersSync returns scan handlers for synchronous scanning (without task queue)
+func getScanHandlersSync(cfg *config.Config, repo models.Repository, paths *paths.Paths, pluginCache *plugin.Cache) []file.Handler {
+	return []file.Handler{
+		&file.FilteredHandler{
+			Filter: file.FilterFunc(imageFileFilter),
+			Handler: &image.ScanHandler{
+				CreatorUpdater: repo.Image,
+				GalleryFinder:  repo.Gallery,
+				ScanGenerator:  nil, // No generation during synchronous scan
+				ScanConfig: &scanConfig{
+					isGenerateThumbnails:       false,
+					isGenerateClipPreviews:     false,
+					createGalleriesFromFolders: cfg.GetCreateGalleriesFromFolders(),
+				},
+				PluginCache: pluginCache,
+				Paths:       paths,
+			},
+		},
+		&file.FilteredHandler{
+			Filter: file.FilterFunc(galleryFileFilter),
+			Handler: &gallery.ScanHandler{
+				CreatorUpdater:     repo.Gallery,
+				SceneFinderUpdater: repo.Scene,
+				ImageFinderUpdater: repo.Image,
+				PluginCache:        pluginCache,
+			},
+		},
+		&file.FilteredHandler{
+			Filter: file.FilterFunc(videoFileFilter),
+			Handler: &scene.ScanHandler{
+				CreatorUpdater:      repo.Scene,
+				CaptionUpdater:      repo.File,
+				PluginCache:         pluginCache,
+				ScanGenerator:       nil, // No generation during synchronous scan
+				FileNamingAlgorithm: cfg.GetVideoFileNamingAlgorithm(),
+				Paths:               paths,
+			},
+		},
+	}
 }
 
 func (s *Manager) Import(ctx context.Context) (int, error) {

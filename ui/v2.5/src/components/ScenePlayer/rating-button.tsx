@@ -113,6 +113,38 @@ const FullscreenRatingGauge: React.FC<FullscreenRatingGaugeProps> = ({
     setHoverValue(null);
   };
   
+  // Touch event handlers for mobile support
+  const handleTouchStart = (e: React.TouchEvent) => {
+    e.stopPropagation();
+    // Show hover value on initial touch
+    const touch = e.touches[0];
+    handleBarInteraction(touch.clientX, false);
+  };
+  
+  const handleTouchMove = (e: React.TouchEvent) => {
+    e.preventDefault(); // Prevent scrolling while dragging
+    e.stopPropagation();
+    const touch = e.touches[0];
+    handleBarInteraction(touch.clientX, false);
+  };
+  
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    e.stopPropagation();
+    // Use the last hover value to set rating
+    if (hoverValue !== null) {
+      // Toggle off if tapping same value
+      if (
+        currentDisplayValue !== null &&
+        Math.abs(hoverValue - currentDisplayValue) < step / 2
+      ) {
+        onSetRating(null);
+      } else {
+        onSetRating(displayToRating100(hoverValue));
+      }
+    }
+    setHoverValue(null);
+  };
+  
   // Format display text based on precision
   const formatValue = (val: number | null): string => {
     if (val === null) return "–";
@@ -140,6 +172,9 @@ const FullscreenRatingGauge: React.FC<FullscreenRatingGaugeProps> = ({
         className="rating-bar-container"
         onMouseMove={handleMouseMove}
         onClick={handleClick}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
       >
         <div className="rating-bar-bg" />
         <div 

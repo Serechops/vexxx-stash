@@ -17,6 +17,7 @@ import "./PlaylistButtons";
 import "./source-selector";
 import "./persist-volume";
 import "./autostart-button";
+import "./rating-button";
 import MarkersPlugin, { type IMarker } from "./markers";
 void MarkersPlugin;
 import "./vtt-thumbnails";
@@ -26,10 +27,12 @@ import "./vrmode";
 import "./media-session";
 import "./wake-sentinel";
 import cx from "classnames";
+import { useIntl } from "react-intl";
 import {
   useSceneSaveActivity,
   useSceneIncrementPlayCount,
   useConfigureInterface,
+  useSceneUpdate,
 } from "src/core/StashService";
 
 import * as GQL from "src/core/generated-graphql";
@@ -274,12 +277,14 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
     const { configuration } = useConfigurationContext();
     const interfaceConfig = configuration?.interface;
     const uiConfig = configuration?.ui;
+    const intl = useIntl();
     const videoRef = useRef<HTMLDivElement>(null);
     const [_player, setPlayer] = useState<VideoJsPlayer>();
     const sceneId = useRef<string>();
     const [sceneSaveActivity] = useSceneSaveActivity();
     const [sceneIncrementPlayCount] = useSceneIncrementPlayCount();
     const [updateInterfaceConfig] = useConfigureInterface();
+    const [updateScene] = useSceneUpdate();
 
     const [time, setTime] = useState(0);
     const [ready, setReady] = useState(false);
@@ -428,6 +433,11 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
           vrMenu: {},
           autostartButton: {
             enabled: interfaceConfig?.autostartVideo ?? false,
+          },
+          ratingButton: {
+            rating: scene.rating100 ?? null,
+            ratingSystemType: configuration?.ui.ratingSystemOptions?.type,
+            precision: configuration?.ui.ratingSystemOptions?.starPrecision,
           },
           abLoopPlugin: {
             start: 0,
@@ -957,6 +967,38 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
         autostartButton.updateAutoStart = updateAutoStart;
       }
     }, [getPlayer, updateInterfaceConfig, interfaceConfig?.autostartVideo]);
+
+    // Setup rating button with scene rating update handler
+    useEffect(() => {
+      const player = getPlayer();
+      if (!player) return;
+
+      const ratingButton = player.ratingButton();
+      if (ratingButton) {
+        // Set callback for rating updates
+        ratingButton.setOnSetRating((value: number | null) => {
+          updateScene({
+            variables: {
+              input: {
+                id: scene.id,
+                rating100: value,
+              },
+            },
+          });
+        });
+      }
+    }, [getPlayer, updateScene, scene.id]);
+
+    // Sync rating button when scene rating changes
+    useEffect(() => {
+      const player = getPlayer();
+      if (!player) return;
+
+      const ratingButton = player.ratingButton();
+      if (ratingButton) {
+        ratingButton.updateRating(scene.rating100 ?? null);
+      }
+    }, [getPlayer, scene.rating100]);
 
     useEffect(() => {
       const player = getPlayer();

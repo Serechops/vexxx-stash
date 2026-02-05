@@ -7,7 +7,7 @@ import {
   ModifierCriterion,
 } from "../../../models/list-filter/criteria/criterion";
 import { RatingSystem } from "src/components/Shared/Rating/RatingSystem";
-import { RatingStars } from "src/components/Shared/Rating/RatingStars";
+import { RatingBar } from "src/components/Shared/Rating/RatingBar";
 import {
   defaultRatingStarPrecision,
   defaultRatingSystemOptions,
@@ -180,13 +180,15 @@ export const SidebarRatingFilter: React.FC<ISidebarFilter> = ({
 
   const ratingStars = (
     <div className="no-icon-margin">
-      <RatingStars
+      <RatingBar
         value={ratingValue}
         onSetRating={onRatingValueChange}
+        ratingSystemType={ratingSystemOptions.type}
         precision={
           ratingSystemOptions.starPrecision ?? defaultRatingStarPrecision
         }
         orMore
+        compact
       />
     </div>
   );

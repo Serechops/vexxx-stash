@@ -841,3 +841,111 @@ $sceneTabWidth: 450px;
     }
   }
 }
+// Rating gauge overlay in video player (fullscreen only)
+.video-js {
+  .vjs-rating-button-component {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 3; // Above video, below controls
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    
+    .rating-overlay-container {
+      background: rgba(0, 0, 0, 0.75);
+      padding: 8px 12px;
+      border-radius: 8px;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+    }
+    
+    .fullscreen-rating-gauge.horizontal {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 8px;
+      min-width: 140px;
+      
+      .rating-label {
+        display: flex;
+        align-items: baseline;
+        gap: 2px;
+        user-select: none;
+        white-space: nowrap;
+        
+        .rating-value {
+          font-size: 14px;
+          color: white;
+        }
+        
+        .rating-max {
+          font-size: 14px;
+          color: rgba(255, 255, 255, 0.5);
+        }
+      }
+      
+      .rating-bar-container {
+        position: relative;
+        height: 10px;
+        min-width: 100px;
+        flex-grow: 1;
+        cursor: pointer;
+        border-radius: 5px;
+        overflow: hidden;
+        
+        .rating-bar-bg {
+          position: absolute;
+          inset: 0;
+          background: rgba(255, 255, 255, 0.15);
+          border-radius: 5px;
+        }
+        
+        .rating-bar-fill {
+          position: absolute;
+          top: 0;
+          left: 0;
+          height: 100%;
+          background: linear-gradient(90deg, #ffd700, #ffaa00);
+          border-radius: 5px;
+          transition: width 0.1s ease;
+          box-shadow: 0 0 6px rgba(255, 215, 0, 0.4);
+          
+          &.hovering {
+            background: linear-gradient(90deg, #ffcc00, #ff9500);
+            transition: none;
+          }
+        }
+        
+        .rating-ticks {
+          position: absolute;
+          inset: 0;
+          display: flex;
+          align-items: center;
+          pointer-events: none;
+          
+          .rating-tick {
+            position: absolute;
+            width: 1px;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.25);
+            border-radius: 1px;
+            transform: translateX(-50%);
+          }
+        }
+      }
+    }
+  }
+  
+  // Only show in fullscreen when user is active (mouse moving)
+  &.vjs-fullscreen.vjs-user-active .vjs-rating-button-component {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  
+  // Hide completely when not in fullscreen
+  &:not(.vjs-fullscreen) .vjs-rating-button-component {
+    display: none;
+  }
+}
+

@@ -712,6 +712,7 @@ declare namespace PluginApi {
     PerformerScenesPanel: React.FC<any>;
     PerformerSelect: React.FC<any>;
     PluginSettings: React.FC<any>;
+    RatingBar: React.FC<any>;
     RatingNumber: React.FC<any>;
     RatingStars: React.FC<any>;
     RatingSystem: React.FC<any>;

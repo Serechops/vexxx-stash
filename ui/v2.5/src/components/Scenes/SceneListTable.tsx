@@ -82,6 +82,7 @@ export const SceneListTable: React.FC<ISceneListTableProps> = (
       value={scene.rating100}
       onSetRating={(value) => setRating(value, scene.id)}
       clickToRate
+      compact
     />
   );
 

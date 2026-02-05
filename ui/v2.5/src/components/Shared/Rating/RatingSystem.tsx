@@ -4,8 +4,7 @@ import {
   defaultRatingSystemOptions,
   RatingSystemType,
 } from "src/utils/rating";
-import { RatingNumber } from "./RatingNumber";
-import { RatingStars } from "./RatingStars";
+import { RatingBar } from "./RatingBar";
 import { PatchComponent } from "src/patch";
 
 export interface IRatingSystemProps {
@@ -17,6 +16,8 @@ export interface IRatingSystemProps {
   clickToRate?: boolean;
   // true if we should indicate that this is a rating
   withoutContext?: boolean;
+  // compact mode for inline use
+  compact?: boolean;
 }
 
 export const RatingSystem = PatchComponent(
@@ -26,28 +27,17 @@ export const RatingSystem = PatchComponent(
     const ratingSystemOptions =
       config?.ui.ratingSystemOptions ?? defaultRatingSystemOptions;
 
-    if (ratingSystemOptions.type === RatingSystemType.Stars) {
-      return (
-        <RatingStars
-          value={props.value ?? null}
-          onSetRating={props.onSetRating}
-          disabled={props.disabled}
-          precision={
-            ratingSystemOptions.starPrecision ?? defaultRatingStarPrecision
-          }
-          valueRequired={props.valueRequired}
-        />
-      );
-    } else {
-      return (
-        <RatingNumber
-          value={props.value ?? null}
-          onSetRating={props.onSetRating}
-          disabled={props.disabled}
-          clickToRate={props.clickToRate}
-          withoutContext={props.withoutContext}
-        />
-      );
-    }
+    return (
+      <RatingBar
+        value={props.value ?? null}
+        onSetRating={props.onSetRating}
+        disabled={props.disabled}
+        ratingSystemType={ratingSystemOptions.type}
+        precision={
+          ratingSystemOptions.starPrecision ?? defaultRatingStarPrecision
+        }
+        compact={props.compact}
+      />
+    );
   }
 );

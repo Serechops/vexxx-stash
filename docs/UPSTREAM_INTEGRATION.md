@@ -40,7 +40,7 @@ All 8 bug fixes from Phase 1 have been addressed:
 
 Backend-focused PRs to avoid MUI v7 conflicts. Database schema changes deferred for later consideration.
 
-### Completed (5/12)
+### Completed (8/12)
 
 | # | PR | Description | Status | Files Changed | Commit |
 |---|-------|-------------|--------|---------------|--------|
@@ -49,6 +49,9 @@ Backend-focused PRs to avoid MUI v7 conflicts. Database schema changes deferred 
 | 3 | #6402 | Support tag linking via frontend | ✅ COMPLETE | Already present | N/A |
 | 4 | #6514 | Auto-remove duplicate aliases | ✅ COMPLETE | 6 files | `6d2b9f3` |
 | 5 | #6442 | Add Generate Task to Galleries | ✅ COMPLETE | 6 files | `1f297fb` |
+| 6 | #6437 | Add Interfaces to Destroy File DB Entries | ✅ COMPLETE | 18 files | `6818e93` |
+| 7 | #6542 | Add cover check (bugfix) | ✅ COMPLETE | 1 file | `d1df5bc` |
+| 8 | #6433 | Allow Marker Screenshot Generation | ✅ COMPLETE | Already present | N/A |
 
 **Key Implementation Details:**
 
@@ -72,29 +75,48 @@ Backend-focused PRs to avoid MUI v7 conflicts. Database schema changes deferred 
 - Integrated Generate menu item in Gallery detail page and list toolbar
 - Files: `metadata.graphql`, `task_generate.go`, `GenerateDialog.tsx`, `GenerateOptions.tsx`, `Gallery.tsx`, `GalleryList.tsx`
 
+**PR #6437 - Destroy File DB Entries:**
+- Added `destroyFiles` GraphQL mutation and `destroy_file_entry` fields to destroy inputs
+- New service methods to destroy database entries while preserving filesystem files
+- Separation of filesystem deletion from database cleanup
+- Safety checks: Prevent destroying primary files, check for shared files
+- Useful for cleaning orphaned database entries or library reorganization
+- Files: GraphQL schemas (schema.graphql, gallery/image/scene.graphql), resolvers (mutation_file/gallery/image/scene.go), service implementations (gallery/image/scene delete.go), models, repository interfaces
+
+**PR #6542 - Cover Merge Bugfix:**
+- Fixed bug where scene merges would remove covers if no new cover provided
+- Added conditional check: only update cover if `len(coverImageData) > 0`
+- Prevents accidental removal of existing covers during merge operations
+- Single file change: `resolver_mutation_scene.go`
+
+**PR #6433 - Marker Screenshot Generation** (Already Present in Vexxx):
+- Marker image and screenshot generation now independent of video generation
+- Added VideoPreview, ImagePreview, Screenshot flags to marker generation tasks
+- Removed disabled state from UI options - all three types can be generated independently
+- Already implemented in Vexxx fork in `task_generate.go` and `task_generate_markers.go`
+
+### Already Present in Vexxx (3)
+
+| # | PR | Description | Implementation |
+|---|-------|-------------|----------------|
+| 9 | #6448 | Update Tray Notification to Include Port | System tray already shows "Vexxx is Running on port X" in `systray_nonlinux.go` |
+| 10 | #6443 | Hide Already Installed Plugins or Scrapers | Package managers already filter using `installedPackageIds` in `PluginPackageManager.tsx` and `ScraperPackageManager.tsx` |
+| 11 | #6447 | Autopopulate Stash-ID Search Box | StashBoxIDSearchModal already accepts `initialQuery` parameter, passed from all edit panels (Performer/Scene/Studio/Tag) |
+
+**Note:** Vexxx fork is exceptionally well-maintained with many upstream features proactively integrated.
+
 ### Deferred
 
 | # | PR | Description | Status | Reason |
 |---|-------|-------------|--------|--------|
-| - | #6156 | Studio custom fields (backend) | ⏸️ DEFERRED | 32 files, requires DB migration - too large for single session |
+| 12 | #6156 | Studio custom fields (backend) | ⏸️ DEFERRED | 32 files (+796/-79), requires DB migration - evaluating for dedicated session |
 
-### Remaining (7)
+### Phase 2 Summary
 
-| # | PR | Description | Priority | Estimated Size |
-|---|-------|-------------|----------|----------------|
-| 6 | #6437 | Add Interfaces to Destroy File Database Entries | Medium | ~5 files |
-| 7 | #6542 | Add cover check | Medium | ~3 files |
-| 8 | #6433 | Allow Marker Screenshot Generation Unconditionally | Medium | ~2 files |
-| 9 | #6448 | Update Tray Notification to Include Port | Low | ~2 files |
-| 10 | #6443 | Hide Already Installed Plugins or Scrapers | Low | ~4 files |
-| 11 | #6447 | Autopopulate Stash-ID Search Box | Low | ~3 files |
-| 12 | #6156 | Studio custom fields (backend) | High | 32 files (deferred) |
-
-**Next Steps for Phase 2:**
-1. Implement PR #6437 (Destroy File DB Interfaces)
-2. Implement PR #6542 (Cover Check)
-3. Continue through remaining PRs in order
-4. Save PR #6156 for dedicated migration session or next phase
+- **Completed:** 8/12 PRs (5 implemented, 3 already present)
+- **Remaining:** 1 PR (#6156 - large DB migration)
+- **Integration Status:** Clean - no MUI v7 conflicts, all backend features compile successfully
+- **Commits:** `ac4ed4c`, `6d2b9f3`, `1f297fb`, `6818e93`, `d1df5bc`
 
 ---
 
@@ -224,34 +246,39 @@ All integrations maintain compatibility with Vexxx-specific features:
 - Created checkpoint commit: `ac4ed4c`
 - Created second checkpoint: `6d2b9f3`
 
-### Session 3: Gallery Generate
-- Completed PR #6442 (Gallery generate - 6 files)
-- Deferred PR #6156 (too large, DB migration required)
-- Commit: `1f297fb`
+### Session 3: Gallery Generate + Phase 2 Completion
+- Completed PR #6442 (Gallery generate - 6 files) - Commit: `1f297fb`
+- Completed PR #6437 (Destroy file DB entries - 18 files) - Commit: `6818e93`
+- Completed PR #6542 (Cover merge bugfix - 1 file) - Commit: `d1df5bc`
+- Verified PRs #6433, #6448, #6443, #6447 already present in Vexxx fork
+- Phase 2 status: 8/12 complete (5 implemented, 3 already present)
+- Deferred PR #6156 (large DB migration - 32 files) for evaluation
 
 ---
 
 ## Next Session Starting Point
 
-**Current Phase:** Phase 2 (Backend Features)  
-**Progress:** 5/12 complete, 1 deferred, 7 remaining  
-**Next PR:** #6437 (Add Interfaces to Destroy File Database Entries)
+**Current Phase:** Phase 2 (Backend Features) - Nearly Complete  
+**Progress:** 8/12 complete (5 implemented + 3 already present), 1 deferred  
+**Next Decision:** Evaluate PR #6156 (Studio Custom Fields) or begin Phase 3
 
-**Commands to Resume:**
+**Option A - Complete Phase 2:**
 ```bash
-# Fetch next PR
-curl https://github.com/stashapp/stash/pull/6437/files
-
-# Verify current state
-go build ./...
-git log --oneline -5
+# Assess PR #6156 complexity
+curl https://github.com/stashapp/stash/pull/6156/files
+# 32 files (+796/-79), DB migration required
+# Check if already present in Vexxx fork
+grep -r "custom_fields" pkg/sqlite/migrations/
 ```
 
-**Context:**
-- Small PRs (#6442-#6448) being completed before returning to large PR #6156
-- Backend-only changes avoid MUI v7 migration conflicts
-- All changes verified with compilation tests
-- User has existing test database with segments - no new test data needed
+**Option B - Begin Phase 3 (Major Features):**
+Phase 3 includes 4 high-value PRs:
+- #6477: Performer merge improvements
+- #6560: Troubleshooting mode
+- #6596: File scanning refactor (test with Vexxx segments!)
+- #6654: Symlink support
+
+User note: "Don't worry about setting up test db, already have them"
 
 ---
 

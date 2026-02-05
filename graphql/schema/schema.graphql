@@ -446,6 +446,8 @@ type Mutation {
   moveFiles(input: MoveFilesInput!): Boolean!
   renameScenes(input: RenameFilesInput!): [RenameResult!]!
   deleteFiles(ids: [ID!]!): Boolean!
+  "Deletes file entries from the database without deleting the files from the filesystem"
+  destroyFiles(ids: [ID!]!): Boolean!
 
   fileSetFingerprints(input: FileSetFingerprintsInput!): Boolean!
 

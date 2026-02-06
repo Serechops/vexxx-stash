@@ -50,13 +50,13 @@ type imageRow struct {
 
 func (r *imageRow) fromImage(i models.Image) {
 	r.ID = i.ID
-	r.Title = zero.StringFrom(i.Title)
-	r.Code = zero.StringFrom(i.Code)
+	r.Title = zeroStringFromTrimmed(i.Title)
+	r.Code = zeroStringFromTrimmed(i.Code)
 	r.Rating = intFromPtr(i.Rating)
 	r.Date = NullDateFromDatePtr(i.Date)
 	r.DatePrecision = datePrecisionFromDatePtr(i.Date)
-	r.Details = zero.StringFrom(i.Details)
-	r.Photographer = zero.StringFrom(i.Photographer)
+	r.Details = zeroStringFromTrimmed(i.Details)
+	r.Photographer = zeroStringFromTrimmed(i.Photographer)
 	r.Organized = i.Organized
 	r.OCounter = i.OCounter
 	r.StudioID = intFromPtr(i.StudioID)
@@ -137,6 +137,16 @@ func (r *imageRepositoryType) addFilesTable(f *filterBuilder) {
 func (r *imageRepositoryType) addFoldersTable(f *filterBuilder) {
 	r.addFilesTable(f)
 	f.addLeftJoin(folderTable, "", "files.parent_folder_id = folders.id")
+}
+
+// addFoldersTableInner uses INNER JOINs for the file/folder chain.
+// Safe when a path filter is active because images without files
+// cannot match a path criterion. INNER JOINs allow the query planner
+// to reorder joins and start from the most selective table.
+func (r *imageRepositoryType) addFoldersTableInner(f *filterBuilder) {
+	f.addInnerJoin(imagesFilesTable, "", "images_files.image_id = images.id")
+	f.addInnerJoin(fileTable, "", "images_files.file_id = files.id")
+	f.addInnerJoin(folderTable, "", "files.parent_folder_id = folders.id")
 }
 
 func (r *imageRepositoryType) addImageFilesTable(f *filterBuilder) {

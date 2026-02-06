@@ -50,13 +50,13 @@ type studioRow struct {
 
 func (r *studioRow) fromStudio(o models.Studio) {
 	r.ID = o.ID
-	r.Name = zero.StringFrom(o.Name)
+	r.Name = zeroStringFromTrimmed(o.Name)
 	r.ParentID = intFromPtr(o.ParentID)
 	r.CreatedAt = Timestamp{Timestamp: o.CreatedAt}
 	r.UpdatedAt = Timestamp{Timestamp: o.UpdatedAt}
 	r.Rating = intFromPtr(o.Rating)
 	r.Favorite = o.Favorite
-	r.Details = zero.StringFrom(o.Details)
+	r.Details = zeroStringFromTrimmed(o.Details)
 	r.IgnoreAutoTag = o.IgnoreAutoTag
 }
 

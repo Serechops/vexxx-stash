@@ -55,7 +55,7 @@ func (qb *sceneFilterHandler) criterionHandler() criterionHandler {
 	sceneFilter := qb.sceneFilter
 	return compoundHandler{
 		intCriterionHandler(sceneFilter.ID, "scenes.id", nil),
-		pathCriterionHandler(sceneFilter.Path, "folders.path", "files.basename", qb.addFoldersTable),
+		pathCriterionHandler(sceneFilter.Path, "folders.path", "files.basename", qb.addFoldersTableInner),
 		qb.fileCountCriterionHandler(sceneFilter.FileCount),
 		stringCriterionHandler(sceneFilter.Title, "scenes.title"),
 		stringCriterionHandler(sceneFilter.Code, "scenes.code"),
@@ -259,6 +259,16 @@ func (qb *sceneFilterHandler) addFilesTable(f *filterBuilder) {
 func (qb *sceneFilterHandler) addFoldersTable(f *filterBuilder) {
 	qb.addFilesTable(f)
 	f.addLeftJoin(folderTable, "", "files.parent_folder_id = folders.id")
+}
+
+// addFoldersTableInner uses INNER JOINs for the file/folder chain.
+// This is safe when a path filter is active because scenes without files
+// cannot possibly match a path criterion, and INNER JOINs allow SQLite's
+// query planner to reorder joins and start from the most selective table.
+func (qb *sceneFilterHandler) addFoldersTableInner(f *filterBuilder) {
+	f.addInnerJoin(scenesFilesTable, "", "scenes_files.scene_id = scenes.id")
+	f.addInnerJoin(fileTable, "", "scenes_files.file_id = files.id")
+	f.addInnerJoin(folderTable, "", "files.parent_folder_id = folders.id")
 }
 
 func (qb *sceneFilterHandler) addVideoFilesTable(f *filterBuilder) {

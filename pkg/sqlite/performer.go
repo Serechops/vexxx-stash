@@ -66,33 +66,33 @@ type performerRow struct {
 func (r *performerRow) fromPerformer(o models.Performer) {
 	r.ID = o.ID
 	r.Name = null.StringFrom(o.Name)
-	r.Disambigation = zero.StringFrom(o.Disambiguation)
+	r.Disambigation = zeroStringFromTrimmed(o.Disambiguation)
 	if o.Gender != nil && o.Gender.IsValid() {
-		r.Gender = zero.StringFrom(o.Gender.String())
+		r.Gender = zeroStringFromTrimmed(o.Gender.String())
 	}
 	r.Birthdate = NullDateFromDatePtr(o.Birthdate)
 	r.BirthdatePrecision = datePrecisionFromDatePtr(o.Birthdate)
-	r.Ethnicity = zero.StringFrom(o.Ethnicity)
-	r.Country = zero.StringFrom(o.Country)
-	r.EyeColor = zero.StringFrom(o.EyeColor)
+	r.Ethnicity = zeroStringFromTrimmed(o.Ethnicity)
+	r.Country = zeroStringFromTrimmed(o.Country)
+	r.EyeColor = zeroStringFromTrimmed(o.EyeColor)
 	r.Height = intFromPtr(o.Height)
-	r.Measurements = zero.StringFrom(o.Measurements)
-	r.FakeTits = zero.StringFrom(o.FakeTits)
+	r.Measurements = zeroStringFromTrimmed(o.Measurements)
+	r.FakeTits = zeroStringFromTrimmed(o.FakeTits)
 	r.PenisLength = null.FloatFromPtr(o.PenisLength)
 	if o.Circumcised != nil && o.Circumcised.IsValid() {
-		r.Circumcised = zero.StringFrom(o.Circumcised.String())
+		r.Circumcised = zeroStringFromTrimmed(o.Circumcised.String())
 	}
-	r.CareerLength = zero.StringFrom(o.CareerLength)
-	r.Tattoos = zero.StringFrom(o.Tattoos)
-	r.Piercings = zero.StringFrom(o.Piercings)
+	r.CareerLength = zeroStringFromTrimmed(o.CareerLength)
+	r.Tattoos = zeroStringFromTrimmed(o.Tattoos)
+	r.Piercings = zeroStringFromTrimmed(o.Piercings)
 	r.Favorite = o.Favorite
 	r.CreatedAt = Timestamp{Timestamp: o.CreatedAt}
 	r.UpdatedAt = Timestamp{Timestamp: o.UpdatedAt}
 	r.Rating = intFromPtr(o.Rating)
-	r.Details = zero.StringFrom(o.Details)
+	r.Details = zeroStringFromTrimmed(o.Details)
 	r.DeathDate = NullDateFromDatePtr(o.DeathDate)
 	r.DeathDatePrecision = datePrecisionFromDatePtr(o.DeathDate)
-	r.HairColor = zero.StringFrom(o.HairColor)
+	r.HairColor = zeroStringFromTrimmed(o.HairColor)
 	r.Weight = intFromPtr(o.Weight)
 	r.IgnoreAutoTag = o.IgnoreAutoTag
 }

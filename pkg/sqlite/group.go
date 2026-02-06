@@ -54,16 +54,16 @@ type groupRow struct {
 
 func (r *groupRow) fromGroup(o models.Group) {
 	r.ID = o.ID
-	r.Name = zero.StringFrom(o.Name)
-	r.Aliases = zero.StringFrom(o.Aliases)
+	r.Name = zeroStringFromTrimmed(o.Name)
+	r.Aliases = zeroStringFromTrimmed(o.Aliases)
 	r.Duration = intFromPtr(o.Duration)
 	r.Date = NullDateFromDatePtr(o.Date)
 	r.DatePrecision = datePrecisionFromDatePtr(o.Date)
 	r.Rating = intFromPtr(o.Rating)
 	r.StudioID = intFromPtr(o.StudioID)
-	r.Director = zero.StringFrom(o.Director)
-	r.Description = zero.StringFrom(o.Synopsis)
-	r.TrailerURL = zero.StringFrom(o.TrailerURL)
+	r.Director = zeroStringFromTrimmed(o.Director)
+	r.Description = zeroStringFromTrimmed(o.Synopsis)
+	r.TrailerURL = zeroStringFromTrimmed(o.TrailerURL)
 	r.CreatedAt = Timestamp{Timestamp: o.CreatedAt}
 	r.UpdatedAt = Timestamp{Timestamp: o.UpdatedAt}
 }

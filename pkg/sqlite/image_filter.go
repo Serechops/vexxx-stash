@@ -76,7 +76,7 @@ func (qb *imageFilterHandler) criterionHandler() criterionHandler {
 		stringCriterionHandler(imageFilter.Details, "images.details"),
 		stringCriterionHandler(imageFilter.Photographer, "images.photographer"),
 
-		pathCriterionHandler(imageFilter.Path, "folders.path", "files.basename", imageRepository.addFoldersTable),
+		pathCriterionHandler(imageFilter.Path, "folders.path", "files.basename", imageRepository.addFoldersTableInner),
 		qb.fileCountCriterionHandler(imageFilter.FileCount),
 		intCriterionHandler(imageFilter.Rating100, "images.rating", nil),
 		intCriterionHandler(imageFilter.OCounter, "images.o_counter", nil),

@@ -102,7 +102,7 @@ func (s *groupRelationshipStore) createRelationships(ctx context.Context, id int
 				ContainingID: id,
 				SubID:        v.GroupID,
 				OrderIndex:   orderIndex,
-				Description:  zero.StringFrom(v.Description),
+				Description:  zeroStringFromTrimmed(v.Description),
 			}
 
 			if !idIsContaining {
@@ -207,7 +207,7 @@ func (s *groupRelationshipStore) addJoins(ctx context.Context, id int, groups []
 
 	for i, vv := range groups {
 		r := groupRelationshipRow{
-			Description: zero.StringFrom(vv.Description),
+			Description: zeroStringFromTrimmed(vv.Description),
 		}
 
 		if idIsContaining {

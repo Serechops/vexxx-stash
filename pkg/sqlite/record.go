@@ -1,11 +1,20 @@
 package sqlite
 
 import (
+	"strings"
+
 	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/stashapp/stash/pkg/models"
 	"gopkg.in/guregu/null.v4"
 	"gopkg.in/guregu/null.v4/zero"
 )
+
+// zeroStringFromTrimmed creates a zero.String from a trimmed string value.
+// Whitespace-only strings become empty (zero value), which is stored as NULL.
+// This ensures data is sanitized at write time so queries don't need TRIM().
+func zeroStringFromTrimmed(s string) zero.String {
+	return zero.StringFrom(strings.TrimSpace(s))
+}
 
 type updateRecord struct {
 	exp.Record
@@ -20,13 +29,20 @@ func (r *updateRecord) setString(destField string, v models.OptionalString) {
 		if v.Null {
 			panic("null value not allowed in optional string")
 		}
-		r.set(destField, v.Value)
+		// Trim whitespace on write so queries don't need TRIM()
+		r.set(destField, strings.TrimSpace(v.Value))
 	}
 }
 
 func (r *updateRecord) setNullString(destField string, v models.OptionalString) {
 	if v.Set {
-		r.set(destField, zero.StringFromPtr(v.Ptr()))
+		// Trim whitespace on write so queries don't need TRIM()
+		if v.Ptr() != nil {
+			trimmed := strings.TrimSpace(*v.Ptr())
+			r.set(destField, zero.StringFrom(trimmed))
+		} else {
+			r.set(destField, zero.StringFromPtr(nil))
+		}
 	}
 }
 

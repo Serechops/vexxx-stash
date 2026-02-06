@@ -47,9 +47,9 @@ type tagRow struct {
 func (r *tagRow) fromTag(o models.Tag) {
 	r.ID = o.ID
 	r.Name = null.StringFrom(o.Name)
-	r.SortName = zero.StringFrom((o.SortName))
+	r.SortName = zeroStringFromTrimmed(o.SortName)
 	r.Favorite = o.Favorite
-	r.Description = zero.StringFrom(o.Description)
+	r.Description = zeroStringFromTrimmed(o.Description)
 	r.IgnoreAutoTag = o.IgnoreAutoTag
 	r.CreatedAt = Timestamp{Timestamp: o.CreatedAt}
 	r.UpdatedAt = Timestamp{Timestamp: o.UpdatedAt}

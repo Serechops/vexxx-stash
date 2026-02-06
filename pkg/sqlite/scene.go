@@ -103,10 +103,10 @@ type sceneRow struct {
 
 func (r *sceneRow) fromScene(o models.Scene) {
 	r.ID = o.ID
-	r.Title = zero.StringFrom(o.Title)
-	r.Code = zero.StringFrom(o.Code)
-	r.Details = zero.StringFrom(o.Details)
-	r.Director = zero.StringFrom(o.Director)
+	r.Title = zeroStringFromTrimmed(o.Title)
+	r.Code = zeroStringFromTrimmed(o.Code)
+	r.Details = zeroStringFromTrimmed(o.Details)
+	r.Director = zeroStringFromTrimmed(o.Director)
 	r.Date = NullDateFromDatePtr(o.Date)
 	r.DatePrecision = datePrecisionFromDatePtr(o.Date)
 	r.Rating = intFromPtr(o.Rating)

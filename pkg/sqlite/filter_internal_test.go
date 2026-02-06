@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"testing"
 
 	"github.com/stashapp/stash/pkg/models"
@@ -639,4 +640,145 @@ func TestStringCriterionHandlerNotNull(t *testing.T) {
 	assert.Len(f.whereClauses, 1)
 	assert.Equal(fmt.Sprintf("(%[1]s IS NOT NULL AND TRIM(%[1]s) != '')", column), f.whereClauses[0].sql)
 	assert.Len(f.whereClauses[0].args, 0)
+}
+
+func TestIsAbsolutePath(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		{"unix root", "/home/user/videos", true},
+		{"unix slash only", "/", true},
+		{"windows C drive", "C:\\Users\\videos", true},
+		{"windows D drive forward slash", "D:/media", true},
+		{"relative path", "some/path", false},
+		{"empty string", "", false},
+		{"just a name", "videos", false},
+		{"tilde path", "~/videos", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, isAbsolutePath(tt.input))
+		})
+	}
+}
+
+func TestContainsPathSeparator(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		{"forward slash", "some/path", true},
+		{"backslash", "some\\path", true},
+		{"no separator", "filename.mp4", false},
+		{"empty string", "", false},
+		{"just slash", "/", true},
+		{"just backslash", "\\", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, containsPathSeparator(tt.input))
+		})
+	}
+}
+
+func TestGetPathSearchClause(t *testing.T) {
+	const pathCol = "folders.path"
+	const baseCol = "files.basename"
+
+	tests := []struct {
+		name         string
+		pattern      string
+		addWildcards bool
+		not          bool
+		expectSQL    string
+		expectArgs   []interface{}
+	}{
+		{
+			name:         "exact match (no wildcards)",
+			pattern:      "/home/user/video.mp4",
+			addWildcards: false,
+			not:          false,
+			expectSQL:    fmt.Sprintf("%s || '%s' || %s LIKE ?", pathCol, string(filepath.Separator), baseCol),
+			expectArgs:   []interface{}{"/home/user/video.mp4"},
+		},
+		{
+			name:         "absolute path with separator (wildcard)",
+			pattern:      "/home/user/videos",
+			addWildcards: true,
+			not:          false,
+			expectSQL:    fmt.Sprintf("%s LIKE ?", pathCol),
+			expectArgs:   []interface{}{"/home/user/videos%"},
+		},
+		{
+			name:         "relative path fragment with separator (wildcard)",
+			pattern:      "user/videos",
+			addWildcards: true,
+			not:          false,
+			expectSQL:    fmt.Sprintf("%s LIKE ?", pathCol),
+			expectArgs:   []interface{}{"%user/videos%"},
+		},
+		{
+			name:         "basename-only pattern (wildcard)",
+			pattern:      "video.mp4",
+			addWildcards: true,
+			not:          false,
+			expectSQL:    fmt.Sprintf("(%s LIKE ?) OR (%s LIKE ?)", pathCol, baseCol),
+			expectArgs:   []interface{}{"%video.mp4%", "%video.mp4%"},
+		},
+		{
+			name:         "basename-only pattern NOT (wildcard)",
+			pattern:      "video.mp4",
+			addWildcards: true,
+			not:          true,
+			expectSQL:    fmt.Sprintf("(NOT (%s LIKE ?)) AND (NOT (%s LIKE ?))", pathCol, baseCol),
+			expectArgs:   []interface{}{"%video.mp4%", "%video.mp4%"},
+		},
+		{
+			name:         "absolute path NOT (wildcard)",
+			pattern:      "/home/user",
+			addWildcards: true,
+			not:          true,
+			expectSQL:    fmt.Sprintf("NOT (%s LIKE ?)", pathCol),
+			expectArgs:   []interface{}{"/home/user%"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			clause := getPathSearchClause(pathCol, baseCol, tt.pattern, tt.addWildcards, tt.not)
+			assert.Equal(t, tt.expectSQL, clause.sql)
+			assert.Equal(t, tt.expectArgs, clause.args)
+		})
+	}
+}
+
+func TestZeroStringFromTrimmed(t *testing.T) {
+	tests := []struct {
+		name      string
+		input     string
+		wantValue string
+		wantValid bool
+	}{
+		{"normal string", "hello", "hello", true},
+		{"leading spaces", "  hello", "hello", true},
+		{"trailing spaces", "hello  ", "hello", true},
+		{"both sides", "  hello  ", "hello", true},
+		{"empty string", "", "", false},
+		{"whitespace only", "   ", "", false},
+		{"tab and newline", "\t\nhello\t\n", "hello", true},
+		{"only whitespace chars", " \t\n\r ", "", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := zeroStringFromTrimmed(tt.input)
+			assert.Equal(t, tt.wantValue, result.String)
+			assert.Equal(t, tt.wantValid, result.Valid, "Valid flag")
+		})
+	}
 }

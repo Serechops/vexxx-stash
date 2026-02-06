@@ -40,9 +40,7 @@ import { FilterTags } from "../List/FilterTags";
 import { Pagination, PaginationIndex } from "../List/Pagination";
 import { LoadedContent } from "../List/PagedList";
 import { SidebarPerformersFilter } from "../List/Filters/PerformersFilter";
-import { SidebarRatingFilter } from "../List/Filters/RatingFilter";
 import { PerformersCriterionOption } from "src/models/list-filter/criteria/performers";
-import { RatingCriterionOption } from "src/models/list-filter/criteria/rating";
 import { Button, IconButton, Box, Grid, Typography } from "@mui/material";
 import { Link } from "react-router-dom";
 import { TagMergeModal } from "./TagMergeDialog";
@@ -277,14 +275,6 @@ const SidebarContent: React.FC<{
           setFilter={setFilter}
           filterHook={filterHook}
           sectionID="performers"
-        />
-        <SidebarRatingFilter
-          title={<FormattedMessage id="rating" />}
-          data-type={RatingCriterionOption.type}
-          option={RatingCriterionOption}
-          filter={filter}
-          setFilter={setFilter}
-          sectionID="rating"
         />
       </TagFilterSidebarSections>
 

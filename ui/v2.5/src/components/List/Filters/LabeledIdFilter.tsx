@@ -24,6 +24,7 @@ import {
   PerformerFilterType,
   SceneFilterType,
   StudioFilterType,
+  TagFilterType,
 } from "src/core/generated-graphql";
 import { useIntl } from "react-intl";
 
@@ -524,12 +525,19 @@ interface IFilterType {
   gallery_count?: InputMaybe<IntCriterionInput>;
   studios_filter?: InputMaybe<StudioFilterType>;
   studio_count?: InputMaybe<IntCriterionInput>;
+  tags_filter?: InputMaybe<TagFilterType>;
+  tag_count?: InputMaybe<IntCriterionInput>;
 }
 
 export function setObjectFilter(
   out: IFilterType,
   mode: FilterMode,
-  relatedFilterOutput: SceneFilterType | PerformerFilterType | GalleryFilterType
+  relatedFilterOutput:
+    | SceneFilterType
+    | PerformerFilterType
+    | GalleryFilterType
+    | StudioFilterType
+    | TagFilterType
 ) {
   const empty = Object.keys(relatedFilterOutput).length === 0;
 
@@ -564,7 +572,28 @@ export function setObjectFilter(
       }
       out.galleries_filter = relatedFilterOutput as GalleryFilterType;
       break;
+    case FilterMode.Studios:
+      // if empty, only get objects with studios
+      if (empty) {
+        out.studio_count = {
+          modifier: CriterionModifier.GreaterThan,
+          value: 0,
+        };
+      }
+      out.studios_filter = relatedFilterOutput as StudioFilterType;
+      break;
+    case FilterMode.Tags:
+      // if empty, only get objects with tags
+      if (empty) {
+        out.tag_count = {
+          modifier: CriterionModifier.GreaterThan,
+          value: 0,
+        };
+      }
+      out.tags_filter = relatedFilterOutput as TagFilterType;
+      break;
     default:
-      throw new Error("Invalid filter mode");
+      // For unsupported modes (Images, Groups, etc.), skip filtering
+      break;
   }
 }

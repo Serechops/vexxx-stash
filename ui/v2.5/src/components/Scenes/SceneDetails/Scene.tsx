@@ -1097,7 +1097,16 @@ const SceneLoader: React.FC<RouteComponentProps<ISceneParams>> = ({
   const isSegment = (scene?.start_point !== null && scene?.start_point !== undefined && scene.start_point > 0) || (scene?.end_point !== null && scene?.end_point !== undefined && scene.end_point > 0);
 
   return (
-    <Box className="scene-layout">
+    <Box 
+      className="scene-layout"
+      sx={{
+        display: "flex",
+        flexDirection: { xs: "column-reverse", md: "row" },
+        height: { xs: "auto", md: "calc(100vh - 3.5rem)" },
+        overflow: { xs: "visible", md: "hidden" },
+        position: "relative"
+      }}
+    >
       <Box className={cx("scene-detail-panel", { collapsed })}>
         <ScenePage
           scene={scene}

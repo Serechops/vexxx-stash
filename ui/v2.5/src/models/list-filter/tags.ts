@@ -15,6 +15,7 @@ import {
 } from "./criteria/tags";
 import { FavoriteTagCriterionOption } from "./criteria/favorite";
 import { StashIDCriterionOption } from "./criteria/stash-ids";
+import { PerformersCriterionOption } from "./criteria/performers";
 
 const defaultSortBy = "name";
 const sortByOptions = ["name", "random", "scenes_duration"]
@@ -64,6 +65,7 @@ const criterionOptions = [
   createMandatoryNumberCriterionOption("image_count"),
   createMandatoryNumberCriterionOption("gallery_count"),
   createMandatoryNumberCriterionOption("performer_count"),
+  PerformersCriterionOption,
   createMandatoryNumberCriterionOption("studio_count"),
   createMandatoryNumberCriterionOption("group_count"),
   createMandatoryNumberCriterionOption("marker_count"),

@@ -16,10 +16,39 @@ import { GenerateDialog } from "../Dialogs/GenerateDialog";
 import { GalleryListTable } from "./GalleryListTable";
 import { GalleryCardGrid } from "./GalleryGridCard";
 import { View } from "../List/views";
-import { PatchComponent } from "src/patch";
-import { IItemListOperation } from "../List/FilteredListToolbar";
-import { useModal } from "src/hooks/modal";
-
+import {
+  FilteredListToolbar,
+  IItemListOperation,
+} from "../List/FilteredListToolbar";
+import { PatchComponent, PatchContainerComponent } from "src/patch";
+import useFocus from "src/utils/focus";
+import {
+  Sidebar,
+  SidebarPane,
+  SidebarPaneContent,
+  SidebarStateContext,
+  useSidebarState,
+} from "../Shared/Sidebar";
+import { useCloseEditDelete, useFilterOperations } from "../List/util";
+import {
+  FilteredSidebarHeader,
+  useFilteredSidebarKeybinds,
+} from "../List/Filters/FilterSidebar";
+import { FilterTags } from "../List/FilterTags";
+import { Pagination, PaginationIndex } from "../List/Pagination";
+import { LoadedContent } from "../List/PagedList";
+import { SidebarStudiosFilter } from "../List/Filters/StudiosFilter";
+import { SidebarPerformersFilter } from "../List/Filters/PerformersFilter";
+import { SidebarTagsFilter } from "../List/Filters/TagsFilter";
+import { SidebarRatingFilter } from "../List/Filters/RatingFilter";
+import { SidebarBooleanFilter } from "../List/Filters/BooleanFilter";
+import { Button, Box } from "@mui/material";
+import cx from "classnames";
+import { StudiosCriterionOption } from "src/models/list-filter/criteria/studios";
+import { PerformersCriterionOption } from "src/models/list-filter/criteria/performers";
+import { TagsCriterionOption } from "src/models/list-filter/criteria/tags";
+import { RatingCriterionOption } from "src/models/list-filter/criteria/rating";
+import { OrganizedCriterionOption } from "src/models/list-filter/criteria/organized";
 
 const GalleryList: React.FC<{
   galleries: GQL.SlimGalleryDataFragment[];
@@ -59,11 +88,6 @@ const GalleryList: React.FC<{
             <GalleryWallCard
               key={gallery.id}
               gallery={gallery}
-              selected={selectedIds.has(gallery.id)}
-              onSelectedChanged={(selected, shiftKey) =>
-                onSelectChange(gallery.id, selected, shiftKey)
-              }
-              selecting={selectedIds.size > 0}
             />
           ))}
         </div>
@@ -222,9 +246,7 @@ export const FilteredGalleryList = PatchComponent(
   (props: IGalleryList) => {
     const intl = useIntl();
     const history = useHistory();
-    const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
-    const [isExportAll, setIsExportAll] = useState(false);
-    const { modal, showModal, closeModal } = useModal();
+    const location = useLocation();
 
     const searchFocus = useFocus();
 
@@ -270,7 +292,6 @@ export const FilteredGalleryList = PatchComponent(
       onSelectChange,
       onSelectAll,
       onSelectNone,
-      onInvertSelection,
       hasSelection,
     } = listSelect;
 
@@ -330,7 +351,7 @@ export const FilteredGalleryList = PatchComponent(
           exportInput={{
             galleries: {
               ids: Array.from(selectedIds.values()),
-              all: all,
+              all,
             },
           }}
           onClose={() => closeModal()}
@@ -384,32 +405,15 @@ export const FilteredGalleryList = PatchComponent(
         onClick: () => onSelectNone(),
         isDisplayed: () => hasSelection,
       },
-      {
-        text: intl.formatMessage({ id: "actions.invert_selection" }),
-        onClick: () => onInvertSelection(),
-        isDisplayed: () => totalCount > 0,
-      },
+
       {
         text: intl.formatMessage({ id: "actions.view_random" }),
         onClick: viewRandom,
       },
       {
         text: `${intl.formatMessage({ id: "actions.generate" })}…`,
-        onClick: (
-          _result: GQL.FindGalleriesQueryResult,
-          _filter: ListFilterModel,
-          selectedIds: Set<string>
-        ) => {
-          showModal(
-            <GenerateDialog
-              type="gallery"
-              selectedIds={Array.from(selectedIds.values())}
-              onClose={() => closeModal()}
-            />
-          );
-          return Promise.resolve();
-        },
-        isDisplayed: showWhenSelected,
+        onClick: onGenerate,
+        isDisplayed: () => hasSelection,
       },
       {
         text: intl.formatMessage({ id: "actions.export" }),
@@ -425,144 +429,11 @@ export const FilteredGalleryList = PatchComponent(
     // render
     if (sidebarStateLoading) return null;
 
-      return () => {
-        Mousetrap.unbind("p r");
-      };
-    }
-
-    async function viewRandom(
-      result: GQL.FindGalleriesQueryResult,
-      filter: ListFilterModel
-    ) {
-      // query for a random image
-      if (result.data?.findGalleries) {
-        const { count } = result.data.findGalleries;
-
-        const index = Math.floor(Math.random() * count);
-        const filterCopy = cloneDeep(filter);
-        filterCopy.itemsPerPage = 1;
-        filterCopy.currentPage = index + 1;
-        const singleResult = await queryFindGalleries(filterCopy);
-        if (singleResult.data.findGalleries.galleries.length === 1) {
-          const { id } = singleResult.data.findGalleries.galleries[0];
-          // navigate to the image player page
-          history.push(`/galleries/${id}`);
-        }
-      }
-    }
-
-    async function onExport() {
-      setIsExportAll(false);
-      setIsExportDialogOpen(true);
-    }
-
-    async function onExportAll() {
-      setIsExportAll(true);
-      setIsExportDialogOpen(true);
-    }
-
-    function renderContent(
-      result: GQL.FindGalleriesQueryResult,
-      filter: ListFilterModel,
-      selectedIds: Set<string>,
-      onSelectChange: (id: string, selected: boolean, shiftKey: boolean) => void
-    ) {
-      function maybeRenderGalleryExportDialog() {
-        if (isExportDialogOpen) {
-          return (
-            <ExportDialog
-              exportInput={{
-                galleries: {
-                  ids: Array.from(selectedIds.values()),
-                  all: isExportAll,
-                },
-              }}
-              onClose={() => setIsExportDialogOpen(false)}
-            />
-          );
-        }
-      }
-
-      function renderGalleries() {
-        if (!result.data?.findGalleries) return;
-
-        if (filter.displayMode === DisplayMode.Grid) {
-          return (
-            <GalleryCardGrid
-              galleries={result.data.findGalleries.galleries}
-              selectedIds={selectedIds}
-              zoomIndex={filter.zoomIndex}
-              onSelectChange={onSelectChange}
-            />
-          );
-        }
-        if (filter.displayMode === DisplayMode.List) {
-          return (
-            <GalleryListTable
-              galleries={result.data.findGalleries.galleries}
-              selectedIds={selectedIds}
-              onSelectChange={onSelectChange}
-            />
-          );
-        }
-        if (filter.displayMode === DisplayMode.Wall) {
-          return (
-            <div className="row">
-              <div className={`GalleryWall zoom-${filter.zoomIndex}`}>
-                {result.data.findGalleries.galleries.map((gallery) => (
-                  <GalleryWallCard
-                    key={gallery.id}
-                    gallery={gallery}
-                    selected={selectedIds.has(gallery.id)}
-                    onSelectedChanged={(selected, shiftKey) =>
-                      onSelectChange(gallery.id, selected, shiftKey)
-                    }
-                    selecting={selectedIds.size > 0}
-                  />
-                ))}
-              </div>
-            </div>
-          );
-        }
-      }
-
-      return (
-        <>
-          {maybeRenderGalleryExportDialog()}
-          {modal}
-          {renderGalleries()}
-        </>
-      );
-    }
-
-    function renderEditDialog(
-      selectedImages: GQL.SlimGalleryDataFragment[],
-      onClose: (applied: boolean) => void
-    ) {
-      return (
-        <EditGalleriesDialog selected={selectedImages} onClose={onClose} />
-      );
-    }
-
-    function renderDeleteDialog(
-      selectedImages: GQL.SlimGalleryDataFragment[],
-      onClose: (confirmed: boolean) => void
-    ) {
-      return (
-        <DeleteGalleriesDialog selected={selectedImages} onClose={onClose} />
-      );
-    }
-
-    return (
-      <ItemListContext
-        filterMode={filterMode}
-        useResult={useFindGalleries}
-        getItems={getItems}
-        getCount={getCount}
-        alterQuery={alterQuery}
-        filterHook={filterHook}
-        view={view}
-        selectable
+    const content = (
+      <div
+        className={cx("item-list-container gallery-list", {
+          "hide-sidebar": !showSidebar,
+        })}
       >
         {modal}
 

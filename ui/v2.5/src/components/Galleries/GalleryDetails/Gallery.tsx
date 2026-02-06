@@ -46,11 +46,6 @@ import { useScrollToTopOnMount } from "src/hooks/scrollToTop";
 import { RatingSystem } from "src/components/Shared/Rating/RatingSystem";
 import cx from "classnames";
 import { useRatingKeybinds } from "src/hooks/keybinds";
-import { lazyComponent } from "src/utils/lazyComponent";
-
-const GenerateDialog = lazyComponent(
-  () => import("../../Dialogs/GenerateDialog")
-);
 import { useConfigurationContext } from "src/hooks/Config";
 import { TruncatedText } from "src/components/Shared/TruncatedText";
 import { goBackOrReplace } from "src/utils/history";
@@ -76,6 +71,7 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
 
   const [activeTabKey, setActiveTabKey] = useState("gallery-details-panel");
   const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
+  const [collapsed, setCollapsed] = useState(false);
   const menuOpen = Boolean(menuAnchorEl);
   const operationsMenuRef = React.useRef<HTMLDivElement>(null);
 
@@ -284,14 +280,14 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
             }}
           >
             <FormattedMessage id="actions.reset_cover" />
-          </Dropdown.Item>
-          <Dropdown.Item
+          </MenuItem>
+          <MenuItem
             className="bg-secondary text-white"
             onClick={() => setIsGenerateDialogOpen(true)}
           >
             {`${intl.formatMessage({ id: "actions.generate" })}…`}
-          </Dropdown.Item>
-          <Dropdown.Item
+          </MenuItem>
+          <MenuItem
             className="bg-secondary text-white"
             onClick={() => setIsDeleteAlertOpen(true)}
           >
@@ -455,9 +451,9 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
       </Helmet>
       {maybeRenderDeleteDialog()}
       {maybeRenderGenerateDialog()}
-      <div className={`gallery-tabs ${collapsed ? "collapsed" : ""}`}>
-        <div>
-          <div className="gallery-header-container">
+      <Box className={`gallery-tabs ${collapsed ? "collapsed" : ""}`}>
+        <Box>
+          <Box className="gallery-header-container">
             {gallery.studio && (
               <Box className="gallery-studio-image">
                 <Link to={`/studios/${gallery.studio.id}`}>

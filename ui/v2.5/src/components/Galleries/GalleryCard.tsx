@@ -161,12 +161,19 @@ export const GalleryCard: React.FC<IGalleryCardProps> = PatchComponent(
           </Box>
 
           {/* Selecting Checkbox */}
-          {selecting && (
+          {(selecting || isHovered) && (
             <Box className="gallery-card-select">
               <input
                 type="checkbox"
                 checked={selected}
                 readOnly
+                onClick={(e) => {
+                  if (onSelectedChanged) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onSelectedChanged(!selected, e.shiftKey);
+                  }
+                }}
                 style={{ cursor: "pointer", height: "1.25rem", width: "1.25rem" }}
               />
             </Box>

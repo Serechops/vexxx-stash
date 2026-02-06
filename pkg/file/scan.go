@@ -327,6 +327,9 @@ type ScanFileResult struct {
 	New     bool
 	Renamed bool
 	Updated bool
+	// HashChanged indicates whether the file's hash fingerprints changed.
+	// This is only set for existing files that are rescanned.
+	HashChanged bool
 }
 
 // ScanFile scans the provided file into the database, returning the scan result.
@@ -743,6 +746,10 @@ func (s *Scanner) onExistingFile(ctx context.Context, f ScannedFile, existing mo
 		return nil, err
 	}
 
+	// check if the hash actually changed
+	oldFingerprints := existing.Base().Fingerprints
+	hashChanged := fp.ContentsChanged(oldFingerprints)
+
 	s.removeOutdatedFingerprints(existing, fp)
 	existing.SetFingerprints(fp)
 
@@ -766,8 +773,9 @@ func (s *Scanner) onExistingFile(ctx context.Context, f ScannedFile, existing mo
 		return nil, err
 	}
 	return &ScanFileResult{
-		File:    existing,
-		Updated: true,
+		File:        existing,
+		Updated:     true,
+		HashChanged: hashChanged,
 	}, nil
 }
 

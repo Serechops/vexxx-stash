@@ -312,7 +312,9 @@ func (j *ScanJob) handleFile(ctx context.Context, f file.ScannedFile, progress *
 	// handle rename should have already handled the contents of the zip file
 	// so shouldn't need to scan it again
 
-	if (r.New || r.Updated) && j.scanner.IsZipFile(f.Info.Name()) {
+	// #6512 - for zip files, only scan contents if the file is new or the hash changed
+	// this avoids expensive iteration through zip contents when only metadata changes
+	if (r.New || r.HashChanged) && j.scanner.IsZipFile(f.Info.Name()) {
 		ff := r.File
 		f.BaseFile = ff.Base()
 

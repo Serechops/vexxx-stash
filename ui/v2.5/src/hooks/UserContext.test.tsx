@@ -63,13 +63,15 @@ describe("UserContext", () => {
       expect(result.current.loading).toBe(true);
     });
 
-    it("should return null user when not logged in but users exist", async () => {
+    it("should grant admin access in no-auth mode (no current user, users exist, no error)", async () => {
+      // When auth is not configured, currentUser returns null without error
+      // but users still exist (admin can't self-delete). This is "no-auth mode".
       const mocks: MockedResponse[] = [
         {
           request: { query: CURRENT_USER_QUERY },
           result: { data: { currentUser: null } },
         },
-        createUserCountMock(1), // Has users, so not in setup mode
+        createUserCountMock(1, 1), // Has users, but no auth configured
       ];
 
       const { result, waitForNextUpdate } = renderHook(() => useCurrentUser(), {
@@ -80,9 +82,15 @@ describe("UserContext", () => {
 
       expect(result.current.loading).toBe(false);
       expect(result.current.user).toBeNull();
-      expect(result.current.isAdmin).toBe(false);
+      // No-auth mode: should have full admin access
+      expect(result.current.isAdmin).toBe(true);
       expect(result.current.isViewer).toBe(false);
       expect(result.current.isSetupMode).toBe(false);
+      expect(result.current.canModify).toBe(true);
+      expect(result.current.canDelete).toBe(true);
+      expect(result.current.canManageUsers).toBe(true);
+      expect(result.current.canRunTasks).toBe(true);
+      expect(result.current.canModifySettings).toBe(true);
     });
 
     it("should grant admin access in setup mode (no users exist)", async () => {
@@ -98,7 +106,12 @@ describe("UserContext", () => {
         wrapper: createWrapper(mocks),
       });
 
+      // Wait for both queries to resolve (cache-and-network may resolve them
+      // on separate ticks)
       await waitForNextUpdate();
+      if (result.current.loading) {
+        await waitForNextUpdate();
+      }
 
       expect(result.current.loading).toBe(false);
       expect(result.current.user).toBeNull();
@@ -205,7 +218,10 @@ describe("UserContext", () => {
       expect(result.current.canModifySettings).toBe(false);
     });
 
-    it("should use default permissions when user is null but users exist (backward compat)", async () => {
+    it("should grant full admin access when no user and no auth configured (backward compat)", async () => {
+      // Backward compat: single-user system without auth configured.
+      // currentUser is null (no auth) but users exist in DB.
+      // Should grant full admin access since auth is not required.
       const mocks: MockedResponse[] = [
         {
           request: { query: CURRENT_USER_QUERY },
@@ -222,11 +238,11 @@ describe("UserContext", () => {
 
       expect(result.current.loading).toBe(false);
       expect(result.current.isSetupMode).toBe(false);
-      // When no user but users exist, defaults should be true for backward compatibility
-      // except canManageUsers which defaults to false
+      // No-auth mode: full admin access including user management
+      expect(result.current.isAdmin).toBe(true);
       expect(result.current.canModify).toBe(true);
       expect(result.current.canDelete).toBe(true);
-      expect(result.current.canManageUsers).toBe(false);
+      expect(result.current.canManageUsers).toBe(true);
       expect(result.current.canRunTasks).toBe(true);
       expect(result.current.canModifySettings).toBe(true);
     });

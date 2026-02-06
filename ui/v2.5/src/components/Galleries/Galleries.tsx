@@ -4,7 +4,8 @@ import { Helmet } from "react-helmet";
 import { useTitleProps } from "src/hooks/title";
 import Gallery from "./GalleryDetails/Gallery";
 import GalleryCreate from "./GalleryDetails/GalleryCreate";
-import { GalleryList } from "./GalleryList";
+import { FilteredGalleryList } from "./GalleryList";
+import { GalleriesHero } from "./GalleriesHero";
 import { View } from "../List/views";
 import { LoadingIndicator } from "../Shared/LoadingIndicator";
 import { ErrorMessage } from "../Shared/ErrorMessage";
@@ -40,7 +41,12 @@ const GalleryImage: React.FC<RouteComponentProps<IGalleryImageParams>> = ({
 };
 
 const Galleries: React.FC = () => {
-  return <GalleryList view={View.Galleries} />;
+  return (
+    <>
+      <GalleriesHero />
+      <FilteredGalleryList view={View.Galleries} />
+    </>
+  );
 };
 
 const GalleryRoutes: React.FC = () => {

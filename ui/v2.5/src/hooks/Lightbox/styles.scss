@@ -12,9 +12,15 @@
 
 .lightbox-nav-btn {
     position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
+    // Use top/bottom + flex centering instead of transform to avoid
+    // MUI IconButton hover/ripple overriding translateY(-50%)
+    top: 0;
+    bottom: 0;
+    display: flex !important;
+    align-items: center;
     background-color: transparent !important;
+    z-index: 2001; // Above header/footer controls
+    padding: 0 0.5rem !important;
 
     &:hover {
         background-color: transparent !important;
@@ -24,12 +30,12 @@
         filter: drop-shadow(2px 2px 2px black);
         font-size: 4rem;
         opacity: 0.4;
-        transition: all 0.2s ease;
+        transition: opacity 0.2s ease, color 0.2s ease;
+    }
 
-        &:hover {
-            opacity: 1;
-            color: $primary;
-        }
+    &:hover svg {
+        opacity: 1;
+        color: $primary;
     }
 
     &.left {

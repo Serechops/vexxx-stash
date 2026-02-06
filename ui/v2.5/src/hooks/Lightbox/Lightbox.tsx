@@ -850,7 +850,7 @@ export const LightboxComponent: React.FC<IProps> = ({
           {allowNavigation && (
             <IconButton
               onClick={() => handleLeft(true)}
-              className="d-none d-lg-block minimal z-[1045] lightbox-nav-btn left"
+              className="hidden lg:flex minimal lightbox-nav-btn left"
               size="large"
             >
               <ChevronLeftIcon />
@@ -902,7 +902,7 @@ export const LightboxComponent: React.FC<IProps> = ({
           {allowNavigation && (
             <IconButton
               onClick={() => handleRight(true)}
-              className="d-none d-lg-block minimal z-[1045] lightbox-nav-btn right"
+              className="hidden lg:flex minimal lightbox-nav-btn right"
               size="large"
             >
               <ChevronRightIcon />

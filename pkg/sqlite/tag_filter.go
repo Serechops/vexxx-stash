@@ -127,6 +127,15 @@ func (qb *tagFilterHandler) criterionHandler() criterionHandler {
 				tagRepository.galleries.innerJoin(f, "", "tags.id")
 			},
 		},
+
+		&relatedFilterHandler{
+			relatedIDCol:   "studios_tags.studio_id",
+			relatedRepo:    studioRepository.repository,
+			relatedHandler: &studioFilterHandler{tagFilter.StudiosFilter},
+			joinFn: func(f *filterBuilder) {
+				tagRepository.studios.innerJoin(f, "", "tags.id")
+			},
+		},
 	}
 }
 

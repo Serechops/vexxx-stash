@@ -50,6 +50,8 @@ type TagFilterType struct {
 	ImagesFilter *ImageFilterType `json:"images_filter"`
 	// Filter by related galleries that meet this criteria
 	GalleriesFilter *GalleryFilterType `json:"galleries_filter"`
+	// Filter by related studios that meet this criteria
+	StudiosFilter *StudioFilterType `json:"studios_filter"`
 	// Filter by created at
 	CreatedAt *TimestampCriterionInput `json:"created_at"`
 	// Filter by updated at

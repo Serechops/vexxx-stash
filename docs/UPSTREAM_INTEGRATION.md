@@ -126,14 +126,13 @@ High-value features requiring more extensive integration work:
 
 | # | PR/Commit | Description | Estimated Complexity | Notes |
 |---|-----------|-------------|----------------------|-------|
-| 1 | #6498 | File scanning refactor | High | Test with Vexxx segments |
+| 1 | #6498 | File scanning refactor | High | Test with Vexxx segments | - Integrated in 'e031466f312ff89caa46a0499daaf59fda11bd6a'
 | 2 | #6510 | Add Performer Merge | High | Backend + UI work |
 | 3 | #6469 | Troubleshooting mode | Medium | Diagnostic features |
 | 4 | #6522 | Fix scanning with symlinks | Medium | Path handling |
 
 **Testing Strategy:**
 - PR #6498 requires validation with Vexxx's scene segments feature (start/end points)
-- User confirmed: Existing test database available, no need to create new test data
 
 ---
 

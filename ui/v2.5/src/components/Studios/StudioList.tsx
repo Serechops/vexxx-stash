@@ -1,7 +1,7 @@
-import React, { useState } from "react";
-import { useIntl } from "react-intl";
+import React, { useCallback, useEffect } from "react";
+import { FormattedMessage, useIntl } from "react-intl";
 import cloneDeep from "lodash-es/cloneDeep";
-import { useHistory } from "react-router-dom";
+import { useHistory, useLocation } from "react-router-dom";
 import Mousetrap from "mousetrap";
 import * as GQL from "src/core/generated-graphql";
 import {
@@ -9,25 +9,157 @@ import {
   useFindStudios,
   useStudiosDestroy,
 } from "src/core/StashService";
-import { ItemList, ItemListContext, showWhenSelected } from "../List/ItemList";
+import { useFilteredItemList } from "../List/ItemList";
 import { ListFilterModel } from "src/models/list-filter/filter";
 import { DisplayMode } from "src/models/list-filter/types";
 import { ExportDialog } from "../Shared/ExportDialog";
 import { DeleteEntityDialog } from "../Shared/DeleteEntityDialog";
 import { StudioTagger } from "../Tagger/studios/StudioTagger";
-import { SmartStudioCardGrid } from "./VirtualizedStudioCardGrid";
+import { StudioCardGrid } from "./StudioCardGrid";
 import { View } from "../List/views";
 import { EditStudiosDialog } from "./EditStudiosDialog";
-import { IItemListOperation } from "../List/FilteredListToolbar";
-import { PatchComponent } from "src/patch";
+import {
+  FilteredListToolbar,
+  IItemListOperation,
+} from "../List/FilteredListToolbar";
+import { PatchComponent, PatchContainerComponent } from "src/patch";
+import { useCloseEditDelete, useFilterOperations } from "../List/util";
+import {
+  Sidebar,
+  SidebarPane,
+  SidebarPaneContent,
+  SidebarStateContext,
+  useSidebarState,
+} from "../Shared/Sidebar";
+import useFocus from "src/utils/focus";
+import {
+  FilteredSidebarHeader,
+  useFilteredSidebarKeybinds,
+} from "../List/Filters/FilterSidebar";
+import { FilterTags } from "../List/FilterTags";
+import { Pagination, PaginationIndex } from "../List/Pagination";
+import { LoadedContent } from "../List/PagedList";
+import { SidebarTagsFilter } from "../List/Filters/TagsFilter";
+import { SidebarRatingFilter } from "../List/Filters/RatingFilter";
+import { SidebarBooleanFilter } from "../List/Filters/BooleanFilter";
+import { FavoriteStudioCriterionOption } from "src/models/list-filter/criteria/favorite";
+import { TagsCriterionOption } from "src/models/list-filter/criteria/tags";
+import { RatingCriterionOption } from "src/models/list-filter/criteria/rating";
+import { Button } from "@mui/material";
+import cx from "classnames";
 
-function getItems(result: GQL.FindStudiosQueryResult) {
-  return result?.data?.findStudios?.studios ?? [];
-}
+const StudioList: React.FC<{
+  studios: GQL.StudioDataFragment[];
+  filter: ListFilterModel;
+  selectedIds: Set<string>;
+  onSelectChange: (id: string, selected: boolean, shiftKey: boolean) => void;
+  fromParent?: boolean;
+}> = PatchComponent(
+  "StudioList",
+  ({ studios, filter, selectedIds, onSelectChange, fromParent }) => {
+    if (studios.length === 0) {
+      return null;
+    }
 
-function getCount(result: GQL.FindStudiosQueryResult) {
-  return result?.data?.findStudios?.count ?? 0;
-}
+    if (filter.displayMode === DisplayMode.Grid) {
+      return (
+        <StudioCardGrid
+          studios={studios}
+          zoomIndex={filter.zoomIndex}
+          fromParent={fromParent}
+          selectedIds={selectedIds}
+          onSelectChange={onSelectChange}
+        />
+      );
+    }
+    if (filter.displayMode === DisplayMode.List) {
+      return <h1>TODO</h1>;
+    }
+    if (filter.displayMode === DisplayMode.Wall) {
+      return <h1>TODO</h1>;
+    }
+    if (filter.displayMode === DisplayMode.Tagger) {
+      return <StudioTagger studios={studios} />;
+    }
+
+    return null;
+  }
+);
+
+const StudioFilterSidebarSections = PatchContainerComponent(
+  "FilteredStudioList.SidebarSections"
+);
+
+const SidebarContent: React.FC<{
+  filter: ListFilterModel;
+  setFilter: (filter: ListFilterModel) => void;
+  filterHook?: (filter: ListFilterModel) => ListFilterModel;
+  view?: View;
+  sidebarOpen: boolean;
+  onClose?: () => void;
+  showEditFilter: (editingCriterion?: string) => void;
+  count?: number;
+  focus?: ReturnType<typeof useFocus>;
+}> = ({
+  filter,
+  setFilter,
+  filterHook,
+  view,
+  showEditFilter,
+  sidebarOpen,
+  onClose,
+  count,
+  focus,
+}) => {
+  const showResultsId =
+    count !== undefined ? "actions.show_count_results" : "actions.show_results";
+
+  return (
+    <>
+      <FilteredSidebarHeader
+        sidebarOpen={sidebarOpen}
+        showEditFilter={showEditFilter}
+        filter={filter}
+        setFilter={setFilter}
+        view={view}
+        focus={focus}
+      />
+
+      <StudioFilterSidebarSections>
+        <SidebarTagsFilter
+          title={<FormattedMessage id="tags" />}
+          data-type={TagsCriterionOption.type}
+          option={TagsCriterionOption}
+          filter={filter}
+          setFilter={setFilter}
+          filterHook={filterHook}
+          sectionID="tags"
+        />
+        <SidebarRatingFilter
+          title={<FormattedMessage id="rating" />}
+          data-type={RatingCriterionOption.type}
+          option={RatingCriterionOption}
+          filter={filter}
+          setFilter={setFilter}
+          sectionID="rating"
+        />
+        <SidebarBooleanFilter
+          title={<FormattedMessage id="favourite" />}
+          filter={filter}
+          setFilter={setFilter}
+          option={FavoriteStudioCriterionOption}
+          sectionID="favourite"
+        />
+      </StudioFilterSidebarSections>
+
+      <div className="sidebar-footer">
+        <Button className="sidebar-close-button" onClick={onClose}>
+          <FormattedMessage id={showResultsId} values={{ count }} />
+        </Button>
+      </div>
+    </>
+  );
+};
 
 interface IStudioList {
   fromParent?: boolean;
@@ -37,152 +169,172 @@ interface IStudioList {
   extraOperations?: IItemListOperation<GQL.FindStudiosQueryResult>[];
 }
 
-export const StudioList: React.FC<IStudioList> = PatchComponent(
-  "StudioList",
-  ({ fromParent, filterHook, view, alterQuery, extraOperations = [] }) => {
+function useViewRandom(filter: ListFilterModel, count: number) {
+  const history = useHistory();
+
+  const viewRandom = useCallback(async () => {
+    // query for a random studio
+    if (count === 0) {
+      return;
+    }
+
+    const index = Math.floor(Math.random() * count);
+    const filterCopy = cloneDeep(filter);
+    filterCopy.itemsPerPage = 1;
+    filterCopy.currentPage = index + 1;
+    const singleResult = await queryFindStudios(filterCopy);
+    if (singleResult.data.findStudios.studios.length === 1) {
+      const { id } = singleResult.data.findStudios.studios[0];
+      // navigate to the studio page
+      history.push(`/studios/${id}`);
+    }
+  }, [history, filter, count]);
+
+  return viewRandom;
+}
+
+function useAddKeybinds(filter: ListFilterModel, count: number) {
+  const viewRandom = useViewRandom(filter, count);
+
+  useEffect(() => {
+    Mousetrap.bind("p r", () => {
+      viewRandom();
+    });
+
+    return () => {
+      Mousetrap.unbind("p r");
+    };
+  }, [viewRandom]);
+}
+
+export const FilteredStudioList = PatchComponent(
+  "FilteredStudioList",
+  (props: IStudioList) => {
     const intl = useIntl();
     const history = useHistory();
-    const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
-    const [isExportAll, setIsExportAll] = useState(false);
+    const location = useLocation();
 
-    const filterMode = GQL.FilterMode.Studios;
+    const searchFocus = useFocus();
 
-    const otherOperations = [
-      ...extraOperations,
-      {
-        text: intl.formatMessage({ id: "actions.view_random" }),
-        onClick: viewRandom,
-      },
-      {
-        text: intl.formatMessage({ id: "actions.export" }),
-        onClick: onExport,
-        isDisplayed: showWhenSelected,
-      },
-      {
-        text: intl.formatMessage({ id: "actions.export_all" }),
-        onClick: onExportAll,
-      },
-    ];
+    const { filterHook, view, alterQuery, extraOperations = [] } = props;
 
-    function addKeybinds(
-      result: GQL.FindStudiosQueryResult,
-      filter: ListFilterModel
-    ) {
-      Mousetrap.bind("p r", () => {
-        viewRandom(result, filter);
+    // States
+    const {
+      showSidebar,
+      setShowSidebar,
+      sectionOpen,
+      setSectionOpen,
+      loading: sidebarStateLoading,
+    } = useSidebarState(view);
+
+    const { filterState, queryResult, modalState, listSelect, showEditFilter } =
+      useFilteredItemList({
+        filterStateProps: {
+          filterMode: GQL.FilterMode.Studios,
+          view,
+          useURL: alterQuery,
+        },
+        queryResultProps: {
+          useResult: useFindStudios,
+          getCount: (r) => r.data?.findStudios.count ?? 0,
+          getItems: (r) => r.data?.findStudios.studios ?? [],
+          filterHook,
+        },
+      });
+
+    const { filter, setFilter } = filterState;
+
+    const { effectiveFilter, result, cachedResult, items, totalCount } =
+      queryResult;
+
+    const {
+      selectedIds,
+      selectedItems,
+      onSelectChange,
+      onSelectAll,
+      onSelectNone,
+      onInvertSelection,
+      hasSelection,
+    } = listSelect;
+
+    const { modal, showModal, closeModal } = modalState;
+
+    // Utility hooks
+    const { setPage, removeCriterion, clearAllCriteria } = useFilterOperations({
+      filter,
+      setFilter,
+    });
+
+    useAddKeybinds(filter, totalCount);
+    useFilteredSidebarKeybinds({
+      showSidebar,
+      setShowSidebar,
+    });
+
+    useEffect(() => {
+      Mousetrap.bind("e", () => {
+        if (hasSelection) {
+          onEdit?.();
+        }
+      });
+
+      Mousetrap.bind("d d", () => {
+        if (hasSelection) {
+          onDelete?.();
+        }
       });
 
       return () => {
-        Mousetrap.unbind("p r");
+        Mousetrap.unbind("e");
+        Mousetrap.unbind("d d");
       };
-    }
+    });
 
-    async function viewRandom(
-      result: GQL.FindStudiosQueryResult,
-      filter: ListFilterModel
-    ) {
-      // query for a random studio
-      if (result.data?.findStudios) {
-        const { count } = result.data.findStudios;
+    const onCloseEditDelete = useCloseEditDelete({
+      closeModal,
+      onSelectNone,
+      result,
+    });
 
-        const index = Math.floor(Math.random() * count);
-        const filterCopy = cloneDeep(filter);
-        filterCopy.itemsPerPage = 1;
-        filterCopy.currentPage = index + 1;
-        const singleResult = await queryFindStudios(filterCopy);
-        if (singleResult.data.findStudios.studios.length === 1) {
-          const { id } = singleResult.data.findStudios.studios[0];
-          // navigate to the studio page
-          history.push(`/studios/${id}`);
-        }
+    function onCreateNew() {
+      let queryParam = new URLSearchParams(location.search).get("q");
+      let newPath = "/studios/new";
+      if (queryParam) {
+        newPath += "?q=" + encodeURIComponent(queryParam);
       }
+      history.push(newPath);
     }
 
-    async function onExport() {
-      setIsExportAll(false);
-      setIsExportDialogOpen(true);
-    }
+    const viewRandom = useViewRandom(filter, totalCount);
 
-    async function onExportAll() {
-      setIsExportAll(true);
-      setIsExportDialogOpen(true);
-    }
-
-    function renderContent(
-      result: GQL.FindStudiosQueryResult,
-      filter: ListFilterModel,
-      selectedIds: Set<string>,
-      onSelectChange: (id: string, selected: boolean, shiftKey: boolean) => void
-    ) {
-      function maybeRenderExportDialog() {
-        if (isExportDialogOpen) {
-          return (
-            <ExportDialog
-              exportInput={{
-                studios: {
-                  ids: Array.from(selectedIds.values()),
-                  all: isExportAll,
-                },
-              }}
-              onClose={() => setIsExportDialogOpen(false)}
-            />
-          );
-        }
-      }
-
-      function renderStudios() {
-        if (!result.data?.findStudios && !result.loading) return;
-
-        const studios = result.data?.findStudios?.studios ?? [];
-
-        if (filter.displayMode === DisplayMode.Grid) {
-          return (
-            <SmartStudioCardGrid
-              studios={studios}
-              zoomIndex={filter.zoomIndex}
-              itemsPerPage={filter.itemsPerPage}
-              fromParent={fromParent}
-              selectedIds={selectedIds}
-              onSelectChange={onSelectChange}
-              loading={result.loading}
-              virtualizationThreshold={50}
-            />
-          );
-        }
-        if (filter.displayMode === DisplayMode.List) {
-          return <h1>TODO</h1>;
-        }
-        if (filter.displayMode === DisplayMode.Wall) {
-          return <h1>TODO</h1>;
-        }
-        if (filter.displayMode === DisplayMode.Tagger) {
-          return <StudioTagger studios={studios} />;
-        }
-      }
-
-      return (
-        <>
-          {maybeRenderExportDialog()}
-          {renderStudios()}
-        </>
+    function onExport(all: boolean) {
+      showModal(
+        <ExportDialog
+          exportInput={{
+            studios: {
+              ids: Array.from(selectedIds.values()),
+              all: all,
+            },
+          }}
+          onClose={() => closeModal()}
+        />
       );
     }
 
-    function renderEditDialog(
-      selectedStudios: GQL.SlimStudioDataFragment[],
-      onClose: (applied: boolean) => void
-    ) {
-      return <EditStudiosDialog selected={selectedStudios} onClose={onClose} />;
+    function onEdit() {
+      showModal(
+        <EditStudiosDialog
+          selected={selectedItems}
+          onClose={onCloseEditDelete}
+        />
+      );
     }
 
-    function renderDeleteDialog(
-      selectedStudios: GQL.SlimStudioDataFragment[],
-      onClose: (confirmed: boolean) => void
-    ) {
-      return (
+    function onDelete() {
+      showModal(
         <DeleteEntityDialog
-          selected={selectedStudios}
-          onClose={onClose}
+          selected={selectedItems}
+          onClose={onCloseEditDelete}
           singularEntity={intl.formatMessage({ id: "studio" })}
           pluralEntity={intl.formatMessage({ id: "studios" })}
           destroyMutation={useStudiosDestroy}
@@ -190,27 +342,133 @@ export const StudioList: React.FC<IStudioList> = PatchComponent(
       );
     }
 
+    const convertedExtraOperations = extraOperations.map((op) => ({
+      text: op.text,
+      onClick: () => op.onClick(result, filter, selectedIds),
+      isDisplayed: () => op.isDisplayed?.(result, filter, selectedIds) ?? true,
+    }));
+
+    const otherOperations = [
+      ...convertedExtraOperations,
+      {
+        text: intl.formatMessage({ id: "actions.select_all" }),
+        onClick: () => onSelectAll(),
+        isDisplayed: () => totalCount > 0,
+      },
+      {
+        text: intl.formatMessage({ id: "actions.select_none" }),
+        onClick: () => onSelectNone(),
+        isDisplayed: () => hasSelection,
+      },
+      {
+        text: intl.formatMessage({ id: "actions.invert_selection" }),
+        onClick: () => onInvertSelection(),
+        isDisplayed: () => totalCount > 0,
+      },
+      {
+        text: intl.formatMessage({ id: "actions.view_random" }),
+        onClick: viewRandom,
+      },
+      {
+        text: intl.formatMessage({ id: "actions.export" }),
+        onClick: () => onExport(false),
+        isDisplayed: () => hasSelection,
+      },
+      {
+        text: intl.formatMessage({ id: "actions.export_all" }),
+        onClick: () => onExport(true),
+      },
+    ];
+
+    // render
+    if (sidebarStateLoading) return null;
+
     return (
-      <ItemListContext
-        filterMode={filterMode}
-        useResult={useFindStudios}
-        getItems={getItems}
-        getCount={getCount}
-        alterQuery={alterQuery}
-        filterHook={filterHook}
-        view={view}
-        selectable
+      <div
+        className={cx("item-list-container studio-list", {
+          "hide-sidebar": !showSidebar,
+        })}
       >
-        <ItemList
-          view={view}
-          otherOperations={otherOperations}
-          addKeybinds={addKeybinds}
-          renderContent={renderContent}
-          renderEditDialog={renderEditDialog}
-          renderDeleteDialog={renderDeleteDialog}
-          allowSkeleton
-        />
-      </ItemListContext>
+        {modal}
+
+        <SidebarStateContext.Provider value={{ sectionOpen, setSectionOpen }}>
+          <SidebarPane hideSidebar={!showSidebar}>
+            <Sidebar hide={!showSidebar} onHide={() => setShowSidebar(false)}>
+              <SidebarContent
+                filter={filter}
+                setFilter={setFilter}
+                filterHook={filterHook}
+                showEditFilter={showEditFilter}
+                view={view}
+                sidebarOpen={showSidebar}
+                onClose={() => setShowSidebar(false)}
+                count={cachedResult.loading ? undefined : totalCount}
+                focus={searchFocus}
+              />
+            </Sidebar>
+            <SidebarPaneContent
+              onSidebarToggle={() => setShowSidebar(!showSidebar)}
+            >
+              <FilteredListToolbar
+                filter={filter}
+                listSelect={listSelect}
+                setFilter={setFilter}
+                showEditFilter={showEditFilter}
+                onDelete={onDelete}
+                onEdit={onEdit}
+                operations={otherOperations}
+                view={view}
+                zoomable
+              />
+
+              <FilterTags
+                criteria={filter.criteria}
+                onEditCriterion={(c) => showEditFilter(c.criterionOption.type)}
+                onRemoveCriterion={removeCriterion}
+                onRemoveAll={clearAllCriteria}
+              />
+
+              <div className="pagination-index-container">
+                <Pagination
+                  currentPage={filter.currentPage}
+                  itemsPerPage={filter.itemsPerPage}
+                  totalItems={totalCount}
+                  onChangePage={(page) => setFilter(filter.changePage(page))}
+                />
+                <PaginationIndex
+                  loading={cachedResult.loading}
+                  itemsPerPage={filter.itemsPerPage}
+                  currentPage={filter.currentPage}
+                  totalItems={totalCount}
+                />
+              </div>
+
+              <LoadedContent loading={result.loading} error={result.error}>
+                <StudioList
+                  filter={effectiveFilter}
+                  studios={items}
+                  selectedIds={selectedIds}
+                  onSelectChange={onSelectChange}
+                />
+              </LoadedContent>
+
+              {totalCount > filter.itemsPerPage && (
+                <div className="pagination-footer-container">
+                  <div className="pagination-footer">
+                    <Pagination
+                      itemsPerPage={filter.itemsPerPage}
+                      currentPage={filter.currentPage}
+                      totalItems={totalCount}
+                      onChangePage={setPage}
+                      pagePopupPlacement="top"
+                    />
+                  </div>
+                </div>
+              )}
+            </SidebarPaneContent>
+          </SidebarPane>
+        </SidebarStateContext.Provider>
+      </div>
     );
   }
 );

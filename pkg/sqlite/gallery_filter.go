@@ -58,6 +58,7 @@ func (qb *galleryFilterHandler) criterionHandler() criterionHandler {
 	return compoundHandler{
 		intCriterionHandler(filter.ID, "galleries.id", nil),
 		stringCriterionHandler(filter.Title, "galleries.title"),
+		qb.titleDuplicatedCriterionHandler(filter.TitleDuplicated),
 		stringCriterionHandler(filter.Code, "galleries.code"),
 		stringCriterionHandler(filter.Details, "galleries.details"),
 		stringCriterionHandler(filter.Photographer, "galleries.photographer"),
@@ -191,6 +192,21 @@ func (qb *galleryFilterHandler) urlsCriterionHandler(url *models.StringCriterion
 	}
 
 	return h.handler(url)
+}
+
+func (qb *galleryFilterHandler) titleDuplicatedCriterionHandler(duplicatedFilter *bool) criterionHandlerFunc {
+	return func(ctx context.Context, f *filterBuilder) {
+		if duplicatedFilter != nil {
+			var v string
+			if *duplicatedFilter {
+				v = ">"
+			} else {
+				v = "="
+			}
+
+			f.addInnerJoin("(SELECT title FROM galleries WHERE title IS NOT NULL AND title != '' GROUP BY title HAVING COUNT(*) "+v+" 1)", "dup_titles", "galleries.title = dup_titles.title")
+		}
+	}
 }
 
 func (qb *galleryFilterHandler) getMultiCriterionHandlerBuilder(foreignTable, joinTable, foreignFK string, addJoinsFunc func(f *filterBuilder)) multiCriterionHandlerBuilder {

@@ -2,11 +2,13 @@ package models
 
 type GalleryFilterType struct {
 	OperatorFilter[GalleryFilterType]
-	ID           *IntCriterionInput    `json:"id"`
-	Title        *StringCriterionInput `json:"title"`
-	Code         *StringCriterionInput `json:"code"`
-	Details      *StringCriterionInput `json:"details"`
-	Photographer *StringCriterionInput `json:"photographer"`
+	ID    *IntCriterionInput    `json:"id"`
+	Title *StringCriterionInput `json:"title"`
+	// Filter galleries with duplicate titles
+	TitleDuplicated *bool                 `json:"title_duplicated"`
+	Code            *StringCriterionInput `json:"code"`
+	Details         *StringCriterionInput `json:"details"`
+	Photographer    *StringCriterionInput `json:"photographer"`
 	// Filter by file checksum
 	Checksum *StringCriterionInput `json:"checksum"`
 	// Filter by path

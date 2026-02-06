@@ -1102,6 +1102,7 @@
     "title": "Duplicate Scenes"
   },
   "duplicated_phash": "Duplicated (pHash)",
+  "title_duplicated": "Duplicated Title",
   "duration": "Duration",
   "effect_filters": {
     "aspect": "Aspect",

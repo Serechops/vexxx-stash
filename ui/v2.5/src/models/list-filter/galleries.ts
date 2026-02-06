@@ -3,6 +3,7 @@ import {
   createStringCriterionOption,
   createDateCriterionOption,
   createMandatoryTimestampCriterionOption,
+  createBooleanCriterionOption,
 } from "./criteria/criterion";
 import { PerformerFavoriteCriterionOption } from "./criteria/favorite";
 import { GalleryIsMissingCriterionOption } from "./criteria/is-missing";
@@ -45,6 +46,7 @@ const displayModeOptions = [
 
 const criterionOptions = [
   createStringCriterionOption("title"),
+  createBooleanCriterionOption("title_duplicated"),
   createStringCriterionOption("code", "scene_code"),
   createStringCriterionOption("details"),
   createStringCriterionOption("photographer"),

@@ -43,28 +43,32 @@
     max-width: 100%;
 }
 
-// Studio card
-.studio-card {
-    padding: 0.5rem;
-
-    @media (max-width: 576px) {
-        width: 100%;
-    }
-
-    &-header {
-        height: 150px;
-        line-height: 150px;
-        text-align: center;
-    }
-
-    &-image {
-        max-height: 150px;
-        object-fit: contain;
-        vertical-align: middle;
-        width: 320px;
+// Studio card - scoped to scene context only to avoid conflicts with Studios component
+.scene-page,
+.scene-details,
+.tagger-container {
+    .studio-card {
+        padding: 0.5rem;
 
         @media (max-width: 576px) {
             width: 100%;
+        }
+
+        &-header {
+            height: 150px;
+            line-height: 150px;
+            text-align: center;
+        }
+
+        &-image {
+            max-height: 150px;
+            object-fit: contain;
+            vertical-align: middle;
+            width: 320px;
+
+            @media (max-width: 576px) {
+                width: 100%;
+            }
         }
     }
 }

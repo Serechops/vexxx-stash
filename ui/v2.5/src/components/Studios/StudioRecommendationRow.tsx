@@ -47,7 +47,7 @@ export const StudioRecommendationRow: React.FC<IProps> = (props) => {
             />
           ))
           : result.data?.findStudios.studios.map((s) => (
-            <StudioCard key={s.id} studio={s} hideParent={true} />
+            <StudioCard key={s.id} studio={s} hideParent={true} zoomIndex={1} />
           ))}
       </Carousel>
     </RecommendationRow>

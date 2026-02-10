@@ -19,7 +19,7 @@ interface IProps {
   hideParent?: boolean;
   selecting?: boolean;
   selected?: boolean;
-  zoomIndex?: number;
+  zoomIndex: number;
   onSelectedChanged?: (selected: boolean, shiftKey: boolean) => void;
 }
 

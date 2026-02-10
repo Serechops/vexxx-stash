@@ -15,7 +15,7 @@ import { DisplayMode } from "src/models/list-filter/types";
 import { ExportDialog } from "../Shared/ExportDialog";
 import { DeleteEntityDialog } from "../Shared/DeleteEntityDialog";
 import { StudioTagger } from "../Tagger/studios/StudioTagger";
-import { StudioCardGrid } from "./StudioCardGrid";
+import { SmartStudioCardGrid } from "./VirtualizedStudioCardGrid";
 import { View } from "../List/views";
 import { EditStudiosDialog } from "./EditStudiosDialog";
 import {
@@ -63,12 +63,15 @@ const StudioList: React.FC<{
 
     if (filter.displayMode === DisplayMode.Grid) {
       return (
-        <StudioCardGrid
+        <SmartStudioCardGrid
           studios={studios}
           zoomIndex={filter.zoomIndex}
           fromParent={fromParent}
+          itemsPerPage={filter.itemsPerPage}
           selectedIds={selectedIds}
           onSelectChange={onSelectChange}
+          loading={false}
+          virtualizationThreshold={50}
         />
       );
     }

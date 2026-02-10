@@ -27,10 +27,8 @@ export const DirectorySelectionDialog: React.FC<
   const libraryPaths = configuration?.general.stashes.map((s) => s.path);
 
   const [paths, setPaths] = useState<string[]>(initialPaths);
-  // Initialize to first library path instead of empty string to avoid showing root directory
-  const [currentDirectory, setCurrentDirectory] = useState<string>(
-    libraryPaths?.[0] ?? ""
-  );
+  // Start at root to show all configured library paths
+  const [currentDirectory, setCurrentDirectory] = useState<string>("");
 
   function removePath(p: string) {
     setPaths(paths.filter((path) => path !== p));

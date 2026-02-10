@@ -58,8 +58,12 @@ const _FolderSelect: React.FC<IProps> = ({
     hideError
   );
 
-  // Use directories from query when we have them, otherwise fall back to defaults
-  const selectableDirectories = directories ?? defaultDirectories;
+  // When at root (empty path) and default directories are configured, show them
+  // instead of the query result (which returns the home directory for empty path)
+  const isAtRoot = !normalizedPath && defaultDirectories.length > 0;
+  const selectableDirectories = isAtRoot
+    ? defaultDirectories
+    : (directories ?? defaultDirectories);
   const hasDirectories = selectableDirectories.length > 0;
   const isValidPath = !error && !loading && currentDirectory.length > 0;
 

@@ -32,7 +32,7 @@ const PerformerSearchResultDetails: React.FC<
           <img
             src={performer.images[0]}
             alt=""
-            className="align-self-center scene-image"
+            className="self-center scene-image"
           />
         </div>
       );

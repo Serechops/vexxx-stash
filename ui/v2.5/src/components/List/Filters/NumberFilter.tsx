@@ -38,7 +38,6 @@ export const NumberFilter: React.FC<IDurationFilterProps> = ({
     equalsControl = (
       <Box mb={1}>
         <NumberField
-          className="btn-secondary"
           onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
             onChanged(e, "value")
           }
@@ -58,7 +57,6 @@ export const NumberFilter: React.FC<IDurationFilterProps> = ({
     lowerControl = (
       <Box mb={1}>
         <NumberField
-          className="btn-secondary"
           onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
             onChanged(e, "value")
           }
@@ -78,7 +76,6 @@ export const NumberFilter: React.FC<IDurationFilterProps> = ({
     upperControl = (
       <Box mb={1}>
         <NumberField
-          className="btn-secondary"
           onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
             onChanged(
               e,

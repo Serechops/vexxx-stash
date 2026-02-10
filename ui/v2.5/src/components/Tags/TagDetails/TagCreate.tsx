@@ -56,8 +56,8 @@ const TagCreate: React.FC = () => {
   }
 
   return (
-    <div className="row">
-      <div className="tag-details col-md-8">
+    <div className="flex flex-wrap">
+      <div className="tag-details w-full md:w-2/3">
         <div className="text-center logo-container">
           {encodingImage ? (
             <LoadingIndicator

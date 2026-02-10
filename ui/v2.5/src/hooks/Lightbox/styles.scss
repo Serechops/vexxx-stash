@@ -1,5 +1,5 @@
 // Styles for Lightbox module
-@import "../../styles/theme";
+@use "../../styles/theme" as *;
 
 .lightbox-options-container {
     min-width: 300px;

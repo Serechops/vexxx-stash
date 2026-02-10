@@ -302,7 +302,7 @@ export const StashDBCard: React.FC<ISceneCardProps> = ({
                     >
                         {scene.studio && (
                             <Box
-                                className="text-muted small cursor-pointer"
+                                className="small cursor-pointer"
                                 onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();

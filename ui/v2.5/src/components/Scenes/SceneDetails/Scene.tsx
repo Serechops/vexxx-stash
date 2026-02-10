@@ -452,11 +452,10 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
             variant: "secondary"
           }}
         >
-          <div className="form-group">
+          <div>
             <label><FormattedMessage id="number_of_images" defaultMessage="Number of Images" /></label>
             <input
               type="number"
-              className="form-control"
               value={galleryImageCount}
               onChange={(e) => setGalleryImageCount(parseInt(e.target.value) || 0)}
             />

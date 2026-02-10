@@ -28,7 +28,7 @@ export const ScrapedSceneCard: React.FC<IScrapedSceneCardProps> = ({
         <Card className={cx("grid-card transition-transform duration-300 hover:scale-105 hover:z-50 hover:shadow-2xl bg-card border-none rounded-md overflow-hidden", { tracked })}>
             <div className="thumbnail-section relative aspect-video">
                 {sceneUrl ? (
-                    <a href={sceneUrl} target="_blank" rel="noreferrer" className="d-block w-full h-full">
+                    <a href={sceneUrl} target="_blank" rel="noreferrer" className="block w-full h-full">
                         <div className="scene-card-preview w-full h-full">
                             {imageUrl ? (
                                 <img
@@ -38,7 +38,7 @@ export const ScrapedSceneCard: React.FC<IScrapedSceneCardProps> = ({
                                     loading="lazy"
                                 />
                             ) : (
-                                <div className="w-full h-full d-flex align-items-center justify-content-center bg-secondary text-white">
+                                <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: '#27272a', color: '#fff' }}>
                                     <span className="opacity-50">No Image</span>
                                 </div>
                             )}
@@ -54,7 +54,7 @@ export const ScrapedSceneCard: React.FC<IScrapedSceneCardProps> = ({
                                 loading="lazy"
                             />
                         ) : (
-                            <div className="w-full h-full d-flex align-items-center justify-content-center bg-secondary text-white">
+                            <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: '#27272a', color: '#fff' }}>
                                 <span className="opacity-50">No Image</span>
                             </div>
                         )}

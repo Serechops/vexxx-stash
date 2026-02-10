@@ -39,18 +39,7 @@ export const TimestampFilter: React.FC<ITimestampFilterProps> = ({
           placeholder={intl.formatMessage({ id: "criterion.value" })}
           isTime
         />
-        {/* <Form.Control
-          className="btn-secondary"
-          type="text"
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-            onChanged(e, "value")
-          }
-          value={value?.value ?? ""}
-          placeholder={
-            intl.formatMessage({ id: "criterion.value" }) +
-            " (YYYY-MM-DD HH:MM)"
-          }
-        /> */}
+
       </Box>
     );
   }
@@ -69,18 +58,7 @@ export const TimestampFilter: React.FC<ITimestampFilterProps> = ({
           placeholder={intl.formatMessage({ id: "criterion.greater_than" })}
           isTime
         />
-        {/* <Form.Control
-          className="btn-secondary"
-          type="text"
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-            onChanged(e, "value")
-          }
-          value={value?.value ?? ""}
-          placeholder={
-            intl.formatMessage({ id: "criterion.greater_than" }) +
-            " (YYYY-MM-DD HH:MM)"
-          }
-        /> */}
+
       </Box>
     );
   }
@@ -110,27 +88,7 @@ export const TimestampFilter: React.FC<ITimestampFilterProps> = ({
           placeholder={intl.formatMessage({ id: "criterion.less_than" })}
           isTime
         />
-        {/* <Form.Control
-          className="btn-secondary"
-          type="text"
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-            onChanged(
-              e,
-              criterion.modifier === CriterionModifier.LessThan
-                ? "value"
-                : "value2"
-            )
-          }
-          value={
-            (criterion.modifier === CriterionModifier.LessThan
-              ? value?.value
-              : value?.value2) ?? ""
-          }
-          placeholder={
-            intl.formatMessage({ id: "criterion.less_than" }) +
-            " (YYYY-MM-DD HH:MM)"
-          }
-        /> */}
+
       </Box>
     );
   }

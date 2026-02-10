@@ -1,5 +1,5 @@
 // Styles for Settings module
-@import "../../styles/theme";
+@use "../../styles/theme" as *;
 
 // Settings Layout (Settings.tsx)
 .settings-container {
@@ -7,7 +7,7 @@
     flex-direction: column;
     height: calc(100vh - 64px);
 
-    @include media-breakpoint-up(md) {
+    @media (min-width: 768px) {
         flex-direction: row;
     }
 }
@@ -21,14 +21,14 @@
     overflow-y: hidden;
     width: 100%;
 
-    @include media-breakpoint-up(md) {
+    @media (min-width: 768px) {
         border-bottom: 0;
         border-right: 1px solid $secondary; // divider
         overflow-y: auto;
         width: 250px;
     }
 
-    @include media-breakpoint-up(lg) {
+    @media (min-width: 992px) {
         width: 300px;
     }
 }

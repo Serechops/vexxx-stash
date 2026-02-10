@@ -1,5 +1,4 @@
 import { Button, Tabs, Tab, Box, FormControlLabel, Switch } from "@mui/material";
-import { Row, Col } from "src/components/Shared/Layouts";
 import React, { useEffect, useMemo, useState } from "react";
 import { useHistory, Redirect, RouteComponentProps } from "react-router-dom";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -510,8 +509,8 @@ const TagPage: React.FC<IProps> = ({ tag, tabKey }) => {
               </Box>
             )}
           </HeaderImage>
-          <Box className="row">
-            <Box className="tag-head col">
+          <Box className="flex flex-wrap">
+            <Box className="tag-head flex-1">
               <DetailTitle name={tag.name} classNamePrefix="tag">
                 {!isEditing && (
                   <ExpandCollapseButton

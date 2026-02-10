@@ -42,10 +42,10 @@ const LogElement: React.FC<ILogElementProps> = ({ logEntry }) => {
   const level = logEntry.level.padEnd(GQL.LogLevel.Progress.length);
 
   return (
-    <div className="row">
+    <div className="flex flex-wrap">
       <span className="log-time">{logEntry.time}</span>
       <span className={`${levelClass(logEntry.level)}`}>{level}</span>
-      <span className="col col-sm-9">{logEntry.message}</span>
+      <span className="w-full sm:w-9/12">{logEntry.message}</span>
     </div>
   );
 };

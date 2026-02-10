@@ -29,7 +29,7 @@ const FileInfoPanel: React.FC<IFileInfoPanelProps> = (
 
   return (
     <div>
-      <dl className="container image-file-info details-list">
+      <dl className="content-container image-file-info details-list">
         {props.primary && (
           <>
             <dt></dt>
@@ -117,7 +117,7 @@ export const ImageFileInfoPanel: React.FC<IImageFileInfoPanelProps> = (
   if (props.image.visual_files.length === 1) {
     return (
       <>
-        <dl className="container image-file-info details-list">
+        <dl className="content-container image-file-info details-list">
           <URLsField id="urls" urls={props.image.urls} truncate />
         </dl>
 

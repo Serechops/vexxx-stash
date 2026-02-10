@@ -1,3 +1,5 @@
+@use "../../styles/theme" as *;
+
 // Group Card Styles
 .group-card {
     width: 240px;
@@ -17,7 +19,7 @@
 }
 
 .group-card-front {
-    background-color: $gray-900;
+    background-color: #212529;
     border-radius: 12px;
     height: 100%;
     overflow: hidden;

@@ -281,7 +281,7 @@ export const OverlayCard: React.FC<ISceneCardProps> = ({
                                 {resolution && (
                                     <Box
                                         component="span"
-                                        className="badge badge-secondary"
+                                        className="inline-block px-1.5 py-0.5 text-xs font-bold text-white bg-zinc-600 rounded"
                                         sx={{
                                             backgroundColor: "rgba(255, 255, 255, 0.2)",
                                             color: "#fff",
@@ -298,7 +298,7 @@ export const OverlayCard: React.FC<ISceneCardProps> = ({
                                 {duration && (
                                     <Box
                                         component="span"
-                                        className="badge badge-secondary"
+                                        className="inline-block px-1.5 py-0.5 text-xs font-bold text-white bg-zinc-600 rounded"
                                         sx={{
                                             backgroundColor: "rgba(255, 255, 255, 0.2)",
                                             color: "#fff",

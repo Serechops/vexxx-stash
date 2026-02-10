@@ -36,7 +36,7 @@ const FileInfoPanel: React.FC<IFileInfoPanelProps> = (
 
   return (
     <div>
-      <dl className="container gallery-file-info details-list">
+      <dl className="content-container gallery-file-info details-list">
         {props.primary && (
           <>
             <dt></dt>
@@ -157,7 +157,7 @@ export const GalleryFileInfoPanel: React.FC<IGalleryFileInfoPanelProps> = (
 
   return (
     <>
-      <dl className="container gallery-file-info details-list">
+      <dl className="content-container gallery-file-info details-list">
         <URLsField id="urls" urls={props.gallery.urls} truncate />
       </dl>
 

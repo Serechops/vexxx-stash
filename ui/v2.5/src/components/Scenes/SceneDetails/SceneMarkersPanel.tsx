@@ -66,7 +66,7 @@ export const SceneMarkersPanel: React.FC<ISceneMarkersPanelProps> = ({
       <Button onClick={() => onOpenEditor()}>
         <FormattedMessage id="actions.create_marker" />
       </Button>
-      <div className="container">
+      <div className="content-container">
         <PrimaryTags
           sceneMarkers={sceneMarkers}
           onClickMarker={onClickMarker}

@@ -56,7 +56,7 @@ export const GalleryChapterPanel: React.FC<IGalleryChapterPanelProps> = ({
       <Button variant="outlined" onClick={() => onOpenEditor()}>
         <FormattedMessage id="actions.create_chapters" />
       </Button>
-      <div className="container">
+      <div className="content-container">
         <ChapterEntries
           galleryChapters={gallery.chapters}
           onClickChapter={onClickChapter}

@@ -38,7 +38,7 @@ export const PrimaryTags: React.FC<IPrimaryTags> = ({
       return (
         <div key={marker.id}>
           <hr />
-          <div className="row">
+          <div className="flex flex-wrap">
             <Button variant="text" onClick={() => onClickMarker(marker)}>
               {markerTitle(marker)}
             </Button>
@@ -62,12 +62,12 @@ export const PrimaryTags: React.FC<IPrimaryTags> = ({
     });
 
     return (
-      <Card className="primary-card col-12 col-sm-6 col-xl-6" key={id}>
+      <Card className="primary-card w-full sm:w-1/2 xl:w-1/2" key={id}>
         <h3>{primaryTagNames[id]}</h3>
         <CardContent className="primary-card-body">{markers}</CardContent>
       </Card>
     );
   });
 
-  return <div className="primary-tag row">{primaryCards}</div>;
+  return <div className="primary-tag flex flex-wrap">{primaryCards}</div>;
 };

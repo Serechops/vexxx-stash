@@ -490,7 +490,7 @@ export const SceneVideoFilterPanel: React.FC<ISceneVideoFilterPanelProps> = (
   updateVideoStyle();
 
   return (
-    <Box className="container scene-video-filter">
+    <Box className="content-container scene-video-filter">
       <Box mb={2}>
         <Typography variant="h6">
           <FormattedMessage id="effect_filters.name" />

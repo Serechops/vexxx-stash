@@ -75,8 +75,8 @@ const SceneCreate: React.FC = () => {
   }
 
   return (
-    <div className="row new-view justify-content-center" id="create-scene-page">
-      <div className="col-md-8">
+    <div className="flex flex-wrap new-view justify-center" id="create-scene-page">
+      <div className="w-full md:w-2/3">
         <h2>
           <FormattedMessage
             id="actions.create_entity"

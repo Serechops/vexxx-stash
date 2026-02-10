@@ -218,7 +218,7 @@ const CustomFieldsCriteriaPills: React.FC<{
   onRemoveCriterion: (index: number) => void;
 }> = ({ criteria, editIndex, onEditCriterion, onRemoveCriterion }) => {
   return (
-    <div className="d-flex justify-content-center mb-2 wrap-tags filter-tags">
+    <div className="flex justify-center mb-2 wrap-tags filter-tags">
       {criteria.map((c, index) => (
         <CustomFieldFilterTag
           key={index}

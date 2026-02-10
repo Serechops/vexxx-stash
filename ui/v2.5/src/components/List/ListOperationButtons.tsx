@@ -7,7 +7,7 @@ import { Icon } from "../Shared/Icon";
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
-import cx from "classnames";
+
 import { createPortal } from "react-dom";
 
 // Helper to check if icon is FA IconDefinition
@@ -78,7 +78,8 @@ export const OperationDropdownItem: React.FC<{
 }> = ({ text, onClick, className }) => {
   return (
     <MenuItem
-      className={cx("bg-secondary text-white", className)}
+      sx={{ backgroundColor: '#27272a', color: '#fff' }}
+      className={className}
       onClick={onClick}
     >
       {text}
@@ -201,7 +202,7 @@ export const ListOperationButtons: React.FC<IListOperationButtonsProps> = ({
         return (
           <MenuItem
             key="select-all"
-            className="bg-secondary text-white"
+            sx={{ backgroundColor: '#27272a', color: '#fff' }}
             onClick={() => onSelectAll?.()}
           >
             <FormattedMessage id="actions.select_all" />
@@ -215,7 +216,7 @@ export const ListOperationButtons: React.FC<IListOperationButtonsProps> = ({
         return (
           <MenuItem
             key="select-none"
-            className="bg-secondary text-white"
+            sx={{ backgroundColor: '#27272a', color: '#fff' }}
             onClick={() => onSelectNone?.()}
           >
             <FormattedMessage id="actions.select_none" />
@@ -244,7 +245,7 @@ export const ListOperationButtons: React.FC<IListOperationButtonsProps> = ({
           options.push(
             <MenuItem
               key={o.text}
-              className="bg-secondary text-white"
+              sx={{ backgroundColor: '#27272a', color: '#fff' }}
               onClick={o.onClick}
             >
               {o.text}

@@ -112,7 +112,7 @@ export const GalleryChapterForm: React.FC<IGalleryChapterForm> = ({
         {renderInputField("image_index", "number")}
       </div>
       <div className="buttons-container px-3">
-        <div className="d-flex">
+        <div className="flex">
           <Button
             variant="contained"
             color="primary"

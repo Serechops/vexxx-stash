@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { Box, Typography, Checkbox, FormControlLabel, Grid } from "@mui/material";
-import { Col, Row } from "src/components/Shared/Layouts";
 import { FormattedMessage, useIntl } from "react-intl";
 import isEqual from "lodash-es/isEqual";
 import { useBulkSceneUpdate } from "src/core/StashService";
@@ -268,27 +267,27 @@ export const EditScenesDialog: React.FC<IListOperationProps> = (
       >
 
         <Box component="form">
-          <Row className="mb-3" alignItems="center">
-            <Col xs={3}>
+          <Grid container spacing={2} className="mb-3" alignItems="center">
+            <Grid size={{ xs: 3 }}>
               <Typography variant="body2" component="label" htmlFor="rating">
                 {intl.formatMessage({ id: "rating" })}
               </Typography>
-            </Col>
-            <Col xs={9}>
+            </Grid>
+            <Grid size={{ xs: 9 }}>
               <RatingSystem
                 value={rating100}
                 onSetRating={(value) => setRating(value ?? undefined)}
                 disabled={isUpdating}
               />
-            </Col>
-          </Row>
-          <Row className="mb-3" alignItems="center">
-            <Col xs={3}>
+            </Grid>
+          </Grid>
+          <Grid container spacing={2} className="mb-3" alignItems="center">
+            <Grid size={{ xs: 3 }}>
               <Typography variant="body2" component="label" htmlFor="studio">
                 {intl.formatMessage({ id: "studio" })}
               </Typography>
-            </Col>
-            <Col xs={9}>
+            </Grid>
+            <Grid size={{ xs: 9 }}>
               <StudioSelect
                 onSelect={(items) =>
                   setStudioId(items.length > 0 ? items[0]?.id : undefined)
@@ -297,8 +296,8 @@ export const EditScenesDialog: React.FC<IListOperationProps> = (
                 isDisabled={isUpdating}
                 menuPortalTarget={document.body}
               />
-            </Col>
-          </Row>
+            </Grid>
+          </Grid>
 
           <Box mb={2}>
             <Typography variant="body2" gutterBottom>

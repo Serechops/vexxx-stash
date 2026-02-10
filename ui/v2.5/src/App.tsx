@@ -131,7 +131,7 @@ const MainContainer: React.FC = ({ children }) => {
 
   return (
     <div
-      className={cx("main container-fluid bg-background text-foreground min-h-screen font-sans", {
+      className={cx("main w-full px-[15px] mx-auto bg-background text-foreground min-h-screen font-sans", {
         apple: appleRendering,
         "sfw-content-mode": sfwContentMode,
       })}

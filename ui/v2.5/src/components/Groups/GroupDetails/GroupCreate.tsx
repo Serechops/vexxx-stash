@@ -68,7 +68,7 @@ const GroupCreate: React.FC = () => {
         <Typography variant="h6" align="center" gutterBottom>
           {intl.formatMessage({ id: "images" })}
         </Typography>
-        <div className="logo w-100">
+        <div className="logo w-full">
           {encodingImage ? (
             <LoadingIndicator
               message={intl.formatMessage({ id: "actions.encoding_image" })}

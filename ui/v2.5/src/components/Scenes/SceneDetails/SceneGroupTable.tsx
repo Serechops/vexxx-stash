@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import { useIntl } from "react-intl";
 import * as GQL from "src/core/generated-graphql";
 import { Box, Typography, TextField } from "@mui/material";
-import { Row, Col } from "src/components/Shared/Layouts";
+import Grid from "@mui/material/Grid";
 import { Group, GroupSelect } from "src/components/Groups/GroupSelect";
 import cx from "classnames";
 
@@ -84,15 +84,15 @@ export const SceneGroupTable: React.FC<IProps> = (props) => {
     return (
       <>
         {value.map((m, i) => (
-          <Row key={m.group.id} className="group-row">
-            <Col xs={9}>
+          <Grid container spacing={2} key={m.group.id} className="group-row">
+            <Grid size={{ xs: 9 }}>
               <GroupSelect
                 onSelect={(items) => onGroupSet(i, items)}
                 values={[m.group!]}
                 excludeIds={groupIDs}
               />
-            </Col>
-            <Col xs={3}>
+            </Grid>
+            <Grid size={{ xs: 3 }}>
               <TextField
                 className="text-input"
                 value={m.scene_index ?? ""}
@@ -108,32 +108,32 @@ export const SceneGroupTable: React.FC<IProps> = (props) => {
                 size="small"
                 variant="outlined"
               />
-            </Col>
-          </Row>
+            </Grid>
+          </Grid>
         ))}
-        <Row className="group-row">
-          <Col xs={12}>
+        <Grid container spacing={2} className="group-row">
+          <Grid size={{ xs: 12 }}>
             <GroupSelect
               onSelect={(items) => onNewGroupSet(items)}
               values={[]}
               excludeIds={groupIDs}
             />
-          </Col>
-        </Row>
+          </Grid>
+        </Grid>
       </>
     );
   }
 
   return (
     <div className={cx("group-table", { "no-groups": !value.length })}>
-      <Row className="group-table-header">
-        <Col xs={9}></Col>
-        <Col xs={3} className="group-scene-number-header">
+      <Grid container spacing={2} className="group-table-header">
+        <Grid size={{ xs: 9 }}></Grid>
+        <Grid size={{ xs: 3 }} className="group-scene-number-header">
           <Typography variant="body2" component="label">
             {intl.formatMessage({ id: "group_scene_number" })}
           </Typography>
-        </Col>
-      </Row>
+        </Grid>
+      </Grid>
       {renderTableData()}
     </div>
   );

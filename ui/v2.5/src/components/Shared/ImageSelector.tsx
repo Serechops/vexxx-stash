@@ -76,7 +76,7 @@ export const ImageSelector: React.FC<IImageSelectorProps> = ({
         {/* hidden image to handle loading */}
         <img
           src={images[imageIndex]}
-          className="d-none"
+          style={{ display: 'none' }}
           onLoad={() => handleLoad(imageIndex)}
           onError={handleError}
         />
@@ -87,7 +87,7 @@ export const ImageSelector: React.FC<IImageSelectorProps> = ({
         />
         {imageState === "loading" && <LoadingIndicator />}
         {imageState === "error" && (
-          <div className="h-100 d-flex justify-content-center align-items-center">
+          <div style={{ height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
             <b>
               <FormattedMessage
                 id="errors.loading_type"

@@ -20,12 +20,12 @@ export const ChapterEntries: React.FC<IChapterEntries> = ({
     return (
       <div key={chapter.id}>
         <hr />
-        <div className="row">
+        <div className="flex flex-wrap">
           <Button
             variant="text"
             onClick={() => onClickChapter(chapter.image_index)}
           >
-            <div className="row">
+            <div className="flex flex-wrap">
               {chapter.title}
               {chapter.title.length > 0 ? " - #" : "#"}
               {chapter.image_index}

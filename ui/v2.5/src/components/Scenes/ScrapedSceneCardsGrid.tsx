@@ -74,7 +74,7 @@ export const ScrapedSceneCardsGrid: React.FC<IScrapedSceneCardsGridProps> = ({
     if (!scenes || scenes.length === 0) return null;
 
     return (
-        <div className="row justify-content-center">
+        <div className="flex flex-wrap justify-center">
             {scenes.map((scene, index) => {
                 const sceneUrl = scene.urls?.[0];
                 const trailerUrl = sceneUrl ? trailerUrls[sceneUrl] : undefined;
@@ -105,15 +105,15 @@ export const ScrapedSceneCardsGrid: React.FC<IScrapedSceneCardsGridProps> = ({
                 return (
                     <div
                         key={stashId ?? index}
-                        className="col-xl-3 col-lg-4 col-md-6 col-sm-12 col-12 mb-3"
+                        className="w-full sm:w-full md:w-1/2 lg:w-1/3 xl:w-1/4 mb-3"
                     >
                         <SceneCard
                             scene={slimScene}
                             link={scene.urls?.[0] || undefined}
                             extraActions={
-                                <div className="d-flex align-items-center gap-1">
+                                <div className="flex items-center gap-1">
                                     {hasTrailer && (
-                                        <span className="text-success" title="Trailer available">
+                                        <span style={{ color: '#0f9960' }} title="Trailer available">
                                             <FiberManualRecordIcon sx={{ fontSize: 8 }} />
                                         </span>
                                     )}

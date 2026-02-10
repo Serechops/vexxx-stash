@@ -51,7 +51,7 @@ const FileInfoPanel: React.FC<IFileInfoPanelProps> = (
 
   return (
     <div>
-      <dl className="container scene-file-info details-list">
+      <dl className="content-container scene-file-info details-list">
         {props.primary && (
           <>
             <dt></dt>
@@ -187,7 +187,7 @@ const _SceneFileInfoPanel: React.FC<ISceneFileInfoPanelProps> = (
           <dl>
             {props.scene.stash_ids.map((stashID) => {
               return (
-                <dd key={stashID.stash_id} className="row no-gutters">
+                <dd key={stashID.stash_id} className="flex flex-wrap">
                   <StashIDPill stashID={stashID} linkType="scenes" />
                 </dd>
               );
@@ -284,7 +284,7 @@ const _SceneFileInfoPanel: React.FC<ISceneFileInfoPanelProps> = (
 
   return (
     <>
-      <dl className="container scene-file-info details-list">
+      <dl className="content-container scene-file-info details-list">
         {props.scene.files.length > 0 && (
           <URLField
             id="media_info.stream"

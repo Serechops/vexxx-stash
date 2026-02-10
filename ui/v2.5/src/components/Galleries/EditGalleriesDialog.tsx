@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Box, Typography, FormControlLabel, Checkbox } from "@mui/material";
-import { Row, Col } from "src/components/Shared/Layouts";
+import Grid from "@mui/material/Grid";
 import { FormattedMessage, useIntl } from "react-intl";
 import isEqual from "lodash-es/isEqual";
 import { useBulkGalleryUpdate } from "src/core/StashService";
@@ -252,23 +252,23 @@ export const EditGalleriesDialog: React.FC<IListOperationProps> = (
         isRunning={isUpdating}
       >
         <Box component="form">
-          <Row>
+          <Grid container spacing={2}>
             {FormUtils.renderLabel({
               title: intl.formatMessage({ id: "rating" }),
             })}
-            <Col xs={9}>
+            <Grid size={{ xs: 9 }}>
               <RatingSystem
                 value={rating100}
                 onSetRating={(value) => setRating(value ?? undefined)}
                 disabled={isUpdating}
               />
-            </Col>
-          </Row>
-          <Row>
+            </Grid>
+          </Grid>
+          <Grid container spacing={2}>
             {FormUtils.renderLabel({
               title: intl.formatMessage({ id: "studio" }),
             })}
-            <Col xs={9}>
+            <Grid size={{ xs: 9 }}>
               <StudioSelect
                 onSelect={(items) =>
                   setStudioId(items.length > 0 ? items[0]?.id : undefined)
@@ -277,8 +277,8 @@ export const EditGalleriesDialog: React.FC<IListOperationProps> = (
                 isDisabled={isUpdating}
                 menuPortalTarget={document.body}
               />
-            </Col>
-          </Row>
+            </Grid>
+          </Grid>
 
           <Box sx={{ mb: 2 }}>
             <Typography variant="body2" sx={{ mb: 1 }}>

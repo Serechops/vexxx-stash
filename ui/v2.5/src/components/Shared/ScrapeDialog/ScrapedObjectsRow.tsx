@@ -34,7 +34,7 @@ export const NewScrapedObjects = <T,>(props: INewScrapedObjects<T>) => {
     <>
       {props.newValues.map((t) => (
         <Chip
-          className="tag-item ml-1 mb-1"
+          className="tag-item"
           key={props.getName(t)}
           label={props.getName(t)}
           onClick={() => props.onCreateNew(t)}
@@ -42,6 +42,7 @@ export const NewScrapedObjects = <T,>(props: INewScrapedObjects<T>) => {
           deleteIcon={<Icon icon={faPlus} />}
           variant="outlined"
           size="small"
+          sx={{ ml: 1, mb: 1 }}
         />
         // Note: onLinkExisting logic is harder to replicate directly in Chip deleteIcon
         // If we need two actions (Create and Link), Chip supports only one 'onDelete'.
@@ -69,7 +70,7 @@ export const NewScrapedObjects = <T,>(props: INewScrapedObjects<T>) => {
       <>
         {props.newValues.map((t) => (
           <Chip
-            className="tag-item ml-1 mb-1"
+            className="tag-item"
             key={props.getName(t)}
             label={
               <span style={{ display: 'flex', alignItems: 'center' }}>
@@ -77,7 +78,8 @@ export const NewScrapedObjects = <T,>(props: INewScrapedObjects<T>) => {
                 {props.onLinkExisting && (
                   <Icon
                     icon={faLink}
-                    className="ml-2 hover-icon"
+                    style={{ marginLeft: '0.5rem' }}
+                    className="hover-icon"
                     onClick={(e) => {
                       e.stopPropagation();
                       props.onLinkExisting?.(t);
@@ -91,6 +93,7 @@ export const NewScrapedObjects = <T,>(props: INewScrapedObjects<T>) => {
             deleteIcon={<Icon icon={faPlus} />}
             variant="outlined"
             size="small"
+            sx={{ ml: 1, mb: 1 }}
           />
         ))}
       </>

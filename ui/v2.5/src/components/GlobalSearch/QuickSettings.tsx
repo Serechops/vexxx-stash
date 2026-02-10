@@ -26,7 +26,7 @@ export const QuickSettings: React.FC<QuickSettingsProps> = ({ onClose }) => {
             <Tabs
                 value={activeTab}
                 onChange={(_e, newValue) => setActiveTab(newValue)}
-                className="nav-tabs"
+                
             >
                 <Tab value="interface" label={<FormattedMessage id="UI Settings" />} />
                 <Tab value="plugins" label={<FormattedMessage id="Plugins" />} />

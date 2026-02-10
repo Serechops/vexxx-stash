@@ -126,7 +126,7 @@ export const EditStudiosDialog: React.FC<IListOperationProps> = (
     area: boolean = false
   ) {
     return (
-      <Box className="form-group" data-field={name} mb={2}>
+      <Box data-field={name} mb={2}>
         <InputLabel shrink>
           <FormattedMessage id={name} />
         </InputLabel>

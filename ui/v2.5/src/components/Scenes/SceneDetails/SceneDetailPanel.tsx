@@ -63,7 +63,7 @@ export const SceneDetailPanel: React.FC<ISceneDetailProps> = (props) => {
             values={{ count: props.scene.performers.length }}
           />
         </h6>
-        <div className="row justify-content-center scene-performers">
+        <div className="flex flex-wrap justify-center scene-performers">
           {cards}
         </div>
       </>
@@ -71,12 +71,12 @@ export const SceneDetailPanel: React.FC<ISceneDetailProps> = (props) => {
   }
 
   // filename should use entire row if there is no studio
-  const sceneDetailsWidth = props.scene.studio ? "col-9" : "col-12";
+  const sceneDetailsWidth = props.scene.studio ? "w-9/12" : "w-full";
 
   return (
     <>
-      <div className="row">
-        <div className={`${sceneDetailsWidth} col-12 scene-details`}>
+      <div className="flex flex-wrap">
+        <div className={`${sceneDetailsWidth} w-full scene-details`}>
           <h6>
             <FormattedMessage id="created_at" />:{" "}
             {TextUtils.formatDateTime(intl, props.scene.created_at)}{" "}
@@ -98,8 +98,8 @@ export const SceneDetailPanel: React.FC<ISceneDetailProps> = (props) => {
           )}
         </div>
       </div>
-      <div className="row">
-        <div className="col-12">
+      <div className="flex flex-wrap">
+        <div className="w-full">
           {renderDetails()}
           {renderTags()}
           {renderPerformers()}

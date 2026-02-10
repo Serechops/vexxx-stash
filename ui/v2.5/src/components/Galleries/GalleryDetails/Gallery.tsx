@@ -1,7 +1,6 @@
 import { Menu, MenuItem, IconButton, Typography } from "@mui/material";
 import { Tabs, Tab, Box } from "@mui/material";
 import Button from "@mui/material/Button";
-import { Row, Col } from "src/components/Shared/Layouts";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   useHistory,
@@ -281,13 +280,13 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
             <FormattedMessage id="actions.reset_cover" />
           </MenuItem>
           <MenuItem
-            className="bg-secondary text-white"
+            style={{ backgroundColor: '#27272a', color: '#fff' }}
             onClick={() => setIsGenerateDialogOpen(true)}
           >
             {`${intl.formatMessage({ id: "actions.generate" })}…`}
           </MenuItem>
           <MenuItem
-            className="bg-secondary text-white"
+            style={{ backgroundColor: '#27272a', color: '#fff' }}
             onClick={() => setIsDeleteAlertOpen(true)}
           >
             <FormattedMessage

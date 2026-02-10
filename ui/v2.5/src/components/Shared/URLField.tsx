@@ -24,7 +24,7 @@ export const URLField: React.FC<IProps> = (props: IProps) => {
   const intl = useIntl();
 
   return (
-    <Box className="mr-2 flex-grow-1" sx={{ display: 'flex', gap: 1 }}>
+    <Box sx={{ mr: 2, flexGrow: 1, display: 'flex', gap: 1 }}>
       <TextField
         className="text-input"
         placeholder={intl.formatMessage({ id: "url" })}

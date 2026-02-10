@@ -57,7 +57,7 @@ export const ScrapeDialogRow = <T,>(props: IScrapedRowProps<T>) => {
     <Grid
       container
       spacing={2}
-      className={`px-3 pt-3 ${props.className ?? ""}`}
+      className={props.className ?? ""}
       data-field={props.field}
       alignItems="flex-start"
     >
@@ -152,7 +152,7 @@ const ScrapedInputGroup: React.FC<IScrapedInputGroupProps> = (props) => {
       variant="outlined"
       size="small"
       fullWidth
-      className="bg-secondary text-white border-secondary"
+      sx={{ backgroundColor: '#27272a', color: '#fff', '& .MuiOutlinedInput-notchedOutline': { borderColor: '#27272a' } }}
     />
   );
 };
@@ -282,7 +282,8 @@ const ScrapedTextArea: React.FC<IScrapedInputGroupProps> = (props) => {
       }}
       variant="outlined"
       fullWidth
-      className="bg-secondary text-white border-secondary scene-description"
+      className="scene-description"
+      sx={{ backgroundColor: '#27272a', color: '#fff', '& .MuiOutlinedInput-notchedOutline': { borderColor: '#27272a' } }}
     />
   );
 };
@@ -449,7 +450,7 @@ export const ScrapedCountryRow: React.FC<IScrapedCountryRowProps> = ({
         variant="outlined"
         size="small"
         fullWidth
-        className="bg-secondary text-white border-secondary"
+        sx={{ backgroundColor: '#27272a', color: '#fff', '& .MuiOutlinedInput-notchedOutline': { borderColor: '#27272a' } }}
       />
     }
     newField={
@@ -463,7 +464,7 @@ export const ScrapedCountryRow: React.FC<IScrapedCountryRowProps> = ({
         }}
         showFlag={false}
         isClearable={false}
-        className="flex-grow-1"
+        className="grow"
       />
     }
     onChange={onChange}

@@ -32,7 +32,6 @@ import { useInitialState } from "src/hooks/state";
 import { getStashboxBase } from "src/utils/stashbox";
 import { ExternalLink } from "src/components/Shared/ExternalLink";
 import { compareScenesForSort } from "./utils";
-import { Row, Col } from "src/components/Shared/Layouts";
 
 const getDurationIcon = (matchPercentage: number) => {
   if (matchPercentage > 65)
@@ -540,7 +539,7 @@ const StashSearchResult: React.FC<IStashSearchResultProps> = ({
             <img
               src={scene.image}
               alt=""
-              className="align-self-center scene-image"
+              className="self-center scene-image"
             />
           </OptionalField>
         </div>

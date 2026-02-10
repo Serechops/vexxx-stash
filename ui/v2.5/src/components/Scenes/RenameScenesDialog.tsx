@@ -118,9 +118,9 @@ export const RenameScenesDialog: React.FC<IRenameScenesProps> = (props) => {
                                 <TableCell className="text-break" sx={{ width: "50%" }}>{Res.old_path}</TableCell>
                                 <TableCell className="text-break" sx={{ width: "50%" }}>
                                     {Res.error ? (
-                                        <span className="text-danger">{Res.error}</span>
+                                        <span style={{ color: '#db3737' }}>{Res.error}</span>
                                     ) : (
-                                        <span className={Res.old_path === Res.new_path ? "text-muted" : "text-success"}>
+                                        <span style={{ color: Res.old_path === Res.new_path ? '#a1a1aa' : '#0f9960' }}>
                                             {Res.new_path}
                                         </span>
                                     )}

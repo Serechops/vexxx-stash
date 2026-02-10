@@ -111,7 +111,7 @@ const PerformerResult: React.FC<IPerformerResultProps> = ({
 
   if (matchedPerformer && matchedStashID) {
     return (
-      <div className="row no-gutters my-2">
+      <div className="flex flex-wrap my-2">
         <div className="entity-name">
           <FormattedMessage id="countables.performers" values={{ count: 1 }} />:
           <b className="ml-2">
@@ -132,7 +132,7 @@ const PerformerResult: React.FC<IPerformerResultProps> = ({
               <span className="mr-2">
                 <FormattedMessage id="component_tagger.verb_matched" />:
               </span>
-              <b className="col-3 text-right">
+              <b className="text-right" style={{ width: '25%' }}>
                 <PerformerLink
                   performer={matchedPerformer}
                   url={`${performerURLPrefix}${matchedPerformer.id}`}
@@ -155,7 +155,7 @@ const PerformerResult: React.FC<IPerformerResultProps> = ({
   };
 
   return (
-    <div className="row no-gutters align-items-center mt-2">
+    <div className="flex flex-wrap items-center mt-2">
       <div className="entity-name">
         <FormattedMessage id="countables.performers" values={{ count: 1 }} />:
         <b className="ml-2">

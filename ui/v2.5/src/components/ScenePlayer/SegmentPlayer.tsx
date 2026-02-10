@@ -158,12 +158,12 @@ export const SegmentPlayer: React.FC<ISegmentPlayerProps> = ({ scene }) => {
                     zIndex: 10,
                     height: 'auto'
                 }}>
-                    <Button variant="text" onClick={togglePlay} className="text-light mr-3 p-0">
+                    <Button variant="text" onClick={togglePlay} className="p-0" style={{ color: '#f8f9fa', marginRight: '1rem' }}>
                         <Icon icon={playing ? faPause : faPlay} size="lg" />
                     </Button>
 
-                    <div className="text-light mr-3 font-weight-bold" style={{ minWidth: '100px' }}>
-                        {TextUtils.secondsToTimestamp(Math.max(0, currentTime - startPoint))} / <span className="text-muted">{TextUtils.secondsToTimestamp(duration)}</span>
+                    <div className="font-bold" style={{ color: '#f8f9fa', marginRight: '1rem', minWidth: '100px' }}>
+                        {TextUtils.secondsToTimestamp(Math.max(0, currentTime - startPoint))} / <span style={{ color: '#a1a1aa' }}>{TextUtils.secondsToTimestamp(duration)}</span>
                     </div>
 
                     <input
@@ -182,9 +182,9 @@ export const SegmentPlayer: React.FC<ISegmentPlayerProps> = ({ scene }) => {
                         style={{ flexGrow: 1, margin: '0 15px', cursor: 'pointer' }}
                     />
 
-                    <div className="d-flex align-items-center">
-                        <div className="volume-control d-flex align-items-center ml-2">
-                            <Button variant="text" onClick={toggleMute} className="text-light p-0">
+                    <div className="flex items-center">
+                        <div className="volume-control flex items-center" style={{ marginLeft: '0.5rem' }}>
+                            <Button variant="text" onClick={toggleMute} className="p-0" style={{ color: '#f8f9fa' }}>
                                 <Icon icon={muted || volume === 0 ? faVolumeMute : faVolumeUp} />
                             </Button>
                             <input
@@ -198,7 +198,7 @@ export const SegmentPlayer: React.FC<ISegmentPlayerProps> = ({ scene }) => {
                             />
                         </div>
 
-                        <Button variant="text" onClick={toggleFullscreen} className="text-light ml-3 p-0">
+                        <Button variant="text" onClick={toggleFullscreen} className="p-0" style={{ color: '#f8f9fa', marginLeft: '1rem' }}>
                             <Icon icon={fullscreen ? faCompress : faExpand} />
                         </Button>
                     </div>

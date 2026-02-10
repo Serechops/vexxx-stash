@@ -243,7 +243,7 @@ export const StudioEditPanel: React.FC<IStudioEditPanel> = ({
 
       <DetailsEditNavbar
         objectName={studio?.name ?? intl.formatMessage({ id: "studio" })}
-        classNames="col-xl-9 mt-3"
+        classNames="w-full xl:w-9/12 mt-3"
         isNew={isNew}
         isEditing
         onToggleEdit={onCancel}

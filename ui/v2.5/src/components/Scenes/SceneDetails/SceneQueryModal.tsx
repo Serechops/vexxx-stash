@@ -64,7 +64,7 @@ const SceneSearchResultDetails: React.FC<ISceneSearchResultDetailsProps> = ({
           <img
             src={scene.image}
             alt=""
-            className="align-self-center scene-image"
+            className="self-center scene-image"
           />
         </div>
       );
@@ -78,7 +78,7 @@ const SceneSearchResultDetails: React.FC<ISceneSearchResultDetailsProps> = ({
           {renderImage()}
         </Grid>
         <Grid size="grow">
-          <div className="col flex-column">
+          <div className="flex-col flex-1">
             <h4>{scene.title}</h4>
             <h5>
               {scene.studio?.name}

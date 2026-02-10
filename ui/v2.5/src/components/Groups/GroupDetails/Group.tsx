@@ -347,7 +347,7 @@ const GroupPage: React.FC<IProps> = ({ group, tabKey }) => {
   });
 
   return (
-    <div id="group-page" className="row">
+    <div id="group-page" className="flex flex-wrap">
       <Helmet>
         <title>{group?.name}</title>
       </Helmet>
@@ -393,8 +393,8 @@ const GroupPage: React.FC<IProps> = ({ group, tabKey }) => {
               )}
             </div>
           </HeaderImage>
-          <div className="row">
-            <div className="group-head col">
+          <div className="flex flex-wrap">
+            <div className="group-head flex-1">
               <DetailTitle name={group.name} classNamePrefix="group">
                 {!isEditing && (
                   <ExpandCollapseButton

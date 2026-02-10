@@ -363,7 +363,7 @@ const SceneDuplicateChecker: React.FC = () => {
     if (missingPhashes > 0) {
       return (
         <Typography variant="body1" className="lead" color="warning.main">
-          <Icon icon={faExclamationTriangle} className="text-warning" />
+          <Icon icon={faExclamationTriangle} style={{ color: '#d9822b' }} />
           Missing phashes for {missingPhashes} scenes. Please run the phash
           generation task.
         </Typography>
@@ -409,10 +409,10 @@ const SceneDuplicateChecker: React.FC = () => {
     if (scene.groups.length <= 0) return;
 
     const popoverContent = scene.groups.map((sceneGroup) => (
-      <div className="group-tag-container row" key={sceneGroup.group.id}>
+      <div className="group-tag-container flex flex-wrap" key={sceneGroup.group.id}>
         <Link
           to={`/groups/${sceneGroup.group.id}`}
-          className="group-tag col m-auto zoom-2"
+          className="group-tag flex-1 m-auto zoom-2"
         >
           <img
             className="image-thumbnail"
@@ -423,7 +423,7 @@ const SceneDuplicateChecker: React.FC = () => {
         <GroupLink
           key={sceneGroup.group.id}
           group={sceneGroup.group}
-          className="d-block"
+          className="block"
         />
       </div>
     ));
@@ -660,7 +660,7 @@ const SceneDuplicateChecker: React.FC = () => {
   }
 
   return (
-    <Paper id="scene-duplicate-checker" className="col col-xl-12 mx-auto" sx={{ p: 3 }}>
+    <Paper id="scene-duplicate-checker" className="w-full mx-auto" sx={{ p: 3 }}>
       <div className={CLASSNAME}>
         {deletingScenes && selectedScenes && (
           <DeleteScenesDialog

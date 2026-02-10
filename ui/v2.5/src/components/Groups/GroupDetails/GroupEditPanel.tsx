@@ -491,10 +491,9 @@ export const GroupEditPanel: React.FC<IGroupEditPanel> = ({
     }
 
     const control = (
-      <div className="d-flex align-items-center">
+        <div className="flex items-center">
         <input
           type="text"
-          className="form-control"
           name="trailer_url"
           value={formik.values.trailer_url || ""}
           onChange={formik.handleChange}
@@ -558,7 +557,7 @@ export const GroupEditPanel: React.FC<IGroupEditPanel> = ({
       <DetailsEditNavbar
         objectName={group?.name ?? intl.formatMessage({ id: "group" })}
         isNew={isNew}
-        classNames="col-xl-9 mt-3"
+        classNames="w-full xl:w-9/12 mt-3"
         isEditing
         onToggleEdit={onCancel}
         onSave={formik.handleSubmit}

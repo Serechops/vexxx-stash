@@ -91,7 +91,7 @@ export const GroupSceneTable: React.FC<IProps> = (props) => {
         return (
             <>
                 {value.map((m, i) => (
-                    <Grid container key={m.scene.id} className="vexxx-scene-list-item align-items-center py-2 border-bottom" spacing={2}>
+                    <Grid container key={m.scene.id} className="vexxx-scene-list-item items-center py-2 border-b" spacing={2}>
                         <Grid size="auto">
                             {m.scene.paths?.screenshot ? (
                                 <img
@@ -104,7 +104,7 @@ export const GroupSceneTable: React.FC<IProps> = (props) => {
                             )}
                         </Grid>
                         <Grid size="grow" className="vexxx-scene-list-details">
-                            <Typography variant="body2" component="div" className="vexxx-scene-list-title font-weight-bold">
+                            <Typography variant="body2" component="div" className="vexxx-scene-list-title font-bold">
                                 {m.scene.title}
                             </Typography>
                             <Typography variant="caption" color="textSecondary" className="vexxx-scene-list-meta">

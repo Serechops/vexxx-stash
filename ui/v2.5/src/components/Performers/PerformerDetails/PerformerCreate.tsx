@@ -60,11 +60,11 @@ const PerformerCreate: React.FC = () => {
   }
 
   return (
-    <div className="row new-view" id="performer-page">
-      <div className="performer-image-container col-md-4 text-center">
+    <div className="flex flex-wrap new-view" id="performer-page">
+      <div className="performer-image-container w-full md:w-1/3 text-center">
         {renderPerformerImage()}
       </div>
-      <div className="col-md-8">
+      <div className="w-full md:w-2/3">
         <h2>
           <FormattedMessage
             id="actions.create_entity"

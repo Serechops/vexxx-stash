@@ -432,7 +432,7 @@ export const StringListSelect: React.FC<IStringListSelect> = ({
   return (
     <Select
       classNamePrefix="react-select"
-      className="form-control react-select"
+      className="react-select"
       options={translatedOptions}
       value={translatedValue}
       isMulti
@@ -482,7 +482,7 @@ export const ListSelect = <T extends {}>(props: IListSelect<T>) => {
   return (
     <Select
       classNamePrefix="react-select"
-      className="form-control react-select"
+      className="react-select"
       options={translatedOptions}
       value={translatedValue}
       isMulti

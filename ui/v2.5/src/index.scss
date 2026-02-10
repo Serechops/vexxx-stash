@@ -1,41 +1,28 @@
-// variables required by other scss files
-
-// this is calculated from the existing height
-$navbar-height: 48.75px;
-
-$sticky-detail-header-height: 50px;
-
-$sidebar-width: 250px;
-
-@import "styles/theme";
-@import "styles/range";
-@import "styles/scrollbars";
-@import "sfw-mode.scss";
-@import "src/components/FrontPage/styles.scss";
-@import "src/components/SceneDuplicateChecker/styles.scss";
-@import "src/components/SceneFilenameParser/styles.scss";
-@import "src/components/ScenePlayer/styles.scss";
-@import "src/components/Performers/styles.scss";
-@import "src/components/Scenes/styles.scss";
-@import "src/components/Groups/styles.scss";
-@import "src/components/Galleries/styles.scss";
-@import "src/components/Images/styles.scss";
-@import "src/components/Tags/styles.scss";
-@import "src/components/Studios/styles.scss";
-
-@import "src/components/Setup/styles.scss";
-@import "src/components/Shared/styles.scss";
-
-
-@import "src/components/Shared/PackageManager/styles.scss";
-
-@import "src/components/Tagger/styles.scss";
-@import "src/components/Recommendations/styles.scss";
-@import "src/components/Settings/styles.scss";
-@import "src/hooks/styles.scss";
-@import "src/hooks/Interactive/interactive.scss";
-@import "src/hooks/Lightbox/styles.scss";
-
+@use "sass:color";
+@use "styles/theme" as *;
+@use "styles/range";
+@use "styles/scrollbars";
+@use "sfw-mode" as sfw-mode;
+@use "components/FrontPage/styles" as frontpage;
+@use "components/SceneDuplicateChecker/styles" as scene-dup-checker;
+@use "components/SceneFilenameParser/styles" as scene-filename-parser;
+@use "components/ScenePlayer/styles" as scene-player;
+@use "components/Performers/styles" as performers;
+@use "components/Scenes/styles" as scenes;
+@use "components/Groups/styles" as groups;
+@use "components/Galleries/styles" as galleries;
+@use "components/Images/styles" as images;
+@use "components/Tags/styles" as tags;
+@use "components/Studios/styles" as studios;
+@use "components/Setup/styles" as setup;
+@use "components/Shared/styles" as shared;
+@use "components/Shared/PackageManager/styles" as package-manager;
+@use "components/Tagger/styles" as tagger;
+@use "components/Recommendations/styles" as recommendations;
+@use "components/Settings/styles" as settings;
+@use "hooks/styles" as hooks-styles;
+@use "hooks/Interactive/interactive" as interactive;
+@use "hooks/Lightbox/styles" as lightbox;
 
 @import "flag-icons/css/flag-icons.min.css";
 
@@ -60,7 +47,7 @@ body {
 }
 
 .main {
-  @include media-breakpoint-up(sm) {
+  @media (min-width: 576px) {
     padding-top: 0.5rem;
   }
 }
@@ -128,22 +115,6 @@ dd {
   }
 }
 
-.detail-expand-collapse {
-
-  .btn-primary:focus,
-  .btn-primary.focus,
-  .btn-primary:not(:disabled):not(.disabled):active,
-  .btn-primary:not(:disabled):not(.disabled).active,
-  .show>.btn-primary.dropdown-toggle,
-  .btn-primary:hover {
-    background: rgba(138, 155, 168, 0.15);
-    background-color: rgba(138, 155, 168, 0.15);
-    border-color: rgba(138, 155, 168, 0.15);
-    box-shadow: unset;
-    color: #f5f8fa;
-  }
-}
-
 .detail-header {
   // background-color: #192127; // Legacy
   background-color: $body-bg; // Match new body background or make transparent overlap
@@ -155,8 +126,7 @@ dd {
   width: 100%;
   z-index: 11;
 
-  .detail-group,
-  .col {
+  .detail-group {
     transition: 0.2s;
 
     @media (max-width: 576px) {
@@ -204,7 +174,7 @@ dd {
 
   .country,
   .performer-country {
-    .mr-2.fi {
+    .fi {
       margin-left: 0.5rem;
     }
   }
@@ -216,15 +186,6 @@ dd {
   .detail-expand-collapse,
   .name-icons {
     margin-left: 10px;
-  }
-}
-
-.btn.link {
-  color: $link-color;
-
-  &:hover:not(:disabled),
-  &:active:not(:disabled) {
-    color: $link-color;
   }
 }
 
@@ -242,11 +203,6 @@ dd {
 
   .detail-header-image {
     height: auto;
-  }
-
-  /* StashID alignment fix */
-  .form-group.row .row.no-gutters {
-    padding-top: calc(0.375rem + 1px);
   }
 }
 
@@ -269,10 +225,6 @@ dd {
     justify-content: center;
     margin: 0;
     padding: 5px 0;
-  }
-
-  .tab-content {
-    padding-bottom: 0;
   }
 
   .item-list-header {
@@ -398,10 +350,6 @@ dd {
   }
 }
 
-.detail-item.tags .pl-0 {
-  margin-bottom: 0;
-}
-
 .detail-group {
   display: flex;
   flex-direction: row;
@@ -428,10 +376,6 @@ dd {
       .detail-container {
         display: flex;
       }
-    }
-
-    .detail-header.edit .row {
-      flex: 1;
     }
 
     .detail-header.full-width .detail-header-image,
@@ -462,9 +406,7 @@ dd {
 }
 
 .input-control,
-.text-input,
-.form-control,
-.form-select {
+.text-input {
   border: 0;
   box-shadow: 0 0 0 0 rgba($primary, 0), 0 0 0 0 rgba($primary, 0),
     0 0 0 0 rgba($primary, 0), inset 0 0 0 1px rgba(16, 22, 26, 0.3),
@@ -493,35 +435,12 @@ dd {
 .text-input,
 .text-input:focus,
 .text-input[readonly],
-.text-input:disabled,
-.form-control,
-.form-control:focus,
-.form-control[readonly],
-.form-control:disabled,
-.form-select,
-.form-select:focus,
-.form-select:disabled {
+.text-input:disabled {
   background-color: $textfield-bg;
 
   &::placeholder {
     color: $text-muted;
     opacity: 1;
-  }
-}
-
-.btn-secondary {
-  background-color: $secondary;
-  border-color: $secondary;
-  color: $text-color;
-
-  &:hover,
-  &:focus,
-  &:active,
-  &.active,
-  &:not(:disabled):not(.disabled):active {
-    background-color: lighten($secondary, 5%);
-    border-color: lighten($secondary, 5%);
-    color: $text-color;
   }
 }
 
@@ -539,13 +458,6 @@ textarea.text-input {
 }
 
 /* stylelint-enable declaration-no-important */
-
-@media (max-width: 576px) {
-  .row.justify-content-center {
-    margin-left: 0;
-    margin-right: 0;
-  }
-}
 
 /* Zoom levels now handled by JS calculation */
 .zoom-0,
@@ -568,51 +480,6 @@ textarea.text-input {
 .image-card-preview {
   height: auto;
   width: 100%;
-}
-
-.preview-button {
-  align-items: center;
-  display: flex;
-  height: 100%;
-  justify-content: center;
-  position: absolute;
-  text-align: center;
-  width: 100%;
-
-  button.btn,
-  button.btn:not(:disabled):not(.disabled):hover,
-  button.btn:not(:disabled):not(.disabled):focus,
-  button.btn:not(:disabled):not(.disabled):active {
-    background: none;
-    border: none;
-    box-shadow: none;
-  }
-
-  .fa-icon {
-    color: $text-color;
-    filter: drop-shadow(2px 4px 6px black);
-    height: 5em;
-    opacity: 0;
-    transition: opacity 0.5s;
-    width: 5em;
-
-    &:hover {
-      opacity: 0.8;
-    }
-  }
-
-  @media (hover: none),
-  (pointer: coarse) {
-    // always show preview button when hovering not supported
-    align-items: flex-end;
-    justify-content: right;
-
-    .fa-icon {
-      height: 3em;
-      opacity: 0.8;
-      width: 3em;
-    }
-  }
 }
 
 /* this is a bit of a hack, because we can't supply direct class names
@@ -641,41 +508,17 @@ div.react-select__menu-portal {
   z-index: 1600;
 }
 
-div.react-select__menu,
-div.dropdown-menu {
+div.react-select__menu {
   background-color: $secondary;
   color: $text-color;
 
-  .react-select__option,
-  .dropdown-item {
+  .react-select__option {
     color: $text-color;
   }
 
-  .react-select__option--is-focused,
-  .dropdown-item:focus,
-  .dropdown-item:hover {
+  .react-select__option--is-focused {
     background-color: #8a9ba826;
     cursor: pointer;
-  }
-}
-
-div.dropdown-menu {
-  max-height: 300px;
-  overflow-y: auto;
-
-  .dropdown-item {
-    display: flex;
-  }
-}
-
-/* fix for react-select in input-group */
-.input-group .react-select {
-  border: 0;
-  height: 100%;
-  padding: 0;
-
-  .react-select__control {
-    border-radius: 0;
   }
 }
 
@@ -696,11 +539,6 @@ div.dropdown-menu {
   column-gap: 10px;
   flex-wrap: wrap;
   row-gap: 10px;
-
-  .badge {
-    margin: unset;
-    white-space: normal;
-  }
 }
 
 .tag-item {
@@ -729,23 +567,6 @@ div.dropdown-menu {
 
   .search-term svg {
     margin-left: 0;
-  }
-
-  .btn {
-    background: none;
-    border: none;
-    bottom: 2px;
-    color: $dark-text;
-    font-size: 12px;
-    line-height: 16px;
-    margin-right: -0.5rem;
-    opacity: 0.5;
-    padding: 0 0.5rem;
-
-    &:active,
-    &:hover {
-      opacity: 1;
-    }
   }
 
   a {
@@ -893,14 +714,6 @@ div.dropdown-menu {
   transform: rotate(-36deg);
 }
 
-.card {
-  background-color: $card-bg;
-  border-radius: 3px;
-  box-shadow: 0 0 0 1px rgba(16, 22, 26, 0.4), 0 0 0 rgba(16, 22, 26, 0),
-    0 0 0 rgba(16, 22, 26, 0);
-  padding: 20px;
-}
-
 .toast-container {
   max-width: 350px;
   opacity: 0.9;
@@ -925,53 +738,9 @@ div.dropdown-menu {
   .warning {
     background-color: $warning;
   }
-
-  .toast {
-    width: 350px;
-  }
-
-  .toast-header {
-    background-color: transparent;
-    border: none;
-    color: $text-color;
-    padding: 1rem;
-    white-space: pre-wrap;
-
-    .close,
-    .expand-error-button {
-      color: $text-color;
-      text-shadow: none;
-    }
-
-    .expand-error-button {
-      opacity: 0.5;
-      padding-left: 0.25rem;
-      padding-right: 0.25rem;
-
-      &:hover {
-        opacity: 0.75;
-      }
-    }
-  }
-
-  .toast.danger .toast-header>span {
-    cursor: pointer;
-  }
 }
 
-.toast-expanded-dialog {
-  .modal-header {
-    align-items: center;
-    justify-content: start;
-
-    .fa-icon {
-      color: $danger;
-      margin-right: 0.5rem;
-    }
-  }
-}
-
-@include media-breakpoint-down(xs) {
+@media (max-width: 575.98px) {
   .toast-container {
     bottom: 4rem;
     left: 50%;
@@ -1015,17 +784,6 @@ div.dropdown-menu {
   margin: 0 0.4rem;
 }
 
-.btn .fa-icon {
-  &:last-child:first-child {
-    margin: 0;
-  }
-}
-
-.popover-body .btn .fa-icon,
-.dropdown-item .fa-icon {
-  margin-left: 0;
-}
-
 .brand-icon {
   padding: 3px 6px;
 
@@ -1038,102 +796,25 @@ div.dropdown-menu {
   justify-content: start;
   padding: 0.25rem 1rem;
 
-  @include media-breakpoint-down(xs) {
+  @media (max-width: 575.98px) {
     padding: 0.25rem 2rem;
   }
 
-  @include media-breakpoint-up(xl) {
+  @media (min-width: 1200px) {
     height: $navbar-height;
   }
 
-  .navbar-toggler {
-    padding: 0.5em 0;
-    text-align: center;
-    width: 3em;
-
-    svg {
-      margin: auto;
-    }
-  }
-
-  .navbar-collapse {
-    justify-content: space-between;
-    max-height: calc(100vh - 4rem);
-
-    @include media-breakpoint-down(xs) {
-      @media (orientation: landscape) {
-        overflow-y: scroll;
-      }
-    }
-
-    .navbar-nav {
-      flex-direction: row;
-      flex-wrap: wrap;
-      justify-content: center;
-      padding-bottom: 0.5rem;
-
-      @include media-breakpoint-up(xl) {
-        flex-wrap: nowrap;
-        padding-bottom: 0;
-      }
-
-      &:last-child {
-        display: none;
-      }
-
-      @include media-breakpoint-down(xs) {
-        &:last-child {
-          display: flex;
-          min-height: 3rem;
-        }
-      }
-    }
-  }
-
-  .navbar-buttons .btn {
-    align-items: center;
-    display: flex;
-  }
-
-  @include media-breakpoint-down(xs) {
-    .navbar-buttons .nav-utility {
-      display: none;
-    }
-  }
-
-  .nav-link {
-    padding: 0;
-  }
-
   .fa-icon {
-    @include media-breakpoint-down(xs) {
+    @media (max-width: 575.98px) {
       margin: 0;
     }
 
     &.nav-menu-icon {
-      @include media-breakpoint-down(lg) {
+      @media (max-width: 1199.98px) {
         height: 100%;
         max-height: min(10vw, 55px);
         width: 100%;
       }
-    }
-  }
-
-  .btn {
-    white-space: nowrap;
-  }
-
-  @include media-breakpoint-down(lg) {
-    .navbar-brand {
-      margin-left: -8px;
-    }
-
-    .navbar-buttons {
-      margin: 0 -8px;
-    }
-
-    .btn {
-      padding: 6px 12px;
     }
   }
 }
@@ -1146,7 +827,7 @@ div.dropdown-menu {
   svg {
     color: $favorite-color;
 
-    @include media-breakpoint-down(xs) {
+    @media (max-width: 575.98px) {
       margin: 0;
     }
   }
@@ -1154,10 +835,6 @@ div.dropdown-menu {
 
 .error-message {
   white-space: pre-wrap;
-}
-
-.btn-toolbar .form-control {
-  width: inherit;
 }
 
 .stats {
@@ -1306,7 +983,7 @@ $detailTabWidth: calc(100% / 3);
   }
 
   code {
-    background-color: darken($color: $card-bg, $amount: 3);
+    background-color: color.adjust($card-bg, $lightness: -3%);
     color: $text-color;
     padding: 0.2em 0.4em;
   }
@@ -1324,7 +1001,7 @@ $detailTabWidth: calc(100% / 3);
       padding: 0;
     }
 
-    background-color: darken($color: $card-bg, $amount: 3);
+    background-color: color.adjust($card-bg, $lightness: -3%);
     border-radius: 3px;
     padding: 16px;
   }
@@ -1342,16 +1019,16 @@ $detailTabWidth: calc(100% / 3);
     width: 100%;
 
     tr {
-      border-top: 1px solid darken($color: #201d1a, $amount: 3);
+      border-top: 1px solid color.adjust(#201d1a, $lightness: -3%);
     }
 
     tr:nth-child(2n) {
-      background-color: darken($color: $card-bg, $amount: 2);
+      background-color: color.adjust($card-bg, $lightness: -2%);
     }
 
     td,
     th {
-      border: 1px solid darken($color: #201d1a, $amount: 3);
+      border: 1px solid color.adjust(#201d1a, $lightness: -3%);
       padding: 6px 13px;
     }
   }
@@ -1363,45 +1040,10 @@ $detailTabWidth: calc(100% / 3);
   box-shadow: inherit;
 }
 
-.button-group-above {
-  .btn:first-child {
-    border-bottom-left-radius: 0;
-  }
-
-  .btn:last-child {
-    border-bottom-right-radius: 0;
-  }
-}
-
-// workaround for dropdown button in button group
-.btn-group>.dropdown:not(:last-child)>.btn {
-  border-bottom-right-radius: 0;
-  border-top-right-radius: 0;
-}
-
-.btn-group>.dropdown:not(:first-child)>.btn {
-  border-bottom-left-radius: 0;
-  border-top-left-radius: 0;
-}
-
 dl.details-list {
   display: grid;
   grid-column-gap: 10px;
   grid-template-columns: minmax(16.67%, auto) 1fr;
-}
-
-// middle align checkboxes
-.form-group .form-check .form-check-input {
-  vertical-align: middle;
-}
-
-.invalid-feedback {
-  display: block;
-  white-space: pre-wrap;
-
-  &:empty {
-    display: none;
-  }
 }
 
 // Fix Safari styling on dropdowns
@@ -1422,12 +1064,6 @@ select {
 // ensure rating number editing doesn't resize column
 .table-list .rating-number {
   width: 6rem;
-}
-
-.modal-body {
-  max-height: calc(100vh - 12rem);
-  overflow-y: auto;
-  padding-right: 1.5rem;
 }
 
 // Fix descenders clipping in line-height #6047

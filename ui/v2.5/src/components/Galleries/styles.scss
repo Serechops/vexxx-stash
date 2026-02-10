@@ -1,3 +1,5 @@
+@use "../../styles/theme" as *;
+
 // Gallery Card Styles (restored from stash-develop)
 
 .gallery-card {
@@ -47,7 +49,7 @@
 
 // Gallery Card
 .gallery-card {
-    background-color: $gray-900;
+    background-color: #212529;
     border-radius: 12px;
     height: 100%;
     overflow: hidden;
@@ -201,7 +203,7 @@
     width: 100%;
     word-wrap: break-word;
 
-    @include media-breakpoint-up(md) {
+    @media (min-width: 768px) {
         flex: 0 0 450px;
         max-height: calc(100vh - 4rem);
         max-width: 450px;
@@ -217,7 +219,7 @@
     position: relative;
     width: 100%;
 
-    @include media-breakpoint-up(md) {
+    @media (min-width: 768px) {
         flex: 0 0 calc(100% - 450px);
         height: calc(100vh - 4rem);
         max-width: calc(100% - 450px);
@@ -249,7 +251,7 @@
 }
 
 .gallery-header-container {
-    @include media-breakpoint-up(lg) {
+    @media (min-width: 992px) {
         align-items: center;
         display: flex;
         justify-content: space-between;
@@ -267,7 +269,7 @@
         object-fit: contain;
     }
 
-    @include media-breakpoint-up(lg) {
+    @media (min-width: 992px) {
         flex: 0 0 25%;
         margin-bottom: 0;
         order: 2;
@@ -279,11 +281,11 @@
     margin-bottom: 0;
     margin-top: 30px;
 
-    @include media-breakpoint-up(md) {
+    @media (min-width: 768px) {
         font-size: 1.75rem;
     }
 
-    @include media-breakpoint-up(lg) {
+    @media (min-width: 992px) {
         flex: 0 0 75%;
         order: 1;
     }

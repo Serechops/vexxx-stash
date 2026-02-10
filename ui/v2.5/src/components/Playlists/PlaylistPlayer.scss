@@ -1,4 +1,4 @@
-@import "src/styles/theme";
+@use "../../styles/theme" as *;
 
 // ============================================
 // Playlist Player - Scene-like Layout
@@ -34,7 +34,7 @@
   height: auto;
   overflow: visible;
 
-  @include media-breakpoint-up(md) {
+  @media (min-width: 768px) {
     flex-direction: row;
     height: calc(100vh - 64px);
     overflow: hidden;
@@ -54,7 +54,7 @@
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   width: 100%;
 
-  @include media-breakpoint-up(md) {
+  @media (min-width: 768px) {
     border-right: 1px solid $secondary;
     height: 100%;
     min-width: 400px;
@@ -82,7 +82,7 @@
   transition: background-color 0.2s;
   width: 12px;
 
-  @include media-breakpoint-up(md) {
+  @media (min-width: 768px) {
     display: flex;
   }
 
@@ -111,12 +111,12 @@
   min-width: 0;
   position: relative;
 
-  @include media-breakpoint-down(sm) {
+  @media (max-width: 767.98px) {
     aspect-ratio: 16/9;
     height: auto;
   }
 
-  @include media-breakpoint-up(md) {
+  @media (min-width: 768px) {
     height: 100%;
   }
 }

@@ -1,5 +1,6 @@
 /* WetFlix Dark Theme (Zinc Palette match) */
-@import 'fonts';
+@use 'sass:map';
+@use 'fonts';
 
 $font-family-sans-serif: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 
@@ -43,7 +44,20 @@ $not-favorite-color: rgba(191, 204, 214, 0.5);
 
 $card-cap-bg: rgba(#000, 0.03);
 
-@import "node_modules/bootstrap/scss/bootstrap";
+// Variables that Bootstrap used to provide — now defined explicitly
+$primary: map.get($theme-colors, primary); // #52525b Zinc-600
+$white: #ffffff;
+$black: #000000;
+
+// Border
+$border-color: rgba(255, 255, 255, 0.12);
+
+// Layout Variables (used by index.scss and component styles)
+$navbar-height: 48.75px;
+$sticky-detail-header-height: 50px;
+$sidebar-width: 250px;
+
+
 
 $red1: #a82a2a;
 $orange1: #a66321;
@@ -51,14 +65,13 @@ $sepia1: #63411e;
 $dark-gray2: #202b33;
 $dark-gray5: #394b59;
 
-.btn.active:not(.disabled),
-.btn.active.minimal:not(.disabled) {
-  background-color: rgba(138, 155, 168, 0.3);
-  color: $text-color;
-}
-
 a.minimal,
 button.minimal {
+  &:focus-visible {
+    outline: 2px solid rgba(138, 155, 168, 0.5);
+    outline-offset: 2px;
+  }
+
   background: none;
   border: none;
   color: $text-color;
@@ -84,122 +97,4 @@ hr {
   margin: 5px 0;
 }
 
-:not(.show-carat)>.dropdown-toggle::after {
-  content: none;
-}
 
-.nav-link {
-  color: $text-color;
-}
-
-.nav-tabs {
-  border: none;
-  margin: auto;
-  margin-bottom: 1.5rem;
-
-  .nav-link {
-    border: none;
-    color: $text-color;
-    padding: 8px;
-
-    &.active {
-      border-bottom: 2px solid;
-      color: $link-color;
-
-      &:hover {
-        border-bottom-color: $link-color;
-        cursor: default;
-      }
-    }
-
-    &:hover {
-      border-bottom: 2px solid white;
-    }
-  }
-}
-
-.tab-content {
-  padding-bottom: 2rem;
-}
-
-.table-striped tr:nth-child(odd) td {
-  background: rgba(92, 112, 128, 0.15);
-}
-
-.table {
-  border: none;
-  color: $text-color;
-
-  thead {
-    th {
-      border-bottom: 1px solid #414c53;
-      border-right: none;
-      border-top: none;
-    }
-  }
-
-  td {
-    border: none;
-    border-color: #414c53;
-    padding: 0.25rem 0.75rem;
-  }
-}
-
-.popover {
-  max-width: inherit;
-}
-
-.card {
-  border: none;
-  margin: 5px;
-  overflow: hidden;
-}
-
-.form-control {
-  &-plaintext {
-    color: $text-color;
-    margin: 0;
-    padding: 0;
-
-    option {
-      color: black;
-    }
-
-    &::placeholder {
-      color: transparent;
-    }
-
-    &:hover {
-      cursor: default;
-    }
-  }
-}
-
-.popover {
-  &-body {
-    color: $text-color;
-
-    .btn {
-      color: $text-color;
-    }
-  }
-}
-
-.modal {
-  color: $text-color;
-
-  .close {
-    color: $text-color;
-  }
-
-  &-header,
-  &-body,
-  &-footer {
-    background-color: $card-bg;
-    color: $text-color;
-  }
-
-  &-content {
-    background-color: transparent;
-  }
-}

@@ -91,7 +91,7 @@ export const DeleteGalleriesDialog: React.FC<IDeleteGalleryDialogProps> = (
 
     return (
       <div className="delete-dialog alert alert-danger text-break">
-        <p className="font-weight-bold">
+        <p className="font-bold">
           <FormattedMessage
             values={{
               count: deletedFiles.length,

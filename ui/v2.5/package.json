@@ -56,7 +56,6 @@
     "@types/react-router-dom": "^5.3.3",
     "apollo-upload-client": "^18.0.1",
     "base64-blob": "^1.4.1",
-    "bootstrap": "^4.6.2",
     "class-variance-authority": "^0.7.1",
     "classnames": "^2.3.2",
     "clsx": "^2.1.1",

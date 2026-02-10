@@ -65,7 +65,7 @@ export const ImageDetailPanel: React.FC<IImageDetailProps> = PatchComponent(
               values={{ count: props.image.performers.length }}
             />
           </h6>
-          <div className="row justify-content-center image-performers">
+          <div className="flex flex-wrap justify-center image-performers">
             {cards}
           </div>
         </>
@@ -91,12 +91,12 @@ export const ImageDetailPanel: React.FC<IImageDetailProps> = PatchComponent(
     }
 
     // filename should use entire row if there is no studio
-    const imageDetailsWidth = props.image.studio ? "col-9" : "col-12";
+    const imageDetailsWidth = props.image.studio ? "w-9/12" : "w-full";
 
     return (
       <>
-        <div className="row">
-          <div className={`${imageDetailsWidth} col-12 image-details`}>
+        <div className="flex flex-wrap">
+          <div className={`${imageDetailsWidth} w-full image-details`}>
             {renderGalleries()}
             {
               <h6>
@@ -127,8 +127,8 @@ export const ImageDetailPanel: React.FC<IImageDetailProps> = PatchComponent(
             )}
           </div>
         </div>
-        <div className="row">
-          <div className="col-12">
+        <div className="flex flex-wrap">
+          <div className="w-full">
             {renderDetails()}
             {renderTags()}
             {renderPerformers()}

@@ -33,7 +33,7 @@ export const ExternalLinksButton: React.FC<{
     if (openIfSingle && urls.length === 1) {
       return (
         <ExternalLink
-          className={`external-links-button-link minimal btn link ${className}`}
+          className={`external-links-button-link minimal link ${className}`}
           href={TextUtils.sanitiseURL(urls[0])}
           target="_blank"
           rel="noopener noreferrer"

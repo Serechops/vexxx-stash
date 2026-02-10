@@ -174,7 +174,7 @@ export const DetailsEditNavbar: React.FC<IProps> = (props: IProps) => {
       {props.isEditing && props.onClearImage ? (
         <Box>
           <Button
-            className="mr-2"
+            sx={{ mr: 2 }}
             variant="contained"
             color="error"
             onClick={() => props.onClearImage!()}
@@ -189,7 +189,7 @@ export const DetailsEditNavbar: React.FC<IProps> = (props: IProps) => {
       {props.isEditing && props.onClearBackImage ? (
         <Box>
           <Button
-            className="mr-2"
+            sx={{ mr: 2 }}
             variant="contained"
             color="error"
             onClick={() => props.onClearBackImage!()}

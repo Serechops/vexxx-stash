@@ -53,7 +53,6 @@ export const PhashFilter: React.FC<IPhashFilterProps> = ({
         criterion.modifier !== CriterionModifier.NotNull && (
           <Box mb={1}>
             <NumberField
-              className="btn-secondary"
               onChange={distanceChanged}
               value={value ? value.distance : ""}
               placeholder={intl.formatMessage({ id: "distance" })}

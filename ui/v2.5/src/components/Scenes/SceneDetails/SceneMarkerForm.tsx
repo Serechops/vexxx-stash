@@ -274,7 +274,7 @@ export const SceneMarkerForm: React.FC<ISceneMarkerForm> = ({
         {renderTagsField()}
       </div>
       <div className="buttons-container px-3">
-        <div className="d-flex">
+        <div className="flex">
           <Button
             variant="contained"
             disabled={(!isNew && !formik.dirty) || !isEqual(formik.errors, {})}

@@ -145,7 +145,7 @@ export const RatingNumber = PatchComponent(
         <div className="rating-number">
           <input
             ref={ratingRef}
-            className="text-input form-control"
+            className="text-input"
             name="ratingnumber"
             type="number"
             onMouseDown={stepChange}

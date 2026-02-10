@@ -109,7 +109,7 @@ const StashSearchResult: React.FC<IStashSearchResultProps> = ({
 
   const studios = stashboxStudios.map((p) => (
     <Button
-      className="StudioTagger-studio-search-item minimal col-6"
+      className="StudioTagger-studio-search-item minimal w-1/2"
       variant="text"
       key={p.remote_site_id}
       onClick={() => setModalStudio(p)}
@@ -139,9 +139,9 @@ const StashSearchResult: React.FC<IStashSearchResultProps> = ({
         />
       )}
       <div className="StudioTagger-studio-search">{studios}</div>
-      <div className="row no-gutters mt-2 align-items-center justify-content-end">
+      <div className="flex flex-wrap mt-2 items-center justify-end">
         {error.message && (
-          <div className="text-right text-danger mt-1">
+          <div className="text-right mt-1" style={{ color: '#db3737' }}>
             <strong>
               <span className="mr-2">Error:</span>
               {error.message}
@@ -150,7 +150,7 @@ const StashSearchResult: React.FC<IStashSearchResultProps> = ({
           </div>
         )}
         {saveState && (
-          <strong className="col-4 mt-1 mr-2 text-right">{saveState}</strong>
+          <strong className="mt-1 mr-2 text-right" style={{ width: '33.33%' }}>{saveState}</strong>
         )}
       </div>
     </>

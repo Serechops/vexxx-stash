@@ -35,8 +35,8 @@ const GalleryCreate: React.FC = () => {
   }
 
   return (
-    <div className="row new-view">
-      <div className="col-md-6">
+    <div className="flex flex-wrap new-view">
+      <div className="w-full md:w-1/2">
         <h2>
           <FormattedMessage
             id="actions.create_entity"

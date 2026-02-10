@@ -5,6 +5,7 @@ import { LoadingIndicator } from "src/components/Shared/LoadingIndicator";
 import TextUtils from "src/utils/text";
 import { FileSize } from "./Shared/FileSize";
 import { useConfigurationContext } from "src/hooks/Config";
+import Box from "@mui/material/Box";
 
 export const Stats: React.FC = () => {
   const { configuration } = useConfigurationContext();
@@ -30,8 +31,17 @@ export const Stats: React.FC = () => {
   );
 
   return (
-    <div className="mt-5">
-      <div className="col col-sm-8 m-sm-auto row stats">
+    <Box sx={{ mt: 5 }}>
+      <Box
+        className="stats"
+        sx={{
+          display: "flex",
+          flexWrap: "wrap",
+          justifyContent: "center",
+          maxWidth: { xs: "100%", sm: "66.67%" },
+          mx: "auto",
+        }}
+      >
         <div className="stats-element">
           <p className="title">
             <FileSize size={data.stats.scenes_size} />
@@ -70,8 +80,17 @@ export const Stats: React.FC = () => {
             <FormattedMessage id="performers" />
           </p>
         </div>
-      </div>
-      <div className="col col-sm-8 m-sm-auto row stats">
+      </Box>
+      <Box
+        className="stats"
+        sx={{
+          display: "flex",
+          flexWrap: "wrap",
+          justifyContent: "center",
+          maxWidth: { xs: "100%", sm: "66.67%" },
+          mx: "auto",
+        }}
+      >
         <div className="stats-element">
           <p className="title">
             <FileSize size={data.stats.images_size} />
@@ -112,8 +131,17 @@ export const Stats: React.FC = () => {
             <FormattedMessage id="tags" />
           </p>
         </div>
-      </div>
-      <div className="col col-sm-8 m-sm-auto row stats">
+      </Box>
+      <Box
+        className="stats"
+        sx={{
+          display: "flex",
+          flexWrap: "wrap",
+          justifyContent: "center",
+          maxWidth: { xs: "100%", sm: "66.67%" },
+          mx: "auto",
+        }}
+      >
         <div className="stats-element">
           <p className="title">
             <FormattedNumber value={data.stats.total_o_count} />
@@ -144,8 +172,8 @@ export const Stats: React.FC = () => {
             <FormattedMessage id="stats.total_play_duration" />
           </p>
         </div>
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 };
 

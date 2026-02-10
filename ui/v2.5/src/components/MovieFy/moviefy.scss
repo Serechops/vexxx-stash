@@ -1,4 +1,5 @@
-@import "../../styles/theme";
+@use "sass:color";
+@use "../../styles/theme" as *;
 
 .moviefy-container {
   min-height: calc(100vh - 60px);
@@ -186,7 +187,7 @@
 
   code {
     background-color: rgba(0, 0, 0, 0.3);
-    color: lighten($primary, 20%);
+    color: color.adjust($primary, $lightness: 20%);
     padding: 2px 4px;
     border-radius: 4px;
   }

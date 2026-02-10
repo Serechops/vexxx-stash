@@ -1,3 +1,5 @@
+@use "../../styles/theme" as *;
+
 .studio-card {
     .favorite-button {
         padding: 0;
@@ -86,17 +88,17 @@
     .detail-container {
         padding: 2rem 1rem; // py: 4, px default? overridden by media query
 
-        @include media-breakpoint-up(xs) {
+        @media (min-width: 0) {
             padding-left: 1rem;
             padding-right: 1rem;
         }
 
-        @include media-breakpoint-up(sm) {
+        @media (min-width: 576px) {
             padding-left: 2rem;
             padding-right: 2rem;
         }
 
-        @include media-breakpoint-up(md) {
+        @media (min-width: 768px) {
             padding-left: 3rem; // px: 5
             padding-right: 3rem;
         }
@@ -153,12 +155,12 @@
         padding-right: 1rem;
         width: 100%;
 
-        @include media-breakpoint-up(sm) {
+        @media (min-width: 576px) {
             padding-left: 2rem;
             padding-right: 2rem;
         }
 
-        @include media-breakpoint-up(md) {
+        @media (min-width: 768px) {
             padding-left: 3rem;
             padding-right: 3rem;
         }

@@ -204,7 +204,7 @@ export const TaggerScene: React.FC<PropsWithChildren<ITaggerScene>> = ({
               <InputAdornment position="start">
                 <Typography variant="body2" color="textSecondary">
                   <FormattedMessage id="component_tagger.noun_query" />
-                  {isOverridden && <span className="ml-1 text-info">(Global)</span>}
+                  {isOverridden && <span className="ml-1" style={{ color: '#2196f3' }}>(Global)</span>}
                 </Typography>
               </InputAdornment>
             ),

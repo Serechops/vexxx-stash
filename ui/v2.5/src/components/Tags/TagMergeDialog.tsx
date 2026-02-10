@@ -1,5 +1,4 @@
 import { Button, FormLabel, Box } from "@mui/material";
-import { Row, Col } from "src/components/Shared/Layouts";
 import React, { useEffect, useState } from "react";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import LoginIcon from "@mui/icons-material/Login";
@@ -95,15 +94,15 @@ export const TagMergeModal: React.FC<ITagMergeModalProps> = ({
       isRunning={running}
     >
       <Box className="form-container" px={3}>
-        <Row>
-          <Col xs={12} lg={6} xl={12}>
-            <Row className="mb-3">
-              <Col sm={3} xl={12} className="align-self-center">
+        <div className="flex flex-wrap">
+          <div className="w-full lg:w-1/2 xl:w-full">
+            <div className="flex flex-wrap mb-3">
+              <div className="w-full sm:w-1/4 xl:w-full self-center">
                 <FormLabel>
                   {intl.formatMessage({ id: "dialogs.merge.source" })}
                 </FormLabel>
-              </Col>
-              <Col sm={9} xl={12}>
+              </div>
+              <div className="w-full sm:w-3/4 xl:w-full">
                 <TagSelect
                   isMulti
                   creatable={false}
@@ -111,10 +110,10 @@ export const TagMergeModal: React.FC<ITagMergeModalProps> = ({
                   values={src}
                   menuPortalTarget={document.body}
                 />
-              </Col>
-            </Row>
+              </div>
+            </div>
 
-            <Row className="justify-content-center mb-3">
+            <div className="flex flex-wrap justify-center mb-3">
               <Button
                 variant="contained"
                 color="secondary"
@@ -124,15 +123,15 @@ export const TagMergeModal: React.FC<ITagMergeModalProps> = ({
               >
                 <SwapHorizIcon />
               </Button>
-            </Row>
+            </div>
 
-            <Row className="mb-3">
-              <Col sm={3} xl={12} className="align-self-center">
+            <div className="flex flex-wrap mb-3">
+              <div className="w-full sm:w-1/4 xl:w-full self-center">
                 <FormLabel>
                   {intl.formatMessage({ id: "dialogs.merge.destination" })}
                 </FormLabel>
-              </Col>
-              <Col sm={9} xl={12}>
+              </div>
+              <div className="w-full sm:w-3/4 xl:w-full">
                 <TagSelect
                   isMulti={false}
                   creatable={false}
@@ -140,10 +139,10 @@ export const TagMergeModal: React.FC<ITagMergeModalProps> = ({
                   values={dest ? [dest] : undefined}
                   menuPortalTarget={document.body}
                 />
-              </Col>
-            </Row>
-          </Col>
-        </Row>
+              </div>
+            </div>
+          </div>
+        </div>
       </Box>
     </ModalComponent>
   );

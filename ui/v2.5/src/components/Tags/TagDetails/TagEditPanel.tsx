@@ -267,7 +267,7 @@ export const TagEditPanel: React.FC<ITagEditPanel> = ({
 
         <DetailsEditNavbar
           objectName={tag?.name ?? intl.formatMessage({ id: "tag" })}
-          classNames="col-xl-9 mt-3"
+          classNames="w-full xl:w-9/12 mt-3"
           isNew={isNew}
           isEditing
           onToggleEdit={onCancel}

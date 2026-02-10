@@ -80,7 +80,7 @@ const StudioResult: React.FC<IStudioResultProps> = ({
 
   if (matchedStudio && matchedStashID) {
     return (
-      <div className="row no-gutters my-2">
+      <div className="flex flex-wrap my-2">
         <div className="entity-name">
           <FormattedMessage id="countables.studios" values={{ count: 1 }} />:
           <b className="ml-2">
@@ -101,7 +101,7 @@ const StudioResult: React.FC<IStudioResultProps> = ({
               <span className="mr-2">
                 <FormattedMessage id="component_tagger.verb_matched" />:
               </span>
-              <b className="col-3 text-right">
+              <b className="text-right" style={{ width: '25%' }}>
                 <StudioLink
                   studio={matchedStudio}
                   url={`${studioURLPrefix}${matchedStudio.id}`}
@@ -124,7 +124,7 @@ const StudioResult: React.FC<IStudioResultProps> = ({
   };
 
   return (
-    <div className="row no-gutters align-items-center mt-2">
+    <div className="flex flex-wrap items-center mt-2">
       <div className="entity-name">
         <FormattedMessage id="countables.studios" values={{ count: 1 }} />:
         <b className="ml-2">

@@ -48,8 +48,8 @@ const StudioCreate: React.FC = () => {
   }
 
   return (
-    <div className="row">
-      <div className="studio-details col-md-8">
+    <div className="flex flex-wrap">
+      <div className="studio-details w-full md:w-2/3">
         <h2>
           {intl.formatMessage(
             { id: "actions.add_entity" },

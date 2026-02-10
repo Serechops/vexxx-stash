@@ -1,5 +1,5 @@
 import { Button, TextField, Box, Typography } from "@mui/material";
-import { Col, Row } from "src/components/Shared/Layouts";
+import Grid from "@mui/material/Grid";
 import React, { useEffect, useMemo, useState } from "react";
 import * as GQL from "src/core/generated-graphql";
 import { LoadingIndicator } from "../Shared/LoadingIndicator";
@@ -479,7 +479,7 @@ const SceneMergeDetails: React.FC<ISceneMergeDetailsProps> = ({
           result={galleries}
           originalField={
             <GallerySelect
-              className="form-control react-select"
+              className="react-select"
               ids={galleries.originalValue ?? []}
               onSelect={() => { }}
               isMulti
@@ -488,7 +488,7 @@ const SceneMergeDetails: React.FC<ISceneMergeDetailsProps> = ({
           }
           newField={
             <GallerySelect
-              className="form-control react-select"
+              className="react-select"
               ids={galleries.newValue ?? []}
               onSelect={() => { }}
               isMulti
@@ -761,24 +761,24 @@ export const SceneMergeModal: React.FC<ISceneMergeModalProps> = ({
       }}
       isRunning={running}
     >
-      <div className="form-container row px-3">
-        <div className="col-12 col-lg-6 col-xl-12">
-          <Row className="mb-3" alignItems="center">
-            <Col sm={3} xl={12}>
+      <div className="form-container flex flex-wrap px-3">
+        <div className="w-full lg:w-1/2 xl:w-full">
+          <Grid container spacing={2} className="mb-3" alignItems="center">
+            <Grid size={{ sm: 3, xl: 12 }}>
               <Typography variant="subtitle2" component="label" htmlFor="source">
                 {intl.formatMessage({ id: "dialogs.merge.source" })}
               </Typography>
-            </Col>
-            <Col sm={9} xl={12}>
+            </Grid>
+            <Grid size={{ sm: 9, xl: 12 }}>
               <SceneSelect
                 isMulti
                 onSelect={(items) => setSourceScenes(items)}
                 values={sourceScenes}
                 menuPortalTarget={document.body}
               />
-            </Col>
-          </Row>
-          <Row className="justify-content-center mb-3">
+            </Grid>
+          </Grid>
+          <Grid container spacing={2} className="justify-center mb-3">
             <Button
               variant="text"
               color="secondary"
@@ -788,21 +788,21 @@ export const SceneMergeModal: React.FC<ISceneMergeModalProps> = ({
             >
               <SwapHorizIcon />
             </Button>
-          </Row>
-          <Row className="mb-3" alignItems="center">
-            <Col sm={3} xl={12}>
+          </Grid>
+          <Grid container spacing={2} className="mb-3" alignItems="center">
+            <Grid size={{ sm: 3, xl: 12 }}>
               <Typography variant="subtitle2" component="label" htmlFor="destination">
                 {intl.formatMessage({ id: "dialogs.merge.destination" })}
               </Typography>
-            </Col>
-            <Col sm={9} xl={12}>
+            </Grid>
+            <Grid size={{ sm: 9, xl: 12 }}>
               <SceneSelect
                 onSelect={(items) => setDestScene(items)}
                 values={destScene}
                 menuPortalTarget={document.body}
               />
-            </Col>
-          </Row>
+            </Grid>
+          </Grid>
         </div>
       </div>
     </ModalComponent>

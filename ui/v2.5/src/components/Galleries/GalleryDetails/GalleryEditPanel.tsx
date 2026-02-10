@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { Prompt } from "react-router-dom";
 import { Box, Button, Typography } from "@mui/material";
-import { Row, Col } from "src/components/Shared/Layouts";
+import Grid from "@mui/material/Grid";
 import Mousetrap from "mousetrap";
 import * as GQL from "src/core/generated-graphql";
 import * as yup from "yup";
@@ -444,7 +444,7 @@ export const GalleryEditPanel: React.FC<IProps> = ({
 
       {maybeRenderScrapeDialog()}
       <Box component="form" noValidate onSubmit={formik.handleSubmit}>
-        <Row className="form-container edit-buttons-container px-3 pt-3">
+        <Grid container spacing={2} className="form-container edit-buttons-container px-3 pt-3">
           <div className="edit-buttons mb-3 pl-0">
             <Button
               className="edit-button"
@@ -468,7 +468,7 @@ export const GalleryEditPanel: React.FC<IProps> = ({
               </Button>
             )}
           </div>
-          <div className="ml-auto text-right d-flex">
+          <div className="ml-auto text-right flex">
             {!isNew && (
               <ScraperMenu
                 toggle={intl.formatMessage({ id: "Scrape With..." })}
@@ -478,9 +478,9 @@ export const GalleryEditPanel: React.FC<IProps> = ({
               />
             )}
           </div>
-        </Row>
-        <Row className="form-container px-3">
-          <Col lg={7} xl={12}>
+        </Grid>
+        <Grid container spacing={2} className="form-container px-3">
+          <Grid size={{ lg: 7, xl: 12 }}>
             {renderInputField("title")}
             {renderInputField("code", "text", "scene_code")}
 
@@ -499,8 +499,8 @@ export const GalleryEditPanel: React.FC<IProps> = ({
             {renderStudioField()}
             {renderPerformersField()}
             {renderTagsField()}
-          </Col>
-          <Col lg={5} xl={12}>
+          </Grid>
+          <Grid size={{ lg: 5, xl: 12 }}>
             {renderDetailsField()}
             <Box>
               <Typography component="label" variant="body2" sx={{ mb: 1 }}>
@@ -508,8 +508,8 @@ export const GalleryEditPanel: React.FC<IProps> = ({
               </Typography>
               {cover}
             </Box>
-          </Col>
-        </Row>
+          </Grid>
+        </Grid>
       </Box>
     </div>
   );

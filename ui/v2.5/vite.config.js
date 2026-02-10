@@ -64,6 +64,13 @@ export default defineConfig(() => {
         },
       },
     },
+    css: {
+      preprocessorOptions: {
+        scss: {
+          api: 'modern-compiler',
+        },
+      },
+    },
     publicDir: "public",
     assetsInclude: ["**/*.md"],
     plugins,

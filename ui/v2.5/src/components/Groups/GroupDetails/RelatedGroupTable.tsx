@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import { FormattedMessage } from "react-intl";
 import * as GQL from "src/core/generated-graphql";
 import { TextField, Typography } from "@mui/material";
-import { Row, Col } from "src/components/Shared/Layouts";
+import Grid from "@mui/material/Grid";
 import { Group, GroupSelect } from "src/components/Groups/GroupSelect";
 import cx from "classnames";
 import { ListFilterModel } from "src/models/list-filter/filter";
@@ -88,17 +88,17 @@ export const RelatedGroupTable: React.FC<{
 
   return (
     <div className={cx("group-table", { "no-groups": !value.length })}>
-      <Row className="group-table-header">
-        <Col xs={9}></Col>
-        <Col xs={3}>
+      <Grid container spacing={2} className="group-table-header">
+        <Grid size={{ xs: 9 }}></Grid>
+        <Grid size={{ xs: 3 }}>
           <Typography variant="body2" className="group-scene-number-header">
             <FormattedMessage id="description" />
           </Typography>
-        </Col>
-      </Row>
+        </Grid>
+      </Grid>
       {value.map((m, i) => (
-        <Row key={m.group.id} className="group-row">
-          <Col xs={9}>
+        <Grid container spacing={2} key={m.group.id} className="group-row">
+          <Grid size={{ xs: 9 }}>
             <GroupSelect
               onSelect={(items) => onGroupSet(i, items)}
               values={[m.group!]}
@@ -107,8 +107,8 @@ export const RelatedGroupTable: React.FC<{
               isDisabled={props.disabled}
               menuPortalTarget={props.menuPortalTarget}
             />
-          </Col>
-          <Col xs={3}>
+          </Grid>
+          <Grid size={{ xs: 3 }}>
             <TextField
               size="small"
               fullWidth
@@ -122,11 +122,11 @@ export const RelatedGroupTable: React.FC<{
               }}
               disabled={props.disabled}
             />
-          </Col>
-        </Row>
+          </Grid>
+        </Grid>
       ))}
-      <Row className="group-row">
-        <Col xs={12}>
+      <Grid container spacing={2} className="group-row">
+        <Grid size={{ xs: 12 }}>
           <GroupSelect
             // re-create this component to refresh the default values updating the excluded ids
             // setting the key to the length of the groupIDs array will cause the component to re-render
@@ -138,8 +138,8 @@ export const RelatedGroupTable: React.FC<{
             isDisabled={props.disabled}
             menuPortalTarget={props.menuPortalTarget}
           />
-        </Col>
-      </Row>
+        </Grid>
+      </Grid>
     </div>
   );
 };

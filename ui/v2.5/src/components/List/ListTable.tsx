@@ -117,7 +117,7 @@ export const ListTable = <T extends { id: string }>(
           <TableRow>
             <TableCell padding="checkbox" sx={{ width: 20 }}>
               <div
-                className="d-inline-block"
+                className="inline-block"
                 data-toggle="popover"
                 data-trigger="focus"
               >

@@ -19,7 +19,7 @@ export const SceneGroupPanel: React.FC<ISceneGroupPanelProps> = (
 
   return (
     <>
-      <div className="row justify-content-center">{cards}</div>
+      <div className="flex flex-wrap justify-center">{cards}</div>
     </>
   );
 };

@@ -1,3 +1,5 @@
+@use "../../styles/theme" as *;
+
 // Scene Styles (restored from stash-develop)
 // Essential styles for detail panel media
 
@@ -6,11 +8,6 @@
     flex-wrap: wrap;
     justify-content: center;
     margin-bottom: 10px;
-
-    .btn {
-        padding-bottom: 3px;
-        padding-top: 3px;
-    }
 
     .fa-icon {
         margin-right: 7px;
@@ -79,16 +76,6 @@
     }
 }
 
-.scene-card.card,
-.scene-marker-card.card {
-    overflow: hidden;
-    padding: 0;
-
-    @media (max-width: 576px) {
-        width: 100%;
-    }
-}
-
 // Scene cover in detail panels
 .scene-cover {
     display: block;
@@ -127,7 +114,7 @@
     height: auto;
     overflow: visible;
 
-    @include media-breakpoint-up(md) {
+    @media (min-width: 768px) {
         flex-direction: row;
         height: calc(100vh - 64px);
         overflow: hidden;
@@ -144,7 +131,7 @@
     transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     width: 100%;
 
-    @include media-breakpoint-up(md) {
+    @media (min-width: 768px) {
         border-right: 1px solid $secondary;
         height: 100%;
         min-width: 450px;
@@ -169,7 +156,7 @@
     transition: background-color 0.2s;
     width: 12px;
 
-    @include media-breakpoint-up(md) {
+    @media (min-width: 768px) {
         display: flex;
     }
 
@@ -196,12 +183,12 @@
     position: relative;
     overflow: visible; // Allow scrubber to be visible
 
-    @include media-breakpoint-down(sm) {
+    @media (max-width: 767.98px) {
         aspect-ratio: 16/9;
         height: auto;
     }
 
-    @include media-breakpoint-up(md) {
+    @media (min-width: 768px) {
         height: 100%;
         overflow: hidden; // Contain on larger screens
     }
@@ -221,7 +208,7 @@
     padding: 0.5rem;
     width: 100%;
 
-    @include media-breakpoint-up(md) {
+    @media (min-width: 768px) {
         padding: 1rem;
         padding-top: 1rem;
     }
@@ -241,7 +228,7 @@
     justify-content: center;
     margin-bottom: 1rem;
 
-    @include media-breakpoint-up(md) {
+    @media (min-width: 768px) {
         flex-direction: row;
         justify-content: space-between;
     }
@@ -253,7 +240,7 @@
     justify-content: center;
     margin-bottom: 1rem;
 
-    @include media-breakpoint-up(lg) {
+    @media (min-width: 992px) {
         flex: 0 0 25%;
         margin-bottom: 0;
         order: 2;
@@ -263,7 +250,7 @@
         max-height: 8rem;
         max-width: 100%;
 
-        @include media-breakpoint-up(lg) {
+        @media (min-width: 992px) {
             margin-top: 1rem;
         }
     }
@@ -276,14 +263,14 @@
     text-align: center;
     width: 100%;
 
-    @include media-breakpoint-up(lg) {
+    @media (min-width: 992px) {
         flex: 0 0 75%;
         margin-top: 2rem;
         order: 1;
         text-align: left;
     }
 
-    @include media-breakpoint-up(xl) {
+    @media (min-width: 1200px) {
         font-size: 1.5rem;
     }
 
@@ -331,7 +318,7 @@
     gap: 1rem;
     width: 100%;
 
-    @include media-breakpoint-down(sm) {
+    @media (max-width: 767.98px) {
         flex-direction: column;
         gap: 0.5rem;
     }
@@ -344,7 +331,7 @@
     display: flex;
     align-items: center;
 
-    @include media-breakpoint-down(sm) {
+    @media (max-width: 767.98px) {
         width: 100%;
     }
 }

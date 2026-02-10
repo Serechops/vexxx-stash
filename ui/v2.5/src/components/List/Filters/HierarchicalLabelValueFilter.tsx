@@ -110,7 +110,6 @@ export const HierarchicalLabelValueFilter: React.FC<
       {criterion.value.depth !== 0 && (
         <Box mb={1}>
           <NumberField
-            className="btn-secondary"
             placeholder={intl.formatMessage(messages.studio_depth)}
             onChange={(e) =>
               onDepthChanged(e.target.value ? parseInt(e.target.value, 10) : -1)

@@ -1,3 +1,5 @@
+@use "../../styles/theme" as *;
+
 .tagger-container {
   max-width: 1600px;
 
@@ -178,7 +180,7 @@
 }
 
 .tagger-content-container {
-  @include media-breakpoint-up(md) {
+  @media (min-width: 768px) {
     margin-left: auto;
     margin-right: auto;
   }
@@ -203,7 +205,7 @@
 .config-column {
   flex-basis: 100%;
 
-  @include media-breakpoint-up(md) {
+  @media (min-width: 768px) {
     flex-basis: 48%;
   }
 }
@@ -338,10 +340,6 @@
   &-field {
     margin-bottom: 5px;
 
-    .btn {
-      margin-right: 5px;
-    }
-
     .fa-icon {
       width: 12px;
     }
@@ -414,11 +412,6 @@
 
   &-box-link {
     margin-bottom: 5px;
-
-    .input-group-text {
-      font-family: monospace;
-      color: black;
-    }
   }
 }
 
@@ -452,10 +445,6 @@
 
   &-field {
     margin-bottom: 5px;
-
-    .btn {
-      margin-right: 5px;
-    }
 
     .fa-icon {
       width: 12px;
@@ -537,11 +526,6 @@
 
   &-box-link {
     margin-bottom: 5px;
-
-    .input-group-text {
-      font-family: monospace;
-      color: black;
-    }
   }
 }
 
@@ -597,10 +581,6 @@ li.active .optional-field.excluded .scene-link {
   .scene-details,
   .original-scene-details {
     margin-top: 0.5rem;
-
-    >.row {
-      width: 100%;
-    }
   }
 }
 
@@ -637,28 +617,6 @@ li.active .optional-field.excluded .scene-link {
   .tagger-review-accordion {
     max-height: 60vh;
     overflow-y: auto;
-
-    .card {
-      background-color: transparent;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      margin-bottom: 0.5rem;
-    }
-
-    .card-header {
-      background-color: rgba(0, 0, 0, 0.3);
-      cursor: pointer;
-      padding: 0.75rem 1rem;
-      transition: background-color 0.2s ease;
-
-      &:hover {
-        background-color: rgba(255, 255, 255, 0.05);
-      }
-    }
-
-    .card-body {
-      background-color: rgba(0, 0, 0, 0.1);
-      padding: 0.5rem;
-    }
   }
 
   .tagger-review-section {
@@ -752,7 +710,7 @@ li.active .optional-field.excluded .scene-link {
 .tagger-scene-column {
   flex: 1 1 100%;
 
-  @include media-breakpoint-up(lg) {
+  @media (min-width: 992px) {
     flex: 1 1 48%;
   }
 }
@@ -773,7 +731,7 @@ li.active .optional-field.excluded .scene-link {
   flex-direction: column;
   overflow: hidden;
 
-  @include media-breakpoint-up(sm) {
+  @media (min-width: 576px) {
     flex-direction: row;
   }
 }

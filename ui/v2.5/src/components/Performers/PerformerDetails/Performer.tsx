@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Tabs, Tab, Box } from "@mui/material";
 import Button from "@mui/material/Button";
-import { Row, Col } from "src/components/Shared/Layouts";
 import { FormattedMessage, useIntl } from "react-intl";
 import { useHistory, Redirect, RouteComponentProps } from "react-router-dom";
 import { Helmet } from "react-helmet";
@@ -456,7 +455,7 @@ const PerformerPage: React.FC<IProps> = PatchComponent(
               performer={performer}
             />
             <Box className="performer-row">
-              <Box className="performer-head col">
+              <Box className="performer-head flex-1">
                 <DetailTitle
                   name={performer.name}
                   disambiguation={performer.disambiguation ?? undefined}

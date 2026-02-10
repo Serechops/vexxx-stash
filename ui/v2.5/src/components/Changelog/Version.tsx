@@ -32,9 +32,9 @@ const Version: React.FC<IVersionProps> = ({
   return (
     <Paper className="changelog-version" sx={{ mb: 2 }}>
       <Box sx={{ p: 2 }}>
-        <Typography variant="h6" className="changelog-version-header d-flex align-items-center">
+        <Typography variant="h6" className="changelog-version-header" sx={{ display: "flex", alignItems: "center" }}>
           <Button onClick={updateState} variant="text">
-            <Icon icon={open ? faAngleUp : faAngleDown} className="mr-3" />
+            <Box component="span" sx={{ mr: 3, display: "inline-flex" }}><Icon icon={open ? faAngleUp : faAngleDown} /></Box>
             {version} (
             {date ? (
               <FormattedDate value={date} timeZone="utc" />

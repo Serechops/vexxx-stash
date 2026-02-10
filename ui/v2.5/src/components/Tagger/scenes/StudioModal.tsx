@@ -36,8 +36,8 @@ const StudioDetails: React.FC<IStudioDetailsProps> = ({
     if (!studio.image) return;
 
     return (
-      <div className="row">
-        <div className="col-12 image-selection">
+      <div className="flex flex-wrap">
+        <div className="w-full image-selection">
           <div className="studio-image">
             <Button
               onClick={() => toggleField("image")}
@@ -62,8 +62,8 @@ const StudioDetails: React.FC<IStudioDetailsProps> = ({
     if (!text) return;
 
     return (
-      <div className="row no-gutters">
-        <div className="col-5 studio-create-modal-field" key={id}>
+      <div className="flex flex-wrap">
+        <div className="studio-create-modal-field" style={{ width: '41.67%' }} key={id}>
           {isSelectable && (
             <Button
               onClick={() => toggleField(id)}
@@ -77,7 +77,7 @@ const StudioDetails: React.FC<IStudioDetailsProps> = ({
             <FormattedMessage id={id} />:
           </strong>
         </div>
-        <TruncatedText className="col-7" text={text} />
+        <TruncatedText style={{ width: '58.33%' }} text={text} />
       </div>
     );
   }
@@ -90,8 +90,8 @@ const StudioDetails: React.FC<IStudioDetailsProps> = ({
     if (!text) return;
 
     return (
-      <div className="row no-gutters">
-        <div className="col-5 studio-create-modal-field" key={name}>
+      <div className="flex flex-wrap">
+        <div className="studio-create-modal-field" style={{ width: '41.67%' }} key={name}>
           {!isNew && (
             <Button
               onClick={() => toggleField(name)}
@@ -105,7 +105,7 @@ const StudioDetails: React.FC<IStudioDetailsProps> = ({
             <FormattedMessage id={name} />:
           </strong>
         </div>
-        <div className="col-7 studio-create-modal-value">
+        <div className="studio-create-modal-value" style={{ width: '58.33%' }}>
           <ul>
             {text.map((t, i) => (
               <li key={i}>
@@ -136,8 +136,8 @@ const StudioDetails: React.FC<IStudioDetailsProps> = ({
   return (
     <div>
       {maybeRenderImage()}
-      <div className="row">
-        <div className="col-12">
+      <div className="flex flex-wrap">
+        <div className="w-full">
           {maybeRenderField("name", studio.name, !isNew)}
           {maybeRenderURLListField("urls", studio.urls)}
           {maybeRenderField("details", studio.details)}
@@ -315,7 +315,7 @@ const StudioModal: React.FC<IStudioModalProps> = ({
 
     return (
       <div>
-        <div className="mb-4 mt-4">
+        <div style={{ marginBottom: '1.5rem', marginTop: '1.5rem' }}>
           <FormControlLabel
             control={
               <Checkbox

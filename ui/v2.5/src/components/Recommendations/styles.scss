@@ -1,5 +1,5 @@
 // Styles for Recommendations module
-@import "../../styles/theme";
+@use "../../styles/theme" as *;
 
 // Discover Page Styles
 .discover-page {
@@ -22,7 +22,7 @@
     padding-right: 1rem;
     padding-top: 2rem;
 
-    @include media-breakpoint-up(md) {
+    @media (min-width: 768px) {
         padding-left: 3rem;
         padding-right: 3rem;
     }

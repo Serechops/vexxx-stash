@@ -495,8 +495,8 @@ const StudioPage: React.FC<IProps> = ({ studio, tabKey }) => {
               </Box>
             )}
           </HeaderImage>
-          <Box className="row">
-            <Box className="studio-head col">
+          <Box className="flex flex-wrap">
+            <Box className="studio-head flex-1">
               <DetailTitle name={studio.name ?? ""} classNamePrefix="studio">
                 {!isEditing && (
                   <ExpandCollapseButton

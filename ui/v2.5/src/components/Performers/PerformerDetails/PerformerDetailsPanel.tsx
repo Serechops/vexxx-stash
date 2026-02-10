@@ -68,7 +68,7 @@ export const PerformerDetailsPanel: React.FC<IPerformerDetails> =
       return (
         <ul className="pl-0">
           {performer.stash_ids.map((stashID) => (
-            <li key={stashID.stash_id} className="row no-gutters">
+            <li key={stashID.stash_id} className="flex flex-wrap">
               <StashIDPill stashID={stashID} linkType="performers" />
             </li>
           ))}

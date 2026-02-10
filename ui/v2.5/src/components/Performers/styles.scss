@@ -1,3 +1,5 @@
+@use "../../styles/theme" as *;
+
 // Performer Card Styles (restored from stash-develop)
 
 .performer-card {
@@ -5,10 +7,6 @@
 
     @media (max-width: 576px) {
         width: 100%;
-    }
-
-    &.card {
-        padding: 0 0 1rem 0;
     }
 
     &-image {
@@ -19,24 +17,10 @@
         width: 100%;
     }
 
-    button.btn.favorite-button {
-        padding: 0;
-        position: absolute;
-        right: 5px;
-        top: 10px;
-    }
-
-    &:hover button.btn.favorite-button.not-favorite {
-        opacity: 1;
-    }
 }
 
 #performer-page {
     .performer-image-container {
-        .btn {
-            box-shadow: none;
-        }
-
         .performer {
             max-height: calc(100vh - 6rem);
             max-width: 100%;

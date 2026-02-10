@@ -179,7 +179,7 @@ const PerformerModal: React.FC<IPerformerModalProps> = ({
             component="img"
             src={images[imageIndex]}
             style={{ display: imageState !== "loaded" ? "none" : "block" }}
-            className="w-100"
+            className="w-full"
             alt=""
             onLoad={() => handleLoad(imageIndex)}
             onError={handleError}

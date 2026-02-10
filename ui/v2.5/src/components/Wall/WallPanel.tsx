@@ -71,9 +71,9 @@ const WallPanel = <T extends WallItemType>({
 
   return (
 
-    <Box className="row">
+    <Box className="flex flex-wrap">
       <Box
-        className="stash-wall w-100 row justify-content-center"
+        className="stash-wall w-full flex flex-wrap justify-center"
         sx={{
           margin: "0 auto",
           maxWidth: 2250,

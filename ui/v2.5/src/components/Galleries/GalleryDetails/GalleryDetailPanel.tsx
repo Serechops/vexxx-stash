@@ -68,7 +68,7 @@ export const GalleryDetailPanel: React.FC<IGalleryDetailProps> = PatchComponent(
               values={{ count: gallery.performers.length }}
             />
           </h6>
-          <div className="row justify-content-center gallery-performers">
+          <div className="flex flex-wrap justify-center gallery-performers">
             {cards}
           </div>
         </>
@@ -76,12 +76,12 @@ export const GalleryDetailPanel: React.FC<IGalleryDetailProps> = PatchComponent(
     }
 
     // filename should use entire row if there is no studio
-    const galleryDetailsWidth = gallery.studio ? "col-9" : "col-12";
+    const galleryDetailsWidth = gallery.studio ? "w-9/12" : "w-full";
 
     return (
       <>
-        <div className="row">
-          <div className={`${galleryDetailsWidth} col-12 gallery-details`}>
+        <div className="flex flex-wrap">
+          <div className={`${galleryDetailsWidth} w-full gallery-details`}>
             <h6>
               <FormattedMessage id="created_at" />:{" "}
               {TextUtils.formatDateTime(intl, gallery.created_at)}{" "}
@@ -106,8 +106,8 @@ export const GalleryDetailPanel: React.FC<IGalleryDetailProps> = PatchComponent(
             )}
           </div>
         </div>
-        <div className="row">
-          <div className="col-12">
+        <div className="flex flex-wrap">
+          <div className="w-full">
             {renderDetails()}
             {renderTags()}
             {renderPerformers()}

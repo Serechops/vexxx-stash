@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { Button, ButtonGroup, Box, Typography } from "@mui/material";
-import { Col, Row } from "src/components/Shared/Layouts";
+import Grid from "@mui/material/Grid";
 import Mousetrap from "mousetrap";
 import * as GQL from "src/core/generated-graphql";
 import * as yup from "yup";
@@ -740,7 +740,7 @@ export const SceneEditPanel: React.FC<IProps> = ({
         />
       )}
       <Box component="form" noValidate onSubmit={formik.handleSubmit}>
-        <Row className="form-container edit-buttons-container px-3 pt-3">
+        <Grid container spacing={2} className="form-container edit-buttons-container px-3 pt-3">
           <div className="edit-buttons mb-3 pl-0">
             <Button
               className="edit-button"
@@ -765,7 +765,7 @@ export const SceneEditPanel: React.FC<IProps> = ({
             )}
           </div>
           {!isNew && (
-            <div className="ml-auto text-right d-flex">
+            <div className="ml-auto text-right flex">
               <ButtonGroup className="scraper-group">
                 <ScraperMenu
                   toggle={intl.formatMessage({ id: "Scrape With..." })}
@@ -785,9 +785,9 @@ export const SceneEditPanel: React.FC<IProps> = ({
               </ButtonGroup>
             </div>
           )}
-        </Row>
-        <Row className="form-container px-3">
-          <Col lg={7} xl={12}>
+        </Grid>
+        <Grid container spacing={2} className="form-container px-3">
+          <Grid size={{ lg: 7, xl: 12 }}>
             {renderInputField("title")}
             {renderInputField("code", "text", "scene_code")}
 
@@ -802,10 +802,10 @@ export const SceneEditPanel: React.FC<IProps> = ({
             {renderDateField("date")}
             {renderInputField("director")}
 
-            <Row>
-              <Col xs={6}>{renderInputField("start_point", "number")}</Col>
-              <Col xs={6}>{renderInputField("end_point", "number")}</Col>
-            </Row>
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 6 }}>{renderInputField("start_point", "number")}</Grid>
+              <Grid size={{ xs: 6 }}>{renderInputField("end_point", "number")}</Grid>
+            </Grid>
 
             {renderGalleriesField()}
             {renderStudioField()}
@@ -828,8 +828,8 @@ export const SceneEditPanel: React.FC<IProps> = ({
                 <AddIcon fontSize="small" />
               </Button>
             )}
-          </Col>
-          <Col lg={5} xl={12}>
+          </Grid>
+          <Grid size={{ lg: 5, xl: 12 }}>
             {renderDetailsField()}
             <Button
               className="text-left mt-3"
@@ -846,7 +846,6 @@ export const SceneEditPanel: React.FC<IProps> = ({
               </Typography>
               {image}
               <input
-                className="d-none"
                 type="file"
                 accept="image/*"
                 onChange={onCoverImageChange}
@@ -854,12 +853,12 @@ export const SceneEditPanel: React.FC<IProps> = ({
               />
             </Box>
             <Box mb={3}>
-              <div className="text-muted small">
+              <div className="small" style={{ color: '#a1a1aa' }}>
                 <FormattedMessage id="scrape_image_text" />
               </div>
             </Box>
-          </Col>
-        </Row>
+          </Grid>
+        </Grid>
       </Box>
     </div>
   );

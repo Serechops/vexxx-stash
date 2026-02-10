@@ -209,7 +209,7 @@ export const ImageInput: React.FC<IImageInput> = PatchComponent(
         <Button
           variant="contained"
           color="secondary"
-          className="mr-2"
+          sx={{ mr: 2 }}
           onClick={handleClick}
         >
           {text ?? intl.formatMessage({ id: "actions.set_image" })}

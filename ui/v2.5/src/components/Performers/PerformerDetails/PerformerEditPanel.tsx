@@ -636,7 +636,7 @@ export const PerformerEditPanel: React.FC<IPerformerDetails> = ({
 
   function renderButtons(classNames: string) {
     return (
-      <div className={cx("details-edit", "col-xl-9", classNames)}>
+      <div className={cx("details-edit", "w-full xl:w-9/12", classNames)}>
         {!isNew && onCancel ? (
           <Button className="mr-2" variant="contained" color="primary" onClick={onCancel}>
             <FormattedMessage id="actions.cancel" />

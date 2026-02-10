@@ -79,7 +79,7 @@ export const ScrapeDialog: React.FC<
       >
         <ScrapeDialogContext.Provider value={contextState}>
           <Box p={2}>
-            <Grid container className="px-3 pt-3">
+            <Grid container>
               <Grid size={{ xs: 12, lg: 9 }} className="scrape-header-offset">
                 {/* Using margin-left 25% to offset 3 cols in 12 col grid */}
                 {/* Or better: use Grid with empty item */}

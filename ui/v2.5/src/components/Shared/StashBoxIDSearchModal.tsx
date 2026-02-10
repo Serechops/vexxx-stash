@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Button, Chip, TextField, Select, MenuItem, InputAdornment, FormControl, InputLabel, Box } from "@mui/material";
-import { Row, Col } from "src/components/Shared/Layouts";
 import { FormattedMessage, useIntl } from "react-intl";
 import { faSearch } from "@fortawesome/free-solid-svg-icons";
 import * as GQL from "src/core/generated-graphql";
@@ -53,7 +52,7 @@ const SearchResultImage: React.FC<{ imageUrl?: string | null }> = ({
 
   return (
     <div className="scene-image-container">
-      <img src={imageUrl} alt="" className="align-self-center scene-image" />
+      <img src={imageUrl} alt="" className="scene-image" style={{ alignSelf: 'center' }} />
     </div>
   );
 };
@@ -65,13 +64,13 @@ const SearchResultTags: React.FC<{
   if (!tags || tags.length === 0) return null;
 
   return (
-    <Row>
-      <Col xs={12}>
+    <Box sx={{ display: 'flex', flexWrap: 'wrap' }}>
+      <Box sx={{ width: '100%' }}>
         {tags.map((tag) => (
           <Chip className="tag-item" label={tag.name} key={tag.stored_id} size="small" sx={{ mr: 0.5 }} />
         ))}
-      </Col>
-    </Row>
+      </Box>
+    </Box>
   );
 };
 
@@ -89,9 +88,9 @@ const PerformerSearchResultDetails: React.FC<IPerformerResultProps> = ({
 
   return (
     <div className="performer-result">
-      <Row>
+      <Box sx={{ display: 'flex', flexWrap: 'wrap' }}>
         <SearchResultImage imageUrl={performer.images?.[0]} />
-        <Col className="flex-column">
+        <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
           <h4 className="performer-name">
             <span>{performer.name}</span>
             {performer.disambiguation && (
@@ -124,13 +123,13 @@ const PerformerSearchResultDetails: React.FC<IPerformerResultProps> = ({
               />
             </span>
           )}
-        </Col>
-      </Row>
-      <Row>
-        <Col xs={12}>
+        </Box>
+      </Box>
+      <Box sx={{ display: 'flex', flexWrap: 'wrap' }}>
+        <Box sx={{ width: '100%' }}>
           <TruncatedText text={performer.details ?? ""} lineCount={3} />
-        </Col>
-      </Row>
+        </Box>
+      </Box>
       <SearchResultTags tags={performer.tags} />
     </div>
   );
@@ -140,7 +139,7 @@ export const PerformerSearchResult: React.FC<IPerformerResultProps> = ({
   performer,
 }) => {
   return (
-    <Box className="mt-3 search-item" sx={{ cursor: "pointer" }}>
+    <Box className="search-item" sx={{ cursor: "pointer", marginTop: '1rem' }}>
       <PerformerSearchResultDetails performer={performer} />
     </Box>
   );
@@ -154,9 +153,9 @@ interface ISceneResultProps {
 const SceneSearchResultDetails: React.FC<ISceneResultProps> = ({ scene }) => {
   return (
     <div className="scene-result">
-      <Row>
+      <Box sx={{ display: 'flex', flexWrap: 'wrap' }}>
         <SearchResultImage imageUrl={scene.image} />
-        <Col className="flex-column">
+        <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
           <h4 className="scene-title">
             <span>{scene.title}</span>
             {scene.code && (
@@ -174,13 +173,13 @@ const SceneSearchResultDetails: React.FC<ISceneResultProps> = ({ scene }) => {
               {scene.performers.map((p) => p.name).join(", ")}
             </div>
           )}
-        </Col>
-      </Row>
-      <Row>
-        <Col xs={12}>
+        </Box>
+      </Box>
+      <Box sx={{ display: 'flex', flexWrap: 'wrap' }}>
+        <Box sx={{ width: '100%' }}>
           <TruncatedText text={scene.details ?? ""} lineCount={3} />
-        </Col>
-      </Row>
+        </Box>
+      </Box>
       <SearchResultTags tags={scene.tags} />
     </div>
   );
@@ -188,7 +187,7 @@ const SceneSearchResultDetails: React.FC<ISceneResultProps> = ({ scene }) => {
 
 export const SceneSearchResult: React.FC<ISceneResultProps> = ({ scene }) => {
   return (
-    <Box className="mt-3 search-item" sx={{ cursor: "pointer" }}>
+    <Box className="search-item" sx={{ cursor: "pointer", marginTop: '1rem' }}>
       <SceneSearchResultDetails scene={scene} />
     </Box>
   );
@@ -204,9 +203,9 @@ const StudioSearchResultDetails: React.FC<IStudioResultProps> = ({
 }) => {
   return (
     <div className="studio-result">
-      <Row>
+      <Box sx={{ display: 'flex', flexWrap: 'wrap' }}>
         <SearchResultImage imageUrl={studio.image} />
-        <Col className="flex-column">
+        <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
           <h4 className="studio-name">
             <span>{studio.name}</span>
           </h4>
@@ -216,10 +215,10 @@ const StudioSearchResultDetails: React.FC<IStudioResultProps> = ({
             </h5>
           )}
           {studio.urls && studio.urls.length > 0 && (
-            <div className="studio-url text-muted small">{studio.urls[0]}</div>
+            <div className="studio-url" style={{ color: '#a1a1aa', fontSize: '0.875rem' }}>{studio.urls[0]}</div>
           )}
-        </Col>
-      </Row>
+        </Box>
+      </Box>
     </div>
   );
 };
@@ -228,7 +227,7 @@ export const StudioSearchResult: React.FC<IStudioResultProps> = ({
   studio,
 }) => {
   return (
-    <Box className="mt-3 search-item" sx={{ cursor: "pointer" }}>
+    <Box className="search-item" sx={{ cursor: "pointer", marginTop: '1rem' }}>
       <StudioSearchResultDetails studio={studio} />
     </Box>
   );
@@ -241,15 +240,15 @@ interface ITagResultProps {
 
 export const TagSearchResult: React.FC<ITagResultProps> = ({ tag }) => {
   return (
-    <Box className="mt-3 search-item" sx={{ cursor: "pointer" }}>
+    <Box className="search-item" sx={{ cursor: "pointer", marginTop: '1rem' }}>
       <div className="tag-result">
-        <Row>
-          <Col className="flex-column">
+        <Box sx={{ display: 'flex', flexWrap: 'wrap' }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
             <h4 className="tag-name">
               <span>{tag.name}</span>
             </h4>
-          </Col>
-        </Row>
+          </Box>
+        </Box>
       </div>
     </Box>
   );
@@ -407,7 +406,7 @@ export const StashBoxIDSearchModal: React.FC<IProps> = ({
 
     return (
       <div className={CLASSNAME_LIST_CONTAINER}>
-        <div className="mt-1 mb-2">
+        <div style={{ marginTop: '0.25rem', marginBottom: '0.5rem' }}>
           <FormattedMessage
             id={getFoundMessageId(entityType)}
             values={{ count: results.length }}
@@ -470,7 +469,7 @@ export const StashBoxIDSearchModal: React.FC<IProps> = ({
 
         {selectedStashBox &&
           excludedStashBoxEndpoints.includes(selectedStashBox.endpoint) && (
-            <span className="saved-filter-overwrite-warning mb-3 d-block">
+            <span className="saved-filter-overwrite-warning" style={{ marginBottom: '1rem', display: 'block' }}>
               <FormattedMessage id="dialogs.stashid_exists_warning" />
             </span>
           )}
@@ -506,7 +505,7 @@ export const StashBoxIDSearchModal: React.FC<IProps> = ({
         />
 
         {loading ? (
-          <div className="m-4 text-center">
+          <div style={{ margin: '1.5rem', textAlign: 'center' }}>
             <LoadingIndicator inline />
           </div>
         ) : results && results.length > 0 ? (
@@ -514,7 +513,7 @@ export const StashBoxIDSearchModal: React.FC<IProps> = ({
         ) : (
           results !== undefined &&
           results.length === 0 && (
-            <h5 className="text-center mt-4">
+            <h5 style={{ textAlign: 'center', marginTop: '1.5rem' }}>
               <FormattedMessage id="stashbox_search.no_results" />
             </h5>
           )

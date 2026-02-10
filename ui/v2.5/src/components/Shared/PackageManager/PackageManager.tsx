@@ -129,7 +129,7 @@ const InstalledPackageRow: React.FC<{
           <Stack>
             <span className="package-latest-version">
               {displayVersion(intl, pkg.source_package.version)}
-              {updateAvailable && <Icon icon={faAnglesUp} className="ml-1" />}
+              {updateAvailable && <Icon icon={faAnglesUp} style={{ marginLeft: '0.25rem' }} />}
             </span>
             <span className="package-latest-date">
               {displayDate(intl, pkg.source_package.date)}
@@ -307,7 +307,7 @@ const InstalledPackagesToolbar: React.FC<{
             <FormattedMessage id="package_manager.show_all" />
           </Button>
         )}
-        <div className="flex-grow-1" />
+        <div style={{ flexGrow: 1 }} />
         <Button
           variant="contained"
           onClick={() => onCheckForUpdates()}
@@ -483,7 +483,7 @@ const AvailablePackagesToolbar: React.FC<{
             <FormattedMessage id={selectedOnlyId} />
           </Button>
         )}
-        <div className="flex-grow-1" />
+        <div style={{ flexGrow: 1 }} />
         <Button
           variant="contained"
           disabled={!hasSelectedPackages || loading}
@@ -899,7 +899,7 @@ const SourcePackagesList: React.FC<{
                 variant="outlined"
                 size="small"
                 onClick={editSource}
-                className="mr-2"
+                sx={{ mr: 2 }}
               >
                 <FormattedMessage id="actions.edit" />
               </Button>

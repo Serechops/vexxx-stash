@@ -572,7 +572,7 @@ export const StudioMissingScenesPanel: React.FC<IStudioMissingScenesPanelProps> 
             )}
 
             {!scanning && missingScenes.length > 0 && paginatedScenes.length === 0 && (
-                <div className="text-center text-muted py-4">
+                <div className="text-center py-4" style={{ color: '#a1a1aa' }}>
                     No scenes match the current filters.
                 </div>
             )}

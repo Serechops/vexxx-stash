@@ -428,7 +428,7 @@ const ImageListContent: React.FC<{
         view === View.Images ? {
           position: "relative",
           zIndex: 10,
-          mt: { xs: "50vw", md: "65vh" },
+          mt: { xs: 2, md: "65vh" },
           background: (theme) => `linear-gradient(to bottom, transparent, ${theme.palette.background.default} 20%, ${theme.palette.background.default})`,
           pt: { xs: 4, md: 8 },
           pb: 4,

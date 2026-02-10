@@ -524,7 +524,7 @@ export const FilteredGalleryList = PatchComponent(
           sx={{
             position: "relative",
             zIndex: 10,
-            mt: { xs: 4, md: "65vh" },
+            mt: { xs: 2, md: "65vh" },
             background: (theme) =>
               `linear-gradient(to bottom, transparent, ${theme.palette.background.default} 20%, ${theme.palette.background.default})`,
             minHeight: "100vh",

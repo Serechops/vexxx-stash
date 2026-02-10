@@ -263,6 +263,7 @@ export const RatingBar = PatchComponent(
             position: "relative",
             height: `${barHeight}px`,
             minWidth: `${minWidth}px`,
+            maxWidth: compact ? 200 : 300,
             flexGrow: 1,
             borderRadius: `${barHeight / 2}px`,
             overflow: "hidden",

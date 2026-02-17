@@ -4,12 +4,11 @@ import Mousetrap from "mousetrap";
 import debounce from "lodash-es/debounce";
 import { FormattedMessage, useIntl } from "react-intl";
 import * as GQL from "src/core/generated-graphql";
+import { Box } from "@mui/material";
 import { GlobalSearchResults } from "./GlobalSearchResults";
-import styles from "./GlobalSearch.module.scss";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSearch } from "@fortawesome/free-solid-svg-icons";
 import { QuickSettings } from "./QuickSettings";
-import cx from "classnames";
 
 export const GlobalSearch: React.FC = () => {
     const [isOpen, setIsOpen] = useState(false);
@@ -108,7 +107,7 @@ export const GlobalSearch: React.FC = () => {
             // Logic to find the selected item is handled in Results or we need to duplicate logic here.
             // Ideally, the Results component could expose a ref or we do the flattening here.
             // For simplicity, let's trigger a click on the active item in the DOM.
-            const activeLink = document.querySelector(`.${styles.results} .${styles.active}`) as HTMLElement;
+            const activeLink = document.querySelector('[data-search-results] [data-active]') as HTMLElement;
             if (activeLink) {
                 activeLink.click();
             }
@@ -141,41 +140,128 @@ export const GlobalSearch: React.FC = () => {
 
     if (!isOpen) return null;
 
+    const tabSx = (isActive: boolean) => ({
+        flex: 1,
+        p: '1rem',
+        textAlign: 'center',
+        cursor: 'pointer',
+        fontWeight: 500,
+        color: isActive ? 'white' : 'rgba(255, 255, 255, 0.5)',
+        transition: 'all 0.2s',
+        borderBottom: isActive ? '2px solid #3b82f6' : '2px solid transparent',
+        background: isActive ? 'rgba(255, 255, 255, 0.05)' : 'transparent',
+        '&:hover': {
+            color: 'rgba(255, 255, 255, 0.8)',
+            background: 'rgba(255, 255, 255, 0.05)',
+        },
+    });
+
     return (
-        <div className={styles.overlay} onMouseDown={handleClose}>
-            <div className={styles.container}>
-                <div className={styles.tabs}>
-                    <div
-                        className={cx(styles.tab, { [styles.active]: activeTab === "search" })}
+        <Box
+            sx={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                width: '100vw',
+                height: '100vh',
+                background: 'rgba(0, 0, 0, 0.7)',
+                backdropFilter: 'blur(12px)',
+                zIndex: 9999,
+                display: 'flex',
+                alignItems: 'flex-start',
+                justifyContent: 'center',
+                pt: '5vh',
+                animation: 'fadeIn 0.15s ease-out',
+                '@keyframes fadeIn': {
+                    from: { opacity: 0, transform: 'scale(0.99)' },
+                    to: { opacity: 1, transform: 'scale(1)' },
+                },
+                '& .modal-content': {
+                    background: 'transparent',
+                    border: 'none',
+                    boxShadow: 'none',
+                },
+            }}
+            onMouseDown={handleClose}
+        >
+            <Box
+                sx={{
+                    background: 'rgba(30, 30, 40, 0.95)',
+                    width: '90vw',
+                    maxWidth: 1000,
+                    height: '85vh',
+                    borderRadius: '12px',
+                    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    overflow: 'hidden',
+                    display: 'flex',
+                    flexDirection: 'column',
+                }}
+            >
+                <Box
+                    sx={{
+                        display: 'flex',
+                        borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                        background: 'rgba(0, 0, 0, 0.2)',
+                    }}
+                >
+                    <Box
+                        sx={tabSx(activeTab === "search")}
                         onClick={() => handleTabClick("search")}
                     >
                         <FormattedMessage id="search" defaultMessage="Search" />
-                    </div>
-                    <div
-                        className={cx(styles.tab, { [styles.active]: activeTab === "settings" })}
+                    </Box>
+                    <Box
+                        sx={tabSx(activeTab === "settings")}
                         onClick={() => handleTabClick("settings")}
                     >
                         <FormattedMessage id="settings" defaultMessage="Quick Settings" />
-                    </div>
-                </div>
+                    </Box>
+                </Box>
 
                 {activeTab === "search" ? (
                     <>
-                        <div className={styles.inputWrapper}>
+                        <Box
+                            sx={{
+                                p: '1.5rem',
+                                borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '1rem',
+                                flexShrink: 0,
+                                '& svg': {
+                                    color: '#999',
+                                    width: 24,
+                                    height: 24,
+                                },
+                            }}
+                        >
                             <FontAwesomeIcon icon={faSearch} />
-                            <input
+                            <Box
+                                component="input"
                                 ref={inputRef}
                                 type="text"
-                                className={styles.input}
+                                sx={{
+                                    background: 'transparent',
+                                    border: 'none',
+                                    width: '100%',
+                                    fontSize: '1.5rem',
+                                    color: 'white',
+                                    outline: 'none',
+                                    fontWeight: 300,
+                                    '&::placeholder': {
+                                        color: 'rgba(255, 255, 255, 0.3)',
+                                    },
+                                }}
                                 placeholder={intl.formatMessage({ id: "search", defaultMessage: "Search..." })}
                                 value={searchTerm}
                                 onChange={handleInput}
                                 onKeyDown={handleKeyDown}
                                 autoComplete="off"
                                 autoCorrect="off"
-                                spellCheck="false"
+                                spellCheck={false}
                             />
-                        </div>
+                        </Box>
                         {debouncedTerm.length >= 2 && data ? (
                             <GlobalSearchResults
                                 data={data}
@@ -188,7 +274,7 @@ export const GlobalSearch: React.FC = () => {
                 ) : (
                     <QuickSettings onClose={() => setIsOpen(false)} />
                 )}
-            </div>
-        </div>
+            </Box>
+        </Box>
     );
 };

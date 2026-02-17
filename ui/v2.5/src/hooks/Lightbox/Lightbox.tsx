@@ -610,7 +610,7 @@ export const LightboxComponent: React.FC<IProps> = ({
   // field lose focus on input. Use function instead.
   function renderOptionsForm() {
     return (
-      <Box className="lightbox-options-container">
+      <Box sx={{ minWidth: 300, p: '1rem' }}>
         {slideshowEnabled ? (
           <Grid container spacing={2} alignItems="center" className="mb-2">
             <Grid size={{ xs: 4 }}>
@@ -651,7 +651,7 @@ export const LightboxComponent: React.FC<IProps> = ({
               SelectProps={{
                 MenuProps: {
                   style: { zIndex: 2200 },
-                  className: "lightbox-display-mode-select",
+                  sx: { backgroundColor: 'transparent' },
                 },
               }}
             >
@@ -850,8 +850,27 @@ export const LightboxComponent: React.FC<IProps> = ({
           {allowNavigation && (
             <IconButton
               onClick={() => handleLeft(true)}
-              className="hidden lg:flex minimal lightbox-nav-btn left"
+              className="hidden lg:flex minimal"
               size="large"
+              sx={{
+                position: 'absolute',
+                top: 0,
+                bottom: 0,
+                display: 'flex !important',
+                alignItems: 'center',
+                backgroundColor: 'transparent !important',
+                zIndex: 2001,
+                p: '0 0.5rem !important',
+                left: 0,
+                '&:hover': { backgroundColor: 'transparent !important' },
+                '& svg': {
+                  filter: 'drop-shadow(2px 2px 2px black)',
+                  fontSize: '4rem',
+                  opacity: 0.4,
+                  transition: 'opacity 0.2s ease, color 0.2s ease',
+                },
+                '&:hover svg': { opacity: 1, color: '#52525b' },
+              }}
             >
               <ChevronLeftIcon />
             </IconButton>
@@ -902,8 +921,27 @@ export const LightboxComponent: React.FC<IProps> = ({
           {allowNavigation && (
             <IconButton
               onClick={() => handleRight(true)}
-              className="hidden lg:flex minimal lightbox-nav-btn right"
+              className="hidden lg:flex minimal"
               size="large"
+              sx={{
+                position: 'absolute',
+                top: 0,
+                bottom: 0,
+                display: 'flex !important',
+                alignItems: 'center',
+                backgroundColor: 'transparent !important',
+                zIndex: 2001,
+                p: '0 0.5rem !important',
+                right: 0,
+                '&:hover': { backgroundColor: 'transparent !important' },
+                '& svg': {
+                  filter: 'drop-shadow(2px 2px 2px black)',
+                  fontSize: '4rem',
+                  opacity: 0.4,
+                  transition: 'opacity 0.2s ease, color 0.2s ease',
+                },
+                '&:hover svg': { opacity: 1, color: '#52525b' },
+              }}
             >
               <ChevronRightIcon />
             </IconButton>
@@ -918,18 +956,30 @@ export const LightboxComponent: React.FC<IProps> = ({
           >
             <IconButton
               onClick={() => setIndex(images.length - 1)}
-              className="minimal z-[1045] lightbox-thumb-nav-btn"
+              className="minimal z-[1045]"
               size="large"
+              sx={{
+                backgroundColor: 'transparent !important',
+                '&:hover': { backgroundColor: 'transparent !important' },
+                '& svg': { fontSize: '4rem', opacity: 0.4, transition: 'all 0.2s ease' },
+                '&:hover svg': { opacity: 1, color: '#52525b' },
+              }}
             >
-              <ArrowBackIcon className="lightbox-thumb-nav-icon" />
+              <ArrowBackIcon sx={{ mr: '1rem' }} />
             </IconButton>
             {navItems}
             <IconButton
               onClick={() => setIndex(0)}
-              className="minimal z-[1045] lightbox-thumb-nav-btn"
+              className="minimal z-[1045]"
               size="large"
+              sx={{
+                backgroundColor: 'transparent !important',
+                '&:hover': { backgroundColor: 'transparent !important' },
+                '& svg': { fontSize: '4rem', opacity: 0.4, transition: 'all 0.2s ease' },
+                '&:hover svg': { opacity: 1, color: '#52525b' },
+              }}
             >
-              <ArrowForwardIcon className="lightbox-thumb-nav-icon-right" />
+              <ArrowForwardIcon sx={{ ml: '1rem' }} />
             </IconButton>
           </div>
         )}

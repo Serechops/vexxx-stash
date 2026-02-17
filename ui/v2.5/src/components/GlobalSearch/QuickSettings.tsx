@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { Tabs, Tab, Box } from "@mui/material";
 import { FormattedMessage } from "react-intl";
-import style from "./GlobalSearch.module.scss";
 import { CustomCssSettings } from "../Settings/SettingsInterfacePanel/CustomCssSettings";
 import { CustomJavascriptSettings } from "../Settings/SettingsInterfacePanel/CustomJavascriptSettings";
 import { PluginList } from "../Settings/SettingsPluginsPanel/PluginList";
@@ -21,8 +20,44 @@ export const QuickSettings: React.FC<QuickSettingsProps> = ({ onClose }) => {
         style: { zIndex: 20000 },
     };
 
+    const settingListSx = {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '1rem',
+    };
+
+    const pluginItemSx = {
+        background: 'rgba(255, 255, 255, 0.05)',
+        borderRadius: '8px',
+        p: '1rem',
+    };
+
     return (
-        <div className={style.quickSettings}>
+        <Box
+            sx={{
+                p: '1.5rem',
+                overflowY: 'auto',
+                flex: 1,
+                '& .nav-tabs': {
+                    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+                    mb: '1.5rem',
+                    '& .nav-link': {
+                        color: 'rgba(255, 255, 255, 0.6)',
+                        border: 'none',
+                        borderBottom: '2px solid transparent',
+                        '&:hover': {
+                            color: '#fff',
+                            borderColor: 'transparent',
+                        },
+                        '&.active': {
+                            color: '#fff',
+                            background: 'transparent',
+                            borderBottomColor: '#3b82f6',
+                        },
+                    },
+                },
+            }}
+        >
             <Tabs
                 value={activeTab}
                 onChange={(_e, newValue) => setActiveTab(newValue)}
@@ -36,33 +71,33 @@ export const QuickSettings: React.FC<QuickSettingsProps> = ({ onClose }) => {
 
             <Box sx={{ mt: 2 }}>
                 {activeTab === "interface" && (
-                    <div className={style.settingList}>
+                    <Box sx={settingListSx}>
                         <CustomCssSettings modalProps={modalProps} />
                         <CustomJavascriptSettings modalProps={modalProps} />
-                    </div>
+                    </Box>
                 )}
                 {activeTab === "plugins" && (
-                    <div className={style.settingList}>
-                        <div className={style.pluginItem}>
+                    <Box sx={settingListSx}>
+                        <Box sx={pluginItemSx}>
                             <PluginList modalProps={modalProps} />
                             <div className="mt-4 border-top pt-3">
                                 <h5 className="mb-3"><FormattedMessage id="config.tasks.plugin_tasks" /></h5>
                                 <PluginTasks />
                             </div>
-                        </div>
-                    </div>
+                        </Box>
+                    </Box>
                 )}
                 {activeTab === "library" && (
-                    <div className={style.settingList}>
+                    <Box sx={settingListSx}>
                         <LibrarySettings modalProps={modalProps} />
-                    </div>
+                    </Box>
                 )}
                 {activeTab === "stashbox" && (
-                    <div className={style.settingList}>
+                    <Box sx={settingListSx}>
                         <StashBoxSettings modalProps={modalProps} />
-                    </div>
+                    </Box>
                 )}
             </Box>
-        </div>
+        </Box>
     );
 };

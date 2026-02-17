@@ -43,8 +43,6 @@ import { useFindPlaylist } from "src/core/StashService";
 import * as GQL from "src/core/generated-graphql";
 import { PlaylistQueue, PlaybackItem } from "src/models/playlistQueue";
 import TextUtils from "src/utils/text";
-import cx from "classnames";
-import "./PlaylistPlayer.scss";
 
 // ============================================
 // Types & Interfaces
@@ -225,13 +223,32 @@ const MediaPlayer: React.FC<IMediaPlayerProps> = ({
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
+  const navBtnSx = {
+    backgroundColor: 'rgba(0, 0, 0, 0.6) !important',
+    color: '#fff !important',
+    transition: 'all 0.2s',
+    '&:hover': {
+      backgroundColor: 'rgba(82, 82, 91, 0.8) !important',
+      transform: 'scale(1.1)',
+    },
+    '&:disabled': {
+      backgroundColor: 'rgba(0, 0, 0, 0.3) !important',
+      color: 'rgba(255, 255, 255, 0.3) !important',
+    },
+  };
+
   return (
-    <div
+    <Box
       ref={containerRef}
-      className={cx("media-player", {
-        fullscreen,
-        "controls-visible": showControls,
-      })}
+      sx={{
+        alignItems: 'center',
+        display: 'flex',
+        height: '100%',
+        justifyContent: 'center',
+        position: 'relative',
+        width: '100%',
+        ...(fullscreen && { backgroundColor: '#000' }),
+      }}
       onMouseMove={resetControlsTimer}
       onMouseLeave={() => playing && setShowControls(false)}
     >
@@ -239,7 +256,13 @@ const MediaPlayer: React.FC<IMediaPlayerProps> = ({
       <video
         ref={videoRef}
         src={streamUrl}
-        className="media-player-video"
+        style={{
+          height: '100%',
+          maxHeight: '100%',
+          maxWidth: '100%',
+          objectFit: 'contain' as const,
+          width: '100%',
+        }}
         poster={scene.paths?.screenshot || undefined}
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}
@@ -253,18 +276,43 @@ const MediaPlayer: React.FC<IMediaPlayerProps> = ({
 
       {/* Buffering Indicator */}
       <Fade in={buffering}>
-        <div className="media-player-buffering">
+        <Box
+          sx={{
+            alignItems: 'center',
+            display: 'flex',
+            height: '100%',
+            justifyContent: 'center',
+            left: 0,
+            position: 'absolute',
+            top: 0,
+            width: '100%',
+          }}
+        >
           <LoadingIndicator />
-        </div>
+        </Box>
       </Fade>
 
       {/* Navigation Controls Overlay */}
       <Fade in={showControls}>
-        <div className="media-player-nav-controls">
+        <Box
+          sx={{
+            alignItems: 'center',
+            display: 'flex',
+            gap: '1rem',
+            justifyContent: 'space-between',
+            left: '1rem',
+            p: '1rem',
+            position: 'absolute',
+            right: '1rem',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            zIndex: 10,
+          }}
+        >
           <IconButton
             onClick={onPrevious}
             disabled={!hasPrevious}
-            className="media-nav-btn"
+            sx={navBtnSx}
             size="large"
           >
             <Icon icon={faChevronLeft} />
@@ -273,14 +321,14 @@ const MediaPlayer: React.FC<IMediaPlayerProps> = ({
           <IconButton
             onClick={onNext}
             disabled={!hasNext}
-            className="media-nav-btn"
+            sx={navBtnSx}
             size="large"
           >
             <Icon icon={faChevronRight} />
           </IconButton>
-        </div>
+        </Box>
       </Fade>
-    </div>
+    </Box>
   );
 };
 
@@ -321,22 +369,63 @@ const ImageViewer: React.FC<IImageViewerProps> = ({
   }, [image.id, onComplete, autoAdvance]);
 
   return (
-    <div className="image-viewer" onClick={onViewInLightbox}>
-      <img
+    <Box
+      sx={{
+        alignItems: 'center',
+        cursor: 'pointer',
+        display: 'flex',
+        height: '100%',
+        justifyContent: 'center',
+        position: 'relative',
+        width: '100%',
+      }}
+      onClick={onViewInLightbox}
+    >
+      <Box
+        component="img"
         src={image.paths?.image || ""}
         alt={image.title || ""}
-        className="image-viewer-img"
+        sx={{
+          height: '100%',
+          maxHeight: '100%',
+          maxWidth: '100%',
+          objectFit: 'contain',
+          width: 'auto',
+        }}
       />
       {autoAdvance && (
-        <div className="image-viewer-countdown">
+        <Box
+          sx={{
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            borderRadius: '20px',
+            bottom: 20,
+            color: '#fff',
+            fontSize: '0.875rem',
+            left: '50%',
+            p: '0.5rem 1rem',
+            position: 'absolute',
+            transform: 'translateX(-50%)',
+          }}
+        >
           <FormattedMessage id="next_in" defaultMessage="Next in" /> {countdown}s
-        </div>
+        </Box>
       )}
-      <div className="image-viewer-hint">
+      <Box
+        sx={{
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          borderRadius: '4px',
+          color: 'rgba(255, 255, 255, 0.7)',
+          fontSize: '0.75rem',
+          p: '0.25rem 0.5rem',
+          position: 'absolute',
+          right: 10,
+          top: 10,
+        }}
+      >
         <Icon icon={faExpand} />{" "}
         <FormattedMessage id="click_to_expand" defaultMessage="Click to expand" />
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 };
 
@@ -384,22 +473,61 @@ const QueuePanel: React.FC<IQueuePanelProps> = ({
   }, [currentIndex]);
 
   return (
-    <Box className="playlist-queue-panel">
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', p: '1rem' }}>
       {/* Header */}
-      <Box className="playlist-queue-header">
-        <Box className="playlist-queue-title">
-          <Link to={`/playlists/${playlist.id}`} className="playlist-link">
+      <Box
+        sx={{
+          alignItems: 'flex-start',
+          borderBottom: '1px solid #27272a',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.5rem',
+          mb: '1rem',
+          pb: '1rem',
+        }}
+      >
+        <Box sx={{ fontSize: '1.25rem', fontWeight: 600 }}>
+          <Link
+            to={`/playlists/${playlist.id}`}
+            style={{ color: '#fafafa', textDecoration: 'none' }}
+          >
             <TruncatedText lineCount={2} text={playlist.name} />
           </Link>
         </Box>
-        <Box className="playlist-queue-counter">
+        <Box sx={{ color: '#a1a1aa', fontSize: '0.875rem' }}>
           {currentIndex + 1} / {items.length}
         </Box>
       </Box>
 
       {/* Playback Controls */}
-      <Box className="playlist-queue-controls">
-        <Box className="playlist-nav-buttons">
+      <Box
+        sx={{
+          alignItems: 'center',
+          borderBottom: '1px solid #27272a',
+          display: 'flex',
+          gap: '1rem',
+          justifyContent: 'space-between',
+          mb: '1rem',
+          pb: '1rem',
+        }}
+      >
+        <Box
+          sx={{
+            display: 'flex',
+            gap: '0.25rem',
+            '& .MuiIconButton-root': {
+              color: '#fafafa',
+              '&:hover': {
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                color: '#52525b',
+              },
+              '&:disabled': {
+                color: '#a1a1aa',
+                opacity: 0.5,
+              },
+            },
+          }}
+        >
           <IconButton
             onClick={onPrevious}
             disabled={!hasPrevious}
@@ -435,12 +563,27 @@ const QueuePanel: React.FC<IQueuePanelProps> = ({
           label={
             <FormattedMessage id="auto_play" defaultMessage="Auto-play" />
           }
-          className="playlist-autoplay-toggle"
+          sx={{
+            ml: 'auto',
+            mr: 0,
+            '& .MuiFormControlLabel-label': {
+              color: '#a1a1aa',
+              fontSize: '0.75rem',
+            },
+          }}
         />
       </Box>
 
       {/* Queue List */}
-      <Box className="playlist-queue-list">
+      <Box
+        sx={{
+          display: 'flex',
+          flex: 1,
+          flexDirection: 'column',
+          gap: '0.5rem',
+          overflowY: 'auto',
+        }}
+      >
         {items.map((item, index) => {
           const isActive = index === currentIndex;
           const isPast = index < currentIndex;
@@ -448,42 +591,150 @@ const QueuePanel: React.FC<IQueuePanelProps> = ({
             <Box
               key={`${item.type}-${item.id}-${index}`}
               ref={isActive ? selectedRef : null}
-              className={cx("playlist-queue-item", {
-                active: isActive,
-                past: isPast,
-              })}
+              sx={{
+                alignItems: 'center',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                display: 'flex',
+                gap: '0.75rem',
+                p: '0.5rem',
+                transition: 'background-color 0.2s',
+                '&:hover': {
+                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                },
+                ...(isActive && {
+                  backgroundColor: 'rgba(82, 82, 91, 0.15)',
+                  border: '1px solid rgba(82, 82, 91, 0.3)',
+                }),
+                ...(isPast && { opacity: 0.6 }),
+              }}
               onClick={() => onItemClick(index)}
             >
-              <Box className="queue-item-number">{index + 1}</Box>
-              <Box className="queue-item-thumb">
+              <Box
+                sx={{
+                  color: '#a1a1aa',
+                  flexShrink: 0,
+                  fontSize: '0.75rem',
+                  textAlign: 'center',
+                  width: 24,
+                }}
+              >
+                {index + 1}
+              </Box>
+              <Box
+                sx={{
+                  borderRadius: '6px',
+                  flexShrink: 0,
+                  height: 50,
+                  overflow: 'hidden',
+                  position: 'relative',
+                  width: 90,
+                  '& img': {
+                    height: '100%',
+                    objectFit: 'cover',
+                    width: '100%',
+                  },
+                }}
+              >
                 {item.thumbnailPath ? (
                   <img src={item.thumbnailPath} alt="" />
                 ) : (
-                  <Box className="queue-item-thumb-placeholder">
+                  <Box
+                    sx={{
+                      alignItems: 'center',
+                      backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                      color: '#a1a1aa',
+                      display: 'flex',
+                      height: '100%',
+                      justifyContent: 'center',
+                      width: '100%',
+                    }}
+                  >
                     <Icon icon={getMediaIcon(item.type)} />
                   </Box>
                 )}
                 {isActive && (
-                  <Box className="queue-item-playing">
+                  <Box
+                    sx={{
+                      alignItems: 'center',
+                      backgroundColor: 'rgba(82, 82, 91, 0.8)',
+                      borderRadius: '50%',
+                      bottom: 4,
+                      color: '#fff',
+                      display: 'flex',
+                      fontSize: '0.6rem',
+                      height: 20,
+                      justifyContent: 'center',
+                      left: 4,
+                      position: 'absolute',
+                      width: 20,
+                    }}
+                  >
                     <Icon icon={faPlay} />
                   </Box>
                 )}
               </Box>
-              <Box className="queue-item-info">
-                <Box className="queue-item-title">
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.25rem',
+                  minWidth: 0,
+                  overflow: 'hidden',
+                }}
+              >
+                <Box
+                  sx={{
+                    color: '#fafafa',
+                    fontSize: '0.875rem',
+                    fontWeight: 500,
+                    lineHeight: 1.3,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
                   {item.title || `Untitled ${item.type}`}
                 </Box>
-                <Box className="queue-item-meta">
-                  <span className="queue-item-type">{item.type}</span>
+                <Box
+                  sx={{
+                    alignItems: 'center',
+                    color: '#a1a1aa',
+                    display: 'flex',
+                    fontSize: '0.75rem',
+                    gap: '0.5rem',
+                  }}
+                >
+                  <Box
+                    component="span"
+                    sx={{
+                      backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                      borderRadius: '4px',
+                      fontSize: '0.625rem',
+                      p: '2px 6px',
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    {item.type}
+                  </Box>
                   {item.duration && item.duration > 0 && (
-                    <span className="queue-item-duration">
+                    <Box component="span" sx={{ color: '#a1a1aa' }}>
                       {TextUtils.secondsToTimestamp(item.duration)}
-                    </span>
+                    </Box>
                   )}
                   {item.groupId && (
-                    <span className="queue-item-group">
+                    <Box
+                      component="span"
+                      sx={{
+                        alignItems: 'center',
+                        color: '#52525b',
+                        display: 'flex',
+                        fontSize: '0.625rem',
+                        gap: '0.25rem',
+                      }}
+                    >
                       <Icon icon={faFilm} /> Group
-                    </span>
+                    </Box>
                   )}
                 </Box>
               </Box>
@@ -722,7 +973,23 @@ export const PlaylistPlayer: React.FC = () => {
   // Loading state
   if (loading || !groupsLoaded) {
     return (
-      <Box className="playlist-player-loading">
+      <Box
+        sx={{
+          alignItems: 'center',
+          backgroundColor: '#18181b',
+          color: '#fafafa',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '1.5rem',
+          height: 'calc(100vh - 64px)',
+          justifyContent: 'center',
+          width: '100%',
+          '& p': {
+            color: '#a1a1aa',
+            fontSize: '0.875rem',
+          },
+        }}
+      >
         <LoadingIndicator />
         <p>
           <FormattedMessage
@@ -757,9 +1024,39 @@ export const PlaylistPlayer: React.FC = () => {
         </title>
       </Helmet>
 
-      <Box className="playlist-player-layout">
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: 'column-reverse',
+          height: 'auto',
+          overflow: 'visible',
+          '@media (min-width: 768px)': {
+            flexDirection: 'row',
+            height: 'calc(100vh - 64px)',
+            overflow: 'hidden',
+          },
+        }}
+      >
         {/* Left Panel - Queue */}
-        <Box className={cx("playlist-detail-panel", { collapsed })}>
+        <Box
+          sx={{
+            backgroundColor: '#18181b',
+            display: 'flex',
+            flexDirection: 'column',
+            flexShrink: 0,
+            overflowY: 'visible',
+            transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            width: '100%',
+            '@media (min-width: 768px)': {
+              borderRight: '1px solid #27272a',
+              height: '100%',
+              minWidth: collapsed ? 0 : 400,
+              overflowY: 'auto',
+              width: collapsed ? 0 : 400,
+              ...(collapsed && { display: 'none' }),
+            },
+          }}
+        >
           <QueuePanel
             playlist={playlist}
             items={playbackItems}
@@ -777,7 +1074,27 @@ export const PlaylistPlayer: React.FC = () => {
 
         {/* Toggle Divider */}
         <Box
-          className="playlist-toggle-divider"
+          sx={{
+            alignItems: 'center',
+            borderRight: '1px solid #27272a',
+            cursor: 'pointer',
+            display: 'none',
+            justifyContent: 'center',
+            transition: 'background-color 0.2s',
+            width: 12,
+            '@media (min-width: 768px)': {
+              display: 'flex',
+            },
+            '&:hover': {
+              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+              '& svg': {
+                color: '#52525b',
+              },
+            },
+            '& svg': {
+              transition: 'color 0.2s',
+            },
+          }}
           onClick={() => setCollapsed(!collapsed)}
         >
           {collapsed ? (
@@ -788,9 +1105,37 @@ export const PlaylistPlayer: React.FC = () => {
         </Box>
 
         {/* Right Panel - Player */}
-        <Box className="playlist-player-container">
+        <Box
+          sx={{
+            backgroundColor: 'black',
+            display: 'flex',
+            flexDirection: 'column',
+            flexGrow: 1,
+            minWidth: 0,
+            position: 'relative',
+            '@media (max-width: 767.98px)': {
+              aspectRatio: '16/9',
+              height: 'auto',
+            },
+            '@media (min-width: 768px)': {
+              height: '100%',
+            },
+          }}
+        >
           {mediaLoading ? (
-            <Box className="playlist-player-loading-content">
+            <Box
+              sx={{
+                alignItems: 'center',
+                color: '#a1a1aa',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '1rem',
+                height: '100%',
+                justifyContent: 'center',
+                width: '100%',
+                '& p': { fontSize: '0.875rem' },
+              }}
+            >
               <LoadingIndicator />
             </Box>
           ) : currentItem?.type === "scene" && currentScene ? (
@@ -811,7 +1156,19 @@ export const PlaylistPlayer: React.FC = () => {
               autoAdvance={continuePlaylist}
             />
           ) : currentItem?.type === "gallery" ? (
-            <Box className="playlist-player-loading-content">
+            <Box
+              sx={{
+                alignItems: 'center',
+                color: '#a1a1aa',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '1rem',
+                height: '100%',
+                justifyContent: 'center',
+                width: '100%',
+                '& p': { fontSize: '0.875rem' },
+              }}
+            >
               <LoadingIndicator />
               <p>
                 <FormattedMessage
@@ -821,7 +1178,21 @@ export const PlaylistPlayer: React.FC = () => {
               </p>
             </Box>
           ) : (
-            <Box className="playlist-player-empty">
+            <Box
+              sx={{
+                alignItems: 'center',
+                color: '#fff',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '1rem',
+                height: '100%',
+                justifyContent: 'center',
+                textAlign: 'center',
+                width: '100%',
+                '& h3': { m: 0 },
+                '& p': { color: '#a1a1aa', m: 0 },
+              }}
+            >
               <Icon icon={faPlayCircle} size="3x" />
               <h3>
                 <FormattedMessage

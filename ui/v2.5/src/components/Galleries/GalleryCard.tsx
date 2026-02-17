@@ -15,7 +15,6 @@ import LocalOfferIcon from "@mui/icons-material/LocalOffer";
 import { galleryTitle } from "src/core/galleries";
 import { StudioOverlay } from "../Shared/GridCard/StudioOverlay";
 import { GalleryPreviewScrubber } from "./GalleryPreviewScrubber";
-import cx from "classnames";
 import { useHistory, Link } from "react-router-dom";
 import { PatchComponent } from "src/patch";
 import CollectionsIcon from "@mui/icons-material/Collections";
@@ -43,14 +42,30 @@ export const GalleryPreview: React.FC<IGalleryPreviewProps> = ({
   );
 
   return (
-    <Box className="gallery-card-media">
+    <Box
+      sx={{
+        alignItems: 'center',
+        aspectRatio: '4 / 3',
+        bgcolor: 'black',
+        display: 'flex',
+        height: '100%',
+        justifyContent: 'center',
+        position: 'relative',
+        width: '100%',
+      }}
+    >
       {!!imgSrc && (
         <Box
           component="img"
           loading="lazy"
-          className="gallery-card-image"
           alt={gallery.title ?? ""}
           src={imgSrc}
+          sx={{
+            height: '100%',
+            objectFit: 'cover',
+            objectPosition: 'center',
+            width: '100%',
+          }}
         />
       )}
       {gallery.image_count > 0 && (
@@ -93,7 +108,24 @@ export const GalleryCard: React.FC<IGalleryCardProps> = PatchComponent(
 
     return (
       <Box
-        className={cx("gallery-card", { "selected": selected })}
+        sx={{
+          bgcolor: '#212529',
+          borderRadius: '12px',
+          height: '100%',
+          overflow: 'hidden',
+          position: 'relative',
+          transition: 'all 0.3s ease',
+          width: '100%',
+          '&:hover': {
+            boxShadow: '0 10px 30px rgba(0, 0, 0, 0.5)',
+            transform: 'scale(1.02)',
+            zIndex: 20,
+            '& .overlay-content': {
+              background: 'linear-gradient(to top, rgba(0, 0, 0, 0.95) 20%, rgba(0, 0, 0, 0.7) 60%, transparent 100%)',
+            },
+          },
+          ...(selected && { boxShadow: '0 0 0 3px #52525b' }),
+        }}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         onClick={handleCardClick}
@@ -109,14 +141,30 @@ export const GalleryCard: React.FC<IGalleryCardProps> = PatchComponent(
           style={{ textDecoration: 'none', color: 'inherit', display: 'block', height: '100%', width: '100%' }}
         >
           {/* Media Container: Full Bleed */}
-          <Box className="gallery-card-media">
+          <Box
+            sx={{
+              alignItems: 'center',
+              aspectRatio: '4 / 3',
+              bgcolor: 'black',
+              display: 'flex',
+              height: '100%',
+              justifyContent: 'center',
+              position: 'relative',
+              width: '100%',
+            }}
+          >
             {!!imgSrc && (
               <Box
                 component="img"
                 loading="lazy"
-                className="gallery-card-image"
                 alt={gallery.title ?? ""}
                 src={imgSrc}
+                sx={{
+                  height: '100%',
+                  objectFit: 'cover',
+                  objectPosition: 'center',
+                  width: '100%',
+                }}
               />
             )}
             {/* Scrubber - keep valid? Scrubber typically needs mouse interaction which might conflict with card hover.
@@ -126,7 +174,7 @@ export const GalleryCard: React.FC<IGalleryCardProps> = PatchComponent(
                      If we put it here, ensure zIndex is correct.
                  */}
             {gallery.image_count > 0 && (
-              <Box className="gallery-card-scrubber">
+              <Box sx={{ inset: 0, position: 'absolute', zIndex: 15 }}>
                 <GalleryPreviewScrubber
                   previewPath={gallery.paths.preview}
                   defaultPath={gallery.paths.cover ?? ""}
@@ -151,18 +199,31 @@ export const GalleryCard: React.FC<IGalleryCardProps> = PatchComponent(
           </Box>
 
           {/* Top Section: Rating & Studio */}
-          <Box className="gallery-card-top">
-            <Box className="gallery-card-top-content">
+          <Box
+            sx={{
+              alignItems: 'flex-start',
+              display: 'flex',
+              justifyContent: 'space-between',
+              left: 0,
+              p: '0.5rem',
+              pointerEvents: 'none',
+              position: 'absolute',
+              right: 0,
+              top: 0,
+              zIndex: 16,
+            }}
+          >
+            <Box sx={{ display: 'flex', gap: '0.5rem', pointerEvents: 'auto' }}>
               <RatingBanner rating={gallery.rating100} />
             </Box>
-            <Box className="gallery-card-top-content">
+            <Box sx={{ display: 'flex', gap: '0.5rem', pointerEvents: 'auto' }}>
               <StudioOverlay studio={gallery.studio} />
             </Box>
           </Box>
 
           {/* Selecting Checkbox */}
           {(selecting || isHovered) && (
-            <Box className="gallery-card-select">
+            <Box sx={{ left: '0.5rem', position: 'absolute', top: '0.5rem', zIndex: 30 }}>
               <input
                 type="checkbox"
                 checked={selected}
@@ -180,16 +241,48 @@ export const GalleryCard: React.FC<IGalleryCardProps> = PatchComponent(
           )}
 
           {/* Gradient Overlay & Content */}
-          <Box className="overlay-content gallery-card-overlay">
+          <Box
+            className="overlay-content"
+            sx={{
+              background: 'linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.4) 70%, transparent 100%)',
+              bottom: 0,
+              color: '#fff',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'flex-end',
+              left: 0,
+              p: '12px',
+              pointerEvents: 'none',
+              position: 'absolute',
+              right: 0,
+              transition: 'background 0.3s ease',
+            }}
+          >
             <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
               <Typography
                 variant="subtitle1"
-                className="gallery-card-title"
+                sx={{
+                  fontSize: '1rem',
+                  fontWeight: 700,
+                  lineHeight: 1.2,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  textShadow: '0 2px 4px rgba(0, 0, 0, 0.8)',
+                  whiteSpace: 'nowrap',
+                }}
               >
                 {galleryTitle(gallery)}
               </Typography>
 
-              <Box className="gallery-card-info">
+              <Box
+                sx={{
+                  alignItems: 'center',
+                  color: 'rgba(255, 255, 255, 0.8)',
+                  display: 'flex',
+                  fontSize: '0.8rem',
+                  gap: '0.5rem',
+                }}
+              >
                 {gallery.date && <span>{gallery.date}</span>}
                 {gallery.image_count > 0 && (
                   <span style={{ display: "flex", alignItems: "center", gap: "2px" }}>
@@ -200,7 +293,15 @@ export const GalleryCard: React.FC<IGalleryCardProps> = PatchComponent(
             </Box>
 
             {/* Expanded Content (Slide Up) - Tags/Performers for Gallery? */}
-            <Box className={cx("gallery-card-slide-content", { visible: isHovered })}>
+            <Box
+              sx={{
+                maxHeight: isHovered ? '100px' : 0,
+                opacity: isHovered ? 1 : 0,
+                overflow: 'hidden',
+                transition: 'all 0.3s ease-in-out',
+                ...(isHovered && { mt: '8px' }),
+              }}
+            >
               {/* Performers */}
               {gallery.performers.length > 0 && (
                 <Box sx={{ display: "flex", flexWrap: "wrap", gap: "4px", mb: "4px" }}>
@@ -208,7 +309,17 @@ export const GalleryCard: React.FC<IGalleryCardProps> = PatchComponent(
                     <Box
                       component="span"
                       key={p.id}
-                      className="gallery-performer-tag"
+                      sx={{
+                        alignItems: 'center',
+                        backdropFilter: 'blur(4px)',
+                        background: 'rgba(255, 255, 255, 0.2)',
+                        borderRadius: '12px',
+                        display: 'flex',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        gap: '4px',
+                        p: '2px 8px',
+                      }}
                     >
                       {p.name}
                     </Box>

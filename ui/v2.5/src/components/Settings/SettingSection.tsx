@@ -30,15 +30,18 @@ export const SettingSection: React.FC<PropsWithChildren<ISettingGroup>> = ({
     <Box
       component="section"
       id={id}
-      className="setting-section"
+      sx={{
+        '&:not(:first-of-type)': { mt: '1.5em' },
+        '& .MuiCard-root': { p: 0 },
+      }}
     >
-      <Typography variant="h4" component="h1" className="setting-section-header">
+      <Typography variant="h4" component="h1" sx={{ fontSize: '2rem' }}>
         {headingID ? intl.formatMessage({ id: headingID, defaultMessage: headingDefault }) : headingDefault}
       </Typography>
       {subHeadingID || subHeadingDefault ? (
         <Typography
           variant="body2"
-          className="setting-section-subheader"
+          sx={{ fontSize: '0.8rem', mt: '0.5rem' }}
         >
           {subHeadingID ? intl.formatMessage({ id: subHeadingID, defaultMessage: subHeadingDefault }) : subHeadingDefault}
         </Typography>

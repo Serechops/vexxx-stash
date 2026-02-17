@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Box } from "@mui/material";
 import * as GQL from "src/core/generated-graphql";
 import {
   evictQueries,
@@ -65,7 +66,7 @@ export const InstalledPluginPackages: React.FC = () => {
 
   return (
     <SettingSection headingID="config.plugins.installed_plugins">
-      <div className="package-manager">
+      <Box sx={{ p: '1em' }}>
         <InstalledPackages
           loading={!!job || loading}
           error={error?.message}
@@ -89,7 +90,7 @@ export const InstalledPluginPackages: React.FC = () => {
           }
           updatesLoaded={loadUpgrades && !loading}
         />
-      </div>
+      </Box>
     </SettingSection>
   );
 };
@@ -163,7 +164,7 @@ export const AvailablePluginPackages: React.FC = () => {
 
   return (
     <SettingSection headingID="config.plugins.available_plugins">
-      <div className="package-manager">
+      <Box sx={{ p: '1em' }}>
         <AvailablePackages
           loading={loading}
           onInstallPackages={onInstallPackages}
@@ -174,7 +175,7 @@ export const AvailablePluginPackages: React.FC = () => {
           editSource={editSource}
           deleteSource={deleteSource}
         />
-      </div>
+      </Box>
     </SettingSection>
   );
 };

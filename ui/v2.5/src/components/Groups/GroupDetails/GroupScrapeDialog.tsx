@@ -218,14 +218,14 @@ export const GroupScrapeDialog: React.FC<IGroupScrapeDialogProps> = ({
         <ScrapedImageRow
           field="front_image"
           title="Front Image"
-          className="group-image"
+          style={{ maxWidth: '100%' }}
           result={frontImage}
           onChange={(value) => setFrontImage(value)}
         />
         <ScrapedImageRow
           field="back_image"
           title="Back Image"
-          className="group-image"
+          style={{ maxWidth: '100%' }}
           result={backImage}
           onChange={(value) => setBackImage(value)}
         />

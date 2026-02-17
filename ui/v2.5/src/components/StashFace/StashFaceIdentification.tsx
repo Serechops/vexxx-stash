@@ -518,13 +518,14 @@ const MegafaceResultsCarousel: React.FC<MegafaceResultsCarouselProps> = ({ htmlR
                             return (
                                 <Box
                                     key={matchIndex}
-                                    className="recommendation-item-wrapper"
-                                    sx={{ width: 180 }}
+                                    sx={{ display: 'flex', flexDirection: 'column', height: '100%', width: 180 }}
                                 >
                                     {/* Score Badge */}
                                     <Box
-                                        className="recommendation-badge-container"
                                         sx={{
+                                            alignItems: 'flex-start',
+                                            display: 'flex',
+                                            flexDirection: 'column',
                                             position: "absolute",
                                             top: 8,
                                             right: 8,

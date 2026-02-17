@@ -600,7 +600,7 @@ const PerformerMergeDetails: React.FC<IPerformerMergeDetailsProps> = ({
         <ScrapedImageRow
           field="image"
           title={intl.formatMessage({ id: "performer_image" })}
-          className="performer-image"
+          style={{ maxWidth: '100%' }}
           result={image}
           onChange={(value) => setImage(value)}
         />

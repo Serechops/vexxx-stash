@@ -157,10 +157,10 @@ const TagTabs: React.FC<{
   }, [showAllDetails, tag.children.length]);
 
   const TabLabel: React.FC<{ messageID: string; count: number }> = ({ messageID, count }) => (
-    <Box className={cx("tag-tab-label", { "has-count": count > 0 })}>
+    <Box sx={{ alignItems: 'center', display: 'inline-flex', position: 'relative', ...(count > 0 && { pr: '1.5rem' }) }}>
       <FormattedMessage id={messageID} />
       {count > 0 && (
-        <Box className="tag-tab-badge">
+        <Box sx={{ bgcolor: '#52525b', borderRadius: '10px', color: '#fff', fontSize: '0.7rem', fontWeight: 600, lineHeight: 1, minWidth: '20px', p: '0.25rem 0.75rem', position: 'absolute', right: '-4px', textAlign: 'center', top: '-8px' }}>
           {abbreviateCounter && count >= 1000 ? `${Math.floor(count / 1000)}k` : count}
         </Box>
       )}
@@ -488,7 +488,7 @@ const TagPage: React.FC<IProps> = ({ tag, tabKey }) => {
   return (
     <Box
       id="tag-page"
-      className="tag-page"
+      sx={{ display: 'flex', flexWrap: 'wrap', mx: '-0.75rem' }}
     >
       <Helmet>
         <title>{tag.name}</title>
@@ -496,16 +496,17 @@ const TagPage: React.FC<IProps> = ({ tag, tabKey }) => {
 
       <Box
         className={headerClassName}
+        sx={{ mb: '2rem', position: 'relative', width: '100%', ...(collapsed && { '& .logo': { maxHeight: '200px' } }), ...(!collapsed && !compactExpandedDetails && { maxWidth: '100%' }) }}
       >
         <BackgroundImage
           imagePath={tag.image_path ?? undefined}
           show={enableBackgroundImage && !isEditing}
         />
-        <Box className="detail-container">
+        <Box sx={{ py: '2rem', px: { xs: '1rem', sm: '2rem', md: '3rem' } }}>
           <HeaderImage encodingImage={encodingImage}>
             {tagImage && (
-              <Box className="tag-logo-container">
-                <DetailImage className="logo" alt={tag.name} src={tagImage} />
+              <Box sx={{ mb: '2rem' }}>
+                <DetailImage className="logo" alt={tag.name} src={tagImage} sx={{ maxHeight: '50vh', maxWidth: '100%', objectFit: 'contain' }} />
               </Box>
             )}
           </HeaderImage>
@@ -518,7 +519,7 @@ const TagPage: React.FC<IProps> = ({ tag, tabKey }) => {
                     setCollapsed={(v) => setCollapsed(v)}
                   />
                 )}
-                <span className="name-icons">
+                <span style={{ alignItems: 'center', display: 'inline-flex', marginLeft: '1rem', verticalAlign: 'middle' }}>
                   <FavoriteIcon
                     favorite={tag.favorite}
                     onToggleFavorite={(v) => setFavorite(v)}
@@ -568,7 +569,7 @@ const TagPage: React.FC<IProps> = ({ tag, tabKey }) => {
         <CompressedTagDetailsPanel tag={tag} />
       )}
 
-      <Box className="detail-body">
+      <Box sx={{ px: { xs: '1rem', sm: '2rem', md: '3rem' }, width: '100%' }}>
         <Box className="tag-body">
           <Box className="tag-tabs">
             {!isEditing && (

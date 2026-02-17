@@ -30,13 +30,25 @@ export const DiscoverPage: React.FC = () => {
     };
 
     return (
-        <Box className="discover-page">
+        <Box
+            sx={{
+                bgcolor: '#09090b',
+                ml: 'calc(50% - 50vw)',
+                mr: 'calc(50% - 50vw)',
+                maxWidth: 'none',
+                minHeight: '100vh',
+                overflowX: 'hidden',
+                position: 'relative',
+                width: '100vw',
+                '& > *': { maxWidth: 'none' },
+            }}
+        >
             <Helmet>
                 <title>Discover</title>
             </Helmet>
 
             {/* Content Container for Header & Dashboard */}
-            <Box className="discover-container">
+            <Box sx={{ px: { xs: '1rem', md: '3rem' }, pt: '2rem' }}>
                 <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
                     <Typography variant="h4" component="h1" className="text-primary font-bold">
                         <FormattedMessage id="discover your content" defaultMessage="Discover Your Content" />
@@ -51,7 +63,7 @@ export const DiscoverPage: React.FC = () => {
                     </Button>
                 </Box>
                 {/* Dashboard Banner */}
-                <Box className="discover-dashboard-banner">
+                <Box sx={{ mb: '3rem' }}>
                     <Grid container spacing={3}>
                         {/* Content Profile Summary */}
                         <Grid size={{ xs: 12, md: 6 }}>
@@ -60,13 +72,13 @@ export const DiscoverPage: React.FC = () => {
 
                         {/* Tuning Controls */}
                         <Grid size={{ xs: 12, md: 6 }}>
-                            <Card className="tuning-card">
+                            <Card sx={{ height: '100%' }}>
                                 <CardHeader
                                     title="Recommendation Tuning"
                                     subheader="Adjust how much influence each factor has on your recommendations"
                                 />
                                 <CardContent>
-                                    <Box className="tuning-controls">
+                                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                                         <Box>
                                             <Box display="flex" justifyContent="space-between">
                                                 <Typography variant="subtitle2">Tags</Typography>
@@ -121,7 +133,7 @@ export const DiscoverPage: React.FC = () => {
             </Box>
 
             {/* Full Width Recommendations */}
-            <Box className="recommendations-list">
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: '3rem', pb: '4rem' }}>
 
                 {/* Top Performers (StashDB) */}
                 <PerformerRecommendationRow

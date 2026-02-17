@@ -169,7 +169,7 @@ const SceneSearchResultDetails: React.FC<ISceneResultProps> = ({ scene }) => {
             )}
           </h5>
           {scene.performers && scene.performers.length > 0 && (
-            <div className="scene-performers">
+            <div>
               {scene.performers.map((p) => p.name).join(", ")}
             </div>
           )}

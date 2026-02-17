@@ -43,7 +43,6 @@ import { galleryPath, galleryTitle } from "src/core/galleries";
 import { GalleryChapterPanel } from "./GalleryChaptersPanel";
 import { useScrollToTopOnMount } from "src/hooks/scrollToTop";
 import { RatingSystem } from "src/components/Shared/Rating/RatingSystem";
-import cx from "classnames";
 import { useRatingKeybinds } from "src/hooks/keybinds";
 import { useConfigurationContext } from "src/hooks/Config";
 import { TruncatedText } from "src/components/Shared/TruncatedText";
@@ -493,7 +492,6 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
       >
         <Box>
           <Box
-            className="gallery-header-container"
             sx={{
               display: { lg: "flex" },
               alignItems: { lg: "center" },
@@ -502,7 +500,6 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
           >
             {gallery.studio && (
               <Box
-                className="gallery-studio-image"
                 sx={{
                   flex: { lg: "0 0 25%" },
                   order: { lg: 2 },
@@ -520,14 +517,13 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
                   <img
                     src={gallery.studio.image_path ?? ""}
                     alt={`${gallery.studio.name} logo`}
-                    className="studio-logo"
+                    style={{ marginTop: '1rem', maxHeight: '8rem', maxWidth: '100%' }}
                   />
                 </Link>
               </Box>
             )}
             <Typography
               variant="h3"
-              className={cx("gallery-header", { "no-studio": !gallery.studio })}
               sx={{
                 flex: { lg: "0 0 75%" },
                 order: { lg: 1 },
@@ -541,7 +537,6 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
           </Box>
 
           <Box
-            className="gallery-subheader"
             sx={{
               display: "flex",
               justifyContent: "space-between",
@@ -612,7 +607,6 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
         {renderTabs()}
       </Box>
       <Box
-        className="gallery-container gallery-content-container"
         sx={{
           display: "flex",
           flexDirection: "column",

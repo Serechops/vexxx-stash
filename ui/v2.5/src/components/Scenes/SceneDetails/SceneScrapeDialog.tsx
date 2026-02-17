@@ -290,7 +290,7 @@ export const SceneScrapeDialog: React.FC<ISceneScrapeDialogProps> = ({
         <ScrapedImageRow
           field="cover_image"
           title={intl.formatMessage({ id: "cover_image" })}
-          className="scene-cover"
+          style={{ display: 'block', marginBottom: 10, marginTop: 10, maxWidth: '100%' }}
           result={image}
           onChange={(value) => setImage(value)}
         />

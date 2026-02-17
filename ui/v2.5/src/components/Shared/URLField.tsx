@@ -39,7 +39,8 @@ export const URLField: React.FC<IProps> = (props: IProps) => {
           endAdornment: (
             <InputAdornment position="end">
               <IconButton
-                className="scrape-url-button text-input"
+                sx={{ '&:disabled': { opacity: 0.5 } }}
+                className="text-input"
                 onClick={props.onScrapeClick}
                 disabled={!props.value || !props.urlScrapable(props.value)}
                 title={intl.formatMessage({ id: "actions.scrape" })}
@@ -77,7 +78,8 @@ export const URLListInput: React.FC<IURLListProps> = (
 
         return (
           <IconButton
-            className="scrape-url-button text-input"
+            sx={{ '&:disabled': { opacity: 0.5 } }}
+            className="text-input"
             onClick={() => onScrapeClick(props.value)}
             disabled={!props.value || !urlScrapable(props.value)}
             title={intl.formatMessage({ id: "actions.scrape" })}

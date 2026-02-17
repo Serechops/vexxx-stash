@@ -350,12 +350,12 @@ export const SceneFilenameParser: React.FC = () => {
 
     return (
       <Box>
-        <Box className="scene-parser-results">
+        <Box sx={{ ml: '31ch', overflowX: 'auto' }}>
           <TableContainer sx={{ maxHeight: '600px' }}>
             <Table stickyHeader size="small">
               <TableHead>
-                <TableRow className="scene-parser-row">
-                  <TableCell className="parser-field-filename">
+                <TableRow>
+                  <TableCell sx={{ width: '30ch', position: 'sticky', left: 0, bgcolor: 'background.paper', zIndex: 2 }}>
                     {intl.formatMessage({
                       id: "config.tools.scene_filename_parser.filename",
                     })}

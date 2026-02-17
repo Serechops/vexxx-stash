@@ -57,7 +57,7 @@ const TagCreate: React.FC = () => {
 
   return (
     <div className="flex flex-wrap">
-      <div className="tag-details w-full md:w-2/3">
+      <div className="w-full md:w-2/3" style={{ minHeight: '4rem' }}>
         <div className="text-center logo-container">
           {encodingImage ? (
             <LoadingIndicator

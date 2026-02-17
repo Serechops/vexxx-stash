@@ -49,7 +49,6 @@ export const HoverVideoPreview: React.FC<IHoverVideoPreviewProps> = ({
 
     return (
         <Box
-            className={cx("scene-card-preview", { portrait: isPortrait })}
             sx={{
                 position: "relative",
                 width: "100%",
@@ -58,11 +57,11 @@ export const HoverVideoPreview: React.FC<IHoverVideoPreviewProps> = ({
                 backgroundColor: "#000",
                 display: "flex",
                 justifyContent: "center",
-                "&.portrait": {
+                ...(isPortrait && {
                     "& .scene-card-preview-image, & .scene-card-preview-video": {
-                        objectFit: "contain"
-                    }
-                }
+                        objectFit: "contain",
+                    },
+                }),
             }}
         >
             <Box

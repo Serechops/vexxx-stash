@@ -121,7 +121,6 @@ export const StashDBCard: React.FC<ISceneCardProps> = ({
         >
             <Link to={selecting ? "#" : sceneLink} className="scene-card-link" onClick={e => selecting && e.preventDefault()} style={{ textDecoration: 'none', color: 'inherit', display: 'flex', flexDirection: 'column', height: '100%' }}>
                 <Box
-                    className="scene-card-preview"
                     sx={{
                         position: "relative",
                         aspectRatio: "16 / 9",
@@ -265,7 +264,6 @@ export const StashDBCard: React.FC<ISceneCardProps> = ({
                             <Box
                                 component="span"
                                 key={p.id}
-                                className="performer-tag"
                                 onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();

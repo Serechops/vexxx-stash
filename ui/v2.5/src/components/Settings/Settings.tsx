@@ -84,9 +84,25 @@ const SettingTabs: React.FC<{ tab: TabKey }> = ({ tab }) => {
   };
 
   return (
-    <Box className="settings-container">
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: { xs: 'column', md: 'row' },
+        height: 'calc(100vh - 64px)',
+      }}
+    >
       <Helmet {...titleProps} />
-      <Box className="settings-sidebar">
+      <Box
+        sx={{
+          borderBottom: { xs: '1px solid #27272a', md: 0 },
+          borderRight: { xs: 0, md: '1px solid #27272a' },
+          display: 'flex',
+          flexDirection: 'column',
+          flexShrink: 0,
+          overflowY: { xs: 'hidden', md: 'auto' },
+          width: { xs: '100%', md: '250px', lg: '300px' },
+        }}
+      >
         <Tabs
           orientation={isSmallScreen ? "horizontal" : "vertical"}
           variant="scrollable"
@@ -96,13 +112,10 @@ const SettingTabs: React.FC<{ tab: TabKey }> = ({ tab }) => {
           sx={{
             flexGrow: 1,
             "& .MuiTab-root": {
-              // Alignments handled by orientation prop if possible, else rely on CSS override or global theme
-              // Using existing sx for now if complicated, but trying to reduce.
-              // Actually, removing sx here and using class since orientation handles most.
-              // However, the alignment properties might need specific targeting.
+              minHeight: '48px',
+              textTransform: 'none',
             },
           }}
-          className="settings-tabs"
         >
           <Tab
             label={<FormattedMessage id="config.categories.tasks" />}
@@ -186,7 +199,7 @@ const SettingTabs: React.FC<{ tab: TabKey }> = ({ tab }) => {
           />
         </Tabs>
 
-        <Box className="settings-advanced-mode">
+        <Box sx={{ borderTop: '1px solid #27272a', p: 2 }}>
           <FormControlLabel
             control={
               <Switch
@@ -199,8 +212,8 @@ const SettingTabs: React.FC<{ tab: TabKey }> = ({ tab }) => {
         </Box>
       </Box>
 
-      <Box className="settings-content">
-        <Container maxWidth="xl" className="settings-content-container">
+      <Box sx={{ bgcolor: '#09090b', flexGrow: 1, overflowY: 'auto', p: 3 }}>
+        <Container maxWidth="xl" sx={{ p: 0 }}>
           {renderContent()}
         </Container>
       </Box>

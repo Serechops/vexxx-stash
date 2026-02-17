@@ -169,10 +169,32 @@ const StudioTabs: React.FC<{
   }, [potentialData]);
 
   const TabLabel: React.FC<{ messageID: string; count: number }> = ({ messageID, count }) => (
-    <Box className={cx("studio-tab-label", { "has-count": count > 0 })}>
+    <Box
+      sx={{
+        alignItems: 'center',
+        display: 'inline-flex',
+        position: 'relative',
+        ...(count > 0 && { pr: '1.5rem' }),
+      }}
+    >
       <FormattedMessage id={messageID} />
       {count > 0 && (
-        <Box className="studio-tab-badge">
+        <Box
+          sx={{
+            bgcolor: '#52525b',
+            borderRadius: '10px',
+            color: '#fff',
+            fontSize: '0.7rem',
+            fontWeight: 600,
+            lineHeight: 1,
+            minWidth: '20px',
+            padding: '0.25rem 0.75rem',
+            position: 'absolute',
+            right: '-4px',
+            textAlign: 'center',
+            top: '-8px',
+          }}
+        >
           {abbreviateCounter && count >= 1000 ? `${Math.floor(count / 1000)}k` : count}
         </Box>
       )}
@@ -470,7 +492,11 @@ const StudioPage: React.FC<IProps> = ({ studio, tabKey }) => {
   return (
     <Box
       id="studio-page"
-      className="studio-page"
+      sx={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        mx: '-0.75rem',
+      }}
     >
       <Helmet>
         <title>{studio.name ?? intl.formatMessage({ id: "studio" })}</title>
@@ -478,19 +504,27 @@ const StudioPage: React.FC<IProps> = ({ studio, tabKey }) => {
 
       <Box
         className={headerClassName}
+        sx={{
+          mb: 4,
+          position: 'relative',
+          width: '100%',
+          ...(collapsed && { '& .logo': { maxHeight: '200px' } }),
+          ...(!collapsed && !compactExpandedDetails && { maxWidth: '100%' }),
+        }}
       >
         <BackgroundImage
           imagePath={studio.image_path ?? undefined}
           show={enableBackgroundImage && !isEditing}
         />
-        <Box className="detail-container">
+        <Box sx={{ py: '2rem', px: { xs: '1rem', sm: '2rem', md: '3rem' } }}>
           <HeaderImage encodingImage={encodingImage}>
             {studioImage && (
-              <Box className="studio-logo-container">
+              <Box sx={{ mb: '2rem' }}>
                 <DetailImage
                   className="logo"
                   alt={studio.name}
                   src={studioImage}
+                  style={{ maxHeight: '50vh', maxWidth: '100%', objectFit: 'contain' }}
                 />
               </Box>
             )}
@@ -504,7 +538,7 @@ const StudioPage: React.FC<IProps> = ({ studio, tabKey }) => {
                     setCollapsed={(v) => setCollapsed(v)}
                   />
                 )}
-                <span className="name-icons">
+                <span style={{ alignItems: 'center', display: 'inline-flex', marginLeft: '1rem', verticalAlign: 'middle' }}>
                   <FavoriteIcon
                     favorite={studio.favorite}
                     onToggleFavorite={(v) => setFavorite(v)}
@@ -514,7 +548,14 @@ const StudioPage: React.FC<IProps> = ({ studio, tabKey }) => {
               </DetailTitle>
 
               <AliasList aliases={studio.aliases} />
-              <Box className="quality-group">
+              <Box sx={{
+                alignItems: 'center',
+                display: 'inline-flex',
+                mt: 0.5,
+                '& .rating-stars-precision-full .star-rating-number': { minWidth: '0.75rem' },
+                '& .rating-stars-precision-half .star-rating-number, & .rating-stars-precision-tenth .star-rating-number': { minWidth: '1.45rem' },
+                '& .rating-stars-precision-quarter .star-rating-number': { minWidth: '2rem' },
+              }}>
                 <RatingSystem
                   value={studio.rating100}
                   onSetRating={(value) => setRating(value)}
@@ -566,7 +607,7 @@ const StudioPage: React.FC<IProps> = ({ studio, tabKey }) => {
         <CompressedStudioDetailsPanel studio={studio} />
       )}
 
-      <Box className="detail-body">
+      <Box sx={{ px: { xs: '1rem', sm: '2rem', md: '3rem' }, width: '100%' }}>
         <Box className="studio-body">
           <Box className="studio-tabs">
             {!isEditing && (

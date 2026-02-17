@@ -77,7 +77,6 @@ const SceneMarkerCardPopovers = PatchComponent(
           <>
             <Box component="hr" sx={{ my: 1, borderColor: "rgba(255, 255, 255, 0.05)" }} />
             <ButtonGroup
-              className="card-popovers"
               sx={{
                 display: "flex",
                 flexWrap: "wrap",

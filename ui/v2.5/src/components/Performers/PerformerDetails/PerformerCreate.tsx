@@ -61,7 +61,7 @@ const PerformerCreate: React.FC = () => {
 
   return (
     <div className="flex flex-wrap new-view" id="performer-page">
-      <div className="performer-image-container w-full md:w-1/3 text-center">
+      <div className="w-full md:w-1/3 text-center" style={{ maxHeight: 'calc(100vh - 6rem)', maxWidth: '100%' }}>
         {renderPerformerImage()}
       </div>
       <div className="w-full md:w-2/3">

@@ -26,7 +26,7 @@ export const DoubleRangeInput: React.FC<{
         {minInput}
         {maxInput}
       </div>
-      <div className="double-range-sliders">
+      <div style={{ height: '22px', position: 'relative' }}>
         <input
           type="range"
           min={min}
@@ -39,7 +39,8 @@ export const DoubleRangeInput: React.FC<{
               onChange([rawValue, maxValue]);
             }
           }}
-          className="double-range-slider double-range-slider-min"
+          className="double-range-slider"
+          style={{ zIndex: 1 }}
         />
         <input
           type="range"

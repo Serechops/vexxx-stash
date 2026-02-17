@@ -1,4 +1,5 @@
 import React from "react";
+import { Box } from "@mui/material";
 import { FormattedMessage, useIntl } from "react-intl";
 import * as GQL from "src/core/generated-graphql";
 import TextUtils from "src/utils/text";
@@ -63,9 +64,17 @@ export const SceneDetailPanel: React.FC<ISceneDetailProps> = (props) => {
             values={{ count: props.scene.performers.length }}
           />
         </h6>
-        <div className="flex flex-wrap justify-center scene-performers">
+        <Box
+          className="flex flex-wrap justify-center"
+          sx={{
+            '@media (min-width: 1200px), (max-width: 575px)': {
+              '& .performer-card': { width: '15rem' },
+              '& .performer-card-image': { height: '22.5rem' },
+            },
+          }}
+        >
           {cards}
-        </div>
+        </Box>
       </>
     );
   }

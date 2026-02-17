@@ -1,6 +1,6 @@
 import React, { useRef, useState } from "react";
 import { Box, Tooltip } from "@mui/material";
-import cx from "classnames";
+
 import { useDebounce } from "src/hooks/debounce";
 import { PatchComponent } from "src/patch";
 
@@ -49,7 +49,20 @@ export const TruncatedText: React.FC<ITruncatedTextProps> = PatchComponent(
         classes={{ tooltip: CLASSNAME_TOOLTIP }}
       >
         <Box
-          className={cx(className, "truncated-text", { "inline": className?.includes("inline") })}
+          className={className}
+          sx={{
+            display: '-webkit-box',
+            overflow: 'hidden',
+            WebkitBoxOrient: 'vertical',
+            whiteSpace: 'pre-line',
+            ...(className?.includes('inline') && {
+              display: 'inline',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              WebkitLineClamp: 'unset',
+              WebkitBoxOrient: 'unset',
+            }),
+          }}
           style={{ WebkitLineClamp: lineCount }}
           ref={target}
           onMouseEnter={(e) => handleFocus(e.currentTarget)}
@@ -100,7 +113,13 @@ export const TruncatedInlineText: React.FC<ITruncatedTextProps> = ({
     >
       <Box
         component="span"
-        className={cx(className, "truncated-text-inline")}
+        className={className}
+        sx={{
+          display: 'inline',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}
         ref={target}
         onMouseEnter={(e) => handleFocus(e.currentTarget)}
         onFocus={(e) => handleFocus(e.currentTarget)}

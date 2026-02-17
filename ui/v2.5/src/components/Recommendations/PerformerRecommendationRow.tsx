@@ -62,9 +62,9 @@ export const PerformerRecommendationRow: React.FC<PerformerRecommendationRowProp
 
     if (recommendations.length === 0) {
         return (
-            <Box className="performer-recommendation-row performer-recommendation-empty-container">
-                <Typography variant="h5" className="performer-recommendation-empty-title">{title}</Typography>
-                <Box className="performer-recommendation-empty-message">
+            <Box className="performer-recommendation-row" sx={{ mb: '3rem', mt: '2rem' }}>
+                <Typography variant="h5" sx={{ fontWeight: 'bold', mb: '1rem', ml: '1rem' }}>{title}</Typography>
+                <Box sx={{ bgcolor: '#18181b', borderRadius: '8px', m: '1rem', p: '2rem', textAlign: 'center' }}>
                     <Typography color="text.secondary">
                         No top performers found based on your history. Try rating more content or rebuilding your profile!
                     </Typography>
@@ -115,23 +115,33 @@ export const PerformerRecommendationRow: React.FC<PerformerRecommendationRowProp
                         const badgeColor = scorePct > 80 ? "success.main" : scorePct > 50 ? "warning.main" : "info.main";
 
                         return (
-                            <Box key={r.id} className="recommendation-item-wrapper">
+                            <Box key={r.id} sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                                 <Box
-                                    className="recommendation-badge-container"
-                                    sx={{ borderColor: badgeColor }}
+                                    sx={{
+                                        alignItems: 'flex-start',
+                                        bgcolor: '#18181b',
+                                        borderLeft: '4px solid',
+                                        borderColor: badgeColor,
+                                        borderRadius: '4px',
+                                        boxShadow: 1,
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        mb: '0.5rem',
+                                        p: '4px 8px',
+                                    }}
                                 >
-                                    <Box className="recommendation-badge-header">
-                                        <Typography variant="subtitle2" className="recommendation-badge-score">
+                                    <Box sx={{ alignItems: 'center', display: 'flex', gap: '0.5rem' }}>
+                                        <Typography variant="subtitle2" sx={{ fontWeight: 'bold', lineHeight: 1 }}>
                                             {scorePct}% Match
                                         </Typography>
                                     </Box>
-                                    <Typography variant="caption" className="recommendation-badge-reason">
+                                    <Typography variant="caption" sx={{ fontSize: '0.7rem', mt: '0.25rem', maxWidth: '100%', opacity: 0.7, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                         {r.reason}
                                     </Typography>
                                 </Box>
 
 
-                                <Box className="recommendation-item-content">
+                                <Box sx={{ flexGrow: 1, position: 'relative' }}>
                                     <PerformerCard
                                         performer={perf}
                                         link={r.stash_db_performer ? `https://stashdb.org/performers/${r.id}` : undefined}

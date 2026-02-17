@@ -29,7 +29,7 @@ export const ScrapedSceneCard: React.FC<IScrapedSceneCardProps> = ({
             <div className="thumbnail-section relative aspect-video">
                 {sceneUrl ? (
                     <a href={sceneUrl} target="_blank" rel="noreferrer" className="block w-full h-full">
-                        <div className="scene-card-preview w-full h-full">
+                        <div className="w-full h-full" style={{ aspectRatio: '16/9' }}>
                             {imageUrl ? (
                                 <img
                                     src={imageUrl}
@@ -45,7 +45,7 @@ export const ScrapedSceneCard: React.FC<IScrapedSceneCardProps> = ({
                         </div>
                     </a>
                 ) : (
-                    <div className="scene-card-preview w-full h-full">
+                    <div className="w-full h-full" style={{ aspectRatio: '16/9' }}>
                         {imageUrl ? (
                             <img
                                 src={imageUrl}
@@ -82,7 +82,7 @@ export const ScrapedSceneCard: React.FC<IScrapedSceneCardProps> = ({
                 </div>
             </div>
 
-            <div className="card-section p-2 bg-card">
+            <div className="p-2 bg-card" style={{ marginBottom: 0 }}>
                 <h5 className="card-section-title text-sm font-medium truncate mb-1" title={titleText}>
                     {sceneUrl ? (
                         <a href={sceneUrl} target="_blank" rel="noreferrer" className="text-card-foreground hover:text-primary transition-colors">

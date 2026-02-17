@@ -80,12 +80,12 @@ export const ScrapeDialog: React.FC<
         <ScrapeDialogContext.Provider value={contextState}>
           <Box p={2}>
             <Grid container>
-              <Grid size={{ xs: 12, lg: 9 }} className="scrape-header-offset">
+              <Grid size={{ xs: 12, lg: 9 }} sx={{ '@media (min-width: 992px)': { ml: '25%' } }}>
                 {/* Using margin-left 25% to offset 3 cols in 12 col grid */}
                 {/* Or better: use Grid with empty item */}
               </Grid>
             </Grid>
-            <Grid container spacing={2} className="scrape-header-row">
+            <Grid container spacing={2} sx={{ display: { xs: 'none', lg: 'flex' }, pl: '1.5rem', pr: '1.5rem', pt: '1.5rem' }}>
               <Grid size={{ lg: 3 }}></Grid>
               <Grid size={{ lg: 9 }}>
                 <Grid container spacing={2}>

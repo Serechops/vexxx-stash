@@ -9,8 +9,8 @@ export const GroupTag: React.FC<{
   description?: string;
 }> = ({ group, linkType, description }) => {
   return (
-    <div className="group-tag-container">
-      <Link to={`/groups/${group.id}`} className="group-tag flex-1 m-auto zoom-2">
+    <div style={{ display: 'inline-block', margin: '5px' }}>
+      <Link to={`/groups/${group.id}`} className="flex-1 m-auto zoom-2">
         <img
           className="image-thumbnail"
           alt={group.name ?? ""}

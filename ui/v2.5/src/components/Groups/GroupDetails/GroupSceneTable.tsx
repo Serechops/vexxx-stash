@@ -96,11 +96,11 @@ export const GroupSceneTable: React.FC<IProps> = (props) => {
                             {m.scene.paths?.screenshot ? (
                                 <img
                                     src={m.scene.paths.screenshot}
-                                    className="vexxx-scene-list-image"
+                                    style={{ borderRadius: '4px', height: '60px', objectFit: 'cover', width: '80px' }}
                                     alt={m.scene.title || ""}
                                 />
                             ) : (
-                                <div className="vexxx-scene-list-image placeholder" />
+                                <div style={{ borderRadius: '4px', height: '60px', width: '80px', backgroundColor: '#eee' }} />
                             )}
                         </Grid>
                         <Grid size="grow" className="vexxx-scene-list-details">

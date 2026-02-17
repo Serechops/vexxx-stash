@@ -22,10 +22,10 @@ export const PerformerPopoverButton: React.FC<IProps> = ({
 }) => {
   const sorted = sortPerformers(performers);
   const popoverContent = sorted.map((performer) => (
-    <div className="performer-tag-container flex flex-wrap" key={performer.id}>
+    <div className="flex flex-wrap" style={{ display: 'inline-block', margin: '5px' }} key={performer.id}>
       <Link
         to={`/performers/${performer.id}`}
-        className="performer-tag flex-1 m-auto zoom-2"
+        className="flex-1 m-auto zoom-2"
       >
         <img
           className="image-thumbnail"

@@ -47,7 +47,6 @@ import {
 } from "src/components/Shared/CountButton";
 import { useRatingKeybinds } from "src/hooks/keybinds";
 import { lazyComponent } from "src/utils/lazyComponent";
-import cx from "classnames";
 import { TruncatedText } from "src/components/Shared/TruncatedText";
 import { PatchComponent, PatchContainerComponent } from "src/patch";
 import { SceneMergeModal } from "../SceneMergeDialog";
@@ -140,7 +139,7 @@ const VideoFrameRateResolution: React.FC<{
   }, [resolution, frameRateDisplay]);
 
   return (
-    <Box component="span" className="scene-video-info">
+    <Box component="span" sx={{ color: '#a1a1aa', fontSize: '0.875rem' }}>
       {frameRateDisplay}
       {divider}
       {resolution}
@@ -603,8 +602,24 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
   );
 
   const renderTabs = () => (
-    <Box className="scene-tabs-container">
-      <Box className="scene-tabs-header">
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        flexGrow: 1,
+      }}
+    >
+      <Box
+        sx={{
+          bgcolor: '#18181b',
+          borderBottom: '1px solid #27272a',
+          mx: '-1rem',
+          px: '1rem',
+          position: 'sticky',
+          top: '-1rem',
+          zIndex: 10,
+        }}
+      >
         <ScenePageTabs {...props}>
           <Tabs
             value={activeTabKey}
@@ -612,12 +627,32 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
             variant="scrollable"
             scrollButtons="auto"
             allowScrollButtonsMobile
-            className="scene-tabs-nav"
+            sx={{
+              ml: '-0.75rem',
+              '& .MuiTabs-flexContainer': {
+                justifyContent: 'flex-start',
+              },
+              '& .MuiTabs-scroller': {
+                ml: 0,
+                pl: 0,
+              },
+              '& .MuiButtonBase-root:first-of-type': {
+                ml: 0,
+                pl: 0,
+              },
+            }}
           >
             <Tab
               value="scene-details-panel"
               label={<FormattedMessage id="details" />}
-              className="scene-tab-first"
+              sx={{
+                ml: 0,
+                minWidth: 'auto',
+                pl: 0,
+                '&.Mui-selected': {
+                  pl: 0,
+                },
+              }}
             />
             {queueScenes.length > 0 && (
               <Tab value="scene-queue-panel" label={<FormattedMessage id="queue" />} />
@@ -749,12 +784,45 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
       {maybeRenderMergeDialog()}
       {maybeRenderDeleteDialog()}
       <Box
-        className={cx("scene-tabs", { collapsed })}
+        sx={{
+          boxSizing: 'border-box',
+          display: 'flex',
+          flexDirection: 'column',
+          height: 'auto',
+          overflow: 'visible',
+          p: { xs: '0.5rem', md: '1rem' },
+          width: '100%',
+          '& .tab-content': {
+            height: 'auto !important',
+            overflow: 'visible !important',
+          },
+        }}
       >
         <Box>
-          <Box className="scene-header-container">
+          <Box
+            sx={{
+              alignItems: 'center',
+              display: 'flex',
+              flexDirection: { xs: 'column', md: 'row' },
+              justifyContent: { xs: 'center', md: 'space-between' },
+              mb: '1rem',
+            }}
+          >
             {scene.studio && (
-              <Box className="scene-studio-image">
+              <Box
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  mb: { xs: '1rem', lg: 0 },
+                  flex: { lg: '0 0 25%' },
+                  order: { lg: 2 },
+                  '& .studio-logo': {
+                    maxHeight: '8rem',
+                    maxWidth: '100%',
+                    mt: { lg: '1rem' },
+                  },
+                }}
+              >
                 <Link to={`/studios/${scene.studio.id}`}>
                   <Box
                     component="img"
@@ -765,13 +833,30 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
                 </Link>
               </Box>
             )}
-            <Box className={cx("scene-header", { "no-studio": !scene.studio })}>
+            <Box
+              sx={{
+                fontSize: { xs: '1.75rem', xl: '1.5rem' },
+                mt: { xs: '0.5rem', lg: '2rem' },
+                textAlign: { xs: 'center', lg: 'left' },
+                width: '100%',
+                flex: { lg: !scene.studio ? '0 0 100%' : '0 0 75%' },
+                order: { lg: 1 },
+              }}
+            >
               <TruncatedText lineCount={2} text={title} />
             </Box>
           </Box>
 
-          <Box className="scene-subheader">
-            <Box component="span" className="date" data-value={scene.date}>
+          <Box
+            sx={{
+              alignItems: 'center',
+              display: 'flex',
+              justifyContent: 'space-between',
+              mb: '1rem',
+              mt: '0.5rem',
+            }}
+          >
+            <Box component="span" sx={{ color: '#a1a1aa' }} data-value={scene.date}>
               {!!scene.date && <FormattedDate value={scene.date} />}
             </Box>
             <VideoFrameRateResolution
@@ -781,9 +866,37 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
             />
           </Box>
 
-          <Box className="scene-toolbar">
-            <Box className="scene-toolbar-row">
-              <Box className="scene-toolbar-rating">
+          <Box
+            sx={{
+              borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.75rem',
+              mb: '0.5rem',
+              mt: '0.5rem',
+              pb: '0.75rem',
+              width: '100%',
+            }}
+          >
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: { xs: '0.5rem', md: '1rem' },
+                width: '100%',
+                flexDirection: { xs: 'column', md: 'row' },
+              }}
+            >
+              <Box
+                sx={{
+                  flex: 1,
+                  minWidth: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  width: { xs: '100%', md: 'auto' },
+                }}
+              >
                 <RatingSystem
                   value={scene.rating100}
                   onSetRating={setRating}
@@ -791,7 +904,14 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
                   withoutContext
                 />
               </Box>
-              <Box className="scene-toolbar-counters">
+              <Box
+                sx={{
+                  display: 'flex',
+                  gap: '0.5rem',
+                  alignItems: 'center',
+                  flexShrink: 0,
+                }}
+              >
                 <ViewCountButton
                   value={scene.play_count ?? 0}
                   onIncrement={() => incrementPlayCount()}
@@ -802,8 +922,26 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
                 />
               </Box>
             </Box>
-            <Box className="scene-toolbar-row">
-              <Box className="scene-toolbar-actions">
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: { xs: '0.5rem', md: '1rem' },
+                width: '100%',
+                flexDirection: { xs: 'column', md: 'row' },
+              }}
+            >
+              <Box
+                sx={{
+                  display: 'flex',
+                  gap: '0.5rem',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexWrap: 'wrap',
+                  width: '100%',
+                }}
+              >
                 <ExternalPlayerButton scene={scene} />
                 <OrganizedButton
                   loading={organizedLoading}
@@ -1096,17 +1234,29 @@ const SceneLoader: React.FC<RouteComponentProps<ISceneParams>> = ({
   const isSegment = (scene?.start_point !== null && scene?.start_point !== undefined && scene.start_point > 0) || (scene?.end_point !== null && scene?.end_point !== undefined && scene.end_point > 0);
 
   return (
-    <Box 
-      className="scene-layout"
+    <Box
       sx={{
         display: "flex",
         flexDirection: { xs: "column-reverse", md: "row" },
         height: { xs: "auto", md: "calc(100vh - 3.5rem)" },
         overflow: { xs: "visible", md: "hidden" },
-        position: "relative"
+        position: "relative",
       }}
     >
-      <Box className={cx("scene-detail-panel", { collapsed })}>
+      <Box
+        sx={{
+          bgcolor: '#18181b',
+          display: collapsed ? { xs: 'flex', md: 'none' } : 'flex',
+          flexDirection: 'column',
+          flexShrink: 0,
+          overflowY: { xs: 'visible', md: 'auto' },
+          transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          width: { xs: '100%', md: collapsed ? 0 : '450px' },
+          minWidth: { md: collapsed ? 0 : '450px' },
+          borderRight: { md: '1px solid #27272a' },
+          height: { md: '100%' },
+        }}
+      >
         <ScenePage
           scene={scene}
           setTimestamp={setTimestamp}
@@ -1129,13 +1279,38 @@ const SceneLoader: React.FC<RouteComponentProps<ISceneParams>> = ({
 
       {/* Modern Persistent Toggle Divider */}
       <Box
-        className="scene-toggle-divider"
+        sx={{
+          alignItems: 'center',
+          borderRight: '1px solid #27272a',
+          cursor: 'pointer',
+          display: { xs: 'none', md: 'flex' },
+          justifyContent: 'center',
+          transition: 'background-color 0.2s',
+          width: '12px',
+          '&:hover': {
+            bgcolor: 'rgba(255, 255, 255, 0.05)',
+            '& svg': { color: '#52525b' },
+          },
+          '& svg': { transition: 'color 0.2s' },
+        }}
         onClick={() => setCollapsed(!collapsed)}
       >
         {collapsed ? <ChevronRightIcon fontSize="small" /> : <ChevronLeftIcon fontSize="small" />}
       </Box>
 
-      <Box className={cx("scene-player-container", { expanded: collapsed })}>
+      <Box
+        sx={{
+          bgcolor: 'black',
+          display: 'flex',
+          flexDirection: 'column',
+          flexGrow: 1,
+          minWidth: 0,
+          position: 'relative',
+          overflow: { xs: 'visible', md: 'hidden' },
+          aspectRatio: { xs: '16/9', md: 'unset' },
+          height: { xs: 'auto', md: '100%' },
+        }}
+      >
         {isSegment ? (
           <SegmentPlayer scene={scene} />
         ) : (

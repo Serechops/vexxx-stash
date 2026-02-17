@@ -503,7 +503,8 @@ export const GroupEditPanel: React.FC<IGroupEditPanel> = ({
         {onAutoFill && (
           <IconButton
             size="small"
-            className="ml-2 scrape-url-button text-input"
+            sx={{ ml: 1, '&:disabled': { opacity: 0.5 } }}
+            className="text-input"
             onClick={onAutoFill}
             title={intl.formatMessage({ id: "scrape" })}
           >

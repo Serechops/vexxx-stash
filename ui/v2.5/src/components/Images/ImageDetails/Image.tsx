@@ -416,7 +416,7 @@ const ImagePage: React.FC<IProps> = ({ image }) => {
                   <img
                     src={image.studio.image_path ?? ""}
                     alt={`${image.studio.name} logo`}
-                    className="studio-logo"
+                    style={{ marginTop: '1rem', maxHeight: '8rem', maxWidth: '100%' }}
                   />
                 </Link>
               </Box>

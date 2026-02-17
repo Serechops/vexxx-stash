@@ -28,9 +28,15 @@ const TagCardPopovers: React.FC<IProps> = PatchComponent(
       <>
         <hr />
         <ButtonGroup
-          className="card-popovers"
           variant="contained"
           size="small"
+          sx={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            justifyContent: 'center',
+            mb: '10px',
+            '& .fa-icon': { mr: '7px' },
+          }}
         >
           <PopoverCountButton
             className="scene-count"
@@ -96,12 +102,15 @@ const TagCardOverlays: React.FC<IProps> = PatchComponent(
       return (
         <Link to="" onClick={(e) => e.preventDefault()}>
           <IconButton
-            className={cx(
-              "minimal",
-              "mousetrap",
-              "favorite-button",
-              tag.favorite ? "favorite" : "not-favorite"
-            )}
+            className={cx("minimal", "mousetrap")}
+            sx={{
+              p: 0,
+              position: 'absolute',
+              right: '5px',
+              top: '10px',
+              zIndex: 1,
+              ...(!tag.favorite && { opacity: 0, transition: 'opacity 0.2s' }),
+            }}
             onClick={() => onToggleFavorite!(!tag.favorite)}
             color={tag.favorite ? "error" : "default"}
           >
@@ -138,6 +147,7 @@ const TagCardDetails: React.FC<IProps> = PatchComponent(
             className="tag-description"
             text={tag.description}
             lineCount={3}
+            sx={{ mb: 0.5 }}
           />
         );
       }
@@ -147,7 +157,7 @@ const TagCardDetails: React.FC<IProps> = PatchComponent(
       if (tag.parents.length === 1) {
         const parent = tag.parents[0];
         return (
-          <Box className="tag-relation">
+          <Box sx={{ fontSize: '0.875rem', mt: '0.25rem' }}>
             <FormattedMessage
               id="sub_tag_of"
               values={{
@@ -160,7 +170,7 @@ const TagCardDetails: React.FC<IProps> = PatchComponent(
 
       if (tag.parents.length > 1) {
         return (
-          <Box className="tag-relation">
+          <Box sx={{ fontSize: '0.875rem', mt: '0.25rem' }}>
             <FormattedMessage
               id="sub_tag_of"
               values={{
@@ -183,7 +193,7 @@ const TagCardDetails: React.FC<IProps> = PatchComponent(
     function maybeRenderChildren() {
       if (tag.children.length > 0) {
         return (
-          <Box className="tag-relation">
+          <Box sx={{ fontSize: '0.875rem', mt: '0.25rem' }}>
             <FormattedMessage
               id="parent_of"
               values={{
@@ -204,7 +214,7 @@ const TagCardDetails: React.FC<IProps> = PatchComponent(
     }
 
     return (
-      <Box className="tag-details">
+      <Box sx={{ minHeight: '4rem' }}>
         {maybeRenderDescription()}
         {maybeRenderParents()}
         {maybeRenderChildren()}
@@ -225,21 +235,25 @@ export const TagCard: React.FC<IProps> = PatchComponent("TagCard", (props) => {
     props;
 
   return (
-    <Box className={`tag-card zoom-${zoomIndex}`}>
+    <Box
+      sx={{
+        '&:hover': { '& .MuiIconButton-root': { opacity: '1 !important' } },
+      }}
+    >
       <GridCard
         className="hover:!scale-100 !transition-none"
         url={`/tags/${tag.id}`}
         title={<TagCardTitle {...props} />}
         linkClassName="tag-card-header"
         image={
-          <Box className="tag-card-image-container">
-            <Box className="tag-card-image-wrapper">
+          <Box sx={{ paddingBottom: '50%', position: 'relative', width: '100%' }}>
+            <Box sx={{ alignItems: 'center', display: 'flex', inset: 0, justifyContent: 'center', p: '0.5rem', position: 'absolute' }}>
               <Box
                 component="img"
                 loading="lazy"
                 alt={tag.name}
                 src={tag.image_path ?? ""}
-                className="tag-card-image"
+                sx={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }}
               />
             </Box>
           </Box>

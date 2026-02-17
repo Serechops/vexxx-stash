@@ -3,23 +3,8 @@
 @use "styles/range";
 @use "styles/scrollbars";
 @use "sfw-mode" as sfw-mode;
-@use "components/FrontPage/styles" as frontpage;
-@use "components/SceneDuplicateChecker/styles" as scene-dup-checker;
-@use "components/SceneFilenameParser/styles" as scene-filename-parser;
 @use "components/ScenePlayer/styles" as scene-player;
-@use "components/Performers/styles" as performers;
-@use "components/Scenes/styles" as scenes;
-@use "components/Groups/styles" as groups;
-@use "components/Galleries/styles" as galleries;
-@use "components/Images/styles" as images;
-@use "components/Tags/styles" as tags;
-@use "components/Studios/styles" as studios;
-@use "components/Setup/styles" as setup;
 @use "components/Shared/styles" as shared;
-@use "components/Shared/PackageManager/styles" as package-manager;
-@use "components/Recommendations/styles" as recommendations;
-@use "components/Settings/styles" as settings;
-@use "hooks/styles" as hooks-styles;
 @use "hooks/Interactive/interactive" as interactive;
 @use "hooks/Lightbox/styles" as lightbox;
 
@@ -310,7 +295,7 @@ dd {
 
   img {
     margin: auto;
-    max-width: 14rem;
+    max-width: 12rem;
     transition: 0.5s;
   }
 
@@ -322,7 +307,7 @@ dd {
 }
 
 #group-page .detail-header-image .group-images img {
-  max-width: 13rem;
+  max-width: 12rem;
 }
 
 #group-page .detail-header-image img,
@@ -331,17 +316,35 @@ dd {
   border-radius: 0.5rem;
 }
 
-#tag-page {
+#performer-page {
   .full-width .detail-header-image img {
-    max-width: 22rem;
+    max-width: 15rem;
   }
 
   .detail-header.collapsed .detail-header-image img {
-    max-width: 18rem;
+    max-width: 12rem;
   }
 
   .detail-header-image img {
-    max-width: 20rem;
+    max-width: 13rem;
+
+    @media (max-width: 576px) {
+      max-width: 100%;
+    }
+  }
+}
+
+#tag-page {
+  .full-width .detail-header-image img {
+    max-width: 18rem;
+  }
+
+  .detail-header.collapsed .detail-header-image img {
+    max-width: 14rem;
+  }
+
+  .detail-header-image img {
+    max-width: 16rem;
 
     @media (max-width: 576px) {
       max-width: 100%;

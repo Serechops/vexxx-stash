@@ -109,7 +109,7 @@ export const Migrate: React.FC = () => {
     if (notes.length === 0) return;
 
     return (
-      <Box className="migration-notes" mt={4} mb={4}>
+      <Box sx={{ m: '1rem', '& > div': { bgcolor: '#131316', borderRadius: '3px', p: 2 } }} mt={4} mb={4}>
         <Typography variant="h5" gutterBottom>
           <FormattedMessage id="setup.migrate.migration_notes" />
         </Typography>

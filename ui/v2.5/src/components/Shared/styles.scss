@@ -8,17 +8,6 @@ button.collapse-button {
   padding-left: 0;
 }
 
-.hover-popover-content {
-  max-width: 32rem;
-  text-align: center;
-}
-
-.ErrorMessage-container {
-  display: flex;
-  justify-content: center;
-  width: 100%;
-}
-
 .ErrorMessage {
   .fa-icon {
     color: $warning;
@@ -144,28 +133,6 @@ button.collapse-button {
   }
 }
 
-// Move Target Styles
-.move-target {
-  align-items: center;
-  background-color: $primary;
-  color: $secondary;
-  display: flex;
-  height: 100%;
-  justify-content: center;
-  opacity: 0.5;
-  pointer-events: none;
-  position: absolute;
-  width: 10%;
-
-  &.move-target-before {
-    left: 0;
-  }
-
-  &.move-target-after {
-    right: 0;
-  }
-}
-
 // Loading Indicator
 .loading-indicator {
   align-items: center;
@@ -234,42 +201,6 @@ button.collapse-button {
   }
 }
 
-// Truncated Text
-.truncated-text {
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  white-space: pre-line;
-
-  &.inline {
-    display: inline;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    -webkit-line-clamp: unset;
-    -webkit-box-orient: unset;
-  }
-}
-
-.truncated-text-inline {
-  display: inline;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-// Modal Styles
-.modal-icon-container {
-  align-items: center;
-  display: flex;
-  margin-right: 0.5rem;
-}
-
-.modal-footer-content {
-  display: flex;
-  justify-content: space-between;
-  width: 100%;
-}
-
 // Scrape Dialog
 .scrape-dialog-container {
   max-height: calc(100vh - 14rem);
@@ -312,27 +243,6 @@ button.collapse-button {
       top: 0;
     }
   }
-}
-
-.scrape-header-offset {
-  @media (min-width: 992px) {
-    margin-left: 25%;
-  }
-}
-
-.scrape-header-row {
-  display: none;
-  padding-left: 1.5rem; // px: 3
-  padding-right: 1.5rem; // px: 3
-  padding-top: 1.5rem; // pt: 3
-
-  @media (min-width: 992px) {
-    display: flex;
-  }
-}
-
-.scrape-url-button:disabled {
-  opacity: 0.5;
 }
 
 .bulk-update-text-input {
@@ -486,11 +396,6 @@ div.react-datepicker {
   }
 }
 
-.react-select-image-option {
-  align-items: baseline;
-  display: flex;
-}
-
 .count-button {
   border-radius: 5px;
 
@@ -517,10 +422,6 @@ div.react-datepicker {
     }
   }
 
-}
-
-.external-links-button {
-  display: inline-block;
 }
 
 .scraper-menu .dropdown-menu {
@@ -701,24 +602,6 @@ div.react-datepicker {
   }
 }
 
-.sidebar-toolbar {
-  // TODO - use different colours for sidebar and toolbar
-  background-color: $body-bg;
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 0;
-  padding-bottom: 1rem;
-  position: sticky;
-  top: 0;
-  z-index: 101;
-}
-
-@media (max-width: 575.98px) {
-  .sidebar-toolbar {
-    padding-top: 1rem;
-  }
-}
-
 .sidebar-section {
   border-bottom: 1px solid $secondary;
 
@@ -774,10 +657,6 @@ $sticky-header-height: calc(50px + 3.3rem);
     position: sticky;
 
     top: calc($sticky-detail-header-height + $navbar-height);
-
-    .sidebar-toolbar {
-      padding-top: 15px;
-    }
   }
 
   .sidebar-pane:not(.hide-sidebar) .sidebar {
@@ -828,12 +707,6 @@ $sticky-header-height: calc(50px + 3.3rem);
   }
 }
 
-// Duration slider styles
-.duration-slider-container {
-  padding: 0.5rem 0 1rem;
-  width: 100%;
-}
-
 .double-range-input-labels {
   color: $text-color;
   display: flex;
@@ -852,11 +725,6 @@ $sticky-header-height: calc(50px + 3.3rem);
       text-align: right;
     }
   }
-}
-
-.double-range-sliders {
-  height: 22px;
-  position: relative;
 }
 
 .double-range-slider {
@@ -904,10 +772,6 @@ $sticky-header-height: calc(50px + 3.3rem);
   }
 }
 
-.double-range-slider-min {
-  z-index: 1;
-}
-
 input[type="range"].double-range-slider-max {
   z-index: 2;
 
@@ -922,48 +786,6 @@ input[type="range"].double-range-slider-max {
 
   &::-ms-track {
     background: transparent;
-  }
-}
-
-// Label offset for buttons that need to align with form fields
-.ml-label {
-  @media (min-width: 576px) {
-    // sm: label is 3 of 12 columns = 25%, plus partial gutter
-    margin-left: calc(25% + 7.5px);
-  }
-
-  @media (min-width: 1200px) {
-    // xl: label is 2 of 12 columns = 16.667%, plus partial gutter
-    margin-left: calc(16.667% + 7.5px);
-  }
-}
-
-// StashBox Search Modal
-.StashBoxSearchModal {
-  &-list {
-    list-style: none;
-    padding: 0;
-
-    li {
-      border-radius: 0.25rem;
-      cursor: pointer;
-      margin-bottom: 0.5rem;
-      padding: 0.5rem;
-      transition: background-color 0.2s;
-
-      &:hover {
-        background-color: rgba(138, 155, 168, 0.1);
-      }
-
-      &.selected {
-        background-color: #e7f3ff;
-      }
-    }
-  }
-
-  &-list-container {
-    max-height: 60vh;
-    overflow-y: auto;
   }
 }
 
@@ -1015,101 +837,4 @@ input[type="range"].double-range-slider-max {
     font-style: italic;
     margin-left: 10px;
   }
-}
-
-// Hybrid Styling Pilot - Semantic Classes
-.vexxx-scene-list-item {
-  // Structure handled by MUI Grid
-  position: relative;
-}
-
-.vexxx-scene-list-image {
-  border-radius: 4px;
-  height: 60px;
-  object-fit: cover;
-  width: 80px;
-
-  &.placeholder {
-    background-color: #eee;
-  }
-}
-
-// .vexxx-scene-list-title
-// .vexxx-scene-list-meta
-// Typography handled by MUI/utility classes for now
-
-// DetailImage semantic class
-.vexxx-detail-image {
-  display: block;
-  max-width: 100%;
-}
-
-// Alert semantic classes
-.vexxx-alert {
-  // MUI Dialog - customize appearance if needed
-  position: relative;
-}
-
-.vexxx-alert-content {
-  // MUI DialogContent
-  position: relative;
-}
-
-.vexxx-alert-actions {
-  // MUI DialogActions
-  position: relative;
-}
-
-// LoadingIndicator semantic classes
-.vexxx-loading {
-  // Wrapper box, layout handled by sx
-  position: relative;
-}
-
-.vexxx-loading-spinner {
-  // MUI CircularProgress
-  display: inline-block;
-}
-
-.vexxx-loading-text {
-  // MUI Typography
-  display: block;
-}
-
-// Card semantic classes (Phase 2)
-.vexxx-scene-card {
-  // SceneCard wrapper - customize borders, shadows
-  position: relative;
-}
-
-.vexxx-performer-card {
-  // PerformerCard wrapper - customize borders, shadows
-  position: relative;
-}
-
-.vexxx-group-card {
-  // GroupCard wrapper - customize borders, shadows
-  position: relative;
-}
-
-// Navigation semantic classes (Phase 2)
-.vexxx-sidebar {
-  // Sidebar container
-  position: relative;
-}
-
-.vexxx-navbar {
-  // Main navigation bar (AppBar)
-  position: relative;
-}
-
-// Form semantic classes (Phase 2)
-.vexxx-filter-select {
-  // FilterSelect dropdown
-  position: relative;
-}
-
-.vexxx-date-input {
-  // DateInput field
-  position: relative;
 }

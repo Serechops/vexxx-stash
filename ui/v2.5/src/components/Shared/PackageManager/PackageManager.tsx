@@ -18,7 +18,6 @@ import React, { useState, useMemo, useEffect } from "react";
 import { FormattedMessage, IntlShape, useIntl } from "react-intl";
 import * as GQL from "src/core/generated-graphql";
 import { Icon } from "../Icon";
-import cx from "classnames";
 import {
   faAnglesUp,
   faChevronDown,
@@ -102,7 +101,7 @@ const InstalledPackageRow: React.FC<{
   }, [updatesLoaded, pkg]);
 
   return (
-    <TableRow className={cx({ "package-update-available": updateAvailable })}>
+    <TableRow>
       <TableCell padding="checkbox">
         <Checkbox
           checked={selected}
@@ -112,26 +111,26 @@ const InstalledPackageRow: React.FC<{
       </TableCell>
       <TableCell>
         <Stack>
-          <span className="package-name">{pkg.name}</span>
-          <span className="package-id">{pkg.package_id}</span>
+          <span>{pkg.name}</span>
+          <span style={{ color: '#a1a1aa', fontSize: '0.8rem' }}>{pkg.package_id}</span>
         </Stack>
       </TableCell>
       <TableCell>
         <Stack>
-          <span className="package-version">
+          <span style={{ whiteSpace: 'nowrap' }}>
             {displayVersion(intl, pkg.version)}
           </span>
-          <span className="package-date">{displayDate(intl, pkg.date)}</span>
+          <span style={{ color: '#a1a1aa', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>{displayDate(intl, pkg.date)}</span>
         </Stack>
       </TableCell>
       {updatesLoaded && pkg.source_package && (
         <TableCell>
           <Stack>
-            <span className="package-latest-version">
+            <span style={{ whiteSpace: 'nowrap', ...(updateAvailable && { fontWeight: 700 }) }}>
               {displayVersion(intl, pkg.source_package.version)}
               {updateAvailable && <Icon icon={faAnglesUp} style={{ marginLeft: '0.25rem' }} />}
             </span>
-            <span className="package-latest-date">
+            <span style={{ color: '#a1a1aa', fontSize: '0.8rem', whiteSpace: 'nowrap', ...(updateAvailable && { fontWeight: 700 }) }}>
               {displayDate(intl, pkg.source_package.date)}
             </span>
           </Stack>
@@ -199,7 +198,7 @@ const InstalledPackagesList: React.FC<{
         return (
           <TableRow>
             <TableCell />
-            <TableCell colSpan={100} className="source-error">
+            <TableCell colSpan={100}>
               <Stack direction="row" alignItems="center" spacing={1}>
                 <Icon icon={faWarning} color="error" />
                 <Typography color="error">{error}</Typography>
@@ -214,7 +213,7 @@ const InstalledPackagesList: React.FC<{
           ? "package_manager.no_upgradable"
           : "package_manager.no_packages";
         return (
-          <TableRow className="package-manager-no-results">
+          <TableRow sx={{ color: 'text.secondary', textAlign: 'center' }}>
             <TableCell colSpan={100} align="center">
               <FormattedMessage id={id} />
             </TableCell>
@@ -235,10 +234,18 @@ const InstalledPackagesList: React.FC<{
     }
 
     return (
-      <div className="package-manager-table-container">
+      <Box sx={{ maxHeight: 300, overflowY: 'auto' }}>
         <TableContainer component={Paper} variant="outlined">
-          <Table size="small">
-            <TableHead>
+          <Table size="small" sx={{ '& td': { verticalAlign: 'middle' } }}>
+            <TableHead
+              sx={{
+                bgcolor: '#18181b',
+                position: 'sticky',
+                top: 0,
+                zIndex: 1,
+                '& th': { border: 'none' },
+              }}
+            >
               <TableRow>
                 <TableCell padding="checkbox">
                   <Checkbox
@@ -263,7 +270,7 @@ const InstalledPackagesList: React.FC<{
             <TableBody>{renderBody()}</TableBody>
           </Table>
         </TableContainer>
-      </div>
+      </Box>
     );
   };
 
@@ -292,7 +299,7 @@ const InstalledPackagesToolbar: React.FC<{
     const intl = useIntl();
 
     return (
-      <div className="package-manager-toolbar">
+      <Box sx={{ display: 'flex', gap: '0.5rem', pb: '0.25rem' }}>
         <ClearableInput
           placeholder={`${intl.formatMessage({ id: "filter" })}...`}
           value={filter}
@@ -330,7 +337,7 @@ const InstalledPackagesToolbar: React.FC<{
         >
           <FormattedMessage id="package_manager.uninstall" />
         </Button>
-      </div>
+      </Box>
     );
   };
 
@@ -468,7 +475,7 @@ const AvailablePackagesToolbar: React.FC<{
       : "package_manager.show_all";
 
     return (
-      <div className="package-manager-toolbar">
+      <Box sx={{ display: 'flex', gap: '0.5rem', pb: '0.25rem' }}>
         <ClearableInput
           placeholder={`${intl.formatMessage({ id: "filter" })}...`}
           value={filter}
@@ -491,7 +498,7 @@ const AvailablePackagesToolbar: React.FC<{
         >
           <FormattedMessage id="package_manager.install" />
         </Button>
-      </div>
+      </Box>
     );
   };
 
@@ -633,7 +640,7 @@ const AvailablePackageRow: React.FC<{
       if (!requiredBy.length) return;
 
       return (
-        <div className="package-required-by">
+        <div style={{ color: '#f59e0b', fontSize: '0.8rem' }}>
           <FormattedMessage
             id="package_manager.required_by"
             values={{ packages: requiredBy.map((p) => p.name).join(", ") }}
@@ -651,18 +658,18 @@ const AvailablePackageRow: React.FC<{
             disabled={disabled}
           />
         </TableCell>
-        <TableCell className="package-cell" onClick={() => togglePackage()}>
+        <TableCell sx={{ cursor: 'pointer' }} onClick={() => togglePackage()}>
           <Stack>
-            <span className="package-name">{pkg.name}</span>
-            <span className="package-id">{pkg.package_id}</span>
+            <span>{pkg.name}</span>
+            <span style={{ color: '#a1a1aa', fontSize: '0.8rem' }}>{pkg.package_id}</span>
           </Stack>
         </TableCell>
         <TableCell>
           <Stack>
-            <span className="package-version">
+            <span style={{ whiteSpace: 'nowrap' }}>
               {displayVersion(intl, pkg.version)}
             </span>
-            <span className="package-date">{displayDate(intl, pkg.date)}</span>
+            <span style={{ color: '#a1a1aa', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>{displayDate(intl, pkg.date)}</span>
           </Stack>
         </TableCell>
         <TableCell>
@@ -781,7 +788,7 @@ const SourcePackagesList: React.FC<{
         return (
           <TableRow>
             <TableCell colSpan={2}></TableCell>
-            <TableCell colSpan={3} className="source-error">
+            <TableCell colSpan={3}>
               <Stack direction="row" alignItems="center" spacing={2}>
                 <Icon icon={faWarning} color="error" />
                 <Typography color="error">{loadError}</Typography>
@@ -823,7 +830,7 @@ const SourcePackagesList: React.FC<{
 
       if (filteredPackages.length === 0) {
         return (
-          <TableRow className="package-manager-no-results">
+          <TableRow sx={{ color: 'text.secondary', textAlign: 'center' }}>
             <TableCell colSpan={100} align="center">
               <FormattedMessage id="package_manager.no_packages" />
             </TableCell>
@@ -977,7 +984,7 @@ const AvailablePackagesList: React.FC<{
     function renderBody() {
       if (sources.length === 0) {
         return (
-          <TableRow className="package-manager-no-results">
+          <TableRow sx={{ color: 'text.secondary', textAlign: 'center' }}>
             <TableCell colSpan={5} align="center">
               <FormattedMessage id="package_manager.no_sources" />
               <br />
@@ -1057,13 +1064,21 @@ const AvailablePackagesList: React.FC<{
           />
         ) : undefined}
 
-        <div className="package-manager-table-container">
+        <Box sx={{ maxHeight: 300, overflowY: 'auto' }}>
           <TableContainer component={Paper} variant="outlined">
-            <Table size="small">
-              <TableHead>
+            <Table size="small" sx={{ '& td': { verticalAlign: 'middle' } }}>
+              <TableHead
+                sx={{
+                  bgcolor: '#18181b',
+                  position: 'sticky',
+                  top: 0,
+                  zIndex: 1,
+                  '& th': { border: 'none' },
+                }}
+              >
                 <TableRow>
-                  <TableCell className="check-cell"></TableCell>
-                  <TableCell className="collapse-cell"></TableCell>
+                  <TableCell sx={{ width: 40 }}></TableCell>
+                  <TableCell sx={{ width: 30 }}></TableCell>
                   <TableCell>
                     <FormattedMessage id="package_manager.package" />
                   </TableCell>
@@ -1078,7 +1093,7 @@ const AvailablePackagesList: React.FC<{
               <TableBody>{renderBody()}</TableBody>
             </Table>
           </TableContainer>
-        </div>
+        </Box>
       </>
     );
   };

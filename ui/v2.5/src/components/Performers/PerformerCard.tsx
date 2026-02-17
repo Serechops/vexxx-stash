@@ -8,7 +8,6 @@ import TextUtils from "src/utils/text";
 import { GridCard } from "../Shared/GridCard/GridCard";
 import { CountryFlag } from "../Shared/CountryFlag";
 import { HoverPopover } from "../Shared/HoverPopover";
-import cx from "classnames";
 import { TagLink } from "../Shared/TagLink";
 // Button, ButtonGroup removed
 import {
@@ -128,7 +127,25 @@ export const PerformerCard: React.FC<IPerformerCardProps> = PatchComponent(
 
     return (
       <Box
-        className={cx("performer-card", "vexxx-performer-card", { "selected": selected })}
+        className="performer-card"
+        sx={{
+          bgcolor: '#18181b',
+          borderRadius: '12px',
+          height: '100%',
+          overflow: 'hidden',
+          position: 'relative',
+          transition: 'all 0.3s ease',
+          width: '100%',
+          '&:hover': {
+            boxShadow: '0 10px 30px rgba(0, 0, 0, 0.5)',
+            transform: 'scale(1.02)',
+            zIndex: 20,
+            '& .performer-card-overlay-inner': {
+              background: 'linear-gradient(to top, rgba(0, 0, 0, 0.95) 20%, rgba(0, 0, 0, 0.7) 60%, transparent 100%)',
+            },
+          },
+          ...(selected && { boxShadow: '0 0 0 3px #52525b' }),
+        }}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         onClick={handleCardClick}
@@ -136,7 +153,22 @@ export const PerformerCard: React.FC<IPerformerCardProps> = PatchComponent(
       >
         <LinkWrapper>
           {/* Media Container: Full Bleed */}
-          <Box className="performer-card-media">
+          <Box
+            sx={{
+              aspectRatio: '2 / 3',
+              bgcolor: 'black',
+              height: '100%',
+              position: 'relative',
+              width: '100%',
+              '& img': {
+                height: '100%',
+                objectFit: 'cover',
+                objectPosition: 'top',
+                transition: 'transform 0.7s',
+                width: '100%',
+              },
+            }}
+          >
             <Box
               component="img"
               loading="lazy"
@@ -146,25 +178,54 @@ export const PerformerCard: React.FC<IPerformerCardProps> = PatchComponent(
           </Box>
 
           {/* Top Section: Rating & Favorite */}
-          <Box className="performer-card-top">
-            <Box className="performer-card-rating">
+          <Box
+            sx={{
+              alignItems: 'flex-start',
+              display: 'flex',
+              justifyContent: 'space-between',
+              left: 0,
+              p: '0.5rem',
+              pointerEvents: 'none',
+              position: 'absolute',
+              right: 0,
+              top: 0,
+              zIndex: 16,
+            }}
+          >
+            <Box sx={{ display: 'flex', gap: '0.25rem', pointerEvents: 'auto' }}>
               {performer.rating100 && (
                 <RatingBanner rating={performer.rating100} />
               )}
             </Box>
-            <Box className="performer-card-favorite">
+            <Box
+              sx={{
+                pointerEvents: 'auto',
+                '& .favorite-icon': {
+                  color: 'rgba(255, 255, 255, 0.5)',
+                  transition: 'color 0.2s',
+                  '&.is-favorite': {
+                    color: '#ff5252 !important',
+                    '&:hover': { color: '#ff1744 !important' },
+                  },
+                  '&:hover': { color: '#ffffff' },
+                },
+              }}
+            >
               <FavoriteIcon
                 favorite={performer.favorite}
                 onToggleFavorite={onToggleFavorite}
                 size="1x"
-                className={cx("favorite-icon", "transition-colors", "drop-shadow-md", { "is-favorite": performer.favorite })}
+                className="favorite-icon transition-colors drop-shadow-md"
+              sx={{
+                ...(performer.favorite && { color: '#ff5252 !important' }),
+              }}
               />
             </Box>
           </Box>
 
           {/* Selecting Checkbox */}
           {selecting && (
-            <Box className="performer-card-checkbox">
+            <Box sx={{ left: '0.5rem', position: 'absolute', top: '0.5rem', zIndex: 30, '& input': { cursor: 'pointer', height: '1.25rem', width: '1.25rem' } }}>
               <input
                 type="checkbox"
                 checked={selected}
@@ -174,12 +235,37 @@ export const PerformerCard: React.FC<IPerformerCardProps> = PatchComponent(
           )}
 
           {/* Gradient Overlay & Content */}
-          <Box className="performer-card-overlay">
-            <Box className="performer-card-info">
-              <Box className="performer-card-name-row">
+          <Box
+            className="performer-card-overlay-inner"
+            sx={{
+              background: 'linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.4) 70%, transparent 100%)',
+              bottom: 0,
+              color: '#fff',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'flex-end',
+              left: 0,
+              p: '12px',
+              pointerEvents: 'none',
+              position: 'absolute',
+              right: 0,
+              transition: 'background 0.3s ease',
+            }}
+          >
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <Box sx={{ alignItems: 'center', display: 'flex', gap: '0.5rem' }}>
                 <Typography
                   variant="subtitle1"
-                  className="performer-card-name"
+                  sx={{
+                    color: '#fff',
+                    fontSize: '1.1rem',
+                    fontWeight: 700,
+                    lineHeight: 1.2,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    textShadow: '0 2px 4px rgba(0, 0, 0, 0.8)',
+                    whiteSpace: 'nowrap',
+                  }}
                 >
                   {performer.name}
                 </Typography>
@@ -188,11 +274,11 @@ export const PerformerCard: React.FC<IPerformerCardProps> = PatchComponent(
                 )}
               </Box>
 
-              <Box className="performer-card-meta">
+              <Box sx={{ alignItems: 'center', color: 'rgba(255, 255, 255, 0.8)', display: 'flex', fontSize: '0.8rem', gap: '0.5rem' }}>
                 {age !== 0 && <span>{age} years</span>}
                 {performer.scene_count > 0 && (
                   <span style={{ display: "flex", alignItems: "center", gap: "2px" }}>
-                    <div className="performer-card-meta-separator"></div>
+                    <div style={{ background: 'rgba(255, 255, 255, 0.5)', borderRadius: '50%', height: 4, marginRight: 4, width: 4 }}></div>
                     {performer.scene_count} scenes
                   </span>
                 )}
@@ -200,8 +286,16 @@ export const PerformerCard: React.FC<IPerformerCardProps> = PatchComponent(
             </Box>
 
             {/* Expanded Content (Slide Up) */}
-            <Box className={cx("performer-card-slide", { visible: isHovered })}>
-              <Box className="performer-card-extra">
+            <Box
+              sx={{
+                maxHeight: isHovered ? '100px' : 0,
+                opacity: isHovered ? 1 : 0,
+                overflow: 'hidden',
+                transition: 'all 0.3s ease-in-out',
+                ...(isHovered && { mt: '8px' }),
+              }}
+            >
+              <Box sx={{ color: 'rgba(255, 255, 255, 0.7)', display: 'flex', fontSize: '0.75rem', gap: '1rem' }}>
                 {performer.image_count > 0 && (
                   <span>{performer.image_count} images</span>
                 )}

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Box } from "@mui/material";
 import * as GQL from "src/core/generated-graphql";
 import {
   evictQueries,
@@ -65,7 +66,7 @@ export const InstalledScraperPackages: React.FC = () => {
 
   return (
     <SettingSection headingID="config.scraping.installed_scrapers">
-      <div className="package-manager">
+      <Box sx={{ p: '1em' }}>
         <InstalledPackages
           loading={!!job || loading}
           error={error?.message}
@@ -89,7 +90,7 @@ export const InstalledScraperPackages: React.FC = () => {
           }
           updatesLoaded={loadUpgrades && !loading}
         />
-      </div>
+      </Box>
     </SettingSection>
   );
 };
@@ -163,7 +164,7 @@ export const AvailableScraperPackages: React.FC = () => {
 
   return (
     <SettingSection headingID="config.scraping.available_scrapers">
-      <div className="package-manager">
+      <Box sx={{ p: '1em' }}>
         <AvailablePackages
           loading={loading}
           onInstallPackages={onInstallPackages}
@@ -175,7 +176,7 @@ export const AvailableScraperPackages: React.FC = () => {
           deleteSource={deleteSource}
           allowSelectAll
         />
-      </div>
+      </Box>
     </SettingSection>
   );
 };

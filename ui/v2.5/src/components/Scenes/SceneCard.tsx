@@ -100,13 +100,12 @@ export const ScenePreview: React.FC<IScenePreviewProps> = ({
         justifyContent: "center",
         mb: "5px",
         position: "relative",
-        "&.portrait": {
+        ...(isPortrait && {
           "& .scene-card-preview-image, & .scene-card-preview-video": {
             objectFit: "contain",
           },
-        },
+        }),
       }}
-      className={cx("scene-card-preview", { portrait: isPortrait })}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >

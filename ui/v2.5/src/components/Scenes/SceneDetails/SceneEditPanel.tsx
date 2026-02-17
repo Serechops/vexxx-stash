@@ -575,7 +575,7 @@ export const SceneEditPanel: React.FC<IProps> = ({
     if (coverImagePreview) {
       return (
         <img
-          className="scene-cover"
+          style={{ display: 'block', marginBottom: 10, marginTop: 10, maxWidth: '100%' }}
           src={coverImagePreview}
           alt={intl.formatMessage({ id: "cover_image" })}
         />

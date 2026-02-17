@@ -118,7 +118,7 @@ export const HoverPopover: React.FC<IHoverPopover> = PatchComponent(
           <div
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
-            className="hover-popover-content"
+            style={{ maxWidth: '32rem', textAlign: 'center' }}
           >
             {content}
           </div>

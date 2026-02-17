@@ -1097,7 +1097,7 @@ export const Setup: React.FC = () => {
       configuration={configuration}
       systemStatus={systemStatus}
     >
-      <Container maxWidth="md" className="setup-wizard" sx={{ mt: 4, mb: 4 }}>
+      <Container maxWidth="md" sx={{ mt: 4, mb: 4, '& #blobs > div': { mb: '1rem', mt: 0 } }}>
         <Typography variant="h3" align="center" gutterBottom>
           <FormattedMessage id="setup.stash_setup_wizard" />
         </Typography>

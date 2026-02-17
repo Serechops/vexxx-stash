@@ -29,7 +29,7 @@ function maybeRenderParent(
 ) {
   if (!hideParent && studio.parent_studio) {
     return (
-      <Box className="studio-relation">
+      <Box sx={{ fontSize: '0.875rem', mt: '0.25rem' }}>
         <FormattedMessage
           id="part_of"
           values={{
@@ -48,7 +48,7 @@ function maybeRenderParent(
 function maybeRenderChildren(studio: GQL.StudioDataFragment) {
   if (studio.child_studios.length > 0) {
     return (
-      <Box className="studio-relation">
+      <Box sx={{ fontSize: '0.875rem', mt: '0.25rem' }}>
         <FormattedMessage
           id="parent_of"
           values={{
@@ -169,8 +169,13 @@ export const StudioCard: React.FC<IProps> = PatchComponent(
         <HoverPopover placement="bottom" content={popoverContent}>
           <Button
             variant="text"
-            className="studio-tag-popover-button"
             size="small"
+            sx={{
+              color: '#fafafa',
+              minWidth: 0,
+              px: 1,
+              '& span': { ml: 0.5 },
+            }}
           >
             <LocalOfferIcon fontSize="small" />
             <span>{studio.tags.length}</span>
@@ -189,7 +194,15 @@ export const StudioCard: React.FC<IProps> = PatchComponent(
       return (
         <>
           <hr />
-          <ButtonGroup className="card-popovers">
+          <ButtonGroup
+            sx={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              justifyContent: 'center',
+              mb: '10px',
+              '& .fa-icon': { mr: '7px' },
+            }}
+          >
             <PopoverCountButton
               className="scene-count"
               type="scene"
@@ -233,30 +246,34 @@ export const StudioCard: React.FC<IProps> = PatchComponent(
     }
 
     return (
-      <Box className={`studio-card zoom-${zoomIndex}`}>
+      <Box
+        sx={{
+          '&:hover': { '& .MuiIconButton-root': { opacity: '1 !important' } },
+        }}
+      >
         <GridCard
           className="hover:!scale-100 !transition-none"
           url={`/studios/${studio.id}`}
           title={studio.name}
           linkClassName="studio-card-header"
           image={
-            <Box className="studio-card-image-container">
-              <Box className="studio-card-image-wrapper">
+            <Box sx={{ paddingBottom: '50%', position: 'relative', width: '100%' }}>
+              <Box sx={{ alignItems: 'center', display: 'flex', inset: 0, justifyContent: 'center', p: '0.5rem', position: 'absolute' }}>
                 <Box
                   component="img"
                   loading="lazy"
                   alt={studio.name}
                   src={studio.image_path ?? ""}
-                  className="studio-card-image"
+                  sx={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }}
                 />
               </Box>
             </Box>
           }
           details={
-            <Box className="studio-details-container">
+            <Box sx={{ minHeight: '3.5rem' }}>
               {maybeRenderParent(studio, hideParent)}
               {maybeRenderChildren(studio)}
-              <Box className="rating-banner-container">
+              <Box sx={{ mt: 1 }}>
                 <RatingBanner rating={studio.rating100} />
               </Box>
             </Box>
@@ -266,7 +283,13 @@ export const StudioCard: React.FC<IProps> = PatchComponent(
               favorite={studio.favorite}
               onToggleFavorite={(v) => onToggleFavorite(v)}
               size="2x"
-              className="favorite-button"
+              sx={{
+                p: 0,
+                position: 'absolute',
+                right: '5px',
+                top: '10px',
+                zIndex: 1,
+              }}
             />
           }
           popovers={maybeRenderPopoverButtonGroup()}

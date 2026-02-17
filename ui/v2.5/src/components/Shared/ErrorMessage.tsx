@@ -12,7 +12,7 @@ export const ErrorMessage: React.FC<IProps> = (props) => {
   const { error, message = <FormattedMessage id="errors.header" /> } = props;
 
   return (
-    <div className="ErrorMessage-container">
+    <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
       <Alert severity="error" className="ErrorMessage">
         <AlertTitle className="ErrorMessage-header">
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>

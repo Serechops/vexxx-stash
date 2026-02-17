@@ -166,10 +166,11 @@ export const GalleryEditPanel: React.FC<IProps> = ({
   const cover = useMemo(() => {
     if (gallery?.paths?.cover) {
       return (
-        <div className="gallery-cover">
+        <div style={{ aspectRatio: '4 / 3', display: 'block', height: 'auto', width: '100%' }}>
           <img
             src={gallery.paths.cover}
             alt={intl.formatMessage({ id: "cover_image" })}
+            style={{ height: 'auto', maxHeight: '100%', maxWidth: '100%', objectFit: 'contain', width: 'auto' }}
           />
         </div>
       );

@@ -409,10 +409,10 @@ const SceneDuplicateChecker: React.FC = () => {
     if (scene.groups.length <= 0) return;
 
     const popoverContent = scene.groups.map((sceneGroup) => (
-      <div className="group-tag-container flex flex-wrap" key={sceneGroup.group.id}>
+      <div className="flex flex-wrap" style={{ display: 'inline-block', margin: '5px' }} key={sceneGroup.group.id}>
         <Link
           to={`/groups/${sceneGroup.group.id}`}
-          className="group-tag flex-1 m-auto zoom-2"
+          className="flex-1 m-auto zoom-2"
         >
           <img
             className="image-thumbnail"

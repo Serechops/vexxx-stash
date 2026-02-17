@@ -215,7 +215,19 @@ const MoveTarget: React.FC<{ dragSide: DragSide }> = ({ dragSide }) => {
 
   return (
     <Box
-      className={`move-target move-target-${dragSide === DragSide.BEFORE ? "before" : "after"}`}
+      sx={{
+        alignItems: 'center',
+        backgroundColor: '#52525b',
+        color: '#27272a',
+        display: 'flex',
+        height: '100%',
+        justifyContent: 'center',
+        opacity: 0.5,
+        pointerEvents: 'none',
+        position: 'absolute',
+        width: '10%',
+        ...(dragSide === DragSide.BEFORE ? { left: 0 } : { right: 0 }),
+      }}
     ></Box>
   );
 };
@@ -361,6 +373,8 @@ export const GridCard: React.FC<ICardProps> = PatchComponent(
           sx={{
             display: "flex",
             flexDirection: "column",
+            mb: 0,
+            p: '0.5rem 1rem 0 1rem',
           }}
         >
           {props.title && (

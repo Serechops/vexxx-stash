@@ -1,5 +1,6 @@
 import React from "react";
 import { FormattedMessage, useIntl } from "react-intl";
+import { Box } from "@mui/material";
 import * as GQL from "src/core/generated-graphql";
 import TextUtils from "src/utils/text";
 import { TagLink } from "src/components/Shared/TagLink";
@@ -68,9 +69,9 @@ export const GalleryDetailPanel: React.FC<IGalleryDetailProps> = PatchComponent(
               values={{ count: gallery.performers.length }}
             />
           </h6>
-          <div className="flex flex-wrap justify-center gallery-performers">
+          <Box className="flex flex-wrap justify-center" sx={{ '& .performer-card': { width: '15rem' }, '& .performer-card-image': { height: '22.5rem', width: '15rem' } }}>
             {cards}
-          </div>
+          </Box>
         </>
       );
     }

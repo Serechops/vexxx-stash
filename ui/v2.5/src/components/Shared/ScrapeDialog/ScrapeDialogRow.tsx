@@ -320,6 +320,7 @@ export const ScrapedTextAreaRow: React.FC<IScrapedInputGroupRowProps> = (
 interface IScrapedImageProps {
   isNew?: boolean;
   className?: string;
+  style?: React.CSSProperties;
   placeholder?: string;
   result: ScrapeResult<string>;
 }
@@ -334,7 +335,7 @@ const ScrapedImage: React.FC<IScrapedImageProps> = (props) => {
   }
 
   return (
-    <img className={props.className} src={value} alt={props.placeholder} />
+    <img className={props.className} style={props.style} src={value} alt={props.placeholder} />
   );
 };
 
@@ -342,6 +343,7 @@ interface IScrapedImageRowProps {
   title: string;
   field: string;
   className?: string;
+  style?: React.CSSProperties;
   result: ScrapeResult<string>;
   onChange: (value: ScrapeResult<string>) => void;
 }
@@ -356,6 +358,7 @@ export const ScrapedImageRow: React.FC<IScrapedImageRowProps> = (props) => {
         <ScrapedImage
           result={props.result}
           className={props.className}
+          style={props.style}
           placeholder={props.title}
         />
       }
@@ -363,6 +366,7 @@ export const ScrapedImageRow: React.FC<IScrapedImageRowProps> = (props) => {
         <ScrapedImage
           result={props.result}
           className={props.className}
+          style={props.style}
           placeholder={props.title}
           isNew
         />

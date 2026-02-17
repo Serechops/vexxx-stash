@@ -55,7 +55,7 @@ export const ExternalLinksButton: React.FC<{
             anchorEl={anchorEl}
             open={open}
             onClose={handleClose}
-            className="external-links-button"
+            sx={{ display: 'inline-block' }}
             hideBackdrop
           >
             {urls.map((url) => (

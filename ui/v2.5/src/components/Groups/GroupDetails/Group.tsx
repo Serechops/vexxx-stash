@@ -87,10 +87,10 @@ const GroupTabs: React.FC<{
   });
 
   const TabLabel: React.FC<{ messageID: string; count: number }> = ({ messageID, count }) => (
-    <Box className={cx("group-tab-label", { "has-count": count > 0 })}>
+    <Box sx={{ alignItems: 'center', display: 'inline-flex', position: 'relative', ...(count > 0 && { pr: '1.5rem' }) }}>
       <FormattedMessage id={messageID} />
       {count > 0 && (
-        <Box className="group-tab-badge">
+        <Box sx={{ bgcolor: '#52525b', borderRadius: '10px', color: '#fff', fontSize: '0.7rem', fontWeight: 600, lineHeight: 1, minWidth: '20px', p: '0.25rem 0.75rem', position: 'absolute', right: '-4px', textAlign: 'center', top: '-8px' }}>
           {abbreviateCounter && count >= 1000 ? `${Math.floor(count / 1000)}k` : count}
         </Box>
       )}

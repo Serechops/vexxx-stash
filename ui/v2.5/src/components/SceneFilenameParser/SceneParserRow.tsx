@@ -18,7 +18,6 @@ import {
   TagSelect,
   StudioSelect,
 } from "src/components/Shared/Select";
-import cx from "classnames";
 import { objectTitle } from "src/core/files";
 
 class ParserResult<T> {
@@ -102,7 +101,7 @@ export class SceneParserResult {
 
 interface ISceneParserFieldProps<T> {
   parserResult: ParserResult<T>;
-  className?: string;
+  width?: string;
   onSetChanged: (isSet: boolean) => void;
   onValueChanged: (value: T) => void;
   originalParserResult?: ParserResult<T>;
@@ -128,14 +127,13 @@ function SceneParserStringField(props: ISceneParserFieldProps<string>) {
           size="small"
         />
       </TableCell>
-      <TableCell sx={{ verticalAlign: 'top' }}>
+      <TableCell sx={{ verticalAlign: 'top', width: props.width }}>
         <Stack spacing={1}>
           <TextField
             fullWidth
             disabled
             variant="outlined"
             size="small"
-            className={props.className}
             value={result.originalValue || ""}
             slotProps={{
               htmlInput: { readOnly: true }
@@ -146,7 +144,6 @@ function SceneParserStringField(props: ISceneParserFieldProps<string>) {
             variant="outlined"
             size="small"
             disabled={!props.parserResult.isSet}
-            className={props.className}
             value={props.parserResult.value || ""}
             onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
               maybeValueChanged(event.currentTarget.value)
@@ -181,14 +178,13 @@ function SceneParserRatingField(
           size="small"
         />
       </TableCell>
-      <TableCell sx={{ verticalAlign: 'top' }}>
+      <TableCell sx={{ verticalAlign: 'top', width: props.width }}>
         <Stack spacing={1}>
           <TextField
             fullWidth
             disabled
             variant="outlined"
             size="small"
-            className={cx("input-control text-input", props.className)}
             value={result.originalValue || ""}
             slotProps={{
               htmlInput: { readOnly: true }
@@ -199,7 +195,6 @@ function SceneParserRatingField(
             fullWidth
             variant="outlined"
             size="small"
-            className={cx("input-control", props.className)}
             disabled={!props.parserResult.isSet}
             value={props.parserResult.value?.toString() || ""}
             onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
@@ -244,16 +239,14 @@ function SceneParserPerformerField(props: ISceneParserFieldProps<string[]>) {
           size="small"
         />
       </TableCell>
-      <TableCell sx={{ verticalAlign: 'top', minWidth: 200 }}>
-        <Stack spacing={1} className={props.className}>
+      <TableCell sx={{ verticalAlign: 'top', minWidth: 200, width: props.width }}>
+        <Stack spacing={1}>
           <PerformerSelect
             isDisabled
             isMulti
             ids={originalPerformers}
-            className="parser-field-performers-select"
           />
           <PerformerSelect
-            className="parser-field-performers-select"
             isMulti
             isDisabled={!props.parserResult.isSet}
             onSelect={(items) => {
@@ -288,16 +281,14 @@ function SceneParserTagField(props: ISceneParserFieldProps<string[]>) {
           size="small"
         />
       </TableCell>
-      <TableCell sx={{ verticalAlign: 'top', minWidth: 200 }}>
-        <Stack spacing={1} className={props.className}>
+      <TableCell sx={{ verticalAlign: 'top', minWidth: 200, width: props.width }}>
+        <Stack spacing={1}>
           <TagSelect
             isDisabled
             isMulti
             ids={originalTags}
-            className="parser-field-tags-select"
           />
           <TagSelect
-            className="parser-field-tags-select"
             isMulti
             isDisabled={!props.parserResult.isSet}
             onSelect={(items) => {
@@ -334,15 +325,13 @@ function SceneParserStudioField(props: ISceneParserFieldProps<string>) {
           size="small"
         />
       </TableCell>
-      <TableCell sx={{ verticalAlign: 'top', minWidth: 200 }}>
-        <Stack spacing={1} className={props.className}>
+      <TableCell sx={{ verticalAlign: 'top', minWidth: 200, width: props.width }}>
+        <Stack spacing={1}>
           <StudioSelect
             isDisabled
             ids={originalStudio}
-            className="parser-field-studio-select"
           />
           <StudioSelect
-            className="parser-field-studio-select"
             isDisabled={!props.parserResult.isSet}
             onSelect={(items) => {
               maybeValueChanged(items[0].id);
@@ -406,14 +395,14 @@ export const SceneParserRow = (props: ISceneParserRowProps) => {
   }
 
   return (
-    <tr className="scene-parser-row">
-      <TableCell className="text-left parser-field-filename" sx={{ verticalAlign: 'top' }}>
+    <tr>
+      <TableCell sx={{ verticalAlign: 'top', textAlign: 'left', width: '30ch', position: 'sticky', left: 0, bgcolor: 'background.paper', zIndex: 1 }}>
         {props.scene.filename}
       </TableCell>
       {props.showFields.get("Title") && (
         <SceneParserStringField
           key="title"
-          className="parser-field-title input-control text-input"
+          width="40ch"
           parserResult={props.scene.title}
           onSetChanged={(isSet) =>
             onTitleChanged(isSet, props.scene.title.value ?? "")
@@ -426,7 +415,7 @@ export const SceneParserRow = (props: ISceneParserRowProps) => {
       {props.showFields.get("Date") && (
         <SceneParserStringField
           key="date"
-          className="parser-field-date input-control text-input"
+          width="13ch"
           parserResult={props.scene.date}
           onSetChanged={(isSet) =>
             onDateChanged(isSet, props.scene.date.value ?? "")
@@ -439,7 +428,6 @@ export const SceneParserRow = (props: ISceneParserRowProps) => {
       {props.showFields.get("Rating") && (
         <SceneParserRatingField
           key="rating"
-          className="parser-field-rating"
           parserResult={props.scene.rating}
           onSetChanged={(isSet) =>
             onRatingChanged(isSet, props.scene.rating.value ?? undefined)
@@ -452,7 +440,7 @@ export const SceneParserRow = (props: ISceneParserRowProps) => {
       {props.showFields.get("Performers") && (
         <SceneParserPerformerField
           key="performers"
-          className="parser-field-performers"
+          width="30ch"
           parserResult={props.scene.performers}
           originalParserResult={props.scene.performers}
           onSetChanged={(set) =>
@@ -466,7 +454,7 @@ export const SceneParserRow = (props: ISceneParserRowProps) => {
       {props.showFields.get("Tags") && (
         <SceneParserTagField
           key="tags"
-          className="parser-field-tags"
+          width="30ch"
           parserResult={props.scene.tags}
           originalParserResult={props.scene.tags}
           onSetChanged={(isSet) =>
@@ -480,7 +468,7 @@ export const SceneParserRow = (props: ISceneParserRowProps) => {
       {props.showFields.get("Studio") && (
         <SceneParserStudioField
           key="studio"
-          className="parser-field-studio"
+          width="20ch"
           parserResult={props.scene.studio}
           originalParserResult={props.scene.studio}
           onSetChanged={(set) =>

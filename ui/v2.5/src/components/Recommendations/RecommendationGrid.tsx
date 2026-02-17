@@ -125,15 +125,15 @@ export const RecommendationGrid: React.FC<RecommendationGridProps> = ({
 
     if (scenes.length === 0) {
         return (
-            <Box className="recommendation-grid-empty">
+            <Box sx={{ opacity: 0.6, p: '1.5rem', textAlign: 'center' }}>
                 <Typography variant="body1">No recommendations found. Try adjusting the tuning.</Typography>
             </Box>
         );
     }
 
     return (
-        <Box className="recommendation-grid recommendation-grid-container">
-            <Typography variant="h4" className="recommendation-grid-header">{title}</Typography>
+        <Box className="recommendation-grid" sx={{ my: '2rem' }}>
+            <Typography variant="h4" sx={{ fontWeight: 'bold', mb: '1.5rem', ml: '1rem' }}>{title}</Typography>
             <SceneCardsGrid
                 scenes={scenes}
                 queue={queue}

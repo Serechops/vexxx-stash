@@ -34,9 +34,9 @@ const PerformerLink: React.FC<{
     <>
       <span>{name}</span>
       {performer.disambiguation && (
-        <span className="performer-disambiguation">
+        <Box component="span" sx={{ letterSpacing: "-0.04rem", opacity: 0.65 }}>
           {` (${performer.disambiguation})`}
-        </span>
+        </Box>
       )}
     </>
   );
@@ -111,17 +111,17 @@ const PerformerResult: React.FC<IPerformerResultProps> = ({
 
   if (matchedPerformer && matchedStashID) {
     return (
-      <div className="flex flex-wrap my-2">
-        <div className="entity-name">
+      <Box sx={{ display: "flex", flexWrap: "wrap", my: 1 }}>
+        <Box sx={{ flex: 1, mr: "auto" }}>
           <FormattedMessage id="countables.performers" values={{ count: 1 }} />:
-          <b className="ml-2">
+          <Box component="b" sx={{ ml: 1 }}>
             <PerformerLink
               performer={performer}
               url={`${stashboxPerformerPrefix}${performer.remote_site_id}`}
             />
-          </b>
-        </div>
-        <span className="ml-auto">
+          </Box>
+        </Box>
+        <Box component="span" sx={{ ml: "auto" }}>
           <OptionalField
             exclude={selectedID === undefined}
             setExclude={(v) =>
@@ -129,20 +129,20 @@ const PerformerResult: React.FC<IPerformerResultProps> = ({
             }
           >
             <div>
-              <span className="mr-2">
+              <Box component="span" sx={{ mr: 1 }}>
                 <FormattedMessage id="component_tagger.verb_matched" />:
-              </span>
-              <b className="text-right" style={{ width: '25%' }}>
+              </Box>
+              <Box component="b" sx={{ textAlign: "right", width: "25%" }}>
                 <PerformerLink
                   performer={matchedPerformer}
                   url={`${performerURLPrefix}${matchedPerformer.id}`}
                   internal
                 />
-              </b>
+              </Box>
             </div>
           </OptionalField>
-        </span>
-      </div>
+        </Box>
+      </Box>
     );
   }
 
@@ -155,16 +155,16 @@ const PerformerResult: React.FC<IPerformerResultProps> = ({
   };
 
   return (
-    <div className="flex flex-wrap items-center mt-2">
-      <div className="entity-name">
+    <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", mt: 1 }}>
+      <Box sx={{ flex: 1, mr: "auto" }}>
         <FormattedMessage id="countables.performers" values={{ count: 1 }} />:
-        <b className="ml-2">
+        <Box component="b" sx={{ ml: 1 }}>
           <PerformerLink
             performer={performer}
             url={safeBuildPerformerScraperLink(performer.remote_site_id)}
           />
-        </b>
-      </div>
+        </Box>
+      </Box>
       <ButtonGroup size="small">
         <Button variant="outlined" onClick={() => onCreate()}>
           <FormattedMessage id="actions.create" />
@@ -186,7 +186,7 @@ const PerformerResult: React.FC<IPerformerResultProps> = ({
           <LinkButton disabled={selectedID === undefined} onLink={onLink} />
         )}
       </ButtonGroup>
-    </div>
+    </Box>
   );
 };
 

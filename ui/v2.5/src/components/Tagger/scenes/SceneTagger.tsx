@@ -150,7 +150,7 @@ export const Tagger: React.FC<ITaggerProps> = ({ scenes, queue }) => {
           value={currentSource?.id || ""}
           disabled={loading || !sources.length}
           onChange={handleSourceSelect}
-          className="scene-tagger-source-select"
+          sx={{ minWidth: 200 }}
         >
           {!sources.length && <MenuItem value="">No scraper sources</MenuItem>}
           {sources.map((i) => (
@@ -219,7 +219,7 @@ export const Tagger: React.FC<ITaggerProps> = ({ scenes, queue }) => {
     if (pendingFingerprints.length) {
       return (
         <OperationButton
-          className="ml-1"
+          sx={{ ml: 0.5 }}
           operation={submitFingerprints}
           disabled={loading || loadingMulti}
         >
@@ -327,8 +327,8 @@ export const Tagger: React.FC<ITaggerProps> = ({ scenes, queue }) => {
 
   return (
     <SceneTaggerModals>
-      <Box className="tagger-container mx-md-auto">
-        <Box className="tagger-container-header">
+      <Box sx={{ maxWidth: 1600, mx: { md: "auto" } }}>
+        <Box sx={{ pb: 0 }}>
           <Stack direction="row" justifyContent="space-between" alignItems="flex-start" flexWrap="wrap" spacing={2}>
             <Box>{renderSourceSelector()}</Box>
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
@@ -381,7 +381,7 @@ export const Tagger: React.FC<ITaggerProps> = ({ scenes, queue }) => {
                 placeholder="Enter query text for all scenes..."
                 value={globalQueryOverride}
                 onChange={(e) => setGlobalQueryOverride(e.target.value)}
-                className="scene-tagger-query-input"
+                sx={{ width: "50%" }}
               />
             )}
           </Stack>

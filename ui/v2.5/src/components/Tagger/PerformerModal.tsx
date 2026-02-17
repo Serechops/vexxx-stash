@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { Button, Box, Grid, IconButton, Typography, Stack } from "@mui/material";
 import { FormattedMessage, useIntl } from "react-intl";
-import cx from "classnames";
 import { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 
 import { LoadingIndicator } from "../Shared/LoadingIndicator";
@@ -91,14 +90,14 @@ const PerformerModal: React.FC<IPerformerModalProps> = ({
     if (!text) return;
 
     return (
-      <Grid container spacing={0} className="performer-modal-field-row">
-        <Grid size={5} className="performer-create-modal-field" key={name}>
+      <Grid container spacing={0} sx={{ mb: 1 }}>
+        <Grid size={5} sx={{ mb: "5px" }} key={name}>
           {!create && (
             <Button
               onClick={() => toggleField(name)}
               variant="outlined"
               color={excluded[name] ? "inherit" : "success"}
-              className="performer-modal-toggle-btn"
+              sx={{ mr: 1, minWidth: 0, p: 0.5 }}
             >
               <Icon icon={excluded[name] ? faTimes : faCheck} />
             </Button>
@@ -108,11 +107,11 @@ const PerformerModal: React.FC<IPerformerModalProps> = ({
           </Typography>
         </Grid>
         {truncate ? (
-          <Grid size={7} className="performer-create-modal-value">
+          <Grid size={7}>
             <TruncatedText text={text} />
           </Grid>
         ) : (
-          <Grid size={7} component="span" className="performer-create-modal-value">
+          <Grid size={7} component="span">
             {text}
           </Grid>
         )}
@@ -128,14 +127,14 @@ const PerformerModal: React.FC<IPerformerModalProps> = ({
     if (!text) return;
 
     return (
-      <Grid container spacing={0} className="performer-modal-field-row">
-        <Grid size={5} className="performer-create-modal-field" key={name}>
+      <Grid container spacing={0} sx={{ mb: 1 }}>
+        <Grid size={5} sx={{ mb: "5px" }} key={name}>
           {!create && (
             <Button
               onClick={() => toggleField(name)}
               variant="outlined"
               color={excluded[name] ? "inherit" : "success"}
-              className="performer-modal-toggle-btn"
+              sx={{ mr: 1, minWidth: 0, p: 0.5 }}
             >
               <Icon icon={excluded[name] ? faTimes : faCheck} />
             </Button>
@@ -144,8 +143,8 @@ const PerformerModal: React.FC<IPerformerModalProps> = ({
             <FormattedMessage id={name} />:
           </Typography>
         </Grid>
-        <Grid size={7} className="performer-create-modal-value">
-          <ul>
+        <Grid size={7}>
+          <Box component="ul" sx={{ fontSize: "0.8em", listStyleType: "none", pl: 0 }}>
             {text.map((t, i) => (
               <li key={i}>
                 <ExternalLink href={t}>
@@ -153,7 +152,7 @@ const PerformerModal: React.FC<IPerformerModalProps> = ({
                 </ExternalLink>
               </li>
             ))}
-          </ul>
+          </Box>
         </Grid>
       </Grid>
     );
@@ -163,14 +162,14 @@ const PerformerModal: React.FC<IPerformerModalProps> = ({
     if (!images.length) return;
 
     return (
-      <Grid size={5} className="image-selection">
-        <Box className="performer-image">
+      <Grid size={5} sx={{ height: 450, textAlign: "center" }}>
+        <Box sx={{ height: "85%", position: "relative" }}>
           {!create && (
             <Button
               onClick={() => toggleField("image")}
               variant="outlined"
               color={excluded.image ? "inherit" : "success"}
-              className="performer-image-exclude-btn performer-modal-image-exclude-btn"
+              sx={{ minWidth: 0, p: 0.5, position: "absolute", right: 20, top: 10, zIndex: 1 }}
             >
               <Icon icon={excluded.image ? faTimes : faCheck} />
             </Button>
@@ -179,7 +178,7 @@ const PerformerModal: React.FC<IPerformerModalProps> = ({
             component="img"
             src={images[imageIndex]}
             style={{ display: imageState !== "loaded" ? "none" : "block" }}
-            className="w-full"
+            sx={{ width: "100%", maxHeight: "100%", maxWidth: "100%" }}
             alt=""
             onLoad={() => handleLoad(imageIndex)}
             onError={handleError}
@@ -188,7 +187,7 @@ const PerformerModal: React.FC<IPerformerModalProps> = ({
             <LoadingIndicator message="Loading image..." />
           )}
           {imageState === "error" && (
-            <Box className="performer-modal-image-error">
+            <Box sx={{ display: "flex", alignItems: "center", height: "100%", justifyContent: "center" }}>
               <b>Error loading image.</b>
             </Box>
           )}
@@ -197,7 +196,7 @@ const PerformerModal: React.FC<IPerformerModalProps> = ({
           <Button onClick={setPrev} disabled={images.length === 1} variant="outlined">
             <Icon icon={faArrowLeft} />
           </Button>
-          <Typography variant="h5" className="performer-modal-image-title">
+          <Typography variant="h5" sx={{ flexGrow: 1, textAlign: "center" }}>
             Select performer image
             <br />
             {imageIndex + 1} of {images.length}
@@ -215,10 +214,10 @@ const PerformerModal: React.FC<IPerformerModalProps> = ({
     if (!base) return;
 
     return (
-      <Typography variant="h6" className="performer-modal-link">
+      <Typography variant="h6" sx={{ mt: 2 }}>
         <ExternalLink href={`${base}performers/${performer.remote_site_id}`}>
           <FormattedMessage id="stashbox.source" />
-          <Icon icon={faExternalLinkAlt} className="ml-2" />
+          <Icon icon={faExternalLinkAlt} />
         </ExternalLink>
       </Typography>
     );
@@ -304,9 +303,14 @@ const PerformerModal: React.FC<IPerformerModalProps> = ({
       }}
       cancel={{ onClick: () => closeModal(), variant: "secondary" }}
       onHide={() => closeModal()}
-      dialogClassName="performer-create-modal"
       icon={icon}
       header={header}
+      sx={{
+        "& .MuiDialog-paper": {
+          maxWidth: 800,
+          fontSize: "1.2rem",
+        },
+      }}
     >
       <Grid container spacing={2}>
         <Grid size={7}>

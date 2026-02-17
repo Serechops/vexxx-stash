@@ -109,16 +109,17 @@ const StashSearchResult: React.FC<IStashSearchResultProps> = ({
 
   const studios = stashboxStudios.map((p) => (
     <Button
-      className="StudioTagger-studio-search-item minimal w-1/2"
+      sx={{ alignItems: "center", display: "flex", overflow: "hidden", textAlign: "left", width: "50%" }}
       variant="text"
       key={p.remote_site_id}
       onClick={() => setModalStudio(p)}
     >
-      <img
+      <Box
+        component="img"
         loading="lazy"
         src={(p.image ?? [])[0]}
         alt=""
-        className="StudioTagger-thumb"
+        sx={{ height: 40, mr: "10px" }}
       />
       <span>{p.name}</span>
     </Button>
@@ -138,21 +139,21 @@ const StashSearchResult: React.FC<IStashSearchResultProps> = ({
           endpoint={endpoint}
         />
       )}
-      <div className="StudioTagger-studio-search">{studios}</div>
-      <div className="flex flex-wrap mt-2 items-center justify-end">
+      <Box sx={{ display: "flex", flexWrap: "wrap" }}>{studios}</Box>
+      <Box sx={{ display: "flex", flexWrap: "wrap", mt: 1, alignItems: "center", justifyContent: "flex-end" }}>
         {error.message && (
-          <div className="text-right mt-1" style={{ color: '#db3737' }}>
+          <Box sx={{ textAlign: "right", mt: 0.5 }} style={{ color: '#db3737' }}>
             <strong>
-              <span className="mr-2">Error:</span>
+              <Box component="span" sx={{ mr: 1 }}>Error:</Box>
               {error.message}
             </strong>
             <div>{error.details}</div>
-          </div>
+          </Box>
         )}
         {saveState && (
-          <strong className="mt-1 mr-2 text-right" style={{ width: '33.33%' }}>{saveState}</strong>
+          <Box component="strong" sx={{ mt: 0.5, mr: 1, textAlign: "right", width: "33.33%" }}>{saveState}</Box>
         )}
-      </div>
+      </Box>
     </>
   );
 };

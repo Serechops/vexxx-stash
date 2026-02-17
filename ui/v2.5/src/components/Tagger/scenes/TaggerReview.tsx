@@ -1,7 +1,6 @@
 import React, { useContext, useMemo, useState } from "react";
 import {
     Button,
-    Paper,
     Accordion,
     AccordionSummary,
     AccordionDetails,
@@ -11,7 +10,6 @@ import {
     Stack,
 } from "@mui/material";
 import { Link } from "react-router-dom";
-import { FormattedMessage } from "react-intl";
 import { TaggerStateContext, ITaggerHistoryEntry } from "../context";
 import { Icon } from "src/components/Shared/Icon";
 import { faTag, faUser, faBuilding, faFilm, faTrash, faChevronDown } from "@fortawesome/free-solid-svg-icons";
@@ -30,12 +28,26 @@ interface ISceneGroup {
     studio?: { name: string; id: string; isNew: boolean };
 }
 
+const entityLinkSx = {
+    color: "text.primary",
+    fontWeight: 500,
+    textDecoration: "none",
+    "&:hover": { color: "primary.light" },
+} as const;
+
+const metadataRowSx = {
+    alignItems: "flex-start",
+    mb: 1,
+    py: 0.5,
+    "&:last-child": { mb: 0 },
+} as const;
+
 const EntityBadge: React.FC<{ isNew: boolean }> = ({ isNew }) => (
     <Chip
         size="small"
         color={isNew ? "success" : "info"}
         label={isNew ? "new" : "updated"}
-        className="review-badge"
+        sx={{ ml: 0.5 }}
     />
 );
 
@@ -47,52 +59,60 @@ const SceneCard: React.FC<{ group: ISceneGroup; defaultExpanded?: boolean }> = (
     const hasMetadata = group.tags.length > 0 || group.performers.length > 0 || group.studio;
 
     return (
-        <Accordion defaultExpanded={defaultExpanded} className="tagger-review-section">
+        <Accordion
+            defaultExpanded={defaultExpanded}
+            sx={{ borderRadius: 1, overflow: "hidden" }}
+        >
             <AccordionSummary
                 expandIcon={<Icon icon={faChevronDown} />}
-                className="review-summary"
+                sx={{ display: "flex", alignItems: "center" }}
             >
-                <Stack direction="row" alignItems="center" spacing={1} className="review-header-stack">
+                <Stack direction="row" alignItems="center" spacing={1} sx={{ flex: 1 }}>
                     <Icon icon={faFilm} />
-                    <Link to={`/scenes/${group.sceneId}`} className="tagger-review-entry-name" onClick={(e) => e.stopPropagation()}>
+                    <Box
+                        component={Link}
+                        to={`/scenes/${group.sceneId}`}
+                        sx={entityLinkSx}
+                        onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                    >
                         {group.sceneTitle}
-                    </Link>
-                    <Typography variant="caption" color="textSecondary" className="review-timestamp">
+                    </Box>
+                    <Typography variant="caption" color="textSecondary" sx={{ ml: "auto", mr: 1 }}>
                         {formatTime(group.timestamp)}
                     </Typography>
                 </Stack>
             </AccordionSummary>
-            <AccordionDetails className="tagger-review-scene-body">
+            <AccordionDetails sx={{ p: 1.5 }}>
                 {!hasMetadata ? (
                     <Typography variant="body2" color="textSecondary">Scene saved with no new metadata</Typography>
                 ) : (
                     <Stack spacing={1}>
                         {/* Studio */}
                         {group.studio && (
-                            <Stack direction="row" alignItems="center" spacing={1} className="tagger-review-metadata-row">
+                            <Stack direction="row" spacing={1} sx={metadataRowSx}>
                                 <Icon icon={faBuilding} />
                                 <Typography variant="body2" color="textSecondary">Studio:</Typography>
-                                <Link to={`/studios/${group.studio.id}`} className="tagger-review-entity-link">
+                                <Box component={Link} to={`/studios/${group.studio.id}`} sx={entityLinkSx}>
                                     {group.studio.name}
-                                </Link>
+                                </Box>
                                 <EntityBadge isNew={group.studio.isNew} />
                             </Stack>
                         )}
 
                         {/* Performers */}
                         {group.performers.length > 0 && (
-                            <Stack direction="row" alignItems="flex-start" spacing={1} className="tagger-review-metadata-row">
+                            <Stack direction="row" spacing={1} sx={metadataRowSx}>
                                 <Icon icon={faUser} />
                                 <Typography variant="body2" color="textSecondary">Performers:</Typography>
-                                <Box className="tagger-review-entity-list">
+                                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
                                     {group.performers.map((p, i) => (
-                                        <span key={p.id} className="tagger-review-entity-item">
-                                            <Link to={`/performers/${p.id}`} className="tagger-review-entity-link">
+                                        <Box component="span" key={p.id} sx={{ display: "inline-flex", alignItems: "center" }}>
+                                            <Box component={Link} to={`/performers/${p.id}`} sx={entityLinkSx}>
                                                 {p.name}
-                                            </Link>
+                                            </Box>
                                             <EntityBadge isNew={p.isNew} />
-                                            {i < group.performers.length - 1 && <span className="mx-1">,</span>}
-                                        </span>
+                                            {i < group.performers.length - 1 && <Box component="span" sx={{ mx: 0.5 }}>,</Box>}
+                                        </Box>
                                     ))}
                                 </Box>
                             </Stack>
@@ -100,18 +120,18 @@ const SceneCard: React.FC<{ group: ISceneGroup; defaultExpanded?: boolean }> = (
 
                         {/* Tags */}
                         {group.tags.length > 0 && (
-                            <Stack direction="row" alignItems="flex-start" spacing={1} className="tagger-review-metadata-row">
+                            <Stack direction="row" spacing={1} sx={metadataRowSx}>
                                 <Icon icon={faTag} />
                                 <Typography variant="body2" color="textSecondary">Tags:</Typography>
-                                <Box className="tagger-review-entity-list">
+                                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
                                     {group.tags.map((t, i) => (
-                                        <span key={t.id} className="tagger-review-entity-item">
-                                            <Link to={`/tags/${t.id}`} className="tagger-review-entity-link">
+                                        <Box component="span" key={t.id} sx={{ display: "inline-flex", alignItems: "center" }}>
+                                            <Box component={Link} to={`/tags/${t.id}`} sx={entityLinkSx}>
                                                 {t.name}
-                                            </Link>
+                                            </Box>
                                             <EntityBadge isNew={t.isNew} />
-                                            {i < group.tags.length - 1 && <span className="mx-1">,</span>}
-                                        </span>
+                                            {i < group.tags.length - 1 && <Box component="span" sx={{ mx: 0.5 }}>,</Box>}
+                                        </Box>
                                     ))}
                                 </Box>
                             </Stack>
@@ -203,14 +223,23 @@ export const TaggerReview: React.FC<ITaggerReviewProps> = ({ show, onClose }) =>
     const totalStudios = new Set(taggerHistory.filter(e => e.type === 'studio').map(e => e.entityId)).size;
 
     return (
-        <Box className="tagger-review">
-            <Stack direction="row" justifyContent="space-between" alignItems="center" className="tagger-review-header" mb={2}>
+        <Box sx={{ bgcolor: "rgba(0,0,0,0.2)", borderRadius: 2, mb: 2, p: 2 }}>
+            <Stack
+                direction="row"
+                justifyContent="space-between"
+                alignItems="center"
+                sx={{
+                    borderBottom: "1px solid rgba(255,255,255,0.1)",
+                    mb: 2,
+                    pb: 1.5,
+                }}
+            >
                 <Typography variant="h6">
-                    <Icon icon={faFilm} className="mr-2" />
-                    Scenes Saved
+                    <Icon icon={faFilm} />
+                    <Box component="span" sx={{ ml: 1 }}>Scenes Saved</Box>
                     <Chip size="small" label={sceneGroups.length} sx={{ ml: 1 }} />
                 </Typography>
-                <Stack direction="row" spacing={1} className="tagger-review-actions">
+                <Stack direction="row" spacing={1}>
                     {hasHistory && (
                         <Button
                             variant="outlined"
@@ -229,13 +258,13 @@ export const TaggerReview: React.FC<ITaggerReviewProps> = ({ show, onClose }) =>
             </Stack>
 
             {!hasHistory ? (
-                <Box className="tagger-review-empty">
+                <Box sx={{ border: "1px dashed rgba(255,255,255,0.2)", borderRadius: 1 }}>
                     <Typography variant="body2" color="textSecondary" textAlign="center" py={4}>
                         No tagging operations recorded yet. Use the bulk operations to save scenes.
                     </Typography>
                 </Box>
             ) : (
-                <Box className="tagger-review-accordion">
+                <Box sx={{ maxHeight: "60vh", overflowY: "auto" }}>
                     {sceneGroups.map((group, index) => (
                         <SceneCard key={group.sceneId} group={group} defaultExpanded={index === 0} />
                     ))}
@@ -243,7 +272,7 @@ export const TaggerReview: React.FC<ITaggerReviewProps> = ({ show, onClose }) =>
             )}
 
             {hasHistory && (
-                <Box className="tagger-review-summary" mt={3}>
+                <Box sx={{ borderTop: "1px solid rgba(255,255,255,0.1)", pt: 1.5, mt: 3 }}>
                     <Typography variant="caption" color="textSecondary">
                         {sceneGroups.length} scene{sceneGroups.length !== 1 ? 's' : ''} |
                         {totalTags} tag{totalTags !== 1 ? 's' : ''} |

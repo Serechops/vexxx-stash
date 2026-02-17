@@ -1,7 +1,6 @@
 import React, { useMemo } from "react";
-import { Button, ButtonGroup } from "@mui/material";
+import { Button, ButtonGroup, Box } from "@mui/material";
 import { FormattedMessage } from "react-intl";
-import cx from "classnames";
 
 import { StudioSelect, SelectObject } from "src/components/Shared/Select";
 import * as GQL from "src/core/generated-graphql";
@@ -80,17 +79,17 @@ const StudioResult: React.FC<IStudioResultProps> = ({
 
   if (matchedStudio && matchedStashID) {
     return (
-      <div className="flex flex-wrap my-2">
-        <div className="entity-name">
+      <Box sx={{ display: "flex", flexWrap: "wrap", my: 1 }}>
+        <Box sx={{ flex: 1, mr: "auto" }}>
           <FormattedMessage id="countables.studios" values={{ count: 1 }} />:
-          <b className="ml-2">
+          <Box component="b" sx={{ ml: 1 }}>
             <StudioLink
               studio={studio}
               url={`${stashboxStudioPrefix}${studio.remote_site_id}`}
             />
-          </b>
-        </div>
-        <span className="ml-auto">
+          </Box>
+        </Box>
+        <Box component="span" sx={{ ml: "auto" }}>
           <OptionalField
             exclude={selectedID === undefined}
             setExclude={(v) =>
@@ -98,20 +97,20 @@ const StudioResult: React.FC<IStudioResultProps> = ({
             }
           >
             <div>
-              <span className="mr-2">
+              <Box component="span" sx={{ mr: 1 }}>
                 <FormattedMessage id="component_tagger.verb_matched" />:
-              </span>
-              <b className="text-right" style={{ width: '25%' }}>
+              </Box>
+              <Box component="b" sx={{ textAlign: "right", width: "25%" }}>
                 <StudioLink
                   studio={matchedStudio}
                   url={`${studioURLPrefix}${matchedStudio.id}`}
                   internal
                 />
-              </b>
+              </Box>
             </div>
           </OptionalField>
-        </span>
-      </div>
+        </Box>
+      </Box>
     );
   }
 
@@ -124,16 +123,16 @@ const StudioResult: React.FC<IStudioResultProps> = ({
   };
 
   return (
-    <div className="flex flex-wrap items-center mt-2">
-      <div className="entity-name">
+    <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", mt: 1 }}>
+      <Box sx={{ flex: 1, mr: "auto" }}>
         <FormattedMessage id="countables.studios" values={{ count: 1 }} />:
-        <b className="ml-2">
+        <Box component="b" sx={{ ml: 1 }}>
           <StudioLink
             studio={studio}
             url={safeBuildStudioScraperLink(studio.remote_site_id)}
           />
-        </b>
-      </div>
+        </Box>
+      </Box>
       <ButtonGroup size="small">
         <Button variant="outlined" onClick={() => onCreate()}>
           <FormattedMessage id="actions.create" />
@@ -144,19 +143,25 @@ const StudioResult: React.FC<IStudioResultProps> = ({
         >
           <FormattedMessage id="actions.skip" />
         </Button>
-        <StudioSelect
-          ids={selectedID ? [selectedID] : []}
-          onSelect={handleSelect}
-          className={cx("studio-select", {
-            "studio-select-active": selectedSource === "existing",
-          })}
-          isClearable={false}
-        />
+        <Box
+          sx={{
+            width: "18rem",
+            ...(selectedSource === "existing" && {
+              "& .react-select__control": { bgcolor: "#137cbd" },
+            }),
+          }}
+        >
+          <StudioSelect
+            ids={selectedID ? [selectedID] : []}
+            onSelect={handleSelect}
+            isClearable={false}
+          />
+        </Box>
         {endpoint && onLink && (
           <LinkButton disabled={selectedID === undefined} onLink={onLink} />
         )}
       </ButtonGroup>
-    </div>
+    </Box>
   );
 };
 

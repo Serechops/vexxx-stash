@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Box, Typography } from "@mui/material";
 import { useHistory } from "react-router-dom";
 import cx from "classnames";
@@ -39,6 +39,7 @@ interface IScenePreviewProps {
   soundActive: boolean;
   vttPath?: string;
   onScrubberClick?: (timestamp: number) => void;
+  playOnHover?: boolean;
 }
 
 export const ScenePreview: React.FC<IScenePreviewProps> = ({
@@ -48,10 +49,14 @@ export const ScenePreview: React.FC<IScenePreviewProps> = ({
   soundActive,
   vttPath,
   onScrubberClick,
+  playOnHover = false,
 }) => {
   const videoEl = useRef<HTMLVideoElement>(null);
+  const [isHovered, setIsHovered] = useState(false);
 
   useEffect(() => {
+    if (playOnHover) return; // Skip IntersectionObserver if using hover
+    
     const observer = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
         if (entry.intersectionRatio > 0)
@@ -62,12 +67,30 @@ export const ScenePreview: React.FC<IScenePreviewProps> = ({
     });
 
     if (videoEl.current) observer.observe(videoEl.current);
-  });
+  }, [playOnHover]);
 
   useEffect(() => {
     if (videoEl?.current?.volume)
       videoEl.current.volume = soundActive ? 0.05 : 0;
   }, [soundActive]);
+
+  useEffect(() => {
+    if (!playOnHover) return;
+    
+    if (isHovered) {
+      videoEl.current?.play()?.catch(() => { });
+    } else {
+      videoEl.current?.pause();
+    }
+  }, [isHovered, playOnHover]);
+
+  const handleMouseEnter = () => {
+    if (playOnHover) setIsHovered(true);
+  };
+
+  const handleMouseLeave = () => {
+    if (playOnHover) setIsHovered(false);
+  };
 
   return (
     <Box
@@ -84,6 +107,8 @@ export const ScenePreview: React.FC<IScenePreviewProps> = ({
         },
       }}
       className={cx("scene-card-preview", { portrait: isPortrait })}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       <Box
         component="img"
@@ -109,12 +134,11 @@ export const ScenePreview: React.FC<IScenePreviewProps> = ({
           objectPosition: "top",
           width: "100%",
           position: "absolute",
-          top: "-9999px",
+          top: playOnHover ? (isHovered ? 0 : "-9999px") : "-9999px",
           transition: "top 0s",
           transitionDelay: "0s",
           // The hover logic to show video is in styles.scss (top: 0 on hover)
-          // We can migrate that to sx or stay as is.
-          // Since it's a CSS transition on hover of the parent .scene-card-preview or .scene-card
+          // For playOnHover mode, we control visibility via state
         }}
         className="scene-card-preview-video"
         loop

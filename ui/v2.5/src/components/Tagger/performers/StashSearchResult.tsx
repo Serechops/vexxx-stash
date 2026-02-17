@@ -84,12 +84,12 @@ const StashSearchResult: React.FC<IStashSearchResultProps> = ({
 
   const performers = stashboxPerformers.map((p) => (
     <Button
-      className="PerformerTagger-performer-search-item minimal w-1/2"
+      sx={{ alignItems: "center", display: "flex", overflow: "hidden", textAlign: "left", width: "50%" }}
       variant="text"
       key={p.remote_site_id}
       onClick={() => setModalPerformer(p)}
     >
-      <img src={(p.images ?? [])[0]} alt="" className="PerformerTagger-thumb" loading="lazy" />
+      <Box component="img" src={(p.images ?? [])[0]} alt="" sx={{ height: 40, mr: "10px" }} loading="lazy" />
       <span>
         {p.name}
         {p.disambiguation && ` (${p.disambiguation})`}
@@ -111,21 +111,21 @@ const StashSearchResult: React.FC<IStashSearchResultProps> = ({
           endpoint={endpoint}
         />
       )}
-      <div className="PerformerTagger-performer-search">{performers}</div>
-      <div className="flex flex-wrap mt-2 items-center justify-end">
+      <Box sx={{ display: "flex", flexWrap: "wrap" }}>{performers}</Box>
+      <Box sx={{ display: "flex", flexWrap: "wrap", mt: 1, alignItems: "center", justifyContent: "flex-end" }}>
         {error.message && (
-          <div className="text-right mt-1" style={{ color: '#db3737' }}>
+          <Box sx={{ textAlign: "right", mt: 0.5 }} style={{ color: '#db3737' }}>
             <strong>
-              <span className="mr-2">Error:</span>
+              <Box component="span" sx={{ mr: 1 }}>Error:</Box>
               {error.message}
             </strong>
             <div>{error.details}</div>
-          </div>
+          </Box>
         )}
         {saveState && (
-          <strong className="mt-1 mr-2 text-right" style={{ width: '33.33%' }}>{saveState}</strong>
+          <Box component="strong" sx={{ mt: 0.5, mr: 1, textAlign: "right", width: "33.33%" }}>{saveState}</Box>
         )}
-      </div>
+      </Box>
     </>
   );
 };

@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import cx from "classnames";
 import { Chip, Button, FormControlLabel, Checkbox, Box, Stack, Typography, Grid } from "@mui/material";
 import { FormattedMessage, useIntl } from "react-intl";
 import uniq from "lodash-es/uniq";
@@ -36,18 +35,18 @@ import { compareScenesForSort } from "./utils";
 const getDurationIcon = (matchPercentage: number) => {
   if (matchPercentage > 65)
     return (
-      <Icon className="SceneTaggerIcon" color="success" icon={faCheckCircle} />
+      <Icon sx={{ ml: "0.25em", mr: "10px", width: "var(--fa-fw-width, 1.25em)" }} color="success" icon={faCheckCircle} />
     );
   if (matchPercentage > 35)
     return (
       <Icon
-        className="SceneTaggerIcon"
+        sx={{ ml: "0.25em", mr: "10px", width: "var(--fa-fw-width, 1.25em)" }}
         color="warning"
         icon={faTriangleExclamation}
       />
     );
 
-  return <Icon className="SceneTaggerIcon" color="error" icon={faXmark} />;
+  return <Icon sx={{ ml: "0.25em", mr: "10px", width: "var(--fa-fw-width, 1.25em)" }} color="error" icon={faXmark} />;
 };
 
 const getDurationStatus = (
@@ -172,11 +171,11 @@ const getFingerprintStatus = (
       <Box>
         {phashMatches.length > 0 && (
           <Typography fontWeight="bold" component="div">
-            <SuccessIcon className="SceneTaggerIcon" />
+            <SuccessIcon sx={{ ml: "0.25em", mr: "10px", width: "var(--fa-fw-width, 1.25em)" }} />
             <HoverPopover
               placement="bottom"
               content={phashList}
-              className="PHashPopover"
+              sx={{ display: "inline-block", textDecoration: "underline dotted" }}
             >
               {phashMatches.length > 1 ? (
                 <FormattedMessage
@@ -198,7 +197,7 @@ const getFingerprintStatus = (
         )}
         {checksumMatch && (
           <Typography fontWeight="bold" component="div">
-            <Box component="span" className="success-icon-container">
+            <Box component="span" sx={{ mr: 1 }}>
               <SuccessIcon />
             </Box>
             <FormattedMessage
@@ -528,7 +527,7 @@ const StashSearchResult: React.FC<IStashSearchResultProps> = ({
   const maybeRenderCoverImage = () => {
     if (scene.image) {
       return (
-        <div className="scene-image-container">
+        <div>
           <OptionalField
             disabled={!config.setCoverImage}
             exclude={
@@ -536,10 +535,11 @@ const StashSearchResult: React.FC<IStashSearchResultProps> = ({
             }
             setExclude={(v) => setExcludedField(fields.cover_image, v)}
           >
-            <img
+            <Box
+              component="img"
               src={scene.image}
               alt=""
-              className="self-center scene-image"
+              sx={{ alignSelf: "center", maxHeight: "10rem", maxWidth: "14rem", minWidth: 168, objectFit: "contain" }}
             />
           </OptionalField>
         </div>
@@ -559,7 +559,7 @@ const StashSearchResult: React.FC<IStashSearchResultProps> = ({
     const url = scene.urls?.length ? scene.urls[0] : null;
 
     const sceneTitleEl = url ? (
-      <ExternalLink className="scene-link" href={url}>
+      <ExternalLink sx={{ color: "text.primary", fontWeight: 500 }} href={url}>
         <TruncatedText text={scene.title} />
       </ExternalLink>
     ) : (
@@ -651,7 +651,7 @@ const StashSearchResult: React.FC<IStashSearchResultProps> = ({
   const maybeRenderURL = () => {
     if (scene.urls) {
       return (
-        <div className="scene-details">
+        <Box sx={{ display: "flex", flexDirection: "column", overflowWrap: "anywhere", width: "100%" }}>
           <OptionalField
             exclude={excludedFields[fields.url]}
             setExclude={(v) => setExcludedField(fields.url, v)}
@@ -662,7 +662,7 @@ const StashSearchResult: React.FC<IStashSearchResultProps> = ({
               </div>
             ))}
           </OptionalField>
-        </div>
+        </Box>
       );
     }
   };
@@ -670,14 +670,14 @@ const StashSearchResult: React.FC<IStashSearchResultProps> = ({
   const maybeRenderDetails = () => {
     if (scene.details) {
       return (
-        <div className="scene-details">
+        <Box sx={{ display: "flex", flexDirection: "column", overflowWrap: "anywhere", width: "100%" }}>
           <OptionalField
             exclude={excludedFields[fields.details]}
             setExclude={(v) => setExcludedField(fields.details, v)}
           >
             <TruncatedText text={scene.details ?? ""} lineCount={3} />
           </OptionalField>
-        </div>
+        </Box>
       );
     }
   };
@@ -685,7 +685,7 @@ const StashSearchResult: React.FC<IStashSearchResultProps> = ({
   const maybeRenderStashBoxID = () => {
     if (scene.remote_site_id && stashBoxURL) {
       return (
-        <div className="scene-details">
+        <Box sx={{ display: "flex", flexDirection: "column", overflowWrap: "anywhere", width: "100%" }}>
           <OptionalField
             exclude={excludedFields[fields.stash_ids]}
             setExclude={(v) => setExcludedField(fields.stash_ids, v)}
@@ -694,7 +694,7 @@ const StashSearchResult: React.FC<IStashSearchResultProps> = ({
               {scene.remote_site_id}
             </ExternalLink>
           </OptionalField>
-        </div>
+        </Box>
       );
     }
   };
@@ -702,7 +702,7 @@ const StashSearchResult: React.FC<IStashSearchResultProps> = ({
   const maybeRenderStudioField = () => {
     if (scene.studio) {
       return (
-        <div className="mt-2">
+        <Box mt={1}>
           <StudioResult
             studio={scene.studio}
             selectedID={studioID}
@@ -715,7 +715,7 @@ const StashSearchResult: React.FC<IStashSearchResultProps> = ({
               await linkStudio(scene.studio!, studioID!);
             }}
           />
-        </div>
+        </Box>
       );
     }
   };
@@ -727,7 +727,7 @@ const StashSearchResult: React.FC<IStashSearchResultProps> = ({
   }
 
   const renderPerformerField = () => (
-    <div className="mt-2">
+    <Box mt={1}>
       <div>
         <Box>
           {performers.map((performer, performerIndex) => (
@@ -752,7 +752,7 @@ const StashSearchResult: React.FC<IStashSearchResultProps> = ({
           ))}
         </Box>
       </div>
-    </div>
+    </Box>
   );
 
   function maybeRenderTagsField() {
@@ -830,10 +830,10 @@ const StashSearchResult: React.FC<IStashSearchResultProps> = ({
 
   return (
     <>
-      <Grid size={isActive ? { lg: 6 } : {}} className="stash-search-result-container">
+      <Grid size={isActive ? { lg: 6 } : {}} sx={{ width: "100%" }}>
         <Grid container spacing={0}>
           {maybeRenderCoverImage()}
-          <Box className="scene-metadata" display="flex" flexDirection="column" justifyContent="center">
+          <Box sx={{ ml: 2 }} display="flex" flexDirection="column" justifyContent="center">
             {renderTitle()}
 
             {!isActive && (
@@ -910,17 +910,44 @@ export const SceneSearchResults: React.FC<ISceneSearchResults> = ({
 
 
   return (
-    <Box component="ul" className="scene-search-results-list">
-      {scenes.map((s, i) => (
+    <Box component="ul" sx={{ listStyle: "none", m: 0, mt: 2, p: 0 }}>
+      {scenes.map((s, i) => {
+        const isSelected = i === selectedResult;
+        return (
         // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions, react/no-array-index-key
         <Box
           component="li"
           // eslint-disable-next-line react/no-array-index-key
           key={i}
           onClick={() => setSelectedResult(i)}
-          className={cx("search-result", {
-            "selected-result active": i === selectedResult,
-          })}
+          sx={{
+            bgcolor: isSelected ? "rgba(255, 255, 255, 0.08)" : "rgba(24, 24, 27, 0.3)",
+            mt: 2,
+            py: 2,
+            cursor: isSelected ? "default" : "pointer",
+            ...(isSelected && {
+              border: 1,
+              borderColor: "primary.main",
+              borderRadius: "3px",
+            }),
+            ...(!isSelected && {
+              "&:hover": { bgcolor: "background.default", cursor: "pointer" },
+            }),
+            // Parent context rules for child components
+            ...(!isSelected && {
+              "& .include-exclude-button": { display: "none" },
+            }),
+            ...(isSelected && {
+              "& .optional-field.excluded .optional-field-content": {
+                color: "#bfccd6",
+                textDecoration: "line-through",
+                "& img": { opacity: 0.5 },
+              },
+              "& .optional-field.missing .optional-field-content": {
+                color: "#bfccd6",
+              },
+            }),
+          }}
         >
           <Grid container>
             <StashSearchResult
@@ -931,7 +958,8 @@ export const SceneSearchResults: React.FC<ISceneSearchResults> = ({
             />
           </Grid>
         </Box>
-      ))}
+        );
+      })}
     </Box>
   );
 };

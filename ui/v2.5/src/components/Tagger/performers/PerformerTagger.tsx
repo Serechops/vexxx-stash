@@ -49,8 +49,6 @@ type JobFragment = Pick<
   "id" | "status" | "subTasks" | "description" | "progress"
 >;
 
-const CLASSNAME = "PerformerTagger";
-
 interface IPerformerBatchUpdateModal {
   performers: GQL.PerformerDataFragment[];
   isIdle: boolean;
@@ -122,7 +120,7 @@ const PerformerBatchUpdateModal: React.FC<IPerformerBatchUpdateModal> = ({
       }}
       disabled={!isIdle}
     >
-      <FormControl component="fieldset" className="tagger-form-group">
+      <FormControl component="fieldset" sx={{ mb: 2 }}>
         <Typography variant="subtitle1" gutterBottom>
           <FormattedMessage id="performer_tagger.performer_selection" />
         </Typography>
@@ -145,7 +143,7 @@ const PerformerBatchUpdateModal: React.FC<IPerformerBatchUpdateModal> = ({
           />
         </RadioGroup>
       </FormControl>
-      <FormControl component="fieldset" className="tagger-form-group">
+      <FormControl component="fieldset" sx={{ mb: 2 }}>
         <Typography variant="subtitle1" gutterBottom>
           <FormattedMessage id="performer_tagger.tag_status" />
         </Typography>
@@ -230,7 +228,6 @@ const PerformerBatchAddModal: React.FC<IPerformerBatchAddModal> = ({
       disabled={!isIdle}
     >
       <TextField
-        className="text-input"
         multiline
         inputRef={performerInput}
         placeholder={intl.formatMessage({
@@ -444,7 +441,7 @@ const PerformerTaggerList: React.FC<IPerformerTaggerListProps> = ({
                   queries[performer.id] ?? performer.name ?? ""
                 )
               }
-              className="text-input tagger-flex-grow"
+              sx={{ flexGrow: 1 }}
             />
             <Button
               variant="outlined"
@@ -467,7 +464,7 @@ const PerformerTaggerList: React.FC<IPerformerTaggerListProps> = ({
               <FormattedMessage id="performer_tagger.performer_successfully_tagged" />
             </Typography>
             <Typography variant="h6">
-              <Link className="bold" to={`/performers/${performer.id}`}>
+              <Link style={{ fontWeight: "bold" }} to={`/performers/${performer.id}`}>
                 {taggedPerformers[performer.id].name}
               </Link>
             </Typography>
@@ -482,7 +479,7 @@ const PerformerTaggerList: React.FC<IPerformerTaggerListProps> = ({
           <Box fontSize="small">
             <ExternalLink
               href={`${base}performers/${stashID.stash_id}`}
-              className="block"
+              style={{ display: "block" }}
             >
               {stashID.stash_id}
             </ExternalLink>
@@ -493,8 +490,8 @@ const PerformerTaggerList: React.FC<IPerformerTaggerListProps> = ({
 
         subContent = (
           <div key={performer.id}>
-            <Stack direction="row" spacing={1} className="PerformerTagger-box-link" alignItems="center">
-              <Box className="tagger-flex-grow">{link}</Box>
+            <Stack direction="row" spacing={1} sx={{ mb: "5px" }} alignItems="center">
+              <Box sx={{ flexGrow: 1 }}>{link}</Box>
               <Button
                 variant="outlined"
                 onClick={() =>
@@ -516,7 +513,7 @@ const PerformerTaggerList: React.FC<IPerformerTaggerListProps> = ({
             {error[performer.id] && (
               <Box color="error.main" mt={1}>
                 <Typography component="strong">
-                  <Box component="span" className="tagger-error-label">Error:</Box>
+                  <Box component="span" sx={{ mr: 1 }}>Error:</Box>
                   {error[performer.id]?.message}
                 </Typography>
                 <div>{error[performer.id]?.details}</div>
@@ -553,7 +550,17 @@ const PerformerTaggerList: React.FC<IPerformerTaggerListProps> = ({
       }
 
       return (
-        <div key={performer.id} className={`${CLASSNAME}-performer`}>
+        <Box
+          key={performer.id}
+          sx={{
+            bgcolor: "background.paper",
+            borderRadius: "3px",
+            display: "flex",
+            m: 2,
+            maxWidth: "100%",
+            p: 2,
+          }}
+        >
           {modalPerformer && (
             <PerformerModal
               closeModal={() => setModalPerformer(undefined)}
@@ -570,33 +577,34 @@ const PerformerTaggerList: React.FC<IPerformerTaggerListProps> = ({
               endpoint={selectedEndpoint.endpoint}
             />
           )}
-          <Paper className="performer-card">
+          <Paper sx={{ flexShrink: 0, width: "12rem", "& img": { height: "100%", maxHeight: "18rem", objectFit: "cover", objectPosition: "top" } }}>
             <img src={performer.image_path ?? ""} alt="" loading="lazy" />
           </Paper>
-          <div className={`${CLASSNAME}-details`}>
-            <Link
+          <Box sx={{ flexGrow: 1, ml: 2, width: "24rem" }}>
+            <Box
+              component={Link}
               to={`/performers/${performer.id}`}
-              className={`${CLASSNAME}-header`}
+              sx={{ color: "white", textDecoration: "none", "&:hover": { color: "white" } }}
             >
               <h2>
                 {performer.name}
                 {performer.disambiguation && (
-                  <span className="performer-disambiguation">
+                  <Box component="span" sx={{ letterSpacing: "-0.04rem", opacity: 0.65 }}>
                     {` (${performer.disambiguation})`}
-                  </span>
+                  </Box>
                 )}
               </h2>
-            </Link>
+            </Box>
             {mainContent}
-            <Box className="sub-content" textAlign="left">{subContent}</Box>
+            <Box sx={{ minHeight: "1.5rem" }} textAlign="left">{subContent}</Box>
             {searchResult}
-          </div>
-        </div>
+          </Box>
+        </Box>
       );
     });
 
   return (
-    <Paper className="tagger-content-paper">
+    <Paper sx={{ p: 2 }}>
       {showBatchUpdate && (
         <PerformerBatchUpdateModal
           close={() => setShowBatchUpdate(false)}
@@ -615,15 +623,15 @@ const PerformerTaggerList: React.FC<IPerformerTaggerListProps> = ({
         />
       )}
 
-      <Box className="tagger-action-header">
+      <Box sx={{ mb: 3, ml: "auto" }}>
         <Button variant="outlined" onClick={() => setShowBatchAdd(true)}>
           <FormattedMessage id="performer_tagger.batch_add_performers" />
         </Button>
-        <Button variant="outlined" className="tagger-button-spacer" onClick={() => setShowBatchUpdate(true)}>
+        <Button variant="outlined" sx={{ ml: 3 }} onClick={() => setShowBatchUpdate(true)}>
           <FormattedMessage id="performer_tagger.batch_update_performers" />
         </Button>
       </Box>
-      <Box className="tagger-container tagger-content-container">{renderPerformers()}</Box>
+      <Box sx={{ maxWidth: 1600, mx: { md: "auto" }, display: "flex", flexWrap: "wrap", justifyContent: "center" }}>{renderPerformers()}</Box>
     </Paper>
   );
 };
@@ -730,7 +738,7 @@ export const PerformerTagger: React.FC<ITaggerProps> = ({ performers }) => {
           ? batchJob.progress * 100
           : undefined;
       return (
-        <Box className="tagger-status-container">
+        <Box sx={{ px: 2 }}>
           <Typography variant="h6">
             <FormattedMessage id="performer_tagger.status_tagging_performers" />
           </Typography>
@@ -746,7 +754,7 @@ export const PerformerTagger: React.FC<ITaggerProps> = ({ performers }) => {
 
     if (batchJobID !== undefined) {
       return (
-        <Box className="tagger-status-container">
+        <Box sx={{ px: 2 }}>
           <Typography variant="h6">
             <FormattedMessage id="performer_tagger.status_tagging_job_queued" />
           </Typography>
@@ -767,7 +775,7 @@ export const PerformerTagger: React.FC<ITaggerProps> = ({ performers }) => {
         defaultActiveTab="Tagger.md"
       />
       {renderStatus()}
-      <Box className="tagger-container tagger-content-container">
+      <Box sx={{ maxWidth: 1600, mx: { md: "auto" }, display: "flex", flexWrap: "wrap", justifyContent: "center" }}>
         {selectedEndpointIndex !== -1 && selectedEndpoint ? (
           <>
             <Box display="flex" mb={2}>
@@ -775,7 +783,7 @@ export const PerformerTagger: React.FC<ITaggerProps> = ({ performers }) => {
                 {intl.formatMessage({ id: showHideConfigId })}
               </Button>
               <Button
-                className="tagger-action-header"
+                sx={{ mb: 3, ml: "auto" }}
                 onClick={() => setShowManual(true)}
                 title={intl.formatMessage({ id: "help" })}
                 variant="text"

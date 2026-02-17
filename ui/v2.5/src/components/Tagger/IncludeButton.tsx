@@ -18,7 +18,13 @@ export const IncludeExcludeButton: React.FC<IIncludeExcludeButton> = ({
     onClick={() => setExclude(!exclude)}
     disabled={disabled}
     size="small"
-    className={`include-exclude-button ${exclude ? 'excluded' : 'included'}`}
+    className="include-exclude-button"
+    sx={{
+      display: "inline-block",
+      mr: "0.38rem",
+      p: "0.2rem",
+      color: exclude ? "error.main" : "success.main",
+    }}
   >
     <Icon className="fa-fw" icon={exclude ? faTimes : faCheck} />
   </IconButton>
@@ -39,9 +45,16 @@ export const OptionalField: React.FC<IOptionalField> = ({
   title,
 }) => {
   return (
-    <Box className={`optional-field ${!exclude ? "included" : "excluded"}`}>
+    <Box
+      className={`optional-field ${!exclude ? "included" : "excluded"}`}
+      sx={{
+        alignItems: "center",
+        display: "inline-flex",
+        flexDirection: "row",
+      }}
+    >
       <IncludeExcludeButton exclude={exclude} setExclude={setExclude} />
-      {title && <span className="optional-field-title">{title}</span>}
+      {title && <span>{title}</span>}
       <Box className="optional-field-content">{children}</Box>
     </Box>
   );

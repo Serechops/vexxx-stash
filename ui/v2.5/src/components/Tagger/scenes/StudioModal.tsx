@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
-import cx from "classnames";
 import { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 
 import * as GQL from "src/core/generated-graphql";
@@ -12,7 +11,7 @@ import {
   faExternalLinkAlt,
   faTimes,
 } from "@fortawesome/free-solid-svg-icons";
-import { Button, FormControlLabel, Checkbox, Box, Stack } from "@mui/material";
+import { Button, FormControlLabel, Checkbox, Box, Stack, Typography } from "@mui/material";
 import { TruncatedText } from "src/components/Shared/TruncatedText";
 import { excludeFields } from "src/utils/data";
 import { ExternalLink } from "src/components/Shared/ExternalLink";
@@ -36,21 +35,21 @@ const StudioDetails: React.FC<IStudioDetailsProps> = ({
     if (!studio.image) return;
 
     return (
-      <div className="flex flex-wrap">
-        <div className="w-full image-selection">
-          <div className="studio-image">
+      <Box sx={{ display: "flex", flexWrap: "wrap" }}>
+        <Box sx={{ width: "100%", textAlign: "center" }}>
+          <Box sx={{ height: "85%", position: "relative" }}>
             <Button
               onClick={() => toggleField("image")}
               variant="outlined"
               color={excluded.image ? "inherit" : "success"}
-              className="studio-image-exclude"
+              sx={{ position: "absolute", right: 20, top: 10, zIndex: 1, minWidth: 0 }}
             >
               <Icon icon={excluded.image ? faTimes : faCheck} />
             </Button>
-            <img src={studio.image} alt="" />
-          </div>
-        </div>
-      </div>
+            <Box component="img" src={studio.image} alt="" sx={{ maxHeight: "100%", maxWidth: "100%" }} />
+          </Box>
+        </Box>
+      </Box>
     );
   }
 
@@ -62,8 +61,8 @@ const StudioDetails: React.FC<IStudioDetailsProps> = ({
     if (!text) return;
 
     return (
-      <div className="flex flex-wrap">
-        <div className="studio-create-modal-field" style={{ width: '41.67%' }} key={id}>
+      <Box sx={{ display: "flex", flexWrap: "wrap" }}>
+        <Box sx={{ mb: "5px", width: "41.67%" }} key={id}>
           {isSelectable && (
             <Button
               onClick={() => toggleField(id)}
@@ -76,9 +75,9 @@ const StudioDetails: React.FC<IStudioDetailsProps> = ({
           <strong>
             <FormattedMessage id={id} />:
           </strong>
-        </div>
+        </Box>
         <TruncatedText style={{ width: '58.33%' }} text={text} />
-      </div>
+      </Box>
     );
   }
 
@@ -90,8 +89,8 @@ const StudioDetails: React.FC<IStudioDetailsProps> = ({
     if (!text) return;
 
     return (
-      <div className="flex flex-wrap">
-        <div className="studio-create-modal-field" style={{ width: '41.67%' }} key={name}>
+      <Box sx={{ display: "flex", flexWrap: "wrap" }}>
+        <Box sx={{ mb: "5px", width: "41.67%" }} key={name}>
           {!isNew && (
             <Button
               onClick={() => toggleField(name)}
@@ -104,9 +103,9 @@ const StudioDetails: React.FC<IStudioDetailsProps> = ({
           <strong>
             <FormattedMessage id={name} />:
           </strong>
-        </div>
-        <div className="studio-create-modal-value" style={{ width: '58.33%' }}>
-          <ul>
+        </Box>
+        <Box sx={{ width: "58.33%", "& ul": { fontSize: "0.8em", listStyleType: "none", pl: 0 } }}>
+          <Box component="ul">
             {text.map((t, i) => (
               <li key={i}>
                 <ExternalLink href={t}>
@@ -114,9 +113,9 @@ const StudioDetails: React.FC<IStudioDetailsProps> = ({
                 </ExternalLink>
               </li>
             ))}
-          </ul>
-        </div>
-      </div>
+          </Box>
+        </Box>
+      </Box>
     );
   }
 
@@ -124,20 +123,20 @@ const StudioDetails: React.FC<IStudioDetailsProps> = ({
     if (!link) return;
 
     return (
-      <h6 className="mt-2">
+      <Typography variant="subtitle1" sx={{ mt: 2 }}>
         <ExternalLink href={link}>
           <FormattedMessage id="stashbox.source" />
-          <Icon icon={faExternalLinkAlt} className="ml-2" />
+          <Icon icon={faExternalLinkAlt} />
         </ExternalLink>
-      </h6>
+      </Typography>
     );
   }
 
   return (
     <div>
       {maybeRenderImage()}
-      <div className="flex flex-wrap">
-        <div className="w-full">
+      <Box sx={{ display: "flex", flexWrap: "wrap" }}>
+        <Box sx={{ width: "100%" }}>
           {maybeRenderField("name", studio.name, !isNew)}
           {maybeRenderURLListField("urls", studio.urls)}
           {maybeRenderField("details", studio.details)}
@@ -145,8 +144,8 @@ const StudioDetails: React.FC<IStudioDetailsProps> = ({
           {maybeRenderField("tags", studio.tags?.map((t) => t.name).join(", "))}
           {maybeRenderField("parent_studio", studio.parent?.name, false)}
           {maybeRenderStashBoxLink()}
-        </div>
-      </div>
+        </Box>
+      </Box>
     </div>
   );
 };
@@ -359,9 +358,14 @@ const StudioModal: React.FC<IStudioModalProps> = ({
       }}
       cancel={{ onClick: () => closeModal(), variant: "secondary" }}
       onHide={() => closeModal()}
-      dialogClassName="studio-create-modal"
       icon={icon}
       header={header}
+      sx={{
+        "& .MuiDialog-paper": {
+          maxWidth: 800,
+          fontSize: "1.2rem",
+        },
+      }}
     >
       <StudioDetails
         studio={studio}

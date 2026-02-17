@@ -51,8 +51,6 @@ type JobFragment = Pick<
   "id" | "status" | "subTasks" | "description" | "progress"
 >;
 
-const CLASSNAME = "StudioTagger";
-
 interface IStudioBatchUpdateModal {
   studios: GQL.StudioDataFragment[];
   isIdle: boolean;
@@ -128,7 +126,7 @@ const StudioBatchUpdateModal: React.FC<IStudioBatchUpdateModal> = ({
       }}
       disabled={!isIdle}
     >
-      <FormControl component="fieldset" className="tagger-form-group">
+      <FormControl component="fieldset" sx={{ mb: 2 }}>
         <Typography variant="subtitle1" gutterBottom>
           <FormattedMessage id="studio_tagger.studio_selection" />
         </Typography>
@@ -151,7 +149,7 @@ const StudioBatchUpdateModal: React.FC<IStudioBatchUpdateModal> = ({
           />
         </RadioGroup>
       </FormControl>
-      <FormControl component="fieldset" className="tagger-form-group">
+      <FormControl component="fieldset" sx={{ mb: 2 }}>
         <Typography variant="subtitle1" gutterBottom>
           <FormattedMessage id="studio_tagger.tag_status" />
         </Typography>
@@ -181,7 +179,7 @@ const StudioBatchUpdateModal: React.FC<IStudioBatchUpdateModal> = ({
             <FormattedMessage id="studio_tagger.refreshing_will_update_the_data" />
           </FormHelperText>
         </RadioGroup>
-        <Box className="tagger-input-group">
+        <Box sx={{ mt: 2 }}>
           <FormControlLabel
             control={
               <Checkbox
@@ -254,7 +252,6 @@ const StudioBatchAddModal: React.FC<IStudioBatchAddModal> = ({
       disabled={!isIdle}
     >
       <TextField
-        className="text-input"
         multiline
         inputRef={studioInput}
         placeholder={intl.formatMessage({
@@ -266,7 +263,7 @@ const StudioBatchAddModal: React.FC<IStudioBatchAddModal> = ({
       <FormHelperText>
         <FormattedMessage id="studio_tagger.any_names_entered_will_be_queried" />
       </FormHelperText>
-      <Box className="tagger-input-group">
+      <Box sx={{ mt: 2 }}>
         <FormControlLabel
           control={
             <Checkbox
@@ -511,7 +508,7 @@ const StudioTaggerList: React.FC<IStudioTaggerListProps> = ({
                 e.key === "Enter" &&
                 doBoxSearch(studio.id, queries[studio.id] ?? studio.name ?? "")
               }
-              className="text-input tagger-flex-grow"
+              sx={{ flexGrow: 1 }}
             />
             <Button
               variant="outlined"
@@ -544,7 +541,7 @@ const StudioTaggerList: React.FC<IStudioTaggerListProps> = ({
           <Box fontSize="small">
             <ExternalLink
               href={`${base}studios/${stashID.stash_id}`}
-              className="block"
+              style={{ display: "block" }}
             >
               {stashID.stash_id}
             </ExternalLink>
@@ -555,8 +552,8 @@ const StudioTaggerList: React.FC<IStudioTaggerListProps> = ({
 
         subContent = (
           <Box key={studio.id}>
-            <Stack direction="row" spacing={1} className="StudioTagger-box-link" alignItems="center">
-              <Box className="tagger-flex-grow">{link}</Box>
+            <Stack direction="row" spacing={1} sx={{ mb: "5px" }} alignItems="center">
+              <Box sx={{ flexGrow: 1 }}>{link}</Box>
               <Button
                 variant="outlined"
                 onClick={() =>
@@ -574,7 +571,7 @@ const StudioTaggerList: React.FC<IStudioTaggerListProps> = ({
             {error[studio.id] && (
               <Box color="error.main" mt={1}>
                 <Typography component="strong" fontWeight="bold">
-                  <Box component="span" className="tagger-error-label">Error:</Box>
+                  <Box component="span" sx={{ mr: 1 }}>Error:</Box>
                   {error[studio.id]?.message}
                 </Typography>
                 <div>{error[studio.id]?.details}</div>
@@ -611,7 +608,17 @@ const StudioTaggerList: React.FC<IStudioTaggerListProps> = ({
       }
 
       return (
-        <div key={studio.id} className={`${CLASSNAME}-studio`}>
+        <Box
+          key={studio.id}
+          sx={{
+            bgcolor: "background.paper",
+            borderRadius: "3px",
+            display: "flex",
+            m: 2,
+            maxWidth: "100%",
+            p: 2,
+          }}
+        >
           {modalStudio && (
             <StudioModal
               closeModal={() => setModalStudio(undefined)}
@@ -626,31 +633,32 @@ const StudioTaggerList: React.FC<IStudioTaggerListProps> = ({
               endpoint={selectedEndpoint.endpoint}
             />
           )}
-          <div className={`${CLASSNAME}-details`}>
+          <Box sx={{ display: "flex", flexDirection: "column", justifyContent: "space-between", m: 0.5, width: "24rem" }}>
             <div></div>
             <div>
-              <Paper className="studio-card">
+              <Paper sx={{ boxShadow: "none", flexShrink: 0, m: 0, p: 0, "& img": { bgcolor: "background.paper", maxHeight: 150, objectFit: "contain", verticalAlign: "middle", width: "100%" } }}>
                 <img loading="lazy" src={studio.image_path ?? ""} alt="" />
               </Paper>
             </div>
-            <div className={`${CLASSNAME}-details-text`}>
-              <Link
+            <div>
+              <Box
+                component={Link}
                 to={`/studios/${studio.id}`}
-                className={`${CLASSNAME}-header`}
+                sx={{ color: "white", textDecoration: "none", "&:hover": { color: "white" } }}
               >
                 <h2>{studio.name}</h2>
-              </Link>
+              </Box>
               {mainContent}
-              <div className="sub-content text-left">{subContent}</div>
+              <Box sx={{ minHeight: "1.5rem", textAlign: "left" }}>{subContent}</Box>
               {searchResult}
             </div>
-          </div>
-        </div>
+          </Box>
+        </Box>
       );
     });
 
   return (
-    <Paper className="tagger-content-paper">
+    <Paper sx={{ p: 2 }}>
       {showBatchUpdate && (
         <StudioBatchUpdateModal
           close={() => setShowBatchUpdate(false)}
@@ -672,15 +680,15 @@ const StudioTaggerList: React.FC<IStudioTaggerListProps> = ({
           setBatchAddParents={setBatchAddParents}
         />
       )}
-      <Box className="tagger-action-header">
+      <Box sx={{ mb: 3, ml: "auto" }}>
         <Button variant="outlined" onClick={() => setShowBatchAdd(true)}>
           <FormattedMessage id="studio_tagger.batch_add_studios" />
         </Button>
-        <Button variant="outlined" className="tagger-button-spacer" onClick={() => setShowBatchUpdate(true)}>
+        <Button variant="outlined" sx={{ ml: 3 }} onClick={() => setShowBatchUpdate(true)}>
           <FormattedMessage id="studio_tagger.batch_update_studios" />
         </Button>
       </Box>
-      <div className={CLASSNAME}>{renderStudios()}</div>
+      <Box sx={{ display: "flex", flexWrap: "wrap", justifyContent: "center", maxWidth: 1600 }}>{renderStudios()}</Box>
     </Paper>
   );
 };
@@ -792,7 +800,7 @@ export const StudioTagger: React.FC<ITaggerProps> = ({ studios }) => {
           ? batchJob.progress * 100
           : undefined;
       return (
-        <Box className="tagger-status-container">
+        <Box sx={{ px: 2 }}>
           <Typography variant="h6">
             <FormattedMessage id="studio_tagger.status_tagging_studios" />
           </Typography>
@@ -829,7 +837,7 @@ export const StudioTagger: React.FC<ITaggerProps> = ({ studios }) => {
         defaultActiveTab="Tagger.md"
       />
       {renderStatus()}
-      <div className="tagger-container mx-md-auto">
+      <Box sx={{ maxWidth: 1600, mx: { md: "auto" } }}>
         {selectedEndpointIndex !== -1 && selectedEndpoint ? (
           <>
             <Box display="flex" mb={2}>
@@ -868,7 +876,7 @@ export const StudioTagger: React.FC<ITaggerProps> = ({ studios }) => {
             <FormattedMessage id="tagger.configure_endpoint" />
           </Typography>
         )}
-      </div>
+      </Box>
     </>
   );
 };

@@ -9,10 +9,12 @@ import { useConfigurationContext } from "../../hooks/Config";
 
 interface IPeromerPopoverCardProps {
   id: string;
+  cardWidth?: number;
 }
 
 export const PerformerPopoverCard: React.FC<IPeromerPopoverCardProps> = ({
   id,
+  cardWidth,
 }) => {
   const { data, loading, error } = useFindPerformer(id);
 
@@ -30,7 +32,7 @@ export const PerformerPopoverCard: React.FC<IPeromerPopoverCardProps> = ({
 
   return (
     <Box className="tag-popover-card">
-      <PerformerCard performer={performer} zoomIndex={0} />
+      <PerformerCard performer={performer} zoomIndex={0} cardWidth={cardWidth} />
     </Box>
   );
 };
@@ -40,6 +42,7 @@ interface IPeroformerPopoverProps {
   hide?: boolean;
   placement?: "top" | "bottom" | "left" | "right";
   target?: React.RefObject<HTMLElement>;
+  cardWidth?: number;
 }
 
 export const PerformerPopover: React.FC<IPeroformerPopoverProps> = ({
@@ -48,6 +51,7 @@ export const PerformerPopover: React.FC<IPeroformerPopoverProps> = ({
   children,
   placement = "top",
   target,
+  cardWidth,
 }) => {
   const { configuration: config } = useConfigurationContext();
 
@@ -63,7 +67,7 @@ export const PerformerPopover: React.FC<IPeroformerPopoverProps> = ({
       placement={placement}
       enterDelay={500}
       leaveDelay={100}
-      content={<PerformerPopoverCard id={id} />}
+      content={<PerformerPopoverCard id={id} cardWidth={cardWidth} />}
     >
       {children}
     </HoverPopover>

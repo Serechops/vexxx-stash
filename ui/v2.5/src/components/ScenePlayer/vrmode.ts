@@ -123,14 +123,18 @@ class VRMenuPlugin extends videojs.getPlugin("plugin") {
 
     if (isVrDevice()) return;
 
-    this.vr = this.player.vr();
+    if (this.player.vr) {
+      this.vr = this.player.vr();
+    } else {
+      console.warn("videojs-vr plugin not found");
+    }
 
     this.menu.on("typeselected", (_, type: VRType) => {
       this.loadVR(type);
     });
 
     player.on("ready", () => {
-      if (this.showButton) {
+      if (this.showButton && this.vr) {
         this.addButton();
       }
     });

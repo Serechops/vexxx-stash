@@ -32,6 +32,8 @@ import { objectPath, objectTitle } from "src/core/files";
 import { useConfigurationContext } from "src/hooks/Config";
 import { SceneQueue } from "src/models/sceneQueue";
 
+import { PerformerPopover } from "src/components/Performers/PerformerPopover";
+
 interface ITaggerSceneDetails {
   scene: GQL.SlimSceneDataFragment;
 }
@@ -57,19 +59,21 @@ const TaggerSceneDetails: React.FC<ITaggerSceneDetails> = ({ scene }) => {
             <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
               {sorted.map((performer) => (
                 <Box key={performer.id} sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                  <Box
-                    component={Link}
-                    to={`/performers/${performer.id}`}
-                    sx={{ flexShrink: 0 }}
-                  >
+                  <PerformerPopover id={performer.id} cardWidth={140}>
                     <Box
-                      component="img"
-                      loading="lazy"
-                      alt={performer.name ?? ""}
-                      src={performer.image_path ?? ""}
-                      sx={{ borderRadius: "50%", height: 32, width: 32, objectFit: "cover" }}
-                    />
-                  </Box>
+                      component={Link}
+                      to={`/performers/${performer.id}`}
+                      sx={{ flexShrink: 0 }}
+                    >
+                      <Box
+                        component="img"
+                        loading="lazy"
+                        alt={performer.name ?? ""}
+                        src={performer.image_path ?? ""}
+                        sx={{ borderRadius: "50%", height: 32, width: 32, objectFit: "cover" }}
+                      />
+                    </Box>
+                  </PerformerPopover>
                   <PerformerLink performer={performer} />
                 </Box>
               ))}

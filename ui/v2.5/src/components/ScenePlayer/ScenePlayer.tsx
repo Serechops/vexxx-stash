@@ -424,10 +424,12 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
           sourceSelector: {},
           persistVolume: {},
           bigButtons: {},
-          seekButtons: {
-            forward: 10,
-            back: 10,
-          },
+          ...(videojs.getPlugin("seekButtons") ? {
+            seekButtons: {
+              forward: 10,
+              back: 10,
+            }
+          } : {}),
           skipButtons: {},
           trackActivity: {},
           vrMenu: {},
@@ -666,7 +668,7 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
         },
         doubleClickForFullscreen: false,
       };
-      if (!isSafari) {
+      if (!isSafari && typeof player.mobileUi === "function") {
         player.mobileUi(mobileUiOptions);
       }
 

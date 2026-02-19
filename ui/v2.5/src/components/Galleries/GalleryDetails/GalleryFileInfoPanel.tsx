@@ -9,6 +9,7 @@ import {
 } from "@mui/material";
 import { FormattedMessage, FormattedTime } from "react-intl";
 import { TruncatedText } from "src/components/Shared/TruncatedText";
+import { ExternalLink } from "src/components/Shared/ExternalLink";
 import { DeleteFilesDialog } from "src/components/Shared/DeleteFilesDialog";
 import * as GQL from "src/core/generated-graphql";
 import { mutateGallerySetPrimaryFile } from "src/core/StashService";
@@ -36,7 +37,7 @@ const FileInfoPanel: React.FC<IFileInfoPanelProps> = (
 
   return (
     <div>
-      <dl className="content-container gallery-file-info details-list">
+      <dl className="gallery-file-info details-list">
         {props.primary && (
           <>
             <dt></dt>
@@ -46,12 +47,6 @@ const FileInfoPanel: React.FC<IFileInfoPanelProps> = (
           </>
         )}
         <TextField id="media_info.checksum" value={checksum?.value} truncate />
-        <URLField
-          id={id}
-          url={`file://${path}`}
-          value={`file://${path}`}
-          truncate
-        />
         {props.file && (
           <TextField id="file_mod_time">
             <FormattedTime
@@ -62,8 +57,19 @@ const FileInfoPanel: React.FC<IFileInfoPanelProps> = (
           </TextField>
         )}
       </dl>
+
+      <Box sx={{ mt: 1 }}>
+        <Typography variant="subtitle2" color="textSecondary">
+          <FormattedMessage id={id} />:
+        </Typography>
+        <Box sx={{ wordBreak: 'break-all' }}>
+          <ExternalLink href={`file://${path}`}>
+            {`file://${path}`}
+          </ExternalLink>
+        </Box>
+      </Box>
       {props.ofMany && props.onSetPrimaryFile && !props.primary && (
-        <Box sx={{ "& > button": { mr: 1 } }}>
+        <Box display="flex" gap={1} flexWrap="wrap">
           <Button
             className="edit-button"
             disabled={props.loading}
@@ -157,9 +163,23 @@ export const GalleryFileInfoPanel: React.FC<IGalleryFileInfoPanelProps> = (
 
   return (
     <>
-      <dl className="content-container gallery-file-info details-list">
-        <URLsField id="urls" urls={props.gallery.urls} truncate />
+      <dl className="gallery-file-info details-list">
       </dl>
+
+      {props.gallery.urls && props.gallery.urls.length > 0 && (
+        <Box sx={{ mt: 1 }}>
+          <Typography variant="subtitle2" color="textSecondary">
+            <FormattedMessage id="urls" />:
+          </Typography>
+          <Box sx={{ wordBreak: 'break-all' }}>
+            {props.gallery.urls.map((url, i) => (
+              <Box key={i}>
+                <ExternalLink href={url}>{url}</ExternalLink>
+              </Box>
+            ))}
+          </Box>
+        </Box>
+      )}
 
       {filesPanel}
     </>

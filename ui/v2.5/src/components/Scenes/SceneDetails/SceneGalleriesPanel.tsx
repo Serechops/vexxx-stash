@@ -18,7 +18,7 @@ export const SceneGalleriesPanel: React.FC<ISceneGalleriesPanelProps> = ({
     />
   ));
 
-  return <div className="content-container scene-galleries">{cards}</div>;
+  return <div className="scene-galleries">{cards}</div>;
 };
 
 export default SceneGalleriesPanel;

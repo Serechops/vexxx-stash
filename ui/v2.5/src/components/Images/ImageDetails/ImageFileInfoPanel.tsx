@@ -1,7 +1,8 @@
 import React, { useState } from "react";
-import { Accordion, AccordionSummary, AccordionDetails, Button, Paper, Typography } from "@mui/material";
+import { Accordion, AccordionSummary, AccordionDetails, Button, Box, Typography } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { FormattedMessage, FormattedTime } from "react-intl";
+import { ExternalLink } from "src/components/Shared/ExternalLink";
 import { TruncatedText } from "src/components/Shared/TruncatedText";
 import { DeleteFilesDialog } from "src/components/Shared/DeleteFilesDialog";
 import * as GQL from "src/core/generated-graphql";
@@ -28,8 +29,8 @@ const FileInfoPanel: React.FC<IFileInfoPanelProps> = (
   const phash = props.file.fingerprints.find((f) => f.type === "phash");
 
   return (
-    <div>
-      <dl className="content-container image-file-info details-list">
+    <Box>
+      <dl className="image-file-info details-list">
         {props.primary && (
           <>
             <dt></dt>
@@ -47,12 +48,6 @@ const FileInfoPanel: React.FC<IFileInfoPanelProps> = (
           target="_self"
           truncate
           internal
-        />
-        <URLField
-          id="path"
-          url={`file://${props.file.path}`}
-          value={`file://${props.file.path}`}
-          truncate
         />
         <TextField id="filesize">
           <span className="text-truncate">
@@ -72,8 +67,20 @@ const FileInfoPanel: React.FC<IFileInfoPanelProps> = (
           truncate
         />
       </dl>
+
+      <Box sx={{ mt: 1 }}>
+        <Typography variant="subtitle2" color="textSecondary">
+          <FormattedMessage id="path" />:
+        </Typography>
+        <Box sx={{ wordBreak: 'break-all' }}>
+          <ExternalLink href={`file://${props.file.path}`}>
+            {`file://${props.file.path}`}
+          </ExternalLink>
+        </Box>
+      </Box>
+
       {props.ofMany && props.onSetPrimaryFile && !props.primary && (
-        <div>
+        <Box display="flex" gap={1} flexWrap="wrap">
           <Button
             variant="outlined"
             className="edit-button"
@@ -90,9 +97,9 @@ const FileInfoPanel: React.FC<IFileInfoPanelProps> = (
           >
             <FormattedMessage id="actions.delete_file" />
           </Button>
-        </div>
+        </Box>
       )}
-    </div>
+    </Box>
   );
 };
 interface IImageFileInfoPanelProps {
@@ -117,9 +124,23 @@ export const ImageFileInfoPanel: React.FC<IImageFileInfoPanelProps> = (
   if (props.image.visual_files.length === 1) {
     return (
       <>
-        <dl className="content-container image-file-info details-list">
-          <URLsField id="urls" urls={props.image.urls} truncate />
+        <dl className="image-file-info details-list">
         </dl>
+
+        {props.image.urls && props.image.urls.length > 0 && (
+          <Box sx={{ mt: 1 }}>
+            <Typography variant="subtitle2" color="textSecondary">
+              <FormattedMessage id="urls" />:
+            </Typography>
+            <Box sx={{ wordBreak: 'break-all' }}>
+              {props.image.urls.map((url, i) => (
+                <Box key={i}>
+                  <ExternalLink href={url}>{url}</ExternalLink>
+                </Box>
+              ))}
+            </Box>
+          </Box>
+        )}
 
         <FileInfoPanel file={props.image.visual_files[0]} />
       </>
@@ -162,14 +183,16 @@ export const ImageFileInfoPanel: React.FC<IImageFileInfoPanelProps> = (
             </Typography>
           </AccordionSummary>
           <AccordionDetails>
-            <FileInfoPanel
-              file={file}
-              primary={index === 0}
-              ofMany
-              onSetPrimaryFile={() => onSetPrimaryFile(file.id)}
-              onDeleteFile={() => setDeletingFile(file)}
-              loading={loading}
-            />
+            <Box width="100%">
+              <FileInfoPanel
+                file={file}
+                primary={index === 0}
+                ofMany
+                onSetPrimaryFile={() => onSetPrimaryFile(file.id)}
+                onDeleteFile={() => setDeletingFile(file)}
+                loading={loading}
+              />
+            </Box>
           </AccordionDetails>
         </Accordion>
       ))}

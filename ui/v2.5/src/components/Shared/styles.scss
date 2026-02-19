@@ -242,8 +242,28 @@ button.collapse-button {
       position: absolute;
       top: 0;
     }
+
+    .performer-image {
+      display: flex;
+      justify-content: center;
+
+      img {
+        max-height: 400px;
+        max-width: 100%;
+        object-fit: contain;
+      }
+    }
   }
 }
+
+.PerformerScrapeModal {
+  .scene-image {
+    max-height: 400px;
+    max-width: 100%;
+    object-fit: contain;
+  }
+}
+
 
 .bulk-update-text-input {
   button {
@@ -808,6 +828,12 @@ input[type="range"].double-range-slider-max {
     margin-right: 10px;
     object-fit: cover;
     width: 89px;
+  }
+
+  .scene-select-dl.details-list {
+    display: grid;
+    grid-column-gap: 10px;
+    grid-template-columns: minmax(16.67%, auto) 1fr;
   }
 
   .scene-select-details {

@@ -9,6 +9,7 @@ import {
 } from "react-intl";
 import { useHistory } from "react-router-dom";
 import { TruncatedText } from "src/components/Shared/TruncatedText";
+import { ExternalLink } from "src/components/Shared/ExternalLink";
 import { DeleteFilesDialog } from "src/components/Shared/DeleteFilesDialog";
 import { ReassignFilesDialog } from "src/components/Shared/ReassignFilesDialog";
 import * as GQL from "src/core/generated-graphql";
@@ -51,7 +52,7 @@ const FileInfoPanel: React.FC<IFileInfoPanelProps> = (
 
   return (
     <div>
-      <dl className="content-container scene-file-info details-list">
+      <dl className="scene-file-info details-list">
         {props.primary && (
           <>
             <dt></dt>
@@ -70,12 +71,6 @@ const FileInfoPanel: React.FC<IFileInfoPanelProps> = (
           target="_self"
           truncate
           internal
-        />
-        <URLField
-          id="path"
-          url={`file://${props.file.path}`}
-          value={`file://${props.file.path}`}
-          truncate
         />
         <TextField id="filesize">
           <span className="text-truncate">
@@ -126,6 +121,17 @@ const FileInfoPanel: React.FC<IFileInfoPanelProps> = (
           truncate
         />
       </dl>
+
+      <Box sx={{ mt: 1 }}>
+        <Typography variant="subtitle2" color="textSecondary">
+          <FormattedMessage id="path" />:
+        </Typography>
+        <Box sx={{ wordBreak: 'break-all' }}>
+          <ExternalLink href={`file://${props.file.path}`}>
+            {`file://${props.file.path}`}
+          </ExternalLink>
+        </Box>
+      </Box>
       {props.ofMany && props.onSetPrimaryFile && !props.primary && (
         <Box display="flex" gap={1} flexWrap="wrap">
           <Button
@@ -284,7 +290,7 @@ const _SceneFileInfoPanel: React.FC<ISceneFileInfoPanelProps> = (
 
   return (
     <>
-      <dl className="content-container scene-file-info details-list">
+      <dl className="scene-file-info details-list">
         {props.scene.files.length > 0 && (
           <URLField
             id="media_info.stream"
@@ -295,9 +301,23 @@ const _SceneFileInfoPanel: React.FC<ISceneFileInfoPanelProps> = (
         )}
         {renderFunscript()}
         {renderInteractiveSpeed()}
-        <URLsField id="urls" urls={props.scene.urls} truncate />
         {renderStashIDs()}
       </dl>
+
+      {props.scene.urls && props.scene.urls.length > 0 && (
+        <Box sx={{ mt: 1 }}>
+          <Typography variant="subtitle2" color="textSecondary">
+            <FormattedMessage id="urls" />:
+          </Typography>
+          <Box sx={{ wordBreak: 'break-all' }}>
+            {props.scene.urls.map((url, i) => (
+              <Box key={i}>
+                <ExternalLink href={url}>{url}</ExternalLink>
+              </Box>
+            ))}
+          </Box>
+        </Box>
+      )}
 
       {filesPanel}
     </>

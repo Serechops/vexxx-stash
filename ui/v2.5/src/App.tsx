@@ -131,10 +131,11 @@ const MainContainer: React.FC = ({ children }) => {
 
   return (
     <div
-      className={cx("main w-full px-[15px] mx-auto bg-background text-foreground min-h-screen font-sans", {
+      className={cx("main w-full px-[15px] mx-auto bg-background text-foreground font-sans", {
         apple: appleRendering,
         "sfw-content-mode": sfwContentMode,
       })}
+      style={{ minHeight: 'calc(100vh - 3.4rem)' }}
     >
       {children}
     </div>

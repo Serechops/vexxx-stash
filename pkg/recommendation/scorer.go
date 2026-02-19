@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/stashapp/stash/pkg/logger"
 	"github.com/stashapp/stash/pkg/models"
 )
 
@@ -37,7 +38,12 @@ func NewScorer(
 
 // ScoreScene computes a recommendation score for a scene (0-1).
 func (s *Scorer) ScoreScene(ctx context.Context, scene *models.Scene, tagWeight, perfWeight, studioWeight float64) (float64, string) {
-	if s.profile == nil || len(s.profile.TagWeights) == 0 {
+	if s.profile == nil {
+		return 0, ""
+	}
+
+	// Need at least one weight source to score against
+	if len(s.profile.TagWeights) == 0 && len(s.profile.PerformerWeights) == 0 && len(s.profile.StudioWeights) == 0 {
 		return 0, ""
 	}
 
@@ -272,14 +278,17 @@ func (s *Scorer) SimilarScenes(ctx context.Context, sceneID int, limit int) ([]m
 	// Get the source scene
 	sourceScene, err := s.sceneReader.Find(ctx, sceneID)
 	if err != nil || sourceScene == nil {
+		logger.Debugf("[SimilarScenes] Source scene %d not found or error: %v", sceneID, err)
 		return nil, err
 	}
 
 	// Load source scene relationships
 	if err := sourceScene.LoadTagIDs(ctx, s.sceneReader); err != nil {
+		logger.Debugf("[SimilarScenes] Failed to load tag IDs for source scene %d: %v", sceneID, err)
 		return nil, err
 	}
 	if err := sourceScene.LoadPerformerIDs(ctx, s.sceneReader); err != nil {
+		logger.Debugf("[SimilarScenes] Failed to load performer IDs for source scene %d: %v", sceneID, err)
 		// Continue without performer data
 	}
 
@@ -305,6 +314,15 @@ func (s *Scorer) SimilarScenes(ctx context.Context, sceneID int, limit int) ([]m
 		tempProfile.StudioWeights[*sourceScene.StudioID] = 1.0
 	}
 
+	logger.Debugf("[SimilarScenes] Source scene %d profile: %d tags, %d performers, %d studios",
+		sceneID, len(tempProfile.TagWeights), len(tempProfile.PerformerWeights), len(tempProfile.StudioWeights))
+
+	// If source scene has no tags, performers, or studio, we can't find similar scenes
+	if len(tempProfile.TagWeights) == 0 && len(tempProfile.PerformerWeights) == 0 && len(tempProfile.StudioWeights) == 0 {
+		logger.Debugf("[SimilarScenes] Source scene %d has no tags, performers, or studio - cannot find similar scenes", sceneID)
+		return nil, nil
+	}
+
 	// Create temporary scorer
 	tempScorer := &Scorer{
 		profile:     tempProfile,
@@ -313,22 +331,27 @@ func (s *Scorer) SimilarScenes(ctx context.Context, sceneID int, limit int) ([]m
 
 	// Query scenes and score
 	findFilter := &models.FindFilterType{
-		PerPage: intPtr(100),
+		PerPage: intPtr(500),
 	}
 
 	result, err := s.sceneReader.Query(ctx, models.SceneQueryOptions{
 		QueryOptions: models.QueryOptions{
 			FindFilter: findFilter,
+			Count:      true,
 		},
 	})
 	if err != nil {
+		logger.Debugf("[SimilarScenes] Query error: %v", err)
 		return nil, err
 	}
 
 	scenes, err := result.Resolve(ctx)
 	if err != nil {
+		logger.Debugf("[SimilarScenes] Resolve error: %v", err)
 		return nil, err
 	}
+
+	logger.Debugf("[SimilarScenes] Queried %d candidate scenes", len(scenes))
 
 	var recommendations []models.RecommendationResult
 	for _, scene := range scenes {
@@ -338,7 +361,7 @@ func (s *Scorer) SimilarScenes(ctx context.Context, sceneID int, limit int) ([]m
 		}
 
 		score, reason := tempScorer.ScoreScene(ctx, scene, 0.5, 0.3, 0.2)
-		if score < 0.1 {
+		if score < 0.05 {
 			continue
 		}
 
@@ -348,10 +371,13 @@ func (s *Scorer) SimilarScenes(ctx context.Context, sceneID int, limit int) ([]m
 			Name:   scene.GetTitle(),
 			Score:  score,
 			Reason: reason,
+			Scene:  scene,
 		}
 
 		recommendations = append(recommendations, rec)
 	}
+
+	logger.Debugf("[SimilarScenes] Found %d similar scenes for scene %d", len(recommendations), sceneID)
 
 	sort.Slice(recommendations, func(i, j int) bool {
 		return recommendations[i].Score > recommendations[j].Score

@@ -1,10 +1,9 @@
 import React from 'react';
-import { Box, Typography } from '@mui/material';
+import { Box } from '@mui/material';
 import { useSimilarScenesQuery } from '../../core/generated-graphql';
 import { LoadingIndicator } from '../Shared/LoadingIndicator';
 import { AlertModal as Alert } from '../Shared/Alert';
 import { SceneCard } from '../Scenes/SceneCard';
-import Carousel from '../Shared/Carousel';
 
 interface SimilarScenesPanelProps {
     sceneId: string;
@@ -21,24 +20,29 @@ export const SimilarScenesPanel: React.FC<SimilarScenesPanelProps> = ({ sceneId 
     const recommendations = data?.similarScenes || [];
 
     if (recommendations.length === 0) {
-        return null; // Don't show if no similar scenes
+        return null;
     }
 
     return (
-        <Box className="similar-scenes-panel" sx={{ my: '2rem' }}>
-            <Typography variant="h5" sx={{ mb: '1rem' }}>Similar Scenes</Typography>
-            <Carousel>
-                {recommendations.map((r) => {
-                    if (r.scene) {
-                        return (
-                            <Box key={r.id} sx={{ height: '100%' }}>
-                                <SceneCard scene={r.scene} />
-                            </Box>
-                        );
-                    }
-                    return null;
-                })}
-            </Carousel>
+        <Box
+            className="similar-scenes-panel"
+            sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 2,
+                mt: 1,
+            }}
+        >
+            {recommendations.map((r) => {
+                if (r.scene) {
+                    return (
+                        <Box key={r.id}>
+                            <SceneCard scene={r.scene} />
+                        </Box>
+                    );
+                }
+                return null;
+            })}
         </Box>
     );
 };

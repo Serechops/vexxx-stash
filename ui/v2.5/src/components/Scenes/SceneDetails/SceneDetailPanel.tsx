@@ -65,12 +65,23 @@ export const SceneDetailPanel: React.FC<ISceneDetailProps> = (props) => {
           />
         </h6>
         <Box
-          className="flex flex-wrap justify-center"
           sx={{
-            '@media (min-width: 1200px), (max-width: 575px)': {
-              '& .performer-card': { width: '15rem' },
-              '& .performer-card-image': { height: '22.5rem' },
+            display: 'flex',
+            overflowX: 'auto',
+            gap: 2,
+            pb: 1,
+            scrollSnapType: 'x mandatory',
+            '&::-webkit-scrollbar': { height: 6 },
+            '&::-webkit-scrollbar-thumb': {
+              borderRadius: 3,
+              bgcolor: 'action.hover',
             },
+            '& .performer-card': {
+              flex: '0 0 auto',
+              width: '15rem',
+              scrollSnapAlign: 'start',
+            },
+            '& .performer-card-image': { height: '22.5rem' },
           }}
         >
           {cards}

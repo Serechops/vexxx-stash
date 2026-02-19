@@ -160,6 +160,9 @@ interface IProps {
   queueHasMoreScenes: boolean;
   onQueueMoreScenes: () => void;
   onQueueLessScenes: () => void;
+  onQueueAddScene: (scene: QueuedScene) => void;
+  onQueueRemoveScene: (id: string) => void;
+  onQueueClearAll: () => void;
   queueStart: number;
   collapsed: boolean;
   setCollapsed: (state: boolean) => void;
@@ -189,6 +192,9 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
     queueHasMoreScenes,
     onQueueMoreScenes,
     onQueueLessScenes,
+    onQueueAddScene,
+    onQueueRemoveScene,
+    onQueueClearAll,
     queueStart,
     collapsed,
     setCollapsed,
@@ -654,9 +660,8 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
                 },
               }}
             />
-            {queueScenes.length > 0 && (
-              <Tab value="scene-queue-panel" label={<FormattedMessage id="queue" />} />
-            )}
+            <Tab value="scene-queue-panel" label={<FormattedMessage id="queue" />} />
+            <Tab value="scene-similar-panel" label={<FormattedMessage id="similar" defaultMessage="Similar" />} />
             <Tab value="scene-markers-panel" label={<FormattedMessage id="markers" />} />
             {scene.groups.length > 0 && (
               <Tab
@@ -697,12 +702,19 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
       <ScenePageTabContent {...props}>
         <Box hidden={activeTabKey !== "scene-details-panel"}>
           <SceneDetailPanel scene={scene} />
-          <SimilarScenesPanel sceneId={scene.id} />
         </Box>
         <Box hidden={activeTabKey !== "scene-queue-panel"}>
           <QueueViewer
             scenes={queueScenes}
             currentID={scene.id}
+            originScene={{
+              id: scene.id,
+              title: scene.title || undefined,
+              date: scene.date || undefined,
+              paths: scene.paths,
+              performers: scene.performers?.map((p) => ({ id: p.id, name: p.name })) || [],
+              studio: scene.studio ? { id: scene.studio.id, name: scene.studio.name } : null,
+            }}
             continue={continuePlaylist}
             setContinue={setContinuePlaylist}
             onSceneClicked={onQueueSceneClicked}
@@ -713,6 +725,9 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
             hasMoreScenes={queueHasMoreScenes}
             onLessScenes={onQueueLessScenes}
             onMoreScenes={onQueueMoreScenes}
+            onAddScene={onQueueAddScene}
+            onRemoveScene={onQueueRemoveScene}
+            onClearQueue={onQueueClearAll}
           />
         </Box>
         <Box hidden={activeTabKey !== "scene-markers-panel"}>
@@ -758,6 +773,9 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
         </Box>
         <Box hidden={activeTabKey !== "scene-history-panel"}>
           <SceneHistoryPanel scene={scene} />
+        </Box>
+        <Box hidden={activeTabKey !== "scene-similar-panel"}>
+          <SimilarScenesPanel sceneId={scene.id} />
         </Box>
       </ScenePageTabContent >
     </Box >
@@ -1055,29 +1073,7 @@ const SceneLoader: React.FC<RouteComponentProps<ISceneParams>> = ({
     };
   }, []);
 
-  async function getQueueFilterScenes(filter: ListFilterModel) {
-    const query = await queryFindScenes(filter);
-    const { scenes, count } = query.data.findScenes;
-    setQueueScenes(scenes);
-    setQueueTotal(count);
-    setQueueStart((filter.currentPage - 1) * filter.itemsPerPage + 1);
-  }
-
-  async function getQueueScenes(sceneIDs: number[]) {
-    const query = await queryFindScenesByID(sceneIDs);
-    const { scenes, count } = query.data.findScenes;
-    setQueueScenes(scenes);
-    setQueueTotal(count);
-    setQueueStart(1);
-  }
-
-  useEffect(() => {
-    if (sceneQueue.query) {
-      getQueueFilterScenes(sceneQueue.query);
-    } else if (sceneQueue.sceneIDs) {
-      getQueueScenes(sceneQueue.sceneIDs);
-    }
-  }, [sceneQueue]);
+  // Queue is now manually curated — no auto-populate from URL filter params
 
   async function onQueueLessScenes() {
     if (!sceneQueue.query || queueStart <= 1) {
@@ -1225,6 +1221,22 @@ const SceneLoader: React.FC<RouteComponentProps<ISceneParams>> = ({
     loadScene(sceneID, autoPlayOnSelected, getScenePage(sceneID));
   }
 
+  function onQueueAddScene(scene: QueuedScene) {
+    setQueueScenes((prev) => [...prev, scene]);
+    setQueueTotal((prev) => prev + 1);
+  }
+
+  function onQueueRemoveScene(sceneID: string) {
+    setQueueScenes((prev) => prev.filter((s) => s.id !== sceneID));
+    setQueueTotal((prev) => Math.max(0, prev - 1));
+  }
+
+  function onQueueClearAll() {
+    setQueueScenes([]);
+    setQueueTotal(0);
+    setQueueStart(1);
+  }
+
   if (!scene) {
     if (loading) return <LoadingIndicator />;
     if (error) return <ErrorMessage error={error.message} />;
@@ -1271,6 +1283,9 @@ const SceneLoader: React.FC<RouteComponentProps<ISceneParams>> = ({
           queueHasMoreScenes={queueHasMoreScenes}
           onQueueLessScenes={onQueueLessScenes}
           onQueueMoreScenes={onQueueMoreScenes}
+          onQueueAddScene={onQueueAddScene}
+          onQueueRemoveScene={onQueueRemoveScene}
+          onQueueClearAll={onQueueClearAll}
           collapsed={collapsed}
           setCollapsed={setCollapsed}
           setContinuePlaylist={setContinuePlaylist}

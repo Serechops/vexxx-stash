@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { Button } from "@mui/material";
+import { Button, Stack, Box, Divider, Typography } from "@mui/material";
+import AddIcon from "@mui/icons-material/Add";
 import { FormattedMessage } from "react-intl";
 import Mousetrap from "mousetrap";
 import * as GQL from "src/core/generated-graphql";
-import { MarkerWallPanel } from "src/components/Wall/WallPanel";
+import { WallItem } from "src/components/Wall/WallItem";
 import { PrimaryTags } from "./PrimaryTags";
 import { SceneMarkerForm } from "./SceneMarkerForm";
 
@@ -62,26 +63,48 @@ export const SceneMarkersPanel: React.FC<ISceneMarkersPanelProps> = ({
   ).reduce((prev, current) => [...prev, ...current], []);
 
   return (
-    <div className="scene-markers-panel">
-      <Button onClick={() => onOpenEditor()}>
-        <FormattedMessage id="actions.create_marker" />
-      </Button>
-      <div>
+    <Stack spacing={3} className="scene-markers-panel">
+      <Box display="flex" justifyContent="flex-end">
+        <Button variant="contained" startIcon={<AddIcon />} onClick={() => onOpenEditor()}>
+          <FormattedMessage id="actions.create_marker" />
+        </Button>
+      </Box>
+      <Box>
         <PrimaryTags
           sceneMarkers={sceneMarkers}
           onClickMarker={onClickMarker}
           onEdit={onOpenEditor}
         />
-      </div>
-      <MarkerWallPanel
-        markers={sceneMarkers}
-        clickHandler={(e, marker) => {
-          e.preventDefault();
-          window.scrollTo(0, 0);
-          onClickMarker(marker);
-        }}
-      />
-    </div>
+      </Box>
+      {sceneMarkers.length > 0 && (
+        <>
+          <Divider />
+          <Box>
+            <Typography variant="h6" sx={{ mb: 2 }}>
+              <FormattedMessage id="marker_previews" defaultMessage="Marker Previews" />
+            </Typography>
+            <Stack spacing={2}>
+              {sceneMarkers.map((marker, index) => (
+                <Box key={marker.id} sx={{ width: '100%', borderRadius: 1, overflow: 'hidden' }}>
+                  <WallItem
+                    type="sceneMarker"
+                    index={index}
+                    data={marker}
+                    className="transform-origin-center"
+                    columns={1}
+                    clickHandler={(e, m) => {
+                      e.preventDefault();
+                      window.scrollTo(0, 0);
+                      onClickMarker(m as GQL.SceneMarkerDataFragment);
+                    }}
+                  />
+                </Box>
+              ))}
+            </Stack>
+          </Box>
+        </>
+      )}
+    </Stack>
   );
 };
 

@@ -276,13 +276,13 @@ export const WallItem = <T extends WallItemType>({
   };
 
   const widthPct = 100 / columns;
-  const heightVw = widthPct * 0.5625;
 
   return (
     <Box
       className="stash-wall-item"
       sx={{
-        height: `${heightVw}vw`,
+        aspectRatio: "16/9",
+        height: "auto",
         lineHeight: 0,
         // maxHeight: 253, // Removed for zoom
         // maxWidth: 450, // Removed for zoom
@@ -305,7 +305,7 @@ export const WallItem = <T extends WallItemType>({
           "& .wall-item-container": {
             backgroundColor: "black",
             position: "relative",
-            transform: "scale(2)",
+            transform: columns === 1 ? "scale(1.05)" : "scale(2)",
             transitionDelay: "0.5s",
             zIndex: 10,
           },
@@ -315,7 +315,7 @@ export const WallItem = <T extends WallItemType>({
             zIndex: 10,
           },
           "&::before": {
-            opacity: 0.8,
+            opacity: columns === 1 ? 0 : 0.8,
             transitionDelay: "0.5s",
           }
         },

@@ -216,20 +216,47 @@ export const PerformerCard: React.FC<IPerformerCardProps> = PatchComponent(
                 onToggleFavorite={onToggleFavorite}
                 size="1x"
                 className="favorite-icon transition-colors drop-shadow-md"
-              sx={{
-                ...(performer.favorite && { color: '#ff5252 !important' }),
-              }}
+                sx={{
+                  ...(performer.favorite && { color: '#ff5252 !important' }),
+                }}
               />
             </Box>
           </Box>
 
           {/* Selecting Checkbox */}
-          {selecting && (
-            <Box sx={{ left: '0.5rem', position: 'absolute', top: '0.5rem', zIndex: 30, '& input': { cursor: 'pointer', height: '1.25rem', width: '1.25rem' } }}>
+          {(selecting || isHovered || selected) && (
+            <Box
+              sx={{
+                left: '0.5rem',
+                position: 'absolute',
+                top: '0.5rem',
+                zIndex: 40,
+                lineHeight: 0,
+                '& .MUI-Checkbox': {
+                  p: 0,
+                  color: 'rgba(255, 255, 255, 0.5)',
+                  '&.Mui-checked': {
+                    color: 'primary.main',
+                  },
+                }
+              }}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onSelectedChanged?.(!selected, e.shiftKey);
+              }}
+            >
               <input
                 type="checkbox"
                 checked={selected}
                 readOnly
+                style={{
+                  cursor: 'pointer',
+                  height: '1.25rem',
+                  width: '1.25rem',
+                  accentColor: '#3b82f6', // Tailwind blue-500 equivalent or standard primary
+                  filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))'
+                }}
               />
             </Box>
           )}

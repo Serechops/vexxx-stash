@@ -70,6 +70,9 @@ export const SceneMarkersPanel: React.FC<ISceneMarkersPanelProps> = ({
         </Button>
       </Box>
       <Box>
+        <Typography variant="h6" sx={{ mb: 2 }}>
+          <FormattedMessage id="markers" defaultMessage="Markers" />
+        </Typography>
         <PrimaryTags
           sceneMarkers={sceneMarkers}
           onClickMarker={onClickMarker}

@@ -405,10 +405,6 @@ export const PerformerMissingScenesPanel: React.FC<IPerformerMissingScenesPanelP
         <>
             {/* Action Buttons */}
             <Box className="my-3" display="flex" alignItems="center" flexWrap="wrap" gap={2}>
-                <Button variant="contained" color="primary" onClick={onScan} disabled={scanning}>
-                    <SearchIcon sx={{ mr: 1 }} />
-                    <FormattedMessage id="scan_missing_scenes" defaultMessage="Scan for Missing Scenes (StashBox)" />
-                </Button>
 
                 <Button variant="contained" color="secondary" onClick={onScanBackground} disabled={scanning}>
                     <SearchIcon sx={{ mr: 1 }} />

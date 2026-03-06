@@ -1,7 +1,20 @@
 import React from "react";
 import { FormattedMessage } from "react-intl";
 import * as GQL from "src/core/generated-graphql";
-import { Button, Chip, Card, CardContent, CardHeader, Grid, Typography, Divider, IconButton, Box } from "@mui/material";
+import {
+  Button,
+  Chip,
+  IconButton,
+  Box,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  Typography,
+} from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import TextUtils from "src/utils/text";
@@ -20,86 +33,123 @@ export const PrimaryTags: React.FC<IPrimaryTags> = ({
 }) => {
   if (!sceneMarkers?.length) return <div />;
 
-  const primaryTagNames: Record<string, string> = {};
-  const markersByTag: Record<string, GQL.SceneMarkerDataFragment[]> = {};
-  sceneMarkers.forEach((m) => {
-    if (primaryTagNames[m.primary_tag.id]) {
-      markersByTag[m.primary_tag.id].push(m);
-    } else {
-      primaryTagNames[m.primary_tag.id] = m.primary_tag.name;
-      markersByTag[m.primary_tag.id] = [m];
-    }
-  });
-
-  const primaryCards = Object.keys(markersByTag).map((id) => {
-    const markers = markersByTag[id].map((marker, index) => {
-      const tags = marker.tags.map((tag) => (
-        <Chip key={tag.id} label={tag.name} color="secondary" size="small" className="tag-item" />
-      ));
-
-      return (
-        <React.Fragment key={marker.id}>
-          {index > 0 && <Divider />}
-          <Box sx={{ py: 1.5 }}>
-            <Box display="flex" justifyContent="space-between" alignItems="flex-start" gap={2}>
-              <Button
-                variant="text"
-                onClick={() => onClickMarker(marker)}
-                sx={{
-                  textAlign: "left",
-                  p: 0,
-                  minWidth: 0,
-                  justifyContent: "flex-start",
-                  wordBreak: "break-word"
-                }}
-              >
-                {markerTitle(marker)}
-              </Button>
-              <IconButton
-                size="small"
-                onClick={() => onEdit(marker)}
-                title="Edit"
-                sx={{ flexShrink: 0, mt: -0.5 }}
-              >
-                <EditIcon fontSize="small" />
-              </IconButton>
-            </Box>
-
-            <Box display="flex" alignItems="center" gap={0.5} mt={0.5} color="text.secondary">
-              <AccessTimeIcon fontSize="small" />
-              <Typography variant="body2">
-                {TextUtils.formatTimestampRange(
-                  marker.seconds,
-                  marker.end_seconds ?? undefined
-                )}
-              </Typography>
-            </Box>
-
-            {tags.length > 0 && (
-              <Box display="flex" flexWrap="wrap" gap={0.5} mt={1}>
-                {tags}
-              </Box>
-            )}
-          </Box>
-        </React.Fragment>
-      );
-    });
-
-    return (
-      <Grid item xs={12} sm={6} xl={4} key={id}>
-        <Card className="primary-card" sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
-          <CardHeader titleTypographyProps={{ variant: "h6" }} title={primaryTagNames[id]} sx={{ pb: 1 }} />
-          <CardContent className="primary-card-body" sx={{ pt: 0, flexGrow: 1 }}>
-            {markers}
-          </CardContent>
-        </Card>
-      </Grid>
-    );
-  });
+  // Sort markers by time
+  const sortedMarkers = [...sceneMarkers].sort((a, b) => a.seconds - b.seconds);
 
   return (
-    <Grid container spacing={3} className="primary-tag">
-      {primaryCards}
-    </Grid>
+    <TableContainer component={Paper} elevation={0} sx={{ bgcolor: 'transparent', border: '1px solid', borderColor: 'divider' }}>
+      <Table size="small">
+        <TableHead>
+          <TableRow sx={{ bgcolor: 'action.hover' }}>
+            <TableCell sx={{ fontWeight: 'bold', width: '100px', whiteSpace: 'nowrap' }}>
+              <Box display="flex" alignItems="center" gap={0.5}>
+                <AccessTimeIcon fontSize="inherit" />
+                <FormattedMessage id="time" defaultMessage="Time" />
+              </Box>
+            </TableCell>
+            <TableCell sx={{ fontWeight: 'bold', minWidth: '200px' }}>
+              <FormattedMessage id="title" defaultMessage="Title" />
+            </TableCell>
+            <TableCell sx={{ fontWeight: 'bold', width: '150px' }}>
+              <FormattedMessage id="primary_tag" defaultMessage="Primary Tag" />
+            </TableCell>
+            <TableCell sx={{ fontWeight: 'bold', minWidth: '150px' }}>
+              <FormattedMessage id="tags" defaultMessage="Tags" />
+            </TableCell>
+            <TableCell align="right" sx={{ width: '50px' }} />
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {sortedMarkers.map((marker) => {
+            const tags = marker.tags.map((tag) => (
+              <Chip
+                key={tag.id}
+                label={tag.name}
+                color="secondary"
+                size="small"
+                variant="outlined"
+                sx={{ mr: 0.5, mb: 0.25 }}
+              />
+            ));
+
+            return (
+              <TableRow
+                key={marker.id}
+                hover
+                sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
+              >
+                <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                  <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
+                    {TextUtils.formatTimestampRange(
+                      marker.seconds,
+                      marker.end_seconds ?? undefined
+                    )}
+                  </Typography>
+                </TableCell>
+                <TableCell>
+                  <Button
+                    variant="text"
+                    onClick={() => onClickMarker(marker)}
+                    sx={{
+                      textAlign: "left",
+                      p: 0,
+                      minWidth: 0,
+                      justifyContent: "flex-start",
+                      textTransform: 'none',
+                      color: 'primary.main',
+                      fontWeight: 600,
+                      lineHeight: 1.2,
+                      '&:hover': { textDecoration: 'underline', bgcolor: 'transparent' },
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                      wordBreak: 'break-word',
+                    }}
+                  >
+                    {markerTitle(marker) || <Typography variant="body2" color="text.disabled" component="span"><em>No Title</em></Typography>}
+                  </Button>
+                </TableCell>
+                <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                  <Chip
+                    label={marker.primary_tag.name}
+                    size="small"
+                    sx={{ fontWeight: 'bold' }}
+                  />
+                </TableCell>
+                <TableCell>
+                  <Box display="flex" flexWrap="wrap" alignItems="center">
+                    {marker.tags.slice(0, 2).map((tag) => (
+                      <Chip
+                        key={tag.id}
+                        label={tag.name}
+                        color="secondary"
+                        size="small"
+                        variant="outlined"
+                        sx={{ mr: 0.5, mb: 0.25, maxWidth: '100px' }}
+                      />
+                    ))}
+                    {marker.tags.length > 2 && (
+                      <Typography variant="caption" color="text.secondary" sx={{ ml: 0.5, whiteSpace: 'nowrap' }}>
+                        +{marker.tags.length - 2}
+                      </Typography>
+                    )}
+                  </Box>
+                </TableCell>
+                <TableCell align="right">
+                  <IconButton
+                    size="small"
+                    onClick={() => onEdit(marker)}
+                    title="Edit"
+                  >
+                    <EditIcon fontSize="small" />
+                  </IconButton>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </TableContainer>
   );
 };

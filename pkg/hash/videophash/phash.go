@@ -7,6 +7,8 @@ import (
 	"image"
 	"image/color"
 	"math"
+	"runtime"
+	"sync"
 
 	"github.com/corona10/goimagehash"
 	"github.com/disintegration/imaging"
@@ -16,6 +18,10 @@ import (
 	"github.com/stashapp/stash/pkg/logger"
 	"github.com/stashapp/stash/pkg/models"
 )
+
+// screenshotSem limits the number of concurrent FFmpeg screenshot processes
+// across all phash generation tasks to avoid overwhelming the system.
+var screenshotSem = make(chan struct{}, runtime.NumCPU())
 
 const (
 	screenshotSize = 160
@@ -93,21 +99,53 @@ func generateSprite(encoder *ffmpeg.FFMpeg, videoFile *models.VideoFile, options
 	chunkCount := columns * rows
 	offset := 0.05 * duration
 	stepSize := (0.9 * duration) / float64(chunkCount)
-	var images []image.Image
+
+	// Pre-allocate the images slice so goroutines can write to their own index
+	images := make([]image.Image, chunkCount)
+
+	// Run all 25 FFmpeg screenshot processes in parallel.
+	// Each goroutine extracts one frame at its specific timestamp —
+	// same frames, same timestamps as the sequential approach.
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	var firstErr error
+
 	for i := 0; i < chunkCount; i++ {
-		time := options.Start + offset + (float64(i) * stepSize)
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
 
-		img, err := generateSpriteScreenshot(encoder, videoFile.Path, time)
-		if err != nil {
-			return nil, fmt.Errorf("generating sprite screenshot: %w", err)
-		}
+			// Acquire semaphore slot to limit total concurrent FFmpeg processes
+			screenshotSem <- struct{}{}
+			defer func() { <-screenshotSem }()
 
-		images = append(images, img)
+			time := options.Start + offset + (float64(idx) * stepSize)
+
+			img, err := generateSpriteScreenshot(encoder, videoFile.Path, time)
+			if err != nil {
+				mu.Lock()
+				if firstErr == nil {
+					firstErr = fmt.Errorf("generating sprite screenshot at index %d: %w", idx, err)
+				}
+				mu.Unlock()
+				return
+			}
+
+			images[idx] = img
+		}(i)
 	}
 
-	// Combine all of the thumbnails into a sprite image
-	if len(images) == 0 {
-		return nil, fmt.Errorf("images slice is empty, failed to generate phash sprite for %s", videoFile.Path)
+	wg.Wait()
+
+	if firstErr != nil {
+		return nil, firstErr
+	}
+
+	// Verify all images were captured
+	for i, img := range images {
+		if img == nil {
+			return nil, fmt.Errorf("missing image at index %d for %s", i, videoFile.Path)
+		}
 	}
 
 	return combineImages(images), nil

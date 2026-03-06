@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"image"
 	"math"
+	"runtime"
+	"sync"
 
 	"github.com/disintegration/imaging"
 
@@ -14,6 +16,10 @@ import (
 	"github.com/stashapp/stash/pkg/logger"
 	"github.com/stashapp/stash/pkg/scene/generate"
 )
+
+// spriteScreenshotSem limits the number of concurrent FFmpeg screenshot processes
+// across all sprite generation tasks to avoid overwhelming the system.
+var spriteScreenshotSem = make(chan struct{}, runtime.NumCPU())
 
 type SpriteGenerator struct {
 	Info *generatorInfo
@@ -101,11 +107,15 @@ func (g *SpriteGenerator) generateSpriteImage() error {
 		return nil
 	}
 
-	var images []image.Image
+	// Pre-allocate the images slice so goroutines can write to their own index
+	images := make([]image.Image, g.Info.ChunkCount)
+
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	var firstErr error
 
 	if !g.SlowSeek {
 		logger.Infof("[generator] generating sprite image for %s", g.Info.VideoFile.Path)
-		// generate `ChunkCount` thumbnails
 		duration := g.Info.VideoFile.VideoStreamDuration
 		if g.Duration > 0 {
 			duration = g.Duration
@@ -114,13 +124,28 @@ func (g *SpriteGenerator) generateSpriteImage() error {
 		stepSize := duration / float64(g.Info.ChunkCount)
 
 		for i := 0; i < g.Info.ChunkCount; i++ {
-			time := g.StartOffset + (float64(i) * stepSize)
+			wg.Add(1)
+			go func(idx int) {
+				defer wg.Done()
 
-			img, err := g.g.SpriteScreenshot(context.TODO(), g.Info.VideoFile.Path, time)
-			if err != nil {
-				return err
-			}
-			images = append(images, img)
+				// Acquire semaphore slot to limit total concurrent FFmpeg processes
+				spriteScreenshotSem <- struct{}{}
+				defer func() { <-spriteScreenshotSem }()
+
+				time := g.StartOffset + (float64(idx) * stepSize)
+
+				img, err := g.g.SpriteScreenshot(context.TODO(), g.Info.VideoFile.Path, time)
+				if err != nil {
+					mu.Lock()
+					if firstErr == nil {
+						firstErr = fmt.Errorf("sprite screenshot at index %d: %w", idx, err)
+					}
+					mu.Unlock()
+					return
+				}
+
+				images[idx] = img
+			}(i)
 		}
 	} else {
 		logger.Infof("[generator] generating sprite image for %s (%d frames)", g.Info.VideoFile.Path, g.Info.VideoFile.FrameCount)
@@ -128,23 +153,50 @@ func (g *SpriteGenerator) generateSpriteImage() error {
 		stepFrame := float64(g.Info.VideoFile.FrameCount-1) / float64(g.Info.ChunkCount)
 
 		for i := 0; i < g.Info.ChunkCount; i++ {
-			// generate exactly `ChunkCount` thumbnails, using duplicate frames if needed
-			frame := math.Round(float64(i) * stepFrame)
-			if frame >= math.MaxInt || frame <= math.MinInt {
-				return errors.New("invalid frame number conversion")
-			}
+			wg.Add(1)
+			go func(idx int) {
+				defer wg.Done()
 
-			img, err := g.g.SpriteScreenshotSlow(context.TODO(), g.Info.VideoFile.Path, int(frame))
-			if err != nil {
-				return err
-			}
-			images = append(images, img)
+				// Acquire semaphore slot to limit total concurrent FFmpeg processes
+				spriteScreenshotSem <- struct{}{}
+				defer func() { <-spriteScreenshotSem }()
+
+				frame := math.Round(float64(idx) * stepFrame)
+				if frame >= math.MaxInt || frame <= math.MinInt {
+					mu.Lock()
+					if firstErr == nil {
+						firstErr = errors.New("invalid frame number conversion")
+					}
+					mu.Unlock()
+					return
+				}
+
+				img, err := g.g.SpriteScreenshotSlow(context.TODO(), g.Info.VideoFile.Path, int(frame))
+				if err != nil {
+					mu.Lock()
+					if firstErr == nil {
+						firstErr = fmt.Errorf("sprite screenshot (slow) at index %d: %w", idx, err)
+					}
+					mu.Unlock()
+					return
+				}
+
+				images[idx] = img
+			}(i)
 		}
-
 	}
 
-	if len(images) == 0 {
-		return fmt.Errorf("images slice is empty, failed to generate sprite images for %s", g.Info.VideoFile.Path)
+	wg.Wait()
+
+	if firstErr != nil {
+		return firstErr
+	}
+
+	// Verify all images were captured
+	for i, img := range images {
+		if img == nil {
+			return fmt.Errorf("missing sprite image at index %d for %s", i, g.Info.VideoFile.Path)
+		}
 	}
 
 	return imaging.Save(g.g.CombineSpriteImages(images), g.ImageOutputPath)

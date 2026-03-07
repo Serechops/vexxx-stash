@@ -272,6 +272,15 @@ func (j *ScanJob) processQueue(ctx context.Context, parallelTasks int, progress 
 }
 
 func (j *ScanJob) processQueueItem(ctx context.Context, f file.ScannedFile, progress *job.Progress) {
+	// Recover from panics in individual file handlers to prevent a single
+	// corrupted or malformed file from crashing the entire scan job.
+	defer func() {
+		if p := recover(); p != nil {
+			logger.Errorf("panic processing %q: %v", f.Path, p)
+			logger.Errorf("%s", debug.Stack())
+		}
+	}()
+
 	progress.ExecuteTask("Scanning "+f.Path, func() {
 		var err error
 		if f.Info.IsDir() {

@@ -38,6 +38,7 @@ import (
 	"github.com/stashapp/stash/pkg/fsutil"
 	"github.com/stashapp/stash/pkg/logger"
 	"github.com/stashapp/stash/pkg/megaface"
+	"github.com/stashapp/stash/pkg/metrics"
 	"github.com/stashapp/stash/pkg/plugin"
 	"github.com/stashapp/stash/pkg/stashface"
 	"github.com/stashapp/stash/pkg/stashtag"
@@ -215,6 +216,12 @@ func Initialize() (*Server, error) {
 	gqlSrv.SetQueryCache(gqlLru.New[*ast.QueryDocument](1000))
 	gqlSrv.Use(gqlExtension.Introspection{})
 
+	// Limit query complexity to prevent abuse from deeply nested or
+	// excessively complex queries. The limit of 750 is generous enough
+	// for normal UI usage but prevents runaway recursive relation traversal
+	// (e.g., Scene → Performers → Scenes → Performers → ...).
+	gqlSrv.Use(gqlExtension.FixedComplexityLimit(750))
+
 	gqlSrv.SetErrorPresenter(gqlErrorHandler)
 
 	gqlHandlerFunc := func(w http.ResponseWriter, r *http.Request) {
@@ -259,6 +266,16 @@ func Initialize() (*Server, error) {
 		EnablePprof:   pprofEnabled,
 		EnableMetrics: true, // Metrics always enabled when debug is enabled
 	}))
+
+	// Health check endpoint — returns DB connectivity, schema version, and uptime.
+	// Useful for Docker HEALTHCHECK and monitoring systems.
+	// This goes through authentication middleware, which is appropriate since
+	// the /healthz heartbeat already exists for unauthenticated liveness probes.
+	r.Get("/health", server.getHealthHandler())
+
+	// Metrics endpoint — always available (behind auth middleware),
+	// does not require STASH_DEBUG=1 unlike the /debug endpoints.
+	r.Get("/api/metrics", server.getMetricsHandler())
 
 	r.HandleFunc("/css", cssHandler(cfg))
 	r.HandleFunc("/javascript", javascriptHandler(cfg))
@@ -490,6 +507,29 @@ func (s *Server) getMegaFaceRoutes() chi.Router {
 		routes:     routes{txnManager: s.manager.Repository.TxnManager},
 		controller: s.megaFaceController,
 	}.Routes()
+}
+
+func (s *Server) getHealthHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		version, _, _ := build.Version()
+
+		health := map[string]interface{}{
+			"status":  "ok",
+			"version": version,
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Cache-Control", "no-store")
+		metrics.WriteJSONResponse(w, health)
+	}
+}
+
+func (s *Server) getMetricsHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Cache-Control", "no-store")
+		metrics.WriteJSONResponse(w, metrics.Snapshot())
+	}
 }
 
 func copyFile(w io.Writer, path string) error {

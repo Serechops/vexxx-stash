@@ -13,6 +13,10 @@ import (
 	"github.com/stashapp/stash/pkg/utils"
 )
 
+// whitespaceRegex matches one or more whitespace characters.
+// Pre-compiled to avoid repeated compilation in the hot path of getPathSearchClauseMany.
+var whitespaceRegex = regexp.MustCompile(`\s+`)
+
 type criterionHandler interface {
 	handle(ctx context.Context, f *filterBuilder)
 }
@@ -234,7 +238,7 @@ func getPathSearchClauseMany(pathColumn, basenameColumn, p string, addWildcards,
 	trimmedQuery := strings.Trim(q, "\"")
 
 	if trimmedQuery == q {
-		q = regexp.MustCompile(`\s+`).ReplaceAllString(q, " ")
+		q = whitespaceRegex.ReplaceAllString(q, " ")
 		queryWords := strings.Split(q, " ")
 
 		var ret []sqlClause

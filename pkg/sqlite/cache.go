@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/stashapp/stash/pkg/cache"
+	"github.com/stashapp/stash/pkg/logger"
 	"github.com/stashapp/stash/pkg/metrics"
 	"github.com/stashapp/stash/pkg/models"
 )
@@ -153,9 +154,13 @@ func NewQueryTimer(name string) *QueryTimer {
 }
 
 // Done stops the timer and records metrics.
+// If the query duration exceeds SlowQueryThreshold, a warning is logged.
 func (t *QueryTimer) Done(err error) time.Duration {
 	duration := time.Since(t.start)
 	metrics.RecordDBQuery(duration, err)
+	if duration > metrics.SlowQueryThreshold {
+		logger.Warnf("slow query [%s]: %v", t.name, duration)
+	}
 	return duration
 }
 

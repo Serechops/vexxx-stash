@@ -218,7 +218,12 @@ export const PlaylistDetails: React.FC = () => {
 
   const handleDelete = async () => {
     try {
-      await destroyPlaylist({ variables: { id: playlist.id } });
+      await destroyPlaylist({
+        variables: { id: playlist.id },
+        update: (cache) => {
+          cache.evict({ id: cache.identify({ __typename: "Playlist", id: playlist.id }) });
+        },
+      });
       Toast.success(
         intl.formatMessage({
           id: "toast.playlist_deleted",

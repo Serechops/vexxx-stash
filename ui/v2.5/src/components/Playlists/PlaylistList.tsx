@@ -28,7 +28,8 @@ import {
 import { Icon } from "../Shared/Icon";
 import { LoadingIndicator } from "../Shared/LoadingIndicator";
 import { ErrorMessage } from "../Shared/ErrorMessage";
-import { useFindPlaylists } from "src/core/StashService";
+import { DeleteEntityDialog } from "../Shared/DeleteEntityDialog";
+import { useFindPlaylists, usePlaylistDestroy } from "src/core/StashService";
 import * as GQL from "src/core/generated-graphql";
 import TextUtils from "src/utils/text";
 
@@ -203,15 +204,34 @@ export const PlaylistList: React.FC = () => {
       : undefined,
   });
 
+  const [destroyPlaylist] = usePlaylistDestroy();
+  const [deletingPlaylist, setDeletingPlaylist] = useState<GQL.SlimPlaylistDataFragment | null>(null);
+
+  const usePlaylistsDestroy = (input: { ids: string[] }) => {
+    const deleteEntities = async () => {
+      const promises = input.ids.map((id) =>
+        destroyPlaylist({
+          variables: { id },
+          update: (cache) => {
+            cache.evict({ id: cache.identify({ __typename: "Playlist", id }) });
+          },
+        })
+      );
+      return Promise.all(promises);
+    };
+    return [deleteEntities, {}] as any;
+  };
+
   if (loading) return <LoadingIndicator />;
   if (error) return <ErrorMessage error={error.message} />;
 
   const playlists = data?.findPlaylists.playlists || [];
 
-  const handleDeletePlaylist = async (id: string) => {
-    // TODO: Implement delete with confirmation dialog
-    console.log("Delete playlist:", id);
-    refetch();
+  const handleDeletePlaylist = (id: string) => {
+    const playlistToDelete = playlists.find((p) => p.id === id);
+    if (playlistToDelete) {
+      setDeletingPlaylist(playlistToDelete);
+    }
   };
 
   return (
@@ -301,6 +321,19 @@ export const PlaylistList: React.FC = () => {
             </Grid>
           ))}
         </Grid>
+      )}
+
+      {deletingPlaylist && (
+        <DeleteEntityDialog
+          selected={[{ id: deletingPlaylist.id, name: deletingPlaylist.name }]}
+          onClose={() => setDeletingPlaylist(null)}
+          singularEntity={intl.formatMessage({ id: "playlist", defaultMessage: "playlist" })}
+          pluralEntity={intl.formatMessage({ id: "playlists", defaultMessage: "playlists" })}
+          destroyMutation={usePlaylistsDestroy}
+          onDeleted={() => {
+            setDeletingPlaylist(null);
+          }}
+        />
       )}
     </Box>
   );

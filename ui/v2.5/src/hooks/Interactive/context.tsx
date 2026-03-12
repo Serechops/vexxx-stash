@@ -96,6 +96,7 @@ export const InteractiveProvider: React.FC = ({ children }) => {
   const [scriptOffset, setScriptOffset] = useState<number>(0);
   const [useStashHostedFunscript, setUseStashHostedFunscript] =
     useState<boolean>(false);
+  const [handyAppKey, setHandyAppKey] = useState<string | undefined>(undefined);
 
   const resolveInteractiveClient = useCallback(() => {
     const interactiveClientProvider =
@@ -157,6 +158,7 @@ export const InteractiveProvider: React.FC = ({ children }) => {
     setUseStashHostedFunscript(
       stashConfig.interface.useStashHostedFunscript ?? false
     );
+    setHandyAppKey(stashConfig.interface.handyAppKey ?? undefined);
   }, [stashConfig]);
 
   useEffect(() => {
@@ -171,6 +173,7 @@ export const InteractiveProvider: React.FC = ({ children }) => {
         connectionKey: handyKey ?? "",
         offset: scriptOffset,
         useStashHostedFunscript,
+        appKey: handyAppKey ?? "",
       })
       .then(() => {
         if (oldKey !== interactive.handyKey && interactive.handyKey) {
@@ -179,6 +182,7 @@ export const InteractiveProvider: React.FC = ({ children }) => {
       });
   }, [
     handyKey,
+    handyAppKey,
     scriptOffset,
     useStashHostedFunscript,
     config,

@@ -1036,12 +1036,10 @@ declare namespace PluginApi {
       Ready,
     }
 
-    type Handy = typeof import("thehandy").default;
     export type InteractiveAPI = {
       readonly _connected: boolean;
       readonly _playing: boolean;
       readonly _scriptOffset: number;
-      readonly _handy: Handy;
       readonly _useStashHostedFunscript: boolean;
       connect(): Promise<void>;
       set handyKey(key: string);

@@ -832,6 +832,12 @@ export const SettingsInterfacePanel: React.FC = PatchComponent(
             value={iface.handyKey ?? undefined}
             onChange={(v) => saveInterface({ handyKey: v })}
           />
+          <StringSetting
+            headingID="config.ui.handy_app_key.heading"
+            subHeadingID="config.ui.handy_app_key.description"
+            value={iface.handyAppKey ?? undefined}
+            onChange={(v) => saveInterface({ handyAppKey: v })}
+          />
           {interactive.handyKey && (
             <>
               <div className="setting" id="handy-status">

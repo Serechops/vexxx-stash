@@ -43,6 +43,7 @@ import {
   InteractiveContext,
 } from "src/hooks/Interactive/context";
 import { SceneInteractiveStatus } from "src/hooks/Interactive/status";
+import { InteractiveControls } from "./InteractiveControls";
 import { languageMap } from "src/utils/caption";
 import { VIDEO_PLAYER_ID } from "./util";
 import { Button } from "@mui/material";
@@ -1117,6 +1118,12 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
         {scene.interactive &&
           (interactiveState !== ConnectionState.Ready ||
             getPlayer()?.paused()) && <SceneInteractiveStatus />}
+        {scene.interactive && interactiveState === ConnectionState.Ready && (
+          <InteractiveControls
+            client={interactiveClient}
+            show={!getPlayer()?.paused()}
+          />
+        )}
         {file && showScrubber && (
           <ScenePlayerScrubber
             file={file}

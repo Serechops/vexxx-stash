@@ -1,10 +1,4 @@
-import Handy from "thehandy";
-import {
-  HandyMode,
-  HsspSetupResult,
-  CsvUploadResponse,
-  HandyFirmwareStatus,
-} from "thehandy/lib/types";
+import { HandyAPIv3 } from "./handy-api-v3";
 import { IDeviceSettings } from "./utils";
 
 interface IFunscript {
@@ -18,34 +12,26 @@ interface IAction {
   pos: number;
 }
 
-// Utility function to convert one range of values to another
 function convertRange(
   value: number,
   fromLow: number,
   fromHigh: number,
   toLow: number,
   toHigh: number
-) {
+): number {
   return ((value - fromLow) * (toHigh - toLow)) / (fromHigh - fromLow) + toLow;
 }
 
-// Converting to CSV first instead of uploading Funscripts is required
 // Reference for Funscript format:
 // https://pkg.go.dev/github.com/funjack/launchcontrol/protocol/funscript
-function convertFunscriptToCSV(funscript: IFunscript) {
+function convertFunscriptToCSV(funscript: IFunscript): string {
   const lineTerminator = "\r\n";
   if (funscript?.actions?.length > 0) {
     return funscript.actions.reduce((prev: string, curr: IAction) => {
-      var { pos } = curr;
-      // If it's inverted in the Funscript, we flip it because
-      // the Handy doesn't have inverted support
+      let { pos } = curr;
       if (funscript.inverted === true) {
         pos = convertRange(curr.pos, 0, 100, 100, 0);
       }
-      // in APIv2; the Handy maintains it's own slide range
-      // (ref: https://staging.handyfeeling.com/api/handy/v2/docs/#/SLIDE )
-      // so if a range is specified in the Funscript, we convert it to the
-      // full range and let the Handy's settings take precedence
       if (funscript.range) {
         pos = convertRange(curr.pos, 0, funscript.range, 0, 100);
       }
@@ -55,90 +41,64 @@ function convertFunscriptToCSV(funscript: IFunscript) {
   throw new Error("Not a valid funscript");
 }
 
-// copied from https://github.com/defucilis/thehandy/blob/main/src/HandyUtils.ts
-// since HandyUtils is not exported.
-// License is listed as MIT. No copyright notice is provided in original.
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-async function uploadCsv(
-  csv: File,
-  filename?: string
-): Promise<CsvUploadResponse> {
+async function uploadCsv(csv: File): Promise<{ url: string }> {
   const url = "https://www.handyfeeling.com/api/sync/upload?local=true";
-  if (!filename) filename = "script_" + new Date().valueOf() + ".csv";
+  const fileName = "script_" + new Date().valueOf() + ".csv";
   const formData = new FormData();
-  formData.append("syncFile", csv, filename);
-  const response = await fetch(url, {
-    method: "post",
-    body: formData,
-  });
-  const newUrl = await response.json();
-  return newUrl;
+  formData.append("syncFile", csv, fileName);
+  const response = await fetch(url, { method: "post", body: formData });
+  return response.json() as Promise<{ url: string }>;
 }
 
-// Interactive currently uses the Handy API, but could be expanded to use buttplug.io
-// via buttplugio/buttplug-rs-ffi's WASM module.
+// Interactive currently uses the Handy API (v3), but could be expanded to use
+// buttplug.io via buttplugio/buttplug-rs-ffi's WASM module.
 export class Interactive {
-  _connected: boolean;
-  _playing: boolean;
-  _scriptOffset: number;
-  _handy: Handy;
-  _useStashHostedFunscript: boolean;
+  private _connected: boolean = false;
+  private _playing: boolean = false;
+  private _scriptOffset: number;
+  private _api: HandyAPIv3;
+  private _useStashHostedFunscript: boolean = false;
+  private _looping: boolean = false;
+  private _appKey: string = "";
 
   constructor(handyKey: string, scriptOffset: number) {
-    this._handy = new Handy();
-    this._handy.connectionKey = handyKey;
+    this._api = new HandyAPIv3();
+    if (handyKey) this._api.setConnectionKey(handyKey);
     this._scriptOffset = scriptOffset;
-    this._useStashHostedFunscript = false;
-    this._connected = false;
-    this._playing = false;
   }
 
-  get connected() {
+  get connected(): boolean {
     return this._connected;
   }
-  get playing() {
+  get playing(): boolean {
     return this._playing;
   }
 
-  async connect() {
-    const connected = await this._handy.getConnected();
-    if (!connected) {
+  async connect(): Promise<void> {
+    if (this._appKey) {
+      try {
+        await this._api.issueToken();
+      } catch {
+        // proceed with Connection Key-only auth
+      }
+    }
+    const res = await this._api.isConnected();
+    if (!res?.connected) {
       throw new Error("Handy not connected");
     }
-
-    // check the firmware and make sure it's compatible
-    const info = await this._handy.getInfo();
-    if (info.fwStatus === HandyFirmwareStatus.updateRequired) {
-      throw new Error("Handy firmware update required");
-    }
+    this._connected = true;
   }
 
   set handyKey(key: string) {
-    this._handy.connectionKey = key;
+    this._api.setConnectionKey(key);
   }
 
   get handyKey(): string {
-    return this._handy.connectionKey;
+    return this._api.connectionKey ?? "";
   }
 
-  set useStashHostedFunscript(useStashHostedFunscript: boolean) {
-    this._useStashHostedFunscript = useStashHostedFunscript;
+  set useStashHostedFunscript(v: boolean) {
+    this._useStashHostedFunscript = v;
   }
 
   get useStashHostedFunscript(): boolean {
@@ -149,89 +109,118 @@ export class Interactive {
     this._scriptOffset = offset;
   }
 
-  async uploadScript(funscriptPath: string, apiKey?: string) {
-    if (!(this._handy.connectionKey && funscriptPath)) {
-      return;
-    }
+  async uploadScript(funscriptPath: string, apiKey?: string): Promise<void> {
+    if (!this._api.connectionKey || !funscriptPath) return;
 
-    var funscriptUrl;
+    let funscriptUrl: string;
 
     if (this._useStashHostedFunscript) {
       funscriptUrl = funscriptPath.replace("/funscript", "/interactive_csv");
-      if (typeof apiKey !== "undefined" && apiKey !== "") {
-        var url = new URL(funscriptUrl);
+      if (apiKey) {
+        const url = new URL(funscriptUrl);
         url.searchParams.append("apikey", apiKey);
         funscriptUrl = url.toString();
       }
     } else {
       const csv = await fetch(funscriptPath)
-        .then((response) => response.json())
-        .then((json) => convertFunscriptToCSV(json));
-      const fileName = `${Math.round(Math.random() * 100000000)}.csv`;
-      const csvFile = new File([csv], fileName);
-
-      funscriptUrl = await uploadCsv(csvFile).then((response) => response.url);
+        .then((r) => r.json())
+        .then((json) => convertFunscriptToCSV(json as IFunscript));
+      const csvFile = new File(
+        [csv],
+        `${Math.round(Math.random() * 100000000)}.csv`
+      );
+      funscriptUrl = await uploadCsv(csvFile).then((r) => r.url);
     }
 
-    await this._handy.setMode(HandyMode.hssp);
-
-    this._connected = await this._handy
-      .setHsspSetup(funscriptUrl)
-      .then((result) => result === HsspSetupResult.downloaded);
-
-    // for some reason we need to call getStatus after setup to ensure proper state
-    // see https://github.com/defucilis/thehandy/issues/3
-    await this._handy.getStatus();
+    await this._api.setMode(HandyAPIv3.MODE.HSSP);
+    await this._api.hsspSetup(funscriptUrl);
+    await this._api.hsspGetState();
+    this._connected = true;
   }
 
-  async sync() {
-    return this._handy.getServerTimeOffset();
+  async sync(): Promise<number> {
+    return this._api.syncServerTime({ samples: 10, outliers: 3 });
   }
 
-  setServerTimeOffset(offset: number) {
-    this._handy.estimatedServerTimeOffset = offset;
-  }
+  // kept for context.tsx compatibility — server time is managed internally in v3
+  setServerTimeOffset(_offset: number): void {}
 
-  async configure(config: Partial<IDeviceSettings>) {
-    this._scriptOffset = config.scriptOffset ?? this._scriptOffset;
-    this.handyKey = config.connectionKey ?? this.handyKey;
-    this._handy.estimatedServerTimeOffset =
-      config.estimatedServerTimeOffset ?? this._handy.estimatedServerTimeOffset;
-    this.useStashHostedFunscript =
-      config.useStashHostedFunscript ?? this.useStashHostedFunscript;
-  }
-
-  async play(position: number) {
-    if (!this._connected) {
-      return;
+  async configure(config: Partial<IDeviceSettings>): Promise<void> {
+    if (config.connectionKey !== undefined) this.handyKey = config.connectionKey;
+    if (config.scriptOffset !== undefined)
+      this._scriptOffset = config.scriptOffset;
+    if (config.useStashHostedFunscript !== undefined)
+      this._useStashHostedFunscript = config.useStashHostedFunscript;
+    if (config.appKey !== undefined) {
+      this._appKey = config.appKey;
+      this._api.setAppKey(config.appKey);
     }
-
-    this._playing = await this._handy
-      .setHsspPlay(
-        Math.round(position * 1000 + this._scriptOffset),
-        this._handy.estimatedServerTimeOffset + Date.now() // our guess of the Handy server's UNIX epoch time
-      )
-      .then(() => true);
   }
 
-  async pause() {
-    if (!this._connected) {
-      return;
-    }
-    this._playing = await this._handy.setHsspStop().then(() => false);
+  async play(position: number): Promise<void> {
+    if (!this._connected) return;
+    await this._api.hsspPlay(
+      Math.round(position * 1000 + this._scriptOffset),
+      this._api.getEstimatedServerTime(),
+      { loop: this._looping }
+    );
+    this._playing = true;
   }
 
-  async ensurePlaying(position: number) {
-    if (this._playing) {
-      return;
-    }
+  async pause(): Promise<void> {
+    if (!this._connected) return;
+    await this._api.hsspStop();
+    this._playing = false;
+  }
+
+  async ensurePlaying(position: number): Promise<void> {
+    if (this._playing) return;
     await this.play(position);
   }
 
-  async setLooping(looping: boolean) {
-    if (!this._connected) {
-      return;
+  async setLooping(looping: boolean): Promise<void> {
+    this._looping = looping;
+    if (this._connected && this._playing) {
+      await this._api.hsspSetLoop(looping);
     }
-    this._handy.setHsspLoop(looping);
+  }
+
+  // ── v3 extended capabilities ────────────────────────────────────────────
+
+  get hasV3Capabilities(): boolean {
+    return true;
+  }
+
+  async setMode(mode: number): Promise<void> {
+    await this._api.setMode(mode);
+  }
+
+  async hampStart(): Promise<void> {
+    await this._api.hampStart();
+  }
+  async hampStop(): Promise<void> {
+    await this._api.hampStop();
+  }
+  async setHampVelocity(velocity: number): Promise<void> {
+    await this._api.setHampVelocity(velocity);
+  }
+  async setHampStroke(min: number, max: number): Promise<void> {
+    await this._api.setHampStroke(min, max);
+  }
+  async hvpStart(): Promise<void> {
+    await this._api.hvpStart();
+  }
+  async hvpStop(): Promise<void> {
+    await this._api.hvpStop();
+  }
+  async setHvpState(
+    amplitude: number,
+    frequency: number,
+    position: number
+  ): Promise<void> {
+    await this._api.setHvpState(amplitude, frequency, position);
+  }
+  async emergencyStop(): Promise<void> {
+    await this._api.emergencyStop();
   }
 }

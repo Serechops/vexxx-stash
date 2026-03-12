@@ -110,6 +110,7 @@ fragment ConfigInterfaceData on ConfigInterfaceResult {
     gallery
   }
   handyKey
+  handyAppKey
   funscriptOffset
   useStashHostedFunscript
 }

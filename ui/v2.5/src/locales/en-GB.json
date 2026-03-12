@@ -723,6 +723,10 @@
         "description": "Time offset in milliseconds for interactive scripts playback.",
         "heading": "Funscript Offset (ms)"
       },
+      "handy_app_key": {
+        "description": "Optional Handy Application Key for bearer token authentication and higher API rate limits. Obtain from handyfeeling.com.",
+        "heading": "Handy App Key"
+      },
       "handy_connection": {
         "connect": "Connect",
         "server_offset": {
@@ -1216,6 +1220,18 @@
     "ready": "Ready",
     "syncing": "Syncing with server",
     "uploading": "Uploading script"
+  },
+  "handy_controls": {
+    "emergency_stop": "Emergency Stop",
+    "hamp_mode": "HAMP Mode",
+    "hamp_velocity": "Velocity",
+    "stroke_zone": "Stroke Zone",
+    "stroke_min": "Min",
+    "stroke_max": "Max",
+    "vibration": "Vibration",
+    "amplitude": "Amplitude",
+    "frequency": "Frequency",
+    "interactive_controls": "Handy Controls"
   },
   "hasChapters": "Chapters",
   "hasMarkers": "Markers",

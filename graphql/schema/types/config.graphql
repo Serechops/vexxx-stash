@@ -419,6 +419,8 @@ input ConfigInterfaceInput {
 
   "Handy Connection Key"
   handyKey: String
+  "Handy Application Key (for bearer token auth and higher rate limits)"
+  handyAppKey: String
   "Funscript Time Offset"
   funscriptOffset: Int
   "Whether to use Stash Hosted Funscript"
@@ -493,6 +495,8 @@ type ConfigInterfaceResult {
 
   "Handy Connection Key"
   handyKey: String
+  "Handy Application Key (for bearer token auth and higher rate limits)"
+  handyAppKey: String
   "Funscript Time Offset"
   funscriptOffset: Int
   "Whether to use Stash Hosted Funscript"

@@ -93,7 +93,6 @@
     "string.prototype.replaceall": "^1.0.7",
     "tailwind-merge": "^3.4.0",
     "tailwindcss-animate": "^1.0.7",
-    "thehandy": "^1.0.3",
     "ua-parser-js": "^1.0.34",
     "universal-cookie": "^4.0.4",
     "video.js": "^7.21.3",

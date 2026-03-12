@@ -7,6 +7,7 @@ export interface IDeviceSettings {
   scriptOffset: number;
   estimatedServerTimeOffset?: number;
   useStashHostedFunscript?: boolean;
+  appKey?: string;
   [key: string]: unknown;
 }
 
@@ -35,6 +36,17 @@ export interface IInteractiveClient {
   setLooping(looping: boolean): Promise<void>;
   readonly connected: boolean;
   readonly playing: boolean;
+  // Optional v3 extended capabilities
+  readonly hasV3Capabilities?: boolean;
+  setMode?(mode: number): Promise<void>;
+  hampStart?(): Promise<void>;
+  hampStop?(): Promise<void>;
+  setHampVelocity?(velocity: number): Promise<void>;
+  setHampStroke?(min: number, max: number): Promise<void>;
+  hvpStart?(): Promise<void>;
+  hvpStop?(): Promise<void>;
+  setHvpState?(amplitude: number, frequency: number, position: number): Promise<void>;
+  emergencyStop?(): Promise<void>;
 }
 
 export interface IInteractiveUtils {

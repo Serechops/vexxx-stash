@@ -63,6 +63,16 @@ export const ScanOptions: React.FC<IScanOptions> = ({
         onChange={(v) => setOptions({ scanGeneratePhashes: v })}
       />
       <BooleanSetting
+        advanced
+        id={`${keyPrefix}scan-auto-identify`}
+        className="sub-setting"
+        headingID="config.tasks.auto_identify_after_phash"
+        tooltipID="config.tasks.auto_identify_after_phash_tooltip"
+        checked={options.scanAutoIdentify ?? false}
+        disabled={!options.scanGeneratePhashes}
+        onChange={(v) => setOptions({ scanAutoIdentify: v })}
+      />
+      <BooleanSetting
         id={`${keyPrefix}scan-generate-thumbnails`}
         checked={options.scanGenerateThumbnails ?? false}
         headingID="config.tasks.generate_thumbnails_during_scan"

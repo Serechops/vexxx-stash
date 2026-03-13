@@ -550,6 +550,8 @@
       "generate_image_phashes_during_scan_tooltip": "For deduplication and identification.",
       "generate_phashes_during_scan": "Generate video perceptual hashes",
       "generate_phashes_during_scan_tooltip": "For deduplication and scene identification.",
+      "auto_identify_after_phash": "Auto-Identify after phash",
+      "auto_identify_after_phash_tooltip": "Automatically run Identify on a scene immediately after its phash is generated, using the configured default Identify sources.",
       "generate_previews_during_scan": "Generate animated image previews",
       "generate_previews_during_scan_tooltip": "Also generate animated (webp) previews, only required when Scene/Marker Wall Preview Type is set to Animated Image. When browsing they use less CPU than the video previews, but are generated in addition to them and are larger files.",
       "generate_sprites_during_scan": "Generate scrubber sprites",

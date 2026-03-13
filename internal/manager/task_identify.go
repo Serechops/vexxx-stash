@@ -381,3 +381,68 @@ func (j *IdentifyJob) processRenames(ctx context.Context) {
 		}
 	})
 }
+
+// autoIdentifyScene runs the identify process for a single scene using the
+// configured default identify settings. It is intended to be called immediately
+// after phash generation during a scan so that scrapers can match the new hash.
+// It is a no-op when no default identify sources are configured.
+func autoIdentifyScene(ctx context.Context, s *models.Scene) {
+	cfg := instance.Config
+	defaultSettings := cfg.GetDefaultIdentifySettings()
+	if defaultSettings == nil || len(defaultSettings.Sources) == 0 {
+		return
+	}
+
+	j := &IdentifyJob{
+		postHookExecutor: instance.PluginCache,
+		input:            *defaultSettings,
+		stashBoxes:       cfg.GetStashBoxes(),
+	}
+
+	sources, err := j.getSources()
+	if err != nil {
+		logger.Errorf("Auto-identify: error resolving sources for %s: %v", s.Path, err)
+		return
+	}
+
+	r := instance.Repository
+	task := identify.SceneIdentifier{
+		TxnManager:                  r.TxnManager,
+		SceneReaderUpdater:          r.Scene,
+		StudioReaderWriter:          r.Studio,
+		PerformerCreator:            r.Performer,
+		TagFinderCreator:            r.Tag,
+		DefaultOptions:              j.input.Options,
+		Sources:                     sources,
+		SceneUpdatePostHookExecutor: j.postHookExecutor,
+		SceneRenamer: func(ctx context.Context, scene *models.Scene) error {
+			if cfg.GetRenamerEnabled() {
+				if template := cfg.GetRenamerTemplate(); template != "" {
+					j.scenesToRename = append(j.scenesToRename, scene.ID)
+				}
+			}
+			return nil
+		},
+	}
+
+	if err := task.Identify(ctx, s); err != nil {
+		logger.Errorf("Auto-identify: error identifying %s: %v", s.Path, err)
+	}
+
+	// process any pending renames triggered by the identify
+	for _, id := range j.scenesToRename {
+		if err := txn.WithTxn(ctx, r.TxnManager, func(ctx context.Context) error {
+			sc, err := r.Scene.Find(ctx, id)
+			if err != nil {
+				return err
+			}
+			template := cfg.GetRenamerTemplate()
+			if _, err := RenameSceneFile(ctx, r, sc, template, false, nil, nil, nil); err != nil {
+				logger.Warnf("Auto-identify rename error for scene %d: %v", id, err)
+			}
+			return nil
+		}); err != nil {
+			logger.Errorf("Auto-identify rename transaction error for scene %d: %v", id, err)
+		}
+	}
+}

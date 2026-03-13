@@ -809,6 +809,9 @@ func (g *sceneGenerators) Generate(ctx context.Context, s *models.Scene, f *mode
 				fileNamingAlgorithm: g.fileNamingAlgorithm,
 			}
 			taskPhash.Start(ctx)
+			if t.ScanAutoIdentify {
+				autoIdentifyScene(ctx, s)
+			}
 			progress.Increment()
 		}
 

@@ -188,9 +188,6 @@ importers:
       tailwindcss-animate:
         specifier: ^1.0.7
         version: 1.0.7(tailwindcss@3.4.19(yaml@2.8.1))
-      thehandy:
-        specifier: ^1.0.3
-        version: 1.1.0
       ua-parser-js:
         specifier: ^1.0.34
         version: 1.0.41
@@ -5656,9 +5653,6 @@ packages:
 
   text-table@0.2.0:
     resolution: {integrity: sha512-N+8UisAXDGk8PFXP4HAzVR9nbfmVJ3zYLAWiTIoqC5v5isinhr+r5uaO8+7r3BMfuNIufIsA7RdpVgacC2cSpw==}
-
-  thehandy@1.1.0:
-    resolution: {integrity: sha512-ZifUw47kq6cKNiKLNgrnVPkBFbG+yR6tScgWy2INDnGT4XePhjRaQNni67rWn52nAOkotq9VyaK20OZoorHqTA==}
 
   thenify-all@1.6.0:
     resolution: {integrity: sha512-RNxQH/qI8/t3thXJDwcstUO4zeqo64+Uy/+sNVRBx4Xn2OX+OZ9oP+iJnNFqplFra2ZUVeKCSa2oVWi3T4uVmA==}
@@ -12561,8 +12555,6 @@ snapshots:
       source-map-support: 0.5.21
 
   text-table@0.2.0: {}
-
-  thehandy@1.1.0: {}
 
   thenify-all@1.6.0:
     dependencies:

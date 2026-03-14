@@ -1111,3 +1111,145 @@ This commit includes several layout fixes and improvements:
 - Removed legacy auto-populate logic that filled queue from list filters
 - Fixed INamedObject type compliance by adding missing 'id' field
 - Optimized dropdown state management to resolve race conditions
+
+### ui: overhaul markers tab visual hierarchy and layout (2c126ba1)
+
+- Replace custom divs and Tailwind classes with MUI Grid, Stack, Card, and Typography
+- Group markers by primary tag into cards with internal Dividers for better spacing
+- Convert marker previews into a full-width single-column stack
+- Refactor WallItem to use CSS aspect-ratio for improved responsiveness across layouts
+- Adjust WallItem hover effects for single-column displays (reduced scale, removed darken overlay)
+
+### ui: show performer card selection checkbox on hover (5611a6ab)
+
+- Display selection checkbox when hovering over performer cards
+- Allow initiating selection mode by clicking the card checkbox
+- Improve checkbox visibility with drop-shadow and accent color
+- Prevent navigation when interacting with the selection checkbox
+
+### ui: overhaul markers tab into structured list view (dee1596c)
+
+- Replace marker cards with a chronologically sorted MUI Table
+- Implement fixed-width columns for Time and Primary Tag to ensure alignment
+- Add line-clamping (2 lines max) and word-break logic to handle long titles
+- Cap the displayed tags to 2 per marker with a "+X" overflow indicator
+- Add section headers for "Markers" and "Marker Previews" for better hierarchy
+
+### feat(gen): parallelize phash and sprite generation with concurrency limits (cbb646d7)
+
+Optimizes video scanning and generation performance by parallelizing the extraction
+of screenshots for phash and sprite sheets.
+
+- Parallelized phash generation (25 frames) in `pkg/hash/videophash`
+- Parallelized sprite generation (81 frames) in `internal/manager/generator_sprite.go`
+  for both fast-seek and slow-seek code paths
+- Added package-level semaphores in both packages capped at `runtime.NumCPU()` to
+  bound the total number of concurrent FFmpeg processes
+- Verified 2.0x–2.4x speedup on 720p content with zero phash divergence (identical
+  results to the original sequential approach)
+
+### feat(backend): add security, reliability & observability improvements (4856ade5)
+
+- Sanitize internal errors (SQL, filesystem) in GraphQL responses to prevent leaking
+  implementation details; add error codes to extensions for programmatic handling
+- Add GraphQL query complexity limit (750) to prevent abuse from deeply nested
+  recursive relation queries
+- Add per-file panic recovery in scan job workers so a single corrupt file cannot
+  crash the entire scan
+- Pre-compile whitespace regex at package level to avoid repeated compilation in
+  hot filter path
+- Log slow queries (>100ms) as warnings with query name
+- Add `/health` endpoint (version, status) and `/api/metrics` endpoint (DB, cache,
+  job, API counters) to server routes
+
+### feat(ui): implement playlist deletion with cache eviction (01a8169b)
+
+- Added missing delete functionality to PlaylistList with a confirmation dialog
+- Implemented Apollo Client cache eviction (`cache.evict`) for the `playlistDestroy`
+  mutation in both PlaylistList and PlaylistDetails
+- Fixed an issue where deleted playlists remained visible in the UI until a manual
+  page refresh
+
+### feat(interactive): migrate Handy integration to API v3, add controls overlay (b3665c52)
+
+- Add `handy-api-v3.ts` — full TypeScript v3 REST client (HandyAPIv3 class) with
+  HAMP, HSSP, HDSP, HVP, HSP, server-time sync, and emergency stop; replaces the
+  `thehandy` npm package entirely
+- Rewrite `interactive.ts` — IInteractiveClient implementation backed by HandyAPIv3;
+  HSSP sync via setFunscriptUrl/play/stop; HAMP autopilot fallback when no funscript
+  is present
+- Extend `utils.ts` — IDeviceSettings gains `handyAppKey`; IInteractiveClient gains
+  `setMode`, `hampStart/Stop`, `hvpStart/Stop/setHvpState`, `emergencyStop`
+- Add `handyAppKey` to GraphQL config schema (backend + frontend fragment)
+- Wire `handyAppKey` through `context.tsx` and `SettingsInterfacePanel.tsx` (new App
+  Key input field alongside existing Connection Key)
+- Add `InteractiveControls.tsx` — collapsible MUI overlay rendered inside ScenePlayer;
+  emergency stop, HAMP toggle, mode indicator; visible when an interactive client is
+  active
+- Wire InteractiveControls into ScenePlayer.tsx
+- Remove `thehandy` from package.json dependencies
+- Add locale strings for `handy_app_key` and `handy_controls` to en-GB.json
+
+### feat: add Auto-Identify after phash scan option (dae128d2)
+
+Adds a new `scanAutoIdentify` boolean to `ScanMetadataOptions` that, when enabled
+alongside `scanGeneratePhashes`, automatically runs the Identify process on a scene
+immediately after its perceptual hash is generated during a scan.
+
+- `internal/manager/config/tasks.go`: add `ScanAutoIdentify` field
+- `graphql/schema/types/metadata.graphql`: expose `scanAutoIdentify` on both
+  `ScanMetadataInput` and `ScanMetadataOptions`
+- `internal/manager/task_identify.go`: add `autoIdentifyScene()` helper that runs a
+  single-scene identify using the configured default Identify sources; no-ops when no
+  sources are configured
+- `internal/manager/task_scan.go`: call `autoIdentifyScene()` after phash generation
+  when `ScanAutoIdentify` is set
+- `ui/v2.5/src/locales/en-GB.json`: add locale keys for toggle and tooltip
+- `ui/v2.5/src/components/Settings/Tasks/ScanOptions.tsx`: add sub-setting toggle
+  nested under the phash option, disabled when phash generation is off
+
+### feat: add stash-diag standalone diagnostic CLI tool (pending)
+
+Introduces `cmd/stash-diag/` — a self-contained Go binary for offline diagnosis of
+a Stash installation without needing a running server. Reads the same `config.yml`
+as the main binary.
+
+**Features:**
+- 12 check categories: CONFIG, PATHS, FFMPEG, DATABASE, PLUGINS, SCRAPERS, NETWORK,
+  PERMISSIONS, PYTHON, LOG, CONNECTIVITY, PROCESS
+- Interactive TUI (bubbletea + bubbles/viewport) with spinner, bordered section panels,
+  scrollable output, and summary footer
+- `--json` flag for machine-readable output
+- `--no-tui` flag for plain-text output (CI/logging)
+- `--url` / `--api-key` flags to mirror live config from a running Stash instance via
+  GraphQL (`configuration.general`)
+- `--verbose` flag to surface full log tail and extended details
+
+**Check highlights:**
+- DATABASE: schema version vs expected, WAL journal mode, `PRAGMA integrity_check(1)`
+  with 10s timeout
+- PATHS: all work directories with free disk space; warns below 1 GiB
+- NETWORK: listen address, TLS state, TCP port probe, per-platform firewall detection
+  (PowerShell/netsh on Windows; ufw/nft/iptables/ss on Linux; socketfilterfw/pfctl
+  on macOS)
+- PERMISSIONS: write-probe on generated/cache/metadata/blobs/plugins/scrapers dirs;
+  DB R/W open test; config file stat
+- LOG: tail last 50 lines, surface up to 10 ERROR/FATAL lines
+- CONNECTIVITY: HTTP HEAD to all stash-box endpoints, plugin and scraper package
+  source URLs
+- PROCESS: detect running Stash PID and listening address (tasklist+netstat on
+  Windows; pgrep+ss on Unix)
+
+**Files added:**
+- `cmd/stash-diag/main.go` — entry point, flags, `runAllChecks()`, routing
+- `cmd/stash-diag/checks.go` — checkPaths, checkFFmpeg, checkDatabase, checkPlugins,
+  checkScrapers, checkOnline
+- `cmd/stash-diag/checks_network.go` — checkNetwork, checkPermissions
+- `cmd/stash-diag/checks_extra.go` — checkPython, checkLogFile, checkConfigPermissions,
+  checkConnectivity, checkProcess
+- `cmd/stash-diag/tui.go` — bubbletea TUI model
+- `cmd/stash-diag/firewall_windows.go` / `firewall_linux.go` / `firewall_darwin.go` /
+  `firewall_other.go` — per-platform firewall detection
+- `cmd/stash-diag/disk_windows.go` / `disk_unix.go` — cross-platform free disk space
+- `Makefile`: added `stash-diag` target
+- `ui/v2.5/package.json`: added `build:diag` and `run:diag` scripts

@@ -10,10 +10,12 @@ ifdef IS_WIN_SHELL
   RM := del /s /q
   RMDIR := rmdir /s /q
   NOOP := @@
+  DIAG_BINARY := dist/stash-diag.exe
 else
   RM := rm -f
   RMDIR := rm -rf
   NOOP := @:
+  DIAG_BINARY := dist/stash-diag
 endif
 
 # set LDFLAGS environment variable to any extra ldflags required
@@ -130,6 +132,23 @@ stash: build-flags
 .PHONY: phasher
 phasher: build-flags
 	go build $(PHASHER_OUTPUT) $(BUILD_FLAGS) ./cmd/phasher
+
+.PHONY: stash-diag
+stash-diag: build-flags
+	go build -o $(DIAG_BINARY) $(BUILD_FLAGS) ./cmd/stash-diag
+
+# Static portable build for Linux/FreeBSD — produces a self-contained binary
+.PHONY: stash-diag-static
+stash-diag-static: flags-release flags-static build-flags
+	go build -o $(DIAG_BINARY) $(BUILD_FLAGS) ./cmd/stash-diag
+
+# Static portable build for Windows (cross-compile from the compiler container)
+.PHONY: stash-diag-windows
+stash-diag-windows: export GOOS := windows
+stash-diag-windows: export GOARCH := amd64
+stash-diag-windows: export CC := x86_64-w64-mingw32-gcc
+stash-diag-windows: flags-release flags-static-windows build-flags
+	go build -o dist/stash-diag-win.exe $(BUILD_FLAGS) ./cmd/stash-diag
 
 # builds dynamically-linked debug binaries
 .PHONY: build

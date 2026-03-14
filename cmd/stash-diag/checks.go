@@ -24,17 +24,6 @@ import (
 const expectedSchemaVersion = 85
 
 // ---------------------------------------------------------------------------
-// CONFIG
-// ---------------------------------------------------------------------------
-
-// checkConfig is called before the other checks for additional config-level
-// details (e.g. reporting the host/port if set).
-func checkConfig(cfg *config.Config) []CheckResult {
-	// The top-level config result is produced in main.go; nothing extra here.
-	return nil
-}
-
-// ---------------------------------------------------------------------------
 // PATHS
 // ---------------------------------------------------------------------------
 

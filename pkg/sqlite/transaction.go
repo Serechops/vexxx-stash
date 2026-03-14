@@ -2,12 +2,10 @@ package sqlite
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"runtime/debug"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/mattn/go-sqlite3"
 	"github.com/stashapp/stash/pkg/logger"
 	"github.com/stashapp/stash/pkg/models"
 )
@@ -105,14 +103,6 @@ func getDBReader(ctx context.Context) (dbReader, error) {
 		return db, nil
 	}
 	return tx, nil
-}
-
-func (db *Database) IsLocked(err error) bool {
-	var sqliteError sqlite3.Error
-	if errors.As(err, &sqliteError) {
-		return sqliteError.Code == sqlite3.ErrBusy
-	}
-	return false
 }
 
 func (db *Database) Repository() models.Repository {

@@ -1,3 +1,5 @@
+//go:build cgo
+
 package sqlite
 
 import "github.com/corona10/goimagehash"

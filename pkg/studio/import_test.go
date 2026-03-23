@@ -20,7 +20,7 @@ const (
 
 	existingStudioID = 100
 	existingTagID    = 105
-	errTagsID        = 106
+	// errTagsID = 106 (unused)
 
 	existingParentStudioName = "existingParentStudioName"
 	existingParentStudioErr  = "existingParentStudioErr"

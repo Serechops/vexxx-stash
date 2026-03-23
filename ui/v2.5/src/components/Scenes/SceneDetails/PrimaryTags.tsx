@@ -19,18 +19,23 @@ import EditIcon from "@mui/icons-material/Edit";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import TextUtils from "src/utils/text";
 import { markerTitle } from "src/core/markers";
+import { useConfigurationContext } from "src/hooks/Config";
 
 interface IPrimaryTags {
   sceneMarkers: GQL.SceneMarkerDataFragment[];
   onClickMarker: (marker: GQL.SceneMarkerDataFragment) => void;
+  onLoopMarker: (marker: GQL.SceneMarkerDataFragment) => void;
   onEdit: (marker: GQL.SceneMarkerDataFragment) => void;
 }
 
 export const PrimaryTags: React.FC<IPrimaryTags> = ({
   sceneMarkers,
   onClickMarker,
+  onLoopMarker,
   onEdit,
 }) => {
+  const { configuration } = useConfigurationContext();
+  const showAbLoopControls = configuration?.ui?.showAbLoopControls;
   if (!sceneMarkers?.length) return <div />;
 
   // Sort markers by time
@@ -79,12 +84,24 @@ export const PrimaryTags: React.FC<IPrimaryTags> = ({
                 sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
               >
                 <TableCell sx={{ whiteSpace: 'nowrap' }}>
-                  <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
-                    {TextUtils.formatTimestampRange(
-                      marker.seconds,
-                      marker.end_seconds ?? undefined
+                  <Box display="flex" alignItems="center" gap={0.5}>
+                    <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
+                      {TextUtils.formatTimestampRange(
+                        marker.seconds,
+                        marker.end_seconds ?? undefined
+                      )}
+                    </Typography>
+                    {showAbLoopControls && marker.end_seconds != null && (
+                      <Button
+                        variant="text"
+                        size="small"
+                        onClick={() => onLoopMarker(marker)}
+                        sx={{ minWidth: 0, p: 0, ml: 0.5, textTransform: 'none', fontSize: 'inherit' }}
+                      >
+                        Loop
+                      </Button>
                     )}
-                  </Typography>
+                  </Box>
                 </TableCell>
                 <TableCell>
                   <Button

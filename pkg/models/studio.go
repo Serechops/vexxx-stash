@@ -36,6 +36,8 @@ type StudioFilterType struct {
 	ChildCount *IntCriterionInput `json:"child_count"`
 	// Filter by autotag ignore value
 	IgnoreAutoTag *bool `json:"ignore_auto_tag"`
+	// Filter by organized
+	Organized *bool `json:"organized"`
 	// Filter by related scenes that meet this criteria
 	ScenesFilter *SceneFilterType `json:"scenes_filter"`
 	// Filter by related images that meet this criteria
@@ -62,6 +64,7 @@ type StudioCreateInput struct {
 	Aliases       []string       `json:"aliases"`
 	TagIds        []string       `json:"tag_ids"`
 	IgnoreAutoTag *bool          `json:"ignore_auto_tag"`
+	Organized     *bool          `json:"organized"`
 }
 
 type StudioUpdateInput struct {
@@ -79,4 +82,5 @@ type StudioUpdateInput struct {
 	Aliases       []string       `json:"aliases"`
 	TagIds        []string       `json:"tag_ids"`
 	IgnoreAutoTag *bool          `json:"ignore_auto_tag"`
+	Organized     *bool          `json:"organized"`
 }

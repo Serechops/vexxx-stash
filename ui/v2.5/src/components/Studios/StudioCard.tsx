@@ -1,17 +1,18 @@
 import { Link } from "react-router-dom";
-import { Box, Button, ButtonGroup, Typography } from "@mui/material";
+import { Box, Button, ButtonGroup, Tooltip, Typography } from "@mui/material";
 import * as GQL from "src/core/generated-graphql";
 import NavUtils from "src/utils/navigation";
 import { GridCard } from "src/components/Shared/GridCard/GridCard";
 import { PatchComponent } from "src/patch";
 import { HoverPopover } from "../Shared/HoverPopover";
 import { TagLink } from "../Shared/TagLink";
-import { FormattedMessage } from "react-intl";
+import { FormattedMessage, useIntl } from "react-intl";
 import { PopoverCountButton } from "../Shared/PopoverCountButton";
 import { RatingBanner } from "../Shared/RatingBanner";
 import { FavoriteIcon } from "../Shared/FavoriteIcon";
 import { useStudioUpdate } from "src/core/StashService";
 import LocalOfferIcon from "@mui/icons-material/LocalOffer";
+import InventoryIcon from "@mui/icons-material/Inventory";
 import { OCounterButton } from "../Shared/CountButton";
 
 interface IProps {
@@ -78,6 +79,7 @@ export const StudioCard: React.FC<IProps> = PatchComponent(
     zoomIndex,
     onSelectedChanged,
   }) => {
+    const intl = useIntl();
     const [updateStudio] = useStudioUpdate();
 
     function onToggleFavorite(v: boolean) {
@@ -190,6 +192,27 @@ export const StudioCard: React.FC<IProps> = PatchComponent(
       return <OCounterButton value={studio.o_counter} />;
     }
 
+    function maybeRenderOrganized() {
+      if (!studio.organized) return;
+
+      return (
+        <Tooltip title={intl.formatMessage({ id: "organized" })}>
+          <Button
+            variant="text"
+            size="small"
+            sx={{
+              minWidth: "auto",
+              color: "#664c3f",
+              "&:hover": { backgroundColor: "rgba(138, 155, 168, 0.15)" },
+            }}
+            disableRipple
+          >
+            <InventoryIcon fontSize="small" />
+          </Button>
+        </Tooltip>
+      );
+    }
+
     function maybeRenderPopoverButtonGroup() {
       return (
         <>
@@ -240,6 +263,7 @@ export const StudioCard: React.FC<IProps> = PatchComponent(
             />
             {maybeRenderTagPopoverButton()}
             {maybeRenderOCounter()}
+            {maybeRenderOrganized()}
           </ButtonGroup>
         </>
       );

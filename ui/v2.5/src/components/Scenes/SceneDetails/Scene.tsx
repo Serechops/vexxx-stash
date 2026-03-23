@@ -34,7 +34,10 @@ import { ListFilterModel } from "src/models/list-filter/filter";
 import Mousetrap from "mousetrap";
 import { OrganizedButton } from "./OrganizedButton";
 import { useConfigurationContext } from "src/hooks/Config";
-import { getPlayerPosition } from "src/components/ScenePlayer/util";
+import {
+  getAbLoopPlugin,
+  getPlayerPosition,
+} from "src/components/ScenePlayer/util";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
@@ -337,7 +340,51 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
   };
 
   function onClickMarker(marker: GQL.SceneMarkerDataFragment) {
+    const abLoopPlugin = getAbLoopPlugin();
+    const opts = abLoopPlugin?.getOptions();
+    const start = opts?.start;
+    const end = opts?.end;
+
+    const hasLoopRange =
+      opts?.enabled &&
+      typeof start === "number" &&
+      typeof end === "number" &&
+      Number.isFinite(start) &&
+      Number.isFinite(end);
+
+    if (
+      abLoopPlugin &&
+      opts &&
+      hasLoopRange &&
+      (marker.seconds < Math.min(start as number, end as number) ||
+        marker.seconds > Math.max(start as number, end as number))
+    ) {
+      abLoopPlugin.setOptions({
+        ...opts,
+        enabled: false,
+      });
+    }
+
     setTimestamp(marker.seconds);
+  }
+
+  function onLoopMarker(marker: GQL.SceneMarkerDataFragment) {
+    if (marker.end_seconds == null) return;
+
+    setTimestamp(marker.seconds);
+    const start = Math.min(marker.seconds, marker.end_seconds);
+    const end = Math.max(marker.seconds, marker.end_seconds);
+    const abLoopPlugin = getAbLoopPlugin();
+    const opts = abLoopPlugin?.getOptions();
+
+    if (opts && abLoopPlugin) {
+      abLoopPlugin.setOptions({
+        ...opts,
+        start,
+        end,
+        enabled: true,
+      });
+    }
   }
 
   async function onRescan() {
@@ -734,6 +781,7 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
           <SceneMarkersPanel
             sceneId={scene.id}
             onClickMarker={onClickMarker}
+            onLoopMarker={onLoopMarker}
             isVisible={activeTabKey === "scene-markers-panel"}
           />
         </Box>

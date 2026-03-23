@@ -156,7 +156,7 @@ High-value features requiring more extensive integration work:
 |---|-----------|-------------|----------------------|-------|
 | 1 | #6498 | File scanning refactor | High | Test with Vexxx segments | - Integrated in 'e031466f312ff89caa46a0499daaf59fda11bd6a'
 | 2 | #6510 | Add Performer Merge | High | Backend + UI work |
-| 3 | #6469 | Troubleshooting mode | Medium | Diagnostic features |
+| 3 | #6469 | Troubleshooting mode | Medium | N/A |
 | 4 | #6522 | Fix scanning with symlinks | Medium | Path handling |
 
 **Testing Strategy:**
@@ -170,7 +170,7 @@ Performance optimizations and dependency updates:
 
 | # | PR/Commit | Description | Type |
 |---|-----------|-------------|------|
-| 1 | #6539 | Optimize tag list generation | Performance |
+| 1 | #6703 | Replace tag list view with tag list table | Performance |
 | 2 | #6452 | Support DLNA subtitle selection | Feature |
 | 3 | #6489 | Update dependencies | Maintenance |
 | 4 | #6453 | Update build image | Infrastructure |
@@ -285,9 +285,9 @@ All integrations maintain compatibility with Vexxx-specific features:
 
 ## Next Session Starting Point
 
-**Current Phase:** Wave 2 — Phase 7 partially complete (#6485, #6701, #6494, #6636, #6709, #6637 done)  
-**Progress:** Phase 6 fully complete; Phase 7 has 6/13 done  
-**Next Action:** Port #6641 (ffmpeg phash fallback) or #6712 (hover volume configurable)
+**Current Phase:** Wave 2 — Phase 8 🔄 IN PROGRESS (1/8 done: Studio `organized`)  
+**Progress:** Phase 6 complete; Phase 7 complete (12/14 ported + 2 N/A); Phase 8 schema 87 (`organized`) complete  
+**Next Action:** Port #6156 Studio custom fields (schema 88)
 
 ---
 
@@ -307,7 +307,7 @@ Straightforward fixes from upstream v0.31 development cycle. Low risk, no schema
 
 ---
 
-## Wave 2 — Phase 7: Backend / Non-Schema Features � IN PROGRESS
+## Wave 2 — Phase 7: Backend / Non-Schema Features ✅ COMPLETE
 
 Backend features requiring no (or minimal) schema changes.
 
@@ -317,49 +317,38 @@ Backend features requiring no (or minimal) schema changes.
 | 2 | #6701 | Add `{phash}` argument to queryURLParameters | Low | ✅ COMPLETE |
 | 3 | #6494 | Add `basename` and `parent_folders` to Folder GraphQL type | Low | ✅ COMPLETE |
 | 4 | #6636 | Folder criteria filter for scenes/images/galleries + sidebars | Medium | ✅ COMPLETE |
-| 5 | #6641 | Use ffmpeg as fallback when generating phash | Low | 📋 PENDING |
+| 5 | #6641 | Use ffmpeg as fallback when generating phash | Low | ✅ COMPLETE |
 | 6 | #6709 | Add StashID GUID consideration into select boxes | Low | ✅ COMPLETE |
-| 7 | #6712 | Make hover volume configurable | Low | 📋 PENDING |
+| 7 | #6712 | Make hover volume configurable | Low | ✅ COMPLETE |
 | 8 | #6637 | Add "From Clipboard" to Set Image | Low | ✅ COMPLETE |
-| 9 | #6510 | Performer Merge (Wave 1 Phase 3 carryover) | High | 📋 PENDING |
-| 10 | #6469 | Troubleshooting mode (Wave 1 Phase 3 carryover) | Medium | 📋 PENDING |
-| 11 | #6522 | Fix scanning with symlinks (Wave 1 Phase 3 carryover) | Medium | 📋 PENDING |
-| 12 | #6539 | Optimize tag list generation (Wave 1 Phase 4 carryover) | Low | 📋 PENDING |
-| 13 | #6452 | Support DLNA subtitle selection (Wave 1 Phase 4 carryover) | Medium | 📋 PENDING |
+| 9 | #5910 | Performer Merge (Wave 1 Phase 3 carryover) | High | ✅ COMPLETE |
+| 9b | #6688 | Add stash IDs to performer merge dialog | Low | ✅ COMPLETE |
+| 9a | #6510 | Loop feature for markers + AB prefill | Low | ✅ COMPLETE |
+| 10 | #6469 | Troubleshooting mode (Wave 1 Phase 3 carryover) | Medium | ❌ N/A (not needed for Vexxx) |
+| 11 | #6522 | Fix scanning with symlinks (Wave 1 Phase 3 carryover) | Medium | ❌ N/A (not in upstream/develop) |
+| 12 | #6703 | Replace tag list view with tag list table (upstream commit 208c19a) | Low | ✅ COMPLETE |
+| 13 | #6452 | Support DLNA subtitle selection (Wave 1 Phase 4 carryover) | Medium | ❌ N/A (not in upstream/develop) |
 
 ---
 
-## Wave 2 — Phase 8: Schema Extensions (Custom Fields, Career Dates) 📋 PENDING
+## Wave 2 — Phase 8: Schema Extensions (Custom Fields, Career Dates) � IN PROGRESS
 
-**⚠ Schema Note:** All upstream schemas 76-85 must be ported as Vexxx schemas 86-95. They cannot reuse the same numbers (Vexxx already uses 76-85 for different purposes).
+**⚠ Schema Note:** Vexxx uses 76-86 for its own features. Upstream schemas 76-85 map to Vexxx 87-95. Upstream 84 (folder_basename) was already applied as Vexxx 86 in Phase 7.
 
-### 8a: Studio/Tag/Scene/Gallery/Group/Image Custom Fields
+### Exact Schema Mapping
 
-Upstream added custom fields to all entity types post-performer. These are batched as they share an identical pattern.
+| Vexxx Schema | Upstream Schema | PR | Description | Status |
+|--------------|-----------------|----|-------------|--------|
+| 87 | 80 | #6303 | Studio `organized` flag | ✅ COMPLETE |
+| 88 | 76 | #6156 | Studio custom fields | 📋 PENDING |
+| 89 | 77 | #6546 | Tag custom fields | 📋 PENDING |
+| 90 | 79 | #6584 | Scene custom fields | 📋 PENDING |
+| 91 | 81 | #6592 | Gallery custom fields | 📋 PENDING |
+| 92 | 82 | #6596 | Group custom fields | 📋 PENDING |
+| 93 | 83 | #6598 | Image custom fields | 📋 PENDING |
+| 94 | 78+85 | #6682 | Performer career dates (combined) | 📋 PENDING |
 
-| Schema → Vexxx | Upstream PR | Description |
-|----------------|-------------|-------------|
-| 86 | #6156 | Studio custom fields |
-| 87 | (upstream 77) | Tag custom fields |
-| 89 | #6598-equivalents | Scene custom fields |
-| 91 | upstream #6592 | Gallery custom fields |
-| 92 | upstream #6596 | Group custom fields |
-| 93 | upstream (83) | Image custom fields |
-
-**Frontend:** PR #6601 adds the full frontend custom field UI for all types.
-
-### 8b: Performer Career Dates
-
-| Schema → Vexxx | Upstream PR | Description |
-|----------------|-------------|-------------|
-| 88/95 | #6682 | Convert career_length string fields to proper Date fields |
-
-### 8c: Other Schema Work
-
-| Schema → Vexxx | Upstream PR | Description |
-|----------------|-------------|-------------|
-| 90 | #6303 | Add `organized` flag to Studios |
-| 94 | #6494 (84) | folder_basename field |
+**Frontend for custom fields:** PR #6601 adds the full frontend custom field UI for all types (Phase 9 item #2).
 
 ---
 

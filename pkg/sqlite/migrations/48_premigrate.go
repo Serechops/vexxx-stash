@@ -33,7 +33,7 @@ type schema48PreMigrator struct {
 	migrator
 }
 
-func (m *schema48PreMigrator) validateScrapedItems(ctx context.Context) error {
+func (m *schema48PreMigrator) validateScrapedItems(_ context.Context) error {
 	var count int
 
 	row := m.db.QueryRowx("SELECT COUNT(*) FROM scraped_items")

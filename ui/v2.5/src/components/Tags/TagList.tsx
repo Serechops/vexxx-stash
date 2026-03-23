@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { FormattedMessage, FormattedNumber, useIntl } from "react-intl";
+import { FormattedMessage, useIntl } from "react-intl";
 import cloneDeep from "lodash-es/cloneDeep";
 import { useHistory, useLocation } from "react-router-dom";
 import Mousetrap from "mousetrap";
@@ -8,7 +8,6 @@ import {
   queryFindTagsForList,
   useFindTagsForList,
   useTagsDestroy,
-  mutateMetadataAutoTag,
 } from "src/core/StashService";
 import { useFilteredItemList } from "../List/ItemList";
 import { ListFilterModel } from "src/models/list-filter/filter";
@@ -41,11 +40,10 @@ import { Pagination, PaginationIndex } from "../List/Pagination";
 import { LoadedContent } from "../List/PagedList";
 import { SidebarPerformersFilter } from "../List/Filters/PerformersFilter";
 import { PerformersCriterionOption } from "src/models/list-filter/criteria/performers";
-import { Button, IconButton, Box, Grid, Typography } from "@mui/material";
-import { Link } from "react-router-dom";
+import { Button } from "@mui/material";
 import { TagMergeModal } from "./TagMergeDialog";
 import { Tag } from "./TagSelect";
-import NavUtils from "src/utils/navigation";
+import { TagListTable } from "./TagListTable";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { ModalComponent } from "../Shared/Modal";
 import { useToast } from "src/hooks/Toast";
@@ -58,11 +56,9 @@ const TagList: React.FC<{
   filter: ListFilterModel;
   selectedIds: Set<string>;
   onSelectChange: (id: string, selected: boolean, shiftKey: boolean) => void;
-  onDelete: (tag: GQL.TagListDataFragment) => void;
-  onAutoTag: (tag: GQL.TagListDataFragment) => void;
 }> = PatchComponent(
   "TagList",
-  ({ tags, filter, selectedIds, onSelectChange, onDelete, onAutoTag }) => {
+  ({ tags, filter, selectedIds, onSelectChange }) => {
     const intl = useIntl();
 
     if (tags.length === 0) {
@@ -83,140 +79,12 @@ const TagList: React.FC<{
       );
     }
     if (filter.displayMode === DisplayMode.List) {
-      const tagElements = tags.map((tag) => {
-        return (
-          <Grid
-            container
-            key={tag.id}
-            className="tag-list-row"
-            alignItems="center"
-            sx={{ py: 1.25, borderBottom: "1px solid rgba(255, 255, 255, 0.12)" }}
-          >
-            <Grid sx={{ flexGrow: 1, pl: 2 }}>
-              <Link
-                to={`/tags/${tag.id}`}
-                style={{ color: "inherit", textDecoration: "none" }}
-              >
-                <Typography variant="body1">{tag.name}</Typography>
-              </Link>
-            </Grid>
-
-            <Grid sx={{ display: "flex", gap: 1, pr: 2 }}>
-              <Button
-                variant="contained"
-                color="secondary"
-                className="tag-list-button"
-                onClick={() => onAutoTag(tag)}
-                size="small"
-              >
-                <FormattedMessage id="actions.auto_tag" />
-              </Button>
-              <Button
-                variant="contained"
-                color="secondary"
-                className="tag-list-button"
-                size="small"
-              >
-                <Link
-                  to={NavUtils.makeTagScenesUrl(tag)}
-                  className="tag-list-anchor"
-                  style={{ color: "inherit", textDecoration: "none" }}
-                >
-                  <FormattedMessage
-                    id="countables.scenes"
-                    values={{
-                      count: tag.scene_count ?? 0,
-                    }}
-                  />
-                  : <FormattedNumber value={tag.scene_count ?? 0} />
-                </Link>
-              </Button>
-              <Button
-                variant="contained"
-                color="secondary"
-                className="tag-list-button"
-                size="small"
-              >
-                <Link
-                  to={NavUtils.makeTagImagesUrl(tag)}
-                  className="tag-list-anchor"
-                  style={{ color: "inherit", textDecoration: "none" }}
-                >
-                  <FormattedMessage
-                    id="countables.images"
-                    values={{
-                      count: tag.image_count ?? 0,
-                    }}
-                  />
-                  : <FormattedNumber value={tag.image_count ?? 0} />
-                </Link>
-              </Button>
-              <Button
-                variant="contained"
-                color="secondary"
-                className="tag-list-button"
-                size="small"
-              >
-                <Link
-                  to={NavUtils.makeTagGalleriesUrl(tag)}
-                  className="tag-list-anchor"
-                  style={{ color: "inherit", textDecoration: "none" }}
-                >
-                  <FormattedMessage
-                    id="countables.galleries"
-                    values={{
-                      count: tag.gallery_count ?? 0,
-                    }}
-                  />
-                  : <FormattedNumber value={tag.gallery_count ?? 0} />
-                </Link>
-              </Button>
-              <Button
-                variant="contained"
-                color="secondary"
-                className="tag-list-button"
-                size="small"
-              >
-                <Link
-                  to={NavUtils.makeTagSceneMarkersUrl(tag)}
-                  className="tag-list-anchor"
-                  style={{ color: "inherit", textDecoration: "none" }}
-                >
-                  <FormattedMessage
-                    id="countables.markers"
-                    values={{
-                      count: tag.scene_marker_count ?? 0,
-                    }}
-                  />
-                  : <FormattedNumber value={tag.scene_marker_count ?? 0} />
-                </Link>
-              </Button>
-              <Box
-                className="tag-list-count"
-                sx={{ display: "flex", alignItems: "center", mx: 1 }}
-              >
-                <FormattedMessage id="total" />:{" "}
-                <FormattedNumber
-                  value={
-                    (tag.scene_count || 0) +
-                    (tag.scene_marker_count || 0) +
-                    (tag.image_count || 0) +
-                    (tag.gallery_count || 0)
-                  }
-                />
-              </Box>
-              <IconButton color="error" onClick={() => onDelete(tag)}>
-                <DeleteIcon fontSize="small" />
-              </IconButton>
-            </Grid>
-          </Grid>
-        );
-      });
-
       return (
-        <Grid container justifyContent="center">
-          <Grid size={{ xs: 12, sm: 8 }}>{tagElements}</Grid>
-        </Grid>
+        <TagListTable
+          tags={tags}
+          selectedIds={selectedIds}
+          onSelectChange={onSelectChange}
+        />
       );
     }
     if (filter.displayMode === DisplayMode.Wall) {
@@ -461,16 +329,6 @@ export const FilteredTagList = PatchComponent(
       );
     };
 
-    async function onAutoTag(tag: GQL.TagListDataFragment) {
-      if (!tag) return;
-      try {
-        await mutateMetadataAutoTag({ tags: [tag.id] });
-        Toast.success(intl.formatMessage({ id: "Started Auto-Tagging..." }));
-      } catch (e) {
-        Toast.error(e);
-      }
-    }
-
     async function onDeleteSingle() {
       if (!deletingTag) return;
       try {
@@ -692,8 +550,6 @@ export const FilteredTagList = PatchComponent(
                   tags={items}
                   selectedIds={selectedIds}
                   onSelectChange={onSelectChange}
-                  onDelete={(tag) => setDeletingTag(tag)}
-                  onAutoTag={onAutoTag}
                 />
               </LoadedContent>
 

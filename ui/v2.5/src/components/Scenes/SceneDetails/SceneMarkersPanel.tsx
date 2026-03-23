@@ -12,12 +12,14 @@ interface ISceneMarkersPanelProps {
   sceneId: string;
   isVisible: boolean;
   onClickMarker: (marker: GQL.SceneMarkerDataFragment) => void;
+  onLoopMarker: (marker: GQL.SceneMarkerDataFragment) => void;
 }
 
 export const SceneMarkersPanel: React.FC<ISceneMarkersPanelProps> = ({
   sceneId,
   isVisible,
   onClickMarker,
+  onLoopMarker,
 }) => {
   const { data, loading } = GQL.useFindSceneMarkerTagsQuery({
     variables: { id: sceneId },
@@ -76,6 +78,7 @@ export const SceneMarkersPanel: React.FC<ISceneMarkersPanelProps> = ({
         <PrimaryTags
           sceneMarkers={sceneMarkers}
           onClickMarker={onClickMarker}
+          onLoopMarker={onLoopMarker}
           onEdit={onOpenEditor}
         />
       </Box>

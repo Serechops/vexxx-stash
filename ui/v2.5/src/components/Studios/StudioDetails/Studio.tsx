@@ -46,6 +46,7 @@ import { DetailTitle } from "src/components/Shared/DetailsPage/DetailTitle";
 import { ExpandCollapseButton } from "src/components/Shared/CollapseButton";
 import { FavoriteIcon } from "src/components/Shared/FavoriteIcon";
 import { ExternalLinkButtons } from "src/components/Shared/ExternalLinksButton";
+import { OrganizedButton } from "src/components/Scenes/SceneDetails/OrganizedButton";
 import { AliasList } from "src/components/Shared/DetailsPage/AliasList";
 import { HeaderImage } from "src/components/Shared/DetailsPage/HeaderImage";
 import { goBackOrReplace } from "src/utils/history";
@@ -339,6 +340,7 @@ const StudioPage: React.FC<IProps> = ({ studio, tabKey }) => {
   // Editing studio state
   const [image, setImage] = useState<string | null>();
   const [encodingImage, setEncodingImage] = useState<boolean>(false);
+  const [organizedLoading, setOrganizedLoading] = useState(false);
 
   const [updateStudio] = useStudioUpdate();
   const [deleteStudio] = useStudioDestroy({ id: studio.id });
@@ -371,6 +373,23 @@ const StudioPage: React.FC<IProps> = ({ studio, tabKey }) => {
         },
       });
     }
+  }
+
+  async function onOrganizedClick() {
+    setOrganizedLoading(true);
+    try {
+      await updateStudio({
+        variables: {
+          input: {
+            id: studio.id,
+            organized: !studio.organized,
+          },
+        },
+      });
+    } catch (e) {
+      Toast.error(e);
+    }
+    setOrganizedLoading(false);
   }
 
   // set up hotkeys
@@ -542,6 +561,11 @@ const StudioPage: React.FC<IProps> = ({ studio, tabKey }) => {
                   <FavoriteIcon
                     favorite={studio.favorite}
                     onToggleFavorite={(v) => setFavorite(v)}
+                  />
+                  <OrganizedButton
+                    loading={organizedLoading}
+                    organized={studio.organized}
+                    onClick={onOrganizedClick}
                   />
                   <ExternalLinkButtons urls={studio.urls} />
                 </span>

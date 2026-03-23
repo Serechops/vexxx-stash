@@ -13,6 +13,9 @@ fragment SlimStudioData on Studio {
   details
   rating100
   aliases
+  favorite
+  ignore_auto_tag
+  organized
   tags {
     id
     name

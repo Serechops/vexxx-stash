@@ -21,9 +21,9 @@ const (
 	errStudioID     = 6
 
 	// noTagsID  = 11
-	noChaptersID       = 7
-	errChaptersID      = 8
-	errFindByChapterID = 9
+	noChaptersID  = 7
+	errChaptersID = 8
+	// errFindByChapterID = 9 (unused)
 )
 
 var (

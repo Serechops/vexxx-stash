@@ -19,13 +19,14 @@ import { FormattedMessage, useIntl } from "react-intl";
 import { useToast } from "src/hooks/Toast";
 import { ScrapeDialog } from "../Shared/ScrapeDialog/ScrapeDialog";
 import {
+  ScrapeDialogRow,
   ScrapedImageRow,
   ScrapedInputGroupRow,
   ScrapedStringListRow,
   ScrapedTextAreaRow,
 } from "../Shared/ScrapeDialog/ScrapeDialogRow";
 import { ModalComponent } from "../Shared/Modal";
-import { sortStoredIdObjects } from "src/utils/data";
+import { sortStoredIdObjects, uniqIDStoredIDs } from "src/utils/data";
 import {
   ObjectListScrapeResult,
   ScrapeResult,
@@ -39,6 +40,7 @@ import {
 } from "./PerformerDetails/PerformerScrapeDialog";
 import { PerformerSelect } from "./PerformerSelect";
 import { uniq } from "lodash-es";
+import { StashIDsField } from "../Shared/StashID";
 
 /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
 type CustomFieldScrapeResults = Map<string, ZeroableScrapeResult<any>>;
@@ -161,6 +163,8 @@ const PerformerMergeDetails: React.FC<IPerformerMergeDetailsProps> = ({
     )
   );
 
+  const [stashIDs, setStashIDs] = useState(new ScrapeResult<GQL.StashId[]>([]));
+
   const [image, setImage] = useState<ScrapeResult<string>>(
     new ScrapeResult<string>(dest.image_path)
   );
@@ -194,6 +198,10 @@ const PerformerMergeDetails: React.FC<IPerformerMergeDetailsProps> = ({
 
       setLoading(false);
     }
+
+    // append dest to all so that if dest has stash_ids with the same
+    // endpoint, then it will be excluded first
+    const all = sources.concat(dest);
 
     setName(
       new ScrapeResult(dest.name, sources.find((s) => s.name)?.name, !dest.name)
@@ -319,9 +327,8 @@ const PerformerMergeDetails: React.FC<IPerformerMergeDetailsProps> = ({
     );
     setURLs(
       new ScrapeResult(
-        dest.urls,
-        sources.find((s) => s.urls)?.urls,
-        !dest.urls?.length
+        dest.urls ?? [],
+        uniq(all.map((s) => s.urls ?? []).flat())
       )
     );
     setGender(
@@ -347,6 +354,24 @@ const PerformerMergeDetails: React.FC<IPerformerMergeDetailsProps> = ({
         dest.details,
         sources.find((s) => s.details)?.details,
         !dest.details
+      )
+    );
+    setTags(
+      new ObjectListScrapeResult<GQL.ScrapedTag>(
+        sortStoredIdObjects(dest.tags.map(idToStoredID)),
+        uniqIDStoredIDs(all.map((s) => s.tags.map(idToStoredID)).flat())
+      )
+    );
+    setStashIDs(
+      new ScrapeResult(
+        dest.stash_ids,
+        all
+          .map((s) => s.stash_ids)
+          .flat()
+          .filter((s, index, a) => {
+            // remove entries with duplicate endpoints
+            return index === a.findIndex((ss) => ss.endpoint === s.endpoint);
+          })
       )
     );
     setImage(
@@ -597,6 +622,19 @@ const PerformerMergeDetails: React.FC<IPerformerMergeDetailsProps> = ({
           result={details}
           onChange={(value) => setDetails(value)}
         />
+        <ScrapeDialogRow
+          field="stash_ids"
+          title={intl.formatMessage({ id: "stash_id" })}
+          result={stashIDs}
+          originalField={
+            <StashIDsField values={stashIDs?.originalValue ?? []} />
+          }
+          newField={<StashIDsField values={stashIDs?.newValue ?? []} />}
+          onChange={(value) => setStashIDs(value)}
+          alwaysShow={
+            !!stashIDs.originalValue?.length || !!stashIDs.newValue?.length
+          }
+        />
         <ScrapedImageRow
           field="image"
           title={intl.formatMessage({ id: "performer_image" })}
@@ -650,6 +688,7 @@ const PerformerMergeDetails: React.FC<IPerformerMergeDetailsProps> = ({
         circumcised: stringToCircumcised(circumcised.getNewValue()),
         tag_ids: tags.getNewValue()?.map((t) => t.stored_id!),
         details: details.getNewValue(),
+        stash_ids: stashIDs.getNewValue(),
         image: coverImage,
         custom_fields: {
           partial: Object.fromEntries(

@@ -238,7 +238,7 @@ func (m *schema49Migrator) getObjectFilter(mode models.FilterMode, data json.Raw
 	return json.Marshal(ret)
 }
 
-func (m *schema49Migrator) convertCriterion(mode models.FilterMode, out map[string]interface{}, criterion string) error {
+func (m *schema49Migrator) convertCriterion(_ models.FilterMode, out map[string]interface{}, criterion string) error {
 	// convert to a map
 	ret := make(map[string]interface{})
 
@@ -301,11 +301,12 @@ func (m *schema49Migrator) adjustCriterionValue(value interface{}, typ string) (
 		for _, next := range []string{"value", "value2"} {
 			if valmap, ok := mapvalue[next].([]string); ok {
 				var valNewMap []interface{}
-				for index, v := range valmap {
-					valNewMap[index], err = m.convertValue(v, typ)
+				for _, v := range valmap {
+					converted, err := m.convertValue(v, typ)
 					if err != nil {
 						return nil, err
 					}
+					valNewMap = append(valNewMap, converted)
 				}
 				mapvalue[next] = valNewMap
 			} else if _, ok := mapvalue[next]; ok {

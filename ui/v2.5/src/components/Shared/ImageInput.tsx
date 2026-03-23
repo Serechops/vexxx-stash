@@ -11,8 +11,10 @@ import {
 import { useIntl } from "react-intl";
 import { ModalComponent } from "./Modal";
 import { Icon } from "./Icon";
-import { faFile, faLink } from "@fortawesome/free-solid-svg-icons";
+import { faClipboard, faFile, faLink } from "@fortawesome/free-solid-svg-icons";
 import { PatchComponent } from "src/patch";
+import ImageUtils from "src/utils/image";
+import { useToast } from "src/hooks/Toast";
 import { styled } from "@mui/material/styles";
 
 interface IImageInput {
@@ -40,6 +42,7 @@ export const ImageInput: React.FC<IImageInput> = PatchComponent(
     const popoverRef = React.useRef<HTMLDivElement>(null);
 
     const intl = useIntl();
+    const Toast = useToast();
 
     if (!isEditing) return <div />;
 
@@ -64,6 +67,28 @@ export const ImageInput: React.FC<IImageInput> = PatchComponent(
       setURL("");
       setIsShowDialog(true);
       setAnchorEl(null);
+    }
+
+    async function onPasteClipboard() {
+      try {
+        const data = await ImageUtils.readClipboardImage();
+        if (data && onImageURL) {
+          onImageURL(data);
+          Toast.success(
+            intl.formatMessage({ id: "toast.clipboard_image_pasted" })
+          );
+        } else {
+          Toast.error(intl.formatMessage({ id: "toast.clipboard_no_image" }));
+        }
+      } catch (e) {
+        if (e instanceof DOMException && e.name === "NotAllowedError") {
+          Toast.error(
+            intl.formatMessage({ id: "toast.clipboard_access_denied" })
+          );
+        } else {
+          Toast.error(e);
+        }
+      }
     }
 
     async function onConfirmURL() {
@@ -199,6 +224,18 @@ export const ImageInput: React.FC<IImageInput> = PatchComponent(
           >
             <Box component="span" sx={{ ml: 1 }}>{intl.formatMessage({ id: "actions.from_url" })}</Box>
           </Button>
+          {window.isSecureContext && (
+            <Button
+              variant="text"
+              onClick={onPasteClipboard}
+              fullWidth
+              startIcon={<Icon icon={faClipboard} className="fa-fw" />}
+              color="inherit"
+              sx={{ justifyContent: 'flex-start' }}
+            >
+              <Box component="span" sx={{ ml: 1 }}>{intl.formatMessage({ id: "actions.from_clipboard" })}</Box>
+            </Button>
+          )}
         </Stack>
       </Box>
     );

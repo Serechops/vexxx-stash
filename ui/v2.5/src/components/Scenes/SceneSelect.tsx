@@ -27,6 +27,9 @@ import { useCompare } from "src/hooks/state";
 import { sortByRelevance } from "src/utils/query";
 import { objectTitle } from "src/core/files";
 import { PatchComponent, PatchFunction } from "src/patch";
+import { isUUID } from "src/utils/stashIds";
+import { filterByStashID } from "src/models/list-filter/utils";
+import { toOption } from "../Shared/FilterSelect";
 import {
   ModifierCriterion,
   CriterionValue,
@@ -74,24 +77,31 @@ const _SceneSelect: React.FC<
 
   async function loadScenes(input: string): Promise<Option[]> {
     const filter = new ListFilterModel(GQL.FilterMode.Scenes);
-    filter.searchTerm = input;
     filter.currentPage = 1;
     filter.itemsPerPage = maxOptionsShown;
     filter.sortBy = "title";
     filter.sortDirection = GQL.SortDirectionEnum.Asc;
     filter.excludeIds = exclude;
 
-    if (props.extraCriteria) {
-      filter.criteria = [...props.extraCriteria];
+    const oldCriteria = props.extraCriteria ? [...props.extraCriteria] : [];
+
+    if (isUUID(input)) {
+      filterByStashID(filter, input);
+      const query = await queryFindScenesForSelect(filter);
+      const results = query.data.findScenes.scenes;
+      if (results.length > 0) {
+        return results.map(toOption);
+      }
+      filter.criteria = [...oldCriteria];
+    } else if (oldCriteria.length > 0) {
+      filter.criteria = [...oldCriteria];
     }
 
+    filter.searchTerm = input;
     const query = await queryFindScenesForSelect(filter);
     const ret = query.data.findScenes.scenes;
 
-    return sceneSelectSort(input, ret).map((scene) => ({
-      value: scene.id,
-      object: scene,
-    }));
+    return sceneSelectSort(input, ret).map(toOption);
   }
 
   const SceneOption: React.FC<OptionProps<Option, boolean>> = (optionProps) => {

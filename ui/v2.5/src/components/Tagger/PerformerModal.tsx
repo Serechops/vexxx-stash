@@ -108,7 +108,7 @@ const PerformerModal: React.FC<IPerformerModalProps> = ({
         </Grid>
         {truncate ? (
           <Grid size={7}>
-            <TruncatedText text={text} />
+            <TruncatedText text={text} lineCount={3} />
           </Grid>
         ) : (
           <Grid size={7} component="span">

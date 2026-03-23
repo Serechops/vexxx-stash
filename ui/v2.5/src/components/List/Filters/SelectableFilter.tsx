@@ -16,7 +16,12 @@ import {
   ModifierCriterion,
   IHierarchicalLabeledIdCriterion,
 } from "src/models/list-filter/criteria/criterion";
-import { defineMessages, MessageDescriptor, useIntl } from "react-intl";
+import {
+  defineMessages,
+  FormattedMessage,
+  MessageDescriptor,
+  useIntl,
+} from "react-intl";
 import { CriterionModifier } from "src/core/generated-graphql";
 import { keyboardClickHandler } from "src/utils/keyboard";
 import { useDebounce } from "src/hooks/debounce";
@@ -177,7 +182,7 @@ const UnselectedItem: React.FC<{
                   mr: 0.5
                 }}
               >
-                exclude
+                <FormattedMessage id="actions.exclude_lowercase" />
               </Box>
               <Box component="span" sx={{ color: "error.main", display: "flex", alignItems: "center" }}>
                 <RemoveIcon fontSize="small" className="exclude-icon" />
@@ -308,6 +313,9 @@ const SelectableFilter: React.FC<ISelectableFilter> = ({
         focus={inputFocus}
         value={query}
         setValue={(v) => onQueryChange(v)}
+        onEnter={() => {
+          if (objects.length === 1) onSelect(objects[0], false);
+        }}
         placeholder={`${intl.formatMessage({ id: "actions.search" })}…`}
       />
       <Box
@@ -526,6 +534,44 @@ export const ObjectsFilter = <
 interface IHierarchicalObjectsFilter<T extends IHierarchicalLabeledIdCriterion>
   extends IObjectsFilter<T> { }
 
+export const DepthSelector: React.FC<{
+  depth: number | undefined;
+  onDepthChanged: (depth: number) => void;
+  id: string;
+  label?: React.ReactNode;
+  placeholder?: string;
+  disabled?: boolean;
+}> = ({ depth, onDepthChanged, id, label, disabled, placeholder }) => {
+  return (
+    <Box mb={1}>
+      <FormControlLabel
+        control={
+          <Checkbox
+            id={id}
+            checked={depth !== 0}
+            onChange={() => onDepthChanged(depth !== 0 ? 0 : -1)}
+            disabled={disabled}
+            size="small"
+          />
+        }
+        label={label}
+      />
+      {depth !== 0 && (
+        <Box mb={1}>
+          <NumberField
+            placeholder={placeholder}
+            onChange={(e) =>
+              onDepthChanged(e.target.value ? parseInt(e.target.value, 10) : -1)
+            }
+            defaultValue={depth !== -1 ? depth : ""}
+            min="1"
+          />
+        </Box>
+      )}
+    </Box>
+  );
+};
+
 export const HierarchicalObjectsFilter = <
   T extends IHierarchicalLabeledIdCriterion
 >(
@@ -570,42 +616,16 @@ export const HierarchicalObjectsFilter = <
   }
 
   return (
-    <Box>
-      <Box mb={1}>
-        <FormControlLabel
-          control={
-            <Checkbox
-              id={criterionOptionTypeToIncludeID()}
-              checked={
-                criterion.modifier !== CriterionModifier.Equals &&
-                criterion.value.depth !== 0
-              }
-              onChange={() => onDepthChanged(criterion.value.depth !== 0 ? 0 : -1)}
-              disabled={criterion.modifier === CriterionModifier.Equals}
-              size="small"
-            />
-          }
-          label={intl.formatMessage(criterionOptionTypeToIncludeUIString())}
-        />
-      </Box>
-
-      {criterion.value.depth !== 0 && (
-        <Box mb={1}>
-          <NumberField
-            placeholder={intl.formatMessage(messages.studio_depth)}
-            onChange={(e) =>
-              onDepthChanged(e.target.value ? parseInt(e.target.value, 10) : -1)
-            }
-            defaultValue={
-              criterion.value && criterion.value.depth !== -1
-                ? criterion.value.depth
-                : ""
-            }
-            min="1"
-          />
-        </Box>
-      )}
+    <div>
+      <DepthSelector
+        depth={criterion.value.depth}
+        onDepthChanged={onDepthChanged}
+        id={criterionOptionTypeToIncludeID()}
+        label={intl.formatMessage(criterionOptionTypeToIncludeUIString())}
+        placeholder={intl.formatMessage(messages.studio_depth)}
+        disabled={criterion.modifier === CriterionModifier.Equals}
+      />
       <ObjectsFilter {...props} />
-    </Box>
+    </div>
   );
 };

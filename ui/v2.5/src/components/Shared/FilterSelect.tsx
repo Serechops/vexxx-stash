@@ -58,7 +58,6 @@ const SelectComponent = <T, IsMulti extends boolean>(
 ) => {
   const {
     selectedOptions,
-    isLoading,
     isDisabled = false,
     creatable = false,
     components,
@@ -105,10 +104,7 @@ const SelectComponent = <T, IsMulti extends boolean>(
   };
 
   return creatable ? (
-    <AsyncCreatableSelect
-      {...componentProps}
-      isDisabled={isLoading || isDisabled}
-    />
+    <AsyncCreatableSelect {...componentProps} isDisabled={isDisabled} />
   ) : (
     <AsyncSelect {...componentProps} />
   );
@@ -263,4 +259,8 @@ export const FilterSelectComponent = <
 export interface IFilterIDProps<T> {
   ids?: string[];
   onSelect?: (item: T[]) => void;
+}
+
+export function toOption<T extends IHasID>(item: T): Option<T> {
+  return { value: item.id, object: item };
 }

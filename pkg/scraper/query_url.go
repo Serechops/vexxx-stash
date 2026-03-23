@@ -17,6 +17,14 @@ func queryURLParametersFromScene(scene *models.Scene) queryURLParameters {
 	ret["oshash"] = scene.OSHash
 	ret["filename"] = filepath.Base(scene.Path)
 
+	// pull phash from primary file
+	if primaryFile := scene.Files.Primary(); primaryFile != nil {
+		phashFingerprints := primaryFile.Base().Fingerprints.Filter(models.FingerprintTypePhash)
+		if len(phashFingerprints) > 0 {
+			ret["phash"] = phashFingerprints[0].Value()
+		}
+	}
+
 	if scene.Title != "" {
 		ret["title"] = scene.Title
 	}

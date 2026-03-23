@@ -23,6 +23,37 @@ The scan task accepts the following options:
 | Generate previews for image clips | Generates a gif/looping video as thumbnail for image clips/gifs. |
 | Rescan | By default, Stash will only rescan existing files if the file's modified date has been updated since its previous scan. Stash will rescan files in the path when this option is enabled, regardless of the file modification time. Only required Stash needs to recalculate video/image metadata, or to rescan gallery zips. |
 
+### Ignoring Files with .stashignore
+
+You can create `.stashignore` files in any directory within your library to exclude specific files or directories from being scanned. This works similarly to `.gitignore` files.
+
+Each line in a `.stashignore` file specifies a pattern. Files and directories matching the pattern will be excluded from scanning. A `.stashignore` file only applies within the directory it is placed in and its subdirectories.
+
+The following rules apply:
+
+- Lines starting with `#` are comments and are ignored.
+- Blank lines are ignored.
+- A pattern starting with `!` negates the pattern (i.e., if a file matches the negation pattern, it will _not_ be excluded even if it matches an earlier pattern).
+- A pattern starting with `/` is anchored to the directory containing the `.stashignore` file (e.g., `/foo` only matches `foo` in the same directory as the `.stashignore` file, not in subdirectories).
+- A pattern ending with `/` only matches directories.
+- `**` matches any number of path components.
+- `*` matches any number of characters within a single path component.
+- `?` matches a single character within a single path component.
+
+For example, a `.stashignore` file in `/library/videos` containing:
+```
+# Ignore all mkv files
+*.mkv
+
+# But not this one
+!important.mkv
+
+# Ignore the extras directory
+/extras/
+```
+
+This would exclude all `.mkv` files in `/library/videos` and its subdirectories, except for `important.mkv`, and would also exclude the `/library/videos/extras` directory.
+
 ## Auto Tagging
 See the [Auto Tagging](/help/AutoTagging.md) page.
 

@@ -249,6 +249,7 @@ export type InputType =
   | "scene_tags"
   | "groups"
   | "galleries"
+  | "folders"
   | undefined;
 
 type MakeCriterionFn = (

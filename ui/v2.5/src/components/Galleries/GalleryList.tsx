@@ -35,6 +35,8 @@ import {
   useFilteredSidebarKeybinds,
 } from "../List/Filters/FilterSidebar";
 import { FilterTags } from "../List/FilterTags";
+import { SidebarFolderFilter } from "../List/Filters/FolderFilter";
+import { ParentFolderCriterionOption } from "src/models/list-filter/criteria/folder";
 import { Pagination, PaginationIndex } from "../List/Pagination";
 import { LoadedContent } from "../List/PagedList";
 import { SidebarStudiosFilter } from "../List/Filters/StudiosFilter";
@@ -176,6 +178,13 @@ const SidebarContent: React.FC<{
           filter={filter}
           setFilter={setFilter}
           sectionID="rating"
+        />
+        <SidebarFolderFilter
+          text={<FormattedMessage id="parent_folder" />}
+          criterionOption={ParentFolderCriterionOption}
+          filter={filter}
+          setFilter={setFilter}
+          sectionID="parent_folder"
         />
         <SidebarBooleanFilter
           title={<FormattedMessage id="organized" />}

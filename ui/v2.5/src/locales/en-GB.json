@@ -54,10 +54,12 @@
     "edit_entity": "Edit {entityType}",
     "enable": "Enable",
     "encoding_image": "Encoding image…",
+    "exclude_lowercase": "exclude",
     "export": "Export",
     "export_all": "Export all…",
     "find": "Find",
     "finish": "Finish",
+    "from_clipboard": "From clipboard",
     "from_file": "From file…",
     "from_url": "From URL…",
     "full_export": "Full Export",
@@ -524,6 +526,8 @@
       "backup_and_download": "Performs a backup of the database and downloads the resulting file.",
       "backup_database": "Performs a backup of the database to the backups directory, with the filename format {filename_format}",
       "cleanup_desc": "Check for missing files and remove them from the database. This is a destructive action.",
+      "clean_ignore_zip_contents": "Ignore zip file contents",
+      "clean_ignore_zip_contents_desc": "Faster but will miss files removed inside zip files. Safe to enable if you don't delete files within zips.",
       "clean_generated": {
         "blob_files": "Blob files",
         "description": "Removes generated files without a corresponding database entry.",
@@ -835,6 +839,15 @@
           "toggle_sound": "Enable sound"
         }
       },
+      "scene_view": {
+        "heading": "Scene View",
+        "options": {
+          "preview_volume": {
+            "description": "Volume of the preview when hovering over a scene. Set to 0 to mute.",
+            "heading": "Preview volume"
+          }
+        }
+      },
       "scroll_attempts_before_change": {
         "description": "Number of times to attempt to scroll before moving to the next/previous item. Only applies for Pan Y scroll mode.",
         "heading": "Scroll attempts before transition"
@@ -1006,6 +1019,7 @@
       }
     },
     "merge": {
+      "combined": "Combined",
       "destination": "Destination",
       "empty_results": "Destination field values will be unchanged.",
       "source": "Source"
@@ -1249,6 +1263,7 @@
   "image_index": "Image #",
   "images": "Images",
   "include_parent_tags": "Include parent tags",
+  "include_sub_folders": "Include sub-folders",
   "include_sub_group_content": "Include sub-group content",
   "include_sub_groups": "Include sub-groups",
   "include_sub_studio_content": "Include sub-studio content",
@@ -1348,6 +1363,7 @@
     "next": "Next",
     "previous": "Previous"
   },
+  "parent_folder": "Parent Folder",
   "parent_of": "Parent of {children}",
   "parent_studio": "Parent Studio",
   "parent_studios": "Parent Studios",
@@ -1612,6 +1628,8 @@
   },
   "studio_tags": "Studio Tags",
   "studios": "Studios",
+  "sub_folder_depth": "Sub folder depth (empty for all)",
+  "sub_folders": "Sub folders",
   "sub_group": "Sub-Group",
   "sub_group_count": "Sub-Group Count",
   "sub_group_of": "Sub-group of {parent}",
@@ -1635,6 +1653,9 @@
   "toast": {
     "added_entity": "Added {count, plural, one {{singularEntity}} other {{pluralEntity}}}",
     "added_generation_job_to_queue": "Added generation job to queue",
+    "clipboard_access_denied": "Clipboard access denied. Check your browser permissions",
+    "clipboard_image_pasted": "Image pasted from clipboard",
+    "clipboard_no_image": "No image found in clipboard",
     "created_entity": "Created {entity}",
     "default_filter_set": "Default filter set",
     "delete_past_tense": "Deleted {count, plural, one {{singularEntity}} other {{pluralEntity}}}",

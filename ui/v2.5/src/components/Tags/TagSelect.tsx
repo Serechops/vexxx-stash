@@ -29,6 +29,9 @@ import { useCompare } from "src/hooks/state";
 import { TagPopover } from "./TagPopover";
 import { sortByRelevance } from "src/utils/query";
 import { PatchComponent, PatchFunction } from "src/patch";
+import { isUUID } from "src/utils/stashIds";
+import { filterByStashID } from "src/models/list-filter/utils";
+import { toOption } from "../Shared/FilterSelect";
 
 export type SelectObject = {
   id: string;
@@ -77,19 +80,27 @@ const _TagSelect: React.FC<TagSelectProps> = (props) => {
 
   async function loadTags(input: string): Promise<Option[]> {
     const filter = new ListFilterModel(GQL.FilterMode.Tags);
-    filter.searchTerm = input;
     filter.currentPage = 1;
     filter.itemsPerPage = maxOptionsShown;
     filter.sortBy = "name";
     filter.sortDirection = GQL.SortDirectionEnum.Asc;
     filter.excludeIds = exclude;
+
+    if (isUUID(input)) {
+      filterByStashID(filter, input);
+      const query = await queryFindTagsForSelect(filter);
+      const results = query.data.findTags.tags;
+      if (results.length > 0) {
+        return results.map(toOption);
+      }
+      filter.criteria = [];
+    }
+
+    filter.searchTerm = input;
     const query = await queryFindTagsForSelect(filter);
     const ret = query.data.findTags.tags;
 
-    return tagSelectSort(input, ret).map((tag) => ({
-      value: tag.id,
-      object: tag,
-    }));
+    return tagSelectSort(input, ret).map(toOption);
   }
 
   const TagOption: React.FC<OptionProps<Option, boolean>> = (optionProps) => {

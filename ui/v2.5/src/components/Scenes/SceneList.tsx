@@ -61,6 +61,7 @@ import {
 } from "src/models/list-filter/scenes";
 import { SidebarAgeFilter } from "../List/Filters/SidebarAgeFilter";
 import { SidebarDurationFilter } from "../List/Filters/SidebarDurationFilter";
+import { SidebarFolderFilter } from "../List/Filters/FolderFilter";
 import {
   FilteredSidebarHeader,
   useFilteredSidebarKeybinds,
@@ -339,6 +340,12 @@ const SidebarContent: React.FC<{
             filter={filter}
             setFilter={setFilter}
             sectionID="duration"
+          />
+          <SidebarFolderFilter
+            text={<FormattedMessage id="folder" />}
+            filter={filter}
+            setFilter={setFilter}
+            sectionID="folder"
           />
           <SidebarBooleanFilter
             title={<FormattedMessage id="hasMarkers" />}

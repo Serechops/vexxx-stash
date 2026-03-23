@@ -567,6 +567,8 @@ input GalleryFilterType {
   files_filter: FileFilterType
   "Filter by related folders that meet this criteria"
   folders_filter: FolderFilterType
+  "Filter by parent folder of the zip or folder the gallery is in"
+  parent_folder: HierarchicalMultiCriterionInput
 }
 
 input TagFilterType {
@@ -774,6 +776,7 @@ input FolderFilterType {
   NOT: FolderFilterType
 
   path: StringCriterionInput
+  basename: StringCriterionInput
 
   parent_folder: HierarchicalMultiCriterionInput
   zip_file: MultiCriterionInput

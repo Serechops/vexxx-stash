@@ -671,7 +671,7 @@ const PerformerMergeDetails: React.FC<IPerformerMergeDetailsProps> = ({
     : intl.formatMessage({ id: "dialogs.merge.destination" });
   const sourceLabel = !hasValues
     ? ""
-    : intl.formatMessage({ id: "dialogs.merge.source" });
+    : intl.formatMessage({ id: "dialogs.merge.combined" });
 
   return (
     <ScrapeDialog

@@ -36,6 +36,7 @@ import { StashIDCriterionOption } from "./criteria/stash-ids";
 import { RatingCriterionOption } from "./criteria/rating";
 import { PathCriterionOption } from "./criteria/path";
 import { OrientationCriterionOption } from "./criteria/orientation";
+import { FolderCriterionOption } from "./criteria/folder";
 
 const defaultSortBy = "date";
 const sortByOptions = [
@@ -96,6 +97,7 @@ const criterionOptions = [
   createStringCriterionOption("title"),
   createStringCriterionOption("code", "scene_code"),
   PathCriterionOption,
+  FolderCriterionOption,
   createStringCriterionOption("details"),
   createStringCriterionOption("director"),
   createMandatoryStringCriterionOption("oshash", "media_info.hash"),

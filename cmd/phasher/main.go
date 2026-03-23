@@ -31,7 +31,7 @@ func printPhash(ff *ffmpeg.FFMpeg, ffp *ffmpeg.FFProbe, inputfile string, quiet 
 	}
 
 	if imageExts[ext] {
-		return printImagePhash(inputfile, quiet)
+		return printImagePhash(ff, inputfile, quiet)
 	}
 
 	return printVideoPhash(ff, ffp, inputfile, quiet, start, duration)
@@ -70,12 +70,12 @@ func printVideoPhash(ff *ffmpeg.FFMpeg, ffp *ffmpeg.FFProbe, inputfile string, q
 	return nil
 }
 
-func printImagePhash(inputfile string, quiet *bool) error {
+func printImagePhash(ff *ffmpeg.FFMpeg, inputfile string, quiet *bool) error {
 	imgFile := &models.ImageFile{
 		BaseFile: &models.BaseFile{Path: inputfile},
 	}
 
-	phash, err := imagephash.Generate(imgFile)
+	phash, err := imagephash.Generate(ff, imgFile)
 	if err != nil {
 		return err
 	}

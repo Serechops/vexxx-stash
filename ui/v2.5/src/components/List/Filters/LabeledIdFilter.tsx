@@ -86,7 +86,7 @@ export const LabeledIdFilter: React.FC<ILabeledIdFilterProps> = ({
   );
 };
 
-type ModifierValue = "any" | "none" | "any_of" | "only" | "include_subs";
+export type ModifierValue = "any" | "none" | "any_of" | "only" | "include_subs";
 
 export function getModifierCandidates(props: {
   modifier: CriterionModifier;
@@ -389,10 +389,17 @@ export function useCandidates(props: {
   const defaultModifier = getDefaultModifier(singleValue);
 
   const candidates = useMemo(() => {
+    return (results ?? []).map((r) => ({
+      id: r.id,
+      label: r.label,
+    }));
+  }, [results]);
+
+  const modifierCandidates = useMemo(() => {
     const hierarchicalCandidate =
       hierarchical && (criterion.value as IHierarchicalLabelValue).depth !== -1;
 
-    const modifierCandidates: Option[] = getModifierCandidates({
+    return getModifierCandidates({
       modifier,
       defaultModifier,
       hasSelected: selected.length > 0,
@@ -414,19 +421,11 @@ export function useCandidates(props: {
         canExclude: false,
       };
     });
-
-    return modifierCandidates.concat(
-      (results ?? []).map((r) => ({
-        id: r.id,
-        label: r.label,
-      }))
-    );
   }, [
     defaultModifier,
     intl,
     modifier,
     singleValue,
-    results,
     selected,
     excluded,
     criterion.value,
@@ -434,7 +433,7 @@ export function useCandidates(props: {
     includeSubMessageID,
   ]);
 
-  return candidates;
+  return { candidates, modifierCandidates };
 }
 
 export function useLabeledIdFilterState(props: {
@@ -479,7 +478,7 @@ export function useLabeledIdFilterState(props: {
       includeSubMessageID,
     });
 
-  const candidates = useCandidates({
+  const { candidates, modifierCandidates } = useCandidates({
     criterion,
     queryResults,
     selected,
@@ -495,6 +494,7 @@ export function useLabeledIdFilterState(props: {
 
   return {
     candidates,
+    modifierCandidates,
     onSelect,
     onUnselect,
     selected,

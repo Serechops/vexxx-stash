@@ -3,6 +3,8 @@ import { Box, Button, Collapse, CollapseProps, SxProps, Theme } from "@mui/mater
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import { IconDefinition } from "@fortawesome/free-solid-svg-icons";
+import { Icon } from "./Icon";
 
 interface IProps {
   className?: string;
@@ -64,15 +66,26 @@ export const CollapseButton: React.FC<React.PropsWithChildren<IProps>> = (
 export const ExpandCollapseButton: React.FC<{
   collapsed: boolean;
   setCollapsed: (collapsed: boolean) => void;
-}> = ({ collapsed, setCollapsed }) => {
+  collapsedIcon?: IconDefinition;
+  notCollapsedIcon?: IconDefinition;
+}> = ({ collapsedIcon, notCollapsedIcon, collapsed, setCollapsed }) => {
   return (
     <span className="detail-expand-collapse">
       <Button
         className="minimal expand-collapse"
-        onClick={() => setCollapsed(!collapsed)}
+        onClick={(e) => {
+          setCollapsed(!collapsed);
+          e.stopPropagation();
+        }}
         color="inherit"
       >
-        {collapsed ? <ExpandMoreIcon fontSize="small" /> : <ExpandLessIcon fontSize="small" />}
+        {collapsedIcon || notCollapsedIcon ? (
+          <Icon icon={collapsed ? collapsedIcon! : notCollapsedIcon!} fixedWidth />
+        ) : collapsed ? (
+          <ExpandMoreIcon fontSize="small" />
+        ) : (
+          <ExpandLessIcon fontSize="small" />
+        )}
       </Button>
     </span>
   );

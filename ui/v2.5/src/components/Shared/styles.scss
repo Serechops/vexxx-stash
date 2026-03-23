@@ -864,3 +864,26 @@ input[type="range"].double-range-slider-max {
     margin-left: 10px;
   }
 }
+
+.sidebar-folder-filter ul,
+.folder-filter ul,
+ul.selectable-list {
+  margin-top: 0.25rem;
+
+  .btn.expand-collapse {
+    font-size: 0.8rem;
+    padding-left: 0;
+    padding-right: 0.25rem;
+    text-align: left;
+  }
+
+  .empty .btn.expand-collapse {
+    visibility: hidden;
+  }
+
+  .selected-object a .selected-object-label {
+    font-size: 0.8em;
+    overflow-wrap: break-word;
+    white-space: normal;
+  }
+}

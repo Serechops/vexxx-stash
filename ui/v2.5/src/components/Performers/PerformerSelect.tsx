@@ -29,6 +29,9 @@ import { useCompare } from "src/hooks/state";
 import { Link } from "react-router-dom";
 import { sortByRelevance } from "src/utils/query";
 import { PatchComponent, PatchFunction } from "src/patch";
+import { isUUID } from "src/utils/stashIds";
+import { filterByStashID } from "src/models/list-filter/utils";
+import { toOption } from "../Shared/FilterSelect";
 import { TruncatedText } from "../Shared/TruncatedText";
 import TextUtils from "src/utils/text";
 import { PerformerPopover } from "./PerformerPopover";
@@ -91,19 +94,27 @@ const _PerformerSelect: React.FC<
 
   async function loadPerformers(input: string): Promise<Option[]> {
     const filter = new ListFilterModel(GQL.FilterMode.Performers);
-    filter.searchTerm = input;
     filter.currentPage = 1;
     filter.itemsPerPage = maxOptionsShown;
     filter.sortBy = "name";
     filter.sortDirection = GQL.SortDirectionEnum.Asc;
+
+    if (isUUID(input)) {
+      filterByStashID(filter, input);
+      const query = await queryFindPerformersForSelect(filter);
+      const results = query.data.findPerformers.performers;
+      if (results.length > 0) {
+        return results.map(toOption);
+      }
+      filter.criteria = [];
+    }
+
+    filter.searchTerm = input;
     const query = await queryFindPerformersForSelect(filter);
     return performerSelectSort(
       input,
       query.data.findPerformers.performers.slice()
-    ).map((performer) => ({
-      value: performer.id,
-      object: performer,
-    }));
+    ).map(toOption);
   }
 
   const PerformerOption: React.FC<OptionProps<Option, boolean>> = (

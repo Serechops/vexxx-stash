@@ -30,6 +30,9 @@ import {
 import { useCompare } from "src/hooks/state";
 import { sortByRelevance } from "src/utils/query";
 import { PatchComponent, PatchFunction } from "src/patch";
+import { isUUID } from "src/utils/stashIds";
+import { filterByStashID } from "src/models/list-filter/utils";
+import { toOption } from "../Shared/FilterSelect";
 
 export type SelectObject = {
   id: string;
@@ -78,19 +81,27 @@ const _StudioSelect: React.FC<
 
   async function loadStudios(input: string): Promise<Option[]> {
     const filter = new ListFilterModel(GQL.FilterMode.Studios);
-    filter.searchTerm = input;
     filter.currentPage = 1;
     filter.itemsPerPage = maxOptionsShown;
     filter.sortBy = "name";
     filter.sortDirection = GQL.SortDirectionEnum.Asc;
     filter.excludeIds = exclude;
+
+    if (isUUID(input)) {
+      filterByStashID(filter, input);
+      const query = await queryFindStudiosForSelect(filter);
+      const results = query.data.findStudios.studios;
+      if (results.length > 0) {
+        return results.map(toOption);
+      }
+      filter.criteria = [];
+    }
+
+    filter.searchTerm = input;
     const query = await queryFindStudiosForSelect(filter);
     const ret = query.data.findStudios.studios;
 
-    return studioSelectSort(input, ret).map((studio) => ({
-      value: studio.id,
-      object: studio,
-    }));
+    return studioSelectSort(input, ret).map(toOption);
   }
 
   const StudioOption: React.FC<OptionProps<Option, boolean>> = (

@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from "react";
-import { Popover, PopoverProps } from "@mui/material";
+import { Box, Popover } from "@mui/material";
 import { PatchComponent } from "src/patch";
 
 interface IHoverPopover {
@@ -12,6 +12,8 @@ interface IHoverPopover {
   onClose?: () => void;
   target?: React.RefObject<HTMLElement>;
 }
+
+const ARROW = 10; // px — half the arrow diamond size
 
 export const HoverPopover: React.FC<IHoverPopover> = PatchComponent(
   "HoverPopover",
@@ -55,8 +57,8 @@ export const HoverPopover: React.FC<IHoverPopover> = PatchComponent(
       []
     );
 
-    const getOrigin = (placement: string) => {
-      switch (placement) {
+    const getOrigin = (p: string) => {
+      switch (p) {
         case "top":
           return {
             anchorOrigin: { vertical: "top", horizontal: "center" } as const,
@@ -87,6 +89,36 @@ export const HoverPopover: React.FC<IHoverPopover> = PatchComponent(
 
     const { anchorOrigin, transformOrigin } = getOrigin(placement);
 
+    // Offset the paper away from the anchor to leave room for the arrow tail.
+    const paperMargin = {
+      top:    { marginBottom: `${ARROW}px` },
+      bottom: { marginTop:    `${ARROW}px` },
+      left:   { marginRight:  `${ARROW}px` },
+      right:  { marginLeft:   `${ARROW}px` },
+    }[placement] ?? {};
+
+    // Arrow tail: a rotated square that straddles the paper edge.
+    // Half of it overlaps the paper (same bgcolor → invisible there),
+    // the other half sticks out to form the visible point.
+    const arrowSx = {
+      top: {
+        bottom: `${-ARROW}px`,
+        left:   `calc(50% - ${ARROW}px)`,
+      },
+      bottom: {
+        top:  `${-ARROW}px`,
+        left: `calc(50% - ${ARROW}px)`,
+      },
+      left: {
+        right: `${-ARROW}px`,
+        top:   `calc(50% - ${ARROW}px)`,
+      },
+      right: {
+        left: `${-ARROW}px`,
+        top:  `calc(50% - ${ARROW}px)`,
+      },
+    }[placement] ?? {};
+
     return (
       <>
         <div
@@ -94,6 +126,7 @@ export const HoverPopover: React.FC<IHoverPopover> = PatchComponent(
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
           ref={triggerRef}
+          style={{ display: 'inline-block' }}
         >
           {children}
         </div>
@@ -108,20 +141,35 @@ export const HoverPopover: React.FC<IHoverPopover> = PatchComponent(
           transformOrigin={transformOrigin}
           disableRestoreFocus
           hideBackdrop
-          sx={{ 
-            pointerEvents: 'none',
-            '& .MuiPopover-paper': {
-              pointerEvents: 'auto'
-            }
+          slotProps={{
+            paper: {
+              sx: {
+                overflow: "visible",
+                pointerEvents: "auto",
+                ...paperMargin,
+              },
+            },
           }}
+          sx={{ pointerEvents: "none" }}
         >
-          <div
+          <Box
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
-            style={{ maxWidth: '32rem', textAlign: 'center' }}
+            sx={{ maxWidth: "32rem", textAlign: "center", position: "relative" }}
           >
             {content}
-          </div>
+            {/* Arrow tail */}
+            <Box
+              sx={{
+                position: "absolute",
+                width:  ARROW * 2,
+                height: ARROW * 2,
+                bgcolor: "background.paper",
+                transform: "rotate(45deg)",
+                ...arrowSx,
+              }}
+            />
+          </Box>
         </Popover>
       </>
     );

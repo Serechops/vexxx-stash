@@ -1,5 +1,16 @@
 import React, { useMemo, useState } from "react";
-import { Accordion, AccordionSummary, AccordionDetails, Button, Card, CardContent, Typography, Box } from "@mui/material";
+import {
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Box,
+  Button,
+  Chip,
+  Table,
+  TableBody,
+  TableRow,
+  TableCell,
+} from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import {
   FormattedMessage,
@@ -7,7 +18,7 @@ import {
   FormattedTime,
   useIntl,
 } from "react-intl";
-import { useHistory } from "react-router-dom";
+import { Link, useHistory } from "react-router-dom";
 import { TruncatedText } from "src/components/Shared/TruncatedText";
 import { ExternalLink } from "src/components/Shared/ExternalLink";
 import { DeleteFilesDialog } from "src/components/Shared/DeleteFilesDialog";
@@ -17,10 +28,36 @@ import { mutateSceneSetPrimaryFile } from "src/core/StashService";
 import { useToast } from "src/hooks/Toast";
 import NavUtils from "src/utils/navigation";
 import TextUtils from "src/utils/text";
-import { TextField, URLField, URLsField } from "src/utils/field";
 import { StashIDPill } from "src/components/Shared/StashID";
 import { PatchComponent } from "../../../patch";
 import { FileSize } from "src/components/Shared/FileSize";
+
+// Shared label/value row used in both the per-file and scene-level info tables
+interface IInfoRowProps {
+  labelId?: string;
+  label?: React.ReactNode;
+  children: React.ReactNode;
+}
+
+const InfoRow: React.FC<IInfoRowProps> = ({ labelId, label, children }) => (
+  <TableRow>
+    <TableCell
+      sx={{
+        color: "text.secondary",
+        whiteSpace: "nowrap",
+        width: "1%",
+        pr: 2,
+        py: 0.5,
+        verticalAlign: "top",
+      }}
+    >
+      {labelId ? <FormattedMessage id={labelId} /> : label}
+    </TableCell>
+    <TableCell sx={{ wordBreak: "break-all", py: 0.5 }}>
+      {children}
+    </TableCell>
+  </TableRow>
+);
 
 interface IFileInfoPanelProps {
   sceneID: string;
@@ -51,107 +88,117 @@ const FileInfoPanel: React.FC<IFileInfoPanelProps> = (
   }
 
   return (
-    <div>
-      <dl className="scene-file-info details-list">
-        {props.primary && (
-          <>
-            <dt></dt>
-            <dd className="primary-file">
-              <FormattedMessage id="primary_file" />
-            </dd>
-          </>
-        )}
-        <TextField id="media_info.hash" value={oshash?.value} truncate />
-        <TextField id="media_info.checksum" value={checksum?.value} truncate />
-        <URLField
-          id="media_info.phash"
-          abbr="Perceptual hash"
-          value={phash?.value}
-          url={NavUtils.makeScenesPHashMatchUrl(phash?.value)}
-          target="_self"
-          truncate
-          internal
+    <Box>
+      {props.primary && (
+        <Chip
+          label={<FormattedMessage id="primary_file" />}
+          size="small"
+          color="primary"
+          sx={{ mb: 1 }}
         />
-        <TextField id="filesize">
-          <span className="text-truncate">
+      )}
+      <Table size="small">
+        <TableBody>
+          {oshash?.value && (
+            <InfoRow labelId="media_info.hash">
+              <TruncatedText text={oshash.value} />
+            </InfoRow>
+          )}
+          {checksum?.value && (
+            <InfoRow labelId="media_info.checksum">
+              <TruncatedText text={checksum.value} />
+            </InfoRow>
+          )}
+          {phash?.value && (
+            <InfoRow
+              label={
+                <abbr title="Perceptual hash">
+                  <FormattedMessage id="media_info.phash" />
+                </abbr>
+              }
+            >
+              <Link
+                to={NavUtils.makeScenesPHashMatchUrl(phash.value)}
+                target="_self"
+              >
+                <TruncatedText text={phash.value} />
+              </Link>
+            </InfoRow>
+          )}
+          <InfoRow labelId="filesize">
             <FileSize size={props.file.size} />
-          </span>
-        </TextField>
-        <TextField id="file_mod_time">
-          <FormattedTime
-            dateStyle="medium"
-            timeStyle="medium"
-            value={props.file.mod_time ?? 0}
-          />
-        </TextField>
-        <TextField
-          id="duration"
-          value={TextUtils.secondsToTimestamp(props.file.duration ?? 0)}
-          truncate
-        />
-        <TextField
-          id="dimensions"
-          value={`${props.file.width} x ${props.file.height}`}
-          truncate
-        />
-        <TextField id="framerate">
-          <FormattedMessage
-            id="frames_per_second"
-            values={{ value: intl.formatNumber(props.file.frame_rate ?? 0) }}
-          />
-        </TextField>
-        <TextField id="bitrate">
-          <FormattedMessage
-            id="megabits_per_second"
-            values={{
-              value: intl.formatNumber((props.file.bit_rate ?? 0) / 1000000, {
-                maximumFractionDigits: 2,
-              }),
-            }}
-          />
-        </TextField>
-        <TextField
-          id="media_info.video_codec"
-          value={props.file.video_codec ?? ""}
-          truncate
-        />
-        <TextField
-          id="media_info.audio_codec"
-          value={props.file.audio_codec ?? ""}
-          truncate
-        />
-      </dl>
+          </InfoRow>
+          <InfoRow labelId="file_mod_time">
+            <FormattedTime
+              dateStyle="medium"
+              timeStyle="medium"
+              value={props.file.mod_time ?? 0}
+            />
+          </InfoRow>
+          <InfoRow labelId="duration">
+            {TextUtils.secondsToTimestamp(props.file.duration ?? 0)}
+          </InfoRow>
+          <InfoRow labelId="dimensions">
+            {`${props.file.width} x ${props.file.height}`}
+          </InfoRow>
+          <InfoRow labelId="framerate">
+            <FormattedMessage
+              id="frames_per_second"
+              values={{ value: intl.formatNumber(props.file.frame_rate ?? 0) }}
+            />
+          </InfoRow>
+          <InfoRow labelId="bitrate">
+            <FormattedMessage
+              id="megabits_per_second"
+              values={{
+                value: intl.formatNumber(
+                  (props.file.bit_rate ?? 0) / 1000000,
+                  { maximumFractionDigits: 2 }
+                ),
+              }}
+            />
+          </InfoRow>
+          {props.file.video_codec && (
+            <InfoRow labelId="media_info.video_codec">
+              <TruncatedText text={props.file.video_codec} />
+            </InfoRow>
+          )}
+          {props.file.audio_codec && (
+            <InfoRow labelId="media_info.audio_codec">
+              <TruncatedText text={props.file.audio_codec} />
+            </InfoRow>
+          )}
+          <InfoRow labelId="path">
+            <ExternalLink href={`file://${props.file.path}`}>
+              {props.file.path}
+            </ExternalLink>
+          </InfoRow>
+        </TableBody>
+      </Table>
 
-      <Box sx={{ mt: 1 }}>
-        <Typography variant="subtitle2" color="textSecondary">
-          <FormattedMessage id="path" />:
-        </Typography>
-        <Box sx={{ wordBreak: 'break-all' }}>
-          <ExternalLink href={`file://${props.file.path}`}>
-            {`file://${props.file.path}`}
-          </ExternalLink>
-        </Box>
-      </Box>
       {props.ofMany && props.onSetPrimaryFile && !props.primary && (
-        <Box display="flex" gap={1} flexWrap="wrap">
+        <Box sx={{ mt: 1.5, display: "flex", gap: 1, flexWrap: "wrap" }}>
           <Button
-            className="edit-button"
+            size="small"
+            variant="outlined"
             disabled={props.loading}
             onClick={props.onSetPrimaryFile}
           >
             <FormattedMessage id="actions.make_primary" />
           </Button>
           <Button
-            className="edit-button"
+            size="small"
+            variant="outlined"
             disabled={props.loading}
             onClick={props.onReassign}
           >
             <FormattedMessage id="actions.reassign" />
           </Button>
-          <Button className="edit-button" onClick={onSplit}>
+          <Button size="small" variant="outlined" onClick={onSplit}>
             <FormattedMessage id="actions.split" />
           </Button>
           <Button
+            size="small"
             variant="contained"
             color="error"
             disabled={props.loading}
@@ -161,7 +208,7 @@ const FileInfoPanel: React.FC<IFileInfoPanelProps> = (
           </Button>
         </Box>
       )}
-    </div>
+    </Box>
   );
 };
 
@@ -178,54 +225,6 @@ const _SceneFileInfoPanel: React.FC<ISceneFileInfoPanelProps> = (
   const [deletingFile, setDeletingFile] = useState<GQL.VideoFileDataFragment>();
   const [reassigningFile, setReassigningFile] =
     useState<GQL.VideoFileDataFragment>();
-
-  function renderStashIDs() {
-    if (!props.scene.stash_ids.length) {
-      return;
-    }
-
-    return (
-      <>
-        <dt>
-          <FormattedMessage id="stash_ids" />
-        </dt>
-        <dd>
-          <dl>
-            {props.scene.stash_ids.map((stashID) => {
-              return (
-                <dd key={stashID.stash_id} className="flex flex-wrap">
-                  <StashIDPill stashID={stashID} linkType="scenes" />
-                </dd>
-              );
-            })}
-          </dl>
-        </dd>
-      </>
-    );
-  }
-
-  function renderFunscript() {
-    if (props.scene.interactive) {
-      return (
-        <URLField
-          name="Funscript"
-          url={props.scene.paths.funscript}
-          value={props.scene.paths.funscript}
-          truncate
-        />
-      );
-    }
-  }
-
-  function renderInteractiveSpeed() {
-    if (props.scene.interactive_speed) {
-      return (
-        <TextField id="media_info.interactive_speed">
-          <FormattedNumber value={props.scene.interactive_speed} />
-        </TextField>
-      );
-    }
-  }
 
   const filesPanel = useMemo(() => {
     if (props.scene.files.length === 0) {
@@ -290,34 +289,53 @@ const _SceneFileInfoPanel: React.FC<ISceneFileInfoPanelProps> = (
 
   return (
     <>
-      <dl className="scene-file-info details-list">
-        {props.scene.files.length > 0 && (
-          <URLField
-            id="media_info.stream"
-            url={props.scene.paths.stream}
-            value={props.scene.paths.stream}
-            truncate
-          />
-        )}
-        {renderFunscript()}
-        {renderInteractiveSpeed()}
-        {renderStashIDs()}
-      </dl>
-
-      {props.scene.urls && props.scene.urls.length > 0 && (
-        <Box sx={{ mt: 1 }}>
-          <Typography variant="subtitle2" color="textSecondary">
-            <FormattedMessage id="urls" />:
-          </Typography>
-          <Box sx={{ wordBreak: 'break-all' }}>
-            {props.scene.urls.map((url, i) => (
-              <Box key={i}>
-                <ExternalLink href={url}>{url}</ExternalLink>
+      <Table size="small" sx={{ mb: filesPanel ? 2 : 0 }}>
+        <TableBody>
+          {props.scene.files.length > 0 && props.scene.paths.stream && (
+            <InfoRow labelId="media_info.stream">
+              <ExternalLink href={props.scene.paths.stream}>
+                <TruncatedText text={props.scene.paths.stream} />
+              </ExternalLink>
+            </InfoRow>
+          )}
+          {props.scene.interactive && props.scene.paths.funscript && (
+            <InfoRow label="Funscript">
+              <ExternalLink href={props.scene.paths.funscript}>
+                <TruncatedText text={props.scene.paths.funscript} />
+              </ExternalLink>
+            </InfoRow>
+          )}
+          {props.scene.interactive_speed && (
+            <InfoRow labelId="media_info.interactive_speed">
+              <FormattedNumber value={props.scene.interactive_speed} />
+            </InfoRow>
+          )}
+          {props.scene.stash_ids.length > 0 && (
+            <InfoRow labelId="stash_ids">
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                {props.scene.stash_ids.map((stashID) => (
+                  <StashIDPill
+                    key={stashID.stash_id}
+                    stashID={stashID}
+                    linkType="scenes"
+                  />
+                ))}
               </Box>
-            ))}
-          </Box>
-        </Box>
-      )}
+            </InfoRow>
+          )}
+          {props.scene.urls && props.scene.urls.length > 0 && (
+            <InfoRow labelId="urls">
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25 }}>
+                {props.scene.urls.map((url, i) => (
+                  <ExternalLink key={i} href={url}>
+                    {url}
+                  </ExternalLink>
+                ))}
+              </Box>
+            </InfoRow>
+          )}
+        </TableBody>
+      </Table>
 
       {filesPanel}
     </>

@@ -2,7 +2,19 @@ import MoreVertIcon from "@mui/icons-material/MoreVert";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import React, { useState } from "react";
-import { Button, IconButton, Menu, MenuItem, Box, Typography, Divider } from "@mui/material";
+import {
+  Box,
+  Divider,
+  IconButton,
+  Menu,
+  MenuItem,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableRow,
+  Typography,
+} from "@mui/material";
 import { FormattedMessage, useIntl } from "react-intl";
 import { AlertModal } from "src/components/Shared/Alert";
 import { Counter } from "src/components/Shared/Counter";
@@ -20,23 +32,21 @@ import {
 import * as GQL from "src/core/generated-graphql";
 import { useConfigurationContext } from "src/hooks/Config";
 import { useToast } from "src/hooks/Toast";
-import { TextField } from "src/utils/field";
 import TextUtils from "src/utils/text";
 
 const History: React.FC<{
-  className?: string;
   history: string[];
   unknownDate?: string;
   onRemove: (date: string) => void;
   noneID: string;
-}> = ({ className, history, unknownDate, noneID, onRemove }) => {
+}> = ({ history, unknownDate, noneID, onRemove }) => {
   const intl = useIntl();
 
   if (history.length === 0) {
     return (
-      <div>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
         <FormattedMessage id={noneID} />
-      </div>
+      </Typography>
     );
   }
 
@@ -44,28 +54,32 @@ const History: React.FC<{
     if (date === unknownDate) {
       return intl.formatMessage({ id: "unknown_date" });
     }
-
     return TextUtils.formatDateTime(intl, date);
   }
 
   return (
-    <div className="scene-history">
-      <ul className={className}>
+    <Table size="small" sx={{ mb: 1 }}>
+      <TableBody>
         {history.map((playdate, index) => (
-          <li key={index}>
-            <span>{renderDate(playdate)}</span>
-            <IconButton
-              className="remove-date-button"
-              size="small"
-              onClick={() => onRemove(playdate)}
-              title={intl.formatMessage({ id: "actions.remove_date" })}
-            >
-              <DeleteIcon fontSize="small" />
-            </IconButton>
-          </li>
+          <TableRow key={index} hover>
+            <TableCell sx={{ py: 0.25 }}>
+              <Typography variant="body2" sx={{ fontFamily: "monospace" }}>
+                {renderDate(playdate)}
+              </Typography>
+            </TableCell>
+            <TableCell align="right" sx={{ py: 0.25, width: "1%" }}>
+              <IconButton
+                size="small"
+                onClick={() => onRemove(playdate)}
+                title={intl.formatMessage({ id: "actions.remove_date" })}
+              >
+                <DeleteIcon fontSize="small" />
+              </IconButton>
+            </TableCell>
+          </TableRow>
         ))}
-      </ul>
-    </div>
+      </TableBody>
+    </Table>
   );
 };
 
@@ -87,6 +101,7 @@ const HistoryMenu: React.FC<{
     const intl = useIntl();
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
     const open = Boolean(anchorEl);
+    const paperRef = React.useRef<HTMLDivElement>(null);
 
     const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
       setAnchorEl(event.currentTarget);
@@ -95,6 +110,22 @@ const HistoryMenu: React.FC<{
     const handleClose = () => {
       setAnchorEl(null);
     };
+
+    React.useEffect(() => {
+      if (!open) return;
+
+      const handleClickOutside = (event: MouseEvent) => {
+        const target = event.target as Node;
+        const isClickOnMenu = paperRef.current && paperRef.current.contains(target);
+        const isClickOnAnchor = anchorEl && anchorEl.contains(target);
+        if (!isClickOnMenu && !isClickOnAnchor) {
+          handleClose();
+        }
+      };
+
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [open, anchorEl]);
 
     return (
       <>
@@ -113,7 +144,12 @@ const HistoryMenu: React.FC<{
           anchorEl={anchorEl}
           open={open}
           onClose={handleClose}
+          disableScrollLock
           hideBackdrop
+          slotProps={{
+            root: { sx: { pointerEvents: 'none' } },
+            paper: { ref: paperRef, sx: { pointerEvents: 'auto' } },
+          }}
           MenuListProps={{
             'aria-labelledby': 'history-button',
           }}
@@ -370,35 +406,41 @@ export const SceneHistoryPanel: React.FC<ISceneHistoryProps> = ({ scene }) => {
     : "odate_recorded_no";
 
   return (
-    <div>
+    <Box>
       {maybeRenderDialogs()}
-      <div className="play-history">
-        <div className="history-header">
-          <h5>
-            <span>
+
+      {/* Play history section */}
+      <Box sx={{ mb: 2 }}>
+        <Stack
+          direction="row"
+          alignItems="center"
+          justifyContent="space-between"
+          sx={{ mb: 1 }}
+        >
+          <Stack direction="row" alignItems="center" spacing={0.5}>
+            <Typography variant="subtitle1" fontWeight={600}>
               <FormattedMessage id="play_history" />
-              <Counter count={playHistory.length} hideZero />
-            </span>
-            <span>
-              <IconButton
-                size="small"
-                className="add-date-button"
-                title={intl.formatMessage({ id: "actions.add_play" })}
-                onClick={() => handleAddPlayDate()}
-              >
-                <AddIcon fontSize="small" />
-              </IconButton>
-              <HistoryMenu
-                hasHistory={playHistory.length > 0}
-                showResetResumeDuration={true}
-                onAddDate={() => setDialogPartial({ addPlay: true })}
-                onClearDates={() => setDialogPartial({ playHistory: true })}
-                resetResume={() => handleResetResume()}
-                resetDuration={() => handleResetDuration()}
-              />
-            </span>
-          </h5>
-        </div>
+            </Typography>
+            <Counter count={playHistory.length} hideZero />
+          </Stack>
+          <Stack direction="row" alignItems="center">
+            <IconButton
+              size="small"
+              title={intl.formatMessage({ id: "actions.add_play" })}
+              onClick={() => handleAddPlayDate()}
+            >
+              <AddIcon fontSize="small" />
+            </IconButton>
+            <HistoryMenu
+              hasHistory={playHistory.length > 0}
+              showResetResumeDuration={true}
+              onAddDate={() => setDialogPartial({ addPlay: true })}
+              onClearDates={() => setDialogPartial({ playHistory: true })}
+              resetResume={() => handleResetResume()}
+              resetDuration={() => handleResetDuration()}
+            />
+          </Stack>
+        </Stack>
 
         <History
           history={playHistory ?? []}
@@ -406,49 +448,75 @@ export const SceneHistoryPanel: React.FC<ISceneHistoryProps> = ({ scene }) => {
           unknownDate={scene.created_at}
           onRemove={(t) => handleDeletePlayDate(t)}
         />
-        <dl className="details-list">
-          <TextField
-            id="media_info.play_duration"
-            value={TextUtils.secondsToTimestamp(scene.play_duration ?? 0)}
-          />
-        </dl>
-      </div>
 
-      <div className="o-history">
-        <div className="history-header">
-          <h5>
-            <span>
+        {(scene.play_duration ?? 0) > 0 && (
+          <Table size="small">
+            <TableBody>
+              <TableRow>
+                <TableCell
+                  sx={{
+                    color: "text.secondary",
+                    whiteSpace: "nowrap",
+                    width: "1%",
+                    pr: 2,
+                    py: 0.5,
+                  }}
+                >
+                  <FormattedMessage id="media_info.play_duration" />
+                </TableCell>
+                <TableCell sx={{ py: 0.5 }}>
+                  <Typography variant="body2" sx={{ fontFamily: "monospace" }}>
+                    {TextUtils.secondsToTimestamp(scene.play_duration ?? 0)}
+                  </Typography>
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        )}
+      </Box>
+
+      <Divider sx={{ mb: 2 }} />
+
+      {/* O history section */}
+      <Box>
+        <Stack
+          direction="row"
+          alignItems="center"
+          justifyContent="space-between"
+          sx={{ mb: 1 }}
+        >
+          <Stack direction="row" alignItems="center" spacing={0.5}>
+            <Typography variant="subtitle1" fontWeight={600}>
               <FormattedMessage id={oHistoryMessageID} />
-              <Counter count={oHistory.length} hideZero />
-            </span>
-            <span>
-              <IconButton
-                size="small"
-                className="add-date-button"
-                title={intl.formatMessage({ id: "actions.add_o" })}
-                onClick={() => handleAddODate()}
-              >
-                <AddIcon fontSize="small" />
-              </IconButton>
-              <HistoryMenu
-                hasHistory={oHistory.length > 0}
-                showResetResumeDuration={false}
-                onAddDate={() => setDialogPartial({ addO: true })}
-                onClearDates={() => setDialogPartial({ oHistory: true })}
-                resetResume={() => handleResetResume()}
-                resetDuration={() => handleResetDuration()}
-              />
-            </span>
-          </h5>
-        </div>
+            </Typography>
+            <Counter count={oHistory.length} hideZero />
+          </Stack>
+          <Stack direction="row" alignItems="center">
+            <IconButton
+              size="small"
+              title={intl.formatMessage({ id: "actions.add_o" })}
+              onClick={() => handleAddODate()}
+            >
+              <AddIcon fontSize="small" />
+            </IconButton>
+            <HistoryMenu
+              hasHistory={oHistory.length > 0}
+              showResetResumeDuration={false}
+              onAddDate={() => setDialogPartial({ addO: true })}
+              onClearDates={() => setDialogPartial({ oHistory: true })}
+              resetResume={() => handleResetResume()}
+              resetDuration={() => handleResetDuration()}
+            />
+          </Stack>
+        </Stack>
         <History
           history={oHistory}
           noneID={noneMessageID}
           unknownDate={scene.created_at}
           onRemove={(t) => handleDeleteODate(t)}
         />
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 };
 

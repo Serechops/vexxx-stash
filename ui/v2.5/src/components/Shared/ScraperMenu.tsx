@@ -6,6 +6,8 @@ import { stashboxDisplayName } from "src/utils/stashbox";
 import { ScraperSourceInput, StashBox } from "src/core/generated-graphql";
 import { faSyncAlt } from "@fortawesome/free-solid-svg-icons";
 import { ClearableInput } from "./ClearableInput";
+import useFocus from "src/utils/focus";
+import ScreenUtils from "src/utils/screen";
 
 export const ScraperMenu: React.FC<{
   toggle: React.ReactNode;
@@ -25,11 +27,16 @@ export const ScraperMenu: React.FC<{
     const intl = useIntl();
     const [filter, setFilter] = useState("");
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+
+    const focusOnOpen = !ScreenUtils.isTouch();
+    const focusRef = useFocus();
+    const [, setFocus] = focusRef;
     const open = Boolean(anchorEl);
     const menuRef = React.useRef<HTMLDivElement>(null);
 
     const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
       setAnchorEl(event.currentTarget);
+      if (focusOnOpen) setTimeout(() => setFocus(true), 0);
     };
 
     const handleClose = () => {
@@ -105,11 +112,13 @@ export const ScraperMenu: React.FC<{
             }
           }}
         >
-          <Box className="scraper-filter-container" sx={{ p: 1, display: 'flex', gap: 1 }}>
+          <Box className="scraper-filter-container" sx={{ p: 1, display: 'flex', gap: 1, "& .scraper-input-wrapper": { flexGrow: 1 } }}>
             <ClearableInput
+              className="scraper-input-wrapper"
               placeholder={`${intl.formatMessage({ id: "filter" })}...`}
               value={filter}
               setValue={setFilter}
+              focus={focusRef}
             />
             <Button
               onClick={onReloadScrapers}

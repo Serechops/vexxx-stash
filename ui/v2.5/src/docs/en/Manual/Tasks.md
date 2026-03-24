@@ -29,6 +29,8 @@ You can create `.stashignore` files in any directory within your library to excl
 
 Each line in a `.stashignore` file specifies a pattern. Files and directories matching the pattern will be excluded from scanning. A `.stashignore` file only applies within the directory it is placed in and its subdirectories.
 
+`.stashignore` files are not read inside zip files.
+
 The following rules apply:
 
 - Lines starting with `#` are comments and are ignored.

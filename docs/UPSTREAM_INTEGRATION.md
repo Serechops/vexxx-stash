@@ -2,8 +2,8 @@
 
 This document tracks the integration of upstream Stash features and fixes into the Vexxx fork.
 
-**Last reviewed:** March 22, 2026 — upstream at commit `11f9e7ac5` (v0.30.1-152, pre-v0.31.0)  
-**Vexxx schema version:** 85 (custom: playlists, users, segments, trailers, etc.)  
+**Last reviewed:** March 23, 2026 — upstream at commit `2e48dbfc6` (v0.30.1-161+, pre-v0.31.0)  
+**Vexxx schema version:** 87 (custom: playlists, users, segments, trailers, etc.)  
 **Upstream schema version:** 85 (diverged at 76 — see Schema Map below)
 
 ---
@@ -289,6 +289,8 @@ All integrations maintain compatibility with Vexxx-specific features:
 **Progress:** Phase 6 complete; Phase 7 complete (12/14 ported + 2 N/A); Phase 8 schema 87 (`organized`) complete  
 **Next Action:** Port #6156 Studio custom fields (schema 88)
 
+**New upstream work (Mar 22–23, post-last-review):** See Wave 2 — Phase 10 (bug fixes) below.
+
 ---
 
 ## Wave 2 — Phase 6: Bug Fixes ✅ COMPLETE
@@ -395,6 +397,47 @@ These shipped in upstream v0.29.0-v0.30.1. Verify Vexxx includes them:
 
 ---
 
+## Wave 2 — Phase 10: New Bug Fixes & Improvements (Mar 18–23) 📋 PENDING
+
+New upstream commits since last review. Should be ported before or alongside Phase 8/9 work.
+
+### Group A: Folder Filter Follow-ups (fixes for already-integrated #6636)
+
+| PR/Commit | Description | Priority |
+|-----------|-------------|----------|
+| #6737 + `feb4346` | Fix incorrect WHERE clause for gallery parent folder filter + maintain sub-folder selection when reselecting | **High** — bugfix for integrated feature |
+| #6738 | Expand folder select hierarchy based on initial selected folder | Medium |
+
+### Group B: Tagger Fixes
+
+| PR | Description | Priority |
+|----|-------------|----------|
+| #6736 | Fix tagger modal issues | Medium |
+| #6739 | Match exact tag names in batch tagger; show exact matches first | Medium |
+
+### Group C: UI Bug Fixes
+
+| PR | Description | Priority |
+|----|-------------|----------|
+| #6716 | Show studio name if studio image not set on detail pages | Low |
+| #6704 | Focus search field when clicking on scraper menu | Low |
+
+### Group D: New Feature
+
+| PR | Description | Priority |
+|----|-------------|----------|
+| #6735 | Auto Tag Confirmation Modal | Medium |
+| #6693 | Don't read `.stashignore` files in zip files (bugfix for integrated #6485) | Medium |
+
+### Group E: Infrastructure (likely N/A)
+
+| PR | Description | Notes |
+|----|-------------|-------|
+| #6728 | [hwaccel] add envvar for `/dev/dri` device | Docker-specific, evaluate |
+| #6638 | Lint + build update and retooling | Build tooling only |
+
+---
+
 ## Build Verification
 
 After each PR integration:
@@ -454,4 +497,11 @@ All integrations must maintain compatibility with:
 - Identified 40+ new PRs across phases 6-9
 - Updated schema divergence map
 - Starting Wave 2 Phase 6 bug fixes
+
+### Session 5: Review + Wave 2 Phase 10 Identified (Mar 23, 2026)
+- Reviewed upstream through commit `2e48dbfc6` (latest)
+- Identified 9 new PRs/commits since last review: folder filter fixes, tagger fixes, UI fixes, new Auto Tag Confirmation Modal
+- v0.31 changelog merged upstream (PR #6692, Mar 18) — release appears imminent
+- Added Wave 2 Phase 10 to track new work
+- **No code changes this session — review only**
 

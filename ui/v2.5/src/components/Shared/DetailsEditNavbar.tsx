@@ -2,6 +2,7 @@ import { Box, Button, Dialog, DialogActions, DialogContent, DialogContentText } 
 import React, { useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { ImageInput } from "./ImageInput";
+import { AutoTagConfirmDialog } from "./AutoTagConfirmDialog";
 import cx from "classnames";
 
 interface IProps {
@@ -29,6 +30,7 @@ interface IProps {
 export const DetailsEditNavbar: React.FC<IProps> = (props: IProps) => {
   const intl = useIntl();
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState<boolean>(false);
+  const [isAutoTagAlertOpen, setIsAutoTagAlertOpen] = useState<boolean>(false);
 
   function renderEditButton() {
     if (props.isNew) return;
@@ -100,14 +102,20 @@ export const DetailsEditNavbar: React.FC<IProps> = (props: IProps) => {
             variant="contained"
             color="secondary"
             disabled={props.autoTagDisabled}
-            onClick={() => {
+            onClick={() => setIsAutoTagAlertOpen(true)}
+          >
+            <FormattedMessage id="actions.auto_tag" />…
+          </Button>
+          <AutoTagConfirmDialog
+            show={isAutoTagAlertOpen}
+            onConfirm={() => {
+              setIsAutoTagAlertOpen(false);
               if (props.onAutoTag) {
                 props.onAutoTag();
               }
             }}
-          >
-            <FormattedMessage id="actions.auto_tag" />
-          </Button>
+            onCancel={() => setIsAutoTagAlertOpen(false)}
+          />
         </div>
       );
     }

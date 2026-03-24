@@ -253,7 +253,7 @@ func (s *Manager) ScanFile(ctx context.Context, input ScanFileInput) (*ScanFileR
 	}
 
 	// Check if file passes the filter
-	if !scanner.AcceptEntry(ctx, input.Path, info) {
+	if !scanner.AcceptEntry(ctx, input.Path, info, "") {
 		return &ScanFileResult{
 			Status: ScanFileStatusSkipped,
 		}, nil

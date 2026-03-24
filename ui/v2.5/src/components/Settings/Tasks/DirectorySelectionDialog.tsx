@@ -16,11 +16,12 @@ interface IDirectorySelectionDialogProps {
   initialPaths?: string[];
   allowEmpty?: boolean;
   onClose: (paths?: string[]) => void;
+  children?: React.ReactNode;
 }
 
 export const DirectorySelectionDialog: React.FC<
   IDirectorySelectionDialogProps
-> = ({ animation, allowEmpty = false, initialPaths = [], onClose }) => {
+> = ({ animation, allowEmpty = false, initialPaths = [], onClose, children }) => {
   const intl = useIntl();
   const { configuration } = useConfigurationContext();
 
@@ -94,6 +95,8 @@ export const DirectorySelectionDialog: React.FC<
           }
         />
       </div>
+
+      {children}
     </ModalComponent>
   );
 };

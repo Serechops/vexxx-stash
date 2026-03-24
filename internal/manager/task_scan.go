@@ -166,7 +166,11 @@ func (j *ScanJob) queueFileFunc(ctx context.Context, f models.FS, zipFile *file.
 			return nil
 		}
 
-		if !j.scanner.AcceptEntry(ctx, path, info) {
+		var zipFilePath string
+		if zipFile != nil {
+			zipFilePath = zipFile.Path
+		}
+		if !j.scanner.AcceptEntry(ctx, path, info, zipFilePath) {
 			if info.IsDir() {
 				logger.Debugf("Skipping directory %s", path)
 				return fs.SkipDir
@@ -544,7 +548,7 @@ func newScanFilter(c *config.Config, repo models.Repository, minModTime time.Tim
 	}
 }
 
-func (f *scanFilter) Accept(ctx context.Context, path string, info fs.FileInfo) bool {
+func (f *scanFilter) Accept(ctx context.Context, path string, info fs.FileInfo, zipFilePath string) bool {
 	if fsutil.IsPathInDir(f.generatedPath, path) {
 		logger.Warnf("Skipping %q as it overlaps with the generated folder", path)
 		return false
@@ -562,7 +566,7 @@ func (f *scanFilter) Accept(ctx context.Context, path string, info fs.FileInfo) 
 	}
 
 	// Check .stashignore files, bounded to the library root.
-	if !f.stashIgnoreFilter.Accept(ctx, path, info, s.Path) {
+	if !f.stashIgnoreFilter.Accept(ctx, path, info, s.Path, zipFilePath) {
 		logger.Debugf("Skipping %s due to .stashignore", path)
 		return false
 	}

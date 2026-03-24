@@ -8,7 +8,7 @@ import React, {
   useLayoutEffect,
 } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
-import { useHistory, Link, RouteComponentProps } from "react-router-dom";
+import { useHistory, RouteComponentProps } from "react-router-dom";
 import { Helmet } from "react-helmet";
 import * as GQL from "src/core/generated-graphql";
 import {
@@ -55,6 +55,7 @@ import { PatchComponent, PatchContainerComponent } from "src/patch";
 import { SceneMergeModal } from "../SceneMergeDialog";
 import { goBackOrReplace } from "src/utils/history";
 import { FormattedDate } from "src/components/Shared/Date";
+import { StudioLogo } from "src/components/Shared/StudioLogo";
 
 const SubmitStashBoxDraft = lazyComponent(
   () => import("src/components/Dialogs/SubmitDraft")
@@ -210,6 +211,7 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
   const [updateScene] = useSceneUpdate();
   const [generateScreenshot] = useSceneGenerateScreenshot();
   const { configuration } = useConfigurationContext();
+  const { showStudioText } = configuration?.ui ?? {};
 
   const [showDraftModal, setShowDraftModal] = useState(false);
   const boxes = configuration?.general?.stashBoxes ?? [];
@@ -882,21 +884,9 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
                   mb: { xs: '1rem', lg: 0 },
                   flex: { lg: '0 0 25%' },
                   order: { lg: 2 },
-                  '& .studio-logo': {
-                    maxHeight: '8rem',
-                    maxWidth: '100%',
-                    mt: { lg: '1rem' },
-                  },
                 }}
               >
-                <Link to={`/studios/${scene.studio.id}`}>
-                  <Box
-                    component="img"
-                    src={scene.studio.image_path ?? ""}
-                    alt={`${scene.studio.name} logo`}
-                    className="studio-logo"
-                  />
-                </Link>
+                <StudioLogo studio={scene.studio} showStudioText={showStudioText} />
               </Box>
             )}
             <Box

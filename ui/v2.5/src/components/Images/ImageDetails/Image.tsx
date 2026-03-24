@@ -1,7 +1,7 @@
 import { Tabs, Tab, Box, Menu, MenuItem, IconButton, Typography } from "@mui/material";
 import React, { useEffect, useMemo, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
-import { useHistory, Link, RouteComponentProps } from "react-router-dom";
+import { useHistory, RouteComponentProps } from "react-router-dom";
 import { Helmet } from "react-helmet";
 import {
   useFindImage,
@@ -36,6 +36,7 @@ import { TruncatedText } from "src/components/Shared/TruncatedText";
 import { goBackOrReplace } from "src/utils/history";
 import { FormattedDate } from "src/components/Shared/Date";
 import { GenerateDialog } from "src/components/Dialogs/GenerateDialog";
+import { StudioLogo } from "src/components/Shared/StudioLogo";
 
 interface IProps {
   image: GQL.ImageDataFragment;
@@ -50,6 +51,7 @@ const ImagePage: React.FC<IProps> = ({ image }) => {
   const Toast = useToast();
   const intl = useIntl();
   const { configuration } = useConfigurationContext();
+  const { showStudioText } = configuration?.ui ?? {};
 
   const [incrementO] = useImageIncrementO(image.id);
   const [decrementO] = useImageDecrementO(image.id);
@@ -398,27 +400,15 @@ const ImagePage: React.FC<IProps> = ({ image }) => {
           >
             {image.studio && (
               <Box
-                className="image-studio-image"
                 sx={{
                   flex: { lg: "0 0 25%" },
                   order: { lg: 2 },
                   display: "flex",
                   justifyContent: "center",
                   mb: { xs: 2, lg: 0 },
-                  "& img": {
-                    maxHeight: "100%",
-                    maxWidth: "100%",
-                    objectFit: "contain"
-                  }
                 }}
               >
-                <Link to={`/studios/${image.studio.id}`}>
-                  <img
-                    src={image.studio.image_path ?? ""}
-                    alt={`${image.studio.name} logo`}
-                    style={{ marginTop: '1rem', maxHeight: '8rem', maxWidth: '100%' }}
-                  />
-                </Link>
+                <StudioLogo studio={image.studio} showStudioText={showStudioText} />
               </Box>
             )}
             <Typography

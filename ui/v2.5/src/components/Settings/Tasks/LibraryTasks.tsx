@@ -19,6 +19,10 @@ import { BooleanSetting, Setting, SettingGroup } from "../Inputs";
 import { ManualLink } from "src/components/Help/context";
 import { Icon } from "src/components/Shared/Icon";
 import { faQuestionCircle } from "@fortawesome/free-solid-svg-icons";
+import {
+  AutoTagConfirmDialog,
+  AutoTagWarning,
+} from "src/components/Shared/AutoTagConfirmDialog";
 import { useSettings } from "../context";
 
 interface IAutoTagOptions {
@@ -81,6 +85,7 @@ export const LibraryTasks: React.FC = () => {
   const [dialogOpen, setDialogOpenState] = useState({
     scan: false,
     autoTag: false,
+    autoTagAlert: false,
     identify: false,
   });
 
@@ -232,7 +237,11 @@ export const LibraryTasks: React.FC = () => {
       return;
     }
 
-    return <DirectorySelectionDialog onClose={onAutoTagDialogClosed} />;
+    return (
+      <DirectorySelectionDialog onClose={onAutoTagDialogClosed}>
+        <AutoTagWarning />
+      </DirectorySelectionDialog>
+    );
   }
 
   function onAutoTagDialogClosed(paths?: string[]) {
@@ -309,6 +318,14 @@ export const LibraryTasks: React.FC = () => {
   return (
     <Box>
       {renderScanDialog()}
+      <AutoTagConfirmDialog
+        show={dialogOpen.autoTagAlert}
+        onConfirm={() => {
+          setDialogOpen({ autoTagAlert: false });
+          runAutoTag();
+        }}
+        onCancel={() => setDialogOpen({ autoTagAlert: false })}
+      />
       {renderAutoTagDialog()}
       {maybeRenderIdentifyDialog()}
 
@@ -393,9 +410,9 @@ export const LibraryTasks: React.FC = () => {
                 variant="outlined"
                 type="submit"
                 sx={{ mr: 2 }}
-                onClick={() => runAutoTag()}
+                onClick={() => setDialogOpen({ autoTagAlert: true })}
               >
-                <FormattedMessage id="actions.auto_tag" />
+                <FormattedMessage id="actions.auto_tag" />…
               </Button>
               <Button
                 variant="outlined"

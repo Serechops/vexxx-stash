@@ -111,7 +111,7 @@ func (s *Scanner) detectFolderMove(ctx context.Context, file ScannedFile) (*mode
 			return nil
 		}
 
-		if !s.AcceptEntry(ctx, path, info) {
+		if !s.AcceptEntry(ctx, path, info, "") {
 			return nil
 		}
 

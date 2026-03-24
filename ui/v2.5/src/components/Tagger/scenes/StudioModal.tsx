@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 
@@ -56,7 +56,8 @@ const StudioDetails: React.FC<IStudioDetailsProps> = ({
   function maybeRenderField(
     id: string,
     text: string | null | undefined,
-    isSelectable: boolean = true
+    isSelectable: boolean = true,
+    labelId?: string
   ) {
     if (!text) return;
 
@@ -73,7 +74,7 @@ const StudioDetails: React.FC<IStudioDetailsProps> = ({
             </Button>
           )}
           <strong>
-            <FormattedMessage id={id} />:
+            <FormattedMessage id={labelId ?? id} />:
           </strong>
         </Box>
         <TruncatedText style={{ width: '58.33%' }} text={text} />
@@ -142,7 +143,12 @@ const StudioDetails: React.FC<IStudioDetailsProps> = ({
           {maybeRenderField("details", studio.details)}
           {maybeRenderField("aliases", studio.aliases)}
           {maybeRenderField("tags", studio.tags?.map((t) => t.name).join(", "))}
-          {maybeRenderField("parent_studio", studio.parent?.name, false)}
+          {maybeRenderField(
+            "parent_id",
+            studio.parent?.name,
+            true,
+            "parent_studio"
+          )}
           {maybeRenderStashBoxLink()}
         </Box>
       </Box>
@@ -203,6 +209,10 @@ const StudioModal: React.FC<IStudioModalProps> = ({
   const [createParentStudio, setCreateParentStudio] = useState<boolean>(
     !!studio.parent
   );
+
+  useEffect(() => {
+    setCreateParentStudio(!!studio.parent);
+  }, [studio]);
 
   let sendParentStudio = true;
   // The parent studio exists, need to check if it has a Stash ID.
@@ -312,6 +322,9 @@ const StudioModal: React.FC<IStudioModalProps> = ({
       return;
     }
 
+    // force create if there is no current parent studio and parent studio is not excluded
+    const mustCreateParent = !studio.parent.stored_id;
+
     return (
       <div>
         <div style={{ marginBottom: '1.5rem', marginTop: '1.5rem' }}>
@@ -321,6 +334,7 @@ const StudioModal: React.FC<IStudioModalProps> = ({
                 id="create-parent"
                 checked={createParentStudio}
                 onChange={() => setCreateParentStudio(!createParentStudio)}
+                disabled={mustCreateParent}
               />
             }
             label={intl.formatMessage({

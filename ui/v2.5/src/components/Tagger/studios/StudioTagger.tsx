@@ -619,20 +619,6 @@ const StudioTaggerList: React.FC<IStudioTaggerListProps> = ({
             p: 2,
           }}
         >
-          {modalStudio && (
-            <StudioModal
-              closeModal={() => setModalStudio(undefined)}
-              modalVisible={modalStudio.stored_id === studio.id}
-              studio={modalStudio}
-              handleStudioCreate={handleStudioUpdate}
-              excludedStudioFields={config.excludedStudioFields}
-              icon={faTags}
-              header={intl.formatMessage({
-                id: "studio_tagger.update_studio",
-              })}
-              endpoint={selectedEndpoint.endpoint}
-            />
-          )}
           <Box sx={{ display: "flex", flexDirection: "column", justifyContent: "space-between", m: 0.5, width: "24rem" }}>
             <div></div>
             <div>
@@ -689,6 +675,20 @@ const StudioTaggerList: React.FC<IStudioTaggerListProps> = ({
         </Button>
       </Box>
       <Box sx={{ display: "flex", flexWrap: "wrap", justifyContent: "center", maxWidth: 1600 }}>{renderStudios()}</Box>
+      {modalStudio && (
+        <StudioModal
+          closeModal={() => setModalStudio(undefined)}
+          modalVisible={!!modalStudio.stored_id}
+          studio={modalStudio}
+          handleStudioCreate={handleStudioUpdate}
+          excludedStudioFields={config.excludedStudioFields}
+          icon={faTags}
+          header={intl.formatMessage({
+            id: "studio_tagger.update_studio",
+          })}
+          endpoint={selectedEndpoint.endpoint}
+        />
+      )}
     </Paper>
   );
 };

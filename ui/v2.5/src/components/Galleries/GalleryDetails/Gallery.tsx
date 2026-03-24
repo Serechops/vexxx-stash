@@ -4,7 +4,6 @@ import Button from "@mui/material/Button";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   useHistory,
-  Link,
   RouteComponentProps,
   Redirect,
 } from "react-router-dom";
@@ -48,6 +47,7 @@ import { useConfigurationContext } from "src/hooks/Config";
 import { TruncatedText } from "src/components/Shared/TruncatedText";
 import { goBackOrReplace } from "src/utils/history";
 import { FormattedDate } from "src/components/Shared/Date";
+import { StudioLogo } from "src/components/Shared/StudioLogo";
 
 interface IProps {
   gallery: GQL.GalleryDataFragment;
@@ -64,6 +64,7 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
   const Toast = useToast();
   const intl = useIntl();
   const { configuration } = useConfigurationContext();
+  const { showStudioText } = configuration?.ui ?? {};
   const showLightbox = useGalleryLightbox(gallery.id, gallery.chapters);
 
 
@@ -506,20 +507,9 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
                   display: "flex",
                   justifyContent: "center",
                   mb: { xs: 2, lg: 0 },
-                  "& img": {
-                    maxHeight: "100%",
-                    maxWidth: "100%",
-                    objectFit: "contain"
-                  }
                 }}
               >
-                <Link to={`/studios/${gallery.studio.id}`}>
-                  <img
-                    src={gallery.studio.image_path ?? ""}
-                    alt={`${gallery.studio.name} logo`}
-                    style={{ marginTop: '1rem', maxHeight: '8rem', maxWidth: '100%' }}
-                  />
-                </Link>
+                <StudioLogo studio={gallery.studio} showStudioText={showStudioText} />
               </Box>
             )}
             <Typography

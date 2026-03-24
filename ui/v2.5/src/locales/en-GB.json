@@ -521,6 +521,8 @@
         "auto_tagging_paths": "Auto Tagging the following paths"
       },
       "auto_tag_based_on_filenames": "Auto-tag content based on file paths.",
+      "auto_tag_confirm": "This will attempt to match your content against existing metadata.",
+      "auto_tag_warning": "This process cannot be undone and may produce incorrect matches.",
       "auto_tagging": "Auto Tagging",
       "backing_up_database": "Backing up database",
       "backup_and_download": "Performs a backup of the database and downloads the resulting file.",
@@ -695,6 +697,10 @@
         "show_all_details": {
           "description": "When enabled, all content details will be shown by default and each detail item will fit under a single column",
           "heading": "Show all details"
+        },
+        "show_studio_text": {
+          "description": "Always display studio name as text on details views instead of an icon.",
+          "heading": "Show studio as text"
         }
       },
       "editing": {
@@ -804,7 +810,8 @@
       "scene_list": {
         "heading": "Grid View",
         "options": {
-          "show_studio_as_text": "Display studio overlay as text"
+          "show_studio_as_text": "Display studio overlay as text",
+          "show_studio_as_text_desc": "By default, the studio logo is shown on cards in the grid. Enable this option to always show the studio name as text instead."
         }
       },
       "scene_player": {

@@ -845,17 +845,11 @@ export const SceneEditPanel: React.FC<IProps> = ({
                 <FormattedMessage id="cover_image" />
               </Typography>
               {image}
-              <input
-                type="file"
-                accept="image/*"
-                onChange={onCoverImageChange}
-                style={{ display: 'none' }}
+              <ImageInput
+                isEditing
+                onImageChange={onCoverImageChange}
+                onImageURL={onImageLoad}
               />
-            </Box>
-            <Box mb={3}>
-              <div className="small" style={{ color: '#a1a1aa' }}>
-                <FormattedMessage id="scrape_image_text" />
-              </div>
             </Box>
           </Grid>
         </Grid>

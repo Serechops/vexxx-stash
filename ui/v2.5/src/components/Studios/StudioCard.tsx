@@ -103,7 +103,7 @@ export const StudioCard: React.FC<IProps> = PatchComponent(
           className="scene-count"
           type="scene"
           count={studio.scene_count}
-          url={NavUtils.makeStudioScenesUrl(studio)}
+          url={`/studios/${studio.id}/scenes`}
         />
       );
     }
@@ -116,7 +116,7 @@ export const StudioCard: React.FC<IProps> = PatchComponent(
           className="image-count"
           type="image"
           count={studio.image_count}
-          url={NavUtils.makeStudioImagesUrl(studio)}
+          url={`/studios/${studio.id}/images`}
         />
       );
     }
@@ -129,7 +129,7 @@ export const StudioCard: React.FC<IProps> = PatchComponent(
           className="gallery-count"
           type="gallery"
           count={studio.gallery_count}
-          url={NavUtils.makeStudioGalleriesUrl(studio)}
+          url={`/studios/${studio.id}/galleries`}
         />
       );
     }
@@ -142,7 +142,7 @@ export const StudioCard: React.FC<IProps> = PatchComponent(
           className="group-count"
           type="group"
           count={studio.group_count}
-          url={NavUtils.makeStudioGroupsUrl(studio)}
+          url={`/studios/${studio.id}/groups`}
         />
       );
     }
@@ -155,7 +155,7 @@ export const StudioCard: React.FC<IProps> = PatchComponent(
           className="performer-count"
           type="performer"
           count={studio.performer_count}
-          url={NavUtils.makeStudioPerformersUrl(studio)}
+          url={`/studios/${studio.id}/performers`}
         />
       );
     }
@@ -230,35 +230,35 @@ export const StudioCard: React.FC<IProps> = PatchComponent(
               className="scene-count"
               type="scene"
               count={studio.scene_count}
-              url={NavUtils.makeStudioScenesUrl(studio)}
+              url={`/studios/${studio.id}/scenes`}
               showZero={true}
             />
             <PopoverCountButton
               className="group-count"
               type="group"
               count={studio.group_count}
-              url={NavUtils.makeStudioGroupsUrl(studio)}
+              url={`/studios/${studio.id}/groups`}
               showZero={true}
             />
             <PopoverCountButton
               className="image-count"
               type="image"
               count={studio.image_count}
-              url={NavUtils.makeStudioImagesUrl(studio)}
+              url={`/studios/${studio.id}/images`}
               showZero={true}
             />
             <PopoverCountButton
               className="gallery-count"
               type="gallery"
               count={studio.gallery_count}
-              url={NavUtils.makeStudioGalleriesUrl(studio)}
+              url={`/studios/${studio.id}/galleries`}
               showZero={true}
             />
             <PopoverCountButton
               className="performer-count"
               type="performer"
               count={studio.performer_count}
-              url={NavUtils.makeStudioPerformersUrl(studio)}
+              url={`/studios/${studio.id}/performers`}
               showZero={true}
             />
             {maybeRenderTagPopoverButton()}

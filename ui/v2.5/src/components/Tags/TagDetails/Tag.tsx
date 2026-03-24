@@ -505,8 +505,19 @@ const TagPage: React.FC<IProps> = ({ tag, tabKey }) => {
         <Box sx={{ py: '2rem', px: { xs: '1rem', sm: '2rem', md: '3rem' } }}>
           <HeaderImage encodingImage={encodingImage}>
             {tagImage && (
-              <Box sx={{ mb: '2rem' }}>
-                <DetailImage className="logo" alt={tag.name} src={tagImage} style={{ maxHeight: '50vh', maxWidth: '100%', objectFit: 'contain' }} />
+              <Box sx={{ mb: '2rem', maxWidth: '100%', overflow: 'hidden' }}>
+                <DetailImage
+                  className="logo"
+                  alt={tag.name}
+                  src={tagImage}
+                  style={{
+                    maxHeight: '16rem',
+                    maxWidth: '100%',
+                    width: 'auto',
+                    height: 'auto',
+                    display: 'block',
+                  }}
+                />
               </Box>
             )}
           </HeaderImage>

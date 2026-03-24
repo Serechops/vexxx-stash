@@ -1,5 +1,5 @@
 import React from "react";
-import { Box } from "@mui/material";
+import { Box, Divider, Table, TableBody, TableRow, TableCell, Typography } from "@mui/material";
 import { FormattedMessage, useIntl } from "react-intl";
 import * as GQL from "src/core/generated-graphql";
 import TextUtils from "src/utils/text";
@@ -18,12 +18,14 @@ export const SceneDetailPanel: React.FC<ISceneDetailProps> = (props) => {
   function renderDetails() {
     if (!props.scene.details || props.scene.details === "") return;
     return (
-      <>
-        <h6>
-          <FormattedMessage id="details" />:{" "}
-        </h6>
-        <p className="pre">{props.scene.details}</p>
-      </>
+      <Box sx={{ mt: 2, mb: 1 }}>
+        <Typography variant="subtitle1" fontWeight={600}>
+          <FormattedMessage id="details" />
+        </Typography>
+        <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", mt: 0.5 }}>
+          {props.scene.details}
+        </Typography>
+      </Box>
     );
   }
 
@@ -33,15 +35,16 @@ export const SceneDetailPanel: React.FC<ISceneDetailProps> = (props) => {
       <TagLink key={tag.id} tag={tag} />
     ));
     return (
-      <>
-        <h6>
+      <Box sx={{ mt: 2 }}>
+        <Divider sx={{ mb: 1 }} />
+        <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>
           <FormattedMessage
             id="countables.tags"
             values={{ count: props.scene.tags.length }}
           />
-        </h6>
+        </Typography>
         {tags}
-      </>
+      </Box>
     );
   }
 
@@ -57,13 +60,14 @@ export const SceneDetailPanel: React.FC<ISceneDetailProps> = (props) => {
     ));
 
     return (
-      <>
-        <h6>
+      <Box sx={{ mt: 2 }}>
+        <Divider sx={{ mb: 1 }} />
+        <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>
           <FormattedMessage
             id="countables.performers"
             values={{ count: props.scene.performers.length }}
           />
-        </h6>
+        </Typography>
         <Box
           sx={{
             display: 'flex',
@@ -86,45 +90,73 @@ export const SceneDetailPanel: React.FC<ISceneDetailProps> = (props) => {
         >
           {cards}
         </Box>
-      </>
+      </Box>
     );
   }
 
-  // filename should use entire row if there is no studio
-  const sceneDetailsWidth = props.scene.studio ? "w-9/12" : "w-full";
+  const labelSx = {
+    color: "text.secondary",
+    width: "1%",
+    whiteSpace: "nowrap",
+    border: 0,
+    py: 0.5,
+    pl: 0,
+    pr: 2,
+  } as const;
+
+  const valueSx = { border: 0, py: 0.5 } as const;
 
   return (
     <>
-      <div className="flex flex-wrap">
-        <div className={`${sceneDetailsWidth} w-full scene-details`}>
-          <h6>
-            <FormattedMessage id="created_at" />:{" "}
-            {TextUtils.formatDateTime(intl, props.scene.created_at)}{" "}
-          </h6>
-          <h6>
-            <FormattedMessage id="updated_at" />:{" "}
-            {TextUtils.formatDateTime(intl, props.scene.updated_at)}{" "}
-          </h6>
-          {props.scene.code && (
-            <h6>
-              <FormattedMessage id="scene_code" />: {props.scene.code}{" "}
-            </h6>
-          )}
-          {props.scene.director && (
-            <h6>
-              <FormattedMessage id="director" />:{" "}
-              <DirectorLink director={props.scene.director} linkType="scene" />
-            </h6>
-          )}
-        </div>
-      </div>
-      <div className="flex flex-wrap">
-        <div className="w-full">
-          {renderDetails()}
-          {renderTags()}
-          {renderPerformers()}
-        </div>
-      </div>
+      <Box>
+        {renderDetails()}
+        <Divider sx={{ my: 1 }} />
+        <Table size="small">
+          <TableBody>
+            <TableRow>
+              <TableCell sx={labelSx}>
+                <FormattedMessage id="created_at" />
+              </TableCell>
+              <TableCell sx={valueSx}>
+                {TextUtils.formatDateTime(intl, props.scene.created_at)}
+              </TableCell>
+            </TableRow>
+            <TableRow>
+              <TableCell sx={labelSx}>
+                <FormattedMessage id="updated_at" />
+              </TableCell>
+              <TableCell sx={valueSx}>
+                {TextUtils.formatDateTime(intl, props.scene.updated_at)}
+              </TableCell>
+            </TableRow>
+            {props.scene.code && (
+              <TableRow>
+                <TableCell sx={labelSx}>
+                  <FormattedMessage id="scene_code" />
+                </TableCell>
+                <TableCell sx={valueSx}>{props.scene.code}</TableCell>
+              </TableRow>
+            )}
+            {props.scene.director && (
+              <TableRow>
+                <TableCell sx={labelSx}>
+                  <FormattedMessage id="director" />
+                </TableCell>
+                <TableCell sx={valueSx}>
+                  <DirectorLink
+                    director={props.scene.director}
+                    linkType="scene"
+                  />
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </Box>
+      <Box>
+        {renderTags()}
+        {renderPerformers()}
+      </Box>
     </>
   );
 };

@@ -439,7 +439,7 @@ func getRootObjects() []interface{} {
 	return objs
 }
 
-func getSortDirection(sceneFilter *models.SceneFilterType, sort string) models.SortDirectionEnum {
+func getSortDirection(sort string) models.SortDirectionEnum {
 	direction := models.SortDirectionEnumDesc
 	if sort == "title" {
 		direction = models.SortDirectionEnumAsc
@@ -454,7 +454,7 @@ func (me *contentDirectoryService) getVideos(sceneFilter *models.SceneFilterType
 	r := me.repository
 	if err := r.WithReadTxn(context.TODO(), func(ctx context.Context) error {
 		sort := me.VideoSortOrder
-		direction := getSortDirection(sceneFilter, sort)
+		direction := getSortDirection(sort)
 		findFilter := &models.FindFilterType{
 			PerPage:   &pageSize,
 			Sort:      &sort,
@@ -505,7 +505,7 @@ func (me *contentDirectoryService) getPageVideos(sceneFilter *models.SceneFilter
 		}
 
 		sort := me.VideoSortOrder
-		direction := getSortDirection(sceneFilter, sort)
+		direction := getSortDirection(sort)
 		var err error
 		objs, err = pager.getPageVideos(ctx, r.SceneFinder, r.FileGetter, page, host, sort, direction)
 		if err != nil {

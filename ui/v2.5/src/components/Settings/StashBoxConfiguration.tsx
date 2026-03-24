@@ -1,5 +1,16 @@
 import React, { useRef, useState } from "react";
-import { Button, TextField, Box, Typography } from "@mui/material";
+import {
+  Button,
+  TextField,
+  Box,
+  Typography,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+  Stack,
+} from "@mui/material";
 import { FormattedMessage, useIntl } from "react-intl";
 import { SettingSection } from "./SettingSection";
 import * as GQL from "src/core/generated-graphql";
@@ -14,6 +25,7 @@ export interface IStashBoxModal {
 const defaultMaxRequestsPerMinute = 240;
 
 export const StashBoxModal: React.FC<IStashBoxModal> = ({ value, close, modalProps }) => {
+  const resolvedModalProps = { maxWidth: "md", fullWidth: true, ...modalProps };
   const intl = useIntl();
   const endpoint = useRef<HTMLInputElement | null>(null);
   const apiKey = useRef<HTMLInputElement | null>(null);
@@ -154,7 +166,7 @@ export const StashBoxModal: React.FC<IStashBoxModal> = ({ value, close, modalPro
         </>
       )}
       close={close}
-      modalProps={modalProps}
+      modalProps={resolvedModalProps}
     />
   );
 };
@@ -225,31 +237,65 @@ export const StashBoxSetting: React.FC<IStashBoxSetting> = ({
         />
       ) : undefined}
 
-      {value.map((b, index) => (
-        // eslint-disable-next-line react/no-array-index-key
-        <div key={index} className="setting">
-          <div>
-            <h3>{b.name ?? `#${index}`}</h3>
-            <div className="value">{b.endpoint ?? ""}</div>
-          </div>
-          <div>
-            <Button onClick={() => onEdit(index)} variant="contained" sx={{ mr: 1 }}>
-              <FormattedMessage id="actions.edit" />
-            </Button>
-            <Button variant="contained" color="error" onClick={() => onDelete(index)}>
-              <FormattedMessage id="actions.delete" />
-            </Button>
-          </div>
-        </div>
-      ))}
-      <div className="setting">
-        <div />
-        <div>
-          <Button onClick={() => onNew()} variant="contained">
-            <FormattedMessage id="actions.add" />
-          </Button>
-        </div>
-      </div>
+      {value.length > 0 && (
+        <Box sx={{ overflowX: "auto", mb: 2 }}>
+          <Table size="small" sx={{ minWidth: 500 }}>
+            <TableHead>
+              <TableRow>
+                <TableCell sx={{ fontWeight: "bold", width: "25%" }}>
+                  <FormattedMessage id="name" />
+                </TableCell>
+                <TableCell sx={{ fontWeight: "bold" }}>
+                  <FormattedMessage id="config.stashbox.endpoint" />
+                </TableCell>
+                <TableCell sx={{ fontWeight: "bold", width: "180px" }} />
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {value.map((b, index) => (
+                // eslint-disable-next-line react/no-array-index-key
+                <TableRow key={index} hover>
+                  <TableCell sx={{ fontWeight: 500 }}>
+                    {b.name ?? `#${index}`}
+                  </TableCell>
+                  <TableCell>
+                    <Typography
+                      variant="body2"
+                      sx={{ color: "text.secondary", wordBreak: "break-all" }}
+                    >
+                      {b.endpoint ?? ""}
+                    </Typography>
+                  </TableCell>
+                  <TableCell align="right">
+                    <Stack direction="row" spacing={1} justifyContent="flex-end">
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={() => onEdit(index)}
+                      >
+                        <FormattedMessage id="actions.edit" />
+                      </Button>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        color="error"
+                        onClick={() => onDelete(index)}
+                      >
+                        <FormattedMessage id="actions.delete" />
+                      </Button>
+                    </Stack>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Box>
+      )}
+      <Box>
+        <Button onClick={() => onNew()} variant="contained" size="small">
+          <FormattedMessage id="actions.add" />
+        </Button>
+      </Box>
     </SettingSection>
   );
 };

@@ -1,6 +1,17 @@
 import React, { PropsWithChildren, useMemo, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
-import { Button } from "@mui/material";
+import {
+  Button,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+  Chip,
+  Link,
+  Box,
+  Stack,
+} from "@mui/material";
 import {
   mutateReloadScrapers,
   useListGroupScrapers,
@@ -24,7 +35,6 @@ import {
   AvailableScraperPackages,
   InstalledScraperPackages,
 } from "./ScraperPackageManager";
-import { ExternalLink } from "../Shared/ExternalLink";
 import { ClearableInput } from "../Shared/ClearableInput";
 import { Counter } from "../Shared/Counter";
 
@@ -55,22 +65,24 @@ const ScraperTable: React.FC<
 
   return (
     <CollapseButton text={titleEl}>
-      <table className="scraper-table">
-        <thead>
-          <tr>
-            <th>
-              <FormattedMessage id="name" />
-            </th>
-            <th>
-              <FormattedMessage id="config.scraping.supported_types" />
-            </th>
-            <th>
-              <FormattedMessage id="config.scraping.supported_urls" />
-            </th>
-          </tr>
-        </thead>
-        <tbody>{children}</tbody>
-      </table>
+      <Box sx={{ overflowX: "auto", mb: 1 }}>
+        <Table size="small" sx={{ minWidth: 500 }}>
+          <TableHead>
+            <TableRow>
+              <TableCell sx={{ fontWeight: "bold", width: "25%" }}>
+                <FormattedMessage id="name" />
+              </TableCell>
+              <TableCell sx={{ fontWeight: "bold", width: "30%" }}>
+                <FormattedMessage id="config.scraping.supported_types" />
+              </TableCell>
+              <TableCell sx={{ fontWeight: "bold" }}>
+                <FormattedMessage id="config.scraping.supported_urls" />
+              </TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>{children}</TableBody>
+        </Table>
+      </Box>
     </CollapseButton>
   );
 };
@@ -98,11 +110,11 @@ const ScrapeTypeList: React.FC<{
   );
 
   return (
-    <ul>
+    <Stack direction="row" flexWrap="wrap" gap={0.5}>
       {typeStrings.map((t) => (
-        <li key={t}>{t}</li>
+        <Chip key={t} label={t} size="small" variant="outlined" />
       ))}
-    </ul>
+    </Stack>
   );
 };
 
@@ -117,7 +129,7 @@ const URLList: React.FC<IURLList> = ({ urls }) => {
       return `${u.protocol}//${u.host}`;
     }
 
-    const ret = urls
+    return urls
       .slice()
       .sort()
       .map((u) => {
@@ -125,16 +137,22 @@ const URLList: React.FC<IURLList> = ({ urls }) => {
         const siteURL = linkSite(sanitised!);
 
         return (
-          <li key={u}>
-            <ExternalLink href={siteURL}>{sanitised}</ExternalLink>
-          </li>
+          <Link
+            key={u}
+            href={siteURL}
+            target="_blank"
+            rel="noopener noreferrer"
+            underline="hover"
+            variant="body2"
+            sx={{ display: "block" }}
+          >
+            {sanitised}
+          </Link>
         );
       });
-
-    return ret;
   }, [urls]);
 
-  return <ul>{items}</ul>;
+  return <Stack spacing={0.25}>{items}</Stack>;
 };
 
 const ScraperTableRow: React.FC<{
@@ -144,15 +162,17 @@ const ScraperTableRow: React.FC<{
   urls: string[];
 }> = ({ name, entityType, supportedScrapes, urls }) => {
   return (
-    <tr>
-      <td>{name}</td>
-      <td>
+    <TableRow hover>
+      <TableCell sx={{ verticalAlign: "top", fontWeight: 500 }}>
+        {name}
+      </TableCell>
+      <TableCell sx={{ verticalAlign: "top" }}>
         <ScrapeTypeList types={supportedScrapes} entityType={entityType} />
-      </td>
-      <td>
+      </TableCell>
+      <TableCell sx={{ verticalAlign: "top" }}>
         <URLList urls={urls} />
-      </td>
-    </tr>
+      </TableCell>
+    </TableRow>
   );
 };
 

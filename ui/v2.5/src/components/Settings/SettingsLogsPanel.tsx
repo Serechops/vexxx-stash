@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useIntl } from "react-intl";
+import { Box, Chip, Paper, Typography } from "@mui/material";
 import * as GQL from "src/core/generated-graphql";
 import { useLoggingSubscribe, queryLogs } from "src/core/StashService";
 import { SelectSetting } from "./Inputs";
@@ -29,24 +30,83 @@ function convertTime(logEntry: GQL.LogEntryDataFragment) {
   return dateStr;
 }
 
-function levelClass(level: string) {
-  return level.toLowerCase().trim();
-}
+type LogLevelColor = "default" | "info" | "warning" | "error" | "primary";
+
+// Ordered list of ALL levels including Progress — used for filter comparisons
+const LOG_LEVEL_ORDER = ["Trace", "Debug", "Info", "Progress", "Warning", "Error"];
+
+const LEVEL_CHIP_COLOR: Record<string, LogLevelColor> = {
+  trace:    "default",   // grey
+  debug:    "info",      // blue outline (low severity)
+  info:     "info",      // blue filled (standard info colour)
+  progress: "primary",   // primary filled
+  warning:  "warning",   // amber filled
+  error:    "error",     // red filled
+};
+
+const LEVEL_ROW_BG: Record<string, string> = {
+  warning: "warning.dark",
+  error:   "error.dark",
+};
 
 interface ILogElementProps {
   logEntry: LogEntry;
 }
 
 const LogElement: React.FC<ILogElementProps> = ({ logEntry }) => {
-  // pad to maximum length of level enum
-  const level = logEntry.level.padEnd(GQL.LogLevel.Progress.length);
+  const levelKey = logEntry.level.toLowerCase().trim();
+  const chipColor = LEVEL_CHIP_COLOR[levelKey] ?? "default";
+  const rowBg = LEVEL_ROW_BG[levelKey];
 
   return (
-    <div className="flex flex-wrap">
-      <span className="log-time">{logEntry.time}</span>
-      <span className={`${levelClass(logEntry.level)}`}>{level}</span>
-      <span className="w-full sm:w-9/12">{logEntry.message}</span>
-    </div>
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 1,
+        px: 1,
+        py: 0.5,
+        borderBottom: "1px solid",
+        borderColor: "divider",
+        ...(rowBg
+          ? { bgcolor: rowBg, "& .MuiTypography-root": { color: "#fff" } }
+          : {}),
+        "&:last-child": { borderBottom: 0 },
+      }}
+    >
+      <Typography
+        variant="body2"
+        sx={{
+          fontFamily: "monospace",
+          whiteSpace: "nowrap",
+          color: "text.secondary",
+          minWidth: "155px",
+          flexShrink: 0,
+          lineHeight: "24px",
+        }}
+      >
+        {logEntry.time}
+      </Typography>
+      <Box sx={{ flexShrink: 0, minWidth: "80px" }}>
+        <Chip
+          label={logEntry.level.trim()}
+          size="small"
+          color={chipColor}
+          variant={["trace", "debug"].includes(levelKey) ? "outlined" : "filled"}
+          sx={{ fontFamily: "monospace", fontSize: "0.7rem", height: "20px" }}
+        />
+      </Box>
+      <Typography
+        variant="body2"
+        sx={{
+          fontFamily: "monospace",
+          wordBreak: "break-word",
+          flexGrow: 1,
+        }}
+      >
+        {logEntry.message}
+      </Typography>
+    </Box>
   );
 };
 
@@ -84,6 +144,7 @@ export const SettingsLogsPanel: React.FC = () => {
   const [entries, setEntries] = useState<LogEntry[]>([]);
   const { data, error } = useLoggingSubscribe();
   const intl = useIntl();
+  const logEndRef = useRef<HTMLDivElement>(null);
 
   // Get current config and update function
   const { configuration } = useConfigurationContext();
@@ -122,29 +183,19 @@ export const SettingsLogsPanel: React.FC = () => {
     });
   }, [data]);
 
-  // Filter entries based on current log level
+  // Filter entries based on current log level.
+  // Uses LOG_LEVEL_ORDER (which includes Progress) so Progress entries are
+  // correctly shown when the filter is set to Info or lower.
   function filterByLogLevel(logEntry: LogEntry) {
-    if (logLevel === "Trace") return true;
-
-    const logLevelIndex = logLevels.indexOf(logLevel);
-    const levelIndex = logLevels.indexOf(logEntry.level);
-
-    return levelIndex >= logLevelIndex;
+    const selectedIndex = LOG_LEVEL_ORDER.indexOf(logLevel);
+    const entryIndex = LOG_LEVEL_ORDER.indexOf(logEntry.level);
+    // Unknown levels (entryIndex === -1) are always shown
+    return entryIndex === -1 || entryIndex >= selectedIndex;
   }
 
   const displayEntries = entries
     .filter(filterByLogLevel)
     .slice(0, MAX_DISPLAY_LOG_ENTRIES);
-
-  function maybeRenderError() {
-    if (error) {
-      return (
-        <div className="error">
-          Error connecting to log server: {error.message}
-        </div>
-      );
-    }
-  }
 
   // Handle log level change
   function handleLogLevelChange(level: string) {
@@ -171,12 +222,28 @@ export const SettingsLogsPanel: React.FC = () => {
         </SelectSetting>
       </SettingSection>
 
-      <div className="logs">
-        {maybeRenderError()}
+      <Paper
+        variant="outlined"
+        sx={{
+          mt: 2,
+          maxHeight: "60vh",
+          overflowY: "auto",
+          bgcolor: "background.paper",
+          fontFamily: "monospace",
+        }}
+      >
+        {error && (
+          <Box sx={{ p: 1.5 }}>
+            <Typography color="error" variant="body2">
+              Error connecting to log server: {error.message}
+            </Typography>
+          </Box>
+        )}
         {displayEntries.map((logEntry) => (
           <LogElement logEntry={logEntry} key={logEntry.id} />
         ))}
-      </div>
+        <div ref={logEndRef} />
+      </Paper>
     </>
   );
 };

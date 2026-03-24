@@ -43,7 +43,20 @@ export const SceneDetailPanel: React.FC<ISceneDetailProps> = (props) => {
             values={{ count: props.scene.tags.length }}
           />
         </Typography>
-        {tags}
+        <Box
+          sx={{
+            maxHeight: "9rem",
+            overflowY: "auto",
+            pr: 0.5,
+            '&::-webkit-scrollbar': { width: 6 },
+            '&::-webkit-scrollbar-thumb': {
+              borderRadius: 3,
+              bgcolor: 'action.hover',
+            },
+          }}
+        >
+          {tags}
+        </Box>
       </Box>
     );
   }

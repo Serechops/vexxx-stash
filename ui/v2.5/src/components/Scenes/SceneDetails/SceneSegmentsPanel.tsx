@@ -2,6 +2,7 @@ import React, { useState, useMemo } from "react";
 import {
     Button,
     Box,
+    Divider,
     Typography,
     Table,
     TableBody,
@@ -120,6 +121,18 @@ export const SceneSegmentsPanel: React.FC<IProps> = ({ scene }) => {
         refetch();
     };
 
+    const labelSx = {
+        color: "text.secondary",
+        width: "1%",
+        whiteSpace: "nowrap",
+        border: 0,
+        py: 0.5,
+        pl: 0,
+        pr: 2,
+    } as const;
+
+    const valueSx = { border: 0, py: 0.5 } as const;
+
     return (
         <Box className="scene-segments-panel" p={2}>
             {/* Header */}
@@ -138,18 +151,47 @@ export const SceneSegmentsPanel: React.FC<IProps> = ({ scene }) => {
             </Box>
 
             {/* Source File Info */}
-            <Box mb={3} p={2} sx={{ bgcolor: 'background.paper', borderRadius: 1 }}>
-                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                    Source File
+            <Box mb={3}>
+                <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 0.5 }}>
+                    <FormattedMessage id="source_file" defaultMessage="Source File" />
                 </Typography>
-                <Typography variant="body2" sx={{ wordBreak: 'break-all' }}>
-                    {file.path}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" mt={1}>
-                    Duration: {TextUtils.secondsToTimestamp(file.duration ?? 0)} •
-                    Resolution: {file.width}x{file.height} •
-                    Codec: {file.video_codec}
-                </Typography>
+                <Divider sx={{ mb: 1 }} />
+                <Table size="small">
+                    <TableBody>
+                        <TableRow>
+                            <TableCell sx={labelSx}>
+                                <FormattedMessage id="path" defaultMessage="Path" />
+                            </TableCell>
+                            <TableCell sx={{ ...valueSx, wordBreak: "break-all" }}>
+                                {file.path}
+                            </TableCell>
+                        </TableRow>
+                        <TableRow>
+                            <TableCell sx={labelSx}>
+                                <FormattedMessage id="duration" defaultMessage="Duration" />
+                            </TableCell>
+                            <TableCell sx={valueSx}>
+                                {TextUtils.secondsToTimestamp(file.duration ?? 0)}
+                            </TableCell>
+                        </TableRow>
+                        <TableRow>
+                            <TableCell sx={labelSx}>
+                                <FormattedMessage id="resolution" defaultMessage="Resolution" />
+                            </TableCell>
+                            <TableCell sx={valueSx}>
+                                {file.width}x{file.height}
+                            </TableCell>
+                        </TableRow>
+                        <TableRow>
+                            <TableCell sx={labelSx}>
+                                <FormattedMessage id="video_codec" defaultMessage="Codec" />
+                            </TableCell>
+                            <TableCell sx={valueSx}>
+                                {file.video_codec}
+                            </TableCell>
+                        </TableRow>
+                    </TableBody>
+                </Table>
             </Box>
 
             {/* Create Segment Panel */}

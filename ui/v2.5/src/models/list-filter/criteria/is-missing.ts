@@ -26,6 +26,7 @@ export const SceneIsMissingCriterionOption = new IsMissingCriterionOption(
   "is_missing",
   [
     "title",
+    "code",
     "preview",
     "cover",
     "details",
@@ -37,13 +38,27 @@ export const SceneIsMissingCriterionOption = new IsMissingCriterionOption(
     "performers",
     "tags",
     "stash_id",
+    "director",
+    "rating",
   ]
 );
 
 export const ImageIsMissingCriterionOption = new IsMissingCriterionOption(
   "isMissing",
   "is_missing",
-  ["title", "galleries", "studio", "performers", "tags"]
+  [
+    "title",
+    "details",
+    "photographer",
+    "url",
+    "date",
+    "code",
+    "rating",
+    "galleries",
+    "studio",
+    "performers",
+    "tags",
+  ]
 );
 
 export const PerformerIsMissingCriterionOption = new IsMissingCriterionOption(
@@ -59,6 +74,8 @@ export const PerformerIsMissingCriterionOption = new IsMissingCriterionOption(
     "weight",
     "measurements",
     "fake_tits",
+    "penis_length",
+    "circumcised",
     "career_length",
     "tattoos",
     "piercings",
@@ -67,29 +84,60 @@ export const PerformerIsMissingCriterionOption = new IsMissingCriterionOption(
     "image",
     "details",
     "stash_id",
+    "birthdate",
+    "death_date",
+    "disambiguation",
+    "tags",
+    "rating",
   ]
 );
 
 export const GalleryIsMissingCriterionOption = new IsMissingCriterionOption(
   "isMissing",
   "is_missing",
-  ["title", "details", "url", "date", "studio", "performers", "tags", "scenes"]
+  [
+    "title",
+    "code",
+    "details",
+    "url",
+    "date",
+    "studio",
+    "performers",
+    "tags",
+    "scenes",
+    "photographer",
+    "rating",
+    "cover",
+  ]
 );
 
 export const TagIsMissingCriterionOption = new IsMissingCriterionOption(
   "isMissing",
   "is_missing",
-  ["image"]
+  ["image", "aliases", "description", "stash_id"]
 );
 
 export const StudioIsMissingCriterionOption = new IsMissingCriterionOption(
   "isMissing",
   "is_missing",
-  ["image", "stash_id", "details"]
+  ["image", "stash_id", "details", "url", "aliases", "tags", "rating"]
 );
 
 export const GroupIsMissingCriterionOption = new IsMissingCriterionOption(
   "isMissing",
   "is_missing",
-  ["front_image", "back_image", "scenes"]
+  [
+    "front_image",
+    "back_image",
+    "scenes",
+    "aliases",
+    "description",
+    "director",
+    "date",
+    "url",
+    "rating",
+    "studio",
+    "performers",
+    "tags",
+  ]
 );

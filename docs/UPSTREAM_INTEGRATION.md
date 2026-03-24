@@ -362,14 +362,14 @@ UI features compatible with Vexxx's MUI v7 architecture. Most need adaptation ra
 |---|----|----|--------|------|
 | 1 | #6559 | Tags Tagger (hierarchy-aware tagger) | Medium | High |
 | 2 | #6601 | Custom Fields frontend (all entity types) | High | High (with Phase 8) |
-| 3 | #6565 | Is-missing filter options across all entity types | Low | Medium |
+| 3 | #6565 | Is-missing filter options across all entity types | Low | Medium | ✅ COMPLETE |
 | 4 | #6588 | Custom sprite generation | Medium | Medium |
 | 5 | #6621 | Selective generate | Low-Medium | Medium |
 | 6 | #6603 | Sidebar for scene markers list | Medium | Medium |
 | 7 | #6607 | Sidebar for images list | Medium | Medium |
 | 8 | #6610 | Sidebar for tag list | Medium | Medium |
-| 9 | #6642 | Sort performers/studios by scenes file size | Low | Low |
-| 10 | #6663 | Show scene resolution/duration in tagger | Low | Low |
+| 9 | #6642 | Sort performers/studios by scenes file size | Low | Low | ✅ COMPLETE |
+| 10 | #6663 | Show scene resolution/duration in tagger | Low | Low | ✅ COMPLETE |
 | 11 | #6713 | Make tagger views consistent | Low | Low |
 | 12 | #6503 | Update marker carousel for scenes (Wave 1 Phase 5) | Medium | Medium |
 | 13 | #6483 | Multi-scene zoom slider (Wave 1 Phase 5) | Low | Medium |
@@ -433,7 +433,7 @@ New upstream commits since last review. Should be ported before or alongside Pha
 
 | PR | Description | Notes |
 |----|-------------|-------|
-| #6728 | [hwaccel] add envvar for `/dev/dri` device | Docker-specific, evaluate |
+| #6728 | [hwaccel] add envvar for `/dev/dri` device | ✅ COMPLETE |
 | #6638 | Lint + build update and retooling | Build tooling only |
 
 ---

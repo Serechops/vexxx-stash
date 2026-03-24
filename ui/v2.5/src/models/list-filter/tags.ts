@@ -18,7 +18,7 @@ import { StashIDCriterionOption } from "./criteria/stash-ids";
 import { PerformersCriterionOption } from "./criteria/performers";
 
 const defaultSortBy = "name";
-const sortByOptions = ["name", "random", "scenes_duration"]
+const sortByOptions = ["name", "random", "scenes_duration", "scenes_size"]
   .map(ListFilterOptions.createSortBy)
   .concat([
     {

@@ -164,6 +164,9 @@ func (qb *imageFilterHandler) missingCriterionHandler(isMissing *string) criteri
 	return func(ctx context.Context, f *filterBuilder) {
 		if isMissing != nil && *isMissing != "" {
 			switch *isMissing {
+			case "url":
+				imagesURLsTableMgr.join(f, "", "images.id")
+				f.addWhere("image_urls.url IS NULL")
 			case "studio":
 				f.addWhere("images.studio_id IS NULL")
 			case "performers":
@@ -176,6 +179,12 @@ func (qb *imageFilterHandler) missingCriterionHandler(isMissing *string) criteri
 				imageRepository.tags.join(f, "tags_join", "images.id")
 				f.addWhere("tags_join.image_id IS NULL")
 			default:
+				if err := validateIsMissing(*isMissing, []string{
+					"title", "details", "photographer", "date", "code", "rating",
+				}); err != nil {
+					f.setError(err)
+					return
+				}
 				f.addWhere("(images." + *isMissing + " IS NULL OR TRIM(images." + *isMissing + ") = '')")
 			}
 		}

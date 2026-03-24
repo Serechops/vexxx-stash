@@ -2,6 +2,32 @@
 
 Commits since 3b2f512b85be85f0d4a18c2507950438834563ca (exclusive) up to HEAD
 
+### feat: port 4 upstream quick-win PRs (#6728, #6642, #6565, #6663)
+
+**#6728 — VAAPI DRI device envvar:**
+- `pkg/ffmpeg/codec_hardware.go`: Read `STASH_HW_DRI_DEVICE` envvar to override the hardcoded `/dev/dri/renderD128` device used for VAAPI hardware acceleration
+- `ui/v2.5/src/docs/en/Manual/Configuration.md`: Document `STASH_HW_TEST_TIMEOUT` and `STASH_HW_DRI_DEVICE` environment variables
+
+**#6642 — Sort performers/studios/tags by total scenes file size:**
+- `pkg/sqlite/performer.go`, `studio.go`, `tag.go`: Add `sortByScenesSize()` method and `"scenes_size"` sort option (uses `COALESCE(SUM(files.size), 0)` via scenes→scenes_files→files join)
+- `ui/v2.5/src/models/list-filter/performers.ts`, `studios.ts`, `tags.ts`: Add `"scenes_size"` to sort-by options arrays
+- `ui/v2.5/src/locales/en-GB.json`: Add `"scenes_size": "Scene Size"` locale string
+
+**#6565 — Expand is-missing filter options + SQL injection protection:**
+- `pkg/sqlite/sql.go`: Add `validateIsMissing()` helper (mirrors `validateSort()`) to reject arbitrary column names in isMissing default cases
+- `pkg/sqlite/scene_filter.go`: Validate default case with allowed fields `[title, code, details, director, rating]`
+- `pkg/sqlite/gallery_filter.go`: Add `"cover"` case (join galleries_images); validate default with `[title, code, rating, details, photographer]`
+- `pkg/sqlite/group_filter.go`: Add `"url"`, `"studio"`, `"performers"`, `"tags"` cases; validate default with `[aliases, description, director, date, rating]`
+- `pkg/sqlite/image_filter.go`: Add `"url"` case; validate default with `[title, details, photographer, date, code, rating]`
+- `pkg/sqlite/performer_filter.go`: Add `"tags"` case; validate default with comprehensive field list
+- `pkg/sqlite/studio_filter.go`: Add `"aliases"`, `"tags"` cases; validate default with `[details, rating]`
+- `pkg/sqlite/tag_filter.go`: Add `"aliases"`, `"stash_id"` cases; validate default with `[description]`
+- `ui/v2.5/src/models/list-filter/criteria/is-missing.ts`: Expand all 7 criterion option arrays to match backend capabilities
+
+**#6663 — Scene resolution/duration overlay in tagger:**
+- `ui/v2.5/src/components/Scenes/SceneCard.tsx`: Add exported `SceneSpecsOverlay` component that renders resolution + duration badges over the scene preview (positioned absolute, bottom-right)
+- `ui/v2.5/src/components/Tagger/scenes/TaggerScene.tsx`: Import `SceneSpecsOverlay` and render it after the `<ScenePreview>` block
+
 ### feat: update README with Vexxx branding and enhanced feature descriptions (c1c09c7)
 
 

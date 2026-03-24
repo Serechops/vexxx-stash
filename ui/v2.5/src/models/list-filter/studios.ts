@@ -21,6 +21,7 @@ const sortByOptions = [
   "random",
   "rating",
   "scenes_duration",
+  "scenes_size",
 ]
   .map(ListFilterOptions.createSortBy)
   .concat([

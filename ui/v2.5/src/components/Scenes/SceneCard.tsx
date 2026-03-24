@@ -170,7 +170,69 @@ interface ISceneCardProps {
   extraActions?: React.ReactNode;
 }
 
+export const SceneSpecsOverlay: React.FC<{
+  scene: GQL.SlimSceneDataFragment;
+}> = ({ scene }) => {
+  const file = scene.files.length > 0 ? scene.files[0] : undefined;
+  if (!file) return null;
 
+  const resolution =
+    file.width && file.height
+      ? TextUtils.resolution(file.width, file.height)
+      : null;
+  const duration = file.duration
+    ? TextUtils.secondsToTimestamp(file.duration)
+    : null;
+
+  if (!resolution && !duration) return null;
+
+  return (
+    <Box
+      className="scene-specs-overlay"
+      sx={{
+        position: "absolute",
+        bottom: "5px",
+        right: "5px",
+        display: "flex",
+        gap: "4px",
+        pointerEvents: "none",
+      }}
+    >
+      {resolution && (
+        <Box
+          component="span"
+          sx={{
+            px: "0.375rem",
+            py: "0.125rem",
+            fontSize: "10px",
+            fontWeight: "bold",
+            bgcolor: "rgba(0,0,0,0.6)",
+            color: "#fff",
+            borderRadius: "4px",
+          }}
+        >
+          {resolution}
+        </Box>
+      )}
+      {duration && (
+        <Box
+          component="span"
+          sx={{
+            px: "0.375rem",
+            py: "0.125rem",
+            fontSize: "10px",
+            fontWeight: "bold",
+            bgcolor: "rgba(0,0,0,0.6)",
+            color: "#fff",
+            borderRadius: "4px",
+          }}
+        >
+          {duration}
+        </Box>
+      )}
+    </Box>
+  );
+};
 
 
 

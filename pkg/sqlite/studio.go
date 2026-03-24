@@ -608,6 +608,16 @@ func (qb *StudioStore) sortByScenesDuration(direction string) string {
 	) %s`, sceneTable, scenesFilesTable, scenesFilesTable, sceneIDColumn, sceneTable, scenesFilesTable, sceneTable, studioIDColumn, studioTable, getSortDirection(direction))
 }
 
+func (qb *StudioStore) sortByScenesSize(direction string) string {
+	return fmt.Sprintf(` ORDER BY (
+		SELECT COALESCE(SUM(files.size), 0)
+		FROM %s
+		LEFT JOIN %s ON %s.%s = %s.id
+		LEFT JOIN files ON files.id = %s.file_id
+		WHERE %s.%s = %s.id
+	) %s`, sceneTable, scenesFilesTable, scenesFilesTable, sceneIDColumn, sceneTable, scenesFilesTable, sceneTable, studioIDColumn, studioTable, getSortDirection(direction))
+}
+
 var studioSortOptions = sortOptions{
 	"child_count",
 	"created_at",
@@ -617,6 +627,7 @@ var studioSortOptions = sortOptions{
 	"name",
 	"scenes_count",
 	"scenes_duration",
+	"scenes_size",
 	"random",
 	"rating",
 	"tag_count",
@@ -647,6 +658,8 @@ func (qb *StudioStore) getStudioSort(findFilter *models.FindFilterType) (string,
 		sortQuery += getCountSort(studioTable, sceneTable, studioIDColumn, direction)
 	case "scenes_duration":
 		sortQuery += qb.sortByScenesDuration(direction)
+	case "scenes_size":
+		sortQuery += qb.sortByScenesSize(direction)
 	case "images_count":
 		sortQuery += getCountSort(studioTable, imageTable, studioIDColumn, direction)
 	case "galleries_count":

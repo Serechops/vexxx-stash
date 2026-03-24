@@ -35,6 +35,7 @@ const sortByOptions = [
   "weight",
   "measurements",
   "scenes_duration",
+  "scenes_size",
 ]
   .map(ListFilterOptions.createSortBy)
   .concat([

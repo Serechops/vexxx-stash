@@ -240,7 +240,19 @@ func (qb *performerFilterHandler) performerIsMissingCriterionHandler(isMissing *
 			case "aliases":
 				performersAliasesTableMgr.join(f, "", "performers.id")
 				f.addWhere("performer_aliases.alias IS NULL")
+			case "tags":
+				performersTagsTableMgr.join(f, "", "performers.id")
+				f.addWhere("performer_tags.performer_id IS NULL")
 			default:
+				if err := validateIsMissing(*isMissing, []string{
+					"disambiguation", "gender", "birthdate", "death_date", "ethnicity",
+					"country", "hair_color", "eye_color", "height", "weight",
+					"measurements", "fake_tits", "penis_length", "circumcised",
+					"career_length", "tattoos", "piercings", "details", "rating",
+				}); err != nil {
+					f.setError(err)
+					return
+				}
 				f.addWhere("(performers." + *isMissing + " IS NULL OR TRIM(performers." + *isMissing + ") = '')")
 			}
 		}

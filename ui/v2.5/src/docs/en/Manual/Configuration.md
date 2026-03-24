@@ -164,6 +164,8 @@ The following environment variables are also supported:
 | Environment variable | Remarks |
 |----------------------|---------|
 | `STASH_SQLITE_CACHE_SIZE` | Sets the SQLite cache size. See https://www.sqlite.org/pragma.html#pragma_cache_size. Default is `-2000` which is 2MB. |
+| `STASH_HW_TEST_TIMEOUT` | Sets the timeout for hardware acceleration testing. Default is `10s`. |
+| `STASH_HW_DRI_DEVICE` | Overrides the default `/dev/dri` device used for VAAPI hardware acceleration. Default is `/dev/dri/renderD128`. |
 
 ### Custom favicon
 

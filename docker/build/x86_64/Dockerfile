@@ -52,5 +52,7 @@ ENV DOCKER_CONTAINER=1
 ENV STASH_STASHFACE_SCRIPT=/usr/lib/stash/stashface/client.py
 ENV STASH_STASHTAG_SCRIPT=/usr/lib/stash/stashtag/client.py
 ENV STASH_MEGAFACE_SCRIPT=/usr/lib/stash/megaface/client.py
-EXPOSE 9999
+# Default port — override at runtime with -e STASH_PORT=<port> and update your port mapping.
+ENV STASH_PORT=9999
+EXPOSE ${STASH_PORT}
 ENTRYPOINT ["stash"]

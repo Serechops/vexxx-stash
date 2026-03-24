@@ -5,9 +5,12 @@ services:
     image: stashapp/stash:latest
     container_name: stash
     restart: unless-stopped
-    ## the container's port must be the same with the STASH_PORT in the environment section
+    ## Set STASH_PORT in a .env file (or environment) to change the mapped port.
+    ## HOST_PORT controls the host-side port; STASH_PORT controls the container-side port.
+    ## Both default to 9999. For Unraid: set STASH_PORT in the container's environment
+    ## variables and update the port mapping's container port to match.
     ports:
-      - "9999:9999"
+      - "${HOST_PORT:-9999}:${STASH_PORT:-9999}"
     ## If you intend to use stash's DLNA functionality uncomment the below network mode and comment out the above ports section
     # network_mode: host
     logging:
@@ -20,8 +23,8 @@ services:
       - STASH_GENERATED=/generated/
       - STASH_METADATA=/metadata/
       - STASH_CACHE=/cache/
-      ## Adjust below to change default port (9999)
-      - STASH_PORT=9999
+      ## Change STASH_PORT to move the internal listening port (also update ports mapping above).
+      - STASH_PORT=${STASH_PORT:-9999}
     volumes:
       - /etc/localtime:/etc/localtime:ro
       ## Adjust below paths (the left part) to your liking.

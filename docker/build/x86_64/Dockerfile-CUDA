@@ -61,7 +61,9 @@ ENV NVIDIA_DRIVER_CAPABILITIES=video,utility
 ENV STASH_CONFIG_FILE=/root/.stash/config.yml
 # Set Docker container environment variable for detection
 ENV DOCKER_CONTAINER=1
-EXPOSE 9999
+# Default port — override at runtime with -e STASH_PORT=<port> and update your port mapping.
+ENV STASH_PORT=9999
+EXPOSE ${STASH_PORT}
 ENTRYPOINT ["docker-entrypoint.sh", "stash"]
 
 # vim: ft=dockerfile

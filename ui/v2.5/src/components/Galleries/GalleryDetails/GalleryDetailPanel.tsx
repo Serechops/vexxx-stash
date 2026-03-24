@@ -1,6 +1,15 @@
 import React from "react";
 import { FormattedMessage, useIntl } from "react-intl";
-import { Box, Divider, Table, TableBody, TableRow, TableCell, Typography } from "@mui/material";
+import { Link } from "react-router-dom";
+import {
+  Box,
+  Divider,
+  Table,
+  TableBody,
+  TableRow,
+  TableCell,
+  Typography,
+} from "@mui/material";
 import * as GQL from "src/core/generated-graphql";
 import TextUtils from "src/utils/text";
 import { TagLink } from "src/components/Shared/TagLink";
@@ -62,6 +71,49 @@ export const GalleryDetailPanel: React.FC<IGalleryDetailProps> = PatchComponent(
           >
             {tags}
           </Box>
+        </Box>
+      );
+    }
+
+    function renderStudio() {
+      if (!gallery.studio) return;
+      const { studio } = gallery;
+
+      // Exclude the default placeholder image (URL contains ?default=true)
+      const hasLogo =
+        !!studio.image_path &&
+        !studio.image_path.includes("default=true");
+
+      return (
+        <Box sx={{ mt: 2 }}>
+          <Divider sx={{ mb: 1 }} />
+          <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>
+            <FormattedMessage id="studio" />
+          </Typography>
+          <Link
+            to={`/studios/${studio.id}`}
+            style={{ display: "inline-block", textDecoration: "none" }}
+          >
+            {hasLogo ? (
+              <Box sx={{ height: "8rem" }}>
+                <Box
+                  component="img"
+                  src={studio.image_path ?? ""}
+                  alt={studio.name}
+                  sx={{
+                    height: "100%",
+                    maxWidth: "100%",
+                    objectFit: "contain",
+                    display: "block",
+                  }}
+                />
+              </Box>
+            ) : (
+              <Typography variant="body2" color="primary">
+                {studio.name}
+              </Typography>
+            )}
+          </Link>
         </Box>
       );
     }
@@ -173,6 +225,7 @@ export const GalleryDetailPanel: React.FC<IGalleryDetailProps> = PatchComponent(
         </Box>
         <Box>
           {renderTags()}
+          {renderStudio()}
           {renderPerformers()}
         </Box>
       </>

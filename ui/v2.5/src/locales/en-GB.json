@@ -1217,6 +1217,8 @@
   "search_media": "Search media...",
   "selected_items": "{count} items selected",
   "add_selected_items": "Add {count} Items",
+  "filter_by_performer": "Show scenes featuring {name}",
+  "filter_by_performer_active": "Filtering to scenes featuring {name} — click to clear",
   "no_results": "No results found",
   "playlist_details": "Playlist Details",
   "add_initial_items": "Add Initial Items",

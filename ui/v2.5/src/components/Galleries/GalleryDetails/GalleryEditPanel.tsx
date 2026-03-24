@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { Prompt } from "react-router-dom";
-import { Box, Button, Typography } from "@mui/material";
+import { Box, Button, Chip, Tooltip, Typography } from "@mui/material";
 import Grid from "@mui/material/Grid";
 import Mousetrap from "mousetrap";
 import * as GQL from "src/core/generated-graphql";
@@ -32,6 +32,7 @@ import { Studio, StudioSelect } from "src/components/Studios/StudioSelect";
 import { Scene, SceneSelect } from "src/components/Scenes/SceneSelect";
 import { useTagsEdit } from "src/hooks/tagsEdit";
 import { ScraperMenu } from "src/components/Shared/ScraperMenu";
+import { PerformersCriterion } from "src/models/list-filter/criteria/performers";
 
 interface IProps {
   gallery: Partial<GQL.GalleryDataFragment>;
@@ -49,6 +50,9 @@ export const GalleryEditPanel: React.FC<IProps> = ({
   const intl = useIntl();
   const Toast = useToast();
   const [scenes, setScenes] = useState<Scene[]>([]);
+
+  const [filteredPerformerId, setFilterScenesByPerformers] =
+    useState<string | null>(null);
 
   const [performers, setPerformers] = useState<Performer[]>([]);
   const [studio, setStudio] = useState<Studio | null>(null);
@@ -138,6 +142,28 @@ export const GalleryEditPanel: React.FC<IProps> = ({
   useEffect(() => {
     setScenes(gallery.scenes ?? []);
   }, [gallery.scenes]);
+
+  // Reset scene filter if the selected performer is removed
+  useEffect(() => {
+    if (
+      filteredPerformerId !== null &&
+      !performers.some((p) => p.id === filteredPerformerId)
+    ) {
+      setFilterScenesByPerformers(null);
+    }
+  }, [performers, filteredPerformerId]);
+
+  const performerExtraCriteria = useMemo(() => {
+    if (!filteredPerformerId) return undefined;
+    const criterion = new PerformersCriterion();
+    const performer = performers.find((p) => p.id === filteredPerformerId);
+    criterion.value = {
+      items: [{ id: filteredPerformerId, label: performer?.name ?? filteredPerformerId }],
+      excluded: [],
+    };
+    criterion.modifier = GQL.CriterionModifier.Includes;
+    return [criterion];
+  }, [filteredPerformerId, performers]);
 
   useEffect(() => {
     if (isVisible) {
@@ -371,13 +397,42 @@ export const GalleryEditPanel: React.FC<IProps> = ({
   function renderScenesField() {
     const title = intl.formatMessage({ id: "scenes" });
     const control = (
-      <SceneSelect
-        values={scenes}
-        onSelect={(items) => onSetScenes(items)}
-        isMulti
-      />
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+        {performers.length > 0 && (
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+            {performers.map((p) => {
+              const isActive = filteredPerformerId === p.id;
+              return (
+                <Tooltip
+                  key={p.id}
+                  title={intl.formatMessage(
+                    { id: isActive ? "filter_by_performer_active" : "filter_by_performer" },
+                    { name: p.name }
+                  )}
+                >
+                  <Chip
+                    size="small"
+                    label={p.name}
+                    color={isActive ? "primary" : "default"}
+                    variant={isActive ? "filled" : "outlined"}
+                    onClick={() =>
+                      setFilterScenesByPerformers(isActive ? null : p.id)
+                    }
+                  />
+                </Tooltip>
+              );
+            })}
+          </Box>
+        )}
+        <SceneSelect
+          key={filteredPerformerId ?? "all"}
+          values={scenes}
+          onSelect={(items) => onSetScenes(items)}
+          isMulti
+          extraCriteria={performerExtraCriteria}
+        />
+      </Box>
     );
-
     return renderField("scene_ids", title, control);
   }
 

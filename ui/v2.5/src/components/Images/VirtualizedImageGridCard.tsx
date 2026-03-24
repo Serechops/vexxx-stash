@@ -176,10 +176,7 @@ export const VirtualizedImageGridCard: React.FC<IVirtualizedImageGridCard> = ({
 
 export const SmartImageGridCard: React.FC<IVirtualizedImageGridCard & {
   virtualizationThreshold?: number;
-}> = ({ virtualizationThreshold = 50, ...props }) => {
-  if (props.images.length >= virtualizationThreshold) {
-    return <VirtualizedImageGridCard {...props} />;
-  }
+}> = ({ virtualizationThreshold: _virtualizationThreshold, ...props }) => {
   return <ImageGridCard {...props} />;
 };
 

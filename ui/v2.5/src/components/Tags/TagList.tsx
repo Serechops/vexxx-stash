@@ -48,7 +48,6 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import { ModalComponent } from "../Shared/Modal";
 import { useToast } from "src/hooks/Toast";
 import { tagRelationHook } from "../../core/tags";
-import { useTagDestroy } from "src/core/StashService";
 import cx from "classnames";
 
 const TagList: React.FC<{
@@ -59,7 +58,6 @@ const TagList: React.FC<{
 }> = PatchComponent(
   "TagList",
   ({ tags, filter, selectedIds, onSelectChange }) => {
-    const intl = useIntl();
 
     if (tags.length === 0) {
       return null;
@@ -251,7 +249,6 @@ export const FilteredTagList = PatchComponent(
       onSelectChange,
       onSelectAll,
       onSelectNone,
-      onInvertSelection,
       hasSelection,
     } = listSelect;
 
@@ -269,26 +266,7 @@ export const FilteredTagList = PatchComponent(
       setShowSidebar,
     });
 
-    const [deleteTag] = useTagDestroy();
-
-    useEffect(() => {
-      Mousetrap.bind("e", () => {
-        if (hasSelection) {
-          onEdit?.();
-        }
-      });
-
-      Mousetrap.bind("d d", () => {
-        if (hasSelection) {
-          onDelete?.();
-        }
-      });
-
-      return () => {
-        Mousetrap.unbind("e");
-        Mousetrap.unbind("d d");
-      };
-    });
+    const [destroyTag] = GQL.useTagDestroyMutation();
 
     const onCloseEditDelete = useCloseEditDelete({
       closeModal,
@@ -329,6 +307,25 @@ export const FilteredTagList = PatchComponent(
       );
     };
 
+    useEffect(() => {
+      Mousetrap.bind("e", () => {
+        if (hasSelection) {
+          onEdit?.();
+        }
+      });
+
+      Mousetrap.bind("d d", () => {
+        if (hasSelection) {
+          onDelete?.();
+        }
+      });
+
+      return () => {
+        Mousetrap.unbind("e");
+        Mousetrap.unbind("d d");
+      };
+    });
+
     async function onDeleteSingle() {
       if (!deletingTag) return;
       try {
@@ -336,7 +333,7 @@ export const FilteredTagList = PatchComponent(
           parents: deletingTag.parents ?? [],
           children: deletingTag.children ?? [],
         };
-        await deleteTag({ variables: { input: { id: deletingTag.id } } });
+        await destroyTag({ variables: { id: deletingTag.id } });
         tagRelationHook(deletingTag, oldRelations, {
           parents: [],
           children: [],
@@ -377,37 +374,11 @@ export const FilteredTagList = PatchComponent(
 
     const viewRandom = useViewRandom(filter, totalCount);
 
-    const convertedExtraOperations = extraOperations.map((o) => {
-      return {
-        text: o.text,
-        onClick: () => {
-          const queryResult = {
-            data: {
-              findTags: {
-                tags: items,
-                count: totalCount,
-              },
-            },
-            loading: result.loading,
-          };
-          o.onClick(queryResult, filter, selectedIds);
-        },
-        isDisplayed: o.isDisplayed
-          ? () => {
-              const queryResult = {
-                data: {
-                  findTags: {
-                    tags: items,
-                    count: totalCount,
-                  },
-                },
-                loading: result.loading,
-              };
-              return o.isDisplayed(queryResult, filter, selectedIds);
-            }
-          : undefined,
-      };
-    });
+    const convertedExtraOperations = extraOperations.map((o) => ({
+      text: o.text,
+      onClick: () => o.onClick(result, filter, selectedIds),
+      isDisplayed: () => o.isDisplayed?.(result, filter, selectedIds) ?? true,
+    }));
 
     const otherOperations = [
       ...convertedExtraOperations,
@@ -422,9 +393,8 @@ export const FilteredTagList = PatchComponent(
         isDisplayed: () => hasSelection,
       },
       {
-        text: intl.formatMessage({ id: "actions.invert_selection" }),
-        onClick: () => onInvertSelection(),
-        isDisplayed: () => totalCount > 0,
+        text: intl.formatMessage({ id: "new_tag" }),
+        onClick: onCreateNew,
       },
       {
         text: intl.formatMessage({ id: "actions.view_random" }),
@@ -516,7 +486,6 @@ export const FilteredTagList = PatchComponent(
                 showEditFilter={showEditFilter}
                 onDelete={onDelete}
                 onEdit={onEdit}
-                onCreate={onCreateNew}
                 operations={otherOperations}
                 view={view}
                 zoomable

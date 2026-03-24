@@ -5,7 +5,7 @@
  */
 
 import React, { useMemo, useCallback, useRef } from "react";
-import { useVirtualizer } from "@tanstack/react-virtual";
+import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import * as GQL from "src/core/generated-graphql";
 import { TagCard } from "./TagCard";
 import { TagCardSkeleton } from "../Shared/Skeletons/TagCardSkeleton";
@@ -30,7 +30,7 @@ export const VirtualizedTagCardGrid: React.FC<IVirtualizedTagCardGrid> = ({
   loading,
   itemsPerPage,
 }) => {
-  const parentRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = React.useState(0);
   
   const columnWidth = zoomWidths[zoomIndex] || zoomWidths[0];
@@ -61,7 +61,7 @@ export const VirtualizedTagCardGrid: React.FC<IVirtualizedTagCardGrid> = ({
 
   // Set up resize observer
   React.useEffect(() => {
-    const element = parentRef.current;
+    const element = containerRef.current;
     if (!element) return;
 
     const resizeObserver = new ResizeObserver((entries) => {
@@ -77,11 +77,11 @@ export const VirtualizedTagCardGrid: React.FC<IVirtualizedTagCardGrid> = ({
     return () => resizeObserver.disconnect();
   }, []);
 
-  const virtualizer = useVirtualizer({
+  const virtualizer = useWindowVirtualizer({
     count: rowCount,
-    getScrollElement: () => parentRef.current?.parentElement ?? null,
     estimateSize: useCallback(() => estimatedRowHeight, [estimatedRowHeight]),
     overscan: 3,
+    scrollMargin: containerRef.current?.offsetTop ?? 0,
   });
 
   const getRowItems = useCallback(
@@ -103,7 +103,7 @@ export const VirtualizedTagCardGrid: React.FC<IVirtualizedTagCardGrid> = ({
     const skeletonCount = itemsPerPage || 40;
     return (
       <div
-        ref={parentRef}
+        ref={containerRef}
         style={{
           display: "grid",
           gridTemplateColumns: `repeat(auto-fit, minmax(${columnWidth}px, 1fr))`,
@@ -120,14 +120,7 @@ export const VirtualizedTagCardGrid: React.FC<IVirtualizedTagCardGrid> = ({
   }
 
   return (
-    <div
-      ref={parentRef}
-      style={{
-        height: "100%",
-        overflow: "auto",
-        contain: "strict",
-      }}
-    >
+    <div ref={containerRef}>
       <div
         style={{
           height: `${virtualizer.getTotalSize()}px`,
@@ -146,7 +139,7 @@ export const VirtualizedTagCardGrid: React.FC<IVirtualizedTagCardGrid> = ({
                 left: 0,
                 width: "100%",
                 height: `${virtualRow.size}px`,
-                transform: `translateY(${virtualRow.start}px)`,
+                transform: `translateY(${virtualRow.start - virtualizer.options.scrollMargin}px)`,
               }}
             >
               <div
@@ -188,14 +181,8 @@ interface ISmartTagCardGrid extends IVirtualizedTagCardGrid {
 
 export const SmartTagCardGrid: React.FC<ISmartTagCardGrid> = ({
   tags,
-  virtualizationThreshold = 50,
+  virtualizationThreshold: _virtualizationThreshold,
   ...props
 }) => {
-  // Use virtualization for large lists
-  if (tags.length >= virtualizationThreshold) {
-    return <VirtualizedTagCardGrid tags={tags} {...props} />;
-  }
-  
-  // Use regular grid for smaller lists
   return <TagCardGrid tags={tags} {...props} />;
 };

@@ -212,13 +212,7 @@ export const VirtualizedSceneCardsGrid: React.FC<IVirtualizedSceneCardsGrid> = (
 export const SmartSceneCardsGrid: React.FC<IVirtualizedSceneCardsGrid & {
   /** Threshold for switching to virtualized mode */
   virtualizationThreshold?: number;
-}> = ({ virtualizationThreshold = 100, ...props }) => {
-  const useVirtualization = props.scenes.length >= virtualizationThreshold;
-
-  if (useVirtualization) {
-    return <VirtualizedSceneCardsGrid {...props} />;
-  }
-
+}> = ({ virtualizationThreshold: _virtualizationThreshold, ...props }) => {
   return <SceneCardsGrid {...props} />;
 };
 

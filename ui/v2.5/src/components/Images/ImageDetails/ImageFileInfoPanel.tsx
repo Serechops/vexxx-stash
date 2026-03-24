@@ -1,7 +1,20 @@
 import React, { useState } from "react";
-import { Accordion, AccordionSummary, AccordionDetails, Button, Box, Typography } from "@mui/material";
+import {
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Button,
+  Box,
+  Divider,
+  Table,
+  TableBody,
+  TableCell,
+  TableRow,
+  Typography,
+} from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { FormattedMessage, FormattedTime } from "react-intl";
+import { Link } from "react-router-dom";
 import { ExternalLink } from "src/components/Shared/ExternalLink";
 import { TruncatedText } from "src/components/Shared/TruncatedText";
 import { DeleteFilesDialog } from "src/components/Shared/DeleteFilesDialog";
@@ -9,7 +22,6 @@ import * as GQL from "src/core/generated-graphql";
 import { mutateImageSetPrimaryFile } from "src/core/StashService";
 import { useToast } from "src/hooks/Toast";
 import TextUtils from "src/utils/text";
-import { TextField, URLField, URLsField } from "src/utils/field";
 import { FileSize } from "src/components/Shared/FileSize";
 import NavUtils from "src/utils/navigation";
 
@@ -28,57 +40,92 @@ const FileInfoPanel: React.FC<IFileInfoPanelProps> = (
   const checksum = props.file.fingerprints.find((f) => f.type === "md5");
   const phash = props.file.fingerprints.find((f) => f.type === "phash");
 
+  const labelSx = {
+    color: "text.secondary",
+    width: "1%",
+    whiteSpace: "nowrap",
+    border: 0,
+    py: 0.5,
+    pl: 0,
+    pr: 2,
+  } as const;
+
+  const valueSx = { border: 0, py: 0.5 } as const;
+
   return (
     <Box>
-      <dl className="image-file-info details-list">
-        {props.primary && (
-          <>
-            <dt></dt>
-            <dd className="primary-file">
-              <FormattedMessage id="primary_file" />
-            </dd>
-          </>
-        )}
-        <TextField id="media_info.checksum" value={checksum?.value} truncate />
-        <URLField
-          id="media_info.phash"
-          abbr="Perceptual hash"
-          value={phash?.value}
-          url={NavUtils.makeImagesPHashMatchUrl(phash?.value)}
-          target="_self"
-          truncate
-          internal
-        />
-        <TextField id="filesize">
-          <span className="text-truncate">
-            <FileSize size={props.file.size} />
-          </span>
-        </TextField>
-        <TextField id="file_mod_time">
-          <FormattedTime
-            dateStyle="medium"
-            timeStyle="medium"
-            value={props.file.mod_time ?? 0}
-          />
-        </TextField>
-        <TextField
-          id="dimensions"
-          value={`${props.file.width} x ${props.file.height}`}
-          truncate
-        />
-      </dl>
-
-      <Box sx={{ mt: 1 }}>
-        <Typography variant="subtitle2" color="textSecondary">
-          <FormattedMessage id="path" />:
+      {props.primary && (
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+          <FormattedMessage id="primary_file" />
         </Typography>
-        <Box sx={{ wordBreak: 'break-all' }}>
-          <ExternalLink href={`file://${props.file.path}`}>
-            {`file://${props.file.path}`}
-          </ExternalLink>
-        </Box>
-      </Box>
-
+      )}
+      <Table size="small">
+        <TableBody>
+          {checksum && (
+            <TableRow>
+              <TableCell sx={labelSx}>
+                <FormattedMessage id="media_info.checksum" />
+              </TableCell>
+              <TableCell sx={valueSx}>
+                <TruncatedText text={checksum.value} />
+              </TableCell>
+            </TableRow>
+          )}
+          {phash && (
+            <TableRow>
+              <TableCell sx={labelSx}>
+                <FormattedMessage id="media_info.phash" />
+              </TableCell>
+              <TableCell sx={valueSx}>
+                <Link
+                  to={NavUtils.makeImagesPHashMatchUrl(phash.value)}
+                  target="_self"
+                >
+                  <TruncatedText text={phash.value} />
+                </Link>
+              </TableCell>
+            </TableRow>
+          )}
+          <TableRow>
+            <TableCell sx={labelSx}>
+              <FormattedMessage id="filesize" />
+            </TableCell>
+            <TableCell sx={valueSx}>
+              <FileSize size={props.file.size} />
+            </TableCell>
+          </TableRow>
+          <TableRow>
+            <TableCell sx={labelSx}>
+              <FormattedMessage id="file_mod_time" />
+            </TableCell>
+            <TableCell sx={valueSx}>
+              <FormattedTime
+                dateStyle="medium"
+                timeStyle="medium"
+                value={props.file.mod_time ?? 0}
+              />
+            </TableCell>
+          </TableRow>
+          <TableRow>
+            <TableCell sx={labelSx}>
+              <FormattedMessage id="dimensions" />
+            </TableCell>
+            <TableCell sx={valueSx}>
+              {`${props.file.width} x ${props.file.height}`}
+            </TableCell>
+          </TableRow>
+          <TableRow>
+            <TableCell sx={labelSx}>
+              <FormattedMessage id="path" />
+            </TableCell>
+            <TableCell sx={{ ...valueSx, wordBreak: "break-all" }}>
+              <ExternalLink href={`file://${props.file.path}`}>
+                {`file://${props.file.path}`}
+              </ExternalLink>
+            </TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
       {props.ofMany && props.onSetPrimaryFile && !props.primary && (
         <Box display="flex" gap={1} flexWrap="wrap">
           <Button
@@ -124,15 +171,13 @@ export const ImageFileInfoPanel: React.FC<IImageFileInfoPanelProps> = (
   if (props.image.visual_files.length === 1) {
     return (
       <>
-        <dl className="image-file-info details-list">
-        </dl>
-
         {props.image.urls && props.image.urls.length > 0 && (
           <Box sx={{ mt: 1 }}>
-            <Typography variant="subtitle2" color="textSecondary">
-              <FormattedMessage id="urls" />:
+            <Typography variant="subtitle1" fontWeight={600}>
+              <FormattedMessage id="urls" />
             </Typography>
-            <Box sx={{ wordBreak: 'break-all' }}>
+            <Divider sx={{ mb: 1 }} />
+            <Box sx={{ wordBreak: "break-all" }}>
               {props.image.urls.map((url, i) => (
                 <Box key={i}>
                   <ExternalLink href={url}>{url}</ExternalLink>

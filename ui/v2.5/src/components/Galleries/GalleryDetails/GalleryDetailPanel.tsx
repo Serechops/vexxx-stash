@@ -1,6 +1,6 @@
 import React from "react";
 import { FormattedMessage, useIntl } from "react-intl";
-import { Box } from "@mui/material";
+import { Box, Divider, Table, TableBody, TableRow, TableCell, Typography } from "@mui/material";
 import * as GQL from "src/core/generated-graphql";
 import TextUtils from "src/utils/text";
 import { TagLink } from "src/components/Shared/TagLink";
@@ -23,12 +23,14 @@ export const GalleryDetailPanel: React.FC<IGalleryDetailProps> = PatchComponent(
     function renderDetails() {
       if (!gallery.details) return;
       return (
-        <>
-          <h6>
-            <FormattedMessage id="details" />:{" "}
-          </h6>
-          <p className="pre">{gallery.details}</p>
-        </>
+        <Box sx={{ mt: 2, mb: 1 }}>
+          <Typography variant="subtitle1" fontWeight={600}>
+            <FormattedMessage id="details" />
+          </Typography>
+          <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", mt: 0.5 }}>
+            {gallery.details}
+          </Typography>
+        </Box>
       );
     }
 
@@ -38,15 +40,29 @@ export const GalleryDetailPanel: React.FC<IGalleryDetailProps> = PatchComponent(
         <TagLink key={tag.id} tag={tag} linkType="gallery" />
       ));
       return (
-        <>
-          <h6>
+        <Box sx={{ mt: 2 }}>
+          <Divider sx={{ mb: 1 }} />
+          <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>
             <FormattedMessage
               id="countables.tags"
               values={{ count: gallery.tags.length }}
             />
-          </h6>
-          {tags}
-        </>
+          </Typography>
+          <Box
+            sx={{
+              maxHeight: "9rem",
+              overflowY: "auto",
+              pr: 0.5,
+              '&::-webkit-scrollbar': { width: 6 },
+              '&::-webkit-scrollbar-thumb': {
+                borderRadius: 3,
+                bgcolor: 'action.hover',
+              },
+            }}
+          >
+            {tags}
+          </Box>
+        </Box>
       );
     }
 
@@ -62,58 +78,103 @@ export const GalleryDetailPanel: React.FC<IGalleryDetailProps> = PatchComponent(
       ));
 
       return (
-        <>
-          <h6>
+        <Box sx={{ mt: 2 }}>
+          <Divider sx={{ mb: 1 }} />
+          <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>
             <FormattedMessage
               id="countables.performers"
               values={{ count: gallery.performers.length }}
             />
-          </h6>
-          <Box className="flex flex-wrap justify-center" sx={{ '& .performer-card': { width: '15rem' }, '& .performer-card-image': { height: '22.5rem', width: '15rem' } }}>
+          </Typography>
+          <Box
+            sx={{
+              display: 'flex',
+              overflowX: 'auto',
+              gap: 2,
+              pb: 1,
+              scrollSnapType: 'x mandatory',
+              '&::-webkit-scrollbar': { height: 6 },
+              '&::-webkit-scrollbar-thumb': {
+                borderRadius: 3,
+                bgcolor: 'action.hover',
+              },
+              '& .performer-card': {
+                flex: '0 0 auto',
+                width: '15rem',
+                scrollSnapAlign: 'start',
+              },
+              '& .performer-card-image': { height: '22.5rem' },
+            }}
+          >
             {cards}
           </Box>
-        </>
+        </Box>
       );
     }
 
-    // filename should use entire row if there is no studio
-    const galleryDetailsWidth = gallery.studio ? "w-9/12" : "w-full";
+    const labelSx = {
+      color: "text.secondary",
+      width: "1%",
+      whiteSpace: "nowrap",
+      border: 0,
+      py: 0.5,
+      pl: 0,
+      pr: 2,
+    } as const;
+
+    const valueSx = { border: 0, py: 0.5 } as const;
 
     return (
       <>
-        <div className="flex flex-wrap">
-          <div className={`${galleryDetailsWidth} w-full gallery-details`}>
-            <h6>
-              <FormattedMessage id="created_at" />:{" "}
-              {TextUtils.formatDateTime(intl, gallery.created_at)}{" "}
-            </h6>
-            <h6>
-              <FormattedMessage id="updated_at" />:{" "}
-              {TextUtils.formatDateTime(intl, gallery.updated_at)}{" "}
-            </h6>
-            {gallery.code && (
-              <h6>
-                <FormattedMessage id="scene_code" />: {gallery.code}{" "}
-              </h6>
-            )}
-            {gallery.photographer && (
-              <h6>
-                <FormattedMessage id="photographer" />:{" "}
-                <PhotographerLink
-                  photographer={gallery.photographer}
-                  linkType="gallery"
-                />
-              </h6>
-            )}
-          </div>
-        </div>
-        <div className="flex flex-wrap">
-          <div className="w-full">
-            {renderDetails()}
-            {renderTags()}
-            {renderPerformers()}
-          </div>
-        </div>
+        <Box>
+          {renderDetails()}
+          <Divider sx={{ my: 1 }} />
+          <Table size="small">
+            <TableBody>
+              <TableRow>
+                <TableCell sx={labelSx}>
+                  <FormattedMessage id="created_at" />
+                </TableCell>
+                <TableCell sx={valueSx}>
+                  {TextUtils.formatDateTime(intl, gallery.created_at)}
+                </TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell sx={labelSx}>
+                  <FormattedMessage id="updated_at" />
+                </TableCell>
+                <TableCell sx={valueSx}>
+                  {TextUtils.formatDateTime(intl, gallery.updated_at)}
+                </TableCell>
+              </TableRow>
+              {gallery.code && (
+                <TableRow>
+                  <TableCell sx={labelSx}>
+                    <FormattedMessage id="scene_code" />
+                  </TableCell>
+                  <TableCell sx={valueSx}>{gallery.code}</TableCell>
+                </TableRow>
+              )}
+              {gallery.photographer && (
+                <TableRow>
+                  <TableCell sx={labelSx}>
+                    <FormattedMessage id="photographer" />
+                  </TableCell>
+                  <TableCell sx={valueSx}>
+                    <PhotographerLink
+                      photographer={gallery.photographer}
+                      linkType="gallery"
+                    />
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </Box>
+        <Box>
+          {renderTags()}
+          {renderPerformers()}
+        </Box>
       </>
     );
   }

@@ -4,6 +4,11 @@ import {
   AccordionSummary,
   AccordionDetails,
   Button,
+  Divider,
+  Table,
+  TableBody,
+  TableCell,
+  TableRow,
   Typography,
   Box,
 } from "@mui/material";
@@ -15,7 +20,7 @@ import * as GQL from "src/core/generated-graphql";
 import { mutateGallerySetPrimaryFile } from "src/core/StashService";
 import { useToast } from "src/hooks/Toast";
 import TextUtils from "src/utils/text";
-import { TextField, URLField, URLsField } from "src/utils/field";
+
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 
 interface IFileInfoPanelProps {
@@ -35,39 +40,63 @@ const FileInfoPanel: React.FC<IFileInfoPanelProps> = (
   const path = props.folder ? props.folder.path : props.file?.path ?? "";
   const id = props.folder ? "folder" : "path";
 
+  const labelSx = {
+    color: "text.secondary",
+    width: "1%",
+    whiteSpace: "nowrap",
+    border: 0,
+    py: 0.5,
+    pl: 0,
+    pr: 2,
+  } as const;
+
+  const valueSx = { border: 0, py: 0.5 } as const;
+
   return (
     <div>
-      <dl className="gallery-file-info details-list">
-        {props.primary && (
-          <>
-            <dt></dt>
-            <dd className="primary-file">
-              <FormattedMessage id="primary_file" />
-            </dd>
-          </>
-        )}
-        <TextField id="media_info.checksum" value={checksum?.value} truncate />
-        {props.file && (
-          <TextField id="file_mod_time">
-            <FormattedTime
-              dateStyle="medium"
-              timeStyle="medium"
-              value={props.file.mod_time ?? 0}
-            />
-          </TextField>
-        )}
-      </dl>
-
-      <Box sx={{ mt: 1 }}>
-        <Typography variant="subtitle2" color="textSecondary">
-          <FormattedMessage id={id} />:
+      {props.primary && (
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+          <FormattedMessage id="primary_file" />
         </Typography>
-        <Box sx={{ wordBreak: 'break-all' }}>
-          <ExternalLink href={`file://${path}`}>
-            {`file://${path}`}
-          </ExternalLink>
-        </Box>
-      </Box>
+      )}
+      <Table size="small">
+        <TableBody>
+          {checksum && (
+            <TableRow>
+              <TableCell sx={labelSx}>
+                <FormattedMessage id="media_info.checksum" />
+              </TableCell>
+              <TableCell sx={valueSx}>
+                <TruncatedText text={checksum.value} />
+              </TableCell>
+            </TableRow>
+          )}
+          {props.file && (
+            <TableRow>
+              <TableCell sx={labelSx}>
+                <FormattedMessage id="file_mod_time" />
+              </TableCell>
+              <TableCell sx={valueSx}>
+                <FormattedTime
+                  dateStyle="medium"
+                  timeStyle="medium"
+                  value={props.file.mod_time ?? 0}
+                />
+              </TableCell>
+            </TableRow>
+          )}
+          <TableRow>
+            <TableCell sx={labelSx}>
+              <FormattedMessage id={id} />
+            </TableCell>
+            <TableCell sx={{ ...valueSx, wordBreak: "break-all" }}>
+              <ExternalLink href={`file://${path}`}>
+                {`file://${path}`}
+              </ExternalLink>
+            </TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
       {props.ofMany && props.onSetPrimaryFile && !props.primary && (
         <Box display="flex" gap={1} flexWrap="wrap">
           <Button
@@ -163,15 +192,13 @@ export const GalleryFileInfoPanel: React.FC<IGalleryFileInfoPanelProps> = (
 
   return (
     <>
-      <dl className="gallery-file-info details-list">
-      </dl>
-
       {props.gallery.urls && props.gallery.urls.length > 0 && (
         <Box sx={{ mt: 1 }}>
-          <Typography variant="subtitle2" color="textSecondary">
-            <FormattedMessage id="urls" />:
+          <Typography variant="subtitle1" fontWeight={600}>
+            <FormattedMessage id="urls" />
           </Typography>
-          <Box sx={{ wordBreak: 'break-all' }}>
+          <Divider sx={{ mb: 1 }} />
+          <Box sx={{ wordBreak: "break-all" }}>
             {props.gallery.urls.map((url, i) => (
               <Box key={i}>
                 <ExternalLink href={url}>{url}</ExternalLink>

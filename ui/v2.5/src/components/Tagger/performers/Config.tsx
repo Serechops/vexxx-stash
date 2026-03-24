@@ -4,15 +4,12 @@ import {
   Button,
   Paper,
   Collapse,
-  TextField,
   Typography,
   Box,
   FormHelperText,
-  MenuItem,
   Stack,
 } from "@mui/material";
 import { FormattedMessage } from "react-intl";
-import { useConfigurationContext } from "src/hooks/Config";
 
 import { ITaggerConfig } from "../constants";
 import PerformerFieldSelector from "../PerformerFieldSelector";
@@ -24,20 +21,9 @@ interface IConfigProps {
 }
 
 const Config: React.FC<IConfigProps> = ({ show, config, setConfig }) => {
-  const { configuration: stashConfig } = useConfigurationContext();
   const [showExclusionModal, setShowExclusionModal] = useState(false);
 
   const excludedFields = config.excludedPerformerFields ?? [];
-
-  const handleInstanceSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedEndpoint = e.target.value;
-    setConfig({
-      ...config,
-      selectedEndpoint,
-    });
-  };
-
-  const stashBoxes = stashConfig?.general.stashBoxes ?? [];
 
   const handleFieldSelect = (fields: string[]) => {
     setConfig({ ...config, excludedPerformerFields: fields });
@@ -80,32 +66,6 @@ const Config: React.FC<IConfigProps> = ({ show, config, setConfig }) => {
                 </Button>
               </Box>
 
-              <Box mb={3}>
-                <Stack direction="row" alignItems="center" spacing={2} sx={{ mt: 2 }}>
-                  <Typography>
-                    <FormattedMessage id="performer_tagger.config.active_stash-box_instance" />
-                  </Typography>
-                  <TextField
-                    select
-                    size="small"
-                    value={config.selectedEndpoint || ""}
-                    disabled={!stashBoxes.length}
-                    onChange={handleInstanceSelect}
-                    sx={{ minWidth: 250 }}
-                  >
-                    {!stashBoxes.length && (
-                      <MenuItem value="">
-                        <FormattedMessage id="performer_tagger.config.no_instances_found" />
-                      </MenuItem>
-                    )}
-                    {stashConfig?.general.stashBoxes.map((i) => (
-                      <MenuItem value={i.endpoint} key={i.endpoint}>
-                        {i.endpoint}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                </Stack>
-              </Box>
             </Box>
           </Box>
         </Paper>

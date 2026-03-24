@@ -31,7 +31,6 @@ import {
   useStudioCreate,
   evictQueries,
 } from "src/core/StashService";
-import { Manual } from "src/components/Help/Manual";
 import { useConfigurationContext } from "src/hooks/Config";
 
 import StashSearchResult from "./StashSearchResult";
@@ -40,11 +39,13 @@ import { ITaggerConfig } from "../constants";
 import StudioModal from "../scenes/StudioModal";
 import { useUpdateStudio } from "../queries";
 import { apolloError } from "src/utils";
-import { faStar, faTags } from "@fortawesome/free-solid-svg-icons";
+import { faCog, faStar, faTags } from "@fortawesome/free-solid-svg-icons";
 import { ExternalLink } from "src/components/Shared/ExternalLink";
 import { mergeStudioStashIDs } from "../utils";
 import { separateNamesAndStashIds } from "src/utils/stashIds";
 import { useTaggerConfig } from "../config";
+import { Icon } from "src/components/Shared/Icon";
+import { StashBoxSelectorField } from "../StashBoxSelector";
 
 type JobFragment = Pick<
   GQL.Job,
@@ -699,11 +700,9 @@ interface ITaggerProps {
 
 export const StudioTagger: React.FC<ITaggerProps> = ({ studios }) => {
   const jobsSubscribe = useJobsSubscribe();
-  const intl = useIntl();
   const { configuration: stashConfig } = useConfigurationContext();
   const { config, setConfig } = useTaggerConfig();
   const [showConfig, setShowConfig] = useState(false);
-  const [showManual, setShowManual] = useState(false);
 
   const [batchJobID, setBatchJobID] = useState<string | undefined | null>();
   const [batchJob, setBatchJob] = useState<JobFragment | undefined>();
@@ -825,57 +824,74 @@ export const StudioTagger: React.FC<ITaggerProps> = ({ studios }) => {
     }
   }
 
-  const showHideConfigId = showConfig
-    ? "actions.hide_configuration"
-    : "actions.show_configuration";
+  if (selectedEndpointIndex === -1 || !selectedEndpoint) {
+    return (
+      <Box my={4}>
+        <Typography variant="h3" align="center" mt={4}>
+          <FormattedMessage id="studio_tagger.to_use_the_studio_tagger" />
+        </Typography>
+        <Typography variant="h5" align="center">
+          <FormattedMessage
+            id="refer_to"
+            values={{
+              link: (
+                <HashLink
+                  to="/settings?tab=metadata-providers#stash-boxes"
+                  scroll={(el) =>
+                    el.scrollIntoView({ behavior: "smooth", block: "center" })
+                  }
+                >
+                  <FormattedMessage id="config.stashbox.title" />
+                </HashLink>
+              ),
+            }}
+          />
+        </Typography>
+      </Box>
+    );
+  }
 
   return (
     <>
-      <Manual
-        show={showManual}
-        onClose={() => setShowManual(false)}
-        defaultActiveTab="Tagger.md"
-      />
       {renderStatus()}
       <Box sx={{ maxWidth: 1600, mx: { md: "auto" } }}>
-        {selectedEndpointIndex !== -1 && selectedEndpoint ? (
-          <>
-            <Box display="flex" mb={2}>
-              <Button onClick={() => setShowConfig(!showConfig)} variant="text">
-                {intl.formatMessage({ id: showHideConfigId })}
-              </Button>
-              <Button
-                sx={{ ml: "auto" }}
-                onClick={() => setShowManual(true)}
-                title={intl.formatMessage({ id: "help" })}
-                variant="text"
-              >
-                <FormattedMessage id="help" />
-              </Button>
-            </Box>
-
-            <StudioConfig
-              config={config}
-              setConfig={setConfig}
-              show={showConfig}
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", mb: 2 }}>
+          <Box>
+            <StashBoxSelectorField
+              stashBoxes={stashConfig?.general.stashBoxes ?? []}
+              selectedEndpoint={selectedEndpoint.endpoint}
+              onEndpointChange={(endpoint) =>
+                setConfig({ ...config, selectedEndpoint: endpoint })
+              }
             />
-            <StudioTaggerList
-              studios={studios}
-              selectedEndpoint={{
-                endpoint: selectedEndpoint.endpoint,
-                index: selectedEndpointIndex,
-              }}
-              isIdle={batchJobID === undefined}
-              config={config}
-              onBatchAdd={batchAdd}
-              onBatchUpdate={batchUpdate}
-            />
-          </>
-        ) : (
-          <Typography variant="h4" align="center" sx={{ mt: 5 }}>
-            <FormattedMessage id="tagger.configure_endpoint" />
-          </Typography>
-        )}
+          </Box>
+          <Box>
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={() => setShowConfig(!showConfig)}
+              title={showConfig ? "Hide configuration" : "Show configuration"}
+            >
+              <Icon className="fa-fw" icon={faCog} />
+            </Button>
+          </Box>
+        </Box>
+        <StudioConfig
+          config={config}
+          setConfig={setConfig}
+          show={showConfig}
+        />
+        <StudioTaggerList
+          studios={studios}
+          selectedEndpoint={{
+            endpoint: selectedEndpoint.endpoint,
+            index: selectedEndpointIndex,
+          }}
+          isIdle={batchJobID === undefined}
+          config={config}
+          onBatchAdd={batchAdd}
+          onBatchUpdate={batchUpdate}
+        />
       </Box>
     </>
   );

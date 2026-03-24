@@ -2,6 +2,30 @@
 
 Commits since 3b2f512b85be85f0d4a18c2507950438834563ca (exclusive) up to HEAD
 
+### feat: port upstream Phase 10 quick-win PRs (#6713, #6483)
+
+**#6713 — Make tagger views consistent:**
+- `ui/v2.5/src/components/Tagger/StashBoxSelector.tsx`: New MUI-based `StashBoxSelector` and `StashBoxSelectorField` components for stash-box endpoint selection in tagger headers
+- `ui/v2.5/src/components/Performers/PerformerList.tsx`: Don't return null when in Tagger display mode with 0 results (allows tagger to render config/selector)
+- `ui/v2.5/src/components/Studios/StudioList.tsx`: Same fix for studios
+- `ui/v2.5/src/components/Tagger/performers/PerformerTagger.tsx`: Refactor to early-return for no-endpoint state; add `StashBoxSelectorField` to header; replace text config toggle with gear icon button; remove Manual/Help button; use `refer_to` locale for "please see" message
+- `ui/v2.5/src/components/Tagger/studios/StudioTagger.tsx`: Same refactoring pattern
+- `ui/v2.5/src/components/Tagger/performers/Config.tsx`: Remove stashbox instance selector (moved to tagger header); remove `useConfigurationContext` dependency
+- `ui/v2.5/src/components/Tagger/studios/Config.tsx`: Same removal
+- `ui/v2.5/src/locales/en-GB.json`: Add `"refer_to": "Please see {link}."` locale key
+
+**#6483 — DLNA activity tracking: remove inaccurate play-duration estimate:**
+- `internal/dlna/activity.go`: Remove `estimatedPlayDuration()` method (DLNA clients buffer aggressively, making elapsed-time estimates unreliable). Simplify `processCompletedSession` to: check only `percentWatched < 1` threshold (not `playDuration < 5`), pass `nil` for play duration to `SaveActivity`, combine save operations into a single transaction
+- `internal/dlna/activity_test.go`: Remove `TestStreamSession_EstimatedPlayDuration` test; update `TestActivityTracker_ShortSessionIgnored` to use raw elapsed time instead of `estimatedPlayDuration()`
+
+**Previously verified as already applied (no code changes needed):**
+- #6737 — gallery parent folder WHERE clause fix (already applied)
+- #6693 — don't read `.stashignore` in zip files (already applied)
+- #6716 — `StudioLogo` on detail pages (already applied)
+- #6704 — focus scraper search field on open (already applied)
+
+---
+
 ### feat: port 4 upstream quick-win PRs (#6728, #6642, #6565, #6663)
 
 **#6728 — VAAPI DRI device envvar:**

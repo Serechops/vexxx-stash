@@ -30,7 +30,6 @@ import {
   evictQueries,
   performerMutationImpactedQueries,
 } from "src/core/StashService";
-import { Manual } from "src/components/Help/Manual";
 import { useConfigurationContext } from "src/hooks/Config";
 
 import StashSearchResult from "./StashSearchResult";
@@ -38,11 +37,13 @@ import PerformerConfig from "./Config";
 import { ITaggerConfig } from "../constants";
 import PerformerModal from "../PerformerModal";
 import { useUpdatePerformer } from "../queries";
-import { faStar, faTags } from "@fortawesome/free-solid-svg-icons";
+import { faCog, faStar, faTags } from "@fortawesome/free-solid-svg-icons";
 import { mergeStashIDs } from "src/utils/stashbox";
 import { separateNamesAndStashIds } from "src/utils/stashIds";
 import { ExternalLink } from "src/components/Shared/ExternalLink";
 import { useTaggerConfig } from "../config";
+import { Icon } from "src/components/Shared/Icon";
+import { StashBoxSelectorField } from "../StashBoxSelector";
 
 type JobFragment = Pick<
   GQL.Job,
@@ -642,11 +643,9 @@ interface ITaggerProps {
 
 export const PerformerTagger: React.FC<ITaggerProps> = ({ performers }) => {
   const jobsSubscribe = useJobsSubscribe();
-  const intl = useIntl();
   const { configuration: stashConfig } = useConfigurationContext();
   const { config, setConfig } = useTaggerConfig();
   const [showConfig, setShowConfig] = useState(false);
-  const [showManual, setShowManual] = useState(false);
 
   const [batchJobID, setBatchJobID] = useState<string | undefined | null>();
   const [batchJob, setBatchJob] = useState<JobFragment | undefined>();
@@ -763,70 +762,74 @@ export const PerformerTagger: React.FC<ITaggerProps> = ({ performers }) => {
     }
   }
 
-  const showHideConfigId = showConfig
-    ? "actions.hide_configuration"
-    : "actions.show_configuration";
+  if (selectedEndpointIndex === -1 || !selectedEndpoint) {
+    return (
+      <Box my={4}>
+        <Typography variant="h3" align="center" mt={4}>
+          <FormattedMessage id="performer_tagger.to_use_the_performer_tagger" />
+        </Typography>
+        <Typography variant="h5" align="center">
+          <FormattedMessage
+            id="refer_to"
+            values={{
+              link: (
+                <HashLink
+                  to="/settings?tab=metadata-providers#stash-boxes"
+                  scroll={(el) =>
+                    el.scrollIntoView({ behavior: "smooth", block: "center" })
+                  }
+                >
+                  <FormattedMessage id="config.stashbox.title" />
+                </HashLink>
+              ),
+            }}
+          />
+        </Typography>
+      </Box>
+    );
+  }
 
   return (
     <>
-      <Manual
-        show={showManual}
-        onClose={() => setShowManual(false)}
-        defaultActiveTab="Tagger.md"
-      />
       {renderStatus()}
-      <Box sx={{ maxWidth: 1600, mx: { md: "auto" }, display: "flex", flexWrap: "wrap", justifyContent: "center" }}>
-        {selectedEndpointIndex !== -1 && selectedEndpoint ? (
-          <>
-            <Box display="flex" mb={2}>
-              <Button onClick={() => setShowConfig(!showConfig)} variant="text">
-                {intl.formatMessage({ id: showHideConfigId })}
-              </Button>
-              <Button
-                sx={{ mb: 3, ml: "auto" }}
-                onClick={() => setShowManual(true)}
-                title={intl.formatMessage({ id: "help" })}
-                variant="text"
-              >
-                <FormattedMessage id="help" />
-              </Button>
-            </Box>
-
-            <PerformerConfig
-              config={config}
-              setConfig={setConfig}
-              show={showConfig}
+      <Box sx={{ maxWidth: 1600, mx: { md: "auto" } }}>
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", mb: 2 }}>
+          <Box>
+            <StashBoxSelectorField
+              stashBoxes={stashConfig?.general.stashBoxes ?? []}
+              selectedEndpoint={selectedEndpoint.endpoint}
+              onEndpointChange={(endpoint) =>
+                setConfig({ ...config, selectedEndpoint: endpoint })
+              }
             />
-            <PerformerTaggerList
-              performers={performers}
-              selectedEndpoint={{
-                endpoint: selectedEndpoint.endpoint,
-                index: selectedEndpointIndex,
-              }}
-              isIdle={batchJobID === undefined}
-              config={config}
-              onBatchAdd={batchAdd}
-              onBatchUpdate={batchUpdate}
-            />
-          </>
-        ) : (
-          <Box my={4}>
-            <Typography variant="h3" align="center" mt={4}>
-              <FormattedMessage id="performer_tagger.to_use_the_performer_tagger" />
-            </Typography>
-            <Typography variant="h5" align="center">
-              Please see{" "}
-              <HashLink
-                to="/settings?tab=metadata-providers#stash-boxes"
-                scroll={(el) =>
-                  el.scrollIntoView({ behavior: "smooth", block: "center" })
-                }
-              >
-                Settings.
-              </HashLink>
-            </Typography>
           </Box>
-        )}
+          <Box>
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={() => setShowConfig(!showConfig)}
+              title={showConfig ? "Hide configuration" : "Show configuration"}
+            >
+              <Icon className="fa-fw" icon={faCog} />
+            </Button>
+          </Box>
+        </Box>
+        <PerformerConfig
+          config={config}
+          setConfig={setConfig}
+          show={showConfig}
+        />
+        <PerformerTaggerList
+          performers={performers}
+          selectedEndpoint={{
+            endpoint: selectedEndpoint.endpoint,
+            index: selectedEndpointIndex,
+          }}
+          isIdle={batchJobID === undefined}
+          config={config}
+          onBatchAdd={batchAdd}
+          onBatchUpdate={batchUpdate}
+        />
       </Box>
     </>
   );

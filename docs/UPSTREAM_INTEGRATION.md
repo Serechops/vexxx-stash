@@ -397,7 +397,7 @@ These shipped in upstream v0.29.0-v0.30.1. Verify Vexxx includes them:
 
 ---
 
-## Wave 2 — Phase 10: New Bug Fixes & Improvements (Mar 18–23) 📋 PENDING
+## Wave 2 — Phase 10: New Bug Fixes & Improvements (Mar 18–23) ✅ COMPLETE
 
 New upstream commits since last review. Should be ported before or alongside Phase 8/9 work.
 
@@ -405,7 +405,7 @@ New upstream commits since last review. Should be ported before or alongside Pha
 
 | PR/Commit | Description | Priority |
 |-----------|-------------|----------|
-| #6737 + `feb4346` | Fix incorrect WHERE clause for gallery parent folder filter + maintain sub-folder selection when reselecting | **High** — bugfix for integrated feature |
+| #6737 + `feb4346` | Fix incorrect WHERE clause for gallery parent folder filter + maintain sub-folder selection when reselecting | ✅ COMPLETE (was already applied) |
 | #6738 | Expand folder select hierarchy based on initial selected folder | Medium |
 
 ### Group B: Tagger Fixes
@@ -419,15 +419,15 @@ New upstream commits since last review. Should be ported before or alongside Pha
 
 | PR | Description | Priority |
 |----|-------------|----------|
-| #6716 | Show studio name if studio image not set on detail pages | Low |
-| #6704 | Focus search field when clicking on scraper menu | Low |
+| #6716 | Show studio name if studio image not set on detail pages | ✅ COMPLETE (was already applied) |
+| #6704 | Focus search field when clicking on scraper menu | ✅ COMPLETE (was already applied) |
 
 ### Group D: New Feature
 
 | PR | Description | Priority |
 |----|-------------|----------|
 | #6735 | Auto Tag Confirmation Modal | Medium |
-| #6693 | Don't read `.stashignore` files in zip files (bugfix for integrated #6485) | Medium |
+| #6693 | Don't read `.stashignore` files in zip files (bugfix for integrated #6485) | ✅ COMPLETE (was already applied) |
 
 ### Group E: Infrastructure (likely N/A)
 
@@ -435,6 +435,8 @@ New upstream commits since last review. Should be ported before or alongside Pha
 |----|-------------|-------|
 | #6728 | [hwaccel] add envvar for `/dev/dri` device | ✅ COMPLETE |
 | #6638 | Lint + build update and retooling | Build tooling only |
+| #6713 | Make tagger views consistent (PerformerList/StudioList Tagger mode fix, StashBoxSelector header, gear icon config button, `refer_to` locale) | ✅ COMPLETE |
+| #6483 | DLNA activity: remove `estimatedPlayDuration`, simplify to single transaction | ✅ COMPLETE |
 
 ---
 
@@ -504,4 +506,9 @@ All integrations must maintain compatibility with:
 - v0.31 changelog merged upstream (PR #6692, Mar 18) — release appears imminent
 - Added Wave 2 Phase 10 to track new work
 - **No code changes this session — review only**
+
+### Session 6: Phase 10 Quick Wins (Mar 2026)
+- Verified #6737, #6693, #6716, #6704 already applied in previous sessions
+- Ported #6713: tagger views consistency — `PerformerList`/`StudioList` Tagger mode null fix, new `StashBoxSelector.tsx` (MUI), gear icon config button, `refer_to` locale key, removed `Manual`/Help buttons from PerformerTagger and StudioTagger, endpoint selector moved to tagger header
+- Ported #6483: DLNA activity — removed `estimatedPlayDuration()`, simplified `processCompletedSession` to single transaction, removed `playDuration < 5` secondary threshold
 

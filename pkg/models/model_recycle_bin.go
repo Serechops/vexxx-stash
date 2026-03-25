@@ -15,3 +15,16 @@ type RecycleBinEntry struct {
 	DeletedAt   time.Time              `json:"deleted_at"`
 	GroupID     *string                `json:"group_id"`
 }
+
+// RecycleBinHistoryEntry is an immutable audit-log record written whenever
+// an entity is deleted, restored, or purged from the recycle bin.
+type RecycleBinHistoryEntry struct {
+	ID         int       `json:"id"`
+	EntityType string    `json:"entity_type"`
+	EntityID   int       `json:"entity_id"`
+	EntityName string    `json:"entity_name"`
+	Action     string    `json:"action"`
+	ActionedAt time.Time `json:"actioned_at"`
+	GroupID    *string   `json:"group_id"`
+	Notes      string    `json:"notes"`
+}

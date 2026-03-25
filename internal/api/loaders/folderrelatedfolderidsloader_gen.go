@@ -48,13 +48,13 @@ type FolderRelatedFolderIDsLoader struct {
 
 	// the current batch. keys will continue to be collected until timeout is hit,
 	// then everything will be sent to the fetch method and out to the listeners
-	batch *FolderRelatedFolderIDsLoaderBatch
+	batch *folderRelatedFolderIDsLoaderBatch
 
 	// mutex to prevent races
 	mu sync.Mutex
 }
 
-type FolderRelatedFolderIDsLoaderBatch struct {
+type folderRelatedFolderIDsLoaderBatch struct {
 	keys    []models.FolderID
 	data    [][]models.FolderID
 	error   []error
@@ -79,7 +79,7 @@ func (l *FolderRelatedFolderIDsLoader) LoadThunk(key models.FolderID) func() ([]
 		}
 	}
 	if l.batch == nil {
-		l.batch = &FolderRelatedFolderIDsLoaderBatch{done: make(chan struct{})}
+		l.batch = &folderRelatedFolderIDsLoaderBatch{done: make(chan struct{})}
 	}
 	batch := l.batch
 	pos := batch.keyIndex(l, key)
@@ -154,7 +154,7 @@ func (l *FolderRelatedFolderIDsLoader) Prime(key models.FolderID, value []models
 	var found bool
 	if _, found = l.cache[key]; !found {
 		// make a copy when writing to the cache, its easy to pass a pointer in from a loop var
-		// and end up with the whole cache pointing to the same underlying array.
+		// and end up with the whole cache pointing to the same value.
 		cpy := make([]models.FolderID, len(value))
 		copy(cpy, value)
 		l.unsafeSet(key, cpy)
@@ -179,7 +179,7 @@ func (l *FolderRelatedFolderIDsLoader) unsafeSet(key models.FolderID, value []mo
 
 // keyIndex will return the location of the key in the batch, if its not found
 // it will add the key to the batch
-func (b *FolderRelatedFolderIDsLoaderBatch) keyIndex(l *FolderRelatedFolderIDsLoader, key models.FolderID) int {
+func (b *folderRelatedFolderIDsLoaderBatch) keyIndex(l *FolderRelatedFolderIDsLoader, key models.FolderID) int {
 	for i, existingKey := range b.keys {
 		if key == existingKey {
 			return i
@@ -203,7 +203,7 @@ func (b *FolderRelatedFolderIDsLoaderBatch) keyIndex(l *FolderRelatedFolderIDsLo
 	return pos
 }
 
-func (b *FolderRelatedFolderIDsLoaderBatch) startTimer(l *FolderRelatedFolderIDsLoader) {
+func (b *folderRelatedFolderIDsLoaderBatch) startTimer(l *FolderRelatedFolderIDsLoader) {
 	time.Sleep(l.wait)
 	l.mu.Lock()
 
@@ -219,8 +219,7 @@ func (b *FolderRelatedFolderIDsLoaderBatch) startTimer(l *FolderRelatedFolderIDs
 	b.end(l)
 }
 
-func (b *FolderRelatedFolderIDsLoaderBatch) end(l *FolderRelatedFolderIDsLoader) {
+func (b *folderRelatedFolderIDsLoaderBatch) end(l *FolderRelatedFolderIDsLoader) {
 	b.data, b.error = l.fetch(b.keys)
 	close(b.done)
 }
-

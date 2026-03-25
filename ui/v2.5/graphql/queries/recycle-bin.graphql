@@ -7,6 +7,17 @@ fragment RecycleBinEntryData on RecycleBinEntry {
   groupId
 }
 
+fragment RecycleBinHistoryEntryData on RecycleBinHistoryEntry {
+  id
+  entityType
+  entityId
+  entityName
+  action
+  actionedAt
+  groupId
+  notes
+}
+
 query RecycleBin($limit: Int, $offset: Int) {
   recycleBin(limit: $limit, offset: $offset) {
     ...RecycleBinEntryData
@@ -16,3 +27,14 @@ query RecycleBin($limit: Int, $offset: Int) {
 query RecycleBinCount {
   recycleBinCount
 }
+
+query RecycleBinHistory($limit: Int, $offset: Int) {
+  recycleBinHistory(limit: $limit, offset: $offset) {
+    ...RecycleBinHistoryEntryData
+  }
+}
+
+query RecycleBinHistoryCount {
+  recycleBinHistoryCount
+}
+

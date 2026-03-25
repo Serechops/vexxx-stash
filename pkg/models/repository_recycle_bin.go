@@ -7,6 +7,10 @@ type RecycleBinReader interface {
 	FindByID(ctx context.Context, id int) (*RecycleBinEntry, error)
 	FindAll(ctx context.Context, limit, offset int) ([]*RecycleBinEntry, error)
 	Count(ctx context.Context) (int, error)
+
+	// FindHistory returns audit-log entries, most recent first.
+	FindHistory(ctx context.Context, limit, offset int) ([]*RecycleBinHistoryEntry, error)
+	CountHistory(ctx context.Context) (int, error)
 }
 
 // RecycleBinWriter provides write access to the recycle bin.

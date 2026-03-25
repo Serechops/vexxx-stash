@@ -5,12 +5,14 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/stashapp/stash/pkg/models"
 )
 
 const recycleBinTable = "recycle_bin"
+const recycleBinHistoryTable = "recycle_bin_history"
 
 // recycleBinRow mirrors the recycle_bin table columns for sqlx scanning.
 type recycleBinRow struct {
@@ -38,6 +40,35 @@ func (r *recycleBinRow) resolve() *models.RecycleBinEntry {
 	var m map[string]interface{}
 	if err := json.Unmarshal([]byte(r.DeletedData), &m); err == nil {
 		e.DeletedData = m
+	}
+	return e
+}
+
+// recycleBinHistoryRow mirrors the recycle_bin_history table for sqlx scanning.
+type recycleBinHistoryRow struct {
+	ID         int            `db:"id"`
+	EntityType string         `db:"entity_type"`
+	EntityID   int            `db:"entity_id"`
+	EntityName string         `db:"entity_name"`
+	Action     string         `db:"action"`
+	ActionedAt Timestamp      `db:"actioned_at"`
+	GroupID    sql.NullString `db:"group_id"`
+	Notes      string         `db:"notes"`
+}
+
+func (r *recycleBinHistoryRow) resolve() *models.RecycleBinHistoryEntry {
+	e := &models.RecycleBinHistoryEntry{
+		ID:         r.ID,
+		EntityType: r.EntityType,
+		EntityID:   r.EntityID,
+		EntityName: r.EntityName,
+		Action:     r.Action,
+		ActionedAt: r.ActionedAt.Timestamp,
+		Notes:      r.Notes,
+	}
+	if r.GroupID.Valid {
+		s := r.GroupID.String
+		e.GroupID = &s
 	}
 	return e
 }
@@ -95,6 +126,37 @@ func (s *RecycleBinStore) Count(ctx context.Context) (int, error) {
 	return n, nil
 }
 
+func (s *RecycleBinStore) FindHistory(ctx context.Context, limit, offset int) ([]*models.RecycleBinHistoryEntry, error) {
+	q := `SELECT * FROM ` + recycleBinHistoryTable + ` ORDER BY actioned_at DESC`
+	var args []interface{}
+	if limit > 0 {
+		q += ` LIMIT ?`
+		args = append(args, limit)
+		if offset > 0 {
+			q += ` OFFSET ?`
+			args = append(args, offset)
+		}
+	}
+	var rows []recycleBinHistoryRow
+	if err := dbWrapper.Select(ctx, &rows, q, args...); err != nil {
+		return nil, err
+	}
+	ret := make([]*models.RecycleBinHistoryEntry, len(rows))
+	for i, r := range rows {
+		rCopy := r
+		ret[i] = rCopy.resolve()
+	}
+	return ret, nil
+}
+
+func (s *RecycleBinStore) CountHistory(ctx context.Context) (int, error) {
+	var n int
+	if err := dbWrapper.Get(ctx, &n, `SELECT COUNT(*) FROM `+recycleBinHistoryTable); err != nil {
+		return 0, err
+	}
+	return n, nil
+}
+
 // ── internal record helper ────────────────────────────────────────────────────
 
 func (s *RecycleBinStore) record(ctx context.Context, entityType string, entityID int, entityName string, data map[string]interface{}, groupID *string) error {
@@ -108,11 +170,19 @@ func (s *RecycleBinStore) record(ctx context.Context, entityType string, entityI
 		gid = *groupID
 	}
 
-	_, err = dbWrapper.Exec(ctx,
+	now := time.Now().UTC().Format("2006-01-02T15:04:05.000Z")
+
+	if _, err = dbWrapper.Exec(ctx,
 		`INSERT INTO `+recycleBinTable+`(entity_type, entity_id, entity_name, deleted_data, deleted_at, group_id) VALUES (?, ?, ?, ?, ?, ?)`,
-		entityType, entityID, entityName, string(b),
-		time.Now().UTC().Format("2006-01-02T15:04:05.000Z"),
-		gid,
+		entityType, entityID, entityName, string(b), now, gid,
+	); err != nil {
+		return err
+	}
+
+	// record 'deleted' event in the persistent history log
+	_, err = dbWrapper.Exec(ctx,
+		`INSERT INTO `+recycleBinHistoryTable+`(entity_type, entity_id, entity_name, action, actioned_at, group_id, notes) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		entityType, entityID, entityName, "deleted", now, gid, buildNotes(data),
 	)
 	return err
 }
@@ -351,16 +421,40 @@ func (s *RecycleBinStore) Restore(ctx context.Context, id int) error {
 		return err
 	}
 
+	now := time.Now().UTC().Format("2006-01-02T15:04:05.000Z")
+
 	if row.GroupID.Valid {
+		// Fetch all group rows before restoring so we can write history entries.
+		var groupRows []recycleBinRow
+		if err := dbWrapper.Select(ctx, &groupRows,
+			`SELECT * FROM `+recycleBinTable+` WHERE group_id = ? ORDER BY id ASC`, row.GroupID.String,
+		); err != nil {
+			return err
+		}
 		if err := s.restoreGroup(ctx, row.GroupID.String); err != nil {
 			return err
+		}
+		for _, r := range groupRows {
+			var data map[string]interface{}
+			_ = json.Unmarshal([]byte(r.DeletedData), &data)
+			_, _ = dbWrapper.Exec(ctx,
+				`INSERT INTO `+recycleBinHistoryTable+`(entity_type, entity_id, entity_name, action, actioned_at, group_id, notes) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+				r.EntityType, r.EntityID, r.EntityName, "restored", now, r.GroupID, buildNotes(data),
+			)
 		}
 		_, err := dbWrapper.Exec(ctx, `DELETE FROM `+recycleBinTable+` WHERE group_id = ?`, row.GroupID.String)
 		return err
 	}
+
 	if err := s.restoreEntry(ctx, &row); err != nil {
 		return err
 	}
+	var data map[string]interface{}
+	_ = json.Unmarshal([]byte(row.DeletedData), &data)
+	_, _ = dbWrapper.Exec(ctx,
+		`INSERT INTO `+recycleBinHistoryTable+`(entity_type, entity_id, entity_name, action, actioned_at, group_id, notes) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		row.EntityType, row.EntityID, row.EntityName, "restored", now, row.GroupID, buildNotes(data),
+	)
 	_, err := dbWrapper.Exec(ctx, `DELETE FROM `+recycleBinTable+` WHERE id = ?`, id)
 	return err
 }
@@ -873,11 +967,33 @@ func (s *RecycleBinStore) restoreSceneMarker(ctx context.Context, d map[string]i
 // ── purge ─────────────────────────────────────────────────────────────────────
 
 func (s *RecycleBinStore) Purge(ctx context.Context, id int) error {
+	var row recycleBinRow
+	if err := dbWrapper.Get(ctx, &row, `SELECT * FROM `+recycleBinTable+` WHERE id = ?`, id); err == nil {
+		var data map[string]interface{}
+		_ = json.Unmarshal([]byte(row.DeletedData), &data)
+		now := time.Now().UTC().Format("2006-01-02T15:04:05.000Z")
+		_, _ = dbWrapper.Exec(ctx,
+			`INSERT INTO `+recycleBinHistoryTable+`(entity_type, entity_id, entity_name, action, actioned_at, group_id, notes) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+			row.EntityType, row.EntityID, row.EntityName, "purged", now, row.GroupID, buildNotes(data),
+		)
+	}
 	_, err := dbWrapper.Exec(ctx, `DELETE FROM `+recycleBinTable+` WHERE id = ?`, id)
 	return err
 }
 
 func (s *RecycleBinStore) PurgeAll(ctx context.Context) error {
+	var rows []recycleBinRow
+	if err := dbWrapper.Select(ctx, &rows, `SELECT * FROM `+recycleBinTable); err == nil {
+		now := time.Now().UTC().Format("2006-01-02T15:04:05.000Z")
+		for _, r := range rows {
+			var data map[string]interface{}
+			_ = json.Unmarshal([]byte(r.DeletedData), &data)
+			_, _ = dbWrapper.Exec(ctx,
+				`INSERT INTO `+recycleBinHistoryTable+`(entity_type, entity_id, entity_name, action, actioned_at, group_id, notes) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+				r.EntityType, r.EntityID, r.EntityName, "purged", now, r.GroupID, buildNotes(data),
+			)
+		}
+	}
 	_, err := dbWrapper.Exec(ctx, `DELETE FROM `+recycleBinTable)
 	return err
 }
@@ -1068,6 +1184,64 @@ func dateString(d *models.Date) interface{} {
 		return nil
 	}
 	return d.String()
+}
+
+// ── history helpers ───────────────────────────────────────────────────────────
+
+// historyNoteSpecs maps data-map keys to human-readable labels for history notes.
+var historyNoteSpecs = []struct {
+	key    string
+	single string
+	plural string
+}{
+	{"scene_ids", "scene", "scenes"},
+	{"performer_ids", "performer", "performers"},
+	{"gallery_ids", "gallery", "galleries"},
+	{"image_ids", "image", "images"},
+	{"group_ids", "group", "groups"},
+	{"tag_ids", "tag", "tags"},
+	{"scene_marker_ids", "secondary marker", "secondary markers"},
+	{"primary_marker_ids", "primary marker", "primary markers"},
+	{"group_scenes", "scene in group", "scenes in group"},
+	{"containing_groups", "containing group", "containing groups"},
+	{"sub_groups", "sub-group", "sub-groups"},
+}
+
+// countSliceLen returns the length of a value that may be one of several
+// slice types produced by the snapshot helpers (raw before marshaling)
+// or deserialized back from JSON ([]interface{} with float64 elements).
+func countSliceLen(v interface{}) int {
+	switch s := v.(type) {
+	case []int:
+		return len(s)
+	case []interface{}:
+		return len(s)
+	case []groupSceneRow:
+		return len(s)
+	case []groupRelRow:
+		return len(s)
+	}
+	return 0
+}
+
+// buildNotes produces a compact human-readable summary of the associations
+// present in a snapshot data map (e.g. "3 scenes · 2 performers · 1 tag").
+// It works with both raw snapshot data (Go slice types) and JSON-decoded data
+// ([]interface{} slices), so it can be called from both record() and Restore().
+func buildNotes(data map[string]interface{}) string {
+	var parts []string
+	for _, sp := range historyNoteSpecs {
+		if n := countSliceLen(data[sp.key]); n > 0 {
+			var label string
+			if n == 1 {
+				label = "1 " + sp.single
+			} else {
+				label = fmt.Sprintf("%d %s", n, sp.plural)
+			}
+			parts = append(parts, label)
+		}
+	}
+	return strings.Join(parts, " · ")
 }
 
 // ── recycle-bin query helpers ─────────────────────────────────────────────────

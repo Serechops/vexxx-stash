@@ -299,6 +299,10 @@ type Query {
   recycleBin(limit: Int, offset: Int): [RecycleBinEntry!]!
   "Returns the total number of entries in the recycle bin."
   recycleBinCount: Int!
+  "Returns the recycle bin event history (deletions, restores, purges), most recent first."
+  recycleBinHistory(limit: Int, offset: Int): [RecycleBinHistoryEntry!]!
+  "Returns the total number of entries in the recycle bin history log."
+  recycleBinHistoryCount: Int!
 }
 
 type Mutation {

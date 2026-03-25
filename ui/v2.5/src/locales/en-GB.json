@@ -1444,13 +1444,26 @@
   "random": "Random",
   "recycle_bin": {
     "column": {
+      "action": "Action",
+      "actioned_at": "At",
       "actions": "Actions",
       "deleted_at": "Deleted At",
       "name": "Name",
+      "notes": "Notes",
       "type": "Type"
     },
     "count": "{count, plural, one {# item} other {# items}} in recycle bin",
     "empty": "The recycle bin is empty.",
+    "history": {
+      "action": {
+        "deleted": "Deleted",
+        "purged": "Purged",
+        "restored": "Restored"
+      },
+      "count": "{count, plural, one {# event} other {# events}} in history",
+      "empty": "No history yet.",
+      "tab": "History"
+    },
     "purge": "Permanently delete",
     "purge_all": "Purge All",
     "purge_all_confirm": {
@@ -1458,7 +1471,8 @@
       "title": "Purge Recycle Bin"
     },
     "restore": "Restore",
-    "restore_group": "Restore entire group"
+    "restore_group": "Restore entire group",
+    "tab": "Recycle Bin"
   },
   "rating": "Rating",
   "recently_added_objects": "Recently Added {objects}",

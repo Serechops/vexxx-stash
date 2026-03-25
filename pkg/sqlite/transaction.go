@@ -35,6 +35,10 @@ func (db *Database) Begin(ctx context.Context, writable bool) (context.Context, 
 		return nil, fmt.Errorf("already in transaction")
 	}
 
+	if db.readDB == nil || db.writeDB == nil {
+		return nil, ErrDatabaseNotInitialized
+	}
+
 	dbtx := db.readDB
 	if writable {
 		dbtx = db.writeDB

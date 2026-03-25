@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/stashapp/stash/pkg/logger"
 	"github.com/stashapp/stash/pkg/models"
 	"github.com/stashapp/stash/pkg/plugin/hook"
@@ -360,6 +361,15 @@ func (r *mutationResolver) TagDestroy(ctx context.Context, input TagDestroyInput
 
 	if err := r.withTxn(ctx, func(ctx context.Context) error {
 		qb := r.repository.Tag
+		t, err := qb.Find(ctx, tagID)
+		if err != nil {
+			return err
+		}
+		if t != nil {
+			if err := r.repository.RecycleBin.SnapshotTag(ctx, qb, t, nil); err != nil {
+				return err
+			}
+		}
 		if input.ReassignPrimaryTagID != nil {
 			reassignID, err := strconv.Atoi(*input.ReassignPrimaryTagID)
 			if err != nil {
@@ -396,7 +406,17 @@ func (r *mutationResolver) TagsDestroy(ctx context.Context, tagIDs []string, rea
 
 	if err := r.withTxn(ctx, func(ctx context.Context) error {
 		qb := r.repository.Tag
+		gid := uuid.NewString()
 		for _, id := range ids {
+			t, err := qb.Find(ctx, id)
+			if err != nil {
+				return err
+			}
+			if t != nil {
+				if err := r.repository.RecycleBin.SnapshotTag(ctx, qb, t, &gid); err != nil {
+					return err
+				}
+			}
 			if reassignID != nil {
 				if err := qb.ReassignPrimaryMarkers(ctx, id, *reassignID); err != nil {
 					return err

@@ -293,6 +293,12 @@ type Query {
   userCount: UserCountResult!
   "List sessions for a user (admin only)"
   findUserSessions(user_id: ID!): [UserSession!]!
+
+  # Recycle Bin
+  "Returns entries in the recycle bin, most recently deleted first."
+  recycleBin(limit: Int, offset: Int): [RecycleBinEntry!]!
+  "Returns the total number of entries in the recycle bin."
+  recycleBinCount: Int!
 }
 
 type Mutation {
@@ -595,6 +601,14 @@ type Mutation {
 
   "Backup the database. Optionally returns a link to download the database file"
   backupDatabase(input: BackupDatabaseInput!): String
+
+  # Recycle Bin
+  "Restore an item from the recycle bin by entry ID. If the entry belongs to a group, the whole group is restored."
+  restoreRecycleBinEntry(id: ID!): Boolean!
+  "Permanently delete a single recycle bin entry."
+  purgeRecycleBinEntry(id: ID!): Boolean!
+  "Permanently delete all entries in the recycle bin."
+  purgeRecycleBin: Boolean!
 
   "DANGEROUS: Execute an arbitrary SQL statement that returns rows."
   querySQL(sql: String!, args: [Any]): SQLQueryResult!

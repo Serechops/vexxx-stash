@@ -1,0 +1,18 @@
+fragment RecycleBinEntryData on RecycleBinEntry {
+  id
+  entityType
+  entityId
+  entityName
+  deletedAt
+  groupId
+}
+
+query RecycleBin($limit: Int, $offset: Int) {
+  recycleBin(limit: $limit, offset: $offset) {
+    ...RecycleBinEntryData
+  }
+}
+
+query RecycleBinCount {
+  recycleBinCount
+}

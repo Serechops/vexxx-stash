@@ -1,0 +1,11 @@
+mutation RestoreRecycleBinEntry($id: ID!) {
+  restoreRecycleBinEntry(id: $id)
+}
+
+mutation PurgeRecycleBinEntry($id: ID!) {
+  purgeRecycleBinEntry(id: $id)
+}
+
+mutation PurgeRecycleBin {
+  purgeRecycleBin
+}

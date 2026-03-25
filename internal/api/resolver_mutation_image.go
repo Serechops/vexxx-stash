@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/google/uuid"
 	"github.com/stashapp/stash/internal/manager"
 	"github.com/stashapp/stash/pkg/file"
 	"github.com/stashapp/stash/pkg/image"
@@ -325,6 +326,10 @@ func (r *mutationResolver) ImageDestroy(ctx context.Context, input models.ImageD
 			return fmt.Errorf("image with id %d not found", imageID)
 		}
 
+		if err := r.repository.RecycleBin.SnapshotImage(ctx, r.repository.Image, i, nil); err != nil {
+			return err
+		}
+
 		return r.imageService.Destroy(ctx, i, fileDeleter, utils.IsTrue(input.DeleteGenerated), utils.IsTrue(input.DeleteFile), utils.IsTrue(input.DestroyFileEntry))
 	}); err != nil {
 		fileDeleter.Rollback()
@@ -359,6 +364,7 @@ func (r *mutationResolver) ImagesDestroy(ctx context.Context, input models.Image
 	}
 	if err := r.withTxn(ctx, func(ctx context.Context) error {
 		qb := r.repository.Image
+		gid := uuid.NewString()
 
 		for _, imageID := range imageIDs {
 			i, err := qb.Find(ctx, imageID)
@@ -371,6 +377,10 @@ func (r *mutationResolver) ImagesDestroy(ctx context.Context, input models.Image
 			}
 
 			images = append(images, i)
+
+			if err := r.repository.RecycleBin.SnapshotImage(ctx, qb, i, &gid); err != nil {
+				return err
+			}
 
 			if err := r.imageService.Destroy(ctx, i, fileDeleter, utils.IsTrue(input.DeleteGenerated), utils.IsTrue(input.DeleteFile), utils.IsTrue(input.DestroyFileEntry)); err != nil {
 				return err

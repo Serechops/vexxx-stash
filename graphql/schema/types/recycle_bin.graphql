@@ -1,0 +1,10 @@
+type RecycleBinEntry {
+  id: ID!
+  entityType: String!
+  entityId: ID!
+  entityName: String!
+  deletedAt: Time!
+  groupId: String
+  """Full JSON snapshot of the entity at the time of deletion."""
+  deletedData: Map!
+}

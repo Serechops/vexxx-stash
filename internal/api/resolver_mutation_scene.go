@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stashapp/stash/internal/manager"
 	"github.com/stashapp/stash/internal/manager/config"
 	"github.com/stashapp/stash/pkg/file"
@@ -1046,6 +1047,7 @@ func (r *mutationResolver) SceneMarkersDestroy(ctx context.Context, markerIDs []
 	if err := r.withTxn(ctx, func(ctx context.Context) error {
 		qb := r.repository.SceneMarker
 		sqb := r.repository.Scene
+		gid := uuid.NewString()
 
 		for _, markerID := range ids {
 			marker, err := qb.Find(ctx, markerID)
@@ -1069,6 +1071,10 @@ func (r *mutationResolver) SceneMarkersDestroy(ctx context.Context, markerIDs []
 			}
 
 			markers = append(markers, marker)
+
+			if err := r.repository.RecycleBin.SnapshotSceneMarker(ctx, qb, marker, &gid); err != nil {
+				return err
+			}
 
 			if err := scene.DestroyMarker(ctx, s, marker, qb, fileDeleter); err != nil {
 				return err

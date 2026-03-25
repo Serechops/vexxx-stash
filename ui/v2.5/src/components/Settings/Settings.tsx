@@ -29,6 +29,7 @@ import { SettingsContext, useSettings } from "./context";
 import { SettingsLibraryPanel } from "./SettingsLibraryPanel";
 import { SettingsSecurityPanel } from "./SettingsSecurityPanel";
 import { SettingsUsersPanel } from "./SettingsUsersPanel";
+import { SettingsRecycleBinPanel } from "./SettingsRecycleBinPanel";
 import Changelog from "../Changelog/Changelog";
 
 const validTabs = [
@@ -45,6 +46,7 @@ const validTabs = [
   "tools",
   "changelog",
   "about",
+  "recycle-bin",
 ] as const;
 type TabKey = (typeof validTabs)[number];
 
@@ -79,6 +81,7 @@ const SettingTabs: React.FC<{ tab: TabKey }> = ({ tab }) => {
       case "logs": return <SettingsLogsPanel />;
       case "changelog": return <Changelog />;
       case "about": return <SettingsAboutPanel />;
+      case "recycle-bin": return <SettingsRecycleBinPanel />;
       default: return null;
     }
   };
@@ -196,6 +199,12 @@ const SettingTabs: React.FC<{ tab: TabKey }> = ({ tab }) => {
             value="about"
             component={Link}
             to="/settings?tab=about"
+          />
+          <Tab
+            label={<FormattedMessage id="config.categories.recycle_bin" />}
+            value="recycle-bin"
+            component={Link}
+            to="/settings?tab=recycle-bin"
           />
         </Tabs>
 

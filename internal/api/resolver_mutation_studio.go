@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/stashapp/stash/pkg/models"
 	"github.com/stashapp/stash/pkg/plugin/hook"
 	"github.com/stashapp/stash/pkg/sliceutil/stringslice"
@@ -399,7 +400,17 @@ func (r *mutationResolver) StudioDestroy(ctx context.Context, input StudioDestro
 	}
 
 	if err := r.withTxn(ctx, func(ctx context.Context) error {
-		return r.repository.Studio.Destroy(ctx, id)
+		qb := r.repository.Studio
+		st, err := qb.Find(ctx, id)
+		if err != nil {
+			return err
+		}
+		if st != nil {
+			if err := r.repository.RecycleBin.SnapshotStudio(ctx, qb, st, nil); err != nil {
+				return err
+			}
+		}
+		return qb.Destroy(ctx, id)
 	}); err != nil {
 		return false, err
 	}
@@ -417,7 +428,17 @@ func (r *mutationResolver) StudiosDestroy(ctx context.Context, studioIDs []strin
 
 	if err := r.withTxn(ctx, func(ctx context.Context) error {
 		qb := r.repository.Studio
+		gid := uuid.NewString()
 		for _, id := range ids {
+			st, err := qb.Find(ctx, id)
+			if err != nil {
+				return err
+			}
+			if st != nil {
+				if err := r.repository.RecycleBin.SnapshotStudio(ctx, qb, st, &gid); err != nil {
+					return err
+				}
+			}
 			if err := qb.Destroy(ctx, id); err != nil {
 				return err
 			}

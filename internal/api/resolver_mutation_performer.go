@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/stashapp/stash/pkg/models"
 	"github.com/stashapp/stash/pkg/performer"
 	"github.com/stashapp/stash/pkg/plugin/hook"
@@ -659,7 +660,17 @@ func (r *mutationResolver) PerformerDestroy(ctx context.Context, input Performer
 	}
 
 	if err := r.withTxn(ctx, func(ctx context.Context) error {
-		return r.repository.Performer.Destroy(ctx, id)
+		qb := r.repository.Performer
+		p, err := qb.Find(ctx, id)
+		if err != nil {
+			return err
+		}
+		if p != nil {
+			if err := r.repository.RecycleBin.SnapshotPerformer(ctx, qb, p, nil); err != nil {
+				return err
+			}
+		}
+		return qb.Destroy(ctx, id)
 	}); err != nil {
 		return false, err
 	}
@@ -677,7 +688,17 @@ func (r *mutationResolver) PerformersDestroy(ctx context.Context, performerIDs [
 
 	if err := r.withTxn(ctx, func(ctx context.Context) error {
 		qb := r.repository.Performer
+		gid := uuid.NewString()
 		for _, id := range ids {
+			p, err := qb.Find(ctx, id)
+			if err != nil {
+				return err
+			}
+			if p != nil {
+				if err := r.repository.RecycleBin.SnapshotPerformer(ctx, qb, p, &gid); err != nil {
+					return err
+				}
+			}
 			if err := qb.Destroy(ctx, id); err != nil {
 				return err
 			}

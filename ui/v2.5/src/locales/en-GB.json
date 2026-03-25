@@ -273,7 +273,8 @@
       "services": "Services",
       "system": "System",
       "tasks": "Tasks",
-      "tools": "Tools"
+      "tools": "Tools",
+      "recycle_bin": "Recycle Bin"
     },
     "moviefy": {
       "heading": "MovieFy Settings",
@@ -1441,6 +1442,24 @@
   "primary_tag": "Primary Tag",
   "queue": "Queue",
   "random": "Random",
+  "recycle_bin": {
+    "column": {
+      "actions": "Actions",
+      "deleted_at": "Deleted At",
+      "name": "Name",
+      "type": "Type"
+    },
+    "count": "{count, plural, one {# item} other {# items}} in recycle bin",
+    "empty": "The recycle bin is empty.",
+    "purge": "Permanently delete",
+    "purge_all": "Purge All",
+    "purge_all_confirm": {
+      "message": "This will permanently delete all {count} items in the recycle bin. This action cannot be undone.",
+      "title": "Purge Recycle Bin"
+    },
+    "restore": "Restore",
+    "restore_group": "Restore entire group"
+  },
   "rating": "Rating",
   "recently_added_objects": "Recently Added {objects}",
   "recently_released_objects": "Recently Released {objects}",

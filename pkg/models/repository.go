@@ -31,6 +31,7 @@ type Repository struct {
 	ContentProfile ContentProfileReaderWriter
 	User           UserReaderWriter
 	Playlist       PlaylistReaderWriter
+	RecycleBin     RecycleBinReaderWriter
 }
 
 func (r *Repository) WithTxn(ctx context.Context, fn txn.TxnFunc) error {

@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/stashapp/stash/internal/manager"
 	"github.com/stashapp/stash/pkg/file"
 	"github.com/stashapp/stash/pkg/gallery"
@@ -350,6 +351,7 @@ func (r *mutationResolver) GalleryDestroy(ctx context.Context, input models.Gall
 
 	if err := r.withTxn(ctx, func(ctx context.Context) error {
 		qb := r.repository.Gallery
+		gid := uuid.NewString()
 
 		for _, id := range galleryIDs {
 			gallery, err := qb.Find(ctx, id)
@@ -366,6 +368,10 @@ func (r *mutationResolver) GalleryDestroy(ctx context.Context, input models.Gall
 			}
 
 			galleries = append(galleries, gallery)
+
+			if err := r.repository.RecycleBin.SnapshotGallery(ctx, qb, gallery, &gid); err != nil {
+				return err
+			}
 
 			imgsDestroyed, err = r.galleryService.Destroy(ctx, gallery, fileDeleter, deleteGenerated, deleteFile, destroyFileEntry)
 			if err != nil {

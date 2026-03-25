@@ -125,5 +125,6 @@ func (db *Database) Repository() models.Repository {
 		ContentProfile: db.ContentProfile,
 		User:           db.User,
 		Playlist:       db.Playlist,
+		RecycleBin:     db.RecycleBin,
 	}
 }

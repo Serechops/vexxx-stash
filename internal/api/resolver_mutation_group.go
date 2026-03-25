@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/stashapp/stash/internal/static"
 	"github.com/stashapp/stash/pkg/group"
 	"github.com/stashapp/stash/pkg/models"
@@ -331,7 +332,17 @@ func (r *mutationResolver) GroupDestroy(ctx context.Context, input GroupDestroyI
 	}
 
 	if err := r.withTxn(ctx, func(ctx context.Context) error {
-		return r.repository.Group.Destroy(ctx, id)
+		qb := r.repository.Group
+		g, err := qb.Find(ctx, id)
+		if err != nil {
+			return err
+		}
+		if g != nil {
+			if err := r.repository.RecycleBin.SnapshotGroup(ctx, qb, g, nil); err != nil {
+				return err
+			}
+		}
+		return qb.Destroy(ctx, id)
 	}); err != nil {
 		return false, err
 	}
@@ -351,7 +362,17 @@ func (r *mutationResolver) GroupsDestroy(ctx context.Context, groupIDs []string)
 
 	if err := r.withTxn(ctx, func(ctx context.Context) error {
 		qb := r.repository.Group
+		gid := uuid.NewString()
 		for _, id := range ids {
+			g, err := qb.Find(ctx, id)
+			if err != nil {
+				return err
+			}
+			if g != nil {
+				if err := r.repository.RecycleBin.SnapshotGroup(ctx, qb, g, &gid); err != nil {
+					return err
+				}
+			}
 			if err := qb.Destroy(ctx, id); err != nil {
 				return err
 			}

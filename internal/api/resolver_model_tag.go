@@ -86,6 +86,17 @@ func (r *tagResolver) SceneMarkerCount(ctx context.Context, obj *models.Tag, dep
 	return ret, nil
 }
 
+func (r *tagResolver) SceneMarkerPrimaryCount(ctx context.Context, obj *models.Tag) (ret int, err error) {
+	if err := r.withReadTxn(ctx, func(ctx context.Context) error {
+		ret, err = r.repository.SceneMarker.CountByPrimaryTagID(ctx, obj.ID)
+		return err
+	}); err != nil {
+		return 0, err
+	}
+
+	return ret, nil
+}
+
 func (r *tagResolver) ImageCount(ctx context.Context, obj *models.Tag, depth *int) (ret int, err error) {
 	if err := r.withReadTxn(ctx, func(ctx context.Context) error {
 		ret, err = image.CountByTagID(ctx, r.repository.Image, obj.ID, depth)

@@ -731,7 +731,7 @@ func (r *mutationResolver) SceneMarkerCreate(ctx context.Context, input SceneMar
 
 	newMarker.Title = strings.TrimSpace(input.Title)
 	newMarker.Seconds = input.Seconds
-	newMarker.PrimaryTagID = primaryTagID
+	newMarker.PrimaryTagID = &primaryTagID
 	newMarker.SceneID = sceneID
 
 	if input.EndSeconds != nil {
@@ -756,7 +756,9 @@ func (r *mutationResolver) SceneMarkerCreate(ctx context.Context, input SceneMar
 
 		// Save the marker tags
 		// If this tag is the primary tag, then let's not add it.
-		tagIDs = sliceutil.Exclude(tagIDs, []int{newMarker.PrimaryTagID})
+		if newMarker.PrimaryTagID != nil {
+			tagIDs = sliceutil.Exclude(tagIDs, []int{*newMarker.PrimaryTagID})
+		}
 		return qb.UpdateTags(ctx, newMarker.ID, tagIDs)
 	}); err != nil {
 		return nil, err
@@ -881,7 +883,9 @@ func (r *mutationResolver) SceneMarkerUpdate(ctx context.Context, input SceneMar
 		if tagIdsIncluded {
 			// Save the marker tags
 			// If this tag is the primary tag, then let's not add it.
-			tagIDs = sliceutil.Exclude(tagIDs, []int{newMarker.PrimaryTagID})
+			if newMarker.PrimaryTagID != nil {
+				tagIDs = sliceutil.Exclude(tagIDs, []int{*newMarker.PrimaryTagID})
+			}
 			if err := qb.UpdateTags(ctx, markerID, tagIDs); err != nil {
 				return err
 			}
@@ -983,7 +987,9 @@ func adjustMarkerPartialForTagExclusion(ctx context.Context, r models.SceneMarke
 			return fmt.Errorf("finding existing primary tag id: %w", err)
 		}
 
-		primaryTagID = existing.PrimaryTagID
+		if existing.PrimaryTagID != nil {
+			primaryTagID = *existing.PrimaryTagID
+		}
 	}
 
 	existingTagIDs, err := r.GetTagIDs(ctx, id)

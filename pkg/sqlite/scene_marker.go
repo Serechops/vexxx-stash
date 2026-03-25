@@ -32,7 +32,7 @@ type sceneMarkerRow struct {
 	ID           int        `db:"id" goqu:"skipinsert"`
 	Title        string     `db:"title"` // TODO: make db schema (and gql schema) nullable
 	Seconds      float64    `db:"seconds"`
-	PrimaryTagID int        `db:"primary_tag_id"`
+	PrimaryTagID null.Int   `db:"primary_tag_id"`
 	SceneID      int        `db:"scene_id"`
 	CreatedAt    Timestamp  `db:"created_at"`
 	UpdatedAt    Timestamp  `db:"updated_at"`
@@ -46,19 +46,27 @@ func (r *sceneMarkerRow) fromSceneMarker(o models.SceneMarker) {
 	if o.EndSeconds != nil {
 		r.EndSeconds = null.FloatFrom(*o.EndSeconds)
 	}
-	r.PrimaryTagID = o.PrimaryTagID
+	if o.PrimaryTagID != nil {
+		r.PrimaryTagID = null.IntFrom(int64(*o.PrimaryTagID))
+	}
 	r.SceneID = o.SceneID
 	r.CreatedAt = Timestamp{Timestamp: o.CreatedAt}
 	r.UpdatedAt = Timestamp{Timestamp: o.UpdatedAt}
 }
 
 func (r *sceneMarkerRow) resolve() *models.SceneMarker {
+	var primaryTagID *int
+	if r.PrimaryTagID.Valid {
+		v := int(r.PrimaryTagID.Int64)
+		primaryTagID = &v
+	}
+
 	ret := &models.SceneMarker{
 		ID:           r.ID,
 		Title:        r.Title,
 		Seconds:      r.Seconds,
 		EndSeconds:   r.EndSeconds.Ptr(),
-		PrimaryTagID: r.PrimaryTagID,
+		PrimaryTagID: primaryTagID,
 		SceneID:      r.SceneID,
 		CreatedAt:    r.CreatedAt.Timestamp,
 		UpdatedAt:    r.UpdatedAt.Timestamp,
@@ -80,7 +88,7 @@ func (r *sceneMarkerRowRecord) fromPartial(o models.SceneMarkerPartial) {
 	}
 	r.setFloat64("seconds", o.Seconds)
 	r.setNullFloat64("end_seconds", o.EndSeconds)
-	r.setInt("primary_tag_id", o.PrimaryTagID)
+	r.setNullInt("primary_tag_id", o.PrimaryTagID)
 	r.setInt("scene_id", o.SceneID)
 	r.setTimestamp("created_at", o.CreatedAt)
 	r.setTimestamp("updated_at", o.UpdatedAt)
@@ -280,6 +288,11 @@ func (qb *SceneMarkerStore) CountByTagID(ctx context.Context, tagID int) (int, e
 	return sceneMarkerRepository.runCountQuery(ctx, sceneMarkerRepository.buildCountQuery(countSceneMarkersForTagQuery), args)
 }
 
+func (qb *SceneMarkerStore) CountByPrimaryTagID(ctx context.Context, tagID int) (int, error) {
+	args := []interface{}{tagID}
+	return sceneMarkerRepository.runCountQuery(ctx, "SELECT COUNT(*) as count FROM scene_markers WHERE primary_tag_id = ?", args)
+}
+
 func (qb *SceneMarkerStore) GetMarkerStrings(ctx context.Context, q *string, sort *string) ([]*models.MarkerStringsResultType, error) {
 	query := "SELECT count(*) as `count`, scene_markers.id as id, scene_markers.title as title FROM scene_markers"
 	if q != nil {
@@ -395,7 +408,7 @@ func (qb *SceneMarkerStore) setSceneMarkerSort(query *queryBuilder, findFilter *
 		query.joinSort(sceneTable, "", "scenes.id = scene_markers.scene_id")
 		query.sortAndPagination += getSort(sort, direction, sceneTable)
 	case "title":
-		query.joinSort(tagTable, "", "scene_markers.primary_tag_id = tags.id")
+		query.join(tagTable, "", "scene_markers.primary_tag_id = tags.id")
 		query.sortAndPagination += " ORDER BY COALESCE(NULLIF(scene_markers.title,''), tags.name) COLLATE NATURAL_CI " + direction
 	case "duration":
 		sort = "(scene_markers.end_seconds - scene_markers.seconds)"

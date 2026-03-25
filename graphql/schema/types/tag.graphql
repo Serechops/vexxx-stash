@@ -13,6 +13,8 @@ type Tag {
   image_path: String # Resolver
   scene_count(depth: Int): Int! # Resolver
   scene_marker_count(depth: Int): Int! # Resolver
+  "Count of scene markers where this tag is the primary tag (used to detect deletion conflicts)"
+  scene_marker_primary_count: Int! # Resolver
   image_count(depth: Int): Int! # Resolver
   gallery_count(depth: Int): Int! # Resolver
   performer_count(depth: Int): Int! # Resolver
@@ -63,6 +65,8 @@ input TagUpdateInput {
 
 input TagDestroyInput {
   id: ID!
+  "Reassign scene markers that use this tag as their primary tag to this tag instead of deleting them"
+  reassign_primary_tag_id: ID
 }
 
 type FindTagsResultType {

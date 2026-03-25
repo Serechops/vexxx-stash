@@ -7,14 +7,13 @@ import * as GQL from "src/core/generated-graphql";
 import {
   queryFindTagsForList,
   useFindTagsForList,
-  useTagsDestroy,
 } from "src/core/StashService";
 import { useFilteredItemList } from "../List/ItemList";
 import { ListFilterModel } from "src/models/list-filter/filter";
 import { DisplayMode } from "src/models/list-filter/types";
 import { ExportDialog } from "../Shared/ExportDialog";
-import { DeleteEntityDialog } from "../Shared/DeleteEntityDialog";
 import { SmartTagCardGrid } from "./VirtualizedTagCardGrid";
+import { DeleteTagDialog } from "./DeleteTagDialog";
 import { View } from "../List/views";
 import { EditTagsDialog } from "./EditTagsDialog";
 import {
@@ -44,10 +43,7 @@ import { Button } from "@mui/material";
 import { TagMergeModal } from "./TagMergeDialog";
 import { Tag } from "./TagSelect";
 import { TagListTable } from "./TagListTable";
-import DeleteIcon from "@mui/icons-material/Delete";
-import { ModalComponent } from "../Shared/Modal";
 import { useToast } from "src/hooks/Toast";
-import { tagRelationHook } from "../../core/tags";
 import cx from "classnames";
 
 const TagList: React.FC<{
@@ -220,8 +216,8 @@ export const FilteredTagList = PatchComponent(
     } = useSidebarState(view);
 
     const [mergeTags, setMergeTags] = useState<Tag[] | undefined>(undefined);
-    const [deletingTag, setDeletingTag] =
-      useState<GQL.TagListDataFragment | null>(null);
+    const [deletingTags, setDeletingTags] =
+      useState<GQL.TagListDataFragment[] | null>(null);
 
     const { filterState, queryResult, modalState, listSelect, showEditFilter } =
       useFilteredItemList({
@@ -266,8 +262,6 @@ export const FilteredTagList = PatchComponent(
       setShowSidebar,
     });
 
-    const [destroyTag] = GQL.useTagDestroyMutation();
-
     const onCloseEditDelete = useCloseEditDelete({
       closeModal,
       onSelectNone,
@@ -288,21 +282,9 @@ export const FilteredTagList = PatchComponent(
 
     const onDelete = () => {
       showModal(
-        <DeleteEntityDialog
+        <DeleteTagDialog
           selected={selectedItems}
           onClose={onCloseEditDelete}
-          singularEntity={intl.formatMessage({ id: "tag" })}
-          pluralEntity={intl.formatMessage({ id: "tags" })}
-          destroyMutation={useTagsDestroy}
-          onDeleted={() => {
-            selectedItems.forEach((t) =>
-              tagRelationHook(
-                t,
-                { parents: t.parents ?? [], children: t.children ?? [] },
-                { parents: [], children: [] }
-              )
-            );
-          }}
         />
       );
     };
@@ -326,33 +308,7 @@ export const FilteredTagList = PatchComponent(
       };
     });
 
-    async function onDeleteSingle() {
-      if (!deletingTag) return;
-      try {
-        const oldRelations = {
-          parents: deletingTag.parents ?? [],
-          children: deletingTag.children ?? [],
-        };
-        await destroyTag({ variables: { id: deletingTag.id } });
-        tagRelationHook(deletingTag, oldRelations, {
-          parents: [],
-          children: [],
-        });
-        Toast.success(
-          intl.formatMessage(
-            { id: "toast.delete_past_tense" },
-            {
-              count: 1,
-              singularEntity: intl.formatMessage({ id: "tag" }),
-              pluralEntity: intl.formatMessage({ id: "tags" }),
-            }
-          )
-        );
-        setDeletingTag(null);
-      } catch (e) {
-        Toast.error(e);
-      }
-    }
+
 
     const onExport = (isAll: boolean) => {
       showModal(
@@ -440,25 +396,11 @@ export const FilteredTagList = PatchComponent(
           />
         )}
 
-        {deletingTag && (
-          <ModalComponent
-            onHide={() => setDeletingTag(null)}
-            show={true}
-            icon={<DeleteIcon />}
-            accept={{
-              onClick: onDeleteSingle,
-              variant: "danger",
-              text: intl.formatMessage({ id: "actions.delete" }),
-            }}
-            cancel={{ onClick: () => setDeletingTag(null) }}
-          >
-            <span>
-              <FormattedMessage
-                id="dialogs.delete_confirm"
-                values={{ entityName: deletingTag.name }}
-              />
-            </span>
-          </ModalComponent>
+        {deletingTags && (
+          <DeleteTagDialog
+            selected={deletingTags}
+            onClose={() => setDeletingTags(null)}
+          />
         )}
 
         <SidebarStateContext.Provider value={{ sectionOpen, setSectionOpen }}>

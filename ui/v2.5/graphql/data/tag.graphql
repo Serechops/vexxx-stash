@@ -76,6 +76,7 @@ fragment TagListData on Tag {
   # Direct counts only - no recursive depth queries
   scene_count
   scene_marker_count
+  scene_marker_primary_count
   image_count
   gallery_count
   performer_count

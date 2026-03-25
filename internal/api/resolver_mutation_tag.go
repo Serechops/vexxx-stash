@@ -359,7 +359,17 @@ func (r *mutationResolver) TagDestroy(ctx context.Context, input TagDestroyInput
 	}
 
 	if err := r.withTxn(ctx, func(ctx context.Context) error {
-		return r.repository.Tag.Destroy(ctx, tagID)
+		qb := r.repository.Tag
+		if input.ReassignPrimaryTagID != nil {
+			reassignID, err := strconv.Atoi(*input.ReassignPrimaryTagID)
+			if err != nil {
+				return fmt.Errorf("converting reassign tag id: %w", err)
+			}
+			if err := qb.ReassignPrimaryMarkers(ctx, tagID, reassignID); err != nil {
+				return err
+			}
+		}
+		return qb.Destroy(ctx, tagID)
 	}); err != nil {
 		return false, err
 	}
@@ -369,15 +379,29 @@ func (r *mutationResolver) TagDestroy(ctx context.Context, input TagDestroyInput
 	return true, nil
 }
 
-func (r *mutationResolver) TagsDestroy(ctx context.Context, tagIDs []string) (bool, error) {
+func (r *mutationResolver) TagsDestroy(ctx context.Context, tagIDs []string, reassignPrimaryTagID *string) (bool, error) {
 	ids, err := stringslice.StringSliceToIntSlice(tagIDs)
 	if err != nil {
 		return false, fmt.Errorf("converting ids: %w", err)
 	}
 
+	var reassignID *int
+	if reassignPrimaryTagID != nil {
+		id, err := strconv.Atoi(*reassignPrimaryTagID)
+		if err != nil {
+			return false, fmt.Errorf("converting reassign tag id: %w", err)
+		}
+		reassignID = &id
+	}
+
 	if err := r.withTxn(ctx, func(ctx context.Context) error {
 		qb := r.repository.Tag
 		for _, id := range ids {
+			if reassignID != nil {
+				if err := qb.ReassignPrimaryMarkers(ctx, id, *reassignID); err != nil {
+					return err
+				}
+			}
 			if err := qb.Destroy(ctx, id); err != nil {
 				return err
 			}

@@ -67,6 +67,9 @@ type TagUpdater interface {
 // TagDestroyer provides methods to destroy tags.
 type TagDestroyer interface {
 	Destroy(ctx context.Context, id int) error
+	// ReassignPrimaryMarkers updates all scene markers that use fromTagID as their primary tag to use toTagID instead.
+	// This is an optional step before deletion; without it the DB will set primary_tag_id to NULL on deletion.
+	ReassignPrimaryMarkers(ctx context.Context, fromTagID, toTagID int) error
 }
 
 type TagFinderCreator interface {

@@ -19,8 +19,12 @@ func (r *sceneMarkerResolver) Scene(ctx context.Context, obj *models.SceneMarker
 }
 
 func (r *sceneMarkerResolver) PrimaryTag(ctx context.Context, obj *models.SceneMarker) (ret *models.Tag, err error) {
+	if obj.PrimaryTagID == nil {
+		return nil, nil
+	}
+
 	if err := r.withReadTxn(ctx, func(ctx context.Context) error {
-		ret, err = r.repository.Tag.Find(ctx, obj.PrimaryTagID)
+		ret, err = r.repository.Tag.Find(ctx, *obj.PrimaryTagID)
 		return err
 	}); err != nil {
 		return nil, err

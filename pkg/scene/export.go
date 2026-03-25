@@ -153,7 +153,9 @@ func GetDependentTagIDs(ctx context.Context, tags TagFinder, markerReader models
 	}
 
 	for _, smm := range sm {
-		ret = sliceutil.AppendUnique(ret, smm.PrimaryTagID)
+		if smm.PrimaryTagID != nil {
+			ret = sliceutil.AppendUnique(ret, *smm.PrimaryTagID)
+		}
 		smmt, err := tags.FindBySceneMarkerID(ctx, smm.ID)
 		if err != nil {
 			return nil, fmt.Errorf("invalid tags for scene marker: %v", err)
@@ -216,9 +218,15 @@ func GetSceneMarkersJSON(ctx context.Context, markerReader models.SceneMarkerFin
 	var results []jsonschema.SceneMarker
 
 	for _, sceneMarker := range sceneMarkers {
-		primaryTag, err := tagReader.Find(ctx, sceneMarker.PrimaryTagID)
-		if err != nil {
-			return nil, fmt.Errorf("invalid primary tag for scene marker: %v", err)
+		var primaryTagName string
+		if sceneMarker.PrimaryTagID != nil {
+			primaryTag, err := tagReader.Find(ctx, *sceneMarker.PrimaryTagID)
+			if err != nil {
+				return nil, fmt.Errorf("invalid primary tag for scene marker: %v", err)
+			}
+			if primaryTag != nil {
+				primaryTagName = primaryTag.Name
+			}
 		}
 
 		sceneMarkerTags, err := tagReader.FindBySceneMarkerID(ctx, sceneMarker.ID)
@@ -229,7 +237,7 @@ func GetSceneMarkersJSON(ctx context.Context, markerReader models.SceneMarkerFin
 		sceneMarkerJSON := jsonschema.SceneMarker{
 			Title:      sceneMarker.Title,
 			Seconds:    getDecimalString(sceneMarker.Seconds),
-			PrimaryTag: primaryTag.Name,
+			PrimaryTag: primaryTagName,
 			Tags:       getTagNames(sceneMarkerTags),
 			CreatedAt:  json.JSONTime{Time: sceneMarker.CreatedAt},
 			UpdatedAt:  json.JSONTime{Time: sceneMarker.UpdatedAt},

@@ -128,6 +128,20 @@ func (_m *TagReaderWriter) Destroy(ctx context.Context, id int) error {
 	return r0
 }
 
+// ReassignPrimaryMarkers provides a mock function with given fields: ctx, fromTagID, toTagID
+func (_m *TagReaderWriter) ReassignPrimaryMarkers(ctx context.Context, fromTagID int, toTagID int) error {
+	ret := _m.Called(ctx, fromTagID, toTagID)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, int, int) error); ok {
+		r0 = rf(ctx, fromTagID, toTagID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // Find provides a mock function with given fields: ctx, id
 func (_m *TagReaderWriter) Find(ctx context.Context, id int) (*models.Tag, error) {
 	ret := _m.Called(ctx, id)

@@ -305,12 +305,17 @@ func (rs sceneRoutes) getChapterVttTitle(r *http.Request, marker *models.SceneMa
 	var title string
 	if err := rs.withReadTxn(r, func(ctx context.Context) error {
 		qb := rs.tagFinder
-		primaryTag, err := qb.Find(ctx, marker.PrimaryTagID)
-		if err != nil {
-			return err
-		}
 
-		title = primaryTag.Name
+		if marker.PrimaryTagID != nil {
+			primaryTag, err := qb.Find(ctx, *marker.PrimaryTagID)
+			if err != nil {
+				return err
+			}
+
+			if primaryTag != nil {
+				title = primaryTag.Name
+			}
+		}
 
 		tags, err := qb.FindBySceneMarkerID(ctx, marker.ID)
 		if err != nil {

@@ -1144,7 +1144,7 @@ func TestTagMerge(t *testing.T) {
 			return err
 		}
 
-		assert.Equal(destID, marker.PrimaryTagID)
+		assert.Equal(destID, *marker.PrimaryTagID)
 
 		markerTagIDs, err := mqb.GetTagIDs(ctx, marker.ID)
 		if err != nil {

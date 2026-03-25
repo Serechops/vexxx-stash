@@ -4,12 +4,12 @@ mutation TagCreate($input: TagCreateInput!) {
   }
 }
 
-mutation TagDestroy($id: ID!) {
-  tagDestroy(input: { id: $id })
+mutation TagDestroy($id: ID!, $reassignPrimaryTagId: ID) {
+  tagDestroy(input: { id: $id, reassign_primary_tag_id: $reassignPrimaryTagId })
 }
 
-mutation TagsDestroy($ids: [ID!]!) {
-  tagsDestroy(ids: $ids)
+mutation TagsDestroy($ids: [ID!]!, $reassignPrimaryTagId: ID) {
+  tagsDestroy(ids: $ids, reassign_primary_tag_id: $reassignPrimaryTagId)
 }
 
 mutation TagUpdate($input: TagUpdateInput!) {

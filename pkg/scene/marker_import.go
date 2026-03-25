@@ -62,7 +62,8 @@ func (i *MarkerImporter) populateTags(ctx context.Context) error {
 		return err
 	}
 
-	i.marker.PrimaryTagID = primaryTag[0].ID
+	primaryTagID := primaryTag[0].ID
+	i.marker.PrimaryTagID = &primaryTagID
 
 	if len(i.Input.Tags) > 0 {
 		tags, err := importTags(ctx, i.TagWriter, i.Input.Tags, i.MissingRefBehaviour)

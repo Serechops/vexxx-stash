@@ -400,13 +400,16 @@ func (r *queryResolver) SceneMarkerTags(ctx context.Context, scene_id string) ([
 
 		tqb := r.repository.Tag
 		for _, sceneMarker := range sceneMarkers {
-			markerPrimaryTag, err := tqb.Find(ctx, sceneMarker.PrimaryTagID)
+			if sceneMarker.PrimaryTagID == nil {
+				continue
+			}
+			markerPrimaryTag, err := tqb.Find(ctx, *sceneMarker.PrimaryTagID)
 			if err != nil {
 				return err
 			}
 
 			if markerPrimaryTag == nil {
-				return fmt.Errorf("tag with id %d not found", sceneMarker.PrimaryTagID)
+				return fmt.Errorf("tag with id %d not found", *sceneMarker.PrimaryTagID)
 			}
 
 			_, hasKey := tags[markerPrimaryTag.ID]

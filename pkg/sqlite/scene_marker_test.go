@@ -160,7 +160,9 @@ func TestMarkerQueryTags(t *testing.T) {
 
 			// HACK - if modifier isn't null/not null, then add the primary tag id
 			if markerFilter.Tags.Modifier != models.CriterionModifierIsNull && markerFilter.Tags.Modifier != models.CriterionModifierNotNull {
-				tagIDs = append(tagIDs, m.PrimaryTagID)
+				if m.PrimaryTagID != nil {
+					tagIDs = append(tagIDs, *m.PrimaryTagID)
+				}
 			}
 
 			values, _ := stringslice.StringSliceToIntSlice(markerFilter.Tags.Value)

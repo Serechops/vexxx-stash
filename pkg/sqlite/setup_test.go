@@ -1870,9 +1870,10 @@ func getMarkerEndSeconds(index int) *float64 {
 
 func createMarker(ctx context.Context, mqb models.SceneMarkerReaderWriter, markerSpec markerSpec) error {
 	markerIdx := len(markerIDs)
+	primaryTagID := tagIDs[markerSpec.primaryTagIdx]
 	marker := models.SceneMarker{
 		SceneID:      sceneIDs[markerSpec.sceneIdx],
-		PrimaryTagID: tagIDs[markerSpec.primaryTagIdx],
+		PrimaryTagID: &primaryTagID,
 		EndSeconds:   getMarkerEndSeconds(markerIdx),
 	}
 

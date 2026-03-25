@@ -25,6 +25,7 @@ type SceneMarkerQueryer interface {
 type SceneMarkerCounter interface {
 	Count(ctx context.Context) (int, error)
 	CountByTagID(ctx context.Context, tagID int) (int, error)
+	CountByPrimaryTagID(ctx context.Context, tagID int) (int, error)
 }
 
 // SceneMarkerCreator provides methods to create scene markers.

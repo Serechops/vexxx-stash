@@ -314,19 +314,14 @@ func (qb *TagStore) Destroy(ctx context.Context, id int) error {
 		return err
 	}
 
-	// cannot unset primary_tag_id in scene_markers because it is not nullable
-	countQuery := "SELECT COUNT(*) as count FROM scene_markers where primary_tag_id = ?"
-	args := []interface{}{id}
-	primaryMarkers, err := tagRepository.runCountQuery(ctx, countQuery, args)
-	if err != nil {
-		return err
-	}
-
-	if primaryMarkers > 0 {
-		return errors.New("cannot delete tag used as a primary tag in scene markers")
-	}
-
 	return tagRepository.destroyExisting(ctx, []int{id})
+}
+
+// ReassignPrimaryMarkers updates all scene markers that use fromTagID as their primary tag to use toTagID instead.
+// Call this before Destroy when the caller wants to preserve markers by moving them to a different tag.
+func (qb *TagStore) ReassignPrimaryMarkers(ctx context.Context, fromTagID, toTagID int) error {
+	_, err := dbWrapper.Exec(ctx, "UPDATE "+sceneMarkerTable+" SET primary_tag_id = ? WHERE primary_tag_id = ?", toTagID, fromTagID)
+	return err
 }
 
 // returns nil, nil if not found

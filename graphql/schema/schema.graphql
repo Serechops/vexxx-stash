@@ -430,7 +430,7 @@ type Mutation {
   tagsCreate(input: [TagCreateInput!]!): [Tag]
   tagUpdate(input: TagUpdateInput!): Tag
   tagDestroy(input: TagDestroyInput!): Boolean!
-  tagsDestroy(ids: [ID!]!): Boolean!
+  tagsDestroy(ids: [ID!]!, reassign_primary_tag_id: ID): Boolean!
   tagsMerge(input: TagsMergeInput!): Tag
   bulkTagUpdate(input: BulkTagUpdateInput!): [Tag!]
 

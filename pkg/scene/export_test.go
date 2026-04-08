@@ -82,6 +82,8 @@ var (
 	updateTime = time.Date(2002, 01, 01, 0, 0, 0, 0, time.UTC)
 )
 
+func intPtr(i int) *int { return &i }
+
 func createFullScene(id int) models.Scene {
 	return models.Scene{
 		ID:        id,
@@ -513,7 +515,7 @@ var validMarkers = []*models.SceneMarker{
 	{
 		ID:           validMarkerID1,
 		Title:        markerTitle1,
-		PrimaryTagID: validTagID1,
+		PrimaryTagID: intPtr(validTagID1),
 		Seconds:      markerSeconds1,
 		CreatedAt:    createTime,
 		UpdatedAt:    updateTime,
@@ -521,7 +523,7 @@ var validMarkers = []*models.SceneMarker{
 	{
 		ID:           validMarkerID2,
 		Title:        markerTitle2,
-		PrimaryTagID: validTagID2,
+		PrimaryTagID: intPtr(validTagID2),
 		Seconds:      markerSeconds2,
 		CreatedAt:    createTime,
 		UpdatedAt:    updateTime,
@@ -531,14 +533,14 @@ var validMarkers = []*models.SceneMarker{
 var invalidMarkers1 = []*models.SceneMarker{
 	{
 		ID:           invalidMarkerID1,
-		PrimaryTagID: invalidTagID,
+		PrimaryTagID: intPtr(invalidTagID),
 	},
 }
 
 var invalidMarkers2 = []*models.SceneMarker{
 	{
 		ID:           invalidMarkerID2,
-		PrimaryTagID: validTagID1,
+		PrimaryTagID: intPtr(validTagID1),
 	},
 }
 

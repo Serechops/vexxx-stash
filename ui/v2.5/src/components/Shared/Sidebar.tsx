@@ -85,7 +85,7 @@ export const SidebarPaneContent: React.FC<{ onSidebarToggle: () => void }> = ({
   children,
 }) => {
   return (
-    <div className="sidebar-pane-content">
+    <div className="sidebar-pane-content" style={{ position: "relative" }}>
       <SidebarToggleButton onClick={onSidebarToggle} />
       {children}
     </div>

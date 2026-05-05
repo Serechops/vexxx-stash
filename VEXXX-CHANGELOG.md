@@ -1,6 +1,195 @@
 # VEXXX Changelog
 
-Commits since 3b2f512b85be85f0d4a18c2507950438834563ca (exclusive) up to HEAD
+Commits since 9d8adbdb21def80cd28dd585ec0347561c73e6df (exclusive) up to HEAD
+
+### feat(ui): MUI style upgrades across Settings panels + fix log level filtering (12bad78f)
+
+Scrapers & Stash-box:
+- `ui/v2.5/src/components/Settings/SettingsScrapingPanel.tsx`: Replace plain HTML table/ul/li with MUI Table (size="small", hover rows); Chip badges (outlined) for scrape types; MUI Link components for URLs
+- `ui/v2.5/src/components/Settings/StashBoxConfiguration.tsx`: Replace div.setting endpoint rows with MUI Table (Name / Endpoint / Actions columns, hover rows); outlined Edit/Delete buttons in Stack; Add button below table; widen endpoint edit modal to `maxWidth="md"` fullWidth
+
+Logs panel:
+- Replace `div.logs` with scrollable Paper (variant="outlined", 60vh max); Chip severity badges per log level with monospace font; warning/error rows get coloured backgrounds
+- Add `LOG_LEVEL_ORDER` including `Progress` in correct ordinal position — fixes Progress entries always being hidden (`indexOf` returned -1 against old array)
+- Fix `filterByLogLevel` to use `LOG_LEVEL_ORDER` for both sides of the comparison; unknown levels fall through to always-shown
+- Correct Chip colour mapping: Info → "info" (solid blue) instead of "success" (green); Progress → "primary" filled; trace/debug render outlined (muted)
+
+---
+
+### feat(ui): MUI style upgrades for Scene File Info and History tabs (ff765d98)
+
+SceneFileInfoPanel:
+- Replace `dl.scene-file-info`/`details-list` with MUI Table InfoRow entries for all file metadata (hash, checksum, phash, filesize, mod time, duration, dimensions, framerate, bitrate, codecs, path)
+- "Primary file" badge → `Chip size="small" color="primary"`; PHash link uses react-router `Link` for internal nav
+- Scene-level stream URL, funscript, interactive speed, stash IDs, and scene URLs consolidated into a single Table
+- Action buttons: `className="edit-button"` → `size="small" variant="outlined"`; Delete retains `variant="contained" color="error"`
+
+SceneHistoryPanel:
+- Replace ul/li history list with Table size="small" hover rows; timestamps use monospace Typography; delete icon right-aligned
+- Section headers → `Stack direction="row"` with Typography subtitle1 + Counter; sections separated by Divider
+- `play_duration` → single-row Table with muted label cell; only rendered when duration > 0
+- HistoryMenu: replace `slotProps.backdrop.invisible` with app-wide `hideBackdrop + disableScrollLock + pointerEvents:none` pattern; eliminates page dimming when menu is open
+
+---
+
+### fix(ui): restore scene cover image upload button; deep-link card counts to detail tabs (4d86e5b4)
+
+SceneEditPanel:
+- Replace orphaned hidden `<input type="file">` with `<ImageInput isEditing onImageChange onImageURL>` — restores the "Browse for Image" button with clipboard/URL popover support
+- Remove stale `scrape_image_text` hint block below image input
+
+StudioCard:
+- All `PopoverCountButton` url props changed from NavUtils filtered list views to `/studios/:id/<tab>` deep links (scenes, galleries, images, performers, groups)
+
+TagCard:
+- All `PopoverCountButton` url props changed to `/tags/:id/<tab>` deep links matching tag detail page tabs (scenes, images, galleries, groups, markers, performers, studios)
+
+---
+
+### fix(dlna): remove unused sceneFilter param from getSortDirection; refactor(ui): upgrade SceneDetailPanel to MUI styling (ff028897)
+
+- `internal/dlna`: Remove unused `sceneFilter` parameter from `getSortDirection`
+- `ui/v2.5/src/components/Scenes/SceneDetailPanel.tsx`: Replace h6/p/div with MUI Table, Typography, Box, Divider; metadata rows in compact Table size="small"; reorder layout to Details → metadata table → Tags → Performers; remove dead `sceneDetailsWidth` variable
+
+---
+
+### refactor(ui): polish SceneDetailPanel tags and SceneSegmentsPanel source info (2a83cab5)
+
+- `SceneDetailPanel`: Wrap tags chip list in a scrollable Box (maxHeight 9rem, overflowY auto)
+- `SceneSegmentsPanel`: Replace Source File info Box with Typography subtitle1 heading + Divider + Table size="small" rows for Path, Duration, Resolution, and Codec
+
+---
+
+### refactor(ui): upgrade GalleryDetailPanel and GalleryFileInfoPanel to MUI (27aeb734)
+
+GalleryDetailPanel:
+- Replace h6 metadata rows with labelSx/valueSx Table size="small"; replace h6/p.pre details block with Typography subtitle1 + body2; wrap tags in scrollable Box (maxHeight 9rem); wrap performers in horizontal-scroll snap Box
+- Layout order: details → Divider → metadata table → tags → performers
+
+GalleryFileInfoPanel:
+- Replace `dl.details-list` with single Table size="small" (checksum, mod time, path rows); primary-file indicator as Typography body2 above table
+- Upgrade URLs section heading to subtitle1 fontWeight={600} + Divider
+
+---
+
+### feat(ui/galleries): add studio logo section and per-performer scene filter chips (4cfc0c57)
+
+- `GalleryDetailPanel`: Add studio section below tags showing studio logo (or name fallback) linked to studio page; logo in explicit 8rem container for consistent height
+- `GalleryEditPanel`: Add per-performer filter chips above SceneSelect; clicking a chip filters scene dropdown to scenes featuring that performer; clicking again clears; SceneSelect remounted on filter change to bypass AsyncSelect's `defaultOptions` cache
+- `ui/v2.5/src/locales/en-GB.json`: Add `filter_by_performer` / `filter_by_performer_active` locale keys
+
+---
+
+### feat(ui/images): upgrade ImageDetailPanel and ImageFileInfoPanel to MUI (29b30be4)
+
+ImageDetailPanel:
+- Replace h6/bootstrap-grid markup with MUI Table for metadata rows (created_at, updated_at, scene_code, photographer); add Divider + Typography section headings; scrollable tags and horizontal-scroll performer cards
+
+ImageFileInfoPanel:
+- Replace `dl.details-list` with MUI Table rows for all file metadata (checksum, phash, filesize, mod_time, dimensions, path); phash value links to pHash image match search; remove TextField/URLField/URLsField imports
+
+---
+
+### feat(ui/tags): upgrade TagPopover tooltip with icon count buttons and always-visible image (e5c7885d)
+
+- Replace text count links with `PopoverCountButton` (icon + count) matching TagCard pattern; use `showZero={false}` to hide zero counts
+- Remove `default=true` exclusion so tag image/placeholder always renders in tooltip
+
+---
+
+### fix(ui/tags): constrain tag header image to prevent layout overflow (ce3b0db1)
+
+- Cap `DetailImage` to `maxHeight: 16rem` and override JS-set width attribute with `width/height: auto` to prevent oversized or portrait images stretching the tag page header
+
+---
+
+### fix(ui): fix grid overlapping at 40+ items; tag tooltip & list polish (7fed031c)
+
+- `SmartTagCardGrid`, `SmartImageGridCard`, `SmartSceneCardsGrid`: Always delegate to plain CSS grid variants, bypassing broken virtualizers whose absolute-positioned rows were computed against the wrong scroll origin
+- `TagPopover`: Replace text links with PopoverCountButton icon+count badges; always render tag image (remove `hasImage` guard)
+- `Tag.tsx`: Constrain `DetailImage` header to `maxHeight: 16rem` / `width: auto`
+- `TagList.tsx`: Fix lint errors (duplicate `StashService` import, unused intl, use-before-define, no-shadow); fix TS errors with `GQL.useTagDestroyMutation`, real Apollo result in `extraOperations`, remove `onInvertSelection`
+
+---
+
+### feat: make scene_marker.primary_tag_id nullable (ON DELETE SET NULL) (f0b99215)
+
+Migration 88: Recreate `scene_markers` with nullable `primary_tag_id` and `ON DELETE SET NULL` FK constraint. Deleting a tag now clears its markers' primary tag via DB cascade rather than blocking deletion.
+
+Backend:
+- `SceneMarker.PrimaryTagID`: `int` → `*int` throughout the stack; SQLite store uses `null.Int` row type with LEFT JOINs; `PrimaryTag` resolver returns nil when PrimaryTagID is nil
+- `resolver.go`, `routes_scene.go`, `export.go`, `marker_import.go`: nil guards added; `TagsDestroy` removes `deleteMarkers` parameter; `tag.Destroy()` removes pre-delete guard
+
+GraphQL schema:
+- `SceneMarker.primary_tag`: `Tag!` → `Tag` (nullable); `TagDestroyInput`: remove `delete_markers` field; `tagsDestroy` mutation: remove `delete_markers` argument
+
+Frontend:
+- `DeleteTagDialog`: Remove "also delete markers" checkbox; change alert severity warning → info; always delete all selected tags; locale strings updated
+
+---
+
+### feat: add Recycle Bin for soft-delete and restore of entities (24aee012)
+
+Adds a Recycle Bin that snapshots entity data before deletion and allows full restoration including all junction-table associations.
+
+New files:
+- `graphql/schema/types/recycle_bin.graphql` — RecycleBinEntry type, queries, mutations
+- `internal/api/resolver_mutation_recycle_bin.go` — Restore/Purge/PurgeAll resolvers
+- `internal/api/resolver_query_recycle_bin.go` — FindRecycleBinEntries/Count resolver
+- `pkg/models/model_recycle_bin.go` — RecycleBinEntry domain model
+- `pkg/models/repository_recycle_bin.go` — RecycleBin store interface
+- `pkg/sqlite/recycle_bin.go` — SQLite implementation with full snapshot/restore logic
+- `pkg/sqlite/migrations/89_recycle_bin.up.sql` — recycle_bin table migration
+- `ui/v2.5/src/components/Settings/SettingsRecycleBinPanel.tsx` — settings UI panel
+- Frontend GraphQL operation files for mutations/queries
+
+Modified files:
+- `graphql/schema/schema.graphql` — expose recycle bin queries/mutations
+- All entity mutation resolvers (`tag`, `performer`, `studio`, `gallery`, `image`, `group`, `scene`): call `SnapshotXxx` before Destroy; handle optional reassign for tags
+- `pkg/models/repository.go` — add RecycleBin field to Repository
+- `pkg/sqlite/database.go` — register RecycleBinStore; `appSchemaVersion` bumped to 89
+- `ui/v2.5/src/components/Settings/Settings.tsx` — add Recycle Bin tab
+- `ui/v2.5/src/locales/en-GB.json` — locale strings for recycle bin UI
+
+Snapshot coverage: Tag (fields + aliases + parent/child hierarchy + stash IDs + reverse associations); Performer (fields + aliases + urls + tags + stash IDs + reverse associations); Gallery (fields + urls + tag/performer IDs + reverse associations); Group (fields + urls + tags + group_scenes + group hierarchy); Studio, Image, SceneMarker (own fields + direct FK associations)
+
+---
+
+### feat(recycle-bin): add persistent History log tab (75d34334)
+
+Adds a "History" second-level tab to the Recycle Bin settings panel that permanently records every delete, restore, and purge event.
+
+New files:
+- `pkg/sqlite/migrations/90_recycle_bin_history.up.sql` — `recycle_bin_history` table (entity_type, entity_id, entity_name, action, actioned_at, group_id, notes); indexed by date and entity
+
+Backend:
+- `pkg/models/model_recycle_bin.go` — new `RecycleBinHistoryEntry` struct
+- `pkg/models/repository_recycle_bin.go` — `FindHistory` / `CountHistory` added to `RecycleBinReader` interface
+- `pkg/sqlite/recycle_bin.go` — `recycleBinHistoryRow`, `buildNotes()` (human-readable association summary e.g. "3 scenes · 2 secondary markers"), `record()` writes deleted event, Restore/Purge/PurgeAll write history events; `appSchemaVersion` bumped to 90
+- `graphql/schema/types/recycle_bin.graphql` — `RecycleBinHistoryEntry` type
+- `graphql/schema/schema.graphql` — `recycleBinHistory` / `recycleBinHistoryCount` queries
+- `internal/api/resolver_query_recycle_bin.go` — two new resolvers
+
+Frontend:
+- `ui/v2.5/graphql/queries/recycle-bin.graphql` — `RecycleBinHistoryEntryData` fragment; `RecycleBinHistory` / `RecycleBinHistoryCount` queries
+- `ui/v2.5/src/components/Settings/SettingsRecycleBinPanel.tsx` — refactored into `RecycleBinTab` + `HistoryTab` sub-components under shared MUI Tabs switcher; History table: Type / Name / Action (colour-coded chip: red=deleted, green=restored, grey=purged) / Timestamp / Notes
+- `ui/v2.5/src/locales/en-GB.json` — `recycle_bin.history.*` and `recycle_bin.column.*` locale keys
+
+---
+
+### fix: guard Begin() against nil readDB when database not initialised (8ff10ccc)
+
+- `pkg/sqlite/transaction.go`: Add explicit nil check at the top of `Begin()` that returns `ErrDatabaseNotInitialized` instead of dereferencing nil when a migration is pending and `db.Open()` left `readDB`/`writeDB` as nil — converts the crash into a clean GraphQL error while the client is redirected to `/migrate`
+
+---
+
+### feat: use intPtr helper for PrimaryTagID in valid and invalid markers (7bfc63c9)
+
+- Refactors marker test helpers to use `intPtr` for `PrimaryTagID` field assignments following the nullable migration
+
+---
+
+Commits since 3b2f512b85be85f0d4a18c2507950438834563ca (exclusive) up to 9d8adbdb21def80cd28dd585ec0347561c73e6df
 
 ### feat: port upstream Phase 10 quick-win PRs (#6713, #6483)
 

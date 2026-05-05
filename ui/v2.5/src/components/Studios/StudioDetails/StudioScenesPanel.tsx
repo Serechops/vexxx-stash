@@ -26,7 +26,6 @@ export const StudioScenesPanel: React.FC<IStudioScenesPanel> = ({
         view={View.StudioScenes}
         hideFeatured={true}
       />
-
     </>
   );
 };

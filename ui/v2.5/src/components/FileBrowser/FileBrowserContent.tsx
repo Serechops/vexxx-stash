@@ -43,6 +43,7 @@ type ContentRow = {
   href: string;
   size: number;
   mod_time: string;
+  thumbnailUrl: string | null;
 };
 
 const TYPE_LABELS: Record<ContentRow["type"], string> = {
@@ -188,6 +189,7 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
           href: `/scenes/${scene.id}`,
           size: file.size,
           mod_time: file.mod_time,
+          thumbnailUrl: scene.paths.screenshot ?? null,
         });
       }
     }
@@ -206,6 +208,7 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
           href: `/images/${image.id}`,
           size: file.size,
           mod_time: file.mod_time,
+          thumbnailUrl: image.paths.thumbnail ?? null,
         });
       }
     }
@@ -223,6 +226,7 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
           href: `/galleries/${gallery.id}`,
           size: file.size,
           mod_time: file.mod_time,
+          thumbnailUrl: gallery.paths.cover ?? null,
         });
       }
     }
@@ -426,6 +430,12 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
                   />
                 </TableSortLabel>
               </TableCell>
+              <TableCell sx={{ width: 120 }}>
+                <FormattedMessage
+                  id="file_browser.col_preview"
+                  defaultMessage="Preview"
+                />
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -452,6 +462,7 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
                     <Typography
                       variant="body2"
                       color="primary"
+                      noWrap
                       sx={{ "&:hover": { textDecoration: "underline" } }}
                     >
                       {row.basename}
@@ -478,6 +489,32 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
                   <Typography variant="body2" color="text.secondary">
                     {new Date(row.mod_time).toLocaleString()}
                   </Typography>
+                </TableCell>
+                <TableCell sx={{ py: 0.5, width: 120 }}>
+                  {row.thumbnailUrl ? (
+                    <Box
+                      component="img"
+                      src={row.thumbnailUrl}
+                      alt=""
+                      sx={{
+                        display: "block",
+                        width: 112,
+                        height: 63,
+                        objectFit: "cover",
+                        borderRadius: 0.5,
+                        bgcolor: "action.hover",
+                      }}
+                    />
+                  ) : (
+                    <Box
+                      sx={{
+                        width: 112,
+                        height: 63,
+                        borderRadius: 0.5,
+                        bgcolor: "action.hover",
+                      }}
+                    />
+                  )}
                 </TableCell>
               </TableRow>
             ))}

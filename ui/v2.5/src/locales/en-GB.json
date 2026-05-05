@@ -1237,6 +1237,7 @@
   "file_browser.bulk_move": "Move To\u2026",
   "file_browser.clear_selection": "Clear",
   "file_browser.search_placeholder": "Filter by name\u2026",
+  "file_browser.col_preview": "Preview",
   "front_page": {
     "types": {
       "premade_filter": "Premade Filter",

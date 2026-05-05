@@ -25,6 +25,9 @@ query FileBrowserScenes(
     scenes {
       id
       title
+      paths {
+        screenshot
+      }
       files {
         id
         basename
@@ -47,6 +50,9 @@ query FileBrowserImages(
     images {
       id
       title
+      paths {
+        thumbnail
+      }
       visual_files {
         ... on VideoFile {
           id
@@ -80,6 +86,9 @@ query FileBrowserGalleries(
     galleries {
       id
       title
+      paths {
+        cover
+      }
       files {
         id
         basename

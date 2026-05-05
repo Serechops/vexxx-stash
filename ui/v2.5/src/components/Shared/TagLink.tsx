@@ -16,7 +16,7 @@ import { PatchComponent } from "src/patch";
 
 type SceneMarkerFragment = Pick<GQL.SceneMarker, "id" | "title" | "seconds"> & {
   scene: Pick<GQL.Scene, "id">;
-  primary_tag: Pick<GQL.Tag, "id" | "name">;
+  primary_tag: Pick<GQL.Tag, "id" | "name"> | null;
 };
 
 interface ISortNameLinkProps {

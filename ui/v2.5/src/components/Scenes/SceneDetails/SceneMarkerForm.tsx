@@ -93,7 +93,7 @@ export const SceneMarkerForm: React.FC<ISceneMarkerForm> = ({
       title: marker?.title ?? "",
       seconds: marker?.seconds ?? Math.round(getPlayerPosition() ?? 0),
       end_seconds: marker?.end_seconds ?? null,
-      primary_tag_id: marker?.primary_tag.id ?? "",
+      primary_tag_id: marker?.primary_tag?.id ?? "",
       tag_ids: marker?.tags.map((tag) => tag.id) ?? [],
     };
   }, [marker]);

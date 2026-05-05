@@ -233,7 +233,7 @@ function handleHotkeys(player: VideoJsPlayer, event: videojs.KeyboardEvent) {
 }
 
 type MarkerFragment = Pick<GQL.SceneMarker, "title" | "seconds"> & {
-  primary_tag: Pick<GQL.Tag, "name">;
+  primary_tag: Pick<GQL.Tag, "name"> | null;
   tags: Array<Pick<GQL.Tag, "name">>;
 };
 
@@ -242,7 +242,7 @@ function getMarkerTitle(marker: MarkerFragment) {
     return marker.title;
   }
 
-  let ret = marker.primary_tag.name;
+  let ret = marker.primary_tag?.name ?? "";
   if (marker.tags.length) {
     ret += `, ${marker.tags.map((t) => t.name).join(", ")}`;
   }

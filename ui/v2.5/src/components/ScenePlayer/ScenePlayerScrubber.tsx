@@ -356,7 +356,7 @@ export const ScenePlayerScrubber: React.FC<IScenePlayerScrubberProps> = ({
             },
           }}
         >
-          {marker.title || marker.primary_tag.name}
+          {marker.title || marker.primary_tag?.name}
         </Box>
       );
     });

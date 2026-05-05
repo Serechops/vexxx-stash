@@ -204,7 +204,7 @@ export const WallItem = <T extends WallItemType>({
   const tags = useMemo(() => {
     if (type === "sceneMarker") {
       const sceneMarker = data as GQL.SceneMarkerDataFragment;
-      return [sceneMarker.primary_tag, ...sceneMarker.tags];
+      return [...(sceneMarker.primary_tag ? [sceneMarker.primary_tag] : []), ...sceneMarker.tags];
     }
   }, [type, data]);
 

@@ -43,13 +43,17 @@ const SceneMarkerCardPopovers = PatchComponent(
     }
 
     function renderTagPopoverButton() {
-      const popoverContent = [
-        <TagLink
-          key={props.marker.primary_tag.id}
-          tag={props.marker.primary_tag}
-          linkType="scene_marker"
-        />,
-      ];
+      const popoverContent: React.ReactElement[] = [];
+
+      if (props.marker.primary_tag) {
+        popoverContent.push(
+          <TagLink
+            key={props.marker.primary_tag.id}
+            tag={props.marker.primary_tag}
+            linkType="scene_marker"
+          />
+        );
+      }
 
       props.marker.tags.map((tag) =>
         popoverContent.push(

@@ -30,6 +30,9 @@ query FileBrowserScenes(
         basename
         size
         mod_time
+        parent_folder {
+          id
+        }
       }
     }
   }
@@ -50,12 +53,18 @@ query FileBrowserImages(
           basename
           size
           mod_time
+          parent_folder {
+            id
+          }
         }
         ... on ImageFile {
           id
           basename
           size
           mod_time
+          parent_folder {
+            id
+          }
         }
       }
     }
@@ -76,6 +85,9 @@ query FileBrowserGalleries(
         basename
         size
         mod_time
+        parent_folder {
+          id
+        }
       }
     }
   }

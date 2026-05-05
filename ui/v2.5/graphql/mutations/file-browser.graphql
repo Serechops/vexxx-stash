@@ -1,0 +1,24 @@
+mutation FileBrowserMoveFiles($input: MoveFilesInput!) {
+  moveFiles(input: $input)
+}
+
+mutation FileBrowserSceneUpdateTitle($input: SceneUpdateInput!) {
+  sceneUpdate(input: $input) {
+    id
+    title
+  }
+}
+
+mutation FileBrowserImageUpdateTitle($input: ImageUpdateInput!) {
+  imageUpdate(input: $input) {
+    id
+    title
+  }
+}
+
+mutation FileBrowserGalleryUpdateTitle($input: GalleryUpdateInput!) {
+  galleryUpdate(input: $input) {
+    id
+    title
+  }
+}

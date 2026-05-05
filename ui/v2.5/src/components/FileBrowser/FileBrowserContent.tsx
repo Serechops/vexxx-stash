@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { FormattedMessage } from "react-intl";
 import {
   Box,
+  Button,
+  Checkbox,
   Chip,
   CircularProgress,
   Pagination,
@@ -12,10 +14,14 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Toolbar,
   Typography,
 } from "@mui/material";
+import DriveFileMoveIcon from "@mui/icons-material/DriveFileMove";
 import * as GQL from "src/core/generated-graphql";
 import { FileSize } from "src/components/Shared/FileSize";
+import { FileBrowserRowActions } from "./FileBrowserRowActions";
+import { FolderPickerDialog } from "./FolderPickerDialog";
 
 const PAGE_SIZE = 100;
 
@@ -26,7 +32,10 @@ interface IFileBrowserContentProps {
 type ContentRow = {
   id: string;
   type: "scene" | "image" | "gallery";
+  title: string | null;
   basename: string;
+  fileId: string;
+  parentFolderId: string;
   href: string;
   size: number;
   mod_time: string;
@@ -65,32 +74,67 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
   folderId,
 }) => {
   const [page, setPage] = useState(1);
+  const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(
+    new Set()
+  );
+  const [bulkMoveOpen, setBulkMoveOpen] = useState(false);
   const pageFilter = { page, per_page: PAGE_SIZE };
   const filter = folderFilter(folderId);
 
-  const { data: scenesData, loading: scenesLoading } =
-    GQL.useFileBrowserScenesQuery({
-      variables: {
-        filter: pageFilter,
-        scene_filter: { parent_folder: filter },
-      },
-    });
+  const {
+    data: scenesData,
+    loading: scenesLoading,
+    refetch: refetchScenes,
+  } = GQL.useFileBrowserScenesQuery({
+    variables: {
+      filter: pageFilter,
+      scene_filter: { parent_folder: filter },
+    },
+  });
 
-  const { data: imagesData, loading: imagesLoading } =
-    GQL.useFileBrowserImagesQuery({
-      variables: {
-        filter: pageFilter,
-        image_filter: { parent_folder: filter },
-      },
-    });
+  const {
+    data: imagesData,
+    loading: imagesLoading,
+    refetch: refetchImages,
+  } = GQL.useFileBrowserImagesQuery({
+    variables: {
+      filter: pageFilter,
+      image_filter: { parent_folder: filter },
+    },
+  });
 
-  const { data: galleriesData, loading: galleriesLoading } =
-    GQL.useFileBrowserGalleriesQuery({
-      variables: {
-        filter: pageFilter,
-        gallery_filter: { parent_folder: filter },
-      },
+  const {
+    data: galleriesData,
+    loading: galleriesLoading,
+    refetch: refetchGalleries,
+  } = GQL.useFileBrowserGalleriesQuery({
+    variables: {
+      filter: pageFilter,
+      gallery_filter: { parent_folder: filter },
+    },
+  });
+
+  const handleRefetch = () => {
+    refetchScenes();
+    refetchImages();
+    refetchGalleries();
+    setSelectedFileIds(new Set());
+  };
+
+  const handleRowSelect = (fileId: string, checked: boolean) => {
+    setSelectedFileIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(fileId);
+      else next.delete(fileId);
+      return next;
     });
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    setSelectedFileIds(
+      checked ? new Set(rows.map((r) => r.fileId)) : new Set()
+    );
+  };
 
   const rows = useMemo<ContentRow[]>(() => {
     const result: ContentRow[] = [];
@@ -101,7 +145,10 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
         result.push({
           id: scene.id,
           type: "scene",
+          title: scene.title ?? null,
           basename: file.basename,
+          fileId: file.id,
+          parentFolderId: file.parent_folder?.id ?? "",
           href: `/scenes/${scene.id}`,
           size: file.size,
           mod_time: file.mod_time,
@@ -115,7 +162,11 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
         result.push({
           id: image.id,
           type: "image",
+          title: image.title ?? null,
           basename: file.basename,
+          fileId: file.id,
+          parentFolderId:
+            "parent_folder" in file ? (file.parent_folder?.id ?? "") : "",
           href: `/images/${image.id}`,
           size: file.size,
           mod_time: file.mod_time,
@@ -129,7 +180,10 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
         result.push({
           id: gallery.id,
           type: "gallery",
+          title: gallery.title ?? null,
           basename: file.basename,
+          fileId: file.id,
+          parentFolderId: file.parent_folder?.id ?? "",
           href: `/galleries/${gallery.id}`,
           size: file.size,
           mod_time: file.mod_time,
@@ -178,12 +232,73 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
     );
   }
 
+  const numSelected = selectedFileIds.size;
+  const allSelected = rows.length > 0 && numSelected === rows.length;
+  const someSelected = numSelected > 0 && !allSelected;
+
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
+      {/* Bulk action toolbar — visible only when items are selected */}
+      {numSelected > 0 && (
+        <Toolbar
+          variant="dense"
+          sx={{
+            bgcolor: "action.selected",
+            flexShrink: 0,
+            gap: 2,
+            px: 2,
+          }}
+        >
+          <Typography variant="body2" sx={{ flex: 1 }}>
+            <FormattedMessage
+              id="file_browser.selected_count"
+              defaultMessage="{count, plural, one {# item selected} other {# items selected}}"
+              values={{ count: numSelected }}
+            />
+          </Typography>
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<DriveFileMoveIcon />}
+            onClick={() => setBulkMoveOpen(true)}
+          >
+            <FormattedMessage
+              id="file_browser.bulk_move"
+              defaultMessage="Move To…"
+            />
+          </Button>
+          <Button
+            size="small"
+            onClick={() => setSelectedFileIds(new Set())}
+          >
+            <FormattedMessage
+              id="file_browser.clear_selection"
+              defaultMessage="Clear"
+            />
+          </Button>
+        </Toolbar>
+      )}
+
+      <FolderPickerDialog
+        open={bulkMoveOpen}
+        onClose={() => setBulkMoveOpen(false)}
+        fileIds={Array.from(selectedFileIds)}
+        onSuccess={handleRefetch}
+      />
+
       <TableContainer sx={{ flex: 1, overflow: "auto" }}>
         <Table size="small" stickyHeader>
           <TableHead>
             <TableRow>
+              <TableCell padding="checkbox">
+                <Checkbox
+                  size="small"
+                  checked={allSelected}
+                  indeterminate={someSelected}
+                  onChange={(e) => handleSelectAll(e.target.checked)}
+                  inputProps={{ "aria-label": "select all" }}
+                />
+              </TableCell>
               <TableCell>
                 <FormattedMessage
                   id="file_browser.col_name"
@@ -194,6 +309,12 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
                 <FormattedMessage
                   id="file_browser.col_type"
                   defaultMessage="Type"
+                />
+              </TableCell>
+              <TableCell sx={{ width: 100 }} align="right">
+                <FormattedMessage
+                  id="file_browser.col_actions"
+                  defaultMessage="Actions"
                 />
               </TableCell>
               <TableCell sx={{ width: 100 }} align="right">
@@ -215,8 +336,20 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
               <TableRow
                 key={`${row.type}-${row.id}`}
                 hover
+                selected={selectedFileIds.has(row.fileId)}
                 sx={{ "&:last-child td": { borderBottom: 0 } }}
               >
+                <TableCell padding="checkbox">
+                  <Checkbox
+                    size="small"
+                    checked={selectedFileIds.has(row.fileId)}
+                    onChange={(e) =>
+                      handleRowSelect(row.fileId, e.target.checked)
+                    }
+                    onClick={(e) => e.stopPropagation()}
+                    inputProps={{ "aria-label": `select ${row.basename}` }}
+                  />
+                </TableCell>
                 <TableCell>
                   <Link to={row.href} style={{ textDecoration: "none" }}>
                     <Typography
@@ -235,6 +368,9 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
                     size="small"
                     variant="outlined"
                   />
+                </TableCell>
+                <TableCell align="right" sx={{ py: 0 }}>
+                  <FileBrowserRowActions row={row} onRefetch={handleRefetch} />
                 </TableCell>
                 <TableCell align="right">
                   <Typography variant="body2" color="text.secondary">

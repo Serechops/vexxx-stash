@@ -1175,6 +1175,9 @@ func (qb *SceneStore) isUnfilteredQuery(options models.SceneQueryOptions) bool {
 		if f.GroupsFilter != nil || f.MoviesFilter != nil || f.MarkersFilter != nil || f.FilesFilter != nil {
 			return false
 		}
+		if f.ParentFolder != nil {
+			return false
+		}
 		if f.CreatedAt != nil || f.UpdatedAt != nil {
 			return false
 		}

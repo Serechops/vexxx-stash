@@ -1,0 +1,82 @@
+# Queries used by the File Browser page
+
+query FileBrowserFolderChildren($id: ID!) {
+  findFolders(ids: [$id]) {
+    count
+    folders {
+      id
+      path
+      basename
+      sub_folders {
+        id
+        path
+        basename
+      }
+    }
+  }
+}
+
+query FileBrowserScenes(
+  $filter: FindFilterType
+  $scene_filter: SceneFilterType
+) {
+  findScenes(filter: $filter, scene_filter: $scene_filter) {
+    count
+    scenes {
+      id
+      title
+      files {
+        id
+        basename
+        size
+        mod_time
+      }
+    }
+  }
+}
+
+query FileBrowserImages(
+  $filter: FindFilterType
+  $image_filter: ImageFilterType
+) {
+  findImages(filter: $filter, image_filter: $image_filter) {
+    count
+    images {
+      id
+      title
+      visual_files {
+        ... on VideoFile {
+          id
+          basename
+          size
+          mod_time
+        }
+        ... on ImageFile {
+          id
+          basename
+          size
+          mod_time
+        }
+      }
+    }
+  }
+}
+
+query FileBrowserGalleries(
+  $filter: FindFilterType
+  $gallery_filter: GalleryFilterType
+) {
+  findGalleries(filter: $filter, gallery_filter: $gallery_filter) {
+    count
+    galleries {
+      id
+      title
+      files {
+        id
+        basename
+        size
+        mod_time
+      }
+    }
+  }
+}

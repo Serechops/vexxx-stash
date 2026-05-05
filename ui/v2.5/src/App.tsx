@@ -99,6 +99,9 @@ const MovieFy = lazyComponent(
 const Renamer = lazyComponent(
   () => import("./components/Renamer/Renamer")
 );
+const FileBrowser = lazyComponent(
+  () => import("./components/FileBrowser/FileBrowser")
+);
 
 const appleRendering = isPlatformUniquelyRenderedByApple();
 
@@ -302,6 +305,7 @@ export const App: React.FC = () => {
             />
             <ProtectedRoute adminOnly path="/moviefy" component={MovieFy} />
             <ProtectedRoute adminOnly path="/renamer" component={Renamer} />
+            <ProtectedRoute path="/file-browser" component={FileBrowser} />
             <Route path="/setup" component={Setup} />
             <Route path="/migrate" component={Migrate} />
             <PluginRoutes />

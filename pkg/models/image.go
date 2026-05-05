@@ -61,6 +61,8 @@ type ImageFilterType struct {
 	TagsFilter *TagFilterType `json:"tags_filter"`
 	// Filter by related files that meet this criteria
 	FilesFilter *FileFilterType `json:"files_filter"`
+	// Filter by parent folder of the file
+	ParentFolder *HierarchicalMultiCriterionInput `json:"parent_folder"`
 	// Filter by created at
 	CreatedAt *TimestampCriterionInput `json:"created_at"`
 	// Filter by updated at

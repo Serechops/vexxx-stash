@@ -44,6 +44,7 @@ import {
   faChartColumn,
   faCompass,
   faFilm,
+  faFolder,
   faImage,
   faImages,
   faListUl,
@@ -120,6 +121,10 @@ const messages = defineMessages({
   statistics: {
     id: "statistics",
     defaultMessage: "Statistics",
+  },
+  fileBrowser: {
+    id: "file_browser",
+    defaultMessage: "File Browser",
   },
 });
 
@@ -200,6 +205,13 @@ const allMenuItems: IMenuItem[] = [
     icon: faTag,
     hotkey: "g t",
     userCreatable: true,
+  },
+  {
+    name: "file_browser",
+    message: messages.fileBrowser,
+    href: "/file-browser",
+    icon: faFolder,
+    hotkey: "g b",
   },
 ];
 

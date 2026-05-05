@@ -56,6 +56,7 @@ func (qb *sceneFilterHandler) criterionHandler() criterionHandler {
 	return compoundHandler{
 		intCriterionHandler(sceneFilter.ID, "scenes.id", nil),
 		pathCriterionHandler(sceneFilter.Path, "folders.path", "files.basename", qb.addFoldersTableInner),
+		qb.parentFolderCriterionHandler(sceneFilter.ParentFolder),
 		qb.fileCountCriterionHandler(sceneFilter.FileCount),
 		stringCriterionHandler(sceneFilter.Title, "scenes.title"),
 		stringCriterionHandler(sceneFilter.Code, "scenes.code"),
@@ -269,6 +270,56 @@ func (qb *sceneFilterHandler) addFoldersTableInner(f *filterBuilder) {
 	f.addInnerJoin(scenesFilesTable, "", "scenes_files.scene_id = scenes.id")
 	f.addInnerJoin(fileTable, "", "scenes_files.file_id = files.id")
 	f.addInnerJoin(folderTable, "", "files.parent_folder_id = folders.id")
+}
+
+func (qb *sceneFilterHandler) parentFolderCriterionHandler(folder *models.HierarchicalMultiCriterionInput) criterionHandlerFunc {
+	return func(ctx context.Context, f *filterBuilder) {
+		if folder == nil {
+			return
+		}
+
+		qb.addFoldersTable(f)
+
+		criterion := *folder
+		switch criterion.Modifier {
+		case models.CriterionModifierEquals:
+			criterion.Modifier = models.CriterionModifierIncludes
+		case models.CriterionModifierNotEquals:
+			criterion.Modifier = models.CriterionModifierExcludes
+		}
+
+		if criterion.Modifier != models.CriterionModifierIncludes && criterion.Modifier != models.CriterionModifierExcludes {
+			f.setError(fmt.Errorf("invalid modifier for parent folder criterion: %s", criterion.Modifier))
+		}
+
+		if len(criterion.Value) == 0 && len(criterion.Excludes) == 0 {
+			return
+		}
+
+		if criterion.Modifier == models.CriterionModifierExcludes {
+			criterion.Modifier = models.CriterionModifierIncludes
+			criterion.Excludes = append(criterion.Excludes, criterion.Value...)
+			criterion.Value = nil
+		}
+
+		if len(criterion.Value) > 0 {
+			valuesClause, err := getHierarchicalValues(ctx, criterion.Value, "folders", "", "parent_folder_id", "parent_folder_id", criterion.Depth)
+			if err != nil {
+				f.setError(err)
+				return
+			}
+			f.addWhere(fmt.Sprintf("files.parent_folder_id IN (SELECT column2 FROM (%s))", valuesClause))
+		}
+
+		if len(criterion.Excludes) > 0 {
+			valuesClause, err := getHierarchicalValues(ctx, criterion.Excludes, "folders", "", "parent_folder_id", "parent_folder_id", criterion.Depth)
+			if err != nil {
+				f.setError(err)
+				return
+			}
+			f.addWhere(fmt.Sprintf("files.parent_folder_id NOT IN (SELECT column2 FROM (%s)) OR files.parent_folder_id IS NULL", valuesClause))
+		}
+	}
 }
 
 func (qb *sceneFilterHandler) addVideoFilesTable(f *filterBuilder) {

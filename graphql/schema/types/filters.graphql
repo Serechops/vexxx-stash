@@ -352,6 +352,8 @@ input SceneFilterType {
   markers_filter: SceneMarkerFilterType
   "Filter by related files that meet this criteria"
   files_filter: FileFilterType
+  "Filter by parent folder of the file"
+  parent_folder: HierarchicalMultiCriterionInput
 }
 
 input MovieFilterType {
@@ -729,6 +731,8 @@ input ImageFilterType {
   tags_filter: TagFilterType
   "Filter by related files that meet this criteria"
   files_filter: FileFilterType
+  "Filter by parent folder of the file"
+  parent_folder: HierarchicalMultiCriterionInput
 }
 
 input FileFilterType {

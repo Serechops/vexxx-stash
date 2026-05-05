@@ -861,6 +861,9 @@ func (qb *GalleryStore) isUnfilteredQuery(galleryFilter *models.GalleryFilterTyp
 		if f.CreatedAt != nil || f.UpdatedAt != nil {
 			return false
 		}
+		if f.ParentFolder != nil {
+			return false
+		}
 	}
 
 	if findFilter != nil && findFilter.Q != nil && *findFilter.Q != "" {

@@ -1224,6 +1224,7 @@
   },
   "framerate": "Frame Rate",
   "frames_per_second": "{value} fps",
+  "file_browser": "File Browser",
   "front_page": {
     "types": {
       "premade_filter": "Premade Filter",

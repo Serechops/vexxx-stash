@@ -1154,6 +1154,10 @@ func (qb *ImageStore) isUnfilteredQuery(options models.ImageQueryOptions) bool {
 			logger.Debugf("isUnfilteredQuery: false - FilesFilter/CreatedAt/UpdatedAt set")
 			return false
 		}
+		if f.ParentFolder != nil {
+			logger.Debugf("isUnfilteredQuery: false - ParentFolder set")
+			return false
+		}
 	}
 
 	// Check if FindFilter has a search query

@@ -59,6 +59,7 @@ const allMenuItems = [
   { id: "performers", headingID: "performers" },
   { id: "studios", headingID: "studios" },
   { id: "tags", headingID: "tags" },
+  { id: "file_browser", headingID: "file_browser" },
 ];
 
 export const SettingsInterfacePanel: React.FC = PatchComponent(

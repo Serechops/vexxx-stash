@@ -2,6 +2,9 @@ import React, { useEffect, useState } from "react";
 import cx from "classnames";
 import * as GQL from "src/core/generated-graphql";
 import { useHistory } from "react-router-dom";
+import { useConfigurationContextOptional } from "src/hooks/Config";
+import { IUIConfig } from "src/core/config";
+import { SFWHeroPlaceholder } from "src/components/Shared/SFWHeroPlaceholder";
 
 /**
  * Hero banner for the main Galleries listing page.
@@ -11,6 +14,7 @@ export const GalleriesHero: React.FC = () => {
     const history = useHistory();
     const [activeIndex, setActiveIndex] = useState(0);
     const [hoveredId, setHoveredId] = useState<string | null>(null);
+    const { configuration } = useConfigurationContextOptional() || {};
 
     // Fetch random galleries
     const { data, loading } = GQL.useFindGalleriesQuery({
@@ -37,6 +41,9 @@ export const GalleriesHero: React.FC = () => {
 
         return () => clearInterval(interval);
     }, [galleries.length]);
+
+    const uiConfig = configuration?.ui as IUIConfig | undefined;
+    if (configuration?.interface?.sfwContentMode && (uiConfig?.sfwBlurGalleries ?? true)) return <SFWHeroPlaceholder />;
 
     if (loading || galleries.length === 0) return null;
 

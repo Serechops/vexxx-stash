@@ -271,6 +271,7 @@ export const StudioCard: React.FC<IProps> = PatchComponent(
 
     return (
       <Box
+        data-has-stashid={studio.stash_ids?.length > 0 ? "" : undefined}
         sx={{
           '&:hover': { '& .MuiIconButton-root': { opacity: '1 !important' } },
         }}

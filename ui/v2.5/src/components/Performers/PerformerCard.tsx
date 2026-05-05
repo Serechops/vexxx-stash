@@ -128,6 +128,7 @@ export const PerformerCard: React.FC<IPerformerCardProps> = PatchComponent(
     return (
       <Box
         className="performer-card"
+        data-has-stashid={performer.stash_ids?.length > 0 ? "" : undefined}
         sx={{
           bgcolor: '#18181b',
           borderRadius: '12px',

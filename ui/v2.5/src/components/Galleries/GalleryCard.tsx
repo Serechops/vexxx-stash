@@ -108,8 +108,8 @@ export const GalleryCard: React.FC<IGalleryCardProps> = PatchComponent(
 
     return (
       <Box
+        className="gallery-card"
         sx={{
-          bgcolor: '#212529',
           borderRadius: '12px',
           height: '100%',
           overflow: 'hidden',

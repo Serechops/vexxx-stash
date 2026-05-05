@@ -83,4 +83,107 @@
       display: none;
     }
   }
+
+  // Blur scene card thumbnails that have a StashDB association (toggle: sfw-blur-scenes)
+  &.sfw-blur-scenes {
+    [data-has-stashid] {
+      .scene-card-preview-image,
+      .scene-card-preview-video {
+        filter: blur(12px);
+        transition: filter 0.3s ease;
+      }
+
+      &:hover {
+        .scene-card-preview-image,
+        .scene-card-preview-video {
+          filter: none;
+        }
+      }
+    }
+  }
+
+  // Blur performer card thumbnails that have a StashDB association (toggle: sfw-blur-performers)
+  &.sfw-blur-performers {
+    .performer-card[data-has-stashid] {
+      img {
+        filter: blur(12px);
+        transition: filter 0.3s ease;
+      }
+
+      &:hover img {
+        filter: none;
+      }
+    }
+  }
+
+  // Blur all image card thumbnails (toggle: sfw-blur-images)
+  &.sfw-blur-images {
+    .image-card {
+      .image-card-preview-image {
+        filter: blur(12px);
+        transition: filter 0.3s ease;
+      }
+
+      &:hover .image-card-preview-image {
+        filter: none;
+      }
+    }
+  }
+
+  // Blur all gallery card thumbnails (toggle: sfw-blur-galleries)
+  &.sfw-blur-galleries {
+    .gallery-card {
+      img {
+        filter: blur(12px);
+        transition: filter 0.3s ease;
+      }
+
+      &:hover img {
+        filter: none;
+      }
+    }
+  }
+
+  // Blur studio card images that have a StashDB association (toggle: sfw-blur-studios)
+  &.sfw-blur-studios {
+    [data-has-stashid] {
+      .studio-card-header img {
+        filter: blur(12px);
+        transition: filter 0.3s ease;
+      }
+
+      &:hover .studio-card-header img {
+        filter: none;
+      }
+    }
+  }
+
+  // Blur scene marker card thumbnails (toggle: sfw-blur-markers)
+  &.sfw-blur-markers {
+    .scene-marker-card {
+      .scene-card-preview-image, .scene-card-preview-video {
+        filter: blur(12px);
+        transition: filter 0.3s ease;
+      }
+
+      &:hover .scene-card-preview-image,
+      &:hover .scene-card-preview-video {
+        filter: none;
+      }
+    }
+  }
+
+  // Blur tag card images that have a StashDB association (toggle: sfw-blur-tags)
+  &.sfw-blur-tags {
+    [data-has-stashid] {
+      .tag-card-header img {
+        filter: blur(12px);
+        transition: filter 0.3s ease;
+      }
+
+      &:hover .tag-card-header img {
+        filter: none;
+      }
+    }
+  }
 }

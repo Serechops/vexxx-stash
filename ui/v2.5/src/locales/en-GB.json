@@ -864,6 +864,35 @@
         "description": "Enable if using stash to store SFW content. Hides or changes some adult-content-related aspects of the UI.",
         "heading": "SFW Content Mode"
       },
+      "sfw_blur_scenes": {
+        "description": "Blur scene card thumbnails that have a StashDB association. Hover to reveal.",
+        "heading": "Blur scenes with StashIDs"
+      },
+      "sfw_blur_performers": {
+        "description": "Blur performer card thumbnails that have a StashDB association. Hover to reveal.",
+        "heading": "Blur performers with StashIDs"
+      },
+      "sfw_blur_markers": {
+        "description": "Blur scene marker card thumbnails. Hover to reveal.",
+        "heading": "Blur scene marker cards"
+      },
+      "sfw_blur_images": {
+        "description": "Blur all image card thumbnails. Hover to reveal.",
+        "heading": "Blur image cards"
+      },
+      "sfw_blur_galleries": {
+        "description": "Blur all gallery card thumbnails. Hover to reveal.",
+        "heading": "Blur gallery cards"
+      },
+      "sfw_blur_studios": {
+        "description": "Blur studio card images that have a StashDB association. Hover to reveal.",
+        "heading": "Blur studios with StashIDs"
+      },
+      "sfw_blur_tags": {
+        "description": "Blur tag card images that have a StashDB association. Hover to reveal.",
+        "heading": "Blur tags with StashIDs"
+      },
+      "sfw_hero_hidden": "Content hidden",
       "show_tag_card_on_hover": {
         "description": "Show tag card when hovering tag badges",
         "heading": "Tag card tooltips"

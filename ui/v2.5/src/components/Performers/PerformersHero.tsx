@@ -3,6 +3,9 @@ import cx from "classnames";
 import * as GQL from "src/core/generated-graphql";
 import { useHistory } from "react-router-dom";
 import { Box } from "@mui/material";
+import { useConfigurationContextOptional } from "src/hooks/Config";
+import { IUIConfig } from "src/core/config";
+import { SFWHeroPlaceholder } from "src/components/Shared/SFWHeroPlaceholder";
 
 /**
  * Hero banner for the main Performers listing page.
@@ -12,6 +15,7 @@ export const PerformersHero: React.FC = () => {
     const history = useHistory();
     const [activeIndex, setActiveIndex] = useState(0);
     const [fadeIn, setFadeIn] = useState(true);
+    const { configuration } = useConfigurationContextOptional() || {};
 
     // Fetch random performers
     const { data, loading } = GQL.useFindPerformersQuery({
@@ -38,6 +42,9 @@ export const PerformersHero: React.FC = () => {
         }, 8000); // 8 seconds per performer
         return () => clearInterval(interval);
     }, [performers.length]);
+
+    const uiConfig = configuration?.ui as IUIConfig | undefined;
+    if (configuration?.interface?.sfwContentMode && (uiConfig?.sfwBlurPerformers ?? true)) return <SFWHeroPlaceholder className="fixed top-0 left-0 w-screen h-[56.25vw] md:h-screen z-0 hidden md:block bg-black" />;
 
     if (loading || performers.length === 0) return null;
 

@@ -3,6 +3,9 @@ import cx from "classnames";
 import * as GQL from "src/core/generated-graphql";
 import { useFindImages } from "src/core/StashService";
 import { useHistory } from "react-router-dom";
+import { useConfigurationContextOptional } from "src/hooks/Config";
+import { IUIConfig } from "src/core/config";
+import { SFWHeroPlaceholder } from "src/components/Shared/SFWHeroPlaceholder";
 
 /**
  * Hero banner for the main Images listing page.
@@ -12,6 +15,7 @@ export const ImagesHero: React.FC = () => {
     const history = useHistory();
     const [activeIndex, setActiveIndex] = useState(0);
     const [isTransitioning, setIsTransitioning] = useState(false);
+    const { configuration } = useConfigurationContextOptional() || {};
 
     // Fetch random images
     const { data, loading } = GQL.useFindImagesQuery({
@@ -41,6 +45,9 @@ export const ImagesHero: React.FC = () => {
 
         return () => clearInterval(interval);
     }, [images.length]);
+
+    const uiConfig = configuration?.ui as IUIConfig | undefined;
+    if (configuration?.interface?.sfwContentMode && (uiConfig?.sfwBlurImages ?? true)) return <SFWHeroPlaceholder />;
 
     if (loading || images.length === 0) return null;
 

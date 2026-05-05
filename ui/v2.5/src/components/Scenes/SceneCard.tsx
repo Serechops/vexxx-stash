@@ -326,6 +326,7 @@ const FlipCard = PatchComponent(
     return (
       <Box
         className="scene-card-flip-container group"
+        data-has-stashid={props.scene.stash_ids?.length > 0 ? "" : undefined}
         sx={{
           perspective: "1000px",
           position: "relative",

@@ -96,6 +96,7 @@ export const StashDBCard: React.FC<ISceneCardProps> = ({
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
             onClick={handleCardClick}
+            data-has-stashid={scene.stash_ids?.length > 0 ? "" : undefined}
             sx={{
                 position: "relative",
                 borderRadius: "8px",

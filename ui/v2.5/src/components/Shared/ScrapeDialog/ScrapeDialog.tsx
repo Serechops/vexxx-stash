@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { Grid, Typography, Box } from "@mui/material";
 import { ModalComponent } from "../Modal";
 import { FormattedMessage, useIntl } from "react-intl";
+import cx from "classnames";
 import { faPencilAlt } from "@fortawesome/free-solid-svg-icons";
 import { useConfigurationContext } from "src/hooks/Config";
 
@@ -70,7 +71,7 @@ export const ScrapeDialog: React.FC<
         variant: "secondary",
       }}
       maxWidth="lg"
-      dialogClassName={`${props.className ?? ""} ${sfwContentMode ? "sfw-mode" : ""}`}
+      dialogClassName={cx("scrape-dialog", props.className, { "sfw-content-mode": sfwContentMode })}
       footerButtons={props.footerButtons}
       hideAccept={props.hideApply}
     >

@@ -545,7 +545,7 @@ export const EditFilterDialog: React.FC<IEditFilterProps> = ({
         onClose={() => onCancel()}
         maxWidth="sm"
         fullWidth
-        className={cx({
+        className={cx("edit-filter-dialog", {
           "sfw-content-mode": sfwContentMode,
         })}
         sx={{

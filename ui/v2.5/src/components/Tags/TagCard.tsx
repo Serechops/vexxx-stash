@@ -236,6 +236,7 @@ export const TagCard: React.FC<IProps> = PatchComponent("TagCard", (props) => {
 
   return (
     <Box
+      data-has-stashid={tag.stash_ids?.length > 0 ? "" : undefined}
       sx={{
         '&:hover': { '& .MuiIconButton-root': { opacity: '1 !important' } },
       }}

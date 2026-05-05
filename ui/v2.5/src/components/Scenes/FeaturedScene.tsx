@@ -5,6 +5,8 @@ import { useFindScenes } from "src/core/StashService";
 import { ListFilterModel } from "src/models/list-filter/filter";
 import * as GQL from "src/core/generated-graphql";
 import { useConfigurationContext } from "src/hooks/Config";
+import { IUIConfig } from "src/core/config";
+import { SFWHeroPlaceholder } from "src/components/Shared/SFWHeroPlaceholder";
 import { Play, Volume2, VolumeX } from "lucide-react";
 import { TruncatedText } from "../Shared/TruncatedText";
 
@@ -39,6 +41,9 @@ export const FeaturedScene: React.FC = () => {
             videoRef.current.play().catch(() => { });
         }
     }, [scene]);
+
+    const uiConfig = configuration?.ui as IUIConfig | undefined;
+    if (configuration?.interface?.sfwContentMode && (uiConfig?.sfwBlurScenes ?? true)) return <SFWHeroPlaceholder className="fixed top-0 left-0 w-screen h-[56.25vw] md:h-screen z-0 bg-black pointer-events-none" />;
 
     if (loading || !scene) return null;
 

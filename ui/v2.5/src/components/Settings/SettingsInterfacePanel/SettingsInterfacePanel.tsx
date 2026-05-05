@@ -253,6 +253,56 @@ export const SettingsInterfacePanel: React.FC = PatchComponent(
             onChange={(v) => saveInterface({ sfwContentMode: v })}
           />
 
+          <BooleanSetting
+            id="sfw-blur-scenes"
+            headingID="config.ui.sfw_blur_scenes.heading"
+            subHeadingID="config.ui.sfw_blur_scenes.description"
+            checked={ui.sfwBlurScenes ?? true}
+            onChange={(v) => saveUI({ sfwBlurScenes: v })}
+          />
+          <BooleanSetting
+            id="sfw-blur-performers"
+            headingID="config.ui.sfw_blur_performers.heading"
+            subHeadingID="config.ui.sfw_blur_performers.description"
+            checked={ui.sfwBlurPerformers ?? true}
+            onChange={(v) => saveUI({ sfwBlurPerformers: v })}
+          />
+          <BooleanSetting
+            id="sfw-blur-images"
+            headingID="config.ui.sfw_blur_images.heading"
+            subHeadingID="config.ui.sfw_blur_images.description"
+            checked={ui.sfwBlurImages ?? true}
+            onChange={(v) => saveUI({ sfwBlurImages: v })}
+          />
+          <BooleanSetting
+            id="sfw-blur-galleries"
+            headingID="config.ui.sfw_blur_galleries.heading"
+            subHeadingID="config.ui.sfw_blur_galleries.description"
+            checked={ui.sfwBlurGalleries ?? true}
+            onChange={(v) => saveUI({ sfwBlurGalleries: v })}
+          />
+          <BooleanSetting
+            id="sfw-blur-studios"
+            headingID="config.ui.sfw_blur_studios.heading"
+            subHeadingID="config.ui.sfw_blur_studios.description"
+            checked={ui.sfwBlurStudios ?? false}
+            onChange={(v) => saveUI({ sfwBlurStudios: v })}
+          />
+          <BooleanSetting
+            id="sfw-blur-markers"
+            headingID="config.ui.sfw_blur_markers.heading"
+            subHeadingID="config.ui.sfw_blur_markers.description"
+            checked={ui.sfwBlurMarkers ?? true}
+            onChange={(v) => saveUI({ sfwBlurMarkers: v })}
+          />
+          <BooleanSetting
+            id="sfw-blur-tags"
+            headingID="config.ui.sfw_blur_tags.heading"
+            subHeadingID="config.ui.sfw_blur_tags.description"
+            checked={ui.sfwBlurTags ?? false}
+            onChange={(v) => saveUI({ sfwBlurTags: v })}
+          />
+
           <StringSetting
             id="custom-title"
             headingID="config.ui.custom_title.heading"

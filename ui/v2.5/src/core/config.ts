@@ -110,6 +110,16 @@ export interface IUIConfig {
   taggerConfig?: ITaggerConfig;
 
   title?: string;
+
+  // SFW blur toggles — control per-entity blur under SFW content mode
+  // defaults: scenes, performers, images, galleries → true; studios, tags → false
+  sfwBlurScenes?: boolean;
+  sfwBlurPerformers?: boolean;
+  sfwBlurMarkers?: boolean;
+  sfwBlurImages?: boolean;
+  sfwBlurGalleries?: boolean;
+  sfwBlurStudios?: boolean;
+  sfwBlurTags?: boolean;
 }
 
 export function getFrontPageContent(

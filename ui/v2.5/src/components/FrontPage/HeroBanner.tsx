@@ -5,6 +5,8 @@ import { useFindScenes } from "src/core/StashService";
 import { ListFilterModel } from "src/models/list-filter/filter";
 import * as GQL from "src/core/generated-graphql";
 import { useConfigurationContext } from "src/hooks/Config";
+import { IUIConfig } from "src/core/config";
+import { SFWHeroPlaceholder } from "src/components/Shared/SFWHeroPlaceholder";
 import {
     Play,
     Info,
@@ -55,6 +57,9 @@ export const HeroBanner: React.FC = () => {
     const handleVideoEnded = () => {
         setCurrentIndex((prev) => (prev + 1) % scenes.length);
     };
+
+    const uiConfig = configuration?.ui as IUIConfig | undefined;
+    if (configuration?.interface?.sfwContentMode && (uiConfig?.sfwBlurScenes ?? true)) return <SFWHeroPlaceholder className="w-full h-full bg-black" />;
 
     if (loading || !scene) return null;
 

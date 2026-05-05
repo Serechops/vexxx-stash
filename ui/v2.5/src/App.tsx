@@ -33,6 +33,7 @@ import { GlobalSearch } from "./components/GlobalSearch/GlobalSearch";
 import * as GQL from "./core/generated-graphql";
 import { makeTitleProps } from "./hooks/title";
 import { LoadingIndicator } from "./components/Shared/LoadingIndicator";
+import { IUIConfig } from "./core/config";
 
 import {
   ConfigurationProvider,
@@ -128,12 +129,20 @@ const MainContainer: React.FC = ({ children }) => {
   // use optional here because the configuration may have be loading or errored
   const { configuration } = useConfigurationContextOptional() || {};
   const { sfwContentMode } = configuration?.interface || {};
+  const uiConfig = configuration?.ui as IUIConfig | undefined;
 
   return (
     <div
       className={cx("main w-full px-[15px] mx-auto bg-background text-foreground font-sans", {
         apple: appleRendering,
         "sfw-content-mode": sfwContentMode,
+        "sfw-blur-scenes": sfwContentMode && (uiConfig?.sfwBlurScenes ?? true),
+        "sfw-blur-performers": sfwContentMode && (uiConfig?.sfwBlurPerformers ?? true),
+        "sfw-blur-markers": sfwContentMode && (uiConfig?.sfwBlurMarkers ?? true),
+        "sfw-blur-images": sfwContentMode && (uiConfig?.sfwBlurImages ?? true),
+        "sfw-blur-galleries": sfwContentMode && (uiConfig?.sfwBlurGalleries ?? true),
+        "sfw-blur-studios": sfwContentMode && (uiConfig?.sfwBlurStudios ?? false),
+        "sfw-blur-tags": sfwContentMode && (uiConfig?.sfwBlurTags ?? false),
       })}
       style={{ minHeight: 'calc(100vh - 3.4rem)' }}
     >

@@ -101,3 +101,66 @@ query FileBrowserGalleries(
     }
   }
 }
+
+query FileBrowserSceneDetails($id: ID!) {
+  findScene(id: $id) {
+    id
+    title
+    date
+    rating100
+    details
+    studio { id name }
+    performers { id name }
+    tags { id name }
+    paths { screenshot }
+    files {
+      path
+      size
+      duration
+      width
+      height
+      video_codec
+      frame_rate
+    }
+  }
+}
+
+query FileBrowserImageDetails($id: ID!) {
+  findImage(id: $id) {
+    id
+    title
+    rating100
+    studio { id name }
+    performers { id name }
+    tags { id name }
+    paths { thumbnail }
+    visual_files {
+      ... on ImageFile {
+        path
+        size
+        width
+        height
+        mod_time
+      }
+    }
+  }
+}
+
+query FileBrowserGalleryDetails($id: ID!) {
+  findGallery(id: $id) {
+    id
+    title
+    date
+    rating100
+    studio { id name }
+    performers { id name }
+    tags { id name }
+    paths { cover }
+    image_count
+    files {
+      path
+      size
+      mod_time
+    }
+  }
+}

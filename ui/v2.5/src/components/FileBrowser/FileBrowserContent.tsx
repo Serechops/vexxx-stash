@@ -7,6 +7,7 @@ import {
   Checkbox,
   Chip,
   CircularProgress,
+  IconButton,
   InputAdornment,
   Pagination,
   Table,
@@ -24,7 +25,9 @@ import DriveFileMoveIcon from "@mui/icons-material/DriveFileMove";
 import SearchIcon from "@mui/icons-material/Search";
 import * as GQL from "src/core/generated-graphql";
 import { FileSize } from "src/components/Shared/FileSize";
+import { FileBrowserDetailsPanel } from "./FileBrowserDetailsPanel";
 import { FileBrowserRowActions } from "./FileBrowserRowActions";
+import { FileBrowserRowMenu } from "./FileBrowserRowMenu";
 import { FolderPickerDialog } from "./FolderPickerDialog";
 
 const PAGE_SIZE = 100;
@@ -40,6 +43,7 @@ type ContentRow = {
   basename: string;
   fileId: string;
   parentFolderId: string;
+  filePath: string;
   href: string;
   size: number;
   mod_time: string;
@@ -80,16 +84,16 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
 }) => {
   const intl = useIntl();
   const [page, setPage] = useState(1);
-  const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(
-    new Set()
-  );
+  const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set());
   const [bulkMoveOpen, setBulkMoveOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [sortCol, setSortCol] = useState<"basename" | "size" | "mod_time">(
-    "basename"
-  );
+  const [sortCol, setSortCol] = useState<"basename" | "size" | "mod_time">("basename");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [detailsRow, setDetailsRow] = useState<ContentRow | null>(null);
+  const [contextMenuRow, setContextMenuRow] = useState<ContentRow | null>(null);
+  const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
+  const [contextMenuOpen, setContextMenuOpen] = useState(false);
 
   // Debounce the search so query variables (and thus fetches) only update
   // after the user stops typing, preventing the input from losing focus.
@@ -186,6 +190,7 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
           basename: file.basename,
           fileId: file.id,
           parentFolderId: file.parent_folder?.id ?? "",
+          filePath: "",
           href: `/scenes/${scene.id}`,
           size: file.size,
           mod_time: file.mod_time,
@@ -205,6 +210,7 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
           fileId: file.id,
           parentFolderId:
             "parent_folder" in file ? (file.parent_folder?.id ?? "") : "",
+          filePath: "",
           href: `/images/${image.id}`,
           size: file.size,
           mod_time: file.mod_time,
@@ -223,6 +229,7 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
           basename: file.basename,
           fileId: file.id,
           parentFolderId: file.parent_folder?.id ?? "",
+          filePath: "",
           href: `/galleries/${gallery.id}`,
           size: file.size,
           mod_time: file.mod_time,
@@ -263,6 +270,17 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
 
   const loading = scenesLoading || imagesLoading || galleriesLoading;
 
+  const numSelected = selectedFileIds.size;
+  const allSelected = rows.length > 0 && numSelected === rows.length;
+  const someSelected = numSelected > 0 && !allSelected;
+  const selectedSize = useMemo(
+    () =>
+      rows
+        .filter((r) => selectedFileIds.has(r.fileId))
+        .reduce((acc, r) => acc + r.size, 0),
+    [rows, selectedFileIds]
+  );
+
   if (loading && rows.length === 0) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
@@ -284,12 +302,45 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
     );
   }
 
-  const numSelected = selectedFileIds.size;
-  const allSelected = rows.length > 0 && numSelected === rows.length;
-  const someSelected = numSelected > 0 && !allSelected;
+  const handleContextMenu = (
+    e: React.MouseEvent,
+    row: ContentRow
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Auto-select the right-clicked row if not already selected
+    if (!selectedFileIds.has(row.fileId)) {
+      setSelectedFileIds((prev) => new Set([...prev, row.fileId]));
+    }
+    setContextMenuRow(row);
+    setContextMenuPos({ x: e.clientX, y: e.clientY });
+    setContextMenuOpen(true);
+  };
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
+    <Box sx={{ display: "flex", height: "100%", overflow: "hidden" }}>
+      {/* Main content column */}
+      <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+
+      {/* Context menu — kept mounted so child dialogs survive menu close */}
+      {contextMenuRow && (
+        <FileBrowserRowMenu
+          row={contextMenuRow}
+          open={contextMenuOpen}
+          onClose={() => setContextMenuOpen(false)}
+          onRefetch={() => {
+            setContextMenuOpen(false);
+            setContextMenuRow(null);
+            handleRefetch();
+          }}
+          onShowDetails={() => {
+            setDetailsRow(contextMenuRow);
+            setContextMenuOpen(false);
+          }}
+          anchorPosition={{ top: contextMenuPos.y, left: contextMenuPos.x }}
+        />
+      )}
+
       {/* Bulk action toolbar — visible only when items are selected */}
       {numSelected > 0 && (
         <Toolbar
@@ -307,6 +358,8 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
               defaultMessage="{count, plural, one {# item selected} other {# items selected}}"
               values={{ count: numSelected }}
             />
+            {" · "}
+            <FileSize size={selectedSize} />
           </Typography>
           <Button
             size="small"
@@ -338,7 +391,7 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
         onSuccess={handleRefetch}
       />
 
-      {/* Search bar */}
+      {/* Search bar + view toggle */}
       <Box
         sx={{
           px: 2,
@@ -346,6 +399,8 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
           flexShrink: 0,
           borderBottom: 1,
           borderColor: "divider",
+          display: "flex",
+          alignItems: "center",
         }}
       >
         <TextField
@@ -370,157 +425,137 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
       </Box>
 
       <TableContainer sx={{ flex: 1, overflow: "auto" }}>
-        <Table size="small" stickyHeader>
-          <TableHead>
-            <TableRow>
-              <TableCell padding="checkbox">
-                <Checkbox
-                  size="small"
-                  checked={allSelected}
-                  indeterminate={someSelected}
-                  onChange={(e) => handleSelectAll(e.target.checked)}
-                  inputProps={{ "aria-label": "select all" }}
-                />
-              </TableCell>
-              <TableCell>
-                <TableSortLabel
-                  active={sortCol === "basename"}
-                  direction={sortCol === "basename" ? sortDir : "asc"}
-                  onClick={() => handleSort("basename")}
-                >
-                  <FormattedMessage
-                    id="file_browser.col_name"
-                    defaultMessage="Name"
-                  />
-                </TableSortLabel>
-              </TableCell>
-              <TableCell sx={{ width: 90 }}>
-                <FormattedMessage
-                  id="file_browser.col_type"
-                  defaultMessage="Type"
-                />
-              </TableCell>
-              <TableCell sx={{ width: 100 }} align="right">
-                <FormattedMessage
-                  id="file_browser.col_actions"
-                  defaultMessage="Actions"
-                />
-              </TableCell>
-              <TableCell sx={{ width: 100 }} align="right">
-                <TableSortLabel
-                  active={sortCol === "size"}
-                  direction={sortCol === "size" ? sortDir : "asc"}
-                  onClick={() => handleSort("size")}
-                >
-                  <FormattedMessage
-                    id="file_browser.col_size"
-                    defaultMessage="Size"
-                  />
-                </TableSortLabel>
-              </TableCell>
-              <TableCell sx={{ width: 170 }}>
-                <TableSortLabel
-                  active={sortCol === "mod_time"}
-                  direction={sortCol === "mod_time" ? sortDir : "asc"}
-                  onClick={() => handleSort("mod_time")}
-                >
-                  <FormattedMessage
-                    id="file_browser.col_modified"
-                    defaultMessage="Modified"
-                  />
-                </TableSortLabel>
-              </TableCell>
-              <TableCell sx={{ width: 120 }}>
-                <FormattedMessage
-                  id="file_browser.col_preview"
-                  defaultMessage="Preview"
-                />
-              </TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {rows.map((row) => (
-              <TableRow
-                key={`${row.type}-${row.id}`}
-                hover
-                selected={selectedFileIds.has(row.fileId)}
-                sx={{ "&:last-child td": { borderBottom: 0 } }}
-              >
+          <Table size="small" stickyHeader>
+            <TableHead>
+              <TableRow>
                 <TableCell padding="checkbox">
                   <Checkbox
                     size="small"
-                    checked={selectedFileIds.has(row.fileId)}
-                    onChange={(e) =>
-                      handleRowSelect(row.fileId, e.target.checked)
-                    }
-                    onClick={(e) => e.stopPropagation()}
-                    inputProps={{ "aria-label": `select ${row.basename}` }}
+                    checked={allSelected}
+                    indeterminate={someSelected}
+                    onChange={(e) => handleSelectAll(e.target.checked)}
+                    inputProps={{ "aria-label": "select all" }}
                   />
                 </TableCell>
                 <TableCell>
-                  <Link to={row.href} style={{ textDecoration: "none" }}>
-                    <Typography
-                      variant="body2"
-                      color="primary"
-                      noWrap
-                      sx={{ "&:hover": { textDecoration: "underline" } }}
-                    >
-                      {row.basename}
-                    </Typography>
-                  </Link>
+                  <TableSortLabel
+                    active={sortCol === "basename"}
+                    direction={sortCol === "basename" ? sortDir : "asc"}
+                    onClick={() => handleSort("basename")}
+                  >
+                    <FormattedMessage id="file_browser.col_name" defaultMessage="Name" />
+                  </TableSortLabel>
                 </TableCell>
-                <TableCell>
-                  <Chip
-                    label={TYPE_LABELS[row.type]}
-                    color={TYPE_COLORS[row.type]}
-                    size="small"
-                    variant="outlined"
-                  />
+                <TableCell sx={{ width: 90 }}>
+                  <FormattedMessage id="file_browser.col_type" defaultMessage="Type" />
                 </TableCell>
-                <TableCell align="right" sx={{ py: 0 }}>
-                  <FileBrowserRowActions row={row} onRefetch={handleRefetch} />
+                <TableCell sx={{ width: 100 }} align="right">
+                  <FormattedMessage id="file_browser.col_actions" defaultMessage="Actions" />
                 </TableCell>
-                <TableCell align="right">
-                  <Typography variant="body2" color="text.secondary">
-                    <FileSize size={row.size} />
-                  </Typography>
+                <TableCell sx={{ width: 100 }} align="right">
+                  <TableSortLabel
+                    active={sortCol === "size"}
+                    direction={sortCol === "size" ? sortDir : "asc"}
+                    onClick={() => handleSort("size")}
+                  >
+                    <FormattedMessage id="file_browser.col_size" defaultMessage="Size" />
+                  </TableSortLabel>
                 </TableCell>
-                <TableCell>
-                  <Typography variant="body2" color="text.secondary">
-                    {new Date(row.mod_time).toLocaleString()}
-                  </Typography>
+                <TableCell sx={{ width: 170 }}>
+                  <TableSortLabel
+                    active={sortCol === "mod_time"}
+                    direction={sortCol === "mod_time" ? sortDir : "asc"}
+                    onClick={() => handleSort("mod_time")}
+                  >
+                    <FormattedMessage id="file_browser.col_modified" defaultMessage="Modified" />
+                  </TableSortLabel>
                 </TableCell>
-                <TableCell sx={{ py: 0.5, width: 120 }}>
-                  {row.thumbnailUrl ? (
-                    <Box
-                      component="img"
-                      src={row.thumbnailUrl}
-                      alt=""
-                      sx={{
-                        display: "block",
-                        width: 112,
-                        height: 63,
-                        objectFit: "cover",
-                        borderRadius: 0.5,
-                        bgcolor: "action.hover",
-                      }}
-                    />
-                  ) : (
-                    <Box
-                      sx={{
-                        width: 112,
-                        height: 63,
-                        borderRadius: 0.5,
-                        bgcolor: "action.hover",
-                      }}
-                    />
-                  )}
+                <TableCell sx={{ width: 120 }}>
+                  <FormattedMessage id="file_browser.col_preview" defaultMessage="Preview" />
                 </TableCell>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+            </TableHead>
+            <TableBody>
+              {rows.map((row) => (
+                <TableRow
+                  key={`${row.type}-${row.id}`}
+                  hover
+                  selected={selectedFileIds.has(row.fileId)}
+                  onContextMenu={(e) => handleContextMenu(e, row)}
+                  sx={{ "&:last-child td": { borderBottom: 0 }, cursor: "context-menu" }}
+                >
+                  <TableCell padding="checkbox">
+                    <Checkbox
+                      size="small"
+                      checked={selectedFileIds.has(row.fileId)}
+                      onChange={(e) => handleRowSelect(row.fileId, e.target.checked)}
+                      onClick={(e) => e.stopPropagation()}
+                      inputProps={{ "aria-label": `select ${row.basename}` }}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Link to={row.href} style={{ textDecoration: "none" }}>
+                      <Typography
+                        variant="body2"
+                        color="primary"
+                        noWrap
+                        sx={{ "&:hover": { textDecoration: "underline" } }}
+                      >
+                        {row.basename}
+                      </Typography>
+                    </Link>
+                  </TableCell>
+                  <TableCell>
+                    <Chip
+                      label={TYPE_LABELS[row.type]}
+                      color={TYPE_COLORS[row.type]}
+                      size="small"
+                      variant="outlined"
+                    />
+                  </TableCell>
+                  <TableCell align="right" sx={{ py: 0 }}>
+                    <FileBrowserRowActions
+                      row={row}
+                      onRefetch={handleRefetch}
+                      onShowDetails={() => setDetailsRow(row)}
+                    />
+                  </TableCell>
+                  <TableCell align="right">
+                    <Typography variant="body2" color="text.secondary">
+                      <FileSize size={row.size} />
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" color="text.secondary">
+                      {new Date(row.mod_time).toLocaleString()}
+                    </Typography>
+                  </TableCell>
+                  <TableCell sx={{ py: 0.5 }}>
+                    {row.thumbnailUrl ? (
+                      <Box
+                        component="img"
+                        src={row.thumbnailUrl}
+                        alt=""
+                        onClick={() => setDetailsRow(row)}
+                        sx={{
+                          display: "block",
+                          width: 112,
+                          height: 63,
+                          objectFit: "cover",
+                          borderRadius: 0.5,
+                          cursor: "pointer",
+                          "&:hover": { opacity: 0.85 },
+                        }}
+                      />
+                    ) : (
+                      <Box sx={{ width: 112, height: 63, borderRadius: 0.5, bgcolor: "action.hover" }} />
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
 
       {/* Footer: item count + pagination */}
       <Box
@@ -556,6 +591,16 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
           />
         )}
       </Box>
+      </Box>{/* end main content column */}
+
+      {/* Details panel */}
+      {detailsRow && (
+        <FileBrowserDetailsPanel
+          id={detailsRow.id}
+          type={detailsRow.type}
+          onClose={() => setDetailsRow(null)}
+        />
+      )}
     </Box>
   );
 };

@@ -1236,6 +1236,7 @@
   "file_browser.selected_count": "{count, plural, one {# item selected} other {# items selected}}",
   "file_browser.bulk_move": "Move To\u2026",
   "file_browser.clear_selection": "Clear",
+  "file_browser.search_placeholder": "Filter by name\u2026",
   "front_page": {
     "types": {
       "premade_filter": "Premade Filter",

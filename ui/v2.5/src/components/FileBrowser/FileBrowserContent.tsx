@@ -1,12 +1,13 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { FormattedMessage } from "react-intl";
+import { FormattedMessage, useIntl } from "react-intl";
 import {
   Box,
   Button,
   Checkbox,
   Chip,
   CircularProgress,
+  InputAdornment,
   Pagination,
   Table,
   TableBody,
@@ -14,10 +15,13 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TableSortLabel,
+  TextField,
   Toolbar,
   Typography,
 } from "@mui/material";
 import DriveFileMoveIcon from "@mui/icons-material/DriveFileMove";
+import SearchIcon from "@mui/icons-material/Search";
 import * as GQL from "src/core/generated-graphql";
 import { FileSize } from "src/components/Shared/FileSize";
 import { FileBrowserRowActions } from "./FileBrowserRowActions";
@@ -73,12 +77,44 @@ const folderFilter = (
 export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
   folderId,
 }) => {
+  const intl = useIntl();
   const [page, setPage] = useState(1);
   const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(
     new Set()
   );
   const [bulkMoveOpen, setBulkMoveOpen] = useState(false);
-  const pageFilter = { page, per_page: PAGE_SIZE };
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [sortCol, setSortCol] = useState<"basename" | "size" | "mod_time">(
+    "basename"
+  );
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+  // Debounce the search so query variables (and thus fetches) only update
+  // after the user stops typing, preventing the input from losing focus.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setPage(1);
+      setSelectedFileIds(new Set());
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const handleSort = (col: "basename" | "size" | "mod_time") => {
+    if (col === sortCol) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortCol(col);
+      setSortDir("asc");
+    }
+  };
+
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+  };
+
+  const pageFilter = { page, per_page: PAGE_SIZE, q: debouncedSearch || undefined };
   const filter = folderFilter(folderId);
 
   const {
@@ -191,10 +227,22 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
       }
     }
 
-    return result.sort((a, b) =>
-      a.basename.localeCompare(b.basename, undefined, { sensitivity: "base" })
-    );
-  }, [scenesData, imagesData, galleriesData]);
+    result.sort((a, b) => {
+      let cmp = 0;
+      if (sortCol === "basename") {
+        cmp = a.basename.localeCompare(b.basename, undefined, {
+          sensitivity: "base",
+        });
+      } else if (sortCol === "size") {
+        cmp = a.size - b.size;
+      } else {
+        cmp =
+          new Date(a.mod_time).getTime() - new Date(b.mod_time).getTime();
+      }
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+    return result;
+  }, [scenesData, imagesData, galleriesData, sortCol, sortDir]);
 
   // Total counts (from server, not just this page)
   const totalScenes = scenesData?.findScenes.count ?? 0;
@@ -286,6 +334,37 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
         onSuccess={handleRefetch}
       />
 
+      {/* Search bar */}
+      <Box
+        sx={{
+          px: 2,
+          py: 1,
+          flexShrink: 0,
+          borderBottom: 1,
+          borderColor: "divider",
+        }}
+      >
+        <TextField
+          size="small"
+          fullWidth
+          placeholder={intl.formatMessage({
+            id: "file_browser.search_placeholder",
+            defaultMessage: "Filter by name…",
+          })}
+          value={searchQuery}
+          onChange={(e) => handleSearchChange(e.target.value)}
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" />
+                </InputAdornment>
+              ),
+            },
+          }}
+        />
+      </Box>
+
       <TableContainer sx={{ flex: 1, overflow: "auto" }}>
         <Table size="small" stickyHeader>
           <TableHead>
@@ -300,10 +379,16 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
                 />
               </TableCell>
               <TableCell>
-                <FormattedMessage
-                  id="file_browser.col_name"
-                  defaultMessage="Name"
-                />
+                <TableSortLabel
+                  active={sortCol === "basename"}
+                  direction={sortCol === "basename" ? sortDir : "asc"}
+                  onClick={() => handleSort("basename")}
+                >
+                  <FormattedMessage
+                    id="file_browser.col_name"
+                    defaultMessage="Name"
+                  />
+                </TableSortLabel>
               </TableCell>
               <TableCell sx={{ width: 90 }}>
                 <FormattedMessage
@@ -318,16 +403,28 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
                 />
               </TableCell>
               <TableCell sx={{ width: 100 }} align="right">
-                <FormattedMessage
-                  id="file_browser.col_size"
-                  defaultMessage="Size"
-                />
+                <TableSortLabel
+                  active={sortCol === "size"}
+                  direction={sortCol === "size" ? sortDir : "asc"}
+                  onClick={() => handleSort("size")}
+                >
+                  <FormattedMessage
+                    id="file_browser.col_size"
+                    defaultMessage="Size"
+                  />
+                </TableSortLabel>
               </TableCell>
               <TableCell sx={{ width: 170 }}>
-                <FormattedMessage
-                  id="file_browser.col_modified"
-                  defaultMessage="Modified"
-                />
+                <TableSortLabel
+                  active={sortCol === "mod_time"}
+                  direction={sortCol === "mod_time" ? sortDir : "asc"}
+                  onClick={() => handleSort("mod_time")}
+                >
+                  <FormattedMessage
+                    id="file_browser.col_modified"
+                    defaultMessage="Modified"
+                  />
+                </TableSortLabel>
               </TableCell>
             </TableRow>
           </TableHead>

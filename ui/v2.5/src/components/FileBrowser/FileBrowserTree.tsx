@@ -7,6 +7,7 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
@@ -20,10 +21,12 @@ import { useConfigurationContext } from "src/hooks/Config";
 // ─── Recursive sub-folder tree node ──────────────────────────────────────────
 
 interface IFolderTreeNodeProps {
-  folder: { id: string; basename: string };
+  folder: { id: string; basename: string; path?: string };
   depth: number;
   selectedId: string | null;
   onSelect: (id: string) => void;
+  /** Override the display label (used to show full path for library roots). */
+  label?: string;
 }
 
 const FolderTreeNode: React.FC<IFolderTreeNodeProps> = ({
@@ -31,6 +34,7 @@ const FolderTreeNode: React.FC<IFolderTreeNodeProps> = ({
   depth,
   selectedId,
   onSelect,
+  label,
 }) => {
   const [expanded, setExpanded] = useState(false);
 
@@ -41,10 +45,18 @@ const FolderTreeNode: React.FC<IFolderTreeNodeProps> = ({
 
   const children = data?.findFolders.folders[0]?.sub_folders ?? [];
   const isSelected = selectedId === folder.id;
+  const tooltipTitle = folder.path ?? label ?? folder.basename;
 
   return (
     <>
-      <ListItemButton
+      <Tooltip
+        title={tooltipTitle}
+        placement="right"
+        enterDelay={600}
+        enterNextDelay={300}
+        arrow
+      >
+        <ListItemButton
         selected={isSelected}
         sx={{ pl: 1 + depth * 2 }}
         onClick={() => {
@@ -72,16 +84,17 @@ const FolderTreeNode: React.FC<IFolderTreeNodeProps> = ({
           )}
         </ListItemIcon>
         <ListItemText
-          primary={folder.basename}
+          primary={label ?? folder.basename}
           slotProps={{ primary: { variant: "body2", noWrap: true } }}
         />
       </ListItemButton>
+      </Tooltip>
       <Collapse in={expanded} timeout="auto" unmountOnExit>
         <List disablePadding>
           {children.map((child) => (
             <FolderTreeNode
               key={child.id}
-              folder={child}
+              folder={{ id: child.id, basename: child.basename, path: child.path }}
               depth={depth + 1}
               selectedId={selectedId}
               onSelect={onSelect}
@@ -161,10 +174,11 @@ const LibraryRootNode: React.FC<ILibraryRootNodeProps> = ({
 
   return (
     <FolderTreeNode
-      folder={{ id: folder.id, basename: folder.basename }}
+      folder={{ id: folder.id, basename: folder.basename, path: folder.path }}
       depth={0}
       selectedId={selectedId}
       onSelect={onSelect}
+      label={path}
     />
   );
 };

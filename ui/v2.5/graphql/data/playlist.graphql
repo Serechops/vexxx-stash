@@ -50,3 +50,39 @@ fragment SlimPlaylistData on Playlist {
   updated_at
   cover_image_path
 }
+
+fragment PlaylistCardData on Playlist {
+  id
+  name
+  description
+  duration
+  item_count
+  created_at
+  updated_at
+  cover_image_path
+  items {
+    id
+    media_type
+    scene {
+      id
+      title
+      date
+      studio { id name image_path }
+      performers { id name image_path }
+      tags { id name }
+      paths { preview screenshot }
+    }
+    image {
+      id
+      studio { id name image_path }
+      performers { id name image_path }
+      tags { id name }
+    }
+    gallery {
+      id
+      studio { id name image_path }
+      performers { id name image_path }
+      tags { id name }
+    }
+  }
+}

@@ -11,7 +11,7 @@ query FindPlaylists(
   findPlaylists(filter: $filter, playlist_filter: $playlist_filter) {
     count
     playlists {
-      ...SlimPlaylistData
+      ...PlaylistCardData
     }
   }
 }

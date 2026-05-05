@@ -109,6 +109,7 @@ func (s *FilesystemStore) Write(ctx context.Context, checksum string, data []byt
 	if err != nil {
 		return fmt.Errorf("creating file %q: %w", fn, err)
 	}
+	defer out.Close()
 
 	r := bytes.NewReader(data)
 

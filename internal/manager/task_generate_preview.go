@@ -36,14 +36,6 @@ func (t *GeneratePreviewTask) Start(ctx context.Context) {
 	previewValid := false
 
 	if t.videoPreviewRequired() {
-		logger.Infof("GeneratePreviewTask for Scene %d. Start: %v, End: %v", t.Scene.ID, t.Scene.StartPoint, t.Scene.EndPoint)
-		if t.Scene.StartPoint != nil {
-			logger.Infof("StartPoint value: %f", *t.Scene.StartPoint)
-		}
-		if t.Scene.EndPoint != nil {
-			logger.Infof("EndPoint value: %f", *t.Scene.EndPoint)
-		}
-
 		if t.Scene.StartPoint != nil && t.Scene.EndPoint != nil && *t.Scene.EndPoint > *t.Scene.StartPoint {
 			t.Options.LimitStart = t.Scene.StartPoint
 			t.Options.LimitEnd = t.Scene.EndPoint

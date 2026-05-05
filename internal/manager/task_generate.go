@@ -42,9 +42,11 @@ type GenerateMetadataInput struct {
 	// gallery ids to generate for
 	GalleryIDs []string `json:"galleryIDs"`
 	// overwrite existing media
-	Overwrite  bool `json:"overwrite"`
-	Galleries  bool `json:"galleries"`
-	ImageCount int  `json:"imageCount"`
+	Overwrite bool `json:"overwrite"`
+	// paths to run generate on, in addition to the other ID lists
+	Paths      []string `json:"paths"`
+	Galleries  bool     `json:"galleries"`
+	ImageCount int      `json:"imageCount"`
 }
 
 type GeneratePreviewOptionsInput struct {
@@ -125,20 +127,23 @@ func (j *GenerateJob) Execute(ctx context.Context, progress *job.Progress) error
 		}
 
 		g := &generate.Generator{
-			Encoder:             instance.FFMpeg,
-			FFMpegConfig:        instance.Config,
-			LockManager:         instance.ReadLockManager,
-			MarkerPaths:         instance.Paths.SceneMarkers,
-			ScenePaths:          instance.Paths.Scene,
-			Overwrite:           j.overwrite,
-			UseHardwareEncoding: instance.Config.GetTranscodeHardwareAcceleration(),
+			Encoder:      instance.FFMpeg,
+			FFMpegConfig: instance.Config,
+			LockManager:  instance.ReadLockManager,
+			MarkerPaths:  instance.Paths.SceneMarkers,
+			ScenePaths:   instance.Paths.Scene,
+			Overwrite:    j.overwrite,
 		}
 
 		r := j.repository
 		if err := r.WithReadTxn(ctx, func(ctx context.Context) error {
 			qb := r.Scene
-			if len(j.input.SceneIDs) == 0 && len(j.input.MarkerIDs) == 0 && len(j.input.ImageIDs) == 0 && len(j.input.GalleryIDs) == 0 {
-				j.queueTasks(ctx, g, queue)
+			if len(j.input.SceneIDs) == 0 &&
+				len(j.input.MarkerIDs) == 0 &&
+				len(j.input.ImageIDs) == 0 &&
+				len(j.input.GalleryIDs) == 0 &&
+				len(j.input.Paths) == 0 {
+				j.queueTasks(ctx, g, nil, queue)
 			} else {
 				if len(j.input.SceneIDs) > 0 {
 					scenes, err = qb.FindMany(ctx, sceneIDs)
@@ -168,7 +173,7 @@ func (j *GenerateJob) Execute(ctx context.Context, progress *job.Progress) error
 							return err
 						}
 
-						j.queueImageJob(i, queue)
+						j.queueImageJob(g, i, queue)
 					}
 				}
 
@@ -183,9 +188,14 @@ func (j *GenerateJob) Execute(ctx context.Context, progress *job.Progress) error
 								return err
 							}
 
-							j.queueImageJob(img, queue)
+							j.queueImageJob(g, img, queue)
 						}
 					}
+				}
+
+				if len(j.input.Paths) > 0 {
+					paths := filterStashPaths(j.input.Paths)
+					j.queueTasks(ctx, g, paths, queue)
 				}
 			}
 
@@ -257,7 +267,9 @@ func (j *GenerateJob) Execute(ctx context.Context, progress *job.Progress) error
 
 	for f := range queue {
 		if job.IsCancelled(ctx) {
-			break
+			// keep draining the queue so the producer goroutine can finish
+			// and release its read transaction, otherwise the DB stays locked
+			continue
 		}
 
 		wg.Add()
@@ -283,17 +295,34 @@ func (j *GenerateJob) Execute(ctx context.Context, progress *job.Progress) error
 	return nil
 }
 
-func (j *GenerateJob) queueTasks(ctx context.Context, g *generate.Generator, queue chan<- Task) {
+func (j *GenerateJob) queueTasks(ctx context.Context, g *generate.Generator, paths []string, queue chan<- Task) {
 	j.totals = totalsGenerate{}
 
-	j.queueScenesTasks(ctx, g, queue)
-	j.queueImagesTasks(ctx, queue)
+	j.queueScenesTasks(ctx, g, paths, queue)
+	j.queueImagesTasks(ctx, g, paths, queue)
 }
 
-func (j *GenerateJob) queueScenesTasks(ctx context.Context, g *generate.Generator, queue chan<- Task) {
+// filterStashPaths returns a copy of paths filtered to only those that fall
+// within a configured stash library. Paths not in any library are logged and
+// skipped.
+func filterStashPaths(paths []string) []string {
+	stashPaths := config.GetInstance().GetStashPaths()
+	var ret []string
+	for _, p := range paths {
+		if s := stashPaths.GetStashFromDirPath(p); s == nil {
+			logger.Warnf("%s is not in the configured stash paths", p)
+		} else {
+			ret = append(ret, p)
+		}
+	}
+	return ret
+}
+
+func (j *GenerateJob) queueScenesTasks(ctx context.Context, g *generate.Generator, paths []string, queue chan<- Task) {
 	const batchSize = 1000
 
 	findFilter := models.BatchFindFilter(batchSize)
+	sceneFilter := scene.FilterFromPaths(paths)
 
 	r := j.repository
 
@@ -302,7 +331,7 @@ func (j *GenerateJob) queueScenesTasks(ctx context.Context, g *generate.Generato
 			return
 		}
 
-		scenes, err := scene.Query(ctx, r.Scene, nil, findFilter)
+		scenes, err := scene.Query(ctx, r.Scene, sceneFilter, findFilter)
 		if err != nil {
 			logger.Errorf("Error encountered queuing files to scan: %s", err.Error())
 			return
@@ -329,10 +358,11 @@ func (j *GenerateJob) queueScenesTasks(ctx context.Context, g *generate.Generato
 	}
 }
 
-func (j *GenerateJob) queueImagesTasks(ctx context.Context, queue chan<- Task) {
+func (j *GenerateJob) queueImagesTasks(ctx context.Context, g *generate.Generator, paths []string, queue chan<- Task) {
 	const batchSize = 1000
 
 	findFilter := models.BatchFindFilter(batchSize)
+	imageFilter := image.FilterFromPaths(paths)
 
 	r := j.repository
 
@@ -341,7 +371,7 @@ func (j *GenerateJob) queueImagesTasks(ctx context.Context, queue chan<- Task) {
 			return
 		}
 
-		images, err := image.Query(ctx, r.Image, nil, findFilter)
+		images, err := image.Query(ctx, r.Image, imageFilter, findFilter)
 		if err != nil {
 			logger.Errorf("Error encountered queuing files to scan: %s", err.Error())
 			return
@@ -357,7 +387,7 @@ func (j *GenerateJob) queueImagesTasks(ctx context.Context, queue chan<- Task) {
 				return
 			}
 
-			j.queueImageJob(ss, queue)
+			j.queueImageJob(g, ss, queue)
 		}
 
 		if len(images) != batchSize {
@@ -569,7 +599,7 @@ func (j *GenerateJob) queueMarkerJob(g *generate.Generator, marker *models.Scene
 	queue <- task
 }
 
-func (j *GenerateJob) queueImageJob(image *models.Image, queue chan<- Task) {
+func (j *GenerateJob) queueImageJob(_ *generate.Generator, image *models.Image, queue chan<- Task) {
 	if j.input.ImageThumbnails {
 		task := &GenerateImageThumbnailTask{
 			Image:     *image,

@@ -220,8 +220,10 @@ func (g Generator) previewVideoChunk(lockCtx *fsutil.LockContext, fn string, opt
 		VideoCodec: ffmpeg.VideoCodecLibX264,
 		VideoArgs:  videoArgs,
 
-		ExtraInputArgs:  g.FFMpegConfig.GetTranscodeInputArgs(),
-		ExtraOutputArgs: g.FFMpegConfig.GetTranscodeOutputArgs(),
+		// Preview generation always uses CPU (libx264). Do not pass the global
+		// transcode hardware-acceleration input/output args here, as those may
+		// include -hwaccel flags that saturate the GPU when many previews are
+		// generated concurrently alongside auto-identify.
 	}
 
 	if options.Audio {

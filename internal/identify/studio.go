@@ -2,7 +2,9 @@ package identify
 
 import (
 	"context"
+	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/stashapp/stash/pkg/logger"
 	"github.com/stashapp/stash/pkg/models"
@@ -25,7 +27,18 @@ func createMissingStudio(ctx context.Context, endpoint string, w models.StudioRe
 			// Create the studio
 			err = w.Create(ctx, newParentStudio)
 			if err != nil {
-				return nil, err
+				if !isUniqueConstraintError(err) {
+					return nil, err
+				}
+				// Another goroutine created the same studio concurrently; find it.
+				existing, findErr := w.FindByName(ctx, newParentStudio.Name, false)
+				if findErr != nil {
+					return nil, fmt.Errorf("finding parent studio after duplicate: %w", findErr)
+				}
+				if existing == nil {
+					return nil, fmt.Errorf("parent studio %q not found after duplicate constraint error", newParentStudio.Name)
+				}
+				newParentStudio.ID = existing.ID
 			}
 
 			// Update image table
@@ -77,7 +90,18 @@ func createMissingStudio(ctx context.Context, endpoint string, w models.StudioRe
 
 	err = w.Create(ctx, newStudio)
 	if err != nil {
-		return nil, err
+		if !isUniqueConstraintError(err) {
+			return nil, err
+		}
+		// Another goroutine created the same studio concurrently; find it.
+		existing, findErr := w.FindByName(ctx, newStudio.Name, false)
+		if findErr != nil {
+			return nil, fmt.Errorf("finding studio after duplicate: %w", findErr)
+		}
+		if existing == nil {
+			return nil, fmt.Errorf("studio %q not found after duplicate constraint error", newStudio.Name)
+		}
+		return &existing.ID, nil
 	}
 
 	// Update image table
@@ -88,4 +112,9 @@ func createMissingStudio(ctx context.Context, endpoint string, w models.StudioRe
 	}
 
 	return &newStudio.ID, nil
+}
+
+// isUniqueConstraintError returns true if err represents a SQLite UNIQUE constraint violation.
+func isUniqueConstraintError(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "UNIQUE constraint failed")
 }

@@ -68,6 +68,8 @@ func (j *ScanJob) Execute(ctx context.Context, progress *job.Progress) error {
 		minModTime = *j.input.Filter.MinModTime
 	}
 
+	logger.Infof("Starting scan of %d paths with %d parallel tasks", len(paths), nTasks)
+
 	// HACK - these should really be set in the scanner initialization
 	j.scanner.FileHandlers = getScanHandlers(j.input, taskQueue, progress)
 	j.scanner.ScanFilters = []file.PathFilter{newScanFilter(c, repo, minModTime)}
@@ -261,8 +263,10 @@ func (j *ScanJob) processQueue(ctx context.Context, parallelTasks int, progress 
 
 		for f := range j.fileQueue {
 			logger.Tracef("Processing queued file %s", f.Path)
-			if err := ctx.Err(); err != nil {
-				return
+			if ctx.Err() != nil {
+				// Keep receiving until queueFiles closes the channel; otherwise
+				// the walker can block on send (full buffer) and never finish.
+				continue
 			}
 
 			wg.Add()
@@ -842,13 +846,12 @@ func (g *sceneGenerators) Generate(ctx context.Context, s *models.Scene, f *mode
 			options := getGeneratePreviewOptions(GeneratePreviewOptionsInput{})
 
 			generator := &generate.Generator{
-				Encoder:             mgr.FFMpeg,
-				FFMpegConfig:        mgr.Config,
-				LockManager:         mgr.ReadLockManager,
-				MarkerPaths:         g.paths.SceneMarkers,
-				ScenePaths:          g.paths.Scene,
-				Overwrite:           overwrite,
-				UseHardwareEncoding: mgr.Config.GetTranscodeHardwareAcceleration(),
+				Encoder:      mgr.FFMpeg,
+				FFMpegConfig: mgr.Config,
+				LockManager:  mgr.ReadLockManager,
+				MarkerPaths:  g.paths.SceneMarkers,
+				ScenePaths:   g.paths.Scene,
+				Overwrite:    overwrite,
 			}
 
 			taskPreview := GeneratePreviewTask{

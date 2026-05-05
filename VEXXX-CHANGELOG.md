@@ -2,6 +2,74 @@
 
 Commits since 9d8adbdb21def80cd28dd585ec0347561c73e6df (exclusive) up to HEAD
 
+### fix: apply upstream memory leak fixes and resolve generate parallelism explosion
+
+Incorporates fixes from upstream PRs #6796 and #6845, plus a Vexxx-specific
+memory issue caused by double-layered parallelism in phash generation.
+
+**Upstream PR #6845 — task_generate.go consumer loop**
+
+`internal/manager/task_generate.go`: Changed `break` → `continue` in the
+generate queue consumer loop. The 200,000-capacity channel producer (scene/image
+walker) would block indefinitely on send when the buffer was full after the
+consumer exited on cancellation, holding its database read transaction open and
+preventing further DB work. `continue` ensures the channel drains until the
+producer closes it.
+
+**Upstream PR #6796 — job manager graveyard memory leak**
+
+`pkg/job/job.go`: Added `statusCopy()` method that copies only serialisable
+status fields (ID, Status, Details, Description, Progress, StartTime, EndTime,
+AddTime, Error), deliberately excluding `exec`, `cancelFunc`, and `outerCtx`.
+
+`pkg/job/manager.go`:
+- `removeJob`: set `job.exec = nil` before moving job to graveyard. The graveyard
+  retains `*Job` for status reporting but no longer holds a reference to the
+  executor (e.g. `ScanJob`), which in turn held a 200,000-capacity `fileQueue`
+  channel and the `scanner` struct.
+- `notifyNewJob`, `notifyJobUpdate`, `removeJob` subscription send, `GetJob`,
+  `GetQueue`: changed `*j` → `j.statusCopy()` so no caller or subscriber ever
+  receives a copy that includes the `exec` reference.
+
+`pkg/job/task.go`: Changed `return` → `continue` in `TaskQueue.executer()` —
+same channel-drain fix as above applied to the task queue.
+
+`internal/manager/task_scan.go`: Changed `return` → `continue` in
+`processQueue`. The scan goroutine was exiting immediately on cancellation,
+leaving `queueFiles()` blocked on a full `fileQueue` send and holding its DB
+read transaction open indefinitely.
+
+**Vexxx-specific — phash double-parallelism fix**
+
+`pkg/hash/videophash/phash.go`: Reverted `generateSprite` to upstream's
+sequential 25-screenshot loop. The previous Vexxx implementation spawned 25
+goroutines per phash task gated by a `runtime.NumCPU()` semaphore. Combined
+with the outer `sizedwaitgroup` (`parallelTasks = NumCPU/4+1` on auto-detect),
+this created a multiplicative explosion of concurrent FFmpeg decode processes
+when Generate Scene Covers + Previews + Sprites + Phashes were all enabled
+together — pinning memory at 99% and locking the machine. The outer
+`sizedwaitgroup` already provides the correct level of cross-task parallelism.
+`PhashOptions` (Start, Duration) for segment-aware phash generation is fully
+preserved.
+
+**Additional — generate path filtering**
+
+`graphql/schema/types/metadata.graphql`: Added `paths: [String!]` field to
+`GenerateMetadataInput`.
+`internal/manager/task_generate.go`: Added `filterStashPaths()` helper; wired
+`paths` through `queueTasks` / `queueScenesTasks` / `queueImagesTasks` so
+generate tasks can be scoped to specific library paths.
+`pkg/image/query.go`: Added `FilterFromPaths()` mirroring `scene.FilterFromPaths()`.
+
+**Cleanup**
+
+`internal/manager/task_generate_preview.go`: Removed four noisy `logger.Infof`
+debug lines that fired on every preview task for segment scenes
+(StartPoint/EndPoint logging). Segment logic and `HasPreview` flag update retained.
+`internal/manager/task_scan.go`: Added startup log showing parallel task count.
+
+---
+
 ### feat(ui): MUI style upgrades across Settings panels + fix log level filtering (12bad78f)
 
 Scrapers & Stash-box:

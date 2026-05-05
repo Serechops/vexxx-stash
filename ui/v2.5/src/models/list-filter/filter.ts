@@ -306,7 +306,13 @@ export class ListFilterModel {
     this.sortDirection = findFilter?.direction ?? this.sortDirection;
     this.searchTerm = findFilter?.q ?? this.searchTerm;
 
-    this.displayMode = uiOptions?.display_mode ?? this.displayMode;
+    // Don't restore Tagger display mode from a saved filter — Tagger is a
+    // workflow mode that should only be entered intentionally via the view
+    // switcher, not auto-applied when loading a filter.
+    const savedDisplayMode = uiOptions?.display_mode;
+    if (savedDisplayMode !== undefined && savedDisplayMode !== DisplayMode.Tagger) {
+      this.displayMode = savedDisplayMode;
+    }
     this.zoomIndex = uiOptions?.zoom_index ?? this.zoomIndex;
 
     this.currentPage = 1;

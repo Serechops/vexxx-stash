@@ -894,6 +894,8 @@ export const SavedFilterDropdown: React.FC<ISavedFilterListProps> = (props) => {
       anchorEl={anchorEl}
       open={open}
       onClose={handleClose}
+      disableScrollLock
+      slotProps={{ backdrop: { sx: { backgroundColor: "transparent", backdropFilter: "none" } } }}
       PaperProps={{
         sx: { width: "300px", display: "flex", flexDirection: "column" }
       }}

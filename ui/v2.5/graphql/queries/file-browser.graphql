@@ -25,6 +25,7 @@ query FileBrowserScenes(
     scenes {
       id
       title
+      studio { id name image_path }
       paths {
         screenshot
       }
@@ -50,6 +51,7 @@ query FileBrowserImages(
     images {
       id
       title
+      studio { id name image_path }
       paths {
         thumbnail
       }
@@ -86,6 +88,7 @@ query FileBrowserGalleries(
     galleries {
       id
       title
+      studio { id name image_path }
       paths {
         cover
       }
@@ -109,10 +112,10 @@ query FileBrowserSceneDetails($id: ID!) {
     date
     rating100
     details
-    studio { id name }
-    performers { id name }
+    studio { id name image_path }
+    performers { id name image_path }
     tags { id name }
-    paths { screenshot }
+    paths { screenshot preview }
     files {
       path
       size
@@ -130,8 +133,8 @@ query FileBrowserImageDetails($id: ID!) {
     id
     title
     rating100
-    studio { id name }
-    performers { id name }
+    studio { id name image_path }
+    performers { id name image_path }
     tags { id name }
     paths { thumbnail }
     visual_files {
@@ -152,8 +155,8 @@ query FileBrowserGalleryDetails($id: ID!) {
     title
     date
     rating100
-    studio { id name }
-    performers { id name }
+    studio { id name image_path }
+    performers { id name image_path }
     tags { id name }
     paths { cover }
     image_count

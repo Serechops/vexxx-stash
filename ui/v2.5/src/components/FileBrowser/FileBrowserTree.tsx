@@ -57,37 +57,37 @@ const FolderTreeNode: React.FC<IFolderTreeNodeProps> = ({
         arrow
       >
         <ListItemButton
-        selected={isSelected}
-        sx={{ pl: 1 + depth * 2 }}
-        onClick={() => {
-          onSelect(folder.id);
-          setExpanded((prev) => !prev);
-        }}
-      >
-        <ListItemIcon sx={{ minWidth: 24 }}>
-          {loading ? (
-            <CircularProgress size={16} />
-          ) : expanded ? (
-            <ExpandMoreIcon fontSize="small" />
-          ) : (
-            <ChevronRightIcon fontSize="small" />
-          )}
-        </ListItemIcon>
-        <ListItemIcon sx={{ minWidth: 32 }}>
-          {isSelected || expanded ? (
-            <FolderOpenIcon
-              fontSize="small"
-              color={isSelected ? "primary" : "inherit"}
-            />
-          ) : (
-            <FolderIcon fontSize="small" />
-          )}
-        </ListItemIcon>
-        <ListItemText
-          primary={label ?? folder.basename}
-          slotProps={{ primary: { variant: "body2", noWrap: true } }}
-        />
-      </ListItemButton>
+          selected={isSelected}
+          sx={{ pl: 1 + depth * 2 }}
+          onClick={() => {
+            onSelect(folder.id);
+            setExpanded((prev) => !prev);
+          }}
+        >
+          <ListItemIcon sx={{ minWidth: 24 }}>
+            {loading ? (
+              <CircularProgress size={16} />
+            ) : expanded ? (
+              <ExpandMoreIcon fontSize="small" />
+            ) : (
+              <ChevronRightIcon fontSize="small" />
+            )}
+          </ListItemIcon>
+          <ListItemIcon sx={{ minWidth: 32 }}>
+            {isSelected || expanded ? (
+              <FolderOpenIcon
+                fontSize="small"
+                color={isSelected ? "primary" : "inherit"}
+              />
+            ) : (
+              <FolderIcon fontSize="small" />
+            )}
+          </ListItemIcon>
+          <ListItemText
+            primary={label ?? folder.basename}
+            slotProps={{ primary: { variant: "body2", noWrap: true } }}
+          />
+        </ListItemButton>
       </Tooltip>
       <Collapse in={expanded} timeout="auto" unmountOnExit>
         <List disablePadding>
@@ -156,7 +156,6 @@ const LibraryRootNode: React.FC<ILibraryRootNodeProps> = ({
   }
 
   if (error || !folder) {
-    // Path not yet scanned into the library – show as disabled placeholder
     return (
       <ListItemButton disabled sx={{ pl: 1 }}>
         <ListItemIcon sx={{ minWidth: 32 }}>

@@ -51,6 +51,9 @@ type ContentRow = {
   size: number;
   mod_time: string;
   thumbnailUrl: string | null;
+  studioName: string | null;
+  studioId: string | null;
+  studioLogoUrl: string | null;
 };
 
 const TYPE_LABELS: Record<ContentRow["type"], string> = {
@@ -93,6 +96,7 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [sortCol, setSortCol] = useState<"basename" | "size" | "mod_time">("basename");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"list" | "grid">(
     () => (localStorage.getItem("fileBrowser.viewMode") as "list" | "grid") ?? "list"
   );
@@ -206,6 +210,9 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
           size: file.size,
           mod_time: file.mod_time,
           thumbnailUrl: scene.paths.screenshot ?? null,
+          studioName: scene.studio?.name ?? null,
+          studioId: scene.studio?.id ?? null,
+          studioLogoUrl: scene.studio?.image_path ?? null,
         });
       }
     }
@@ -226,6 +233,9 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
           size: file.size,
           mod_time: file.mod_time,
           thumbnailUrl: image.paths.thumbnail ?? null,
+          studioName: image.studio?.name ?? null,
+          studioId: image.studio?.id ?? null,
+          studioLogoUrl: image.studio?.image_path ?? null,
         });
       }
     }
@@ -245,6 +255,9 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
           size: file.size,
           mod_time: file.mod_time,
           thumbnailUrl: gallery.paths.cover ?? null,
+          studioName: gallery.studio?.name ?? null,
+          studioId: gallery.studio?.id ?? null,
+          studioLogoUrl: gallery.studio?.image_path ?? null,
         });
       }
     }
@@ -455,18 +468,27 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
           >
             {rows.map((row) => {
               const selected = selectedFileIds.has(row.fileId);
+              const hovered = hoveredId === row.fileId;
               return (
                 <Box
                   key={`${row.type}-${row.id}`}
                   onContextMenu={(e) => handleContextMenu(e, row)}
-                  onClick={() => handleRowSelect(row.fileId, !selected)}
+                  onMouseEnter={() => setHoveredId(row.fileId)}
+                  onMouseLeave={() => setHoveredId(null)}
+                  onClick={(e) => {
+                    if (e.ctrlKey || e.metaKey || numSelected > 0) {
+                      handleRowSelect(row.fileId, !selected);
+                    } else {
+                      setDetailsRow(row);
+                    }
+                  }}
                   sx={{
                     display: "flex",
                     alignItems: "center",
                     gap: 1,
                     p: "4px 6px",
                     borderRadius: 1,
-                    cursor: "default",
+                    cursor: "pointer",
                     userSelect: "none",
                     border: "1px solid",
                     borderColor: selected ? "primary.main" : "transparent",
@@ -475,7 +497,7 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
                     transition: "background-color 0.1s, border-color 0.1s",
                   }}
                 >
-                  {/* Thumbnail — 72×72 square, like Explorer icon area */}
+                  {/* Thumbnail */}
                   <Box
                     sx={{
                       width: 128,
@@ -489,7 +511,6 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
                       justifyContent: "center",
                       position: "relative",
                     }}
-                    onClick={(e) => { e.stopPropagation(); setDetailsRow(row); }}
                   >
                     {row.thumbnailUrl ? (
                       <Box
@@ -517,6 +538,24 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
                         height: 6,
                       }}
                     />
+                    {/* Hover/selection checkbox — top-left of thumbnail */}
+                    {(hovered || selected) && (
+                      <Checkbox
+                        size="small"
+                        checked={selected}
+                        onChange={(e) => { e.stopPropagation(); handleRowSelect(row.fileId, e.target.checked); }}
+                        onClick={(e) => e.stopPropagation()}
+                        sx={{
+                          position: "absolute",
+                          top: 2,
+                          left: 2,
+                          p: 0,
+                          bgcolor: "rgba(0,0,0,0.45)",
+                          borderRadius: "3px",
+                          "& .MuiSvgIcon-root": { fontSize: 18, color: "white" },
+                        }}
+                      />
+                    )}
                   </Box>
 
                   {/* Label */}
@@ -527,7 +566,8 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
                       to={row.href}
                       onClick={(e: React.MouseEvent) => e.stopPropagation()}
                       sx={{
-                        display: "block",
+                        display: "inline-block",
+                        maxWidth: "100%",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
                         whiteSpace: "nowrap",
@@ -542,6 +582,34 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
                     <Typography variant="caption" color="text.disabled" sx={{ fontSize: "0.6rem", display: "block" }}>
                       <FileSize size={row.size} />
                     </Typography>
+                    <Chip
+                      label={TYPE_LABELS[row.type]}
+                      color={TYPE_COLORS[row.type]}
+                      size="small"
+                      variant="outlined"
+                      sx={{ mt: 0.5, height: 16, fontSize: "0.6rem", "& .MuiChip-label": { px: 0.75 } }}
+                    />
+                    {row.studioId && (
+                      <Box
+                        component={Link}
+                        to={`/studios/${row.studioId}`}
+                        onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                        sx={{ display: "flex", alignItems: "center", mt: 0.5, textDecoration: "none" }}
+                      >
+                        {row.studioLogoUrl ? (
+                          <Box
+                            component="img"
+                            src={row.studioLogoUrl}
+                            alt={row.studioName ?? ""}
+                            sx={{ maxHeight: 18, maxWidth: "100%", objectFit: "contain", display: "block" }}
+                          />
+                        ) : (
+                          <Typography variant="caption" color="text.secondary" noWrap sx={{ fontSize: "0.6rem" }}>
+                            {row.studioName}
+                          </Typography>
+                        )}
+                      </Box>
+                    )}
                   </Box>
 
                   {/* Info icon */}
@@ -606,6 +674,9 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
                 </TableCell>
                 <TableCell sx={{ width: 120 }}>
                   <FormattedMessage id="file_browser.col_preview" defaultMessage="Preview" />
+                </TableCell>
+                <TableCell sx={{ width: 140 }}>
+                  <FormattedMessage id="file_browser.col_studio" defaultMessage="Studio" />
                 </TableCell>
               </TableRow>
             </TableHead>
@@ -695,6 +766,28 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
                     ) : (
                       <Box sx={{ width: 112, height: 63, borderRadius: 0.5, bgcolor: "action.hover" }} />
                     )}
+                  </TableCell>
+                  <TableCell sx={{ py: 0.5 }}>
+                    {row.studioId ? (
+                      <Link
+                        to={`/studios/${row.studioId}`}
+                        style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 4 }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {row.studioLogoUrl ? (
+                          <Box
+                            component="img"
+                            src={row.studioLogoUrl}
+                            alt={row.studioName ?? ""}
+                            sx={{ maxHeight: 22, maxWidth: 80, objectFit: "contain", display: "block" }}
+                          />
+                        ) : (
+                          <Typography variant="body2" color="text.secondary" noWrap sx={{ maxWidth: 130 }}>
+                            {row.studioName}
+                          </Typography>
+                        )}
+                      </Link>
+                    ) : null}
                   </TableCell>
                 </TableRow>
               ))}

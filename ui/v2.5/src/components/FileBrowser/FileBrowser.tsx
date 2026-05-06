@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { FormattedMessage } from "react-intl";
-import { Box, Divider, Paper, Typography } from "@mui/material";
+import { Box, Divider, Typography } from "@mui/material";
 import { FileBrowserTree } from "./FileBrowserTree";
 import { FileBrowserContent } from "./FileBrowserContent";
 import { FileBrowserBreadcrumb } from "./FileBrowserBreadcrumb";
@@ -9,7 +9,7 @@ const FileBrowser: React.FC = () => {
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
 
   return (
-    <Paper sx={{ display: "flex", flexDirection: "column", height: "calc(100vh - 80px)", overflow: "hidden", m: 2 }}>
+    <Box sx={{ display: "flex", flexDirection: "column", height: "calc(100vh - 3.4rem)", overflow: "hidden", mx: "-15px" }}>
       <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider", flexShrink: 0 }}>
         <Typography variant="h5">
           <FormattedMessage id="file_browser" defaultMessage="File Browser" />
@@ -73,8 +73,9 @@ const FileBrowser: React.FC = () => {
           </Box>
         </Box>
       </Box>
-    </Paper>
+    </Box>
   );
 };
 
 export default FileBrowser;
+

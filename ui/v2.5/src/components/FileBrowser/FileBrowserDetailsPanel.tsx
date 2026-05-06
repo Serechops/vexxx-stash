@@ -49,6 +49,58 @@ const StarRating: React.FC<{ rating100: number | null | undefined }> = ({
   );
 };
 
+const PerformerCarousel: React.FC<{
+  performers: Array<{ id: string; name: string; image_path?: string | null }>;
+}> = ({ performers }) => (
+  <Box
+    sx={{
+      display: "flex",
+      gap: 1,
+      overflowX: "auto",
+      mt: 0.5,
+      pb: 0.5,
+      scrollbarWidth: "thin",
+      "&::-webkit-scrollbar": { height: 4 },
+      "&::-webkit-scrollbar-thumb": { borderRadius: 2, bgcolor: "action.disabled" },
+    }}
+  >
+    {performers.map((p) => (
+      <Link key={p.id} href={`/performers/${p.id}`} underline="none" sx={{ flexShrink: 0, textAlign: "center", width: 72 }}>
+        <Box
+          component="img"
+          src={p.image_path ?? "/performer_placeholder.png"}
+          alt={p.name}
+          sx={{
+            width: 72,
+            height: 96,
+            borderRadius: 1,
+            objectFit: "cover",
+            objectPosition: "top",
+            display: "block",
+            border: "2px solid",
+            borderColor: "divider",
+            "&:hover": { borderColor: "primary.main" },
+          }}
+        />
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{
+            display: "block",
+            mt: 0.25,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            fontSize: "0.6rem",
+          }}
+        >
+          {p.name}
+        </Typography>
+      </Link>
+    ))}
+  </Box>
+);
+
 // ─── Scene panel ─────────────────────────────────────────────────────────────
 
 const SceneDetails: React.FC<{ id: string }> = ({ id }) => {
@@ -62,13 +114,26 @@ const SceneDetails: React.FC<{ id: string }> = ({ id }) => {
 
   return (
     <Stack spacing={1.5}>
-      {scene.paths.screenshot && (
-        <Box
-          component="img"
-          src={scene.paths.screenshot}
-          alt=""
-          sx={{ width: "100%", aspectRatio: "16/9", objectFit: "cover" }}
-        />
+      {(scene.paths.preview || scene.paths.screenshot) && (
+        scene.paths.preview ? (
+          <Box
+            component="video"
+            src={scene.paths.preview}
+            poster={scene.paths.screenshot ?? undefined}
+            autoPlay
+            loop
+            muted
+            playsInline
+            sx={{ width: "100%", aspectRatio: "16/9", objectFit: "cover", display: "block" }}
+          />
+        ) : (
+          <Box
+            component="img"
+            src={scene.paths.screenshot!}
+            alt=""
+            sx={{ width: "100%", aspectRatio: "16/9", objectFit: "cover" }}
+          />
+        )
       )}
       <Stack spacing={1.5} sx={{ px: 2, pb: 2 }}>
         <Typography variant="subtitle2" fontWeight="bold" sx={{ wordBreak: "break-word" }}>
@@ -108,18 +173,18 @@ const SceneDetails: React.FC<{ id: string }> = ({ id }) => {
         <DetailRow label="Rating"><StarRating rating100={scene.rating100} /></DetailRow>
         {scene.studio && (
           <DetailRow label="Studio">
-            <Link href={`/studios/${scene.studio.id}`} underline="hover" variant="body2">
-              {scene.studio.name}
+            <Link href={`/studios/${scene.studio.id}`} underline="none" sx={{ display: "inline-flex", alignItems: "center", gap: 0.75 }}>
+              {scene.studio.image_path && !scene.studio.image_path.includes("default=true") ? (
+                <Box component="img" src={scene.studio.image_path} alt={scene.studio.name} sx={{ height: 24, width: "auto", maxWidth: 120, objectFit: "contain", display: "block" }} />
+              ) : (
+                <Typography variant="body2" color="primary">{scene.studio.name}</Typography>
+              )}
             </Link>
           </DetailRow>
         )}
         {scene.performers.length > 0 && (
           <DetailRow label="Performers">
-            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 0.25 }}>
-              {scene.performers.map((p) => (
-                <Chip key={p.id} label={p.name} size="small" component="a" href={`/performers/${p.id}`} clickable />
-              ))}
-            </Box>
+            <PerformerCarousel performers={scene.performers} />
           </DetailRow>
         )}
         {scene.tags.length > 0 && (
@@ -188,18 +253,18 @@ const ImageDetails: React.FC<{ id: string }> = ({ id }) => {
         <DetailRow label="Rating"><StarRating rating100={image.rating100} /></DetailRow>
         {image.studio && (
           <DetailRow label="Studio">
-            <Link href={`/studios/${image.studio.id}`} underline="hover" variant="body2">
-              {image.studio.name}
+            <Link href={`/studios/${image.studio.id}`} underline="none" sx={{ display: "inline-flex", alignItems: "center", gap: 0.75 }}>
+              {image.studio.image_path && !image.studio.image_path.includes("default=true") ? (
+                <Box component="img" src={image.studio.image_path} alt={image.studio.name} sx={{ height: 24, width: "auto", maxWidth: 120, objectFit: "contain", display: "block" }} />
+              ) : (
+                <Typography variant="body2" color="primary">{image.studio.name}</Typography>
+              )}
             </Link>
           </DetailRow>
         )}
         {image.performers.length > 0 && (
           <DetailRow label="Performers">
-            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 0.25 }}>
-              {image.performers.map((p) => (
-                <Chip key={p.id} label={p.name} size="small" component="a" href={`/performers/${p.id}`} clickable />
-              ))}
-            </Box>
+            <PerformerCarousel performers={image.performers} />
           </DetailRow>
         )}
         {image.tags.length > 0 && (
@@ -265,18 +330,18 @@ const GalleryDetails: React.FC<{ id: string }> = ({ id }) => {
         <DetailRow label="Rating"><StarRating rating100={gallery.rating100} /></DetailRow>
         {gallery.studio && (
           <DetailRow label="Studio">
-            <Link href={`/studios/${gallery.studio.id}`} underline="hover" variant="body2">
-              {gallery.studio.name}
+            <Link href={`/studios/${gallery.studio.id}`} underline="none" sx={{ display: "inline-flex", alignItems: "center", gap: 0.75 }}>
+              {gallery.studio.image_path && !gallery.studio.image_path.includes("default=true") ? (
+                <Box component="img" src={gallery.studio.image_path} alt={gallery.studio.name} sx={{ height: 24, width: "auto", maxWidth: 120, objectFit: "contain", display: "block" }} />
+              ) : (
+                <Typography variant="body2" color="primary">{gallery.studio.name}</Typography>
+              )}
             </Link>
           </DetailRow>
         )}
         {gallery.performers.length > 0 && (
           <DetailRow label="Performers">
-            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 0.25 }}>
-              {gallery.performers.map((p) => (
-                <Chip key={p.id} label={p.name} size="small" component="a" href={`/performers/${p.id}`} clickable />
-              ))}
-            </Box>
+            <PerformerCarousel performers={gallery.performers} />
           </DetailRow>
         )}
         {gallery.tags.length > 0 && (

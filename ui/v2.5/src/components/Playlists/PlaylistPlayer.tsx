@@ -8,10 +8,18 @@ import React, {
 import { useParams, useHistory, useLocation, Link } from "react-router-dom";
 import {
   Box,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Divider,
   IconButton,
   Fade,
   Switch,
   FormControlLabel,
+  TextField,
+  Tooltip,
 } from "@mui/material";
 import {
   faChevronLeft,
@@ -29,6 +37,14 @@ import {
   faRandom,
   faStepBackward,
   faStepForward,
+  faEdit,
+  faTrash,
+  faPlus,
+  faSave,
+  faTimes,
+  faArrowUp,
+  faArrowDown,
+  faCog,
 } from "@fortawesome/free-solid-svg-icons";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
@@ -39,7 +55,9 @@ import { LoadingIndicator } from "../Shared/LoadingIndicator";
 import { ErrorMessage } from "../Shared/ErrorMessage";
 import { TruncatedText } from "../Shared/TruncatedText";
 import { useLightboxContext } from "src/hooks/Lightbox/context";
-import { useFindPlaylist } from "src/core/StashService";
+import { useFindPlaylist, usePlaylistUpdate, usePlaylistDestroy, usePlaylistReorderItems, usePlaylistRemoveItems } from "src/core/StashService";
+import { PlaylistAddItemsModal } from "./PlaylistAddItemsModal";
+import { useToast } from "src/hooks/Toast";
 import * as GQL from "src/core/generated-graphql";
 import { PlaylistQueue, PlaybackItem } from "src/models/playlistQueue";
 import TextUtils from "src/utils/text";
@@ -445,6 +463,12 @@ interface IQueuePanelProps {
   onRandom: () => void;
   hasNext: boolean;
   hasPrevious: boolean;
+  // Management
+  onRemoveItem: (playlistItemId: string) => void;
+  onMoveItem: (fromIndex: number, toIndex: number) => void;
+  onAddItems: () => void;
+  onSaveEdit: (name: string, description: string) => Promise<void>;
+  onDeletePlaylist: () => void;
 }
 
 const QueuePanel: React.FC<IQueuePanelProps> = ({
@@ -459,9 +483,19 @@ const QueuePanel: React.FC<IQueuePanelProps> = ({
   onRandom,
   hasNext,
   hasPrevious,
+  onRemoveItem,
+  onMoveItem,
+  onAddItems,
+  onSaveEdit,
+  onDeletePlaylist,
 }) => {
   const selectedRef = useRef<HTMLDivElement>(null);
   const intl = useIntl();
+  const [isManaging, setIsManaging] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editName, setEditName] = useState(playlist.name);
+  const [editDesc, setEditDesc] = useState(playlist.description || "");
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (selectedRef.current) {
@@ -477,7 +511,6 @@ const QueuePanel: React.FC<IQueuePanelProps> = ({
       {/* Header */}
       <Box
         sx={{
-          alignItems: 'flex-start',
           borderBottom: '1px solid #27272a',
           display: 'flex',
           flexDirection: 'column',
@@ -486,16 +519,97 @@ const QueuePanel: React.FC<IQueuePanelProps> = ({
           pb: '1rem',
         }}
       >
-        <Box sx={{ fontSize: '1.25rem', fontWeight: 600 }}>
-          <Link
-            to={`/playlists/${playlist.id}`}
-            style={{ color: '#fafafa', textDecoration: 'none' }}
-          >
-            <TruncatedText lineCount={2} text={playlist.name} />
-          </Link>
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+          {editOpen ? (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1 }}>
+              <TextField
+                size="small"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                label={intl.formatMessage({ id: "name", defaultMessage: "Name" })}
+                fullWidth
+              />
+              <TextField
+                size="small"
+                value={editDesc}
+                onChange={(e) => setEditDesc(e.target.value)}
+                label={intl.formatMessage({ id: "description", defaultMessage: "Description" })}
+                fullWidth
+                multiline
+                rows={2}
+              />
+              <Box sx={{ display: 'flex', gap: '0.5rem' }}>
+                <Button
+                  size="small"
+                  variant="contained"
+                  disabled={saving || !editName.trim()}
+                  onClick={async () => {
+                    setSaving(true);
+                    try { await onSaveEdit(editName, editDesc); setEditOpen(false); }
+                    finally { setSaving(false); }
+                  }}
+                  startIcon={<Icon icon={faSave} />}
+                >
+                  <FormattedMessage id="actions.save" defaultMessage="Save" />
+                </Button>
+                <Button size="small" onClick={() => setEditOpen(false)} startIcon={<Icon icon={faTimes} />}>
+                  <FormattedMessage id="actions.cancel" defaultMessage="Cancel" />
+                </Button>
+              </Box>
+            </Box>
+          ) : (
+            <Box sx={{ fontSize: '1.25rem', fontWeight: 600, flex: 1, minWidth: 0 }}>
+              <TruncatedText lineCount={2} text={playlist.name} />
+            </Box>
+          )}
+
+          {!editOpen && (
+            <Box sx={{ display: 'flex', gap: '0.25rem', flexShrink: 0, mt: '0.2rem' }}>
+              {isManaging ? (
+                <>
+                  <Tooltip title={intl.formatMessage({ id: "actions.edit", defaultMessage: "Edit details" })}>
+                    <IconButton
+                      size="small"
+                      onClick={() => { setEditName(playlist.name); setEditDesc(playlist.description || ""); setEditOpen(true); }}
+                      sx={{ color: '#a1a1aa', '&:hover': { color: '#fafafa' } }}
+                    >
+                      <Icon icon={faEdit} />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title={intl.formatMessage({ id: "add_items", defaultMessage: "Add items" })}>
+                    <IconButton size="small" onClick={onAddItems} sx={{ color: '#a1a1aa', '&:hover': { color: '#fafafa' } }}>
+                      <Icon icon={faPlus} />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title={intl.formatMessage({ id: "actions.delete", defaultMessage: "Delete playlist" })}>
+                    <IconButton size="small" onClick={onDeletePlaylist} sx={{ color: '#ef4444', '&:hover': { color: '#fca5a5' } }}>
+                      <Icon icon={faTrash} />
+                    </IconButton>
+                  </Tooltip>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() => setIsManaging(false)}
+                    sx={{ ml: 0.5, fontSize: '0.7rem', py: 0.25, minWidth: 0 }}
+                  >
+                    <FormattedMessage id="done" defaultMessage="Done" />
+                  </Button>
+                </>
+              ) : (
+                <Tooltip title={intl.formatMessage({ id: "manage_playlist", defaultMessage: "Manage playlist" })}>
+                  <IconButton size="small" onClick={() => setIsManaging(true)} sx={{ color: '#a1a1aa', '&:hover': { color: '#fafafa' } }}>
+                    <Icon icon={faCog} />
+                  </IconButton>
+                </Tooltip>
+              )}
+            </Box>
+          )}
         </Box>
+
         <Box sx={{ color: '#a1a1aa', fontSize: '0.875rem' }}>
-          {currentIndex + 1} / {items.length}
+          {isManaging
+            ? `${playlist.items?.length ?? 0} items`
+            : `${currentIndex + 1} / ${items.length}`}
         </Box>
       </Box>
 
@@ -584,163 +698,259 @@ const QueuePanel: React.FC<IQueuePanelProps> = ({
           overflowY: 'auto',
         }}
       >
-        {items.map((item, index) => {
-          const isActive = index === currentIndex;
-          const isPast = index < currentIndex;
-          return (
-            <Box
-              key={`${item.type}-${item.id}-${index}`}
-              ref={isActive ? selectedRef : null}
-              sx={{
-                alignItems: 'center',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                display: 'flex',
-                gap: '0.75rem',
-                p: '0.5rem',
-                transition: 'background-color 0.2s',
-                '&:hover': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                },
-                ...(isActive && {
-                  backgroundColor: 'rgba(82, 82, 91, 0.15)',
-                  border: '1px solid rgba(82, 82, 91, 0.3)',
-                }),
-                ...(isPast && { opacity: 0.6 }),
-              }}
-              onClick={() => onItemClick(index)}
-            >
+        {isManaging ? (
+          /* ── Manage mode: original playlist items with reorder / remove ── */
+          (playlist.items || []).map((item, index) => {
+            const total = playlist.items?.length ?? 0;
+            const icon =
+              item.media_type === GQL.PlaylistMediaType.Image ? faImage
+              : item.media_type === GQL.PlaylistMediaType.Gallery ? faImages
+              : item.media_type === GQL.PlaylistMediaType.Group ? faFilm
+              : faPlayCircle;
+            return (
               <Box
+                key={item.id}
                 sx={{
-                  color: '#a1a1aa',
-                  flexShrink: 0,
-                  fontSize: '0.75rem',
-                  textAlign: 'center',
-                  width: 24,
-                }}
-              >
-                {index + 1}
-              </Box>
-              <Box
-                sx={{
-                  borderRadius: '6px',
-                  flexShrink: 0,
-                  height: 50,
-                  overflow: 'hidden',
-                  position: 'relative',
-                  width: 90,
-                  '& img': {
-                    height: '100%',
-                    objectFit: 'cover',
-                    width: '100%',
-                  },
-                }}
-              >
-                {item.thumbnailPath ? (
-                  <img src={item.thumbnailPath} alt="" />
-                ) : (
-                  <Box
-                    sx={{
-                      alignItems: 'center',
-                      backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                      color: '#a1a1aa',
-                      display: 'flex',
-                      height: '100%',
-                      justifyContent: 'center',
-                      width: '100%',
-                    }}
-                  >
-                    <Icon icon={getMediaIcon(item.type)} />
-                  </Box>
-                )}
-                {isActive && (
-                  <Box
-                    sx={{
-                      alignItems: 'center',
-                      backgroundColor: 'rgba(82, 82, 91, 0.8)',
-                      borderRadius: '50%',
-                      bottom: 4,
-                      color: '#fff',
-                      display: 'flex',
-                      fontSize: '0.6rem',
-                      height: 20,
-                      justifyContent: 'center',
-                      left: 4,
-                      position: 'absolute',
-                      width: 20,
-                    }}
-                  >
-                    <Icon icon={faPlay} />
-                  </Box>
-                )}
-              </Box>
-              <Box
-                sx={{
+                  alignItems: 'center',
+                  borderRadius: '8px',
                   display: 'flex',
-                  flexDirection: 'column',
-                  gap: '0.25rem',
-                  minWidth: 0,
-                  overflow: 'hidden',
+                  gap: '0.5rem',
+                  p: '0.5rem',
+                  '&:hover': { backgroundColor: 'rgba(255,255,255,0.05)' },
                 }}
+              >
+                {/* Reorder arrows */}
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: '0.1rem', flexShrink: 0 }}>
+                  <IconButton
+                    size="small"
+                    disabled={index === 0}
+                    onClick={() => onMoveItem(index, index - 1)}
+                    sx={{ p: '2px', color: '#a1a1aa', '&:disabled': { opacity: 0.3 } }}
+                  >
+                    <Icon icon={faArrowUp} style={{ fontSize: '0.6rem' }} />
+                  </IconButton>
+                  <IconButton
+                    size="small"
+                    disabled={index === total - 1}
+                    onClick={() => onMoveItem(index, index + 1)}
+                    sx={{ p: '2px', color: '#a1a1aa', '&:disabled': { opacity: 0.3 } }}
+                  >
+                    <Icon icon={faArrowDown} style={{ fontSize: '0.6rem' }} />
+                  </IconButton>
+                </Box>
+                {/* Thumbnail */}
+                <Box
+                  sx={{
+                    borderRadius: '4px',
+                    flexShrink: 0,
+                    height: 40,
+                    overflow: 'hidden',
+                    width: 72,
+                    '& img': { height: '100%', objectFit: 'cover', width: '100%' },
+                  }}
+                >
+                  {item.thumbnail_path ? (
+                    <img src={item.thumbnail_path} alt="" />
+                  ) : (
+                    <Box sx={{ alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.1)', color: '#a1a1aa', display: 'flex', height: '100%', justifyContent: 'center', width: '100%' }}>
+                      <Icon icon={icon} />
+                    </Box>
+                  )}
+                </Box>
+                {/* Title + duration */}
+                <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
+                  <Box sx={{ color: '#fafafa', fontSize: '0.8rem', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {item.title}
+                  </Box>
+                  {item.effective_duration != null && item.effective_duration > 0 && (
+                    <Box sx={{ color: '#a1a1aa', fontSize: '0.7rem' }}>
+                      {TextUtils.secondsToTimestamp(item.effective_duration)}
+                    </Box>
+                  )}
+                </Box>
+                {/* Remove */}
+                <IconButton
+                  size="small"
+                  onClick={() => onRemoveItem(item.id)}
+                  sx={{ flexShrink: 0, color: '#a1a1aa', '&:hover': { color: '#ef4444' } }}
+                >
+                  <Icon icon={faTimes} style={{ fontSize: '0.75rem' }} />
+                </IconButton>
+              </Box>
+            );
+          })
+        ) : (
+          /* ── Playback mode: queue with quick-remove on hover ── */
+          items.map((item, index) => {
+            const isActive = index === currentIndex;
+            const isPast = index < currentIndex;
+            return (
+              <Box
+                key={`${item.type}-${item.id}-${index}`}
+                ref={isActive ? selectedRef : null}
+                sx={{
+                  alignItems: 'center',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  gap: '0.75rem',
+                  p: '0.5rem',
+                  transition: 'background-color 0.2s',
+                  '& .remove-btn': { display: 'none' },
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    '& .remove-btn': { display: 'flex' },
+                  },
+                  ...(isActive && {
+                    backgroundColor: 'rgba(82, 82, 91, 0.15)',
+                    border: '1px solid rgba(82, 82, 91, 0.3)',
+                  }),
+                  ...(isPast && { opacity: 0.6 }),
+                }}
+                onClick={() => onItemClick(index)}
               >
                 <Box
                   sx={{
-                    color: '#fafafa',
-                    fontSize: '0.875rem',
-                    fontWeight: 500,
-                    lineHeight: 1.3,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
+                    color: '#a1a1aa',
+                    flexShrink: 0,
+                    fontSize: '0.75rem',
+                    textAlign: 'center',
+                    width: 24,
                   }}
                 >
-                  {item.title || `Untitled ${item.type}`}
+                  {index + 1}
                 </Box>
                 <Box
                   sx={{
-                    alignItems: 'center',
-                    color: '#a1a1aa',
+                    borderRadius: '6px',
+                    flexShrink: 0,
+                    height: 50,
+                    overflow: 'hidden',
+                    position: 'relative',
+                    width: 90,
+                    '& img': {
+                      height: '100%',
+                      objectFit: 'cover',
+                      width: '100%',
+                    },
+                  }}
+                >
+                  {item.thumbnailPath ? (
+                    <img src={item.thumbnailPath} alt="" />
+                  ) : (
+                    <Box
+                      sx={{
+                        alignItems: 'center',
+                        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                        color: '#a1a1aa',
+                        display: 'flex',
+                        height: '100%',
+                        justifyContent: 'center',
+                        width: '100%',
+                      }}
+                    >
+                      <Icon icon={getMediaIcon(item.type)} />
+                    </Box>
+                  )}
+                  {isActive && (
+                    <Box
+                      sx={{
+                        alignItems: 'center',
+                        backgroundColor: 'rgba(82, 82, 91, 0.8)',
+                        borderRadius: '50%',
+                        bottom: 4,
+                        color: '#fff',
+                        display: 'flex',
+                        fontSize: '0.6rem',
+                        height: 20,
+                        justifyContent: 'center',
+                        left: 4,
+                        position: 'absolute',
+                        width: 20,
+                      }}
+                    >
+                      <Icon icon={faPlay} />
+                    </Box>
+                  )}
+                </Box>
+                <Box
+                  sx={{
                     display: 'flex',
-                    fontSize: '0.75rem',
-                    gap: '0.5rem',
+                    flexDirection: 'column',
+                    gap: '0.25rem',
+                    minWidth: 0,
+                    overflow: 'hidden',
+                    flex: 1,
                   }}
                 >
                   <Box
-                    component="span"
                     sx={{
-                      backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                      borderRadius: '4px',
-                      fontSize: '0.625rem',
-                      p: '2px 6px',
-                      textTransform: 'uppercase',
+                      color: '#fafafa',
+                      fontSize: '0.875rem',
+                      fontWeight: 500,
+                      lineHeight: 1.3,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
                     }}
                   >
-                    {item.type}
+                    {item.title || `Untitled ${item.type}`}
                   </Box>
-                  {item.duration && item.duration > 0 && (
-                    <Box component="span" sx={{ color: '#a1a1aa' }}>
-                      {TextUtils.secondsToTimestamp(item.duration)}
-                    </Box>
-                  )}
-                  {item.groupId && (
+                  <Box
+                    sx={{
+                      alignItems: 'center',
+                      color: '#a1a1aa',
+                      display: 'flex',
+                      fontSize: '0.75rem',
+                      gap: '0.5rem',
+                    }}
+                  >
                     <Box
                       component="span"
                       sx={{
-                        alignItems: 'center',
-                        color: '#52525b',
-                        display: 'flex',
+                        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                        borderRadius: '4px',
                         fontSize: '0.625rem',
-                        gap: '0.25rem',
+                        p: '2px 6px',
+                        textTransform: 'uppercase',
                       }}
                     >
-                      <Icon icon={faFilm} /> Group
+                      {item.type}
                     </Box>
-                  )}
+                    {item.duration && item.duration > 0 && (
+                      <Box component="span" sx={{ color: '#a1a1aa' }}>
+                        {TextUtils.secondsToTimestamp(item.duration)}
+                      </Box>
+                    )}
+                    {item.groupId && (
+                      <Box
+                        component="span"
+                        sx={{
+                          alignItems: 'center',
+                          color: '#52525b',
+                          display: 'flex',
+                          fontSize: '0.625rem',
+                          gap: '0.25rem',
+                        }}
+                      >
+                        <Icon icon={faFilm} /> Group
+                      </Box>
+                    )}
+                  </Box>
                 </Box>
+                {/* Quick-remove on hover */}
+                <IconButton
+                  className="remove-btn"
+                  size="small"
+                  onClick={(e) => { e.stopPropagation(); onRemoveItem(item.originalItemId); }}
+                  sx={{ flexShrink: 0, color: '#a1a1aa', '&:hover': { color: '#ef4444' } }}
+                >
+                  <Icon icon={faTimes} style={{ fontSize: '0.75rem' }} />
+                </IconButton>
               </Box>
-            </Box>
-          );
-        })}
+            );
+          })
+        )}
       </Box>
     </Box>
   );
@@ -776,8 +986,19 @@ export const PlaylistPlayer: React.FC = () => {
   const [mediaLoading, setMediaLoading] = useState(false);
 
   // Fetch playlist data
-  const { data: playlistData, loading, error } = useFindPlaylist({ id });
+  const { data: playlistData, loading, error, refetch } = useFindPlaylist({ id });
   const playlist = playlistData?.findPlaylist;
+
+  // Management mutations
+  const [updatePlaylist] = usePlaylistUpdate();
+  const [destroyPlaylist] = usePlaylistDestroy();
+  const [reorderItems] = usePlaylistReorderItems();
+  const [removeItems] = usePlaylistRemoveItems();
+  const Toast = useToast();
+
+  // Management state
+  const [addItemsOpen, setAddItemsOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   // Lazy queries for fetching media
   const [fetchScene] = GQL.useFindSceneLazyQuery();
@@ -850,6 +1071,49 @@ export const PlaylistPlayer: React.FC = () => {
       setCurrentIndex(randomIndex);
     }
   }, [playbackItems.length]);
+
+  // ── Management handlers ──
+  const handleRemoveItem = useCallback(async (playlistItemId: string) => {
+    if (!playlist) return;
+    try {
+      await removeItems({ variables: { input: { playlist_id: playlist.id, item_ids: [playlistItemId] } } });
+      Toast.success(intl.formatMessage({ id: "toast.item_removed", defaultMessage: "Item removed from playlist" }));
+      refetch();
+    } catch (err) { Toast.error(err); }
+  }, [playlist, removeItems, refetch, Toast, intl]);
+
+  const handleMoveItem = useCallback(async (fromIndex: number, toIndex: number) => {
+    if (!playlist?.items || fromIndex === toIndex) return;
+    if (toIndex < 0 || toIndex >= playlist.items.length) return;
+    const reordered = [...playlist.items];
+    const [moved] = reordered.splice(fromIndex, 1);
+    reordered.splice(toIndex, 0, moved);
+    try {
+      await reorderItems({ variables: { input: { playlist_id: playlist.id, item_ids: reordered.map((i) => i.id) } } });
+      refetch();
+    } catch (err) { Toast.error(err); }
+  }, [playlist, reorderItems, refetch, Toast]);
+
+  const handleSaveEdit = useCallback(async (name: string, description: string) => {
+    if (!playlist) return;
+    try {
+      await updatePlaylist({ variables: { input: { id: playlist.id, name: name.trim(), description: description.trim() || undefined } } });
+      Toast.success(intl.formatMessage({ id: "toast.playlist_updated", defaultMessage: "Playlist updated" }));
+      refetch();
+    } catch (err) { Toast.error(err); throw err; }
+  }, [playlist, updatePlaylist, refetch, Toast, intl]);
+
+  const handleDeletePlaylist = useCallback(async () => {
+    if (!playlist) return;
+    try {
+      await destroyPlaylist({
+        variables: { id: playlist.id },
+        update: (cache) => { cache.evict({ id: cache.identify({ __typename: "Playlist", id: playlist.id }) }); },
+      });
+      Toast.success(intl.formatMessage({ id: "toast.playlist_deleted", defaultMessage: "Playlist deleted" }));
+      history.push("/playlists");
+    } catch (err) { Toast.error(err); }
+  }, [playlist, destroyPlaylist, history, Toast, intl]);
 
   // Load media when current item changes
   useEffect(() => {
@@ -1069,6 +1333,11 @@ export const PlaylistPlayer: React.FC = () => {
             onRandom={handleRandom}
             hasNext={queue?.hasNext() || false}
             hasPrevious={queue?.hasPrevious() || false}
+            onRemoveItem={handleRemoveItem}
+            onMoveItem={handleMoveItem}
+            onAddItems={() => setAddItemsOpen(true)}
+            onSaveEdit={handleSaveEdit}
+            onDeletePlaylist={() => setDeleteOpen(true)}
           />
         </Box>
 
@@ -1213,6 +1482,38 @@ export const PlaylistPlayer: React.FC = () => {
           )}
         </Box>
       </Box>
+
+      {/* Add Items Modal */}
+      {playlist && (
+        <PlaylistAddItemsModal
+          playlistId={playlist.id}
+          open={addItemsOpen}
+          onClose={() => setAddItemsOpen(false)}
+          onItemsAdded={() => { setAddItemsOpen(false); refetch(); }}
+        />
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteOpen} onClose={() => setDeleteOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>
+          <FormattedMessage id="dialogs.delete_playlist_title" defaultMessage="Delete Playlist" />
+        </DialogTitle>
+        <DialogContent>
+          <FormattedMessage
+            id="dialogs.delete_playlist_confirm"
+            defaultMessage='Are you sure you want to delete "{name}"? This cannot be undone.'
+            values={{ name: playlist?.name ?? "" }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteOpen(false)}>
+            <FormattedMessage id="actions.cancel" defaultMessage="Cancel" />
+          </Button>
+          <Button color="error" variant="contained" onClick={() => { setDeleteOpen(false); handleDeletePlaylist(); }}>
+            <FormattedMessage id="actions.delete" defaultMessage="Delete" />
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 };

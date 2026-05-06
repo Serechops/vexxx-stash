@@ -22,7 +22,10 @@ import {
   Typography,
 } from "@mui/material";
 import DriveFileMoveIcon from "@mui/icons-material/DriveFileMove";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import SearchIcon from "@mui/icons-material/Search";
+import ViewListIcon from "@mui/icons-material/ViewList";
+import ViewModuleIcon from "@mui/icons-material/ViewModule";
 import * as GQL from "src/core/generated-graphql";
 import { FileSize } from "src/components/Shared/FileSize";
 import { FileBrowserDetailsPanel } from "./FileBrowserDetailsPanel";
@@ -90,6 +93,14 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [sortCol, setSortCol] = useState<"basename" | "size" | "mod_time">("basename");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [viewMode, setViewMode] = useState<"list" | "grid">(
+    () => (localStorage.getItem("fileBrowser.viewMode") as "list" | "grid") ?? "list"
+  );
+
+  const handleSetViewMode = (v: "list" | "grid") => {
+    localStorage.setItem("fileBrowser.viewMode", v);
+    setViewMode(v);
+  };
   const [detailsRow, setDetailsRow] = useState<ContentRow | null>(null);
   const [contextMenuRow, setContextMenuRow] = useState<ContentRow | null>(null);
   const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
@@ -401,6 +412,7 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
           borderColor: "divider",
           display: "flex",
           alignItems: "center",
+          gap: 1,
         }}
       >
         <TextField
@@ -422,8 +434,130 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
             },
           }}
         />
+        <IconButton
+          size="small"
+          onClick={() => handleSetViewMode(viewMode === "list" ? "grid" : "list")}
+          title={viewMode === "list" ? "Switch to grid view" : "Switch to list view"}
+        >
+          {viewMode === "list" ? <ViewModuleIcon fontSize="small" /> : <ViewListIcon fontSize="small" />}
+        </IconButton>
       </Box>
 
+      {viewMode === "grid" ? (
+        /* ── Grid view: Windows Explorer–style tiles ── */
+        <Box sx={{ flex: 1, overflow: "auto", p: 1.5 }}>
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+              gap: 0.75,
+            }}
+          >
+            {rows.map((row) => {
+              const selected = selectedFileIds.has(row.fileId);
+              return (
+                <Box
+                  key={`${row.type}-${row.id}`}
+                  onContextMenu={(e) => handleContextMenu(e, row)}
+                  onClick={() => handleRowSelect(row.fileId, !selected)}
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1,
+                    p: "4px 6px",
+                    borderRadius: 1,
+                    cursor: "default",
+                    userSelect: "none",
+                    border: "1px solid",
+                    borderColor: selected ? "primary.main" : "transparent",
+                    bgcolor: selected ? "action.selected" : "transparent",
+                    "&:hover": { bgcolor: selected ? "action.selected" : "action.hover" },
+                    transition: "background-color 0.1s, border-color 0.1s",
+                  }}
+                >
+                  {/* Thumbnail — 72×72 square, like Explorer icon area */}
+                  <Box
+                    sx={{
+                      width: 128,
+                      height: 128,
+                      flexShrink: 0,
+                      borderRadius: 0.5,
+                      overflow: "hidden",
+                      bgcolor: "action.hover",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      position: "relative",
+                    }}
+                    onClick={(e) => { e.stopPropagation(); setDetailsRow(row); }}
+                  >
+                    {row.thumbnailUrl ? (
+                      <Box
+                        component="img"
+                        src={row.thumbnailUrl}
+                        alt=""
+                        sx={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                      />
+                    ) : (
+                      <Typography sx={{ fontSize: "1.4rem", lineHeight: 1, color: "text.disabled" }}>
+                        {row.type === "scene" ? "🎬" : row.type === "image" ? "🖼" : "🗂"}
+                      </Typography>
+                    )}
+                    {/* Tiny type badge */}
+                    <Box
+                      sx={{
+                        position: "absolute",
+                        bottom: 1,
+                        right: 1,
+                        bgcolor: TYPE_COLORS[row.type] === "primary" ? "primary.main"
+                          : TYPE_COLORS[row.type] === "success" ? "success.main"
+                          : "info.main",
+                        borderRadius: "2px",
+                        width: 6,
+                        height: 6,
+                      }}
+                    />
+                  </Box>
+
+                  {/* Label */}
+                  <Box sx={{ minWidth: 0, flex: 1 }}>
+                    <Typography
+                      variant="caption"
+                      component={Link}
+                      to={row.href}
+                      onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                      sx={{
+                        display: "block",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        lineHeight: 1.25,
+                        color: "text.primary",
+                        textDecoration: "none",
+                        "&:hover": { textDecoration: "underline", color: "primary.main" },
+                      }}
+                    >
+                      {row.title || row.basename}
+                    </Typography>
+                    <Typography variant="caption" color="text.disabled" sx={{ fontSize: "0.6rem", display: "block" }}>
+                      <FileSize size={row.size} />
+                    </Typography>
+                  </Box>
+
+                  {/* Info icon */}
+                  <IconButton
+                    size="small"
+                    onClick={(e) => { e.stopPropagation(); setDetailsRow(row); }}
+                    sx={{ p: 0.25, flexShrink: 0, color: detailsRow?.id === row.id ? "primary.main" : "action.disabled", "&:hover": { color: "primary.main" } }}
+                  >
+                    <InfoOutlinedIcon sx={{ fontSize: 14 }} />
+                  </IconButton>
+                </Box>
+              );
+            })}
+          </Box>
+        </Box>
+      ) : (
       <TableContainer sx={{ flex: 1, overflow: "auto" }}>
           <Table size="small" stickyHeader>
             <TableHead>
@@ -482,24 +616,35 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
                   hover
                   selected={selectedFileIds.has(row.fileId)}
                   onContextMenu={(e) => handleContextMenu(e, row)}
-                  sx={{ "&:last-child td": { borderBottom: 0 }, cursor: "context-menu" }}
+                  onClick={() => setDetailsRow(row)}
+                  sx={{ "&:last-child td": { borderBottom: 0 }, cursor: "pointer" }}
                 >
-                  <TableCell padding="checkbox">
-                    <Checkbox
-                      size="small"
-                      checked={selectedFileIds.has(row.fileId)}
-                      onChange={(e) => handleRowSelect(row.fileId, e.target.checked)}
-                      onClick={(e) => e.stopPropagation()}
-                      inputProps={{ "aria-label": `select ${row.basename}` }}
-                    />
+                  <TableCell padding="checkbox" sx={{ pr: 0 }}>
+                    <Box sx={{ display: "flex", alignItems: "center" }}>
+                      <Checkbox
+                        size="small"
+                        checked={selectedFileIds.has(row.fileId)}
+                        onChange={(e) => handleRowSelect(row.fileId, e.target.checked)}
+                        onClick={(e) => e.stopPropagation()}
+                        inputProps={{ "aria-label": `select ${row.basename}` }}
+                      />
+                      <IconButton
+                        size="small"
+                        onClick={(e) => { e.stopPropagation(); setDetailsRow(row); }}
+                        sx={{ p: 0.25, color: detailsRow?.id === row.id ? "primary.main" : "action.disabled", "&:hover": { color: "primary.main" } }}
+                        aria-label="show details"
+                      >
+                        <InfoOutlinedIcon sx={{ fontSize: 16 }} />
+                      </IconButton>
+                    </Box>
                   </TableCell>
                   <TableCell>
-                    <Link to={row.href} style={{ textDecoration: "none" }}>
+                    <Link to={row.href} style={{ textDecoration: "none" }} onClick={(e) => e.stopPropagation()}>
                       <Typography
                         variant="body2"
                         color="primary"
                         noWrap
-                        sx={{ "&:hover": { textDecoration: "underline" } }}
+                        sx={{ display: "inline-block", maxWidth: "100%", verticalAlign: "bottom", "&:hover": { textDecoration: "underline" } }}
                       >
                         {row.basename}
                       </Typography>
@@ -513,7 +658,7 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
                       variant="outlined"
                     />
                   </TableCell>
-                  <TableCell align="right" sx={{ py: 0 }}>
+                  <TableCell align="right" sx={{ py: 0 }} onClick={(e) => e.stopPropagation()}>
                     <FileBrowserRowActions
                       row={row}
                       onRefetch={handleRefetch}
@@ -556,6 +701,7 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
             </TableBody>
           </Table>
         </TableContainer>
+      )}{/* end view mode */}
 
       {/* Footer: item count + pagination */}
       <Box

@@ -990,8 +990,8 @@ export const useSceneSaveActivity = () =>
           resume_time() {
             return resumeTime ?? null;
           },
-          play_duration(value) {
-            return value + playDuration;
+          play_duration(value: number) {
+            return value + (playDuration ?? 0);
           },
         },
       });
@@ -1022,7 +1022,7 @@ export const useSceneIncrementPlayCount = () =>
       cache.modify({
         id: cache.identify({ __typename: "Scene", id }),
         fields: {
-          play_count(value) {
+          play_count(value: number) {
             lastPlayCount = value;
             return history.length;
           },
@@ -1066,7 +1066,7 @@ export const useSceneDecrementPlayCount = () =>
       cache.modify({
         id: cache.identify({ __typename: "Scene", id }),
         fields: {
-          play_count(value) {
+          play_count(value: number) {
             lastPlayCount = value;
             return playCount;
           },
@@ -1114,7 +1114,7 @@ export const useSceneResetPlayCount = () =>
       cache.modify({
         id: cache.identify({ __typename: "Scene", id: variables.id }),
         fields: {
-          play_count(value) {
+          play_count(value: number) {
             lastPlayCount = value;
             return 0;
           },
@@ -2280,6 +2280,9 @@ export const mutateDeleteFiles = (ids: string[]) =>
       }
 
       evictQueries(cache, [
+        GQL.FindSceneDocument, // files list on scene detail
+        GQL.FindImageDocument, // files list on image detail
+        GQL.FindGalleryDocument, // files list on gallery detail
         GQL.FindScenesDocument, // filter by file count
         GQL.FindImagesDocument, // filter by file count
         GQL.FindGalleriesDocument, // filter by file count

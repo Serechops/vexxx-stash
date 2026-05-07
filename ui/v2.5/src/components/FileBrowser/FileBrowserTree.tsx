@@ -141,7 +141,7 @@ const LibraryRootNode: React.FC<ILibraryRootNodeProps> = ({
 
   if (loading) {
     return (
-      <ListItemButton disabled sx={{ pl: 1 }}>
+      <ListItemButton sx={{ pl: 1 }}>
         <ListItemIcon sx={{ minWidth: 32 }}>
           <CircularProgress size={16} />
         </ListItemIcon>

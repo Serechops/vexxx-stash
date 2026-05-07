@@ -1,0 +1,17 @@
+query StashTagJobResult($jobID: String!) {
+  stashTagJobResult(jobID: $jobID) {
+    jobID
+    threshold
+    autoAcceptThreshold
+    scenes {
+      sceneID
+      sceneLabel
+      status
+      error
+      tags {
+        name
+        confidence
+      }
+    }
+  }
+}

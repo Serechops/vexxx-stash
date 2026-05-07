@@ -774,3 +774,16 @@ extend type Mutation {
   "Quick add: add a group to a playlist"
   playlistAddGroup(playlist_id: ID!, group_id: ID!): Playlist!
 }
+
+# StashTag AI batch analysis
+extend type Query {
+  "Get the results of a completed StashTag batch analysis job"
+  stashTagJobResult(jobID: String!): StashTagJobResult
+}
+
+extend type Mutation {
+  "Submit a batch of scenes for StashTag AI tag analysis. Returns job ID."
+  stashTagBatchAnalyze(input: StashTagBatchInput!): ID!
+  "Clear cached results for a StashTag batch analysis job"
+  stashTagClearJobResult(jobID: String!): Boolean!
+}

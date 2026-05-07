@@ -1,0 +1,30 @@
+type StashTagTagPrediction {
+  name: String!
+  confidence: Float!
+}
+
+type StashTagSceneResult {
+  sceneID: ID!
+  sceneLabel: String!
+  status: String!
+  tags: [StashTagTagPrediction!]!
+  error: String
+}
+
+type StashTagJobResult {
+  jobID: String!
+  threshold: Float!
+  autoAcceptThreshold: Float!
+  scenes: [StashTagSceneResult!]!
+}
+
+input StashTagBatchInput {
+  "Scene IDs to analyse"
+  sceneIDs: [ID!]!
+  "Minimum confidence threshold (0-1)"
+  threshold: Float!
+  "Auto-accept confidence threshold (0-100)"
+  autoAcceptThreshold: Float!
+  "Auto-generate sprite/VTT for scenes that are missing them"
+  autoGenerateSprites: Boolean!
+}

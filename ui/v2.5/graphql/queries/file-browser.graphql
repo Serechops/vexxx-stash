@@ -26,6 +26,7 @@ query FileBrowserScenes(
       id
       title
       studio { id name image_path }
+      tags { id name }
       paths {
         screenshot
       }
@@ -52,6 +53,7 @@ query FileBrowserImages(
       id
       title
       studio { id name image_path }
+      tags { id name }
       paths {
         thumbnail
       }
@@ -89,6 +91,7 @@ query FileBrowserGalleries(
       id
       title
       studio { id name image_path }
+      tags { id name }
       paths {
         cover
       }

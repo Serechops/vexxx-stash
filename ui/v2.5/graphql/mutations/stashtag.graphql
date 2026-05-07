@@ -1,0 +1,7 @@
+mutation StashTagBatchAnalyze($input: StashTagBatchInput!) {
+  stashTagBatchAnalyze(input: $input)
+}
+
+mutation StashTagClearJobResult($jobID: String!) {
+  stashTagClearJobResult(jobID: $jobID)
+}

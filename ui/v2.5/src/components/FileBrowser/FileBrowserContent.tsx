@@ -9,7 +9,10 @@ import {
   CircularProgress,
   IconButton,
   InputAdornment,
+  LinearProgress,
   Pagination,
+  Popover,
+  Slider,
   Table,
   TableBody,
   TableCell,
@@ -19,19 +22,26 @@ import {
   TableSortLabel,
   TextField,
   Toolbar,
+  Tooltip,
   Typography,
 } from "@mui/material";
+import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
 import DriveFileMoveIcon from "@mui/icons-material/DriveFileMove";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import LocalOfferIcon from "@mui/icons-material/LocalOffer";
 import SearchIcon from "@mui/icons-material/Search";
+import SettingsIcon from "@mui/icons-material/Settings";
+import StopIcon from "@mui/icons-material/Stop";
 import ViewListIcon from "@mui/icons-material/ViewList";
 import ViewModuleIcon from "@mui/icons-material/ViewModule";
 import * as GQL from "src/core/generated-graphql";
 import { FileSize } from "src/components/Shared/FileSize";
 import { FileBrowserDetailsPanel } from "./FileBrowserDetailsPanel";
+import { FileBrowserQuickTag } from "./FileBrowserQuickTag";
 import { FileBrowserRowActions } from "./FileBrowserRowActions";
 import { FileBrowserRowMenu } from "./FileBrowserRowMenu";
 import { FolderPickerDialog } from "./FolderPickerDialog";
+import { useStashTagStore } from "./useStashTagStore";
 
 const PAGE_SIZE = 100;
 
@@ -54,6 +64,7 @@ type ContentRow = {
   studioName: string | null;
   studioId: string | null;
   studioLogoUrl: string | null;
+  tags: Array<{ id: string; name: string }>;
 };
 
 const TYPE_LABELS: Record<ContentRow["type"], string> = {
@@ -89,23 +100,52 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
   folderId,
 }) => {
   const intl = useIntl();
+  const store = useStashTagStore();
   const [page, setPage] = useState(1);
   const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set());
   const [bulkMoveOpen, setBulkMoveOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [sortCol, setSortCol] = useState<"basename" | "size" | "mod_time">("basename");
+  const [sortCol, setSortCol] = useState<"basename" | "size" | "mod_time" | "studio">("basename");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"list" | "grid">(
     () => (localStorage.getItem("fileBrowser.viewMode") as "list" | "grid") ?? "list"
   );
+  const [filterAIReady, setFilterAIReady] = useState(false);
+  // AI settings popover
+  const [aiSettingsAnchor, setAiSettingsAnchor] = useState<HTMLElement | null>(null);
+  const [aiThreshold, setAiThreshold] = useState(0.5);
+  const [aiAcceptThreshold, setAiAcceptThreshold] = useState(75);
 
   const handleSetViewMode = (v: "list" | "grid") => {
     localStorage.setItem("fileBrowser.viewMode", v);
     setViewMode(v);
   };
   const [detailsRow, setDetailsRow] = useState<ContentRow | null>(null);
+  const [isQuickTagOpen, setIsQuickTagOpen] = useState(() =>
+    localStorage.getItem("fileBrowser.quickTag.open") === "true"
+  );
+  const [isQuickTagLocked, setIsQuickTagLocked] = useState(() =>
+    localStorage.getItem("fileBrowser.quickTag.locked") === "true"
+  );
+
+  const handleQuickTagLockedChange = (locked: boolean) => {
+    setIsQuickTagLocked(locked);
+    localStorage.setItem("fileBrowser.quickTag.locked", String(locked));
+    if (!locked) {
+      setIsQuickTagOpen(false);
+      localStorage.setItem("fileBrowser.quickTag.open", "false");
+    }
+  };
+
+  const handleQuickTagToggle = () => {
+    setIsQuickTagOpen((o) => {
+      const next = !o;
+      localStorage.setItem("fileBrowser.quickTag.open", String(next));
+      return next;
+    });
+  };
   const [contextMenuRow, setContextMenuRow] = useState<ContentRow | null>(null);
   const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
   const [contextMenuOpen, setContextMenuOpen] = useState(false);
@@ -121,7 +161,7 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  const handleSort = (col: "basename" | "size" | "mod_time") => {
+  const handleSort = (col: "basename" | "size" | "mod_time" | "studio") => {
     if (col === sortCol) {
       setSortDir((d) => (d === "asc" ? "desc" : "asc"));
     } else {
@@ -213,6 +253,7 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
           studioName: scene.studio?.name ?? null,
           studioId: scene.studio?.id ?? null,
           studioLogoUrl: scene.studio?.image_path ?? null,
+          tags: scene.tags.map((t) => ({ id: t.id, name: t.name })),
         });
       }
     }
@@ -236,6 +277,7 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
           studioName: image.studio?.name ?? null,
           studioId: image.studio?.id ?? null,
           studioLogoUrl: image.studio?.image_path ?? null,
+          tags: image.tags.map((t) => ({ id: t.id, name: t.name })),
         });
       }
     }
@@ -258,6 +300,7 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
           studioName: gallery.studio?.name ?? null,
           studioId: gallery.studio?.id ?? null,
           studioLogoUrl: gallery.studio?.image_path ?? null,
+          tags: gallery.tags.map((t) => ({ id: t.id, name: t.name })),
         });
       }
     }
@@ -270,6 +313,8 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
         });
       } else if (sortCol === "size") {
         cmp = a.size - b.size;
+      } else if (sortCol === "studio") {
+        cmp = (a.studioName ?? "").localeCompare(b.studioName ?? "", undefined, { sensitivity: "base" });
       } else {
         cmp =
           new Date(a.mod_time).getTime() - new Date(b.mod_time).getTime();
@@ -303,6 +348,24 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
         .filter((r) => selectedFileIds.has(r.fileId))
         .reduce((acc, r) => acc + r.size, 0),
     [rows, selectedFileIds]
+  );
+
+  // Scene IDs currently selected (for AI analysis)
+  const selectedSceneIds = useMemo(
+    () =>
+      rows
+        .filter((r) => r.type === "scene" && selectedFileIds.has(r.fileId))
+        .map((r) => r.id),
+    [rows, selectedFileIds]
+  );
+
+  // Client-side AI-ready filter
+  const displayRows = useMemo(
+    () =>
+      filterAIReady
+        ? rows.filter((r) => r.type === "scene" && store.hasResult(r.id))
+        : rows,
+    [rows, filterAIReady, store.hasResult]
   );
 
   if (loading && rows.length === 0) {
@@ -385,6 +448,59 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
             {" · "}
             <FileSize size={selectedSize} />
           </Typography>
+
+          {/* AI analysis actions */}
+          {store.isRunning ? (
+            <>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, minWidth: 120 }}>
+                <CircularProgress size={14} />
+                <Typography variant="caption">
+                  {store.jobProgress != null
+                    ? `AI ${Math.round(store.jobProgress * 100)}%`
+                    : "Analysing…"}
+                </Typography>
+              </Box>
+              {store.jobProgress != null && (
+                <LinearProgress
+                  variant="determinate"
+                  value={store.jobProgress * 100}
+                  sx={{ width: 60 }}
+                />
+              )}
+              <Tooltip title="Stop AI analysis">
+                <IconButton size="small" onClick={store.stopJob}>
+                  <StopIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            </>
+          ) : selectedSceneIds.length > 0 ? (
+            <>
+              <Tooltip title="Configure analysis settings">
+                <IconButton
+                  size="small"
+                  onClick={(e) => setAiSettingsAnchor(e.currentTarget)}
+                >
+                  <SettingsIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<AutoFixHighIcon />}
+                onClick={() =>
+                  store.runAnalysis(selectedSceneIds, {
+                    threshold: aiThreshold,
+                    autoAcceptThreshold: aiAcceptThreshold,
+                    autoGenerateSprites: false,
+                  })
+                }
+              >
+                Analyse {selectedSceneIds.length} scene
+                {selectedSceneIds.length !== 1 ? "s" : ""}
+              </Button>
+            </>
+          ) : null}
+
           <Button
             size="small"
             variant="outlined"
@@ -407,6 +523,41 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
           </Button>
         </Toolbar>
       )}
+
+      {/* AI settings popover */}
+      <Popover
+        open={Boolean(aiSettingsAnchor)}
+        anchorEl={aiSettingsAnchor}
+        onClose={() => setAiSettingsAnchor(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        transformOrigin={{ vertical: "top", horizontal: "right" }}
+      >
+        <Box sx={{ p: 2, width: 240 }}>
+          <Typography variant="caption" gutterBottom display="block" fontWeight={600}>
+            Analysis Settings
+          </Typography>
+          <Typography variant="caption" display="block" sx={{ mb: 0.5 }}>
+            Confidence threshold: {Math.round(aiThreshold * 100)}%
+          </Typography>
+          <Slider
+            size="small"
+            min={20}
+            max={90}
+            value={Math.round(aiThreshold * 100)}
+            onChange={(_, v) => setAiThreshold((v as number) / 100)}
+          />
+          <Typography variant="caption" display="block" sx={{ mt: 1, mb: 0.5 }}>
+            Auto-accept threshold: {aiAcceptThreshold}%
+          </Typography>
+          <Slider
+            size="small"
+            min={50}
+            max={95}
+            value={aiAcceptThreshold}
+            onChange={(_, v) => setAiAcceptThreshold(v as number)}
+          />
+        </Box>
+      </Popover>
 
       <FolderPickerDialog
         open={bulkMoveOpen}
@@ -447,12 +598,33 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
             },
           }}
         />
+        {/* AI-ready filter chip */}
+        {store.pendingReviewCount > 0 && (
+          <Tooltip title="Show only AI-ready scenes">
+            <Chip
+              icon={<AutoFixHighIcon sx={{ fontSize: "0.85rem !important" }} />}
+              label={`AI: ${store.pendingReviewCount}`}
+              size="small"
+              color={filterAIReady ? "secondary" : "default"}
+              variant={filterAIReady ? "filled" : "outlined"}
+              onClick={() => setFilterAIReady((f) => !f)}
+            />
+          </Tooltip>
+        )}
         <IconButton
           size="small"
           onClick={() => handleSetViewMode(viewMode === "list" ? "grid" : "list")}
           title={viewMode === "list" ? "Switch to grid view" : "Switch to list view"}
         >
           {viewMode === "list" ? <ViewModuleIcon fontSize="small" /> : <ViewListIcon fontSize="small" />}
+        </IconButton>
+        <IconButton
+          size="small"
+          onClick={handleQuickTagToggle}
+          title="Quick Tag"
+          color={isQuickTagOpen ? "primary" : "default"}
+        >
+          <LocalOfferIcon fontSize="small" />
         </IconButton>
       </Box>
 
@@ -466,7 +638,7 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
               gap: 0.75,
             }}
           >
-            {rows.map((row) => {
+            {displayRows.map((row) => {
               const selected = selectedFileIds.has(row.fileId);
               const hovered = hoveredId === row.fileId;
               return (
@@ -589,26 +761,28 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
                       variant="outlined"
                       sx={{ mt: 0.5, height: 16, fontSize: "0.6rem", "& .MuiChip-label": { px: 0.75 } }}
                     />
+                    {row.type === "scene" && store.hasResult(row.id) && (
+                      <Chip
+                        icon={<AutoFixHighIcon sx={{ fontSize: "0.7rem !important" }} />}
+                        label="AI"
+                        color="secondary"
+                        size="small"
+                        variant="filled"
+                        sx={{ mt: 0.5, ml: 0.5, height: 16, fontSize: "0.6rem", "& .MuiChip-label": { px: 0.5 } }}
+                      />
+                    )}
                     {row.studioId && (
-                      <Box
+                      <Typography
+                        variant="caption"
                         component={Link}
                         to={`/studios/${row.studioId}`}
                         onClick={(e: React.MouseEvent) => e.stopPropagation()}
-                        sx={{ display: "flex", alignItems: "center", mt: 0.5, textDecoration: "none" }}
+                        color="text.secondary"
+                        noWrap
+                        sx={{ display: "block", mt: 0.5, fontSize: "0.6rem", textDecoration: "none", "&:hover": { textDecoration: "underline", color: "primary.main" } }}
                       >
-                        {row.studioLogoUrl ? (
-                          <Box
-                            component="img"
-                            src={row.studioLogoUrl}
-                            alt={row.studioName ?? ""}
-                            sx={{ maxHeight: 18, maxWidth: "100%", objectFit: "contain", display: "block" }}
-                          />
-                        ) : (
-                          <Typography variant="caption" color="text.secondary" noWrap sx={{ fontSize: "0.6rem" }}>
-                            {row.studioName}
-                          </Typography>
-                        )}
-                      </Box>
+                        {row.studioName}
+                      </Typography>
                     )}
                   </Box>
 
@@ -676,12 +850,18 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
                   <FormattedMessage id="file_browser.col_preview" defaultMessage="Preview" />
                 </TableCell>
                 <TableCell sx={{ width: 140 }}>
-                  <FormattedMessage id="file_browser.col_studio" defaultMessage="Studio" />
+                  <TableSortLabel
+                    active={sortCol === "studio"}
+                    direction={sortCol === "studio" ? sortDir : "asc"}
+                    onClick={() => handleSort("studio")}
+                  >
+                    <FormattedMessage id="file_browser.col_studio" defaultMessage="Studio" />
+                  </TableSortLabel>
                 </TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {rows.map((row) => (
+            {displayRows.map((row) => (
                 <TableRow
                   key={`${row.type}-${row.id}`}
                   hover
@@ -722,12 +902,24 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
                     </Link>
                   </TableCell>
                   <TableCell>
-                    <Chip
-                      label={TYPE_LABELS[row.type]}
-                      color={TYPE_COLORS[row.type]}
-                      size="small"
-                      variant="outlined"
-                    />
+                    <Box sx={{ display: "flex", gap: 0.5, alignItems: "center" }}>
+                      <Chip
+                        label={TYPE_LABELS[row.type]}
+                        color={TYPE_COLORS[row.type]}
+                        size="small"
+                        variant="outlined"
+                      />
+                      {row.type === "scene" && store.hasResult(row.id) && (
+                        <Chip
+                          icon={<AutoFixHighIcon sx={{ fontSize: "0.7rem !important" }} />}
+                          label="AI"
+                          color="secondary"
+                          size="small"
+                          variant="filled"
+                          sx={{ height: 20, fontSize: "0.6rem", "& .MuiChip-label": { px: 0.5 } }}
+                        />
+                      )}
+                    </Box>
                   </TableCell>
                   <TableCell align="right" sx={{ py: 0 }} onClick={(e) => e.stopPropagation()}>
                     <FileBrowserRowActions
@@ -771,21 +963,12 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
                     {row.studioId ? (
                       <Link
                         to={`/studios/${row.studioId}`}
-                        style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 4 }}
+                        style={{ textDecoration: "none" }}
                         onClick={(e) => e.stopPropagation()}
                       >
-                        {row.studioLogoUrl ? (
-                          <Box
-                            component="img"
-                            src={row.studioLogoUrl}
-                            alt={row.studioName ?? ""}
-                            sx={{ maxHeight: 22, maxWidth: 80, objectFit: "contain", display: "block" }}
-                          />
-                        ) : (
-                          <Typography variant="body2" color="text.secondary" noWrap sx={{ maxWidth: 130 }}>
-                            {row.studioName}
-                          </Typography>
-                        )}
+                        <Typography variant="body2" color="text.secondary" noWrap sx={{ maxWidth: 130 }}>
+                          {row.studioName}
+                        </Typography>
                       </Link>
                     ) : null}
                   </TableCell>
@@ -838,6 +1021,34 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
           id={detailsRow.id}
           type={detailsRow.type}
           onClose={() => setDetailsRow(null)}
+          getSceneResult={store.getResult}
+          onSceneDismissed={store.dismissScene}
+          onApplied={handleRefetch}
+        />
+      )}
+
+      {/* Quick Tag panel */}
+      {isQuickTagOpen && (
+        <FileBrowserQuickTag
+          selectedRows={rows
+            .filter((r) => selectedFileIds.has(r.fileId))
+            .map((r) => ({
+              id: r.id,
+              type: r.type,
+              tags: r.tags,
+              label: r.title || r.basename,
+            }))}
+          locked={isQuickTagLocked}
+          onLockedChange={handleQuickTagLockedChange}
+          onClose={() => {
+            setIsQuickTagOpen(false);
+            localStorage.setItem("fileBrowser.quickTag.open", "false");
+          }}
+          onApplied={() => {
+            refetchScenes();
+            refetchImages();
+            refetchGalleries();
+          }}
         />
       )}
     </Box>

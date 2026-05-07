@@ -193,3 +193,12 @@ models:
     model: github.com/stashapp/stash/pkg/models.PlaylistItemPositionInput
   FindPlaylistsResultType:
     model: github.com/stashapp/stash/internal/api.FindPlaylistsResultType
+  # StashTag AI batch analysis types
+  StashTagBatchInput:
+    model: github.com/stashapp/stash/internal/manager.StashTagBatchInput
+  StashTagJobResult:
+    model: github.com/stashapp/stash/internal/manager.StashTagJobResult
+  StashTagSceneResult:
+    model: github.com/stashapp/stash/internal/manager.StashTagSceneResult
+  StashTagTagPrediction:
+    model: github.com/stashapp/stash/internal/manager.StashTagTagPrediction

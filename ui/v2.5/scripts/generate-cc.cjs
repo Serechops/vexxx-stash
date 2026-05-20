@@ -117,6 +117,35 @@ if (isRC && isRelease) {
 
 let STASH_VERSION = customVersion || process.env.STASH_VERSION;
 
+function createAndPushTag(version) {
+    const tagExists = spawnSync('git', ['tag', '-l', version], { encoding: 'utf-8' }).stdout.trim() === version;
+    if (tagExists) {
+        console.log(`[Git] Tag ${version} already exists locally, skipping creation.`);
+    } else {
+        if (isDryRun) {
+            console.log(`[Dry Run] Would create tag ${version}.`);
+        } else {
+            console.log(`[Git] Creating tag ${version}...`);
+            const tagResult = spawnSync('git', ['tag', '-a', version, '-m', `Release ${version}`], { stdio: 'inherit' });
+            if (tagResult.status !== 0) {
+                console.error('Failed to create git tag.');
+                process.exit(1);
+            }
+        }
+    }
+
+    if (isDryRun) {
+        console.log(`[Dry Run] Would push tag ${version}.`);
+    } else {
+        console.log(`[Git] Pushing tag ${version}...`);
+        const pushResult = spawnSync('git', ['push', 'origin', version], { stdio: 'inherit' });
+        if (pushResult.status !== 0) {
+            console.error('Failed to push git tag.');
+            process.exit(1);
+        }
+    }
+}
+
 if (!STASH_VERSION && (isRC || isRelease)) {
     console.log('[Vexxx] Calculating next version...');
     const { latestOfficial, latestRC } = getLatestVersions();
@@ -127,23 +156,10 @@ if (!STASH_VERSION && (isRC || isRelease)) {
     STASH_VERSION = calculateNextVersion(isRelease ? 'release' : 'rc', latestOfficial, latestRC);
     console.log(`Target Version:   ${STASH_VERSION}`);
 
-    if (isDryRun) {
-        console.log('[Dry Run] Skipping git tag creation and push.');
-    } else {
-        console.log(`[Git] Creating tag ${STASH_VERSION}...`);
-        const tagResult = spawnSync('git', ['tag', '-a', STASH_VERSION, '-m', `Release ${STASH_VERSION}`], { stdio: 'inherit' });
-        if (tagResult.status !== 0) {
-            console.error('Failed to create git tag.');
-            process.exit(1);
-        }
-
-        console.log(`[Git] Pushing tag ${STASH_VERSION}...`);
-        const pushResult = spawnSync('git', ['push', 'origin', STASH_VERSION], { stdio: 'inherit' });
-        if (pushResult.status !== 0) {
-            console.error('Failed to push git tag.');
-            process.exit(1);
-        }
-    }
+    createAndPushTag(STASH_VERSION);
+} else if (STASH_VERSION && (isRC || isRelease)) {
+    console.log(`[Vexxx] Using explicit version: ${STASH_VERSION}`);
+    createAndPushTag(STASH_VERSION);
 } else if (!STASH_VERSION) {
     // Fallback if no flags and no env var
     // Try to get exact match for current commit? Or just leave empty to let makefile handle it (git hash)

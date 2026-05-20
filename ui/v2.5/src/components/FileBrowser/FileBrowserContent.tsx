@@ -734,9 +734,6 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
                   <Box sx={{ minWidth: 0, flex: 1 }}>
                     <Typography
                       variant="caption"
-                      component={Link}
-                      to={row.href}
-                      onClick={(e: React.MouseEvent) => e.stopPropagation()}
                       sx={{
                         display: "inline-block",
                         maxWidth: "100%",
@@ -745,8 +742,6 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
                         whiteSpace: "nowrap",
                         lineHeight: 1.25,
                         color: "text.primary",
-                        textDecoration: "none",
-                        "&:hover": { textDecoration: "underline", color: "primary.main" },
                       }}
                     >
                       {row.title || row.basename}
@@ -786,14 +781,7 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
                     )}
                   </Box>
 
-                  {/* Info icon */}
-                  <IconButton
-                    size="small"
-                    onClick={(e) => { e.stopPropagation(); setDetailsRow(row); }}
-                    sx={{ p: 0.25, flexShrink: 0, color: detailsRow?.id === row.id ? "primary.main" : "action.disabled", "&:hover": { color: "primary.main" } }}
-                  >
-                    <InfoOutlinedIcon sx={{ fontSize: 14 }} />
-                  </IconButton>
+
                 </Box>
               );
             })}
@@ -875,7 +863,10 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
                       <Checkbox
                         size="small"
                         checked={selectedFileIds.has(row.fileId)}
-                        onChange={(e) => handleRowSelect(row.fileId, e.target.checked)}
+                        onChange={(e) => {
+                          handleRowSelect(row.fileId, e.target.checked);
+                          setDetailsRow(row);
+                        }}
                         onClick={(e) => e.stopPropagation()}
                         inputProps={{ "aria-label": `select ${row.basename}` }}
                       />

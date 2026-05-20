@@ -250,7 +250,7 @@ export const SettingsInterfacePanel: React.FC = PatchComponent(
             id="sfw-content-mode"
             headingID="config.ui.sfw_mode.heading"
             subHeadingID="config.ui.sfw_mode.description"
-            checked={iface.sfwContentMode ?? undefined}
+            checked={iface.sfwContentMode ?? false}
             onChange={(v) => saveInterface({ sfwContentMode: v })}
           />
 

@@ -912,7 +912,11 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
       activity.saveActivity = saveActivity;
       activity.incrementPlayCount = incrementPlayCount;
       activity.minimumPlayPercent = minimumPlayPercent;
-      // activity.setEnabled(trackActivity);
+      // Wire virtual segment bounds so percentage calculations are relative
+      // to the segment duration, not the full video file duration.
+      activity.segmentStart = scene.start_point ?? 0;
+      activity.segmentEnd = scene.end_point ?? 0;
+      activity.setEnabled(trackActivity);
     }, [
       getPlayer,
       scene.id,

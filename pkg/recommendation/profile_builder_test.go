@@ -286,7 +286,7 @@ func TestComputeSceneScore_RatingOnly(t *testing.T) {
 			// Note: we need to set UpdatedAt for recency calculation
 			scene.UpdatedAt = time.Now()
 
-			score := pb.computeSceneScore(scene)
+			score := pb.computeSceneScore(scene, nil)
 
 			// Score includes engagement and recency multipliers
 			// For unwatched scene: base * 0.5 * recencyBoost
@@ -307,7 +307,7 @@ func TestComputeSceneScore_WithPlayDuration(t *testing.T) {
 		UpdatedAt:    time.Now(),
 	}
 
-	score := pb.computeSceneScore(scene)
+	score := pb.computeSceneScore(scene, nil)
 
 	// Watched scenes should have higher score than base
 	assert.Greater(t, score, 1.0)
@@ -326,8 +326,8 @@ func TestComputeSceneScore_Recency(t *testing.T) {
 		UpdatedAt: time.Now().AddDate(-2, 0, 0), // 2 years ago
 	}
 
-	recentScore := pb.computeSceneScore(recentScene)
-	oldScore := pb.computeSceneScore(oldScene)
+	recentScore := pb.computeSceneScore(recentScene, nil)
+	oldScore := pb.computeSceneScore(oldScene, nil)
 
 	// Recent scenes should have higher scores
 	assert.Greater(t, recentScore, oldScore)

@@ -7,6 +7,16 @@ class TrackActivityPlugin extends videojs.getPlugin("plugin") {
   totalPlayDuration = 0;
   currentPlayDuration = 0;
   minimumPlayPercent = 0;
+  /**
+   * Start time of the virtual segment (seconds into the video file).
+   * Set to 0 for non-virtual scenes.
+   */
+  segmentStart = 0;
+  /**
+   * End time of the virtual segment (seconds into the video file).
+   * Set to 0 to use the full video duration.
+   */
+  segmentEnd = 0;
   incrementPlayCount: () => Promise<void> = () => {
     return Promise.resolve();
   };
@@ -97,31 +107,48 @@ class TrackActivityPlugin extends videojs.getPlugin("plugin") {
     }
   }
 
-  private sendActivity() {
-    if (!this.enabled) return;
-
-    if (this.totalPlayDuration > 0) {
-      let resumeTime = this.player?.currentTime() ?? this.lastResumeTime;
-      const videoDuration = this.player?.duration() ?? this.lastDuration;
-      const percentCompleted = (100 / videoDuration) * resumeTime;
-      const percentPlayed = (100 / videoDuration) * this.totalPlayDuration;
-
-      if (
-        !this.playCountIncremented &&
-        percentPlayed >= this.minimumPlayPercent
-      ) {
-        this.incrementPlayCount();
-        this.playCountIncremented = true;
-      }
-
-      // if video is 98% or more complete then reset resume_time
-      if (percentCompleted >= 98) {
-        resumeTime = 0;
-      }
-
-      this.saveActivity(resumeTime, this.currentPlayDuration);
-      this.currentPlayDuration = 0;
+  /** Effective duration for percentage calculations.
+   * For virtual segments this is (segmentEnd - segmentStart),
+   * otherwise the full video duration.
+   */
+  private get effectiveDuration(): number {
+    const videoDuration = this.player?.duration() ?? this.lastDuration;
+    if (this.segmentEnd > 0) {
+      return this.segmentEnd - this.segmentStart;
     }
+    return videoDuration;
+  }
+
+  private sendActivity() {
+    // Always flush pending activity even when disabled (e.g. user turns off
+    // tracking mid-session — we still persist the chunk already accumulated).
+    if (this.totalPlayDuration <= 0) return;
+
+    let resumeTime = this.player?.currentTime() ?? this.lastResumeTime;
+    const effectiveDuration = this.effectiveDuration;
+
+    // For virtual segments, express completion relative to segment bounds.
+    const segmentPosition = resumeTime - this.segmentStart;
+    const percentCompleted =
+      effectiveDuration > 0 ? (100 / effectiveDuration) * segmentPosition : 0;
+    const percentPlayed =
+      effectiveDuration > 0
+        ? (100 / effectiveDuration) * this.totalPlayDuration
+        : 0;
+
+    if (this.enabled && !this.playCountIncremented && percentPlayed >= this.minimumPlayPercent) {
+      this.incrementPlayCount();
+      this.playCountIncremented = true;
+    }
+
+    // If the segment (or video) is ≥98% complete, reset resume_time so
+    // next play starts from the beginning of the segment.
+    if (percentCompleted >= 98) {
+      resumeTime = this.segmentStart > 0 ? this.segmentStart : 0;
+    }
+
+    this.saveActivity(resumeTime, this.currentPlayDuration);
+    this.currentPlayDuration = 0;
   }
 }
 

@@ -95,8 +95,23 @@ func (pb *ProfileBuilder) BuildUserProfile(ctx context.Context) (*ProfileData, e
 			break
 		}
 
-		for _, scene := range scenes {
-			score := pb.computeSceneScore(scene)
+		// Batch-fetch last_played_at for all scenes in this page in one query.
+		sceneIDs := make([]int, len(scenes))
+		for i, s := range scenes {
+			sceneIDs[i] = s.ID
+		}
+		lastPlayedTimes, err := pb.sceneReader.GetManyLastViewed(ctx, sceneIDs)
+		if err != nil {
+			logger.Warnf("Failed to fetch last viewed times for page %d: %v", page, err)
+			lastPlayedTimes = make([]*time.Time, len(scenes))
+		}
+
+		for i, scene := range scenes {
+			var lastPlayed *time.Time
+			if i < len(lastPlayedTimes) {
+				lastPlayed = lastPlayedTimes[i]
+			}
+			score := pb.computeSceneScore(scene, lastPlayed)
 			if score <= 0 {
 				continue
 			}
@@ -231,7 +246,8 @@ func (pb *ProfileBuilder) BuildUserProfile(ctx context.Context) (*ProfileData, e
 }
 
 // computeSceneScore calculates the engagement score for a single scene.
-func (pb *ProfileBuilder) computeSceneScore(scene *models.Scene) float64 {
+// lastPlayedAt is the most recent view timestamp from scenes_view_dates (may be nil for unplayed scenes).
+func (pb *ProfileBuilder) computeSceneScore(scene *models.Scene, lastPlayedAt *time.Time) float64 {
 	// Base score from rating (1.0 for unrated)
 	baseScore := 1.0
 	if scene.Rating != nil && *scene.Rating > 0 {
@@ -261,14 +277,19 @@ func (pb *ProfileBuilder) computeSceneScore(scene *models.Scene) float64 {
 		engagementMultiplier = 0.5
 	}
 
-	// Recency boost (scenes played recently get higher weight)
+	// Recency boost: scenes played recently get up to 1.5× weight.
+	// Use actual last_played_at from view history; fall back to UpdatedAt
+	// only for scenes that have never been played.
 	recencyBoost := 1.0
-	// Note: We don't have last_played_at in the model currently
-	// This would need to be added for full recency support
-	// For now, we use UpdatedAt as a proxy
-	daysSinceUpdate := time.Since(scene.UpdatedAt).Hours() / 24
-	if daysSinceUpdate < 365 {
-		recencyBoost = 1.0 + (0.5 * (1.0 - (daysSinceUpdate / 365.0)))
+	var referenceTime time.Time
+	if lastPlayedAt != nil {
+		referenceTime = *lastPlayedAt
+	} else {
+		referenceTime = scene.UpdatedAt
+	}
+	daysSince := time.Since(referenceTime).Hours() / 24
+	if daysSince < 365 {
+		recencyBoost = 1.0 + (0.5 * (1.0 - (daysSince / 365.0)))
 	}
 
 	return baseScore * engagementMultiplier * recencyBoost

@@ -348,9 +348,10 @@ func (e *Engine) DiscoverPerformersFromStashDB(ctx context.Context, profile *mod
 		return sorted[i].w > sorted[j].w
 	})
 
-	// Limit to top 5
-	if len(sorted) > 5 {
-		sorted = sorted[:5]
+	// Limit to top 10 seeds — more seeds means more diverse candidates
+	// that can survive the local-library deduplication filter.
+	if len(sorted) > 10 {
+		sorted = sorted[:10]
 	}
 
 	logger.Infof("Found %d top local performers to use as seeds", len(sorted))
@@ -362,7 +363,7 @@ func (e *Engine) DiscoverPerformersFromStashDB(ctx context.Context, profile *mod
 	buildQuery := func(p *models.Performer) *graphql.PerformerQueryInput {
 		q := &graphql.PerformerQueryInput{
 			Page:      1,
-			PerPage:   5, // Fetch small batch per performer
+			PerPage:   25, // Larger pool so local-dedup still leaves enough candidates
 			Sort:      graphql.PerformerSortEnumSceneCount,
 			Direction: graphql.SortDirectionEnumDesc,
 		}
@@ -470,8 +471,8 @@ func (e *Engine) DiscoverPerformersFromStashDB(ctx context.Context, profile *mod
 		// 4. Compile all candidates, sort by score, and return top N.
 
 		for _, item := range sorted {
-			// Stop if we have gathered enough candidates to sort (e.g. 3x limit) to preserve diversity
-			if len(candidates) >= limit*2 {
+			// Gather up to 4× limit candidates before sorting for diversity
+			if len(candidates) >= limit*4 {
 				break
 			}
 
@@ -492,8 +493,8 @@ func (e *Engine) DiscoverPerformersFromStashDB(ctx context.Context, profile *mod
 
 			seedMatches := 0
 			for _, p := range results {
-				// Enforce "Top 5 results from EACH performer"
-				if seedMatches >= 5 {
+				// Collect up to 10 unique non-local results per seed
+				if seedMatches >= 10 {
 					break
 				}
 
@@ -646,58 +647,70 @@ func (e *Engine) DiscoverPerformersFromStashDB(ctx context.Context, profile *mod
 			}
 		}
 	} else {
-		// WEIGHTED DISCOVERY LOGIC (Tag-based Matching via Scenes)
-		// 1. Get Top Tags
-		tagLimit := int(10.0 * tagW)
-		if tagLimit < 1 {
-			tagLimit = 1
+		// ATTRIBUTE-WEIGHTED DISCOVERY
+		// Queries StashDB directly for performers whose physical attributes match
+		// the user's aggregate viewing preferences (hair, eye, ethnicity, country).
+		// This works without requiring StashDB tag IDs on local content.
+
+		q := &graphql.PerformerQueryInput{
+			Page:      1,
+			PerPage:   50,
+			Sort:      graphql.PerformerSortEnumSceneCount,
+			Direction: graphql.SortDirectionEnumDesc,
 		}
-		topTags, _ := e.getTopTagsWithStashIDs(ctx, profile, tagLimit)
+		validCriteria := 0
 
-		if len(topTags) > 0 {
-			// 2. Query StashDB for Scenes matching these tags
-			sceneQueryInput := graphql.SceneQueryInput{
-				Page:      1,
-				PerPage:   50, // Higher per_page to collect variety of performers
-				Sort:      graphql.SceneSortEnumTrending,
-				Direction: graphql.SortDirectionEnumDesc,
-				Tags: &graphql.MultiIDCriterionInput{
-					Value:    topTags,
-					Modifier: graphql.CriterionModifierIncludes,
-				},
-			}
+		// Always target female performers
+		g := graphql.GenderFilterEnumFemale
+		q.Gender = &g
+		validCriteria++
 
-			results, err := e.StashBoxClient.QueryScenes(ctx, sceneQueryInput)
-			if err == nil && results != nil && results.GetQueryScenes() != nil {
-				// 3. Extract Performers from Scenes
-				perfFreq := make(map[string]int)
-				perfData := make(map[string]*graphql.PerformerFragment)
-
-				for _, s := range results.GetQueryScenes().Scenes {
-					for _, pa := range s.Performers {
-						if pa.Performer == nil || pa.Performer.ID == "" {
-							continue
-						}
-						// Strictly Female Filter
-						if pa.Performer.Gender == nil || *pa.Performer.Gender != graphql.GenderEnumFemale {
-							continue
-						}
-						id := pa.Performer.ID
-						perfFreq[id]++
-						perfData[id] = pa.Performer
-					}
+		if topHair := topAttributeValue(profile, "hair_color"); topHair != "" {
+			if mapped, ok := mapHairColor(topHair); ok {
+				q.HairColor = &graphql.HairColorCriterionInput{
+					Value:    &mapped,
+					Modifier: graphql.CriterionModifierEquals,
 				}
+				validCriteria++
+			}
+		}
 
-				// 4. Convert Frequencies to Recommendations
-				for id, freq := range perfFreq {
-					if seen[id] {
+		if topEye := topAttributeValue(profile, "eye_color"); topEye != "" {
+			if mapped, ok := mapEyeColor(topEye); ok {
+				q.EyeColor = &graphql.EyeColorCriterionInput{
+					Value:    &mapped,
+					Modifier: graphql.CriterionModifierEquals,
+				}
+				validCriteria++
+			}
+		}
+
+		if topEthnicity := topAttributeValue(profile, "ethnicity"); topEthnicity != "" {
+			if mapped, ok := mapEthnicity(topEthnicity); ok {
+				q.Ethnicity = &mapped
+				validCriteria++
+			}
+		}
+
+		if validCriteria >= 2 {
+			results, err := e.StashBoxClient.QueryPerformersByInput(ctx, *q)
+			if err == nil {
+				for _, p := range results {
+					if len(candidates) >= limit*4 {
+						break
+					}
+					if p.RemoteSiteID == nil || *p.RemoteSiteID == "" {
+						continue
+					}
+					stashID := *p.RemoteSiteID
+					if seen[stashID] {
 						continue
 					}
 
-					// Dedupe Local
+					// Skip performers already in the local library
 					count, _ := e.PerformerRepo.QueryCount(ctx, &models.PerformerFilterType{
 						StashID: &models.StringCriterionInput{
-							Value:    id,
+							Value:    stashID,
 							Modifier: models.CriterionModifierEquals,
 						},
 					}, nil)
@@ -705,27 +718,31 @@ func (e *Engine) DiscoverPerformersFromStashDB(ctx context.Context, profile *mod
 						continue
 					}
 
-					seen[id] = true
-					p := perfData[id]
+					seen[stashID] = true
 
-					score := 0.4 + (float64(freq) / 10.0)
-					if score > 0.99 {
-						score = 0.99
+					var name string
+					if p.Name != nil {
+						name = *p.Name
 					}
-
-					name := p.Name
 					rec := models.RecommendationResult{
 						Type:             "stashdb_performer",
-						ID:               id,
-						StashID:          &id,
+						ID:               stashID,
+						StashID:          &stashID,
 						Name:             name,
-						Score:            score,
-						Reason:           "Recommended based on your preferred tags",
-						StashDBPerformer: mapStashDBPerformerFromFragment(p),
+						Score:            0.6,
+						Reason:           "Matches your viewing preferences",
+						StashDBPerformer: p,
 					}
 					candidates = append(candidates, rec)
 				}
 			}
+		}
+
+		// If attribute-based discovery found nothing, fall back to visual match
+		// (e.g. profile has no attribute weights yet, or all results are already local).
+		if len(candidates) == 0 {
+			logger.Infof("Attribute-weighted performer discovery found 0 candidates, falling back to visual match")
+			return e.DiscoverPerformersFromStashDB(ctx, profile, limit, tagW, 0.0)
 		}
 	}
 
@@ -748,6 +765,20 @@ func (e *Engine) DiscoverPerformersFromStashDB(ctx context.Context, profile *mod
 }
 
 // Helpers to map strings to Enums
+// topAttributeValue returns the highest-weighted value for a given attribute name
+// from the profile's AttributeWeights slice (e.g. "hair_color" → "Blonde").
+func topAttributeValue(profile *models.ContentProfile, attrName string) string {
+	var topValue string
+	var topWeight float64
+	for _, aw := range profile.AttributeWeights {
+		if aw.AttributeName == attrName && aw.Weight > topWeight {
+			topWeight = aw.Weight
+			topValue = aw.AttributeValue
+		}
+	}
+	return topValue
+}
+
 func mapHairColor(s string) (graphql.HairColorEnum, bool) {
 	switch s {
 	case "Blonde", "Blond":

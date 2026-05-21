@@ -9,16 +9,34 @@ import { RecommendationCarousel } from './RecommendationCarousel';
 import { PerformerRecommendationRow } from './PerformerRecommendationRow';
 import { useToast } from 'src/hooks/Toast';
 import { LoadingIndicator } from 'src/components/Shared/LoadingIndicator';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
+
+/** Reads a number from localStorage, returning defaultValue if absent or unparseable. */
+function readStoredWeight(key: string, defaultValue: number): number {
+    const stored = localStorage.getItem(key);
+    if (stored === null) return defaultValue;
+    const parsed = parseFloat(stored);
+    return isNaN(parsed) ? defaultValue : parsed;
+}
+
+/** useState variant that persists numeric slider values to localStorage. */
+function usePersistedWeight(key: string, defaultValue: number): [number, (v: number) => void] {
+    const [value, setValue] = useState<number>(() => readStoredWeight(key, defaultValue));
+    const set = useCallback((v: number) => {
+        localStorage.setItem(key, String(v));
+        setValue(v);
+    }, [key]);
+    return [value, set];
+}
 
 export const DiscoverPage: React.FC = () => {
     const [rebuildProfile, { loading: rebuilding }] = useRebuildContentProfileMutation();
     const Toaster = useToast();
 
-    // Tuning Weights State
-    const [tagWeight, setTagWeight] = useState<number>(0.5);
-    const [performerWeight, setPerformerWeight] = useState<number>(0.3);
-    const [studioWeight, setStudioWeight] = useState<number>(0.2);
+    // Tuning Weights — persisted to localStorage so they survive page reload.
+    const [tagWeight, setTagWeight] = usePersistedWeight("rec_tagWeight", 0.5);
+    const [performerWeight, setPerformerWeight] = usePersistedWeight("rec_performerWeight", 0.3);
+    const [studioWeight, setStudioWeight] = usePersistedWeight("rec_studioWeight", 0.2);
 
     const onRebuild = async () => {
         try {

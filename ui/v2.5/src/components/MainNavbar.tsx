@@ -123,7 +123,7 @@ const messages = defineMessages({
     defaultMessage: "Statistics",
   },
   fileBrowser: {
-    id: "file_browser",
+    id: "file-browser",
     defaultMessage: "File Browser",
   },
 });
@@ -207,7 +207,7 @@ const allMenuItems: IMenuItem[] = [
     userCreatable: true,
   },
   {
-    name: "file_browser",
+    name: "file-browser",
     message: messages.fileBrowser,
     href: "/file-browser",
     icon: faFolder,

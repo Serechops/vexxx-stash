@@ -69,15 +69,16 @@ func systrayInitialize(exit chan<- int, faviconProvider FaviconProvider) {
 		menuItems = c.GetMenuItems()
 		for _, item := range menuItems {
 			c := cases.Title(language.Und)
-			titleCaseItem := c.String(strings.ToLower(item))
+			titleCaseItem := c.String(strings.ToLower(strings.ReplaceAll(item, "_", " ")))
 			curr := systray.AddMenuItem(titleCaseItem, "Open to "+titleCaseItem)
 			go func(item string) {
 				for {
 					<-curr.ClickedCh
-					if item == "markers" {
-						item = "scenes/markers"
+					urlItem := strings.ReplaceAll(item, "_", "-")
+					if urlItem == "markers" {
+						urlItem = "scenes/markers"
 					}
-					openURLInBrowser(item)
+					openURLInBrowser(urlItem)
 				}
 			}(item)
 		}

@@ -12,7 +12,7 @@ const FileBrowser: React.FC = () => {
     <Box sx={{ display: "flex", flexDirection: "column", height: "calc(100vh - 3.4rem)", overflow: "hidden", mx: "-15px" }}>
       <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider", flexShrink: 0 }}>
         <Typography variant="h5">
-          <FormattedMessage id="file_browser" defaultMessage="File Browser" />
+          <FormattedMessage id="file-browser" defaultMessage="File Browser" />
         </Typography>
       </Box>
 
@@ -64,7 +64,7 @@ const FileBrowser: React.FC = () => {
               >
                 <Typography variant="body1">
                   <FormattedMessage
-                    id="file_browser.select_folder"
+                    id="file-browser.select_folder"
                     defaultMessage="Select a folder to view its contents"
                   />
                 </Typography>

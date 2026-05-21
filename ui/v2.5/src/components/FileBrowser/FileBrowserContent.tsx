@@ -381,7 +381,7 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
       <Box sx={{ p: 2 }}>
         <Typography variant="body2" color="text.secondary">
           <FormattedMessage
-            id="file_browser.no_files"
+            id="file-browser.no_files"
             defaultMessage="No scenes, images, or galleries in this folder."
           />
         </Typography>
@@ -441,7 +441,7 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
         >
           <Typography variant="body2" sx={{ flex: 1 }}>
             <FormattedMessage
-              id="file_browser.selected_count"
+              id="file-browser.selected_count"
               defaultMessage="{count, plural, one {# item selected} other {# items selected}}"
               values={{ count: numSelected }}
             />
@@ -508,7 +508,7 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
             onClick={() => setBulkMoveOpen(true)}
           >
             <FormattedMessage
-              id="file_browser.bulk_move"
+              id="file-browser.bulk_move"
               defaultMessage="Move To…"
             />
           </Button>
@@ -517,7 +517,7 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
             onClick={() => setSelectedFileIds(new Set())}
           >
             <FormattedMessage
-              id="file_browser.clear_selection"
+              id="file-browser.clear_selection"
               defaultMessage="Clear"
             />
           </Button>
@@ -583,7 +583,7 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
           size="small"
           fullWidth
           placeholder={intl.formatMessage({
-            id: "file_browser.search_placeholder",
+            id: "file-browser.search_placeholder",
             defaultMessage: "Filter by name…",
           })}
           value={searchQuery}
@@ -807,14 +807,14 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
                     direction={sortCol === "basename" ? sortDir : "asc"}
                     onClick={() => handleSort("basename")}
                   >
-                    <FormattedMessage id="file_browser.col_name" defaultMessage="Name" />
+                    <FormattedMessage id="file-browser.col_name" defaultMessage="Name" />
                   </TableSortLabel>
                 </TableCell>
                 <TableCell sx={{ width: 90 }}>
-                  <FormattedMessage id="file_browser.col_type" defaultMessage="Type" />
+                  <FormattedMessage id="file-browser.col_type" defaultMessage="Type" />
                 </TableCell>
                 <TableCell sx={{ width: 100 }} align="right">
-                  <FormattedMessage id="file_browser.col_actions" defaultMessage="Actions" />
+                  <FormattedMessage id="file-browser.col_actions" defaultMessage="Actions" />
                 </TableCell>
                 <TableCell sx={{ width: 100 }} align="right">
                   <TableSortLabel
@@ -822,7 +822,7 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
                     direction={sortCol === "size" ? sortDir : "asc"}
                     onClick={() => handleSort("size")}
                   >
-                    <FormattedMessage id="file_browser.col_size" defaultMessage="Size" />
+                    <FormattedMessage id="file-browser.col_size" defaultMessage="Size" />
                   </TableSortLabel>
                 </TableCell>
                 <TableCell sx={{ width: 170 }}>
@@ -831,11 +831,11 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
                     direction={sortCol === "mod_time" ? sortDir : "asc"}
                     onClick={() => handleSort("mod_time")}
                   >
-                    <FormattedMessage id="file_browser.col_modified" defaultMessage="Modified" />
+                    <FormattedMessage id="file-browser.col_modified" defaultMessage="Modified" />
                   </TableSortLabel>
                 </TableCell>
                 <TableCell sx={{ width: 120 }}>
-                  <FormattedMessage id="file_browser.col_preview" defaultMessage="Preview" />
+                  <FormattedMessage id="file-browser.col_preview" defaultMessage="Preview" />
                 </TableCell>
                 <TableCell sx={{ width: 140 }}>
                   <TableSortLabel
@@ -843,7 +843,7 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
                     direction={sortCol === "studio" ? sortDir : "asc"}
                     onClick={() => handleSort("studio")}
                   >
-                    <FormattedMessage id="file_browser.col_studio" defaultMessage="Studio" />
+                    <FormattedMessage id="file-browser.col_studio" defaultMessage="Studio" />
                   </TableSortLabel>
                 </TableCell>
               </TableRow>
@@ -988,7 +988,7 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
             <CircularProgress size={12} sx={{ mr: 1 }} />
           ) : (
             <FormattedMessage
-              id="file_browser.item_count"
+              id="file-browser.item_count"
               defaultMessage="{count, plural, one {# item} other {# items}}"
               values={{ count: totalItems }}
             />

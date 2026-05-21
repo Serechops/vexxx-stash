@@ -167,6 +167,10 @@ const TagTabs: React.FC<{
     </Box>
   );
 
+  // #6798 - if Tabs renders while tabKey is undefined, it doesn't render correctly
+  // when it is subsequently set to a valid value.
+  if (!tabKey) return null;
+
   return (
     <Box sx={{ width: "100%" }}>
       <Tabs

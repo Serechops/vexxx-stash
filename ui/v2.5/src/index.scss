@@ -590,6 +590,15 @@ div.react-select__menu {
   margin: 0 auto 10px;
 }
 
+.pagination-footer-container {
+  background-color: transparent;
+  bottom: $navbar-height;
+  margin: auto;
+  position: sticky;
+  width: fit-content;
+  z-index: 10;
+}
+
 .filter-item,
 .operation-item {
   margin: 0 10px;

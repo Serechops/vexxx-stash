@@ -441,6 +441,127 @@ func (s *Scorer) RecommendPerformers(ctx context.Context, limit int, minScore fl
 	return recommendations, nil
 }
 
+// SimilarPerformers returns local performers similar to the given performer.
+// Similarity is based on two signals:
+//   - Visual: shared physical attributes (hair, eye, ethnicity, etc.)
+//   - Co-appearance: performers who share scenes with the source
+//
+// The two signals are blended 70/30 (visual/co-appearance).
+func (s *Scorer) SimilarPerformers(ctx context.Context, performerID int, limit int) ([]models.RecommendationResult, error) {
+	source, err := s.performerReader.Find(ctx, performerID)
+	if err != nil || source == nil {
+		return nil, err
+	}
+
+	// Build a temporary profile from the source performer's attributes
+	tempProfile := &ProfileData{
+		AttributeWeights: map[string]map[string]float64{
+			"gender":     {},
+			"ethnicity":  {},
+			"hair_color": {},
+			"eye_color":  {},
+			"country":    {},
+		},
+		PerformerWeights: make(map[int]float64),
+	}
+
+	if source.Gender != nil {
+		tempProfile.AttributeWeights["gender"][string(*source.Gender)] = 1.0
+	}
+	if source.Ethnicity != "" {
+		tempProfile.AttributeWeights["ethnicity"][source.Ethnicity] = 1.0
+	}
+	if source.HairColor != "" {
+		tempProfile.AttributeWeights["hair_color"][source.HairColor] = 1.0
+	}
+	if source.EyeColor != "" {
+		tempProfile.AttributeWeights["eye_color"][source.EyeColor] = 1.0
+	}
+	if source.Country != "" {
+		tempProfile.AttributeWeights["country"][source.Country] = 1.0
+	}
+
+	// Co-appearance: find performers who share scenes with the source
+	perfIDStr := strconv.Itoa(performerID)
+	coResult, err := s.sceneReader.Query(ctx, models.SceneQueryOptions{
+		QueryOptions: models.QueryOptions{
+			FindFilter: &models.FindFilterType{PerPage: intPtr(200)},
+		},
+		SceneFilter: &models.SceneFilterType{
+			Performers: &models.MultiCriterionInput{
+				Value:    []string{perfIDStr},
+				Modifier: models.CriterionModifierIncludes,
+			},
+		},
+	})
+	if err == nil {
+		coScenes, _ := coResult.Resolve(ctx)
+		for _, scene := range coScenes {
+			if loadErr := scene.LoadPerformerIDs(ctx, s.sceneReader); loadErr != nil {
+				continue
+			}
+			for _, pid := range scene.PerformerIDs.List() {
+				if pid != performerID {
+					tempProfile.PerformerWeights[pid]++
+				}
+			}
+		}
+		tempProfile.PerformerWeights = normalizeWeights(tempProfile.PerformerWeights)
+	}
+
+	tempScorer := &Scorer{
+		profile:         tempProfile,
+		performerReader: s.performerReader,
+		sceneReader:     s.sceneReader,
+	}
+
+	allPerformers, _, err := s.performerReader.Query(ctx, &models.PerformerFilterType{}, &models.FindFilterType{PerPage: intPtr(1000)})
+	if err != nil {
+		return nil, err
+	}
+
+	var results []models.RecommendationResult
+	for _, p := range allPerformers {
+		if p.ID == performerID {
+			continue
+		}
+		// 70 % appearance, 30 % co-appearance
+		visualScore, _ := tempScorer.ScorePerformer(ctx, p, 0.7, 0.0)
+		coScore := tempProfile.PerformerWeights[p.ID] * 0.3
+		score := visualScore + coScore
+		if score < 0.1 {
+			continue
+		}
+
+		var reason string
+		switch {
+		case coScore > 0.15 && visualScore > 0.15:
+			reason = "Similar appearance & shared scenes"
+		case coScore > 0.15:
+			reason = "Frequently appears in same scenes"
+		default:
+			reason = "Similar appearance to " + source.Name
+		}
+
+		results = append(results, models.RecommendationResult{
+			Type:      "performer",
+			ID:        strconv.Itoa(p.ID),
+			Name:      p.Name,
+			Score:     score,
+			Reason:    reason,
+			Performer: p,
+		})
+	}
+
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Score > results[j].Score
+	})
+	if limit > 0 && len(results) > limit {
+		results = results[:limit]
+	}
+	return results, nil
+}
+
 // --- Utility Functions ---
 
 func joinReasons(reasons []string) string {

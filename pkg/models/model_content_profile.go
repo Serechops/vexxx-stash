@@ -100,6 +100,7 @@ type RecommendationOptions struct {
 	TagWeight       *float64              `json:"tag_weight"`       // Weight override for tags (0-1)
 	PerformerWeight *float64              `json:"performer_weight"` // Weight override for performers (0-1)
 	StudioWeight    *float64              `json:"studio_weight"`    // Weight override for studios (0-1)
+	ExcludeIds      []string              `json:"exclude_ids"`      // IDs to omit from results (cross-row dedup)
 }
 
 // RecommendationSource indicates where recommendations should be sourced from.

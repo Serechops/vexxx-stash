@@ -38,6 +38,13 @@ export const DiscoverPage: React.FC = () => {
     const [performerWeight, setPerformerWeight] = usePersistedWeight("rec_performerWeight", 0.3);
     const [studioWeight, setStudioWeight] = usePersistedWeight("rec_studioWeight", 0.2);
 
+    // Cross-row deduplication: only track StashDB performer/scene IDs so the
+    // same StashDB item doesn't appear in multiple rows.  Local rows are
+    // independent — their pools may be small, so we don't exclude local IDs
+    // from sibling local rows.
+    const [shownStashdbPerformerIds, setShownStashdbPerformerIds] = React.useState<string[]>([]);
+    const [shownStashdbSceneIds, setShownStashdbSceneIds] = React.useState<string[]>([]);
+
     const onRebuild = async () => {
         try {
             await rebuildProfile();
@@ -161,6 +168,7 @@ export const DiscoverPage: React.FC = () => {
                     tagWeight={tagWeight}
                     performerWeight={performerWeight}
                     studioWeight={studioWeight}
+                    onShownIds={(ids) => setShownStashdbPerformerIds(ids)}
                 />
 
                 {/* StashDB Visual Match */}
@@ -171,6 +179,8 @@ export const DiscoverPage: React.FC = () => {
                     tagWeight={tagWeight}
                     performerWeight={0.0} // Suggest Attribute preference
                     studioWeight={studioWeight}
+                    excludeIds={shownStashdbPerformerIds}
+                    onShownIds={(ids) => setShownStashdbPerformerIds(prev => [...new Set([...prev, ...ids])])}
                 />
 
                 {/* StashDB Scenes */}
@@ -182,9 +192,10 @@ export const DiscoverPage: React.FC = () => {
                     tagWeight={tagWeight}
                     performerWeight={performerWeight}
                     studioWeight={studioWeight}
+                    onShownIds={(ids) => setShownStashdbSceneIds(ids)}
                 />
 
-                {/* Attribute Match: Performers (Visual Match) */}
+                {/* Attribute Match: Performers (Visual Match) — local pool, no cross-row exclude */}
                 <PerformerRecommendationRow
                     title="Recommended Performers (Local - Visual Match)"
                     limit={20}
@@ -194,7 +205,7 @@ export const DiscoverPage: React.FC = () => {
                     studioWeight={studioWeight}
                 />
 
-                {/* Local Gems: Performers (User Controlled) */}
+                {/* Local Gems: Performers (User Controlled) — local pool, no cross-row exclude */}
                 <PerformerRecommendationRow
                     title="Local Performers (Based on User Weightings)"
                     limit={20}
@@ -204,9 +215,7 @@ export const DiscoverPage: React.FC = () => {
                     studioWeight={studioWeight}
                 />
 
-
-
-                {/* Local Gems: Scenes */}
+                {/* Local Gems: Scenes — local pool, no cross-row exclude */}
                 <RecommendationCarousel
                     title="Local Scenes (Based on User Weightings)"
                     source={RecommendationSource.Local}

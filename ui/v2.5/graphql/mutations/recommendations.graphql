@@ -4,3 +4,11 @@ mutation RebuildContentProfile {
         updated_at 
     }
 }
+
+mutation DismissRecommendation($entity_type: String!, $entity_key: String!) {
+    dismissRecommendation(entity_type: $entity_type, entity_key: $entity_key)
+}
+
+mutation UndismissRecommendation($entity_type: String!, $entity_key: String!) {
+    undismissRecommendation(entity_type: $entity_type, entity_key: $entity_key)
+}

@@ -34,7 +34,7 @@ const (
 	cacheSizeEnv = "STASH_SQLITE_CACHE_SIZE"
 )
 
-var appSchemaVersion uint = 90
+var appSchemaVersion uint = 91
 
 //go:embed migrations/*.sql
 var migrationsBox embed.FS
@@ -66,24 +66,25 @@ func (e *MismatchedSchemaVersionError) Error() string {
 }
 
 type storeRepository struct {
-	Blobs          *BlobStore
-	File           *FileStore
-	Folder         *FolderStore
-	Image          *ImageStore
-	Gallery        *GalleryStore
-	GalleryChapter *GalleryChapterStore
-	Scene          *SceneStore
-	SceneMarker    *SceneMarkerStore
-	Performer      *PerformerStore
-	SavedFilter    *SavedFilterStore
-	Studio         *StudioStore
-	Tag            *TagStore
-	Group          *GroupStore
-	PotentialScene *PotentialSceneStore
-	ContentProfile *ContentProfileStore
-	User           *UserStore
-	Playlist       *PlaylistStore
-	RecycleBin     *RecycleBinStore
+	Blobs                   *BlobStore
+	File                    *FileStore
+	Folder                  *FolderStore
+	Image                   *ImageStore
+	Gallery                 *GalleryStore
+	GalleryChapter          *GalleryChapterStore
+	Scene                   *SceneStore
+	SceneMarker             *SceneMarkerStore
+	Performer               *PerformerStore
+	SavedFilter             *SavedFilterStore
+	Studio                  *StudioStore
+	Tag                     *TagStore
+	Group                   *GroupStore
+	PotentialScene          *PotentialSceneStore
+	ContentProfile          *ContentProfileStore
+	User                    *UserStore
+	Playlist                *PlaylistStore
+	RecycleBin              *RecycleBinStore
+	DismissedRecommendation *DismissedRecommendationStore
 }
 
 type Database struct {
@@ -116,24 +117,25 @@ func NewDatabase() *Database {
 	r := &storeRepository{}
 	statsStore := NewStatsStore()
 	*r = storeRepository{
-		Blobs:          blobStore,
-		File:           fileStore,
-		Folder:         folderStore,
-		Scene:          NewSceneStore(r, blobStore),
-		SceneMarker:    NewSceneMarkerStore(),
-		Image:          NewImageStore(r, statsStore),
-		Gallery:        galleryStore,
-		GalleryChapter: NewGalleryChapterStore(),
-		Performer:      performerStore,
-		Studio:         studioStore,
-		Tag:            tagStore,
-		Group:          NewGroupStore(blobStore),
-		SavedFilter:    NewSavedFilterStore(),
-		PotentialScene: potentialSceneStore,
-		ContentProfile: NewContentProfileStore(),
-		User:           NewUserStore(),
-		Playlist:       NewPlaylistStore(),
-		RecycleBin:     NewRecycleBinStore(),
+		Blobs:                   blobStore,
+		File:                    fileStore,
+		Folder:                  folderStore,
+		Scene:                   NewSceneStore(r, blobStore),
+		SceneMarker:             NewSceneMarkerStore(),
+		Image:                   NewImageStore(r, statsStore),
+		Gallery:                 galleryStore,
+		GalleryChapter:          NewGalleryChapterStore(),
+		Performer:               performerStore,
+		Studio:                  studioStore,
+		Tag:                     tagStore,
+		Group:                   NewGroupStore(blobStore),
+		SavedFilter:             NewSavedFilterStore(),
+		PotentialScene:          potentialSceneStore,
+		ContentProfile:          NewContentProfileStore(),
+		User:                    NewUserStore(),
+		Playlist:                NewPlaylistStore(),
+		RecycleBin:              NewRecycleBinStore(),
+		DismissedRecommendation: &DismissedRecommendationStore{},
 	}
 
 	ret := &Database{

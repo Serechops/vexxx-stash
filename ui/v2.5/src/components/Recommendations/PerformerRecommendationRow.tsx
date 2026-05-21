@@ -1,6 +1,7 @@
-import React from 'react';
-import { Box, Typography } from '@mui/material';
-import { useRecommendPerformersQuery, RecommendationSource, PerformerDataFragment } from '../../core/generated-graphql';
+import React, { useState } from 'react';
+import { Box, IconButton, Tooltip, Typography } from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
+import { useRecommendPerformersQuery, useDismissRecommendationMutation, RecommendationSource, PerformerDataFragment } from '../../core/generated-graphql';
 import { LoadingIndicator } from '../Shared/LoadingIndicator';
 import { PerformerCardSkeleton } from '../Shared/Skeletons/PerformerCardSkeleton';
 import { AlertModal as Alert } from '../Shared/Alert';
@@ -15,6 +16,8 @@ interface PerformerRecommendationRowProps {
     performerWeight?: number;
     studioWeight?: number;
     source?: RecommendationSource;
+    excludeIds?: string[];
+    onShownIds?: (ids: string[]) => void;
 }
 
 export const PerformerRecommendationRow: React.FC<PerformerRecommendationRowProps> = ({
@@ -24,7 +27,12 @@ export const PerformerRecommendationRow: React.FC<PerformerRecommendationRowProp
     performerWeight,
     studioWeight,
     source = RecommendationSource.Both,
+    excludeIds,
+    onShownIds,
 }) => {
+    const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+    const [dismissMutation] = useDismissRecommendationMutation();
+
     const { data, loading, error } = useRecommendPerformersQuery({
         variables: {
             options: {
@@ -33,10 +41,29 @@ export const PerformerRecommendationRow: React.FC<PerformerRecommendationRowProp
                 tag_weight: tagWeight,
                 performer_weight: performerWeight,
                 studio_weight: studioWeight,
+                exclude_ids: excludeIds,
             }
         },
         fetchPolicy: "network-only"
     });
+
+    const allRecommendations = data?.recommendPerformers || [];
+
+    // Must be before any early returns (Rules of Hooks)
+    React.useEffect(() => {
+        if (allRecommendations.length > 0 && onShownIds) {
+            const ids = allRecommendations.map(r =>
+                r.stash_db_id ? `stashdb:${r.stash_db_id}` : `local:${r.id}`
+            );
+            onShownIds(ids);
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [data]);
+
+    const handleDismiss = (entityKey: string, id: string) => {
+        setDismissed(prev => new Set([...prev, id]));
+        dismissMutation({ variables: { entity_type: 'performer', entity_key: entityKey } }).catch(() => {});
+    };
 
     if (loading) {
         return (
@@ -58,7 +85,7 @@ export const PerformerRecommendationRow: React.FC<PerformerRecommendationRowProp
         return <Alert text={error.message} show onConfirm={() => { }} onCancel={() => { }} />;
     }
 
-    const recommendations = data?.recommendPerformers || [];
+    const recommendations = allRecommendations.filter(r => !dismissed.has(r.id));
 
     if (recommendations.length === 0) {
         return (
@@ -113,33 +140,42 @@ export const PerformerRecommendationRow: React.FC<PerformerRecommendationRowProp
                         // Badge Styling (Copied from RecommendationCarousel)
                         const scorePct = Math.round(r.score * 100);
                         const badgeColor = scorePct > 80 ? "success.main" : scorePct > 50 ? "warning.main" : "info.main";
+                        const entityKey = r.stash_db_id ? `stashdb:${r.stash_db_id}` : `local:${r.id}`;
 
                         return (
                             <Box key={r.id} sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                                 <Box
                                     sx={{
-                                        alignItems: 'flex-start',
+                                        alignItems: 'center',
                                         bgcolor: '#18181b',
                                         borderLeft: '4px solid',
                                         borderColor: badgeColor,
                                         borderRadius: '4px',
                                         boxShadow: 1,
                                         display: 'flex',
-                                        flexDirection: 'column',
+                                        justifyContent: 'space-between',
                                         mb: '0.5rem',
                                         p: '4px 8px',
                                     }}
                                 >
-                                    <Box sx={{ alignItems: 'center', display: 'flex', gap: '0.5rem' }}>
+                                    <Box sx={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                                         <Typography variant="subtitle2" sx={{ fontWeight: 'bold', lineHeight: 1 }}>
                                             {scorePct}% Match
                                         </Typography>
+                                        <Typography variant="caption" sx={{ fontSize: '0.7rem', mt: '0.25rem', maxWidth: '100%', opacity: 0.7, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                            {r.reason}
+                                        </Typography>
                                     </Box>
-                                    <Typography variant="caption" sx={{ fontSize: '0.7rem', mt: '0.25rem', maxWidth: '100%', opacity: 0.7, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                        {r.reason}
-                                    </Typography>
+                                    <Tooltip title="Hide this">
+                                        <IconButton
+                                            size="small"
+                                            onClick={() => handleDismiss(entityKey, r.id)}
+                                            sx={{ color: 'text.secondary', ml: 1, p: '2px', '&:hover': { color: 'error.main' } }}
+                                        >
+                                            <CloseIcon sx={{ fontSize: '0.9rem' }} />
+                                        </IconButton>
+                                    </Tooltip>
                                 </Box>
-
 
                                 <Box sx={{ flexGrow: 1, position: 'relative' }}>
                                     <PerformerCard

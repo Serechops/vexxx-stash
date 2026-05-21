@@ -313,10 +313,16 @@ func (pb *ProfileBuilder) computeSceneScore(scene *models.Scene, lastPlayedAt *t
 		}
 	}
 
-	// Recency boost: scenes played recently get up to 1.5× weight.
+	// Time-decay multiplier.
+	// Scenes played (or added) recently get a boost; old preferences fade.
+	//   < 30 days  → 1.5×   (very recent)
+	//   30-180 days → 1.0-1.5× (linear)
+	//   180-365 days → 0.8-1.0× (mild decay)
+	//   1-2 years  → 0.5-0.8×
+	//   > 2 years  → 0.3×   (heavily decayed)
+	//
 	// Use actual last_played_at from view history; fall back to UpdatedAt
-	// only for scenes that have never been played.
-	recencyBoost := 1.0
+	// for scenes that have never been played.
 	var referenceTime time.Time
 	if lastPlayedAt != nil {
 		referenceTime = *lastPlayedAt
@@ -324,11 +330,25 @@ func (pb *ProfileBuilder) computeSceneScore(scene *models.Scene, lastPlayedAt *t
 		referenceTime = scene.UpdatedAt
 	}
 	daysSince := time.Since(referenceTime).Hours() / 24
-	if daysSince < 365 {
-		recencyBoost = 1.0 + (0.5 * (1.0 - (daysSince / 365.0)))
+
+	var timeDecay float64
+	switch {
+	case daysSince < 30:
+		timeDecay = 1.5
+	case daysSince < 180:
+		// Linear 1.5 → 1.0 over 30-180 days
+		timeDecay = 1.5 - (0.5 * (daysSince - 30) / 150)
+	case daysSince < 365:
+		// Linear 1.0 → 0.8 over 180-365 days
+		timeDecay = 1.0 - (0.2 * (daysSince - 180) / 185)
+	case daysSince < 730:
+		// Linear 0.8 → 0.5 over 1-2 years
+		timeDecay = 0.8 - (0.3 * (daysSince - 365) / 365)
+	default:
+		timeDecay = 0.3
 	}
 
-	return baseScore * engagementMultiplier * recencyBoost
+	return baseScore * engagementMultiplier * timeDecay
 }
 
 // propagateTagHierarchy propagates weights up the tag hierarchy.

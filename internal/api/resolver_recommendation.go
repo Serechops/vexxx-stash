@@ -409,7 +409,25 @@ func (r *queryResolver) RecommendScenes(ctx context.Context, options *models.Rec
 		studioW = *options.StudioWeight
 	}
 
+	// Pre-populate seen map with dismissed items and caller-supplied exclude IDs.
 	seen := make(map[string]bool)
+	if err := r.withReadTxn(ctx, func(ctx context.Context) error {
+		dismissed, dErr := r.repository.DismissedRecommendation.ListDismissed(ctx, "scene")
+		if dErr != nil {
+			return dErr
+		}
+		for k := range dismissed {
+			seen[k] = true
+		}
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	if options != nil {
+		for _, id := range options.ExcludeIds {
+			seen[id] = true
+		}
+	}
 
 	// 1. Local Recommendations
 	if source == models.RecommendationSourceLocal || source == models.RecommendationSourceBoth {
@@ -528,7 +546,26 @@ func (r *queryResolver) RecommendPerformers(ctx context.Context, options *models
 	}
 
 	var searchResults []*models.RecommendationResult
+
+	// Pre-populate seen map with dismissed items and caller-supplied exclude IDs.
 	seen := make(map[string]bool)
+	if err := r.withReadTxn(ctx, func(ctx context.Context) error {
+		dismissed, dErr := r.repository.DismissedRecommendation.ListDismissed(ctx, "performer")
+		if dErr != nil {
+			return dErr
+		}
+		for k := range dismissed {
+			seen[k] = true
+		}
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	if options != nil {
+		for _, id := range options.ExcludeIds {
+			seen[id] = true
+		}
+	}
 
 	// 1. Local Recommendations (Profile based)
 	if source == models.RecommendationSourceLocal || source == models.RecommendationSourceBoth {
@@ -675,7 +712,36 @@ func (r *queryResolver) SimilarScenes(ctx context.Context, sceneID string, limit
 }
 
 func (r *queryResolver) SimilarPerformers(ctx context.Context, performerID string, limit *int) ([]*models.RecommendationResult, error) {
-	return []*models.RecommendationResult{}, nil
+	id, err := strconv.Atoi(performerID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid performer ID: %s", performerID)
+	}
+	l := 20
+	if limit != nil {
+		l = *limit
+	}
+
+	scorer := recommendation.NewScorer(
+		nil,
+		r.repository.Scene,
+		r.repository.Performer,
+		r.repository.Studio,
+		r.repository.Tag,
+	)
+
+	var results []*models.RecommendationResult
+	err = r.withReadTxn(ctx, func(ctx context.Context) error {
+		res, err := scorer.SimilarPerformers(ctx, id, l)
+		if err != nil {
+			return err
+		}
+		for i := range res {
+			item := res[i]
+			results = append(results, &item)
+		}
+		return nil
+	})
+	return results, err
 }
 
 // --- MutationResolver implementation ---
@@ -740,4 +806,22 @@ func (r *mutationResolver) RebuildContentProfile(ctx context.Context) (*models.C
 	})
 
 	return profile, err
+}
+
+func (r *mutationResolver) DismissRecommendation(ctx context.Context, entityType string, entityKey string) (bool, error) {
+	if err := r.withTxn(ctx, func(ctx context.Context) error {
+		return r.repository.DismissedRecommendation.Dismiss(ctx, entityType, entityKey)
+	}); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (r *mutationResolver) UndismissRecommendation(ctx context.Context, entityType string, entityKey string) (bool, error) {
+	if err := r.withTxn(ctx, func(ctx context.Context) error {
+		return r.repository.DismissedRecommendation.Undismiss(ctx, entityType, entityKey)
+	}); err != nil {
+		return false, err
+	}
+	return true, nil
 }

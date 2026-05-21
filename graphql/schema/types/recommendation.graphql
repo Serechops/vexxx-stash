@@ -121,6 +121,9 @@ input RecommendationOptions {
   
   """Weight override for studios (0-1) - default 0.2"""
   studio_weight: Float
+
+  """IDs to exclude from results (for cross-row deduplication)"""
+  exclude_ids: [String!]
 }
 
 extend type Query {
@@ -143,4 +146,10 @@ extend type Query {
 extend type Mutation {
   """Rebuild the user's content profile from current library data"""
   rebuildContentProfile: ContentProfile!
+
+  """Dismiss a recommendation so it no longer appears in discovery rows"""
+  dismissRecommendation(entity_type: String!, entity_key: String!): Boolean!
+
+  """Remove a previous dismissal, allowing the item to appear again"""
+  undismissRecommendation(entity_type: String!, entity_key: String!): Boolean!
 }

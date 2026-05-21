@@ -1111,7 +1111,28 @@ const SceneLoader: React.FC<RouteComponentProps<ISceneParams>> = ({
     };
   }, []);
 
-  // Queue is now manually curated — no auto-populate from URL filter params
+  // Auto-populate the queue from URL filter params on load (upstream-style).
+  // Manually-added scenes (from Discover tab) are appended on top of this.
+  useEffect(() => {
+    if (sceneQueue.query) {
+      const filterCopy = sceneQueue.query.clone();
+      queryFindScenes(filterCopy).then((result) => {
+        const { scenes, count } = result.data.findScenes;
+        setQueueScenes(scenes as QueuedScene[]);
+        setQueueTotal(count);
+        setQueueStart(
+          (filterCopy.currentPage - 1) * filterCopy.itemsPerPage + 1
+        );
+      });
+    } else if (sceneQueue.sceneIDs && sceneQueue.sceneIDs.length > 0) {
+      queryFindScenesByID(sceneQueue.sceneIDs.map(String)).then((result) => {
+        const { scenes, count } = result.data.findScenes;
+        setQueueScenes(scenes as QueuedScene[]);
+        setQueueTotal(count);
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sceneQueue]);
 
   async function onQueueLessScenes() {
     if (!sceneQueue.query || queueStart <= 1) {

@@ -363,6 +363,10 @@ func TestBuildUserProfile_Integration(t *testing.T) {
 	mockSceneReader.On("Query", ctx, mock.AnythingOfType("models.SceneQueryOptions")).
 		Return(mockResult, nil).Once()
 
+	// Mock GetManyLastViewed called for each page of scenes
+	mockSceneReader.On("GetManyLastViewed", ctx, mock.AnythingOfType("[]int")).
+		Return([]*time.Time{nil}, nil)
+
 	// Empty result for second page
 	emptyResult := createMockSceneQueryResultPB([]*models.Scene{})
 

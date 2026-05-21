@@ -112,9 +112,11 @@ func (pb *ProfileBuilder) BuildUserProfile(ctx context.Context) (*ProfileData, e
 				lastPlayed = lastPlayedTimes[i]
 			}
 			score := pb.computeSceneScore(scene, lastPlayed)
-			if score <= 0 {
+			if score == 0 {
 				continue
 			}
+			// Negative scores (abandoned scenes) still flow through — the +=
+			// accumulation below naturally subtracts from tag/performer weights.
 
 			// Load scene relationships
 			if err := scene.LoadTagIDs(ctx, pb.sceneReader); err != nil {
@@ -245,36 +247,70 @@ func (pb *ProfileBuilder) BuildUserProfile(ctx context.Context) (*ProfileData, e
 	}, nil
 }
 
+// Abandonment detection constants.
+// A scene is considered abandoned when the user played at least abandonMinPlaySeconds
+// but watched less than abandonThreshold of the total duration.
+const (
+	abandonMinPlaySeconds = 30.0  // ignore accidental clicks shorter than this
+	abandonThreshold      = 0.20  // < 20 % completion counts as abandon
+	abandonPenalty        = -0.30 // score returned for an abandoned scene
+)
+
 // computeSceneScore calculates the engagement score for a single scene.
+// A negative return value means the scene was abandoned and acts as a
+// negative preference signal when aggregated into the profile.
 // lastPlayedAt is the most recent view timestamp from scenes_view_dates (may be nil for unplayed scenes).
 func (pb *ProfileBuilder) computeSceneScore(scene *models.Scene, lastPlayedAt *time.Time) float64 {
+	// --- Abandonment detection (negative signal) ---
+	// If the user played the scene for a meaningful amount of time but stopped
+	// well before completion, treat it as a negative preference signal.
+	if scene.PlayDuration >= abandonMinPlaySeconds {
+		var actualDuration float64
+		if scene.Files.Loaded() && scene.Files.Primary() != nil {
+			actualDuration = scene.Files.Primary().Duration
+		}
+		if actualDuration > 0 && (scene.PlayDuration/actualDuration) < abandonThreshold {
+			// Soften the penalty slightly for explicitly-rated content — a rated
+			// scene the user came back to after an interrupted watch shouldn't be
+			// penalised as heavily.
+			if scene.Rating != nil && *scene.Rating >= 60 {
+				return -0.10
+			}
+			return abandonPenalty
+		}
+	}
+
 	// Base score from rating (1.0 for unrated)
 	baseScore := 1.0
 	if scene.Rating != nil && *scene.Rating > 0 {
 		baseScore = float64(*scene.Rating) / 100.0
 	}
 
-	// Engagement multiplier from play duration
-	engagementMultiplier := 1.0
+	// Completion-weighted engagement multiplier.
+	// The curve is non-linear to reward high-completion watches more strongly:
+	//   unwatched  → 0.5×
+	//   20 % done  → 0.9×  (clear of abandonment zone)
+	//   50 % done  → 1.5×
+	//   90 %+ done → 2.3×
+	engagementMultiplier := 0.5
 	if scene.PlayDuration > 0 {
-		// Get actual scene duration from file metadata
 		var actualDuration float64
 		if scene.Files.Loaded() && scene.Files.Primary() != nil {
 			actualDuration = scene.Files.Primary().Duration
 		}
 
 		if actualDuration > 0 {
-			// Cap engagement at 100% (no bonus for rewatching)
-			engagementRatio := math.Min(scene.PlayDuration/actualDuration, 1.0)
-			// Scale to 0.5x - 2x multiplier
-			engagementMultiplier = 0.5 + (engagementRatio * 1.5)
+			// Clamp to 1.0 — cumulative play_duration can exceed real duration on
+			// rewatches, but we don't want to double-count that here.
+			completionRatio := math.Min(scene.PlayDuration/actualDuration, 1.0)
+			// Quadratic curve: multiplier = 0.5 + 1.8·ratio²
+			// This keeps low-completion scores modest while strongly rewarding
+			// scenes watched to completion.
+			engagementMultiplier = 0.5 + (1.8 * completionRatio * completionRatio)
 		} else {
-			// If no duration info, give partial credit for any play
+			// No duration metadata — give partial credit for any play.
 			engagementMultiplier = 1.5
 		}
-	} else {
-		// Unwatched scenes get reduced weight (0.5x)
-		engagementMultiplier = 0.5
 	}
 
 	// Recency boost: scenes played recently get up to 1.5× weight.

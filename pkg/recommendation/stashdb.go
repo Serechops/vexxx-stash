@@ -37,8 +37,13 @@ func (e *Engine) DiscoverFromStashDB(ctx context.Context, profile *models.Conten
 		return nil, err
 	}
 
+	// No local content has StashDB IDs yet — fall back to attribute-based performer
+	// lookup so the scene row is never empty for fresh installations.
 	if len(topTags) == 0 && len(topPerformers) == 0 {
-		return []models.RecommendationResult{}, nil
+		topPerformers = e.getAttributeBasedPerformerIDs(ctx, profile, 8)
+		if len(topPerformers) == 0 {
+			return []models.RecommendationResult{}, nil
+		}
 	}
 
 	// 3. Build StashDB query
@@ -777,6 +782,58 @@ func topAttributeValue(profile *models.ContentProfile, attrName string) string {
 		}
 	}
 	return topValue
+}
+
+// getAttributeBasedPerformerIDs queries StashDB for performers matching the top
+// attribute preferences in the profile and returns their StashDB IDs.
+// Used as a fallback when no local performers have StashDB IDs yet.
+func (e *Engine) getAttributeBasedPerformerIDs(ctx context.Context, profile *models.ContentProfile, limit int) []string {
+	q := graphql.PerformerQueryInput{
+		Page:      1,
+		PerPage:   limit * 3, // fetch extras to account for filtering
+		Sort:      graphql.PerformerSortEnumSceneCount,
+		Direction: graphql.SortDirectionEnumDesc,
+	}
+	g := graphql.GenderFilterEnumFemale
+	q.Gender = &g
+
+	if topHair := topAttributeValue(profile, "hair_color"); topHair != "" {
+		if mapped, ok := mapHairColor(topHair); ok {
+			q.HairColor = &graphql.HairColorCriterionInput{
+				Value:    &mapped,
+				Modifier: graphql.CriterionModifierEquals,
+			}
+		}
+	}
+	if topEye := topAttributeValue(profile, "eye_color"); topEye != "" {
+		if mapped, ok := mapEyeColor(topEye); ok {
+			q.EyeColor = &graphql.EyeColorCriterionInput{
+				Value:    &mapped,
+				Modifier: graphql.CriterionModifierEquals,
+			}
+		}
+	}
+	if topEthnicity := topAttributeValue(profile, "ethnicity"); topEthnicity != "" {
+		if mapped, ok := mapEthnicity(topEthnicity); ok {
+			q.Ethnicity = &mapped
+		}
+	}
+
+	performers, err := e.StashBoxClient.QueryPerformersByInput(ctx, q)
+	if err != nil || len(performers) == 0 {
+		return nil
+	}
+
+	var ids []string
+	for _, p := range performers {
+		if p.RemoteSiteID != nil && *p.RemoteSiteID != "" {
+			ids = append(ids, *p.RemoteSiteID)
+			if len(ids) >= limit {
+				break
+			}
+		}
+	}
+	return ids
 }
 
 func mapHairColor(s string) (graphql.HairColorEnum, bool) {

@@ -1189,7 +1189,7 @@ func (qb *SceneStore) isUnfilteredQuery(options models.SceneQueryOptions) bool {
 		if f.OCounter != nil || f.IsMissing != nil || f.Duplicated != nil {
 			return false
 		}
-		if f.HasMarkers != nil || f.HasPreview != nil {
+		if f.HasMarkers != nil || f.HasPreview != nil || f.HasSegments != nil {
 			return false
 		}
 		if f.Interactive != nil || f.InteractiveSpeed != nil || f.Captions != nil {

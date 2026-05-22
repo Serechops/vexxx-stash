@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 import {
+  Alert,
+  AlertTitle,
   Box,
   Button,
   Chip,
@@ -31,6 +33,7 @@ import {
   Delete as DeleteIcon,
   Edit as EditIcon,
   Key as KeyIcon,
+  LockOpen as LockOpenIcon,
   Refresh as RefreshIcon,
 } from "@mui/icons-material";
 import * as GQL from "src/core/generated-graphql";
@@ -186,7 +189,7 @@ const UserDialog: React.FC<UserDialogProps> = ({
 export const SettingsUsersPanel: React.FC = () => {
   const intl = useIntl();
   const Toast = useToast();
-  const { user: currentUser, canManageUsers } = useCurrentUser();
+  const { user: currentUser, canManageUsers, isSetupMode, loading: userContextLoading } = useCurrentUser();
 
   const { data, loading, error, refetch } = GQL.useFindUsersQuery({
     fetchPolicy: "cache-and-network",
@@ -200,6 +203,13 @@ export const SettingsUsersPanel: React.FC = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<GQL.UserDataFragment | null>(null);
   const [deleteConfirmUser, setDeleteConfirmUser] = useState<GQL.UserDataFragment | null>(null);
+
+  // Setup mode state — inline first-admin creation form
+  const [setupSkipped, setSetupSkipped] = useState(false);
+  const [setupUsername, setSetupUsername] = useState("");
+  const [setupPassword, setSetupPassword] = useState("");
+  const [setupConfirm, setSetupConfirm] = useState("");
+  const [setupSaving, setSetupSaving] = useState(false);
 
   const users = data?.findUsers ?? [];
 
@@ -284,6 +294,158 @@ export const SettingsUsersPanel: React.FC = () => {
     }
   };
 
+  const setupPasswordMismatch =
+    setupConfirm.length > 0 && setupPassword !== setupConfirm;
+  const canCreateFirstAdmin =
+    setupUsername.trim().length > 0 &&
+    setupPassword.length >= 6 &&
+    setupPassword === setupConfirm &&
+    !setupSaving;
+
+  const handleCreateFirstAdmin = async () => {
+    setSetupSaving(true);
+    try {
+      await userCreate({
+        variables: {
+          input: {
+            username: setupUsername.trim(),
+            password: setupPassword,
+            role: GQL.UserRole.Admin,
+          },
+        },
+      });
+      Toast.success(
+        intl.formatMessage({
+          id: "users.first_admin_created",
+          defaultMessage:
+            "Admin account created. Please log in to continue.",
+        })
+      );
+      await refetch();
+      // Navigate to login so the user authenticates with the new account
+      window.location.href = "/login";
+    } catch (e) {
+      Toast.error(e);
+    } finally {
+      setSetupSaving(false);
+    }
+  };
+
+  // Wait for UserContext to resolve before evaluating permissions
+  if (userContextLoading) return <LoadingIndicator />;
+
+  // Setup mode takes priority — show the first-run card regardless of query state
+  if (isSetupMode && !setupSkipped) {
+    return (
+      <Box sx={{ maxWidth: 520, mx: "auto", mt: 4 }}>
+        <Paper
+          sx={{
+            p: 4,
+            border: 1,
+            borderColor: "primary.main",
+            borderRadius: 2,
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", mb: 2, gap: 1.5 }}>
+            <LockOpenIcon color="primary" sx={{ fontSize: 32 }} />
+            <Box>
+              <Typography variant="h6" fontWeight={600}>
+                <FormattedMessage
+                  id="users.setup.title"
+                  defaultMessage="Enable Authentication"
+                />
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                <FormattedMessage
+                  id="users.setup.subtitle"
+                  defaultMessage="No user accounts exist. Create an admin account to restrict access."
+                />
+              </Typography>
+            </Box>
+          </Box>
+
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <TextField
+              fullWidth
+              label={intl.formatMessage({
+                id: "users.username",
+                defaultMessage: "Username",
+              })}
+              value={setupUsername}
+              onChange={(e) => setSetupUsername(e.target.value)}
+              autoComplete="username"
+              autoFocus
+            />
+            <TextField
+              fullWidth
+              type="password"
+              label={intl.formatMessage({
+                id: "users.password",
+                defaultMessage: "Password",
+              })}
+              value={setupPassword}
+              onChange={(e) => setSetupPassword(e.target.value)}
+              helperText={intl.formatMessage({
+                id: "users.password_hint_new",
+                defaultMessage: "Minimum 6 characters",
+              })}
+              autoComplete="new-password"
+            />
+            <TextField
+              fullWidth
+              type="password"
+              label={intl.formatMessage({
+                id: "users.confirm_password",
+                defaultMessage: "Confirm Password",
+              })}
+              value={setupConfirm}
+              onChange={(e) => setSetupConfirm(e.target.value)}
+              error={setupPasswordMismatch}
+              helperText={
+                setupPasswordMismatch
+                  ? intl.formatMessage({
+                      id: "users.passwords_do_not_match",
+                      defaultMessage: "Passwords do not match",
+                    })
+                  : undefined
+              }
+              autoComplete="new-password"
+            />
+          </Box>
+
+          <Box sx={{ display: "flex", gap: 2, mt: 3, alignItems: "center" }}>
+            <Button
+              variant="contained"
+              onClick={handleCreateFirstAdmin}
+              disabled={!canCreateFirstAdmin}
+              size="large"
+            >
+              {setupSaving ? (
+                <FormattedMessage id="actions.saving" defaultMessage="Saving..." />
+              ) : (
+                <FormattedMessage
+                  id="users.setup.create_admin"
+                  defaultMessage="Create Admin Account"
+                />
+              )}
+            </Button>
+            <Button
+              variant="text"
+              color="inherit"
+              onClick={() => setSetupSkipped(true)}
+              sx={{ color: "text.secondary" }}
+            >
+              <FormattedMessage
+                id="users.setup.skip"
+                defaultMessage="Skip for now"
+              />
+            </Button>
+          </Box>
+        </Paper>
+      </Box>
+    );
+  }
+
   if (!canManageUsers) {
     return (
       <Box sx={{ p: 3, textAlign: "center" }}>
@@ -302,6 +464,20 @@ export const SettingsUsersPanel: React.FC = () => {
 
   return (
     <>
+      {isSetupMode && setupSkipped && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          <AlertTitle>
+            <FormattedMessage
+              id="users.setup.skipped_title"
+              defaultMessage="Authentication is disabled"
+            />
+          </AlertTitle>
+          <FormattedMessage
+            id="users.setup.skipped_body"
+            defaultMessage="No user accounts exist. Anyone with network access can use this server. Create an admin account below to enable authentication."
+          />
+        </Alert>
+      )}
       <SettingSection headingID="users.management" headingDefault="User Management">
         <Box sx={{ mb: 2, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <Typography variant="body2" color="text.secondary">

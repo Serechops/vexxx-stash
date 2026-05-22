@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stashapp/stash/internal/manager"
+	"github.com/stashapp/stash/internal/manager/config"
 	"github.com/stashapp/stash/pkg/models"
 	"github.com/stashapp/stash/pkg/session"
 	"golang.org/x/crypto/bcrypt"
@@ -38,10 +39,18 @@ func generateAPIKey() string {
 	return uuid.New().String()
 }
 
-// UserCreate creates a new user (admin only)
+// UserCreate creates a new user (admin only, or any unauthenticated request when no users exist - setup mode)
 func (r *mutationResolver) UserCreate(ctx context.Context, input models.UserCreateInput) (*models.User, error) {
-	if _, err := r.requireAdmin(ctx); err != nil {
-		return nil, err
+	// Allow unauthenticated creation of the first user (setup mode)
+	if manager.GetInstance().GetUserCount() > 0 {
+		if _, err := r.requireAdmin(ctx); err != nil {
+			return nil, err
+		}
+	} else {
+		// Setup mode: enforce that the first user must be an Admin
+		if input.Role != models.UserRoleAdmin {
+			return nil, errors.New("the first user must have the Admin role")
+		}
 	}
 
 	// Validate input
@@ -375,8 +384,13 @@ func (r *mutationResolver) SessionDestroyByUser(ctx context.Context, userID stri
 	return true, nil
 }
 
-// requireAdmin for mutations - helper that returns an error for unauthorized access
+// requireAdmin for mutations.
+// In no-auth mode (HasCredentials = false), all access is allowed.
 func (r *mutationResolver) requireAdmin(ctx context.Context) (*models.User, error) {
+	// No-auth mode: credentials not configured, anyone can access the server.
+	if !config.GetInstance().HasCredentials() {
+		return nil, nil
+	}
 	user, err := r.getCurrentUser(ctx)
 	if err != nil {
 		return nil, err
@@ -393,7 +407,8 @@ func (r *mutationResolver) requireAdmin(ctx context.Context) (*models.User, erro
 // getCurrentUser for mutations
 func (r *mutationResolver) getCurrentUser(ctx context.Context) (*models.User, error) {
 	userID := session.GetCurrentUserID(ctx)
-	if userID == nil {
+	if userID == nil || *userID == "" {
+		// nil = no context key set; "" = setup mode / unauthenticated passthrough
 		return nil, nil
 	}
 

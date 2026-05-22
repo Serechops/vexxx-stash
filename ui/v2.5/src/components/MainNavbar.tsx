@@ -29,6 +29,10 @@ import {
   alpha,
   Divider,
   SwipeableDrawer,
+  Menu,
+  MenuItem,
+  Avatar,
+  Typography,
 } from "@mui/material";
 import { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import { Link, NavLink, useLocation, useHistory } from "react-router-dom";
@@ -47,6 +51,7 @@ import {
   faFolder,
   faImage,
   faImages,
+  faKey,
   faListUl,
   faMapMarkerAlt,
   faMicrochip,
@@ -60,6 +65,8 @@ import {
 import { baseURL } from "src/core/createClient";
 import { PatchComponent } from "src/patch";
 import * as GQL from "src/core/generated-graphql";
+import { useCurrentUser } from "src/hooks/UserContext";
+import { ChangePasswordDialog } from "src/components/Dialogs/ChangePasswordDialog";
 
 interface IMenuItem {
   name: string;
@@ -259,8 +266,12 @@ export const MainNavbar: React.FC = () => {
   const { openManual } = React.useContext(ManualStateContext);
   const theme = useTheme();
   const isDesktop = useMediaQuery(theme.breakpoints.up('lg'));
+  const { user } = useCurrentUser();
 
   const [expanded, setExpanded] = useState(false);
+  const [accountMenuAnchor, setAccountMenuAnchor] =
+    useState<null | HTMLElement>(null);
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
 
   // Fetch system status for hardware codec info
   const { data: systemStatusData } = GQL.useSystemStatusQuery();
@@ -331,7 +342,78 @@ export const MainNavbar: React.FC = () => {
     };
   });
 
-  function maybeRenderLogout() {
+  function renderAccountMenu() {
+    if (user) {
+      // Authenticated multi-user: show avatar with dropdown
+      const initials = user.username.slice(0, 2).toUpperCase();
+      return (
+        <>
+          <Tooltip title={user.username}>
+            <IconButton
+              onClick={(e) => setAccountMenuAnchor(e.currentTarget)}
+              size="small"
+              sx={{ ml: 0.5 }}
+            >
+              <Avatar
+                sx={{
+                  width: 28,
+                  height: 28,
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  bgcolor: 'primary.main',
+                }}
+              >
+                {initials}
+              </Avatar>
+            </IconButton>
+          </Tooltip>
+          <Menu
+            anchorEl={accountMenuAnchor}
+            open={Boolean(accountMenuAnchor)}
+            onClose={() => setAccountMenuAnchor(null)}
+            transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+            anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+            PaperProps={{ sx: { minWidth: 180 } }}
+          >
+            <Box sx={{ px: 2, py: 1, pointerEvents: 'none' }}>
+              <Typography variant="subtitle2" noWrap>
+                {user.username}
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'capitalize' }}>
+                {user.role.toLowerCase()}
+              </Typography>
+            </Box>
+            <Divider />
+            <MenuItem
+              onClick={() => {
+                setAccountMenuAnchor(null);
+                setChangePasswordOpen(true);
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: 32 }}>
+                <Icon icon={faKey} />
+              </ListItemIcon>
+              <FormattedMessage id="users.change_password" defaultMessage="Change Password" />
+            </MenuItem>
+            <MenuItem
+              component="a"
+              href={`${baseURL}logout`}
+            >
+              <ListItemIcon sx={{ minWidth: 32 }}>
+                <Icon icon={faSignOutAlt} />
+              </ListItemIcon>
+              <FormattedMessage id="actions.logout" defaultMessage="Log Out" />
+            </MenuItem>
+          </Menu>
+          <ChangePasswordDialog
+            open={changePasswordOpen}
+            onClose={() => setChangePasswordOpen(false)}
+          />
+        </>
+      );
+    }
+
+    // No authenticated user (no-auth mode / setup mode): show plain logout if session cookie exists
     if (SessionUtils.isLoggedIn()) {
       return (
         <Tooltip title={intl.formatMessage({ id: "actions.logout" })}>
@@ -346,6 +428,8 @@ export const MainNavbar: React.FC = () => {
         </Tooltip>
       );
     }
+
+    return null;
   }
 
   const handleDismiss = useCallback(() => setExpanded(false), [setExpanded]);
@@ -444,7 +528,7 @@ export const MainNavbar: React.FC = () => {
             <Icon icon={faQuestionCircle} />
           </IconButton>
         </Tooltip>
-        {maybeRenderLogout()}
+        {renderAccountMenu()}
       </>
     );
   }

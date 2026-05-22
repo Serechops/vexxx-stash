@@ -5,6 +5,8 @@ import (
 	"errors"
 	"strconv"
 
+	"github.com/stashapp/stash/internal/manager"
+	"github.com/stashapp/stash/internal/manager/config"
 	"github.com/stashapp/stash/pkg/models"
 	"github.com/stashapp/stash/pkg/session"
 )
@@ -19,7 +21,8 @@ var (
 // getCurrentUser retrieves the current user from the context
 func (r *queryResolver) getCurrentUser(ctx context.Context) (*models.User, error) {
 	userID := session.GetCurrentUserID(ctx)
-	if userID == nil {
+	if userID == nil || *userID == "" {
+		// nil = no context key set; "" = setup mode / unauthenticated passthrough
 		return nil, nil
 	}
 
@@ -35,8 +38,13 @@ func (r *queryResolver) getCurrentUser(ctx context.Context) (*models.User, error
 	return user, nil
 }
 
-// requireAdmin checks if the current user is an admin
+// requireAdmin checks if the current user is an admin.
+// In no-auth mode (HasCredentials = false), all access is allowed.
 func (r *queryResolver) requireAdmin(ctx context.Context) (*models.User, error) {
+	// No-auth mode: credentials not configured, anyone can access the server.
+	if !config.GetInstance().HasCredentials() {
+		return nil, nil
+	}
 	user, err := r.getCurrentUser(ctx)
 	if err != nil {
 		return nil, err
@@ -97,8 +105,12 @@ func (r *queryResolver) FindUser(ctx context.Context, id string) (*models.User, 
 	return user, nil
 }
 
-// FindUsers returns all users (admin only)
+// FindUsers returns all users (admin only, or empty list in setup mode)
 func (r *queryResolver) FindUsers(ctx context.Context) ([]*models.User, error) {
+	if manager.GetInstance().GetUserCount() == 0 {
+		// Setup mode: no users exist, return empty list without auth check
+		return []*models.User{}, nil
+	}
 	if _, err := r.requireAdmin(ctx); err != nil {
 		return nil, err
 	}

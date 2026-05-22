@@ -1,102 +1,13 @@
 import React from "react";
-import { ModalSetting, NumberSetting } from "./Inputs";
+import { NumberSetting } from "./Inputs";
 import { SettingSection } from "./SettingSection";
-import * as GQL from "src/core/generated-graphql";
-import { Button, TextField, Box } from "@mui/material";
-import { useIntl } from "react-intl";
+import { Alert } from "@mui/material";
+import { FormattedMessage } from "react-intl";
 import { useSettings } from "./context";
 import { LoadingIndicator } from "../Shared/LoadingIndicator";
-import { useToast } from "src/hooks/Toast";
-import { useGenerateAPIKey } from "src/core/StashService";
-
-type AuthenticationSettingsInput = Pick<
-  GQL.ConfigGeneralInput,
-  "username" | "password"
->;
-
-interface IAuthenticationInput {
-  value: AuthenticationSettingsInput;
-  setValue: (v: AuthenticationSettingsInput) => void;
-}
-
-const AuthenticationInput: React.FC<IAuthenticationInput> = ({
-  value,
-  setValue,
-}) => {
-  const intl = useIntl();
-
-  function set(v: Partial<AuthenticationSettingsInput>) {
-    setValue({
-      ...value,
-      ...v,
-    });
-  }
-
-  const { username, password } = value;
-
-  return (
-    <Box>
-      <Box id="username" sx={{ mb: 2 }}>
-        <TextField
-          fullWidth
-          variant="outlined"
-          label={intl.formatMessage({ id: "config.general.auth.username" })}
-          value={username ?? ""}
-          onChange={(e) => set({ username: e.target.value })}
-          helperText={intl.formatMessage({ id: "config.general.auth.username_desc" })}
-        />
-      </Box>
-      <Box id="password" sx={{ mb: 2 }}>
-        <TextField
-          fullWidth
-          variant="outlined"
-          type="password"
-          label={intl.formatMessage({ id: "config.general.auth.password" })}
-          value={password ?? ""}
-          onChange={(e) => set({ password: e.target.value })}
-          helperText={intl.formatMessage({ id: "config.general.auth.password_desc" })}
-        />
-      </Box>
-    </Box>
-  );
-};
 
 export const SettingsSecurityPanel: React.FC = () => {
-  const intl = useIntl();
-  const Toast = useToast();
-
-  const { general, apiKey, loading, error, saveGeneral, refetch } =
-    useSettings();
-
-  const [generateAPIKey] = useGenerateAPIKey();
-
-  async function onGenerateAPIKey() {
-    try {
-      await generateAPIKey({
-        variables: {
-          input: {},
-        },
-      });
-      refetch();
-    } catch (e) {
-      Toast.error(e);
-    }
-  }
-
-  async function onClearAPIKey() {
-    try {
-      await generateAPIKey({
-        variables: {
-          input: {
-            clear: true,
-          },
-        },
-      });
-      refetch();
-    } catch (e) {
-      Toast.error(e);
-    }
-  }
+  const { general, loading, error, saveGeneral } = useSettings();
 
   if (error) return <h1>{error.message}</h1>;
   if (loading) return <LoadingIndicator />;
@@ -104,53 +15,12 @@ export const SettingsSecurityPanel: React.FC = () => {
   return (
     <>
       <SettingSection headingID="config.general.auth.authentication">
-        <ModalSetting<AuthenticationSettingsInput>
-          id="authentication-settings"
-          headingID="config.general.auth.credentials.heading"
-          subHeadingID="config.general.auth.credentials.description"
-          value={{
-            username: general.username,
-            password: general.password,
-          }}
-          onChange={(v) => saveGeneral(v)}
-          renderField={(value, setValue) => (
-            <AuthenticationInput value={value ?? {}} setValue={setValue} />
-          )}
-          renderValue={(v) => {
-            if (v?.username && v?.password)
-              return <span>{v?.username ?? ""}</span>;
-            return <></>;
-          }}
-        />
-
-        <div className="setting" id="apikey">
-          <div>
-            <h3>{intl.formatMessage({ id: "config.general.auth.api_key" })}</h3>
-
-            <div className="value text-break">{apiKey}</div>
-
-            <div className="sub-heading">
-              {intl.formatMessage({ id: "config.general.auth.api_key_desc" })}
-            </div>
-          </div>
-          <div>
-            <Button
-              disabled={!general.username || !general.password}
-              onClick={() => onGenerateAPIKey()}
-              variant="contained"
-            >
-              {intl.formatMessage({
-                id: "config.general.auth.generate_api_key",
-              })}
-            </Button>
-            <Button variant="contained" color="error" onClick={() => onClearAPIKey()}>
-              {intl.formatMessage({
-                id: "config.general.auth.clear_api_key",
-              })}
-            </Button>
-          </div>
-        </div>
-
+        <Alert severity="info" sx={{ mb: 3 }}>
+          <FormattedMessage
+            id="config.general.auth.managed_by_users"
+            defaultMessage="Authentication is managed through user accounts. Use the Users tab to create accounts and control access to this server."
+          />
+        </Alert>
         <NumberSetting
           id="maxSessionAge"
           headingID="config.general.auth.maximum_session_age"

@@ -15,6 +15,11 @@ import {
     IconButton,
     Tooltip,
     CircularProgress,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogContentText,
+    DialogActions,
 } from "@mui/material";
 import { FormattedMessage, useIntl } from "react-intl";
 import * as GQL from "src/core/generated-graphql";
@@ -28,11 +33,14 @@ import TextUtils from "src/utils/text";
 
 interface IProps {
     scene: GQL.SceneDataFragment;
+    getPlayerTimestamp?: () => number;
 }
 
-export const SceneSegmentsPanel: React.FC<IProps> = ({ scene }) => {
+export const SceneSegmentsPanel: React.FC<IProps> = ({ scene, getPlayerTimestamp }) => {
     const intl = useIntl();
     const [showCreatePanel, setShowCreatePanel] = useState(false);
+    const [pendingDelete, setPendingDelete] = useState<string | null>(null);
+    const [destroyScene] = GQL.useSceneDestroyMutation();
 
     const file = scene.files?.[0];
 
@@ -200,8 +208,69 @@ export const SceneSegmentsPanel: React.FC<IProps> = ({ scene }) => {
                     <CreateSceneSegmentPanel
                         fileId={file.id}
                         fileDuration={file.duration}
+                        getPlayerTimestamp={getPlayerTimestamp}
                         onSuccess={handleCreateSuccess}
                     />
+                </Box>
+            )}
+
+            {/* Visual Timeline */}
+            {segments.length > 0 && file.duration != null && file.duration > 0 && (
+                <Box mb={3}>
+                    <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 0.5 }}>
+                        <FormattedMessage id="segment_timeline" defaultMessage="Segment Timeline" />
+                    </Typography>
+                    <Divider sx={{ mb: 1 }} />
+                    <Box
+                        sx={{
+                            position: "relative",
+                            height: 28,
+                            bgcolor: "action.hover",
+                            borderRadius: 1,
+                            overflow: "hidden",
+                        }}
+                    >
+                        {segments.map((seg) => {
+                            const total = file.duration!;
+                            const start = seg.start_point ?? 0;
+                            const end = seg.end_point ?? total;
+                            const leftPct = (start / total) * 100;
+                            const widthPct = ((end - start) / total) * 100;
+                            const isCurrent = seg.id === scene.id;
+                            return (
+                                <Tooltip
+                                    key={seg.id}
+                                    title={`${seg.title || seg.id}: ${TextUtils.secondsToTimestamp(start)} – ${TextUtils.secondsToTimestamp(end)}`}
+                                >
+                                    <Box
+                                        component={Link}
+                                        to={`/scenes/${seg.id}`}
+                                        sx={{
+                                            position: "absolute",
+                                            top: 2,
+                                            bottom: 2,
+                                            left: `${leftPct}%`,
+                                            width: `${widthPct}%`,
+                                            minWidth: 3,
+                                            bgcolor: isCurrent ? "primary.main" : "primary.dark",
+                                            borderRadius: 0.5,
+                                            opacity: isCurrent ? 1 : 0.65,
+                                            border: isCurrent ? "1px solid" : "none",
+                                            borderColor: "primary.light",
+                                            "&:hover": { opacity: 1 },
+                                            textDecoration: "none",
+                                        }}
+                                    />
+                                </Tooltip>
+                            );
+                        })}
+                    </Box>
+                    <Box display="flex" justifyContent="space-between" mt={0.5}>
+                        <Typography variant="caption" color="text.secondary">0:00</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                            {TextUtils.secondsToTimestamp(file.duration)}
+                        </Typography>
+                    </Box>
                 </Box>
             )}
 
@@ -220,26 +289,26 @@ export const SceneSegmentsPanel: React.FC<IProps> = ({ scene }) => {
                     </Typography>
                 </Box>
             ) : (
-                <TableContainer component={Paper}>
-                    <Table size="small">
+                <TableContainer component={Paper} sx={{ overflowX: "auto" }}>
+                    <Table size="small" sx={{ minWidth: 560 }}>
                         <TableHead>
                             <TableRow>
-                                <TableCell>
+                                <TableCell sx={{ width: "35%" }}>
                                     <FormattedMessage id="title" defaultMessage="Title" />
                                 </TableCell>
-                                <TableCell>
+                                <TableCell sx={{ whiteSpace: "nowrap", width: "18%" }}>
                                     <FormattedMessage id="time_range" defaultMessage="Time Range" />
                                 </TableCell>
-                                <TableCell>
+                                <TableCell sx={{ whiteSpace: "nowrap", width: "10%" }}>
                                     <FormattedMessage id="duration" defaultMessage="Duration" />
                                 </TableCell>
-                                <TableCell>
+                                <TableCell sx={{ width: "15%" }}>
                                     <FormattedMessage id="studio" defaultMessage="Studio" />
                                 </TableCell>
                                 <TableCell>
                                     <FormattedMessage id="tags" defaultMessage="Tags" />
                                 </TableCell>
-                                <TableCell align="right">
+                                <TableCell sx={{ whiteSpace: "nowrap", width: "1%" }} align="right">
                                     <FormattedMessage id="actions" defaultMessage="Actions" />
                                 </TableCell>
                             </TableRow>
@@ -254,30 +323,32 @@ export const SceneSegmentsPanel: React.FC<IProps> = ({ scene }) => {
                                     }}
                                 >
                                     <TableCell>
-                                        <Link
-                                            to={`/scenes/${segment.id}`}
-                                            style={{ textDecoration: 'none', color: 'inherit' }}
-                                        >
-                                            <Typography variant="body2" fontWeight="medium">
-                                                {segment.title || `Segment ${segment.id}`}
-                                            </Typography>
-                                        </Link>
-                                        {segment.id === scene.id && (
-                                            <Chip
-                                                label="Current"
-                                                size="small"
-                                                color="primary"
-                                                sx={{ ml: 1 }}
-                                            />
-                                        )}
+                                        <Box display="flex" alignItems="center" gap={1}>
+                                            <Link
+                                                to={`/scenes/${segment.id}`}
+                                                style={{ textDecoration: 'none', color: 'inherit', minWidth: 0 }}
+                                            >
+                                                <Typography variant="body2" fontWeight="medium" noWrap>
+                                                    {segment.title || `Segment ${segment.id}`}
+                                                </Typography>
+                                            </Link>
+                                            {segment.id === scene.id && (
+                                                <Chip
+                                                    label="Current"
+                                                    size="small"
+                                                    color="primary"
+                                                    sx={{ flexShrink: 0 }}
+                                                />
+                                            )}
+                                        </Box>
                                     </TableCell>
-                                    <TableCell>
+                                    <TableCell sx={{ whiteSpace: "nowrap" }}>
                                         <Typography variant="body2" fontFamily="monospace">
                                             {formatDuration(segment.start_point, segment.end_point)}
                                         </Typography>
                                     </TableCell>
-                                    <TableCell>
-                                        <Typography variant="body2">
+                                    <TableCell sx={{ whiteSpace: "nowrap" }}>
+                                        <Typography variant="body2" fontFamily="monospace">
                                             {TextUtils.secondsToTimestamp(
                                                 getSegmentDuration(segment.start_point, segment.end_point)
                                             )}
@@ -318,7 +389,7 @@ export const SceneSegmentsPanel: React.FC<IProps> = ({ scene }) => {
                                             )}
                                         </Box>
                                     </TableCell>
-                                    <TableCell align="right">
+                                    <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>
                                         <Tooltip title="Play Segment">
                                             <IconButton
                                                 component={Link}
@@ -337,6 +408,15 @@ export const SceneSegmentsPanel: React.FC<IProps> = ({ scene }) => {
                                                 <EditIcon fontSize="small" />
                                             </IconButton>
                                         </Tooltip>
+                                        <Tooltip title="Delete Segment">
+                                            <IconButton
+                                                onClick={() => setPendingDelete(segment.id)}
+                                                size="small"
+                                                color="error"
+                                            >
+                                                <DeleteIcon fontSize="small" />
+                                            </IconButton>
+                                        </Tooltip>
                                     </TableCell>
                                 </TableRow>
                             ))}
@@ -353,6 +433,39 @@ export const SceneSegmentsPanel: React.FC<IProps> = ({ scene }) => {
                     </Typography>
                 </Box>
             )}
+
+            {/* Delete confirmation dialog */}
+            <Dialog open={!!pendingDelete} onClose={() => setPendingDelete(null)}>
+                <DialogTitle>
+                    <FormattedMessage id="dialogs.delete_segment_title" defaultMessage="Delete Segment?" />
+                </DialogTitle>
+                <DialogContent>
+                    <DialogContentText>
+                        <FormattedMessage
+                            id="dialogs.delete_segment_desc"
+                            defaultMessage="This will delete the segment scene record. The underlying video file will not be affected."
+                        />
+                    </DialogContentText>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setPendingDelete(null)}>
+                        <FormattedMessage id="actions.cancel" defaultMessage="Cancel" />
+                    </Button>
+                    <Button
+                        color="error"
+                        onClick={async () => {
+                            if (!pendingDelete) return;
+                            await destroyScene({
+                                variables: { id: pendingDelete, delete_file: false },
+                            });
+                            setPendingDelete(null);
+                            refetch();
+                        }}
+                    >
+                        <FormattedMessage id="actions.delete" defaultMessage="Delete" />
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Box>
     );
 };

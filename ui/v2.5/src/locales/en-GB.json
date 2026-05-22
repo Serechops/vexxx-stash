@@ -1308,6 +1308,7 @@
   },
   "hasChapters": "Chapters",
   "hasMarkers": "Markers",
+  "hasSegments": "Segments",
   "has_preview": "Has Preview",
   "has_preview_description": "Filter by scenes that have a preview",
   "height": "Height",

@@ -119,6 +119,7 @@ func (qb *sceneFilterHandler) criterionHandler() criterionHandler {
 
 		qb.hasMarkersCriterionHandler(sceneFilter.HasMarkers),
 		boolCriterionHandler(sceneFilter.HasPreview, "scenes.has_preview", nil),
+		qb.hasSegmentsCriterionHandler(sceneFilter.HasSegments),
 		qb.isMissingCriterionHandler(sceneFilter.IsMissing),
 		qb.urlsCriterionHandler(sceneFilter.URL),
 
@@ -398,6 +399,23 @@ func (qb *sceneFilterHandler) hasMarkersCriterionHandler(hasMarkers *string) cri
 			} else {
 				f.addWhere("scene_markers.id IS NULL")
 			}
+		}
+	}
+}
+
+func (qb *sceneFilterHandler) hasSegmentsCriterionHandler(hasSegments *string) criterionHandlerFunc {
+	const subquery = `SELECT sf1.scene_id FROM scenes_files sf1
+		INNER JOIN scenes_files sf2 ON sf2.file_id = sf1.file_id AND sf2.scene_id != sf1.scene_id
+		INNER JOIN scenes s2 ON s2.id = sf2.scene_id
+		WHERE s2.start_point IS NOT NULL OR s2.end_point IS NOT NULL`
+	return func(ctx context.Context, f *filterBuilder) {
+		if hasSegments == nil {
+			return
+		}
+		if *hasSegments == "true" {
+			f.addWhere(fmt.Sprintf("scenes.id IN (%s)", subquery))
+		} else {
+			f.addWhere(fmt.Sprintf("scenes.id NOT IN (%s)", subquery))
 		}
 	}
 }

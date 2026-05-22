@@ -46,7 +46,18 @@ import { SceneInteractiveStatus } from "src/hooks/Interactive/status";
 import { InteractiveControls } from "./InteractiveControls";
 import { languageMap } from "src/utils/caption";
 import { VIDEO_PLAYER_ID } from "./util";
-import { Button } from "@mui/material";
+import TextUtils from "src/utils/text";
+import {
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  Table,
+  TableBody,
+  TableRow,
+  TableCell,
+  IconButton,
+} from "@mui/material";
 
 // @ts-ignore
 import airplay from "@silvermine/videojs-airplay";
@@ -149,6 +160,25 @@ function handleHotkeys(player: VideoJsPlayer, event: videojs.KeyboardEvent) {
   if (event.shiftKey && event.which === 76) {
     player.loop(!player.loop());
     return;
+  }
+
+  // speed up/down with > (Shift+.) and < (Shift+,)
+  if (event.shiftKey && !event.altKey && !event.ctrlKey && !event.metaKey) {
+    if (event.which === 190 || event.which === 188) {
+      const rates = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
+      const current = player.playbackRate();
+      const currentIdx = rates.reduce(
+        (best, rate, i) =>
+          Math.abs(rate - current) < Math.abs(rates[best] - current) ? i : best,
+        0
+      );
+      if (event.which === 190) {
+        player.playbackRate(rates[Math.min(currentIdx + 1, rates.length - 1)]);
+      } else {
+        player.playbackRate(rates[Math.max(currentIdx - 1, 0)]);
+      }
+      return;
+    }
   }
 
   if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
@@ -257,6 +287,7 @@ interface IScenePlayerProps {
   permitLoop?: boolean;
   initialTimestamp: number;
   sendSetTimestamp: (setTimestamp: (value: number) => void) => void;
+  sendGetTimestamp?: (getTimestamp: () => number) => void;
   onComplete: () => void;
   onNext: () => void;
   onPrevious: () => void;
@@ -271,6 +302,7 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
     permitLoop = true,
     initialTimestamp: _initialTimestamp,
     sendSetTimestamp,
+    sendGetTimestamp,
     onComplete,
     onNext,
     onPrevious,
@@ -330,6 +362,21 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
     );
 
     const isVirtual = (scene.start_point ?? 0) > 0 || !!scene.end_point;
+    const virtualSegmentStart = scene.start_point ?? 0;
+    const virtualSegmentEnd = isVirtual
+      ? (scene.end_point ?? file?.duration ?? 0)
+      : 0;
+    const virtualDuration = isVirtual ? virtualSegmentEnd - virtualSegmentStart : 0;
+
+    // Derive the currently-playing chapter from sorted marker list
+    const activeMarker = useMemo(() => {
+      if (!scene.scene_markers.length) return null;
+      return (
+        [...scene.scene_markers]
+          .sort((a, b) => b.seconds - a.seconds)
+          .find((m) => time >= m.seconds) ?? null
+      );
+    }, [time, scene.scene_markers]);
 
     const getPlayer = useCallback(() => {
       if (!_player) return null;
@@ -369,6 +416,11 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
       });
     }, [sendSetTimestamp, getPlayer]);
 
+    useEffect(() => {
+      if (!sendGetTimestamp) return;
+      sendGetTimestamp(() => getPlayer()?.currentTime() ?? 0);
+    }, [sendGetTimestamp, getPlayer]);
+
     // Initialize VideoJS player
     useEffect(() => {
       const options: VideoJsPlayerOptions = {
@@ -380,8 +432,9 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
             inline: true,
           },
           chaptersButton: false,
-          progressControl: !isVirtual, // Hide native progress bar for virtual scenes
-          remainingTimeDisplay: !isVirtual,
+          progressControl: true,
+          remainingTimeDisplay: false,
+          currentTimeDisplay: !isVirtual,
           durationDisplay: !isVirtual,
         },
         html5: {
@@ -609,27 +662,52 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
         const currentTime = this.currentTime();
         setTime(currentTime);
 
+        // Update virtual progress bar display
+        if (this.virtualStart !== undefined || this.virtualEnd !== undefined) {
+          const vStart = this.virtualStart ?? 0;
+          const vEnd = this.virtualEnd ?? this.duration();
+          if (vEnd > vStart) {
+            const pct =
+              Math.min(1, Math.max(0, (currentTime - vStart) / (vEnd - vStart))) * 100;
+            this.el().style.setProperty(
+              "--vjs-virtual-progress",
+              `${pct.toFixed(2)}%`
+            );
+          }
+        }
+
         if (scene.end_point && currentTime >= scene.end_point) {
           this.pause();
           if (this.loop()) {
             this.currentTime(scene.start_point ?? 0);
             this.play();
           } else {
-            // End of virtual scene
             this.currentTime(scene.end_point);
-            // Optionally trigger onComplete?
           }
         }
+      }
+
+      function seeking(this: VideoJsPlayer) {
+        const vStart = this.virtualStart;
+        const vEnd = this.virtualEnd;
+        if (vStart === undefined && vEnd === undefined) return;
+        const start = vStart ?? 0;
+        const end = vEnd ?? this.duration();
+        const current = this.currentTime();
+        if (current < start) this.currentTime(start);
+        else if (current > end) this.currentTime(end);
       }
 
       player.on("playing", playing);
       player.on("pause", pause);
       player.on("timeupdate", timeupdate);
+      player.on("seeking", seeking);
 
       return () => {
         player.off("playing", playing);
         player.off("pause", pause);
         player.off("timeupdate", timeupdate);
+        player.off("seeking", seeking);
         clearTimeout(playingTimer.current);
       };
     }, [getPlayer, interactiveClient, scene]);
@@ -753,17 +831,22 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
 
       let startPosition = _initialTimestamp;
 
-      // Group Scene logic: start at start_point if no specific timestamp provided
-      if (!startPosition && (scene.start_point ?? 0) > 0) {
-        startPosition = scene.start_point!;
-      }
+      if (!startPosition) {
+        const vStart = scene.start_point ?? 0;
+        const vEnd = scene.end_point ?? file.duration;
+        const isVirtualScene = vStart > 0 || !!scene.end_point;
 
-      if (
-        !startPosition &&
-        !alwaysStartFromBeginning &&
-        file.duration > resumeTime
-      ) {
-        startPosition = resumeTime;
+        if (isVirtualScene) {
+          // For virtual scenes: resume within segment bounds if valid,
+          // otherwise fall back to the segment start_point.
+          const validResume =
+            !alwaysStartFromBeginning &&
+            resumeTime > vStart &&
+            resumeTime < vEnd;
+          startPosition = validResume ? resumeTime : vStart;
+        } else if (!alwaysStartFromBeginning && file.duration > resumeTime) {
+          startPosition = resumeTime;
+        }
       }
 
       setTime(startPosition);
@@ -929,7 +1012,10 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
     // Gallery Creator Logic
     const [showGalleryDialog, setShowGalleryDialog] = useState(false);
 
-    // Add 'g' hotkey
+    // Keyboard shortcut help dialog
+    const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
+
+    // Add 'g' and '?' hotkeys via global listener (independent of player focus)
     useEffect(() => {
       const handleKeyDown = (e: globalThis.KeyboardEvent) => {
         // Only trigger if not typing in input
@@ -938,6 +1024,9 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
 
         if (e.key === 'g') {
           setShowGalleryDialog(true);
+        }
+        if (e.key === '?') {
+          setShowShortcutsHelp((v) => !v);
         }
       };
 
@@ -1018,6 +1107,64 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
       player.loop(looping);
       interactiveClient.setLooping(looping);
     }, [getPlayer, interactiveClient, looping, scene.start_point, scene.end_point]);
+
+    // Add vjs-virtual class and intercept progress bar clicks for virtual scenes
+    useEffect(() => {
+      const player = getPlayer();
+      if (!player) return;
+
+      if (isVirtual) {
+        player.addClass("vjs-virtual");
+
+        const progressHolder = player
+          .el()
+          .querySelector(".vjs-progress-holder") as HTMLElement | null;
+        if (!progressHolder) return () => { player.removeClass("vjs-virtual"); };
+
+        const handleProgressSeek = (e: MouseEvent) => {
+          const vStart = player.virtualStart ?? 0;
+          const vEnd = player.virtualEnd ?? player.duration();
+          const rect = progressHolder.getBoundingClientRect();
+          const pct = Math.min(
+            1,
+            Math.max(0, (e.clientX - rect.left) / rect.width)
+          );
+          e.stopPropagation();
+          player.currentTime(vStart + pct * (vEnd - vStart));
+        };
+
+        const handleProgressTouchSeek = (e: TouchEvent) => {
+          if (!e.touches.length) return;
+          const vStart = player.virtualStart ?? 0;
+          const vEnd = player.virtualEnd ?? player.duration();
+          const rect = progressHolder.getBoundingClientRect();
+          const pct = Math.min(
+            1,
+            Math.max(0, (e.touches[0].clientX - rect.left) / rect.width)
+          );
+          e.stopPropagation();
+          player.currentTime(vStart + pct * (vEnd - vStart));
+        };
+
+        progressHolder.addEventListener("mousedown", handleProgressSeek, true);
+        progressHolder.addEventListener("touchstart", handleProgressTouchSeek, true);
+        return () => {
+          progressHolder.removeEventListener(
+            "mousedown",
+            handleProgressSeek,
+            true
+          );
+          progressHolder.removeEventListener(
+            "touchstart",
+            handleProgressTouchSeek,
+            true
+          );
+          player.removeClass("vjs-virtual");
+        };
+      } else {
+        player.removeClass("vjs-virtual");
+      }
+    }, [getPlayer, isVirtual]);
 
     useEffect(() => {
       const player = getPlayer();
@@ -1117,7 +1264,26 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
         })}
         onKeyDownCapture={onKeyDown}
       >
-        <div className="video-wrapper" ref={videoRef} />
+        <div className="video-wrapper">
+          <div ref={videoRef} className="vjs-container" />
+          {isVirtual && ready && (
+            <div className="virtual-segment-time">
+              {TextUtils.secondsToTimestamp(
+                Math.max(0, time - virtualSegmentStart)
+              )}
+              {" / "}
+              {TextUtils.secondsToTimestamp(virtualDuration)}
+            </div>
+          )}
+          {ready && activeMarker && (
+            <div
+              key={activeMarker.id}
+              className="chapter-overlay"
+            >
+              {activeMarker.primary_tag?.name || activeMarker.title}
+            </div>
+          )}
+        </div>
 
         {scene.interactive &&
           (interactiveState !== ConnectionState.Ready ||
@@ -1139,6 +1305,58 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
             onScroll={onScrubberScroll}
           />
         )}
+
+        {/* Keyboard shortcut help dialog (toggled by ?) */}
+        <Dialog
+          open={showShortcutsHelp}
+          onClose={() => setShowShortcutsHelp(false)}
+          maxWidth="xs"
+          fullWidth
+        >
+          <DialogTitle sx={{ pb: 1 }}>
+            Keyboard Shortcuts
+            <IconButton
+              onClick={() => setShowShortcutsHelp(false)}
+              size="small"
+              sx={{ position: "absolute", right: 8, top: 8 }}
+              aria-label="close"
+            >
+              ✕
+            </IconButton>
+          </DialogTitle>
+          <DialogContent sx={{ pt: 0 }}>
+            <Table size="small">
+              <TableBody>
+                {[
+                  ["Space / Enter", "Play / Pause"],
+                  ["→ / ←", "+10s / −10s"],
+                  ["Shift+→ / Shift+←", "+5s / −5s"],
+                  ["Ctrl+→ / Ctrl+←", "+60s / −60s"],
+                  ["] / [", "+10% / −10%"],
+                  ["1–9", "Jump to 10%–90%"],
+                  ["0", "Jump to start"],
+                  ["↑ / ↓", "Volume +10% / −10%"],
+                  ["M", "Mute toggle"],
+                  ["F", "Fullscreen toggle"],
+                  ["L", "A/B loop toggle"],
+                  ["Shift+L", "Player loop toggle"],
+                  ["> / <", "Speed up / down"],
+                  ["G", "Open gallery creator"],
+                  ["?", "Show this help"],
+                ].map(([key, action]) => (
+                  <TableRow key={key}>
+                    <TableCell
+                      sx={{ fontFamily: "monospace", whiteSpace: "nowrap", width: "1%" }}
+                    >
+                      {key}
+                    </TableCell>
+                    <TableCell>{action}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }

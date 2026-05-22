@@ -465,6 +465,11 @@
     display: none !important;
   }
 
+  // Virtual segment: override the file-relative progress width with segment-relative value
+  &.vjs-virtual .vjs-play-progress {
+    width: var(--vjs-virtual-progress, 0%) !important;
+  }
+
   /* stylelint-enable declaration-no-important */
 
   .vjs-volume-control {
@@ -864,6 +869,52 @@
   // Hide completely when not in fullscreen
   &:not(.vjs-fullscreen) .vjs-rating-button-component {
     display: none;
+  }
+}
+
+// Virtual segment time display overlay (shows segment-relative current time / duration)
+.video-wrapper .virtual-segment-time {
+  position: absolute;
+  bottom: 76px; // Sit just above the control bar
+  left: 48px;
+  z-index: 3;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  pointer-events: none;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
+  background: rgba(0, 0, 0, 0.45);
+  padding: 3px 7px;
+  border-radius: 4px;
+}
+
+// Live chapter name overlay — fades in when a new marker becomes active
+.video-wrapper .chapter-overlay {
+  position: absolute;
+  bottom: 80px;
+  left: 12px;
+  z-index: 3;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+  pointer-events: none;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 4px 10px;
+  border-radius: 4px;
+  animation: chapter-fade-in 0.35s ease both;
+}
+
+@keyframes chapter-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 

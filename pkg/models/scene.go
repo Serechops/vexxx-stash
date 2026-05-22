@@ -53,6 +53,8 @@ type SceneFilterType struct {
 	HasMarkers *string `json:"has_markers"`
 	// Filter to only include scenes which have a preview. `true` or `false`
 	HasPreview *bool `json:"has_preview"`
+	// Filter to only include scenes which have segments (virtual sub-scenes). `true` or `false`
+	HasSegments *string `json:"has_segments"`
 	// Filter to only include scenes missing this property
 	IsMissing *string `json:"is_missing"`
 	// Filter to only include scenes with this studio

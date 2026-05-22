@@ -309,6 +309,37 @@ export const ScenePlayerScrubber: React.FC<IScenePlayerScrubberProps> = ({
     setPosition(newPosition, true);
   }
 
+  function renderMarkerTicks() {
+    if (!scrubWidth || !scene.scene_markers.length) return null;
+    const duration = (end ?? Number(file.duration)) - start;
+    if (duration <= 0) return null;
+
+    return scene.scene_markers.map((marker, index) => {
+      if (marker.seconds < start || (end && marker.seconds > end)) return null;
+      const left = (scrubWidth * (marker.seconds - start)) / duration;
+
+      return (
+        <Box
+          key={index}
+          sx={{
+            position: "absolute",
+            left: `${left}px`,
+            top: 28,
+            width: 3,
+            height: "calc(100% - 28px)",
+            backgroundColor: theme.palette.primary.main,
+            opacity: 0.75,
+            zIndex: 1,
+            pointerEvents: "none",
+            transform: "translateX(-50%)",
+            boxShadow: `0 0 4px ${alpha(theme.palette.primary.main, 0.5)}`,
+            borderRadius: 1,
+          }}
+        />
+      );
+    });
+  }
+
   function renderTags() {
     if (!spriteItems) return null;
 
@@ -524,6 +555,9 @@ export const ScenePlayerScrubber: React.FC<IScenePlayerScrubberProps> = ({
             >
               {renderTags()}
             </Box>
+
+            {/* Marker Ticks */}
+            {renderMarkerTicks()}
 
             {/* Sprites */}
             {renderSprites()}

@@ -15,23 +15,26 @@ import {
     DialogContent,
     DialogActions,
     Card,
-    CardContent
+    CardContent,
+    Tooltip,
 } from "@mui/material";
+import MyLocationIcon from "@mui/icons-material/MyLocation";
 import { FormattedMessage, useIntl } from "react-intl";
 import * as GQL from "src/core/generated-graphql";
 import { useToast } from "src/hooks/Toast";
-
 import TextUtils from "src/utils/text";
 
 interface IProps {
     fileId: string;
     fileDuration?: number;
+    getPlayerTimestamp?: () => number;
     onSuccess: (sceneId: string) => void;
 }
 
 export const CreateSceneSegmentPanel: React.FC<IProps> = ({
     fileId,
     fileDuration,
+    getPlayerTimestamp,
     onSuccess,
 }) => {
     const intl = useIntl();
@@ -181,6 +184,11 @@ export const CreateSceneSegmentPanel: React.FC<IProps> = ({
             return;
         }
 
+        if (startPoint !== null && endPoint !== null && endPoint <= startPoint) {
+            Toast.error("End point must be after start point");
+            return;
+        }
+
         try {
             const input: GQL.SceneCreateInput = {
                 title,
@@ -214,8 +222,8 @@ export const CreateSceneSegmentPanel: React.FC<IProps> = ({
                         size="small"
                         fullWidth
                     />
-                    <Grid container spacing={2}>
-                        <Grid size={{ xs: 6 }}>
+                    <Grid container spacing={1} alignItems="flex-end">
+                        <Grid size={{ xs: true }}>
                             <TextField
                                 label="Start Point (MM:SS)"
                                 value={startPointStr}
@@ -225,7 +233,26 @@ export const CreateSceneSegmentPanel: React.FC<IProps> = ({
                                 fullWidth
                             />
                         </Grid>
-                        <Grid size={{ xs: 6 }}>
+                        {getPlayerTimestamp && (
+                            <Grid size={{ xs: "auto" }}>
+                                <Tooltip title="Use current player time">
+                                    <span>
+                                        <Button
+                                            size="small"
+                                            variant="outlined"
+                                            sx={{ minWidth: 0, px: 1 }}
+                                            onClick={() => {
+                                                const t = getPlayerTimestamp();
+                                                setStartPointStr(TextUtils.secondsToTimestamp(t));
+                                            }}
+                                        >
+                                            <MyLocationIcon fontSize="small" />
+                                        </Button>
+                                    </span>
+                                </Tooltip>
+                            </Grid>
+                        )}
+                        <Grid size={{ xs: true }}>
                             <TextField
                                 label="End Point (MM:SS)"
                                 value={endPointStr}
@@ -235,6 +262,25 @@ export const CreateSceneSegmentPanel: React.FC<IProps> = ({
                                 fullWidth
                             />
                         </Grid>
+                        {getPlayerTimestamp && (
+                            <Grid size={{ xs: "auto" }}>
+                                <Tooltip title="Use current player time">
+                                    <span>
+                                        <Button
+                                            size="small"
+                                            variant="outlined"
+                                            sx={{ minWidth: 0, px: 1 }}
+                                            onClick={() => {
+                                                const t = getPlayerTimestamp();
+                                                setEndPointStr(TextUtils.secondsToTimestamp(t));
+                                            }}
+                                        >
+                                            <MyLocationIcon fontSize="small" />
+                                        </Button>
+                                    </span>
+                                </Tooltip>
+                            </Grid>
+                        )}
                     </Grid>
 
                     <Box display="flex" alignItems="center">

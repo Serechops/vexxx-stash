@@ -8,6 +8,7 @@ import {
 } from "./criteria/criterion";
 import { HasMarkersCriterionOption } from "./criteria/has-markers";
 import { HasPreviewCriterionOption } from "./criteria/has-preview";
+import { HasSegmentsCriterionOption } from "./criteria/has-segments";
 import { SceneIsMissingCriterionOption } from "./criteria/is-missing";
 import {
   GroupsCriterionOption,
@@ -122,6 +123,7 @@ const criterionOptions = [
   createMandatoryTimestampCriterionOption("last_played_at"),
   HasMarkersCriterionOption,
   HasPreviewCriterionOption,
+  HasSegmentsCriterionOption,
   SceneIsMissingCriterionOption,
   TagsCriterionOption,
   createMandatoryNumberCriterionOption("tag_count"),

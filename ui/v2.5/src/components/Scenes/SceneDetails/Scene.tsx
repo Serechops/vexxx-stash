@@ -89,7 +89,7 @@ const SceneVideoFilterPanel = lazyComponent(
 );
 const SceneSegmentsPanel = lazyComponent(
   () => import("./SceneSegmentsPanel").then(module => ({ default: module.SceneSegmentsPanel }))
-) as React.FC<{ scene: GQL.SceneDataFragment }>;
+) as React.FC<{ scene: GQL.SceneDataFragment; getPlayerTimestamp?: () => number }>;
 
 const StashFaceIdentification = lazyComponent(
   () => import("src/components/StashFace/StashFaceIdentification").then(module => ({ default: module.StashFaceIdentification }))
@@ -171,6 +171,7 @@ interface IProps {
   collapsed: boolean;
   setCollapsed: (state: boolean) => void;
   setContinuePlaylist: (value: boolean) => void;
+  getPlayerTimestamp: () => number;
 }
 
 interface ISceneParams {
@@ -203,6 +204,7 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
     collapsed,
     setCollapsed,
     setContinuePlaylist,
+    getPlayerTimestamp,
   } = props;
 
   const Toast = useToast();
@@ -808,7 +810,7 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
           <SceneVideoFilterPanel scene={scene} />
         </Box>
         <Box hidden={activeTabKey !== "scene-segments-panel"}>
-          <SceneSegmentsPanel scene={scene} />
+          <SceneSegmentsPanel scene={scene} getPlayerTimestamp={getPlayerTimestamp} />
         </Box>
         <Box hidden={activeTabKey !== "scene-file-info-panel"} className="file-info-panel">
           <SceneFileInfoPanel scene={scene} />
@@ -1022,10 +1024,6 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
   );
 });
 
-const SegmentPlayer = lazyComponent(
-  () => import("src/components/ScenePlayer/SegmentPlayer").then(module => ({ default: module.SegmentPlayer }))
-) as React.FC<{ scene: GQL.SceneDataFragment }>;
-
 const SceneLoader: React.FC<RouteComponentProps<ISceneParams>> = ({
   location,
   history,
@@ -1100,6 +1098,16 @@ const SceneLoader: React.FC<RouteComponentProps<ISceneParams>> = ({
     if (_setTimestamp.current) {
       _setTimestamp.current(value);
     }
+  }
+
+  const _getTimestamp = useRef<() => number>();
+
+  function getGetTimestamp(fn: () => number) {
+    _getTimestamp.current = fn;
+  }
+
+  function getPlayerTimestamp(): number {
+    return _getTimestamp.current?.() ?? 0;
   }
 
   // set up hotkeys
@@ -1302,8 +1310,6 @@ const SceneLoader: React.FC<RouteComponentProps<ISceneParams>> = ({
     return <ErrorMessage error={`No scene found with id ${id}.`} />;
   }
 
-  const isSegment = (scene?.start_point !== null && scene?.start_point !== undefined && scene.start_point > 0) || (scene?.end_point !== null && scene?.end_point !== undefined && scene.end_point > 0);
-
   return (
     <Box
       sx={{
@@ -1348,6 +1354,7 @@ const SceneLoader: React.FC<RouteComponentProps<ISceneParams>> = ({
           collapsed={collapsed}
           setCollapsed={setCollapsed}
           setContinuePlaylist={setContinuePlaylist}
+          getPlayerTimestamp={getPlayerTimestamp}
         />
       </Box>
 
@@ -1385,10 +1392,7 @@ const SceneLoader: React.FC<RouteComponentProps<ISceneParams>> = ({
           height: { xs: 'auto', md: '100%' },
         }}
       >
-        {isSegment ? (
-          <SegmentPlayer scene={scene} />
-        ) : (
-          <ScenePlayer
+        <ScenePlayer
             key="ScenePlayer"
             scene={scene}
             hideScrubberOverride={hideScrubber}
@@ -1396,11 +1400,11 @@ const SceneLoader: React.FC<RouteComponentProps<ISceneParams>> = ({
             permitLoop={!continuePlaylist}
             initialTimestamp={initialTimestamp}
             sendSetTimestamp={getSetTimestamp}
+            sendGetTimestamp={getGetTimestamp}
             onComplete={onComplete}
             onNext={() => queueNext(true)}
             onPrevious={() => queuePrevious(true)}
           />
-        )}
       </Box>
     </Box>
   );

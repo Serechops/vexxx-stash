@@ -345,7 +345,7 @@ export const App: React.FC = () => {
     );
   }
 
-  const title = config.data?.configuration.ui.title || "Stash";
+  const title = config.data?.configuration.ui.title || "Vexxx";
   const titleProps = makeTitleProps(title);
 
   if (!messages) {

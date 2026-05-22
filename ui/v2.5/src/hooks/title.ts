@@ -1,7 +1,7 @@
 import { MessageDescriptor, useIntl } from "react-intl";
 import { useConfigurationContext } from "./Config";
 
-export const TITLE = "Stash";
+export const TITLE = "Vexxx";
 export const TITLE_SEPARATOR = " | ";
 
 export function useTitleProps(...messages: (string | MessageDescriptor)[]) {

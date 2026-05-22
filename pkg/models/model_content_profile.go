@@ -136,3 +136,11 @@ type WeightedAttribute struct {
 	Value  string  `json:"value"`
 	Weight float64 `json:"weight"`
 }
+
+// DismissedRecommendationItem represents a single dismissed item for the
+// management UI.  Returned by the listDismissedRecommendations query.
+type DismissedRecommendationItem struct {
+	EntityType  string    `json:"entity_type"`
+	EntityKey   string    `json:"entity_key"`
+	DismissedAt time.Time `json:"dismissed_at"`
+}

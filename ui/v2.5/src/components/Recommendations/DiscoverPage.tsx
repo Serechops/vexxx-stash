@@ -3,10 +3,12 @@ import { Helmet } from 'react-helmet';
 import { Container, Grid, Typography, Box, Button, Card, CardHeader, CardContent, Slider } from '@mui/material';
 import { FormattedMessage } from 'react-intl';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { RecommendationSource, useRebuildContentProfileMutation } from '../../core/generated-graphql';
 import { ContentProfileCard } from './ContentProfileCard';
 import { RecommendationCarousel } from './RecommendationCarousel';
 import { PerformerRecommendationRow } from './PerformerRecommendationRow';
+import { DismissedManager } from './DismissedManager';
 import { useToast } from 'src/hooks/Toast';
 import { LoadingIndicator } from 'src/components/Shared/LoadingIndicator';
 import { useState, useCallback } from 'react';
@@ -32,6 +34,7 @@ function usePersistedWeight(key: string, defaultValue: number): [number, (v: num
 export const DiscoverPage: React.FC = () => {
     const [rebuildProfile, { loading: rebuilding }] = useRebuildContentProfileMutation();
     const Toaster = useToast();
+    const [dismissedManagerOpen, setDismissedManagerOpen] = useState(false);
 
     // Tuning Weights — persisted to localStorage so they survive page reload.
     const [tagWeight, setTagWeight] = usePersistedWeight("rec_tagWeight", 0.5);
@@ -78,15 +81,25 @@ export const DiscoverPage: React.FC = () => {
                     <Typography variant="h4" component="h1" className="text-primary font-bold">
                         <FormattedMessage id="discover your content" defaultMessage="Discover Your Content" />
                     </Typography>
-                    <Button
-                        variant="contained"
-                        onClick={onRebuild}
-                        disabled={rebuilding}
-                        startIcon={rebuilding ? <LoadingIndicator /> : <RefreshIcon />}
-                    >
-                        <FormattedMessage id="rebuild_profile" defaultMessage="Refresh Recommendations" />
-                    </Button>
+                    <Box display="flex" gap={1}>
+                        <Button
+                            variant="outlined"
+                            onClick={() => setDismissedManagerOpen(true)}
+                            startIcon={<DeleteOutlineIcon />}
+                        >
+                            <FormattedMessage id="manage_dismissed" defaultMessage="Manage Dismissed" />
+                        </Button>
+                        <Button
+                            variant="contained"
+                            onClick={onRebuild}
+                            disabled={rebuilding}
+                            startIcon={rebuilding ? <LoadingIndicator /> : <RefreshIcon />}
+                        >
+                            <FormattedMessage id="rebuild_profile" defaultMessage="Refresh Recommendations" />
+                        </Button>
+                    </Box>
                 </Box>
+                <DismissedManager open={dismissedManagerOpen} onClose={() => setDismissedManagerOpen(false)} />
                 {/* Dashboard Banner */}
                 <Box sx={{ mb: '3rem' }}>
                     <Grid container spacing={3}>

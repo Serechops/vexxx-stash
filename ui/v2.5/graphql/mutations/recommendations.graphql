@@ -12,3 +12,11 @@ mutation DismissRecommendation($entity_type: String!, $entity_key: String!) {
 mutation UndismissRecommendation($entity_type: String!, $entity_key: String!) {
     undismissRecommendation(entity_type: $entity_type, entity_key: $entity_key)
 }
+
+mutation LikeRecommendation($entity_type: String!, $entity_key: String!) {
+    likeRecommendation(entity_type: $entity_type, entity_key: $entity_key)
+}
+
+mutation UnlikeRecommendation($entity_type: String!, $entity_key: String!) {
+    unlikeRecommendation(entity_type: $entity_type, entity_key: $entity_key)
+}

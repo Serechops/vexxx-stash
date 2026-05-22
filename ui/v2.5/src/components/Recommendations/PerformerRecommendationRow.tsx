@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { Box, IconButton, Tooltip, Typography } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
-import { useRecommendPerformersQuery, useDismissRecommendationMutation, RecommendationSource, PerformerDataFragment } from '../../core/generated-graphql';
+import ThumbUpIcon from '@mui/icons-material/ThumbUp';
+import ThumbUpOutlinedIcon from '@mui/icons-material/ThumbUpOutlined';
+import { useRecommendPerformersQuery, useDismissRecommendationMutation, useLikeRecommendationMutation, useUnlikeRecommendationMutation, RecommendationSource, PerformerDataFragment } from '../../core/generated-graphql';
 import { LoadingIndicator } from '../Shared/LoadingIndicator';
 import { PerformerCardSkeleton } from '../Shared/Skeletons/PerformerCardSkeleton';
 import { AlertModal as Alert } from '../Shared/Alert';
@@ -31,7 +33,10 @@ export const PerformerRecommendationRow: React.FC<PerformerRecommendationRowProp
     onShownIds,
 }) => {
     const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+    const [liked, setLiked] = useState<Set<string>>(new Set());
     const [dismissMutation] = useDismissRecommendationMutation();
+    const [likeMutation] = useLikeRecommendationMutation();
+    const [unlikeMutation] = useUnlikeRecommendationMutation();
 
     const { data, loading, error } = useRecommendPerformersQuery({
         variables: {
@@ -63,6 +68,20 @@ export const PerformerRecommendationRow: React.FC<PerformerRecommendationRowProp
     const handleDismiss = (entityKey: string, id: string) => {
         setDismissed(prev => new Set([...prev, id]));
         dismissMutation({ variables: { entity_type: 'performer', entity_key: entityKey } }).catch(() => {});
+    };
+
+    const handleLike = (entityKey: string, id: string) => {
+        const isLiked = liked.has(id);
+        setLiked(prev => {
+            const next = new Set(prev);
+            if (isLiked) next.delete(id); else next.add(id);
+            return next;
+        });
+        if (isLiked) {
+            unlikeMutation({ variables: { entity_type: 'performer', entity_key: entityKey } }).catch(() => {});
+        } else {
+            likeMutation({ variables: { entity_type: 'performer', entity_key: entityKey } }).catch(() => {});
+        }
     };
 
     if (loading) {
@@ -142,6 +161,7 @@ export const PerformerRecommendationRow: React.FC<PerformerRecommendationRowProp
                         const badgeColor = scorePct > 80 ? "success.main" : scorePct > 50 ? "warning.main" : "info.main";
                         const entityKey = r.stash_db_id ? `stashdb:${r.stash_db_id}` : `local:${r.id}`;
 
+                        const isLiked = liked.has(r.id);
                         return (
                             <Box key={r.id} sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                                 <Box
@@ -162,19 +182,36 @@ export const PerformerRecommendationRow: React.FC<PerformerRecommendationRowProp
                                         <Typography variant="subtitle2" sx={{ fontWeight: 'bold', lineHeight: 1 }}>
                                             {scorePct}% Match
                                         </Typography>
-                                        <Typography variant="caption" sx={{ fontSize: '0.7rem', mt: '0.25rem', maxWidth: '100%', opacity: 0.7, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                            {r.reason}
-                                        </Typography>
+                                        {r.reason && (
+                                            <Tooltip title={r.reason} placement="top">
+                                                <Typography variant="caption" sx={{ fontSize: '0.7rem', mt: '0.25rem', maxWidth: '100%', opacity: 0.7, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                    {r.reason}
+                                                </Typography>
+                                            </Tooltip>
+                                        )}
                                     </Box>
-                                    <Tooltip title="Hide this">
-                                        <IconButton
-                                            size="small"
-                                            onClick={() => handleDismiss(entityKey, r.id)}
-                                            sx={{ color: 'text.secondary', ml: 1, p: '2px', '&:hover': { color: 'error.main' } }}
-                                        >
-                                            <CloseIcon sx={{ fontSize: '0.9rem' }} />
-                                        </IconButton>
-                                    </Tooltip>
+                                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                        <Tooltip title={isLiked ? "Unlike" : "Like this"}>
+                                            <IconButton
+                                                size="small"
+                                                onClick={() => handleLike(entityKey, r.id)}
+                                                sx={{ color: isLiked ? 'success.main' : 'text.secondary', p: '2px', '&:hover': { color: 'success.main' } }}
+                                            >
+                                                {isLiked
+                                                    ? <ThumbUpIcon sx={{ fontSize: '0.9rem' }} />
+                                                    : <ThumbUpOutlinedIcon sx={{ fontSize: '0.9rem' }} />}
+                                            </IconButton>
+                                        </Tooltip>
+                                        <Tooltip title="Hide this">
+                                            <IconButton
+                                                size="small"
+                                                onClick={() => handleDismiss(entityKey, r.id)}
+                                                sx={{ color: 'text.secondary', ml: 0.5, p: '2px', '&:hover': { color: 'error.main' } }}
+                                            >
+                                                <CloseIcon sx={{ fontSize: '0.9rem' }} />
+                                            </IconButton>
+                                        </Tooltip>
+                                    </Box>
                                 </Box>
 
                                 <Box sx={{ flexGrow: 1, position: 'relative' }}>

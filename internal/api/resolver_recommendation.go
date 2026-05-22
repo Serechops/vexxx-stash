@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/stashapp/stash/internal/manager"
@@ -501,6 +502,92 @@ func (r *queryResolver) RecommendScenes(ctx context.Context, options *models.Rec
 		return searchResults[i].Score > searchResults[j].Score
 	})
 
+	// Enrich reason strings for local scene results with actual entity names.
+	// Only runs for items that have a populated Scene (local results); StashDB
+	// results already carry their own description.
+	if err := r.withReadTxn(ctx, func(ctx context.Context) error {
+		for _, result := range searchResults {
+			if result.Type != "scene" || result.Scene == nil {
+				continue
+			}
+			scene := result.Scene
+			var parts []string
+
+			// Top matching tags from the user profile (highest weight first, ≤3)
+			if scene.TagIDs.Loaded() {
+				type tagW struct {
+					id int
+					w  float64
+				}
+				var matches []tagW
+				for _, tagID := range scene.TagIDs.List() {
+					if w, ok := profileData.TagWeights[tagID]; ok && w > 0 {
+						matches = append(matches, tagW{tagID, w})
+					}
+				}
+				sort.Slice(matches, func(i, j int) bool { return matches[i].w > matches[j].w })
+				var names []string
+				for _, m := range matches {
+					if len(names) >= 3 {
+						break
+					}
+					tag, err := r.repository.Tag.Find(ctx, m.id)
+					if err == nil && tag != nil {
+						names = append(names, tag.Name)
+					}
+				}
+				if len(names) > 0 {
+					parts = append(parts, strings.Join(names, ", "))
+				}
+			}
+
+			// Top matching performers (≤2)
+			if scene.PerformerIDs.Loaded() {
+				type perfW struct {
+					id int
+					w  float64
+				}
+				var matches []perfW
+				for _, perfID := range scene.PerformerIDs.List() {
+					if w, ok := profileData.PerformerWeights[perfID]; ok && w > 0 {
+						matches = append(matches, perfW{perfID, w})
+					}
+				}
+				sort.Slice(matches, func(i, j int) bool { return matches[i].w > matches[j].w })
+				var names []string
+				for _, m := range matches {
+					if len(names) >= 2 {
+						break
+					}
+					perf, err := r.repository.Performer.Find(ctx, m.id)
+					if err == nil && perf != nil {
+						names = append(names, perf.Name)
+					}
+				}
+				if len(names) > 0 {
+					parts = append(parts, strings.Join(names, ", "))
+				}
+			}
+
+			// Studio (if in profile)
+			if scene.StudioID != nil {
+				if _, ok := profileData.StudioWeights[*scene.StudioID]; ok {
+					studio, err := r.repository.Studio.Find(ctx, *scene.StudioID)
+					if err == nil && studio != nil {
+						parts = append(parts, studio.Name)
+					}
+				}
+			}
+
+			if len(parts) > 0 {
+				result.Reason = strings.Join(parts, " · ")
+			}
+		}
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
 	return searchResults, nil
 }
 
@@ -824,4 +911,136 @@ func (r *mutationResolver) UndismissRecommendation(ctx context.Context, entityTy
 		return false, err
 	}
 	return true, nil
+}
+
+func (r *mutationResolver) LikeRecommendation(ctx context.Context, entityType string, entityKey string) (bool, error) {
+	const likeBoost = 0.1
+	const performerLikeBoost = 0.2
+	const profileID = 1
+
+	if err := r.withTxn(ctx, func(ctx context.Context) error {
+		// Record the like (idempotent)
+		if err := r.repository.LikedRecommendation.Like(ctx, entityType, entityKey); err != nil {
+			return err
+		}
+
+		// Apply weight nudge only for local items
+		if !strings.HasPrefix(entityKey, "local:") {
+			return nil
+		}
+		localID, err := strconv.Atoi(strings.TrimPrefix(entityKey, "local:"))
+		if err != nil {
+			return nil
+		}
+
+		cp := r.repository.ContentProfile
+		switch entityType {
+		case "scene":
+			scene, err := r.repository.Scene.Find(ctx, localID)
+			if err != nil || scene == nil {
+				return err
+			}
+			if err := scene.LoadTagIDs(ctx, r.repository.Scene); err != nil {
+				return err
+			}
+			if err := scene.LoadPerformerIDs(ctx, r.repository.Scene); err != nil {
+				return err
+			}
+			if err := cp.NudgeTagWeights(ctx, profileID, scene.TagIDs.List(), likeBoost); err != nil {
+				return err
+			}
+			if err := cp.NudgePerformerWeights(ctx, profileID, scene.PerformerIDs.List(), likeBoost); err != nil {
+				return err
+			}
+			if scene.StudioID != nil {
+				if err := cp.NudgeStudioWeight(ctx, profileID, *scene.StudioID, likeBoost); err != nil {
+					return err
+				}
+			}
+		case "performer":
+			if err := cp.NudgePerformerWeights(ctx, profileID, []int{localID}, performerLikeBoost); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (r *mutationResolver) UnlikeRecommendation(ctx context.Context, entityType string, entityKey string) (bool, error) {
+	const likeBoost = 0.1
+	const performerLikeBoost = 0.2
+	const profileID = 1
+
+	if err := r.withTxn(ctx, func(ctx context.Context) error {
+		if err := r.repository.LikedRecommendation.Unlike(ctx, entityType, entityKey); err != nil {
+			return err
+		}
+
+		// Reverse weight nudge for local items (weights clamped ≥ 0 in SQL)
+		if !strings.HasPrefix(entityKey, "local:") {
+			return nil
+		}
+		localID, err := strconv.Atoi(strings.TrimPrefix(entityKey, "local:"))
+		if err != nil {
+			return nil
+		}
+
+		cp := r.repository.ContentProfile
+		switch entityType {
+		case "scene":
+			scene, err := r.repository.Scene.Find(ctx, localID)
+			if err != nil || scene == nil {
+				return err
+			}
+			if err := scene.LoadTagIDs(ctx, r.repository.Scene); err != nil {
+				return err
+			}
+			if err := scene.LoadPerformerIDs(ctx, r.repository.Scene); err != nil {
+				return err
+			}
+			if err := cp.NudgeTagWeights(ctx, profileID, scene.TagIDs.List(), -likeBoost); err != nil {
+				return err
+			}
+			if err := cp.NudgePerformerWeights(ctx, profileID, scene.PerformerIDs.List(), -likeBoost); err != nil {
+				return err
+			}
+			if scene.StudioID != nil {
+				if err := cp.NudgeStudioWeight(ctx, profileID, *scene.StudioID, -likeBoost); err != nil {
+					return err
+				}
+			}
+		case "performer":
+			if err := cp.NudgePerformerWeights(ctx, profileID, []int{localID}, -performerLikeBoost); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (r *queryResolver) ListDismissedRecommendations(ctx context.Context, entityType string) ([]*models.DismissedRecommendationItem, error) {
+	var entries []models.DismissedRecommendationEntry
+	if err := r.withReadTxn(ctx, func(ctx context.Context) error {
+		var err error
+		entries, err = r.repository.DismissedRecommendation.ListDismissedWithTime(ctx, entityType)
+		return err
+	}); err != nil {
+		return nil, err
+	}
+
+	result := make([]*models.DismissedRecommendationItem, len(entries))
+	for i, e := range entries {
+		result[i] = &models.DismissedRecommendationItem{
+			EntityType:  e.EntityType,
+			EntityKey:   e.EntityKey,
+			DismissedAt: e.DismissedAt,
+		}
+	}
+	return result, nil
 }

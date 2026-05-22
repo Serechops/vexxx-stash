@@ -86,3 +86,11 @@ mutation RebuildContentProfile {
         updated_at
     }
 }
+
+query ListDismissedRecommendations($entity_type: String!) {
+    listDismissedRecommendations(entity_type: $entity_type) {
+        entity_type
+        entity_key
+        dismissed_at
+    }
+}

@@ -157,6 +157,8 @@ models:
     model: github.com/stashapp/stash/pkg/models.RecommendationOptions
   RecommendationSource:
     model: github.com/stashapp/stash/pkg/models.RecommendationSource
+  DismissedRecommendationItem:
+    model: github.com/stashapp/stash/pkg/models.DismissedRecommendationItem
   # User types - multi-user support
   User:
     model: github.com/stashapp/stash/pkg/models.User

@@ -131,5 +131,6 @@ func (db *Database) Repository() models.Repository {
 		Playlist:                db.Playlist,
 		RecycleBin:              db.RecycleBin,
 		DismissedRecommendation: db.DismissedRecommendation,
+		LikedRecommendation:     db.LikedRecommendation,
 	}
 }

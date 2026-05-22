@@ -126,6 +126,13 @@ input RecommendationOptions {
   exclude_ids: [String!]
 }
 
+"""A single dismissed recommendation entry (for management UI)"""
+type DismissedRecommendationItem {
+  entity_type: String!
+  entity_key: String!
+  dismissed_at: Time!
+}
+
 extend type Query {
   """Get the user's content profile with computed preference weights"""
   userContentProfile: ContentProfile
@@ -141,6 +148,9 @@ extend type Query {
   
   """Get performers similar to a specific performer"""
   similarPerformers(performer_id: ID!, limit: Int): [Recommendation!]!
+
+  """List dismissed recommendations for the management UI"""
+  listDismissedRecommendations(entity_type: String!): [DismissedRecommendationItem!]!
 }
 
 extend type Mutation {
@@ -152,4 +162,10 @@ extend type Mutation {
 
   """Remove a previous dismissal, allowing the item to appear again"""
   undismissRecommendation(entity_type: String!, entity_key: String!): Boolean!
+
+  """Like a recommendation, nudging related content-profile weights upward"""
+  likeRecommendation(entity_type: String!, entity_key: String!): Boolean!
+
+  """Remove a previous like, reversing the weight nudge"""
+  unlikeRecommendation(entity_type: String!, entity_key: String!): Boolean!
 }

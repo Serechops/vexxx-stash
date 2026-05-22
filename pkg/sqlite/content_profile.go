@@ -509,3 +509,49 @@ func (qb *ContentProfileStore) LoadWeights(ctx context.Context, profile *models.
 
 	return nil
 }
+
+// NudgeTagWeights applies a delta to the weights of the specified tags for a
+// profile.  New entries are created with weight = MAX(0, delta); existing
+// entries are updated with weight = MAX(0, current + delta).
+// Must be called inside a write transaction.
+func (qb *ContentProfileStore) NudgeTagWeights(ctx context.Context, profileID int, tagIDs []int, delta float64) error {
+	for _, tagID := range tagIDs {
+		if _, err := dbWrapper.Exec(ctx,
+			`INSERT INTO tag_weights (profile_id, tag_id, weight)
+			 VALUES (?, ?, MAX(0.0, ?))
+			 ON CONFLICT(profile_id, tag_id) DO UPDATE SET weight = MAX(0.0, weight + ?)`,
+			profileID, tagID, delta, delta,
+		); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// NudgePerformerWeights applies a delta to performer weights for a profile.
+// Must be called inside a write transaction.
+func (qb *ContentProfileStore) NudgePerformerWeights(ctx context.Context, profileID int, performerIDs []int, delta float64) error {
+	for _, perfID := range performerIDs {
+		if _, err := dbWrapper.Exec(ctx,
+			`INSERT INTO performer_weights (profile_id, performer_id, weight)
+			 VALUES (?, ?, MAX(0.0, ?))
+			 ON CONFLICT(profile_id, performer_id) DO UPDATE SET weight = MAX(0.0, weight + ?)`,
+			profileID, perfID, delta, delta,
+		); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// NudgeStudioWeight applies a delta to a single studio weight for a profile.
+// Must be called inside a write transaction.
+func (qb *ContentProfileStore) NudgeStudioWeight(ctx context.Context, profileID, studioID int, delta float64) error {
+	_, err := dbWrapper.Exec(ctx,
+		`INSERT INTO studio_weights (profile_id, studio_id, weight)
+		 VALUES (?, ?, MAX(0.0, ?))
+		 ON CONFLICT(profile_id, studio_id) DO UPDATE SET weight = MAX(0.0, weight + ?)`,
+		profileID, studioID, delta, delta,
+	)
+	return err
+}

@@ -3,6 +3,8 @@ package sqlite
 import (
 	"context"
 	"time"
+
+	"github.com/stashapp/stash/pkg/models"
 )
 
 // DismissedRecommendationStore provides read/write access to the
@@ -54,6 +56,41 @@ func (s *DismissedRecommendationStore) ListDismissed(ctx context.Context, entity
 	result := make(map[string]bool, len(rows))
 	for _, r := range rows {
 		result[r.EntityKey] = true
+	}
+	return result, nil
+}
+
+// DismissedEntry is a single row returned by ListDismissedWithTime.
+// Kept as a local alias; the public interface uses models.DismissedRecommendationEntry.
+type dismissedWithTimeRow struct {
+	EntityKey   string    `db:"entity_key"`
+	DismissedAt time.Time `db:"dismissed_at"`
+}
+
+// ListDismissedWithTime returns all dismissed items for a given entity_type,
+// newest first.  Safe to call inside a read or write transaction.
+func (s *DismissedRecommendationStore) ListDismissedWithTime(ctx context.Context, entityType string) ([]models.DismissedRecommendationEntry, error) {
+	db, err := getDBReader(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var rows []dismissedWithTimeRow
+	if err := db.SelectContext(ctx, &rows,
+		`SELECT entity_key, dismissed_at FROM dismissed_recommendations
+		 WHERE entity_type = ? ORDER BY dismissed_at DESC`,
+		entityType,
+	); err != nil {
+		return nil, err
+	}
+
+	result := make([]models.DismissedRecommendationEntry, len(rows))
+	for i, r := range rows {
+		result[i] = models.DismissedRecommendationEntry{
+			EntityType:  entityType,
+			EntityKey:   r.EntityKey,
+			DismissedAt: r.DismissedAt,
+		}
 	}
 	return result, nil
 }

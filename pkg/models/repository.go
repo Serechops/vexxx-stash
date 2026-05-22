@@ -33,6 +33,7 @@ type Repository struct {
 	Playlist                PlaylistReaderWriter
 	RecycleBin              RecycleBinReaderWriter
 	DismissedRecommendation DismissedRecommendationReaderWriter
+	LikedRecommendation     LikedRecommendationReaderWriter
 }
 
 func (r *Repository) WithTxn(ctx context.Context, fn txn.TxnFunc) error {

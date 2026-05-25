@@ -35,7 +35,7 @@ const UserContext = createContext<UserContextType>(defaultContext);
 export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const { data: userData, loading: userLoading, error: userError, refetch } = GQL.useCurrentUserQuery({
+  const { data: userData, loading: userLoading, refetch } = GQL.useCurrentUserQuery({
     fetchPolicy: "cache-and-network",
   });
 
@@ -53,19 +53,11 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
     // Setup mode: no users exist yet, grant full admin access for initial setup
     const isSetupMode = userCount === 0;
 
-    // No-auth mode: authentication is not configured (no credentials/API key),
-    // but users may still exist in the database (admin cannot self-delete).
-    // Detected when the currentUser query succeeds (no 401 error) but returns
-    // null, and users exist. When auth IS required and the user isn't logged in,
-    // the backend returns 401 which causes an Apollo network error.
-    const isNoAuthMode = !loading && !isSetupMode && user === null && !userError && userCount > 0;
-
-    // In setup mode (no users) or no-auth mode (auth disabled),
-    // treat as admin with full permissions
-    if (isSetupMode || isNoAuthMode) {
+    // In setup mode (no users), grant full admin access for initial configuration.
+    if (isSetupMode) {
       return {
         user: null,
-        isAdmin: true, // Treat as admin for setup/no-auth purposes
+        isAdmin: true,
         isViewer: false,
         canModify: true,
         canDelete: true,
@@ -92,7 +84,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
       isSetupMode: false,
       refetch,
     };
-  }, [userData, countData, userLoading, countLoading, userError, refetch]);
+  }, [userData, countData, userLoading, countLoading, refetch]);
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
 };

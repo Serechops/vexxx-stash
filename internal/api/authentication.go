@@ -84,8 +84,8 @@ func authenticateHandler() func(http.Handler) http.Handler {
 				return
 			}
 
-			if c.HasCredentials() {
-				// authentication is required
+			if manager.GetInstance().GetUserCount() > 0 {
+				// authentication is required when users exist
 				if userID == "" && !allowUnauthenticated(r) {
 					// if graphql or a non-webpage was requested, we just return a forbidden error
 					ext := path.Ext(r.URL.Path)

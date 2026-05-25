@@ -107,13 +107,10 @@ func handleLogin() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		returnURL := r.URL.Query().Get(returnURLParam)
 
-		if !config.GetInstance().HasCredentials() {
-			if returnURL != "" {
-				http.Redirect(w, r, returnURL, http.StatusFound)
-			} else {
-				prefix := getProxyPrefix(r)
-				http.Redirect(w, r, prefix+"/", http.StatusFound)
-			}
+		// No users exist — setup mode, redirect to the app.
+		if manager.GetInstance().GetUserCount() == 0 {
+			prefix := getProxyPrefix(r)
+			http.Redirect(w, r, prefix+"/", http.StatusFound)
 			return
 		}
 
@@ -155,7 +152,7 @@ func handleLogout() http.HandlerFunc {
 
 		// redirect to the login page if credentials are required
 		prefix := getProxyPrefix(r)
-		if config.GetInstance().HasCredentials() {
+		if manager.GetInstance().GetUserCount() > 0 {
 			http.Redirect(w, r, prefix+loginEndpoint, http.StatusFound)
 		} else {
 			http.Redirect(w, r, prefix+"/", http.StatusFound)

@@ -10,7 +10,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stashapp/stash/internal/manager"
-	"github.com/stashapp/stash/internal/manager/config"
 	"github.com/stashapp/stash/pkg/models"
 	"github.com/stashapp/stash/pkg/session"
 	"golang.org/x/crypto/bcrypt"
@@ -58,8 +57,8 @@ func (r *mutationResolver) UserCreate(ctx context.Context, input models.UserCrea
 	if username == "" {
 		return nil, errors.New("username cannot be empty")
 	}
-	if len(input.Password) < 6 {
-		return nil, errors.New("password must be at least 6 characters")
+	if len(input.Password) < 1 {
+		return nil, errors.New("password cannot be empty")
 	}
 
 	// Hash password
@@ -158,8 +157,8 @@ func (r *mutationResolver) UserUpdate(ctx context.Context, input models.UserUpda
 		}
 
 		if input.Password != nil {
-			if len(*input.Password) < 6 {
-				return errors.New("password must be at least 6 characters")
+			if len(*input.Password) < 1 {
+				return errors.New("password cannot be empty")
 			}
 			hash, err := hashPassword(*input.Password)
 			if err != nil {
@@ -213,10 +212,9 @@ func (r *mutationResolver) UserUpdate(ctx context.Context, input models.UserUpda
 	return user, nil
 }
 
-// UserDestroy deletes a user (admin only)
+// UserDestroy deletes a user (admin only). Self-deletion is allowed.
 func (r *mutationResolver) UserDestroy(ctx context.Context, id string) (bool, error) {
-	currentUser, err := r.requireAdmin(ctx)
-	if err != nil {
+	if _, err := r.requireAdmin(ctx); err != nil {
 		return false, err
 	}
 
@@ -225,13 +223,7 @@ func (r *mutationResolver) UserDestroy(ctx context.Context, id string) (bool, er
 		return false, fmt.Errorf("invalid user id: %w", err)
 	}
 
-	// Prevent self-deletion
-	if currentUser.ID == idInt {
-		return false, errors.New("cannot delete yourself")
-	}
-
 	if err := r.withTxn(ctx, func(ctx context.Context) error {
-		// Find user to check if they're the last admin
 		user, err := r.repository.User.Find(ctx, idInt)
 		if err != nil {
 			return err
@@ -240,18 +232,26 @@ func (r *mutationResolver) UserDestroy(ctx context.Context, id string) (bool, er
 			return ErrUserNotFound
 		}
 
-		// Prevent deleting the last admin
+		// Admins can only be deleted once all non-admin users are removed first.
 		if user.IsAdmin() {
-			adminCount, err := r.repository.User.CountAdmins(ctx)
+			total, err := r.repository.User.Count(ctx)
 			if err != nil {
 				return err
 			}
-			if adminCount <= 1 {
-				return errors.New("cannot delete the last admin user")
+			admins, err := r.repository.User.CountAdmins(ctx)
+			if err != nil {
+				return err
+			}
+			if total > admins {
+				return errors.New("remove all non-admin users before deleting an admin account")
 			}
 		}
 
-		return r.repository.User.Destroy(ctx, idInt)
+		if err := r.repository.User.Destroy(ctx, idInt); err != nil {
+			return err
+		}
+		// Invalidate any server-side session records for the deleted user.
+		return r.repository.User.DestroySessionsByUser(ctx, idInt)
 	}); err != nil {
 		return false, err
 	}
@@ -303,8 +303,8 @@ func (r *mutationResolver) ChangeOwnPassword(ctx context.Context, currentPasswor
 	}
 
 	// Validate new password
-	if len(newPassword) < 6 {
-		return false, errors.New("new password must be at least 6 characters")
+	if len(newPassword) < 1 {
+		return false, errors.New("new password cannot be empty")
 	}
 
 	// Hash new password
@@ -385,10 +385,10 @@ func (r *mutationResolver) SessionDestroyByUser(ctx context.Context, userID stri
 }
 
 // requireAdmin for mutations.
-// In no-auth mode (HasCredentials = false), all access is allowed.
+// In setup mode (no users exist), all access is allowed for initial configuration.
 func (r *mutationResolver) requireAdmin(ctx context.Context) (*models.User, error) {
-	// No-auth mode: credentials not configured, anyone can access the server.
-	if !config.GetInstance().HasCredentials() {
+	// Setup mode: no users exist, allow all access.
+	if manager.GetInstance().GetUserCount() == 0 {
 		return nil, nil
 	}
 	user, err := r.getCurrentUser(ctx)
@@ -422,4 +422,10 @@ func (r *mutationResolver) getCurrentUser(ctx context.Context) (*models.User, er
 	}
 
 	return user, nil
+}
+
+// UserRemoveCredentials is not supported in this implementation.
+// Delete the user account instead of removing credentials.
+func (r *mutationResolver) UserRemoveCredentials(ctx context.Context, id string, currentPassword string) (bool, error) {
+	return false, errors.New("removing credentials is not supported; delete the user account instead")
 }

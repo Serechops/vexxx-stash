@@ -217,9 +217,6 @@ func (s *Store) Authenticate(w http.ResponseWriter, r *http.Request) (userID str
 		if multiConfig, ok := c.(MultiUserConfig); ok && multiConfig.IsMultiUserEnabled() {
 			userInfo, findErr := multiConfig.FindUserByAPIKey(r.Context(), apiKey)
 			if findErr == nil && userInfo != nil {
-				if !userInfo.IsActive {
-					return "", ErrUserDisabled
-				}
 				return userInfo.Username, nil
 			}
 		}
@@ -233,6 +230,18 @@ func (s *Store) Authenticate(w http.ResponseWriter, r *http.Request) (userID str
 	} else {
 		// handle session
 		userID, err = s.GetSessionUserID(w, r)
+
+		// In multi-user mode, verify the user still exists.
+		// This prevents stale cookies from authenticating deleted users.
+		if err == nil && userID != "" {
+			if multiConfig, ok := c.(MultiUserConfig); ok && multiConfig.IsMultiUserEnabled() {
+				userInfo, findErr := multiConfig.FindUserByUsername(r.Context(), userID)
+				if findErr == nil && userInfo == nil {
+					// User no longer exists; treat as unauthenticated.
+					userID = ""
+				}
+			}
+		}
 	}
 
 	if err != nil {

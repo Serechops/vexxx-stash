@@ -35,7 +35,7 @@ export const ChangePasswordDialog: React.FC<ChangePasswordDialogProps> = ({
   const mismatch = confirmPassword.length > 0 && newPassword !== confirmPassword;
   const canSubmit =
     currentPassword.length > 0 &&
-    newPassword.length >= 6 &&
+    newPassword.length >= 1 &&
     newPassword === confirmPassword &&
     !saving;
 

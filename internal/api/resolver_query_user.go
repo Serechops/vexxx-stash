@@ -6,7 +6,6 @@ import (
 	"strconv"
 
 	"github.com/stashapp/stash/internal/manager"
-	"github.com/stashapp/stash/internal/manager/config"
 	"github.com/stashapp/stash/pkg/models"
 	"github.com/stashapp/stash/pkg/session"
 )
@@ -39,10 +38,10 @@ func (r *queryResolver) getCurrentUser(ctx context.Context) (*models.User, error
 }
 
 // requireAdmin checks if the current user is an admin.
-// In no-auth mode (HasCredentials = false), all access is allowed.
+// In setup mode (no users exist), all access is allowed for initial configuration.
 func (r *queryResolver) requireAdmin(ctx context.Context) (*models.User, error) {
-	// No-auth mode: credentials not configured, anyone can access the server.
-	if !config.GetInstance().HasCredentials() {
+	// Setup mode: no users exist, allow all access.
+	if manager.GetInstance().GetUserCount() == 0 {
 		return nil, nil
 	}
 	user, err := r.getCurrentUser(ctx)

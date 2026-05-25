@@ -11,13 +11,11 @@ import {
   DialogContent,
   DialogTitle,
   FormControl,
-  FormControlLabel,
   IconButton,
   InputLabel,
   MenuItem,
   Paper,
   Select,
-  Switch,
   Table,
   TableBody,
   TableCell,
@@ -46,14 +44,12 @@ interface UserFormData {
   username: string;
   password: string;
   role: GQL.UserRole;
-  is_active: boolean;
 }
 
 const defaultFormData: UserFormData = {
   username: "",
   password: "",
   role: GQL.UserRole.Viewer,
-  is_active: true,
 };
 
 interface UserDialogProps {
@@ -78,12 +74,7 @@ const UserDialog: React.FC<UserDialogProps> = ({
     if (open) {
       setFormData(
         user
-          ? {
-              username: user.username,
-              password: "",
-              role: user.role,
-              is_active: user.is_active,
-            }
+          ? { username: user.username, password: "", role: user.role }
           : defaultFormData
       );
     }
@@ -133,7 +124,7 @@ const UserDialog: React.FC<UserDialogProps> = ({
             helperText={
               isEdit
                 ? intl.formatMessage({ id: "users.password_hint_edit", defaultMessage: "Leave blank to keep current password" })
-                : intl.formatMessage({ id: "users.password_hint_new", defaultMessage: "Minimum 6 characters" })
+                : undefined
             }
           />
           <FormControl fullWidth>
@@ -153,17 +144,6 @@ const UserDialog: React.FC<UserDialogProps> = ({
               </MenuItem>
             </Select>
           </FormControl>
-          {isEdit && (
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={formData.is_active}
-                  onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                />
-              }
-              label={intl.formatMessage({ id: "users.active", defaultMessage: "Active" })}
-            />
-          )}
         </Box>
       </DialogContent>
       <DialogActions>
@@ -239,7 +219,6 @@ export const SettingsUsersPanel: React.FC = () => {
               username: formData.username,
               password: formData.password || undefined,
               role: formData.role,
-              is_active: formData.is_active,
             },
           },
         });
@@ -265,13 +244,18 @@ export const SettingsUsersPanel: React.FC = () => {
   };
 
   const handleDeleteUser = async (user: GQL.UserDataFragment) => {
+    const isSelf = user.id === currentUser?.id;
     try {
-      await userDestroy({
-        variables: { id: user.id },
-      });
+      await userDestroy({ variables: { id: user.id } });
       Toast.success(intl.formatMessage({ id: "users.deleted", defaultMessage: "User deleted" }));
       setDeleteConfirmUser(null);
-      refetch();
+      if (isSelf) {
+        // Redirect to root; the server will forward to /login if other users
+        // exist, or show the setup page if this was the last user.
+        window.location.href = "/";
+      } else {
+        refetch();
+      }
     } catch (e) {
       Toast.error(e);
     }
@@ -298,7 +282,7 @@ export const SettingsUsersPanel: React.FC = () => {
     setupConfirm.length > 0 && setupPassword !== setupConfirm;
   const canCreateFirstAdmin =
     setupUsername.trim().length > 0 &&
-    setupPassword.length >= 6 &&
+    setupPassword.length >= 1 &&
     setupPassword === setupConfirm &&
     !setupSaving;
 
@@ -323,7 +307,7 @@ export const SettingsUsersPanel: React.FC = () => {
       );
       await refetch();
       // Navigate to login so the user authenticates with the new account
-      window.location.href = "/login";
+      window.location.href = "/login?returnURL=/";
     } catch (e) {
       Toast.error(e);
     } finally {
@@ -385,10 +369,6 @@ export const SettingsUsersPanel: React.FC = () => {
               })}
               value={setupPassword}
               onChange={(e) => setSetupPassword(e.target.value)}
-              helperText={intl.formatMessage({
-                id: "users.password_hint_new",
-                defaultMessage: "Minimum 6 characters",
-              })}
               autoComplete="new-password"
             />
             <TextField
@@ -513,9 +493,6 @@ export const SettingsUsersPanel: React.FC = () => {
                   <FormattedMessage id="users.role" defaultMessage="Role" />
                 </TableCell>
                 <TableCell>
-                  <FormattedMessage id="users.status" defaultMessage="Status" />
-                </TableCell>
-                <TableCell>
                   <FormattedMessage id="users.last_login" defaultMessage="Last Login" />
                 </TableCell>
                 <TableCell>
@@ -552,17 +529,6 @@ export const SettingsUsersPanel: React.FC = () => {
                     />
                   </TableCell>
                   <TableCell>
-                    <Chip
-                      label={
-                        user.is_active
-                          ? intl.formatMessage({ id: "users.active", defaultMessage: "Active" })
-                          : intl.formatMessage({ id: "users.inactive", defaultMessage: "Inactive" })
-                      }
-                      color={user.is_active ? "success" : "error"}
-                      size="small"
-                    />
-                  </TableCell>
-                  <TableCell>
                     {user.last_login_at
                       ? new Date(user.last_login_at).toLocaleString()
                       : intl.formatMessage({ id: "users.never", defaultMessage: "Never" })}
@@ -580,23 +546,20 @@ export const SettingsUsersPanel: React.FC = () => {
                       </IconButton>
                     </Tooltip>
                     <Tooltip title={intl.formatMessage({ id: "actions.delete", defaultMessage: "Delete" })}>
-                      <span>
-                        <IconButton
-                          onClick={() => setDeleteConfirmUser(user)}
-                          size="small"
-                          color="error"
-                          disabled={user.id === currentUser?.id}
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                      </span>
+                      <IconButton
+                        onClick={() => setDeleteConfirmUser(user)}
+                        size="small"
+                        color="error"
+                      >
+                        <DeleteIcon />
+                      </IconButton>
                     </Tooltip>
                   </TableCell>
                 </TableRow>
               ))}
               {users.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} align="center">
+                  <TableCell colSpan={5} align="center">
                     <Typography color="text.secondary">
                       <FormattedMessage id="users.no_users" defaultMessage="No users found" />
                     </Typography>
@@ -631,6 +594,14 @@ export const SettingsUsersPanel: React.FC = () => {
               values={{ username: deleteConfirmUser?.username }}
             />
           </Typography>
+          {deleteConfirmUser?.id === currentUser?.id && (
+            <Typography sx={{ mt: 1.5 }} color="warning.main">
+              <FormattedMessage
+                id="users.delete_self_warning"
+                defaultMessage="You are deleting your own account. You will be logged out immediately."
+              />
+            </Typography>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteConfirmUser(null)}>

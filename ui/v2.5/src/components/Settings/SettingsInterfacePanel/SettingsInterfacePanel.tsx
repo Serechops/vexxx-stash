@@ -486,6 +486,14 @@ export const SettingsInterfacePanel: React.FC = PatchComponent(
             checked={ui.trackActivity ?? true}
             onChange={(v) => saveUI({ trackActivity: v })}
           />
+          <BooleanSetting
+            id="count-on-start"
+            headingID="config.ui.scene_player.options.count_on_play"
+            subHeadingID="config.ui.scene_player.options.count_on_play_desc"
+            checked={ui.countOnStart ?? false}
+            onChange={(v) => saveUI({ countOnStart: v })}
+            disabled={!ui.trackActivity}
+          />
           <StringSetting
             id="vr-tag"
             headingID="config.ui.scene_player.options.vr_tag.heading"
@@ -499,7 +507,7 @@ export const SettingsInterfacePanel: React.FC = PatchComponent(
             subHeadingID="config.ui.minimum_play_percent.description"
             value={ui.minimumPlayPercent ?? 0}
             onChange={(v) => saveUI({ minimumPlayPercent: v })}
-            disabled={!ui.trackActivity}
+            disabled={!ui.trackActivity || (ui.countOnStart ?? false)}
             renderField={(value, setValue) => (
               <PercentInput
                 numericValue={value}

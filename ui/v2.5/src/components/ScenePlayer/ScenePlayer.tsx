@@ -338,6 +338,7 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
     const interactiveReady = useRef(false);
     const minimumPlayPercent = uiConfig?.minimumPlayPercent ?? 0;
     const trackActivity = uiConfig?.trackActivity ?? true;
+    const countOnStart = uiConfig?.countOnStart ?? false;
     const vrTag = uiConfig?.vrTag ?? undefined;
 
     useScript(
@@ -995,6 +996,7 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
       activity.saveActivity = saveActivity;
       activity.incrementPlayCount = incrementPlayCount;
       activity.minimumPlayPercent = minimumPlayPercent;
+      activity.countOnStart = countOnStart;
       // Wire virtual segment bounds so percentage calculations are relative
       // to the segment duration, not the full video file duration.
       activity.segmentStart = scene.start_point ?? 0;
@@ -1007,6 +1009,7 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
       sceneIncrementPlayCount,
       trackActivity,
       minimumPlayPercent,
+      countOnStart,
     ]);
 
     // Gallery Creator Logic

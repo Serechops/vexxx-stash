@@ -834,6 +834,8 @@
           "show_scrubber": "Show Scrubber",
           "show_range_markers": "Show Range Markers",
           "track_activity": "Enable Scene Play history",
+          "count_on_play": "Count play on start",
+          "count_on_play_desc": "Increment the play count immediately when playback begins, including auto-played scenes from queues and playlists. When enabled, the Minimum Play Percent threshold is ignored.",
           "vr_tag": {
             "description": "The VR button will only be displayed for scenes with this tag.",
             "heading": "VR Tag"

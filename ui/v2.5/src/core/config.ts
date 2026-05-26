@@ -82,6 +82,8 @@ export interface IUIConfig {
   alwaysStartFromBeginning?: boolean;
   // if true enable activity tracking
   trackActivity?: boolean;
+  // if true increment play count immediately when playback begins
+  countOnStart?: boolean;
   // the minimum percentage of scene duration which a scene must be played
   // before the play count is incremented
   minimumPlayPercent?: number;

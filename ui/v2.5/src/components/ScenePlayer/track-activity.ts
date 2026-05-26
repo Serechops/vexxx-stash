@@ -8,6 +8,12 @@ class TrackActivityPlugin extends videojs.getPlugin("plugin") {
   currentPlayDuration = 0;
   minimumPlayPercent = 0;
   /**
+   * When true, increment the play count immediately when playback begins
+   * (covers manual play, autoplay, and queue/playlist auto-advance).
+   * Supersedes the minimumPlayPercent threshold.
+   */
+  countOnStart = false;
+  /**
    * Start time of the virtual segment (seconds into the video file).
    * Set to 0 for non-virtual scenes.
    */
@@ -37,6 +43,10 @@ class TrackActivityPlugin extends videojs.getPlugin("plugin") {
 
     player.on("playing", () => {
       this.start();
+      if (this.countOnStart && this.enabled && !this.playCountIncremented) {
+        this.incrementPlayCount();
+        this.playCountIncremented = true;
+      }
     });
 
     player.on("waiting", () => {

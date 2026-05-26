@@ -1308,6 +1308,21 @@
     "frequency": "Frequency",
     "interactive_controls": "Handy Controls"
   },
+  "handy_modal": {
+    "title": "Handy Direct Control",
+    "tab_hamp": "Auto (HAMP)",
+    "tab_position": "Position (HDSP)",
+    "tab_vibration": "Vibration (HVP)",
+    "hamp_start": "Start Auto Motion",
+    "hamp_stop": "Stop Auto Motion",
+    "stroke_zone": "Stroke Zone",
+    "stroke_zone_note": "Applies to all modes",
+    "position": "Target Position",
+    "move_speed": "Move Speed",
+    "send_position": "Move to Position",
+    "hvp_start": "Start Vibration",
+    "hvp_stop": "Stop Vibration"
+  },
   "hasChapters": "Chapters",
   "hasMarkers": "Markers",
   "hasSegments": "Segments",

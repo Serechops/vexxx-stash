@@ -43,6 +43,7 @@ export interface IInteractiveClient {
   hampStop?(): Promise<void>;
   setHampVelocity?(velocity: number): Promise<void>;
   setHampStroke?(min: number, max: number): Promise<void>;
+  hdspSetPosition?(position: number, velocity: number): Promise<void>;
   hvpStart?(): Promise<void>;
   hvpStop?(): Promise<void>;
   setHvpState?(amplitude: number, frequency: number, position: number): Promise<void>;

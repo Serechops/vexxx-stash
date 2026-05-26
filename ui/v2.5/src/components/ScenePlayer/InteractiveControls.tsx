@@ -1,5 +1,6 @@
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import TuneIcon from "@mui/icons-material/Tune";
 import WarningIcon from "@mui/icons-material/Warning";
 import {
   Box,
@@ -16,6 +17,7 @@ import React, { useCallback, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { HandyAPIv3 } from "src/hooks/Interactive/handy-api-v3";
 import { IInteractiveClient } from "src/hooks/Interactive/utils";
+import { HandyControlModal } from "./HandyControlModal";
 
 interface IProps {
   client: IInteractiveClient;
@@ -28,6 +30,7 @@ export const InteractiveControls: React.FC<IProps> = ({ client, show }) => {
   const [hampMode, setHampMode] = useState(false);
   const [velocity, setVelocity] = useState(50);
   const [strokeRange, setStrokeRange] = useState<[number, number]>([0, 100]);
+  const [showDirectControls, setShowDirectControls] = useState(false);
 
   const handleEmergencyStop = useCallback(async () => {
     try {
@@ -127,6 +130,19 @@ export const InteractiveControls: React.FC<IProps> = ({ client, show }) => {
                 <WarningIcon fontSize="small" />
               </IconButton>
             </Tooltip>
+            <Tooltip
+              title={intl.formatMessage({
+                id: "handy_modal.title",
+              })}
+            >
+              <IconButton
+                size="small"
+                sx={{ color: "white" }}
+                onClick={() => setShowDirectControls(true)}
+              >
+                <TuneIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
             <IconButton
               size="small"
               sx={{ color: "white" }}
@@ -193,6 +209,11 @@ export const InteractiveControls: React.FC<IProps> = ({ client, show }) => {
           </Box>
         </Collapse>
       </Paper>
+      <HandyControlModal
+        open={showDirectControls}
+        onClose={() => setShowDirectControls(false)}
+        client={client}
+      />
     </Box>
   );
 };

@@ -208,6 +208,10 @@ export class Interactive {
   async setHampStroke(min: number, max: number): Promise<void> {
     await this._api.setHampStroke(min, max);
   }
+  async hdspSetPosition(position: number, velocity: number): Promise<void> {
+    // position and velocity are 0–100 percent values
+    await this._api.sendXpvp(position, velocity, true, true);
+  }
   async hvpStart(): Promise<void> {
     await this._api.hvpStart();
   }

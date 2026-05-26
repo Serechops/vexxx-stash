@@ -11,6 +11,7 @@ import {
   ModalSetting,
   NumberSetting,
   SelectSetting,
+  Setting,
   StringSetting,
 } from "../Inputs";
 import { useSettings } from "../context";
@@ -312,31 +313,18 @@ export const SettingsInterfacePanel: React.FC = PatchComponent(
             onChange={(v) => saveUI({ title: v })}
           />
 
-          <div className="setting-group">
-            <div className="setting">
-              <div>
-                <h3>
-                  {intl.formatMessage({
-                    id: "config.ui.menu_items.heading",
-                  })}
-                </h3>
-                <div className="sub-heading">
-                  {intl.formatMessage({
-                    id: "config.ui.menu_items.description",
-                  })}
-                </div>
-              </div>
-              <div />
-            </div>
-            <CheckboxGroup
-              groupId="menu-items"
-              items={allMenuItems}
-              checkedIds={massagedMenuItems ?? undefined}
-              onChange={(v) =>
-                saveInterface({ menuItems: massageMenuItems(v) })
-              }
-            />
-          </div>
+          <Setting
+            headingID="config.ui.menu_items.heading"
+            subHeadingID="config.ui.menu_items.description"
+          />
+          <CheckboxGroup
+            groupId="menu-items"
+            items={allMenuItems}
+            checkedIds={massagedMenuItems ?? undefined}
+            onChange={(v) =>
+              saveInterface({ menuItems: massageMenuItems(v) })
+            }
+          />
 
           <BooleanSetting
             id="abbreviate-counters"

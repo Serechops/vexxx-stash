@@ -76,16 +76,17 @@ export const GlobalSearchResults: React.FC<GlobalSearchResultsProps> = ({
             <Box
                 sx={{
                     p: '1.5rem',
-                    borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                    borderBottom: '1px solid',
+                    borderColor: 'divider',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '1rem',
                     flexShrink: 0,
                 }}
             >
-                <span style={{ color: "rgba(255,255,255,0.5)" }}>
+                <Box component="span" sx={{ color: 'text.secondary' }}>
                     <FormattedMessage id="no_results" defaultMessage="No results found" />
-                </span>
+                </Box>
             </Box>
         );
     }

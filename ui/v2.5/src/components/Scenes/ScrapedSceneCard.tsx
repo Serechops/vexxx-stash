@@ -38,7 +38,7 @@ export const ScrapedSceneCard: React.FC<IScrapedSceneCardProps> = ({
                                     loading="lazy"
                                 />
                             ) : (
-                                <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: '#27272a', color: '#fff' }}>
+                                <div className="w-full h-full flex items-center justify-center bg-popover text-foreground">
                                     <span className="opacity-50">No Image</span>
                                 </div>
                             )}
@@ -54,7 +54,7 @@ export const ScrapedSceneCard: React.FC<IScrapedSceneCardProps> = ({
                                 loading="lazy"
                             />
                         ) : (
-                            <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: '#27272a', color: '#fff' }}>
+                            <div className="w-full h-full flex items-center justify-center bg-popover text-foreground">
                                 <span className="opacity-50">No Image</span>
                             </div>
                         )}

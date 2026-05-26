@@ -363,7 +363,7 @@ const SceneDuplicateChecker: React.FC = () => {
     if (missingPhashes > 0) {
       return (
         <Typography variant="body1" className="lead" color="warning.main">
-          <Icon icon={faExclamationTriangle} style={{ color: '#d9822b' }} />
+          <Icon icon={faExclamationTriangle} />
           Missing phashes for {missingPhashes} scenes. Please run the phash
           generation task.
         </Typography>

@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import { useIntl } from "react-intl";
 import * as GQL from "src/core/generated-graphql";
-import { Typography, Grid, IconButton } from "@mui/material";
+import { Typography, Grid, IconButton, Box } from "@mui/material";
 import { Scene, SceneSelect } from "src/components/Scenes/SceneSelect";
 import cx from "classnames";
 import { NumberField } from "src/utils/form";
@@ -100,7 +100,7 @@ export const GroupSceneTable: React.FC<IProps> = (props) => {
                                     alt={m.scene.title || ""}
                                 />
                             ) : (
-                                <div style={{ borderRadius: '4px', height: '60px', width: '80px', backgroundColor: '#eee' }} />
+                                <Box sx={{ borderRadius: '4px', height: '60px', width: '80px', bgcolor: 'action.disabledBackground' }} />
                             )}
                         </Grid>
                         <Grid size="grow" className="vexxx-scene-list-details">

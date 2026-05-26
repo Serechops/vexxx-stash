@@ -114,7 +114,7 @@ const StashSearchResult: React.FC<IStashSearchResultProps> = ({
       <Box sx={{ display: "flex", flexWrap: "wrap" }}>{performers}</Box>
       <Box sx={{ display: "flex", flexWrap: "wrap", mt: 1, alignItems: "center", justifyContent: "flex-end" }}>
         {error.message && (
-          <Box sx={{ textAlign: "right", mt: 0.5 }} style={{ color: '#db3737' }}>
+          <Box sx={{ textAlign: "right", mt: 0.5, color: 'error.main' }}>
             <strong>
               <Box component="span" sx={{ mr: 1 }}>Error:</Box>
               {error.message}

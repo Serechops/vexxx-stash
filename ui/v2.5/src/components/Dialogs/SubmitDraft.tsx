@@ -97,9 +97,9 @@ export const SubmitStashBoxDraft: React.FC<IProps> = ({
     if (error !== undefined) {
       return (
         <>
-          <h6 className="mt-2">
+          <Typography variant="h6" sx={{ mt: 2 }}>
             <FormattedMessage id="stashbox.submission_failed" />
-          </h6>
+          </Typography>
           <div>{error}</div>
         </>
       );

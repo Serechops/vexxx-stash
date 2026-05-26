@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Tabs, Tab, Box } from "@mui/material";
+import { Tabs, Tab, Box, Typography } from "@mui/material";
 import { FormattedMessage } from "react-intl";
 import { CustomCssSettings } from "../Settings/SettingsInterfacePanel/CustomCssSettings";
 import { CustomJavascriptSettings } from "../Settings/SettingsInterfacePanel/CustomJavascriptSettings";
@@ -80,10 +80,10 @@ export const QuickSettings: React.FC<QuickSettingsProps> = ({ onClose }) => {
                     <Box sx={settingListSx}>
                         <Box sx={pluginItemSx}>
                             <PluginList modalProps={modalProps} />
-                            <div className="mt-4 border-top pt-3">
-                                <h5 className="mb-3"><FormattedMessage id="config.tasks.plugin_tasks" /></h5>
+                            <Box sx={{ mt: 4, pt: 3, borderTop: 1, borderColor: 'divider' }}>
+                                <Typography variant="h5" sx={{ mb: 3 }}><FormattedMessage id="config.tasks.plugin_tasks" /></Typography>
                                 <PluginTasks />
-                            </div>
+                            </Box>
                         </Box>
                     </Box>
                 )}

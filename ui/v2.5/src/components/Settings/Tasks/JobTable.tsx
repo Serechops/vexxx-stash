@@ -241,7 +241,7 @@ const ResourceMonitor: React.FC = () => {
    * Polls every 2 seconds via GraphQL.
    */
   return (
-    <div className="resource-monitor flex justify-end mb-2 small" style={{ color: '#a1a1aa' }}>
+    <div className="resource-monitor flex justify-end mb-2 small text-muted-foreground">
       <span className="mr-3" title="Memory Usage">
         <Icon icon={faMemory} className="mr-1" />
         <strong>{Math.round(data.systemStats.memory)} MB</strong>

@@ -1,4 +1,5 @@
 import { createTheme, alpha, responsiveFontSizes } from "@mui/material/styles";
+import type {} from "@mui/material/themeCssVarsAugmentation";
 
 // Unified color palette - synced with index.css CSS variables
 // Using a balanced dark theme with better button visibility
@@ -54,6 +55,7 @@ const shadows = {
 };
 
 const baseTheme = createTheme({
+    cssVariables: true,
     // Align MUI breakpoints with Bootstrap for consistent responsive behavior
     breakpoints: {
         values: {

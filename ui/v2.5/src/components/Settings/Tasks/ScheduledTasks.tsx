@@ -396,8 +396,8 @@ export const ScheduledTasks: React.FC = () => {
                                             {task.enabled ? "Enabled" : "Disabled"}
                                         </Button>
                                     </TableCell>
-                                    <TableCell style={{ color: '#a1a1aa' }}>{formatDate(task.last_run)}</TableCell>
-                                    <TableCell style={{ color: '#a1a1aa' }}>{formatDate(task.next_run)}</TableCell>
+                                    <TableCell sx={{ color: 'text.secondary' }}>{formatDate(task.last_run)}</TableCell>
+                                    <TableCell sx={{ color: 'text.secondary' }}>{formatDate(task.next_run)}</TableCell>
                                     <TableCell>
                                         <ButtonGroup size="small">
                                             <IconButton

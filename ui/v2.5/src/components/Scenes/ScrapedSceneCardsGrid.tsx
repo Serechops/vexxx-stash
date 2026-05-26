@@ -113,7 +113,7 @@ export const ScrapedSceneCardsGrid: React.FC<IScrapedSceneCardsGridProps> = ({
                             extraActions={
                                 <div className="flex items-center gap-1">
                                     {hasTrailer && (
-                                        <span style={{ color: '#0f9960' }} title="Trailer available">
+                                        <span className="text-[color:hsl(var(--chart-2))]" title="Trailer available">
                                             <FiberManualRecordIcon sx={{ fontSize: 8 }} />
                                         </span>
                                     )}

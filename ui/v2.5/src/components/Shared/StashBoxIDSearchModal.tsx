@@ -215,7 +215,7 @@ const StudioSearchResultDetails: React.FC<IStudioResultProps> = ({
             </h5>
           )}
           {studio.urls && studio.urls.length > 0 && (
-            <div className="studio-url" style={{ color: '#a1a1aa', fontSize: '0.875rem' }}>{studio.urls[0]}</div>
+            <Box sx={{ color: 'text.secondary', fontSize: '0.875rem' }}>{studio.urls[0]}</Box>
           )}
         </Box>
       </Box>

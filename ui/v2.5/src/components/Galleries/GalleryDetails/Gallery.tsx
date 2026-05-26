@@ -280,13 +280,11 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
             <FormattedMessage id="actions.reset_cover" />
           </MenuItem>
           <MenuItem
-            style={{ backgroundColor: '#27272a', color: '#fff' }}
             onClick={() => setIsGenerateDialogOpen(true)}
           >
             {`${intl.formatMessage({ id: "actions.generate" })}…`}
           </MenuItem>
           <MenuItem
-            style={{ backgroundColor: '#27272a', color: '#fff' }}
             onClick={() => setIsDeleteAlertOpen(true)}
           >
             <FormattedMessage

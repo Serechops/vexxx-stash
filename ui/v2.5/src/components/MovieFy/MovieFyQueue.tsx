@@ -74,7 +74,7 @@ export const MovieFyQueue: React.FC<MovieFyQueueProps> = ({
             </DialogTitle>
             <DialogContent dividers>
                 {safeQueue.length === 0 ? (
-                    <div className="text-center p-4" style={{ color: '#a1a1aa' }}>No items in queue</div>
+                    <div className="text-center p-4 text-muted-foreground">No items in queue</div>
                 ) : (
                     <div className="moviefy-queue-list">
                         {safeQueue.map((item, index) => (
@@ -101,15 +101,15 @@ export const MovieFyQueue: React.FC<MovieFyQueueProps> = ({
                                                         style={{ objectFit: "cover" }}
                                                     />
                                                     <span
-                                                        className="absolute text-white text-center small py-1"
-                                                        style={{ backgroundColor: '#343a40', bottom: 0, left: 0, right: 0, opacity: 0.75 }}
+                                                        className="absolute text-white text-center small py-1 bg-secondary/75"
+                                                        style={{ bottom: 0, left: 0, right: 0 }}
                                                     >
                                                         Scene {sceneIndex + 1}
                                                     </span>
                                                 </div>
                                             ))}
                                         </div>
-                                        <small style={{ color: '#a1a1aa' }}>
+                                        <small className="text-muted-foreground">
                                             {(item.scenes || []).length} scene
                                             {(item.scenes || []).length !== 1 ? "s" : ""} to process
                                         </small>
@@ -133,14 +133,13 @@ export const MovieFyQueue: React.FC<MovieFyQueueProps> = ({
                                                     />
                                                 )}
                                                 <div>
-                                                    <h6 className="mb-0 text-body">{item.group.name}</h6>
+                                                    <h6 className="mb-0 text-foreground">{item.group.name}</h6>
                                                     {item.group.urls && item.group.urls.length > 0 && (
                                                         <a
                                                             href={item.group.urls[0]}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
-                                                            className="small block"
-                                                            style={{ color: '#a1a1aa' }}
+                                                            className="small block text-muted-foreground"
                                                         >
                                                             {item.group.urls[0]}
                                                         </a>
@@ -159,7 +158,7 @@ export const MovieFyQueue: React.FC<MovieFyQueueProps> = ({
 
                                         {/* Scene List with Indexes */}
                                         <div className="mt-2">
-                                            <small style={{ color: '#a1a1aa' }}>Scenes & Indexes:</small>
+                                            <small className="text-muted-foreground">Scenes & Indexes:</small>
                                             <div className="mt-1">
                                                 {(item.scenes || []).map((scene: QueueSceneItem, sceneIndex: number) => (
                                                     <div key={sceneIndex} className="flex items-center mb-1">
@@ -173,7 +172,7 @@ export const MovieFyQueue: React.FC<MovieFyQueueProps> = ({
                                                             onChange={(e) => handleSceneIndexChange(index, sceneIndex, e.target.value)}
                                                             inputProps={{ style: { padding: '4px 8px' } }}
                                                         />
-                                                        <span className="text-truncate text-body" title={scene.title || ""}>
+                                                        <span className="text-truncate text-foreground" title={scene.title || ""}>
                                                             {scene.title || `Scene ${sceneIndex + 1}`}
                                                         </span>
                                                     </div>

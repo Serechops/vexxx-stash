@@ -112,7 +112,7 @@ const InstalledPackageRow: React.FC<{
       <TableCell>
         <Stack>
           <span>{pkg.name}</span>
-          <span style={{ color: '#a1a1aa', fontSize: '0.8rem' }}>{pkg.package_id}</span>
+          <Box component="span" sx={{ color: 'text.secondary', fontSize: '0.8rem' }}>{pkg.package_id}</Box>
         </Stack>
       </TableCell>
       <TableCell>
@@ -120,7 +120,7 @@ const InstalledPackageRow: React.FC<{
           <span style={{ whiteSpace: 'nowrap' }}>
             {displayVersion(intl, pkg.version)}
           </span>
-          <span style={{ color: '#a1a1aa', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>{displayDate(intl, pkg.date)}</span>
+          <Box component="span" sx={{ color: 'text.secondary', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>{displayDate(intl, pkg.date)}</Box>
         </Stack>
       </TableCell>
       {updatesLoaded && pkg.source_package && (
@@ -130,9 +130,9 @@ const InstalledPackageRow: React.FC<{
               {displayVersion(intl, pkg.source_package.version)}
               {updateAvailable && <Icon icon={faAnglesUp} style={{ marginLeft: '0.25rem' }} />}
             </span>
-            <span style={{ color: '#a1a1aa', fontSize: '0.8rem', whiteSpace: 'nowrap', ...(updateAvailable && { fontWeight: 700 }) }}>
+            <Box component="span" sx={{ color: 'text.secondary', fontSize: '0.8rem', whiteSpace: 'nowrap', ...(updateAvailable && { fontWeight: 700 }) }}>
               {displayDate(intl, pkg.source_package.date)}
-            </span>
+            </Box>
           </Stack>
         </TableCell>
       )}
@@ -640,12 +640,12 @@ const AvailablePackageRow: React.FC<{
       if (!requiredBy.length) return;
 
       return (
-        <div style={{ color: '#f59e0b', fontSize: '0.8rem' }}>
+        <Box sx={{ color: 'warning.main', fontSize: '0.8rem' }}>
           <FormattedMessage
             id="package_manager.required_by"
             values={{ packages: requiredBy.map((p) => p.name).join(", ") }}
           />
-        </div>
+        </Box>
       );
     }
 
@@ -661,7 +661,7 @@ const AvailablePackageRow: React.FC<{
         <TableCell sx={{ cursor: 'pointer' }} onClick={() => togglePackage()}>
           <Stack>
             <span>{pkg.name}</span>
-            <span style={{ color: '#a1a1aa', fontSize: '0.8rem' }}>{pkg.package_id}</span>
+            <Box component="span" sx={{ color: 'text.secondary', fontSize: '0.8rem' }}>{pkg.package_id}</Box>
           </Stack>
         </TableCell>
         <TableCell>
@@ -669,7 +669,7 @@ const AvailablePackageRow: React.FC<{
             <span style={{ whiteSpace: 'nowrap' }}>
               {displayVersion(intl, pkg.version)}
             </span>
-            <span style={{ color: '#a1a1aa', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>{displayDate(intl, pkg.date)}</span>
+            <Box component="span" sx={{ color: 'text.secondary', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>{displayDate(intl, pkg.date)}</Box>
           </Stack>
         </TableCell>
         <TableCell>

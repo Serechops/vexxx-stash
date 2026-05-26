@@ -133,7 +133,7 @@ export const SceneEditPanel: React.FC<IProps> = ({
     stash_ids: yup.mixed<GQL.StashIdInput[]>().defined(),
     details: yup.string().ensure(),
     cover_image: yup.string().nullable().optional(),
-    vr_mode: yup.string().nullable().optional(),
+    vr_mode: yup.mixed<GQL.VrMode>().nullable().optional(),
   });
 
   const initialValues = useMemo(

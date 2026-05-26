@@ -14,9 +14,49 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { IInteractiveClient } from "src/hooks/Interactive/utils";
+
+// Patterns derived from real funscript analysis (Slibowitz PMV script)
+const HDSP_PATTERNS = [
+  {
+    id: "slow_wave",
+    labelId: "handy_modal.pattern_slow_wave",
+    descId: "handy_modal.pattern_slow_wave_desc",
+    posA: 0, posB: 100, intervalMs: 750, velocity: 25,
+  },
+  {
+    id: "steady",
+    labelId: "handy_modal.pattern_steady",
+    descId: "handy_modal.pattern_steady_desc",
+    posA: 0, posB: 100, intervalMs: 400, velocity: 50,
+  },
+  {
+    id: "fast_pulse",
+    labelId: "handy_modal.pattern_fast_pulse",
+    descId: "handy_modal.pattern_fast_pulse_desc",
+    posA: 0, posB: 100, intervalMs: 220, velocity: 90,
+  },
+  {
+    id: "tease",
+    labelId: "handy_modal.pattern_tease",
+    descId: "handy_modal.pattern_tease_desc",
+    posA: 0, posB: 35, intervalMs: 250, velocity: 70,
+  },
+  {
+    id: "upper_zone",
+    labelId: "handy_modal.pattern_upper_zone",
+    descId: "handy_modal.pattern_upper_zone_desc",
+    posA: 45, posB: 100, intervalMs: 170, velocity: 85,
+  },
+  {
+    id: "ripple",
+    labelId: "handy_modal.pattern_ripple",
+    descId: "handy_modal.pattern_ripple_desc",
+    posA: 45, posB: 65, intervalMs: 100, velocity: 100,
+  },
+] as const;
 
 interface IProps {
   open: boolean;
@@ -46,7 +86,25 @@ export const HandyControlModal: React.FC<IProps> = ({
   const [hvpAmplitude, setHvpAmplitude] = useState(50);
   const [hvpFrequency, setHvpFrequency] = useState(100);
 
+  // Pattern state
+  const patternIntervalRef = useRef<number | null>(null);
+  const patternPosRef = useRef<boolean>(false);
+  const [activePattern, setActivePattern] = useState<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (patternIntervalRef.current !== null) {
+        clearInterval(patternIntervalRef.current);
+      }
+    };
+  }, []);
+
   const handleEmergencyStop = useCallback(async () => {
+    if (patternIntervalRef.current !== null) {
+      clearInterval(patternIntervalRef.current);
+      patternIntervalRef.current = null;
+    }
+    setActivePattern(null);
     try {
       await client.emergencyStop?.();
     } catch {
@@ -57,6 +115,11 @@ export const HandyControlModal: React.FC<IProps> = ({
   }, [client]);
 
   const handleClose = useCallback(async () => {
+    if (patternIntervalRef.current !== null) {
+      clearInterval(patternIntervalRef.current);
+      patternIntervalRef.current = null;
+    }
+    setActivePattern(null);
     if (hampActive) {
       try {
         await client.hampStop?.();
@@ -75,6 +138,36 @@ export const HandyControlModal: React.FC<IProps> = ({
     }
     onClose();
   }, [client, hampActive, hvpActive, onClose]);
+
+  // ── Patterns ─────────────────────────────────────────────────────────────
+
+  const clearPattern = useCallback(() => {
+    if (patternIntervalRef.current !== null) {
+      clearInterval(patternIntervalRef.current);
+      patternIntervalRef.current = null;
+    }
+    setActivePattern(null);
+  }, []);
+
+  const startPattern = useCallback(
+    (patternId: string) => {
+      if (patternIntervalRef.current !== null) {
+        clearInterval(patternIntervalRef.current);
+        patternIntervalRef.current = null;
+      }
+      const pattern = HDSP_PATTERNS.find((p) => p.id === patternId);
+      if (!pattern) return;
+      setActivePattern(patternId);
+      patternPosRef.current = false;
+      client.hdspSetPosition?.(pattern.posA, pattern.velocity).catch(() => {});
+      patternIntervalRef.current = window.setInterval(() => {
+        patternPosRef.current = !patternPosRef.current;
+        const pos = patternPosRef.current ? pattern.posB : pattern.posA;
+        client.hdspSetPosition?.(pos, pattern.velocity).catch(() => {});
+      }, pattern.intervalMs);
+    },
+    [client]
+  );
 
   // ── HAMP ────────────────────────────────────────────────────────────────
 
@@ -224,6 +317,7 @@ export const HandyControlModal: React.FC<IProps> = ({
           <Tab label={<FormattedMessage id="handy_modal.tab_hamp" />} />
           <Tab label={<FormattedMessage id="handy_modal.tab_position" />} />
           <Tab label={<FormattedMessage id="handy_modal.tab_vibration" />} />
+          <Tab label={<FormattedMessage id="handy_modal.tab_patterns" />} />
         </Tabs>
 
         {/* ── HAMP tab ── */}
@@ -376,6 +470,68 @@ export const HandyControlModal: React.FC<IProps> = ({
               onChange={handleFrequencyChange}
               sx={{ color: "white" }}
             />
+          </Box>
+        )}
+
+        {/* ── Patterns tab ── */}
+        {tab === 3 && (
+          <Box>
+            {activePattern !== null && (
+              <Button
+                fullWidth
+                variant="contained"
+                color="error"
+                onClick={clearPattern}
+                sx={{ mb: 2 }}
+              >
+                <FormattedMessage id="handy_modal.pattern_stop" />
+              </Button>
+            )}
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 1.5,
+              }}
+            >
+              {HDSP_PATTERNS.map((p) => (
+                <Box
+                  key={p.id}
+                  onClick={() =>
+                    activePattern === p.id
+                      ? clearPattern()
+                      : startPattern(p.id)
+                  }
+                  sx={{
+                    border: `1px solid ${
+                      activePattern === p.id
+                        ? "#4caf50"
+                        : "rgba(255,255,255,0.2)"
+                    }`,
+                    borderRadius: 1,
+                    p: 1.5,
+                    cursor: "pointer",
+                    bgcolor:
+                      activePattern === p.id
+                        ? "rgba(76,175,80,0.15)"
+                        : "rgba(255,255,255,0.04)",
+                    "&:hover": {
+                      bgcolor:
+                        activePattern === p.id
+                          ? "rgba(76,175,80,0.2)"
+                          : "rgba(255,255,255,0.08)",
+                    },
+                  }}
+                >
+                  <Typography variant="body2" fontWeight={600}>
+                    <FormattedMessage id={p.labelId} />
+                  </Typography>
+                  <Typography variant="caption" color="grey.400">
+                    <FormattedMessage id={p.descId} />
+                  </Typography>
+                </Box>
+              ))}
+            </Box>
           </Box>
         )}
       </DialogContent>

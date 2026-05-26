@@ -338,7 +338,7 @@ export const FilterTags: React.FC<IFilterTagsProps> = ({
       ref={ref}
       sx={{
         display: "flex",
-        justifyContent: "center",
+        justifyContent: "flex-start",
         flexWrap: "wrap",
         gap: 1,
         marginBottom: 1,

@@ -11,8 +11,6 @@ import {
   AccordionSummary,
   AccordionDetails,
   Button,
-  Card,
-  CardContent,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -157,7 +155,7 @@ const CriterionOptionList: React.FC<ICriterionList> = ({
         key={c.type}
         expanded={isExpanded}
         onChange={() => onSelect(isExpanded ? null : c.type)}
-        sx={{ mb: 0.5, border: '1px solid rgba(16, 22, 26, 0.4)', boxShadow: 'none', '&:before': { display: 'none' } }}
+        sx={{ mb: 0.5, border: 1, borderColor: 'divider', boxShadow: 'none', '&:before': { display: 'none' } }}
       >
         <AccordionSummary
           expandIcon={<ExpandMoreIcon />}
@@ -191,7 +189,7 @@ const CriterionOptionList: React.FC<ICriterionList> = ({
             <PushPinIcon fontSize="small" sx={{ transform: isPin ? "none" : "rotate(45deg)" }} />
           </IconButton>
         </AccordionSummary>
-        <AccordionDetails sx={{ p: 0 }}>
+        <AccordionDetails sx={{ px: 2, pt: 1, pb: 2 }}>
           {(type === c.type && currentCriterion) ||
             (prevType === c.type && prevCriterion) ? (
             <CriterionEditor
@@ -205,11 +203,11 @@ const CriterionOptionList: React.FC<ICriterionList> = ({
   }
 
   return (
-    <Box>
+    <Box sx={{ px: 3, py: 2 }}>
       {pinnedCriterionOptions.length !== 0 && (
         <>
           {pinnedCriterionOptions.map((c) => renderCard(c, true))}
-          <Box sx={{ pb: 5 }} />
+          <Box sx={{ pb: 2 }} />
         </>
       )}
       {criterionOptions.map((c) => renderCard(c, false))}
@@ -547,13 +545,8 @@ export const EditFilterDialog: React.FC<IEditFilterProps> = ({
         className={cx("edit-filter-dialog", {
           "sfw-content-mode": sfwContentMode,
         })}
-        sx={{
-          "& .MuiDialog-paper": {
-            // Ensure specific styling if needed, otherwise default is good
-          }
-        }}
       >
-        <DialogTitle sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", p: 2 }}>
+        <DialogTitle sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", py: 2, px: 3, borderBottom: 1, borderColor: "divider" }}>
           <span><FormattedMessage id="search_filter.edit_filter" /></span>
           <TextField
             size="small"
@@ -565,7 +558,7 @@ export const EditFilterDialog: React.FC<IEditFilterProps> = ({
             sx={{ width: "auto" }}
           />
         </DialogTitle>
-        <DialogContent sx={{ p: 0, maxHeight: "min(550px, calc(100vh - 12rem))" }}>
+        <DialogContent sx={{ p: 0, maxHeight: "min(550px, calc(100vh - 180px))", overflow: "auto" }}>
           <Box className={cx({ "criterion-selected": !!criterion })}>
             <CriterionOptionList
               criteria={criteriaList}
@@ -580,7 +573,7 @@ export const EditFilterDialog: React.FC<IEditFilterProps> = ({
               externallySelected={!!editingCriterion}
             />
             {criteria.length > 0 && (
-              <Box sx={{ borderTop: "1px solid rgba(16, 22, 26, 0.4)", pt: 2, px: 2 }}>
+              <Box sx={{ borderTop: 1, borderColor: "divider", pt: 2, px: 3 }}>
                 <FilterTags
                   criteria={criteria}
                   onEditCriterion={(c) => optionSelected(c.criterionOption)}
@@ -591,7 +584,7 @@ export const EditFilterDialog: React.FC<IEditFilterProps> = ({
             )}
           </Box>
         </DialogContent>
-        <DialogActions sx={{ justifyContent: "space-between", px: 2, pb: 2 }}>
+        <DialogActions sx={{ justifyContent: "space-between", px: 3, py: 2, borderTop: 1, borderColor: "divider" }}>
           <Box>
             <Button
               variant="contained"

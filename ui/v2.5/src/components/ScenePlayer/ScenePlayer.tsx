@@ -24,6 +24,7 @@ import "./vtt-thumbnails";
 import "./big-buttons";
 import "./track-activity";
 import "./vrmode";
+import { VRType } from "./vrmode";
 import "./media-session";
 import "./wake-sentinel";
 import cx from "classnames";
@@ -259,6 +260,34 @@ function handleHotkeys(player: VideoJsPlayer, event: videojs.KeyboardEvent) {
     case 219: // [
       seekPercentRelative(-0.1);
       break;
+  }
+}
+
+/** Convert a stored GQL VrMode enum value to the vrmode.ts VRType. */
+function vrModeToVRType(mode: GQL.VrMode | null | undefined): VRType | null {
+  switch (mode) {
+    case GQL.VrMode.Lr180:
+      return VRType.LR180;
+    case GQL.VrMode.Tb360:
+      return VRType.TB360;
+    case GQL.VrMode.Mono360:
+      return VRType.Mono360;
+    default:
+      return null;
+  }
+}
+
+/** Convert a vrmode.ts VRType back to the GQL VrMode enum value (null for Off). */
+function vrTypeToGqlMode(type: VRType): GQL.VrMode | null {
+  switch (type) {
+    case VRType.LR180:
+      return GQL.VrMode.Lr180;
+    case VRType.TB360:
+      return GQL.VrMode.Tb360;
+    case VRType.Mono360:
+      return GQL.VrMode.Mono360;
+    default:
+      return null;
   }
 }
 
@@ -582,16 +611,29 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
 
       const vrMenu = player.vrMenu();
 
-      let showButton = false;
+    // Show the VR button when the scene has a stored vr_mode, or when the
+    // scene is tagged with the configured VR tag.
+    const hasVrMode = !!scene.vr_mode;
+    const hasVrTag = vrTag ? scene.tags.some((tag) => vrTag === tag.name) : false;
+    const showButton = hasVrMode || hasVrTag;
 
-      if (vrTag) {
-        showButton = scene.tags.some((tag) => vrTag === tag.name);
-      }
+    vrMenu.setShowButton(showButton);
 
-      vrMenu.setShowButton(showButton);
-    }, [getPlayer, scene, vrTag]);
+    // Restore the stored mode (or reset to Off) every time the scene changes.
+    vrMenu.setInitialMode(vrModeToVRType(scene.vr_mode));
 
-    // Player event handlers
+    // Persist mode changes back to the scene.
+    vrMenu.onTypeSelected = (type) => {
+      updateScene({
+        variables: {
+          input: {
+            id: scene.id,
+            vr_mode: type ? vrTypeToGqlMode(type) : null,
+          },
+        },
+      });
+    };
+  }, [getPlayer, scene, vrTag, updateScene]);
     useEffect(() => {
       const player = getPlayer();
       if (!player) return;

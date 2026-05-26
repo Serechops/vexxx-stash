@@ -182,6 +182,7 @@ type SceneCreateInput struct {
 
 	StartPoint *float64 `json:"start_point"`
 	EndPoint   *float64 `json:"end_point"`
+	VrMode     *VRMode  `json:"vr_mode"`
 }
 
 type SceneUpdateInput struct {
@@ -213,6 +214,7 @@ type SceneUpdateInput struct {
 
 	StartPoint *float64 `json:"start_point"`
 	EndPoint   *float64 `json:"end_point"`
+	VrMode     *VRMode  `json:"vr_mode"`
 }
 
 type SceneDestroyInput struct {

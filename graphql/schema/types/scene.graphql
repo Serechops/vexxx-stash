@@ -36,6 +36,12 @@ type VideoCaption {
   caption_type: String!
 }
 
+enum VRMode {
+  LR180
+  TB360
+  MONO360
+}
+
 type Scene {
   id: ID!
   title: String
@@ -67,6 +73,8 @@ type Scene {
   start_point: Float
   "End time in seconds for the scene segment (Virtual/Group Scene)"
   end_point: Float
+  "Stored VR playback mode for this scene"
+  vr_mode: VRMode
 
   "Times a scene was played"
   play_history: [Time!]!
@@ -129,6 +137,7 @@ input SceneCreateInput {
 
   start_point: Float
   end_point: Float
+  vr_mode: VRMode
 }
 
 input SceneUpdateInput {
@@ -170,6 +179,7 @@ input SceneUpdateInput {
 
   start_point: Float
   end_point: Float
+  vr_mode: VRMode
 }
 
 enum BulkUpdateIdMode {
@@ -202,6 +212,7 @@ input BulkSceneUpdateInput {
   tag_ids: BulkUpdateIds
   group_ids: BulkUpdateIds
   movie_ids: BulkUpdateIds @deprecated(reason: "Use group_ids")
+  vr_mode: VRMode
 }
 
 input SceneDestroyInput {

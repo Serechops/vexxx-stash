@@ -92,8 +92,9 @@ type sceneRow struct {
 	ResumeTime   float64   `db:"resume_time"`
 	PlayDuration float64   `db:"play_duration"`
 
-	StartPoint null.Float `db:"start_point"`
-	EndPoint   null.Float `db:"end_point"`
+	StartPoint null.Float  `db:"start_point"`
+	EndPoint   null.Float  `db:"end_point"`
+	VRMode     null.String `db:"vr_mode"`
 
 	HasPreview bool `db:"has_preview"`
 
@@ -118,6 +119,11 @@ func (r *sceneRow) fromScene(o models.Scene) {
 	r.PlayDuration = o.PlayDuration
 	r.StartPoint = nullFloatFromPtr(o.StartPoint)
 	r.EndPoint = nullFloatFromPtr(o.EndPoint)
+	if o.VRMode != nil {
+		r.VRMode = null.StringFrom(string(*o.VRMode))
+	} else {
+		r.VRMode = null.String{}
+	}
 	r.HasPreview = o.HasPreview
 }
 
@@ -155,6 +161,7 @@ func (r *sceneQueryRow) resolve() *models.Scene {
 
 		StartPoint: r.StartPoint.Ptr(),
 		EndPoint:   r.EndPoint.Ptr(),
+		VRMode:     vrModeFromNullString(r.VRMode),
 	}
 
 	if r.PrimaryFileFolderPath.Valid && r.PrimaryFileBasename.Valid {
@@ -183,6 +190,7 @@ func (r *sceneRowRecord) fromPartial(o models.ScenePartial) {
 	r.setFloat64("play_duration", o.PlayDuration)
 	r.setNullFloat64("start_point", o.StartPoint)
 	r.setNullFloat64("end_point", o.EndPoint)
+	r.setNullString("vr_mode", o.VRMode)
 	r.setBool("has_preview", o.HasPreview)
 }
 

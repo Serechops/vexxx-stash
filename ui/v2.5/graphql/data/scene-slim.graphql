@@ -18,6 +18,7 @@ fragment SlimSceneData on Scene {
   start_point
 
   end_point
+  vr_mode
   has_preview
 
 

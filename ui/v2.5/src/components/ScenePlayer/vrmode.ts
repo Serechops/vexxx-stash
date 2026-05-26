@@ -13,7 +13,7 @@ export interface VRMenuOptions {
   showButton?: boolean;
 }
 
-enum VRType {
+export enum VRType {
   LR180 = "180 LR",
   TB360 = "360 TB",
   Mono360 = "360 Mono",
@@ -92,6 +92,14 @@ class VRMenuButton extends videojs.getComponent("MenuButton") {
     this.update();
   }
 
+  /** Update the highlighted menu item without triggering a selection event. */
+  public selectType(type: VRType) {
+    this.selectedType = type;
+    this.items.forEach((i) => {
+      i.selected(i.type === this.selectedType);
+    });
+  }
+
   createEl() {
     return videojs.dom.createEl("div", {
       className:
@@ -114,6 +122,11 @@ class VRMenuPlugin extends videojs.getPlugin("plugin") {
   private menu: VRMenuButton;
   private showButton: boolean;
   private vr?: VideoJsVRPlugin;
+  /**
+   * Called when the user selects a VR type from the menu.
+   * Receives null when the user selects "Off" (no VR).
+   */
+  onTypeSelected: ((type: VRType | null) => void) | undefined = undefined;
 
   constructor(player: VideoJsPlayer, options: VRMenuOptions) {
     super(player);
@@ -131,6 +144,9 @@ class VRMenuPlugin extends videojs.getPlugin("plugin") {
 
     this.menu.on("typeselected", (_, type: VRType) => {
       this.loadVR(type);
+      if (this.onTypeSelected) {
+        this.onTypeSelected(type === VRType.Off ? null : type);
+      }
     });
 
     player.on("ready", () => {
@@ -170,6 +186,18 @@ class VRMenuPlugin extends videojs.getPlugin("plugin") {
       this.removeButton();
       this.loadVR(VRType.Off);
     }
+  }
+
+  /**
+   * Set the initial VR mode when a scene loads.
+   * Selects the corresponding menu item and applies the VR projection.
+   * Pass null to reset to "Off" (no VR projection active).
+   */
+  public setInitialMode(type: VRType | null) {
+    if (isVrDevice()) return;
+    const effectiveType = type ?? VRType.Off;
+    this.menu.selectType(effectiveType);
+    this.loadVR(effectiveType);
   }
 }
 

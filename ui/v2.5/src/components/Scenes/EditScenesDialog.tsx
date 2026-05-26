@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Box, Typography, Checkbox, FormControlLabel, Grid } from "@mui/material";
+import { Box, Typography, Checkbox, FormControlLabel, Grid, Select, MenuItem, InputLabel, FormControl } from "@mui/material";
 import { FormattedMessage, useIntl } from "react-intl";
 import isEqual from "lodash-es/isEqual";
 import { useBulkSceneUpdate } from "src/core/StashService";
@@ -48,6 +48,8 @@ export const EditScenesDialog: React.FC<IListOperationProps> = (
   const [groupIds, setGroupIds] = useState<string[]>();
   const [existingGroupIds, setExistingGroupIds] = useState<string[]>();
   const [organized, setOrganized] = useState<boolean | undefined>();
+  // undefined = no change; "" = clear; "LR180"/"TB360"/"MONO360" = set
+  const [vrMode, setVrMode] = useState<string | undefined>(undefined);
 
   const [updateScenes] = useBulkSceneUpdate(getSceneInput());
 
@@ -87,6 +89,10 @@ export const EditScenesDialog: React.FC<IListOperationProps> = (
 
     if (organized !== undefined) {
       sceneInput.organized = organized;
+    }
+
+    if (vrMode !== undefined) {
+      sceneInput.vr_mode = vrMode ? (vrMode as GQL.VrMode) : null;
     }
 
     return sceneInput;
@@ -333,6 +339,40 @@ export const EditScenesDialog: React.FC<IListOperationProps> = (
               label={intl.formatMessage({ id: "organized" })}
             />
           </Box>
+
+          <Grid container spacing={2} alignItems="center">
+            <Grid size={{ xs: 3 }}>
+              <Typography variant="body2" component="label">
+                <FormattedMessage id="vr_mode" defaultMessage="VR Mode" />
+              </Typography>
+            </Grid>
+            <Grid size={{ xs: 9 }}>
+              <FormControl fullWidth size="small">
+                <InputLabel>
+                  <FormattedMessage id="vr_mode" defaultMessage="VR Mode" />
+                </InputLabel>
+                <Select
+                  label={intl.formatMessage({ id: "vr_mode", defaultMessage: "VR Mode" })}
+                  value={vrMode ?? "__nochange__"}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setVrMode(val === "__nochange__" ? undefined : val);
+                  }}
+                  disabled={isUpdating}
+                >
+                  <MenuItem value="__nochange__">
+                    <em><FormattedMessage id="no_change" defaultMessage="No Change" /></em>
+                  </MenuItem>
+                  <MenuItem value="">
+                    <em><FormattedMessage id="none" defaultMessage="None" /></em>
+                  </MenuItem>
+                  <MenuItem value="LR180">180° LR</MenuItem>
+                  <MenuItem value="TB360">360° TB</MenuItem>
+                  <MenuItem value="MONO360">360° Mono</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+          </Grid>
         </Box>
       </ModalComponent>
     );

@@ -120,12 +120,12 @@ func (l *FileIDsRelatedIDsLoader) LoadAll(keys []models.FileID) ([][]int, []erro
 		results[i] = l.LoadThunk(key)
 	}
 
-	ids := make([][]int, len(keys))
+	ints := make([][]int, len(keys))
 	errors := make([]error, len(keys))
 	for i, thunk := range results {
-		ids[i], errors[i] = thunk()
+		ints[i], errors[i] = thunk()
 	}
-	return ids, errors
+	return ints, errors
 }
 
 // LoadAllThunk returns a function that when called will block waiting for a ints.
@@ -137,12 +137,12 @@ func (l *FileIDsRelatedIDsLoader) LoadAllThunk(keys []models.FileID) func() ([][
 		results[i] = l.LoadThunk(key)
 	}
 	return func() ([][]int, []error) {
-		ids := make([][]int, len(keys))
+		ints := make([][]int, len(keys))
 		errors := make([]error, len(keys))
 		for i, thunk := range results {
-			ids[i], errors[i] = thunk()
+			ints[i], errors[i] = thunk()
 		}
-		return ids, errors
+		return ints, errors
 	}
 }
 

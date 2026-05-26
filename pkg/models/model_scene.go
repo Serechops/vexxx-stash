@@ -4,10 +4,48 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"path/filepath"
 	"strconv"
 	"time"
 )
+
+// VRMode represents the VR playback mode stored on a scene.
+type VRMode string
+
+const (
+	VRModeLR180   VRMode = "LR180"
+	VRModeTB360   VRMode = "TB360"
+	VRModeMono360 VRMode = "MONO360"
+)
+
+func (e VRMode) IsValid() bool {
+	switch e {
+	case VRModeLR180, VRModeTB360, VRModeMono360:
+		return true
+	}
+	return false
+}
+
+func (e VRMode) String() string {
+	return string(e)
+}
+
+func (e *VRMode) UnmarshalGQL(v interface{}) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+	*e = VRMode(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid VRMode", str)
+	}
+	return nil
+}
+
+func (e VRMode) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
 
 // Scene stores the metadata for a single video scene.
 type Scene struct {
@@ -41,6 +79,7 @@ type Scene struct {
 
 	StartPoint *float64 `json:"start_point"`
 	EndPoint   *float64 `json:"end_point"`
+	VRMode     *VRMode  `json:"vr_mode"`
 
 	URLs         RelatedStrings  `json:"urls"`
 	GalleryIDs   RelatedIDs      `json:"gallery_ids"`
@@ -76,6 +115,7 @@ type ScenePartial struct {
 	PlayDuration OptionalFloat64
 	StartPoint   OptionalFloat64
 	EndPoint     OptionalFloat64
+	VRMode       OptionalString
 	HasPreview   OptionalBool
 
 	URLs          *UpdateStrings

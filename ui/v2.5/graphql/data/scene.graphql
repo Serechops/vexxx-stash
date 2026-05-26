@@ -24,6 +24,7 @@ fragment SceneData on Scene {
 
   start_point
   end_point
+  vr_mode
 
   play_history
   o_history

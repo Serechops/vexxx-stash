@@ -75,3 +75,11 @@ func nullFloatFromPtr(f *float64) null.Float {
 	}
 	return null.FloatFrom(*f)
 }
+
+func vrModeFromNullString(s null.String) *models.VRMode {
+	if !s.Valid {
+		return nil
+	}
+	m := models.VRMode(s.String)
+	return &m
+}

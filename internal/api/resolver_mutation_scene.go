@@ -60,6 +60,7 @@ func (r *mutationResolver) SceneCreate(ctx context.Context, input models.SceneCr
 
 	newScene.StartPoint = input.StartPoint
 	newScene.EndPoint = input.EndPoint
+	newScene.VRMode = input.VrMode
 
 	newScene.Date, err = translator.datePtr(input.Date)
 	if err != nil {
@@ -259,6 +260,14 @@ func scenePartialFromInput(input models.SceneUpdateInput, translator changesetTr
 	updatedScene.PlayDuration = translator.optionalFloat64(input.PlayDuration, "play_duration")
 	updatedScene.StartPoint = translator.optionalFloat64(input.StartPoint, "start_point")
 	updatedScene.EndPoint = translator.optionalFloat64(input.EndPoint, "end_point")
+
+	var vrModeStr *string
+	if input.VrMode != nil {
+		s := string(*input.VrMode)
+		vrModeStr = &s
+	}
+	updatedScene.VRMode = translator.optionalString(vrModeStr, "vr_mode")
+
 	updatedScene.Organized = translator.optionalBool(input.Organized, "organized")
 	updatedScene.StashIDs = translator.updateStashIDs(input.StashIds, "stash_ids")
 
@@ -429,6 +438,13 @@ func (r *mutationResolver) BulkSceneUpdate(ctx context.Context, input BulkSceneU
 	}
 
 	updatedScene.URLs = translator.optionalURLsBulk(input.Urls, input.URL)
+
+	var bulkVrModeStr *string
+	if input.VrMode != nil {
+		s := string(*input.VrMode)
+		bulkVrModeStr = &s
+	}
+	updatedScene.VRMode = translator.optionalString(bulkVrModeStr, "vr_mode")
 
 	updatedScene.PerformerIDs, err = translator.updateIdsBulk(input.PerformerIds, "performer_ids")
 	if err != nil {

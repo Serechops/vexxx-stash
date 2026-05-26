@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
-import { Button, ButtonGroup, Box, Typography, TextField } from "@mui/material";
+import { Button, ButtonGroup, Box, Typography, TextField, Select, MenuItem, FormControl } from "@mui/material";
 import Grid from "@mui/material/Grid";
 import Mousetrap from "mousetrap";
 import * as GQL from "src/core/generated-graphql";
@@ -43,52 +43,6 @@ import { Group } from "src/components/Groups/GroupSelect";
 import { useTagsEdit } from "src/hooks/tagsEdit";
 import { ScraperMenu } from "src/components/Shared/ScraperMenu";
 import StashBoxIDSearchModal from "src/components/Shared/StashBoxIDSearchModal";
-import TextUtils from "src/utils/text";
-
-/** Controlled text field that displays seconds as a H:MM:SS timestamp and
- *  parses user input back to seconds on blur. */
-const TimestampField: React.FC<{
-  label: string;
-  valueSeconds: number | null;
-  onChange: (seconds: number | null) => void;
-}> = ({ label, valueSeconds, onChange }) => {
-  const [text, setText] = useState(
-    valueSeconds != null ? TextUtils.secondsToTimestamp(valueSeconds) : ""
-  );
-
-  // Keep display in sync when the parent value changes externally
-  useEffect(() => {
-    setText(valueSeconds != null ? TextUtils.secondsToTimestamp(valueSeconds) : "");
-  }, [valueSeconds]);
-
-  const handleBlur = () => {
-    if (text === "") {
-      onChange(null);
-      return;
-    }
-    const parsed = TextUtils.timestampToSeconds(text);
-    if (parsed !== null) {
-      onChange(parsed);
-      setText(TextUtils.secondsToTimestamp(parsed));
-    } else {
-      // Revert to previous valid value on invalid input
-      setText(valueSeconds != null ? TextUtils.secondsToTimestamp(valueSeconds) : "");
-    }
-  };
-
-  return (
-    <TextField
-      label={label}
-      value={text}
-      onChange={(e) => setText(e.target.value)}
-      onBlur={handleBlur}
-      placeholder="H:MM:SS"
-      size="small"
-      fullWidth
-      className="input-control"
-    />
-  );
-};
 
 const SceneScrapeDialog = lazyComponent(() => import("./SceneScrapeDialog"));
 const SceneQueryModal = lazyComponent(() => import("./SceneQueryModal"));
@@ -179,8 +133,7 @@ export const SceneEditPanel: React.FC<IProps> = ({
     stash_ids: yup.mixed<GQL.StashIdInput[]>().defined(),
     details: yup.string().ensure(),
     cover_image: yup.string().nullable().optional(),
-    start_point: yup.number().nullable().optional(),
-    end_point: yup.number().nullable().optional(),
+    vr_mode: yup.string().nullable().optional(),
   });
 
   const initialValues = useMemo(
@@ -200,8 +153,7 @@ export const SceneEditPanel: React.FC<IProps> = ({
       stash_ids: getStashIDs(scene.stash_ids),
       details: scene.details ?? "",
       cover_image: initialCoverImage,
-      start_point: scene.start_point ?? null,
-      end_point: scene.end_point ?? null,
+      vr_mode: scene.vr_mode ?? null,
     }),
     [scene, initialCoverImage]
   );
@@ -848,22 +800,28 @@ export const SceneEditPanel: React.FC<IProps> = ({
             {renderDateField("date")}
             {renderInputField("director")}
 
-            <Grid container spacing={2}>
-              <Grid size={{ xs: 6 }}>
-                <TimestampField
-                  label={intl.formatMessage({ id: "start_point", defaultMessage: "Start Point" })}
-                  valueSeconds={formik.values.start_point ?? null}
-                  onChange={(v) => formik.setFieldValue("start_point", v)}
-                />
-              </Grid>
-              <Grid size={{ xs: 6 }}>
-                <TimestampField
-                  label={intl.formatMessage({ id: "end_point", defaultMessage: "End Point" })}
-                  valueSeconds={formik.values.end_point ?? null}
-                  onChange={(v) => formik.setFieldValue("end_point", v)}
-                />
-              </Grid>
-            </Grid>
+            {renderField(
+              "vr_mode",
+              intl.formatMessage({ id: "vr_mode", defaultMessage: "VR Mode" }),
+              <FormControl fullWidth size="small">
+                <Select
+                  value={formik.values.vr_mode ?? ""}
+                  onChange={(e) =>
+                    formik.setFieldValue("vr_mode", e.target.value || null)
+                  }
+                  size="small"
+                >
+                  <MenuItem value="">
+                    <em>
+                      <FormattedMessage id="none" defaultMessage="None" />
+                    </em>
+                  </MenuItem>
+                  <MenuItem value="LR180">180° LR</MenuItem>
+                  <MenuItem value="TB360">360° TB</MenuItem>
+                  <MenuItem value="MONO360">360° Mono</MenuItem>
+                </Select>
+              </FormControl>
+            )}
 
             {renderGalleriesField()}
             {renderStudioField()}

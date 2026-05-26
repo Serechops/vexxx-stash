@@ -620,20 +620,9 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
     vrMenu.setShowButton(showButton);
 
     // Restore the stored mode (or reset to Off) every time the scene changes.
+    // In-session VR mode changes are ephemeral and do not persist to the scene.
     vrMenu.setInitialMode(vrModeToVRType(scene.vr_mode));
-
-    // Persist mode changes back to the scene.
-    vrMenu.onTypeSelected = (type) => {
-      updateScene({
-        variables: {
-          input: {
-            id: scene.id,
-            vr_mode: type ? vrTypeToGqlMode(type) : null,
-          },
-        },
-      });
-    };
-  }, [getPlayer, scene, vrTag, updateScene]);
+  }, [getPlayer, scene, vrTag]);
     useEffect(() => {
       const player = getPlayer();
       if (!player) return;

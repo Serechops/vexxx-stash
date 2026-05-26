@@ -276,7 +276,11 @@ export class HandyAPIv3 {
   }
 
   async isConnected(): Promise<HandyConnectedResponse> {
-    return this._get("/connected") as unknown as Promise<HandyConnectedResponse>;
+    const data = await this._get("/connected");
+    // v3 API wraps device responses in { result: { ... } }; unwrap if present
+    const result =
+      (data["result"] as Record<string, unknown> | undefined) ?? data;
+    return result as unknown as HandyConnectedResponse;
   }
 
   async getMode(): Promise<Record<string, unknown>> {
@@ -471,9 +475,9 @@ export class HandyAPIv3 {
     return this._get("/hssp/state");
   }
 
-  async hsspSetLoop(loop: boolean): Promise<Record<string, unknown>> {
-    return this._put("/hssp/loop", { loop });
-  }
+  // Note: HSSP v3 has no dedicated /hssp/loop endpoint.
+  // Loop state is set via the `loop` param in hsspPlay(); to change it mid-playback,
+  // stop and restart with the new loop value.
 
   // ── Slider ────────────────────────────────────────────────────────────────
 

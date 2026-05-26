@@ -41,12 +41,15 @@ function convertFunscriptToCSV(funscript: IFunscript): string {
   throw new Error("Not a valid funscript");
 }
 
-async function uploadCsv(csv: File): Promise<{ url: string }> {
-  const url = "https://www.handyfeeling.com/api/sync/upload?local=true";
-  const fileName = "script_" + new Date().valueOf() + ".csv";
+async function uploadCsvToHosting(csv: File): Promise<{ url: string }> {
+  const url = "https://www.handyfeeling.com/api/hosting/v2/upload";
   const formData = new FormData();
-  formData.append("syncFile", csv, fileName);
-  const response = await fetch(url, { method: "post", body: formData });
+  formData.append("file", csv);
+  const response = await fetch(url, { method: "POST", body: formData });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Script upload failed (HTTP ${response.status}): ${text}`);
+  }
   return response.json() as Promise<{ url: string }>;
 }
 
@@ -129,7 +132,7 @@ export class Interactive {
         [csv],
         `${Math.round(Math.random() * 100000000)}.csv`
       );
-      funscriptUrl = await uploadCsv(csvFile).then((r) => r.url);
+      funscriptUrl = await uploadCsvToHosting(csvFile).then((r) => r.url);
     }
 
     await this._api.setMode(HandyAPIv3.MODE.HSSP);
@@ -180,9 +183,7 @@ export class Interactive {
 
   async setLooping(looping: boolean): Promise<void> {
     this._looping = looping;
-    if (this._connected && this._playing) {
-      await this._api.hsspSetLoop(looping);
-    }
+    // HSSP v3 has no dedicated loop endpoint; the flag is applied on the next play().
   }
 
   // ── v3 extended capabilities ────────────────────────────────────────────

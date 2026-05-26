@@ -40,6 +40,7 @@ interface IScenePreviewProps {
   soundActive: boolean;
   volume?: number;
   vttPath?: string;
+  vrMode?: GQL.VrMode | null;
   onScrubberClick?: (timestamp: number) => void;
   playOnHover?: boolean;
 }
@@ -51,6 +52,7 @@ export const ScenePreview: React.FC<IScenePreviewProps> = ({
   soundActive,
   volume,
   vttPath,
+  vrMode,
   onScrubberClick,
   playOnHover = false,
 }) => {
@@ -103,6 +105,7 @@ export const ScenePreview: React.FC<IScenePreviewProps> = ({
         justifyContent: "center",
         mb: "5px",
         position: "relative",
+        overflow: "hidden",
         ...(isPortrait && {
           "& .scene-card-preview-image, & .scene-card-preview-video": {
             objectFit: "contain",
@@ -119,6 +122,8 @@ export const ScenePreview: React.FC<IScenePreviewProps> = ({
           objectFit: "cover",
           objectPosition: "top",
           width: "100%",
+          ...(vrMode === GQL.VrMode.Lr180 && { transform: "scaleX(2)", transformOrigin: "left center" }),
+          ...(vrMode === GQL.VrMode.Tb360 && { transform: "scaleY(2)", transformOrigin: "center top" }),
         }}
         className="scene-card-preview-image"
         loading="lazy"
@@ -139,8 +144,8 @@ export const ScenePreview: React.FC<IScenePreviewProps> = ({
           top: playOnHover ? (isHovered ? 0 : "-9999px") : "-9999px",
           transition: "top 0s",
           transitionDelay: "0s",
-          // The hover logic to show video is in styles.scss (top: 0 on hover)
-          // For playOnHover mode, we control visibility via state
+          ...(vrMode === GQL.VrMode.Lr180 && { transform: "scaleX(2)", transformOrigin: "left center" }),
+          ...(vrMode === GQL.VrMode.Tb360 && { transform: "scaleY(2)", transformOrigin: "center top" }),
         }}
         className="scene-card-preview-video"
         loop
@@ -285,6 +290,7 @@ const SceneCardImage = PatchComponent(
           soundActive={configuration?.interface?.soundOnPreview ?? false}
           volume={configuration?.ui.previewVolume ?? defaultPreviewVolume}
           vttPath={props.scene.paths.vtt ?? undefined}
+          vrMode={props.scene.vr_mode}
           onScrubberClick={onScrubberClick}
         />
         {maybeRenderInteractiveSpeedOverlay()}

@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from "react";
 import cx from "classnames";
 import { Box } from "@mui/material";
 import { PreviewScrubber } from "./PreviewScrubber";
+import * as GQL from "src/core/generated-graphql";
 
 interface IHoverVideoPreviewProps {
     image?: string;
@@ -10,7 +11,19 @@ interface IHoverVideoPreviewProps {
     soundActive: boolean;
     isPortrait?: boolean;
     vttPath?: string;
+    vrMode?: GQL.VrMode | null;
     onScrubberClick?: (timestamp: number) => void;
+}
+
+function vrTransformStyle(vrMode?: GQL.VrMode | null): React.CSSProperties {
+    switch (vrMode) {
+        case GQL.VrMode.Lr180:
+            return { transform: "scaleX(2)", transformOrigin: "left center" };
+        case GQL.VrMode.Tb360:
+            return { transform: "scaleY(2)", transformOrigin: "center top" };
+        default:
+            return {};
+    }
 }
 
 export const HoverVideoPreview: React.FC<IHoverVideoPreviewProps> = ({
@@ -20,8 +33,10 @@ export const HoverVideoPreview: React.FC<IHoverVideoPreviewProps> = ({
     soundActive,
     isPortrait = false,
     vttPath,
+    vrMode,
     onScrubberClick,
 }) => {
+    const vrStyle = vrTransformStyle(vrMode);
     const videoEl = useRef<HTMLVideoElement>(null);
 
     useEffect(() => {
@@ -76,7 +91,8 @@ export const HoverVideoPreview: React.FC<IHoverVideoPreviewProps> = ({
                     objectFit: "cover",
                     objectPosition: "top",
                     transition: "opacity 0.2s",
-                    "&.hidden": { opacity: 0 }
+                    "&.hidden": { opacity: 0 },
+                    ...vrStyle,
                 }}
             />
             <Box
@@ -100,7 +116,8 @@ export const HoverVideoPreview: React.FC<IHoverVideoPreviewProps> = ({
                     opacity: 0,
                     transition: "opacity 0.2s",
                     "&.hidden": { display: "none" },
-                    ...(isHovered && { opacity: 1 })
+                    ...(isHovered && { opacity: 1 }),
+                    ...vrStyle,
                 }}
             />
             {/* Show scrubber when video is playing/hovered */}

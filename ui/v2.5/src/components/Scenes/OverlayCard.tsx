@@ -172,6 +172,7 @@ export const OverlayCard: React.FC<ISceneCardProps> = ({
                         soundActive={configuration?.interface?.soundOnPreview ?? false}
                         isPortrait={false}
                         vttPath={scene.paths.vtt ?? undefined}
+                        vrMode={scene.vr_mode}
                     />
 
                     {extraActions && (

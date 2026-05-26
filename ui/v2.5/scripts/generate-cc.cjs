@@ -29,12 +29,14 @@ function getLatestVersions() {
     const tags = getGitTags();
     let latestOfficial = null;
     let latestRC = null;
+    const officialTagSet = new Set();
 
     tags.forEach(tag => {
         const v = parseVersion(tag);
         if (!v) return;
 
         if (v.rc === null) {
+            officialTagSet.add(tag);
             if (!latestOfficial || compareVersions(v, latestOfficial) > 0) {
                 latestOfficial = v;
             }
@@ -45,7 +47,14 @@ function getLatestVersions() {
         }
     });
 
-    return { latestOfficial, latestRC };
+    // True only if an exact official release for the RC's target version exists.
+    // e.g. v1.3.0-rc.2 is still "active" even if a spurious v1.3.5 tag exists,
+    // as long as v1.3.0 itself has never been officially tagged.
+    const rcBaseIsReleased = latestRC
+        ? officialTagSet.has(`v${latestRC.major}.${latestRC.minor}.${latestRC.patch}`)
+        : false;
+
+    return { latestOfficial, latestRC, rcBaseIsReleased };
 }
 
 function compareVersions(a, b) {
@@ -61,7 +70,7 @@ function compareVersions(a, b) {
     return aRc - bRc;
 }
 
-function calculateNextVersion(type, latestOfficial, latestRC) {
+function calculateNextVersion(type, latestOfficial, latestRC, rcBaseIsReleased) {
     // Default start if no tags exist
     if (!latestOfficial) {
         return type === 'release' ? 'v1.0.0' : 'v1.0.0-rc.1';
@@ -72,16 +81,11 @@ function calculateNextVersion(type, latestOfficial, latestRC) {
     let nextMinor = latestOfficial.minor;
     let nextPatch = latestOfficial.patch;
 
-    // Strategy: We are iterating on Minor versions as per user request (v1.0 -> v1.1)
-    // If you want patch increments (1.0.0 -> 1.0.1), change this logic.
-    // Assuming "iteration" implies new features/minor release for this project context.
-
-    // Check if we have an active RC newer than the latest official
-    const rcIsNewer = latestRC && (
-        latestRC.major > latestOfficial.major ||
-        (latestRC.major === latestOfficial.major && latestRC.minor > latestOfficial.minor) ||
-        (latestRC.major === latestOfficial.major && latestRC.minor === latestOfficial.minor && latestRC.patch > latestOfficial.patch) // unlikely for RC to have higher patch than official base
-    );
+    // An RC is "active" (still in progress) when its exact target version (e.g. v1.3.0)
+    // has never been officially released. We do NOT compare against the highest official
+    // tag numerically, because a stray higher-version tag (e.g. v1.3.5 set by mistake)
+    // should not invalidate an in-progress RC series for v1.3.0.
+    const rcIsNewer = latestRC && !rcBaseIsReleased;
 
     if (type === 'rc') {
         if (rcIsNewer) {
@@ -148,12 +152,12 @@ function createAndPushTag(version) {
 
 if (!STASH_VERSION && (isRC || isRelease)) {
     console.log('[Vexxx] Calculating next version...');
-    const { latestOfficial, latestRC } = getLatestVersions();
+    const { latestOfficial, latestRC, rcBaseIsReleased } = getLatestVersions();
 
     console.log(`Current Official: ${latestOfficial ? latestOfficial.full : 'None'}`);
     console.log(`Current RC:       ${latestRC ? latestRC.full : 'None'}`);
 
-    STASH_VERSION = calculateNextVersion(isRelease ? 'release' : 'rc', latestOfficial, latestRC);
+    STASH_VERSION = calculateNextVersion(isRelease ? 'release' : 'rc', latestOfficial, latestRC, rcBaseIsReleased);
     console.log(`Target Version:   ${STASH_VERSION}`);
 
     createAndPushTag(STASH_VERSION);

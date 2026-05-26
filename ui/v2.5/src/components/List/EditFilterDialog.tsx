@@ -572,18 +572,18 @@ export const EditFilterDialog: React.FC<IEditFilterProps> = ({
               onTogglePin={(c) => onTogglePinFilter(c)}
               externallySelected={!!editingCriterion}
             />
-            {criteria.length > 0 && (
-              <Box sx={{ borderTop: 1, borderColor: "divider", pt: 2, px: 3 }}>
-                <FilterTags
-                  criteria={criteria}
-                  onEditCriterion={(c) => optionSelected(c.criterionOption)}
-                  onRemoveCriterion={removeCriterion}
-                  onRemoveAll={() => onClearAll()}
-                />
-              </Box>
-            )}
           </Box>
         </DialogContent>
+        {criteria.length > 0 && (
+          <Box sx={{ borderTop: 1, borderColor: "divider", pt: 2, px: 3, pb: 1 }}>
+            <FilterTags
+              criteria={criteria}
+              onEditCriterion={(c) => optionSelected(c.criterionOption)}
+              onRemoveCriterion={removeCriterion}
+              onRemoveAll={() => onClearAll()}
+            />
+          </Box>
+        )}
         <DialogActions sx={{ justifyContent: "space-between", px: 3, py: 2, borderTop: 1, borderColor: "divider" }}>
           <Box>
             <Button

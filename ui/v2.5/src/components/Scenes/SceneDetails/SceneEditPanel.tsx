@@ -847,15 +847,6 @@ export const SceneEditPanel: React.FC<IProps> = ({
           </Grid>
           <Grid size={{ lg: 5, xl: 12 }}>
             {renderDetailsField()}
-            <Button
-              className="text-left mt-3"
-              variant="text"
-              color="success"
-              onClick={() => setIsStashIDSearchOpen(true)}
-            >
-              <AddIcon sx={{ mr: 1 }} />
-              <FormattedMessage id="actions.add_stash_id" />
-            </Button>
             <Box mb={3} id="cover_image">
               <Typography variant="body2" color="textSecondary" gutterBottom>
                 <FormattedMessage id="cover_image" />

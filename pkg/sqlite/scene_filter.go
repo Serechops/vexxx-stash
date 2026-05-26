@@ -180,6 +180,7 @@ func (qb *sceneFilterHandler) criterionHandler() criterionHandler {
 		&dateCriterionHandler{sceneFilter.Date, "scenes.date", nil},
 		&timestampCriterionHandler{sceneFilter.CreatedAt, "scenes.created_at", nil},
 		&timestampCriterionHandler{sceneFilter.UpdatedAt, "scenes.updated_at", nil},
+		qb.vrModeCriterionHandler(sceneFilter.VrMode),
 
 		&relatedFilterHandler{
 			relatedIDCol:   "scenes_galleries.gallery_id",
@@ -511,6 +512,19 @@ func (qb *sceneFilterHandler) captionCriterionHandler(captions *models.StringCri
 	}
 
 	return h.handler(captions)
+}
+
+func (qb *sceneFilterHandler) vrModeCriterionHandler(vrMode *models.VRModeCriterionInput) criterionHandlerFunc {
+	return func(ctx context.Context, f *filterBuilder) {
+		if vrMode == nil {
+			return
+		}
+		values := make([]string, len(vrMode.Value))
+		for i, v := range vrMode.Value {
+			values[i] = v.String()
+		}
+		enumCriterionHandler(vrMode.Modifier, values, "scenes.vr_mode")(ctx, f)
+	}
 }
 
 func (qb *sceneFilterHandler) tagsCriterionHandler(tags *models.HierarchicalMultiCriterionInput) criterionHandlerFunc {

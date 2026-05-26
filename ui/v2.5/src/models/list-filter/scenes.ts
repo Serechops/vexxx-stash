@@ -38,6 +38,7 @@ import { RatingCriterionOption } from "./criteria/rating";
 import { PathCriterionOption } from "./criteria/path";
 import { OrientationCriterionOption } from "./criteria/orientation";
 import { FolderCriterionOption } from "./criteria/folder";
+import { VRModeCriterionOption } from "./criteria/vr-mode";
 
 const defaultSortBy = "date";
 const sortByOptions = [
@@ -146,6 +147,7 @@ const criterionOptions = [
   createDateCriterionOption("date"),
   createMandatoryTimestampCriterionOption("created_at"),
   createMandatoryTimestampCriterionOption("updated_at"),
+  VRModeCriterionOption,
 ];
 
 export const SceneListFilterOptions = new ListFilterOptions(

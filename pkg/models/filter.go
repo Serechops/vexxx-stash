@@ -195,6 +195,11 @@ type OrientationCriterionInput struct {
 	Value []OrientationEnum `json:"value"`
 }
 
+type VRModeCriterionInput struct {
+	Value    []VRMode          `json:"value"`
+	Modifier CriterionModifier `json:"modifier"`
+}
+
 type CustomFieldCriterionInput struct {
 	Field    string            `json:"field"`
 	Value    []any             `json:"value"`

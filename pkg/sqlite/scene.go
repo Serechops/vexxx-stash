@@ -1221,6 +1221,9 @@ func (qb *SceneStore) isUnfilteredQuery(options models.SceneQueryOptions) bool {
 		if f.CreatedAt != nil || f.UpdatedAt != nil {
 			return false
 		}
+		if f.VrMode != nil {
+			return false
+		}
 	}
 
 	if options.FindFilter != nil && options.FindFilter.Q != nil && *options.FindFilter.Q != "" {

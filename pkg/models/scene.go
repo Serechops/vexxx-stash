@@ -125,6 +125,8 @@ type SceneFilterType struct {
 	CreatedAt *TimestampCriterionInput `json:"created_at"`
 	// Filter by updated at
 	UpdatedAt *TimestampCriterionInput `json:"updated_at"`
+	// Filter by VR mode
+	VrMode *VRModeCriterionInput `json:"vr_mode"`
 }
 
 type SceneQueryOptions struct {

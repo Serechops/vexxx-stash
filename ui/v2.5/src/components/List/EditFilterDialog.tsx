@@ -47,7 +47,6 @@ import { useFocusOnce } from "src/utils/focus";
 import Mousetrap from "mousetrap";
 import ScreenUtils from "src/utils/screen";
 import { LoadFilterDialog, SaveFilterDialog } from "./SavedFilterList";
-import { SearchTermInput } from "./ListFilter";
 
 interface ICriterionList {
   criteria: string[];
@@ -568,26 +567,6 @@ export const EditFilterDialog: React.FC<IEditFilterProps> = ({
         </DialogTitle>
         <DialogContent sx={{ p: 0, maxHeight: "min(550px, calc(100vh - 12rem))" }}>
           <Box className={cx({ "criterion-selected": !!criterion })}>
-            <Box sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 1,
-              justifyContent: "space-between",
-              mb: 1,
-              mx: 3,
-              mt: 1,
-              flexWrap: { xs: "wrap", sm: "nowrap" }
-            }}>
-              <span>
-                <FormattedMessage id="search_filter.search_term" />
-              </span>
-              <Box sx={{ flexBasis: { xs: "100%", sm: "75%" } }}>
-                <SearchTermInput
-                  filter={currentFilter}
-                  onFilterUpdate={setCurrentFilter}
-                />
-              </Box>
-            </Box>
             <CriterionOptionList
               criteria={criteriaList}
               currentCriterion={criterion}

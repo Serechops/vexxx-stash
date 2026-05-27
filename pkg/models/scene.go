@@ -91,6 +91,8 @@ type SceneFilterType struct {
 	Interactive *bool `json:"interactive"`
 	// Filter by InteractiveSpeed
 	InteractiveSpeed *IntCriterionInput `json:"interactive_speed"`
+	// Filter by funscript path (explicitly assigned)
+	HasFunscript *bool `json:"has_funscript"`
 	// Filter by captions
 	Captions *StringCriterionInput `json:"captions"`
 	// Filter by resume time
@@ -158,6 +160,12 @@ type SceneGroupInput struct {
 	SceneIndex *int   `json:"scene_index"`
 }
 
+type SceneCaptionInput struct {
+	LanguageCode string `json:"language_code"`
+	CaptionType  string `json:"caption_type"`
+	Filepath     string `json:"filepath"`
+}
+
 type SceneCreateInput struct {
 	Title        *string           `json:"title"`
 	Code         *string           `json:"code"`
@@ -182,9 +190,11 @@ type SceneCreateInput struct {
 	// Files must not already be primary for another scene.
 	FileIds []string `json:"file_ids"`
 
-	StartPoint *float64 `json:"start_point"`
-	EndPoint   *float64 `json:"end_point"`
-	VrMode     *VRMode  `json:"vr_mode"`
+	StartPoint    *float64             `json:"start_point"`
+	EndPoint      *float64             `json:"end_point"`
+	VrMode        *VRMode              `json:"vr_mode"`
+	FunscriptPath *string              `json:"funscript_path"`
+	Captions      []*SceneCaptionInput `json:"captions"`
 }
 
 type SceneUpdateInput struct {
@@ -214,9 +224,11 @@ type SceneUpdateInput struct {
 	PlayCount     *int           `json:"play_count"`
 	PrimaryFileID *string        `json:"primary_file_id"`
 
-	StartPoint *float64 `json:"start_point"`
-	EndPoint   *float64 `json:"end_point"`
-	VrMode     *VRMode  `json:"vr_mode"`
+	StartPoint    *float64             `json:"start_point"`
+	EndPoint      *float64             `json:"end_point"`
+	VrMode        *VRMode              `json:"vr_mode"`
+	FunscriptPath *string              `json:"funscript_path"`
+	Captions      []*SceneCaptionInput `json:"captions"`
 }
 
 type SceneDestroyInput struct {

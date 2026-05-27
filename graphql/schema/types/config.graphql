@@ -594,6 +594,7 @@ type Directory {
   path: String!
   parent: String
   directories: [String!]!
+  files: [String!]!
 }
 
 "Stash configuration details"

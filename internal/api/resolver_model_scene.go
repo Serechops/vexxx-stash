@@ -144,22 +144,55 @@ func (r *sceneResolver) SceneMarkers(ctx context.Context, obj *models.Scene) (re
 }
 
 func (r *sceneResolver) Captions(ctx context.Context, obj *models.Scene) (ret []*models.VideoCaption, err error) {
+	// Merge auto-detected (file-level) captions with manually linked (scene-level) captions.
+	// Scene-level entries override file-level entries with the same (language_code, caption_type).
+	type captionKey struct{ lang, captionType string }
+	merged := make(map[captionKey]*models.VideoCaption)
+
 	primaryFile, err := r.getPrimaryFile(ctx, obj)
 	if err != nil {
 		return nil, err
 	}
-	if primaryFile == nil {
-		return nil, nil
-	}
 
 	if err := r.withReadTxn(ctx, func(ctx context.Context) error {
-		ret, err = r.repository.File.GetCaptions(ctx, primaryFile.Base().ID)
-		return err
+		// file-level (auto-detected)
+		if primaryFile != nil {
+			fileCaptions, err := r.repository.File.GetCaptions(ctx, primaryFile.Base().ID)
+			if err != nil {
+				return err
+			}
+			for _, c := range fileCaptions {
+				filepath := c.Path(obj.Path)
+				merged[captionKey{c.LanguageCode, c.CaptionType}] = &models.VideoCaption{
+					LanguageCode: c.LanguageCode,
+					CaptionType:  c.CaptionType,
+					Filepath:     &filepath,
+				}
+			}
+		}
+
+		// scene-level (manually linked) — overrides file-level
+		sceneCaptions, err := r.repository.Scene.GetSceneCaptions(ctx, obj.ID)
+		if err != nil {
+			return err
+		}
+		for _, c := range sceneCaptions {
+			fp := c.Filepath
+			merged[captionKey{c.LanguageCode, c.CaptionType}] = &models.VideoCaption{
+				LanguageCode: c.LanguageCode,
+				CaptionType:  c.CaptionType,
+				Filepath:     &fp,
+			}
+		}
+		return nil
 	}); err != nil {
 		return nil, err
 	}
 
-	return ret, err
+	for _, vc := range merged {
+		ret = append(ret, vc)
+	}
+	return ret, nil
 }
 
 func (r *sceneResolver) Galleries(ctx context.Context, obj *models.Scene) (ret []*models.Gallery, err error) {
@@ -313,6 +346,11 @@ func (r *sceneResolver) SceneStreams(ctx context.Context, obj *models.Scene) ([]
 }
 
 func (r *sceneResolver) Interactive(ctx context.Context, obj *models.Scene) (bool, error) {
+	// A scene is interactive if its primary file has interactive=true OR a funscript_path is manually set.
+	if obj.FunscriptPath != nil {
+		return true, nil
+	}
+
 	primaryFile, err := r.getPrimaryFile(ctx, obj)
 	if err != nil {
 		return false, err

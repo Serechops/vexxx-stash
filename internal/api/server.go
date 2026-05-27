@@ -414,12 +414,13 @@ func (s *Server) getPerformerRoutes() chi.Router {
 func (s *Server) getSceneRoutes() chi.Router {
 	repo := s.manager.Repository
 	return sceneRoutes{
-		routes:            routes{txnManager: repo.TxnManager},
-		sceneFinder:       repo.Scene,
-		fileGetter:        repo.File,
-		captionFinder:     repo.File,
-		sceneMarkerFinder: repo.SceneMarker,
-		tagFinder:         repo.Tag,
+		routes:             routes{txnManager: repo.TxnManager},
+		sceneFinder:        repo.Scene,
+		fileGetter:         repo.File,
+		captionFinder:      repo.File,
+		sceneCaptionFinder: repo.Scene,
+		sceneMarkerFinder:  repo.SceneMarker,
+		tagFinder:          repo.Tag,
 	}.Routes()
 }
 

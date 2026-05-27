@@ -3018,8 +3018,8 @@ export const mutateMigrateBlobs = (input: GQL.MigrateBlobsInput) =>
 
 /// Misc
 
-export const useDirectory = (path?: string) =>
-  GQL.useDirectoryQuery({ variables: { path } });
+export const useDirectory = (path?: string, fileExtensions?: string[]) =>
+  GQL.useDirectoryQuery({ variables: { path, fileExtensions } });
 
 export const queryParseSceneFilenames = (
   filter: GQL.FindFilterType,

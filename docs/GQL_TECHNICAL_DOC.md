@@ -135,6 +135,24 @@ When a new GraphQL field requires backing by the database (e.g. `has_preview` fo
 *   If the field is for filtering, update `pkg/sqlite/<entity>_filter.go`.
 *   Replace any temporary stub logic (e.g., `f.addWhere("0")`) with actual column checks (e.g., `f.addWhere("scenes.has_preview = 1")`).
 
+### ⚠️ 5- The `isUnfilteredQuery` Fast-Path Trap
+**Every new filter field must be registered in `pkg/sqlite/scene.go`'s `isUnfilteredQuery` function.**
+
+`isUnfilteredQuery` is an optimisation that returns all scene IDs via a fast unconstrained query when it detects no filter is active. It does this by checking each filter field for `nil`. If you add a new field to `SceneFilterType` but omit the nil check here, the fast path is taken even when the filter is set — returning **all scenes** while the count query remains correct.
+
+**Symptom**: New filter appears to return all scenes. Count and filtered results disagree.
+
+**Fix**: Add a nil check alongside the other fields in `isUnfilteredQuery`:
+
+```go
+// pkg/sqlite/scene.go — isUnfilteredQuery
+if f.YourNewField != nil {
+    return false
+}
+```
+
+This was the root cause of the VR mode and Has Funscript filter bugs.
+
 ---
 
 ## 8. Asynchronous Background Jobs via GraphQL

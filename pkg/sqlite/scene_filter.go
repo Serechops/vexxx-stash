@@ -145,6 +145,7 @@ func (qb *sceneFilterHandler) criterionHandler() criterionHandler {
 
 		boolCriterionHandler(sceneFilter.Interactive, "video_files.interactive", qb.addVideoFilesTable),
 		intCriterionHandler(sceneFilter.InteractiveSpeed, "video_files.interactive_speed", qb.addVideoFilesTable),
+		qb.hasFunscriptCriterionHandler(sceneFilter.HasFunscript),
 
 		qb.captionCriterionHandler(sceneFilter.Captions),
 
@@ -656,5 +657,18 @@ func (qb *sceneFilterHandler) performerTagsCriterionHandler(tags *models.Hierarc
 		primaryTable:   sceneTable,
 		joinTable:      performersScenesTable,
 		joinPrimaryKey: sceneIDColumn,
+	}
+}
+
+func (qb *sceneFilterHandler) hasFunscriptCriterionHandler(hasFunscript *bool) criterionHandlerFunc {
+	return func(ctx context.Context, f *filterBuilder) {
+		if hasFunscript == nil {
+			return
+		}
+		if *hasFunscript {
+			f.addWhere("scenes.funscript_path IS NOT NULL")
+		} else {
+			f.addWhere("scenes.funscript_path IS NULL")
+		}
 	}
 }

@@ -61,3 +61,43 @@ func listDir(col *collate.Collator, path string) ([]string, error) {
 	}
 	return dirPaths, nil
 }
+
+// listFiles returns filenames (basenames) inside path, optionally filtered by extensions (e.g. ".funscript", ".srt").
+// If exts is empty all files are returned. Directories are excluded.
+func listFiles(col *collate.Collator, path string, exts []string) ([]string, error) {
+	dirPath := path
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		// path might be a partial filename — use the parent directory
+		dirPath = filepath.Dir(path)
+		entries, err = os.ReadDir(dirPath)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if col != nil {
+		col.Sort(dirLister(entries))
+	}
+
+	extSet := make(map[string]struct{}, len(exts))
+	for _, e := range exts {
+		extSet[strings.ToLower(e)] = struct{}{}
+	}
+
+	var result []string
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if len(extSet) > 0 {
+			ext := strings.ToLower(filepath.Ext(name))
+			if _, ok := extSet[ext]; !ok {
+				continue
+			}
+		}
+		result = append(result, filepath.Join(dirPath, name))
+	}
+	return result, nil
+}

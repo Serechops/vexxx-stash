@@ -61,6 +61,7 @@ func (r *mutationResolver) SceneCreate(ctx context.Context, input models.SceneCr
 	newScene.StartPoint = input.StartPoint
 	newScene.EndPoint = input.EndPoint
 	newScene.VRMode = input.VrMode
+	newScene.FunscriptPath = input.FunscriptPath
 
 	newScene.Date, err = translator.datePtr(input.Date)
 	if err != nil {
@@ -114,7 +115,22 @@ func (r *mutationResolver) SceneCreate(ctx context.Context, input models.SceneCr
 
 	if err := r.withTxn(ctx, func(ctx context.Context) error {
 		ret, err = r.Resolver.sceneService.Create(ctx, &newScene, fileIDs, coverImageData)
-		return err
+		if err != nil {
+			return err
+		}
+		// Save manually linked captions if provided.
+		if len(input.Captions) > 0 {
+			var sceneCapts []*models.SceneCaption
+			for _, c := range input.Captions {
+				sceneCapts = append(sceneCapts, &models.SceneCaption{
+					LanguageCode: c.LanguageCode,
+					CaptionType:  c.CaptionType,
+					Filepath:     c.Filepath,
+				})
+			}
+			return r.repository.Scene.UpdateSceneCaptions(ctx, ret.ID, sceneCapts)
+		}
+		return nil
 	}); err != nil {
 		return nil, err
 	}
@@ -267,6 +283,7 @@ func scenePartialFromInput(input models.SceneUpdateInput, translator changesetTr
 		vrModeStr = &s
 	}
 	updatedScene.VRMode = translator.optionalString(vrModeStr, "vr_mode")
+	updatedScene.FunscriptPath = translator.optionalString(input.FunscriptPath, "funscript_path")
 
 	updatedScene.Organized = translator.optionalBool(input.Organized, "organized")
 	updatedScene.StashIDs = translator.updateStashIDs(input.StashIds, "stash_ids")
@@ -386,6 +403,21 @@ func (r *mutationResolver) sceneUpdate(ctx context.Context, input models.SceneUp
 	scene, err := qb.UpdatePartial(ctx, sceneID, *updatedScene)
 	if err != nil {
 		return nil, err
+	}
+
+	// Update manually linked captions if the field was provided.
+	if translator.hasField("captions") {
+		var sceneCapts []*models.SceneCaption
+		for _, c := range input.Captions {
+			sceneCapts = append(sceneCapts, &models.SceneCaption{
+				LanguageCode: c.LanguageCode,
+				CaptionType:  c.CaptionType,
+				Filepath:     c.Filepath,
+			})
+		}
+		if err := qb.UpdateSceneCaptions(ctx, sceneID, sceneCapts); err != nil {
+			return nil, err
+		}
 	}
 
 	if coverImageIncluded {

@@ -92,9 +92,10 @@ type sceneRow struct {
 	ResumeTime   float64   `db:"resume_time"`
 	PlayDuration float64   `db:"play_duration"`
 
-	StartPoint null.Float  `db:"start_point"`
-	EndPoint   null.Float  `db:"end_point"`
-	VRMode     null.String `db:"vr_mode"`
+	StartPoint    null.Float  `db:"start_point"`
+	EndPoint      null.Float  `db:"end_point"`
+	VRMode        null.String `db:"vr_mode"`
+	FunscriptPath null.String `db:"funscript_path"`
 
 	HasPreview bool `db:"has_preview"`
 
@@ -123,6 +124,11 @@ func (r *sceneRow) fromScene(o models.Scene) {
 		r.VRMode = null.StringFrom(string(*o.VRMode))
 	} else {
 		r.VRMode = null.String{}
+	}
+	if o.FunscriptPath != nil {
+		r.FunscriptPath = null.StringFrom(*o.FunscriptPath)
+	} else {
+		r.FunscriptPath = null.String{}
 	}
 	r.HasPreview = o.HasPreview
 }
@@ -162,6 +168,13 @@ func (r *sceneQueryRow) resolve() *models.Scene {
 		StartPoint: r.StartPoint.Ptr(),
 		EndPoint:   r.EndPoint.Ptr(),
 		VRMode:     vrModeFromNullString(r.VRMode),
+		FunscriptPath: func() *string {
+			if r.FunscriptPath.Valid {
+				s := r.FunscriptPath.String
+				return &s
+			}
+			return nil
+		}(),
 	}
 
 	if r.PrimaryFileFolderPath.Valid && r.PrimaryFileBasename.Valid {
@@ -191,6 +204,7 @@ func (r *sceneRowRecord) fromPartial(o models.ScenePartial) {
 	r.setNullFloat64("start_point", o.StartPoint)
 	r.setNullFloat64("end_point", o.EndPoint)
 	r.setNullString("vr_mode", o.VRMode)
+	r.setNullString("funscript_path", o.FunscriptPath)
 	r.setBool("has_preview", o.HasPreview)
 }
 
@@ -1224,6 +1238,9 @@ func (qb *SceneStore) isUnfilteredQuery(options models.SceneQueryOptions) bool {
 		if f.VrMode != nil {
 			return false
 		}
+		if f.HasFunscript != nil {
+			return false
+		}
 	}
 
 	if options.FindFilter != nil && options.FindFilter.Q != nil && *options.FindFilter.Q != "" {
@@ -1758,4 +1775,57 @@ func getFirstPath(scenes []*models.Scene) string {
 		}
 	}
 	return firstPath
+}
+
+// ---- Scene-level captions (scene_captions table) ----
+
+const (
+	sceneCaptionsTable   = "scene_captions"
+	sceneCaptionSceneID  = "scene_id"
+	sceneCaptionLangCol  = "language_code"
+	sceneCaptionTypeCol  = "caption_type"
+	sceneCaptionFilepath = "filepath"
+)
+
+var sceneCaptionRepo = repository{
+	tableName: sceneCaptionsTable,
+	idColumn:  sceneCaptionSceneID,
+}
+
+func (qb *SceneStore) GetSceneCaptions(ctx context.Context, sceneID int) ([]*models.SceneCaption, error) {
+	query := fmt.Sprintf(
+		"SELECT %s, %s, %s FROM %s WHERE %s = ?",
+		sceneCaptionLangCol, sceneCaptionTypeCol, sceneCaptionFilepath,
+		sceneCaptionsTable, sceneCaptionSceneID,
+	)
+	var ret []*models.SceneCaption
+	err := sceneCaptionRepo.queryFunc(ctx, query, []interface{}{sceneID}, false, func(rows *sqlx.Rows) error {
+		var langCode, captionType, filepath string
+		if err := rows.Scan(&langCode, &captionType, &filepath); err != nil {
+			return err
+		}
+		ret = append(ret, &models.SceneCaption{
+			LanguageCode: langCode,
+			CaptionType:  captionType,
+			Filepath:     filepath,
+		})
+		return nil
+	})
+	return ret, err
+}
+
+func (qb *SceneStore) UpdateSceneCaptions(ctx context.Context, sceneID int, captions []*models.SceneCaption) error {
+	if err := sceneCaptionRepo.destroy(ctx, []int{sceneID}); err != nil {
+		return err
+	}
+	for _, c := range captions {
+		insStmt := fmt.Sprintf(
+			"INSERT INTO %s (%s, %s, %s, %s) VALUES (?, ?, ?, ?)",
+			sceneCaptionsTable, sceneCaptionSceneID, sceneCaptionLangCol, sceneCaptionTypeCol, sceneCaptionFilepath,
+		)
+		if _, err := dbWrapper.Exec(ctx, insStmt, sceneID, c.LanguageCode, c.CaptionType, c.Filepath); err != nil {
+			return err
+		}
+	}
+	return nil
 }

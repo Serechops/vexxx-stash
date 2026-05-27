@@ -11,10 +11,6 @@ fragment SceneData on Scene {
   organized
   interactive
   interactive_speed
-  captions {
-    language_code
-    caption_type
-  }
   created_at
   updated_at
   resume_time
@@ -25,6 +21,13 @@ fragment SceneData on Scene {
   start_point
   end_point
   vr_mode
+  funscript_path
+
+  captions {
+    language_code
+    caption_type
+    filepath
+  }
 
   play_history
   o_history

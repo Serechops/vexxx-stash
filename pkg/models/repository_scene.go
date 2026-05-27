@@ -118,6 +118,8 @@ type SceneReader interface {
 	PlayDuration(ctx context.Context) (float64, error)
 	GetCover(ctx context.Context, sceneID int) ([]byte, error)
 	HasCover(ctx context.Context, sceneID int) (bool, error)
+
+	GetSceneCaptions(ctx context.Context, sceneID int) ([]*SceneCaption, error)
 }
 
 type OHistoryWriter interface {
@@ -146,6 +148,8 @@ type SceneWriter interface {
 	ViewHistoryWriter
 	SaveActivity(ctx context.Context, sceneID int, resumeTime *float64, playDuration *float64) (bool, error)
 	ResetActivity(ctx context.Context, sceneID int, resetResume bool, resetDuration bool) (bool, error)
+
+	UpdateSceneCaptions(ctx context.Context, sceneID int, captions []*SceneCaption) error
 }
 
 // SceneReaderWriter provides all scene methods.

@@ -20,6 +20,7 @@ import { PerformersCriterionOption } from "./criteria/performers";
 import { ResolutionCriterionOption } from "./criteria/resolution";
 import { StudiosCriterionOption } from "./criteria/studios";
 import { InteractiveCriterionOption } from "./criteria/interactive";
+import { FunscriptCriterionOption } from "./criteria/funscript";
 import {
   PerformerTagsCriterionOption,
   // StudioTagsCriterionOption,
@@ -141,6 +142,7 @@ const criterionOptions = [
   createStringCriterionOption("url"),
   StashIDCriterionOption,
   InteractiveCriterionOption,
+  FunscriptCriterionOption,
   CaptionsCriterionOption,
   createMandatoryNumberCriterionOption("interactive_speed"),
   createMandatoryNumberCriterionOption("file_count"),

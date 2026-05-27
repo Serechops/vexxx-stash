@@ -18,7 +18,7 @@ func (r *queryResolver) Configuration(ctx context.Context) (*ConfigResult, error
 	return makeConfigResult(), nil
 }
 
-func (r *queryResolver) Directory(ctx context.Context, path, locale *string) (*Directory, error) {
+func (r *queryResolver) Directory(ctx context.Context, path, locale *string, fileExtensions []string) (*Directory, error) {
 
 	directory := &Directory{}
 	var err error
@@ -35,9 +35,16 @@ func (r *queryResolver) Directory(ctx context.Context, path, locale *string) (*D
 		return directory, err
 	}
 
+	files, err := listFiles(col, currentDir, fileExtensions)
+	if err != nil {
+		// Non-fatal: return directories even if file listing fails
+		files = nil
+	}
+
 	directory.Path = currentDir
 	directory.Parent = getParent(currentDir)
 	directory.Directories = directories
+	directory.Files = files
 
 	return directory, err
 }

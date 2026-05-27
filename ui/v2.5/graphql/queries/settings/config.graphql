@@ -4,11 +4,12 @@ query Configuration {
   }
 }
 
-query Directory($path: String) {
-  directory(path: $path) {
+query Directory($path: String, $fileExtensions: [String!]) {
+  directory(path: $path, fileExtensions: $fileExtensions) {
     path
     parent
     directories
+    files
   }
 }
 

@@ -77,9 +77,10 @@ type Scene struct {
 	ResumeTime   float64 `json:"resume_time"`
 	PlayDuration float64 `json:"play_duration"`
 
-	StartPoint *float64 `json:"start_point"`
-	EndPoint   *float64 `json:"end_point"`
-	VRMode     *VRMode  `json:"vr_mode"`
+	StartPoint    *float64 `json:"start_point"`
+	EndPoint      *float64 `json:"end_point"`
+	VRMode        *VRMode  `json:"vr_mode"`
+	FunscriptPath *string  `json:"funscript_path"`
 
 	URLs         RelatedStrings  `json:"urls"`
 	GalleryIDs   RelatedIDs      `json:"gallery_ids"`
@@ -106,17 +107,18 @@ type ScenePartial struct {
 	Director OptionalString
 	Date     OptionalDate
 	// Rating expressed in 1-100 scale
-	Rating       OptionalInt
-	Organized    OptionalBool
-	StudioID     OptionalInt
-	CreatedAt    OptionalTime
-	UpdatedAt    OptionalTime
-	ResumeTime   OptionalFloat64
-	PlayDuration OptionalFloat64
-	StartPoint   OptionalFloat64
-	EndPoint     OptionalFloat64
-	VRMode       OptionalString
-	HasPreview   OptionalBool
+	Rating        OptionalInt
+	Organized     OptionalBool
+	StudioID      OptionalInt
+	CreatedAt     OptionalTime
+	UpdatedAt     OptionalTime
+	ResumeTime    OptionalFloat64
+	PlayDuration  OptionalFloat64
+	StartPoint    OptionalFloat64
+	EndPoint      OptionalFloat64
+	VRMode        OptionalString
+	HasPreview    OptionalBool
+	FunscriptPath OptionalString
 
 	URLs          *UpdateStrings
 	GalleryIDs    *UpdateIDs
@@ -317,11 +319,19 @@ type SceneFileType struct {
 }
 
 type VideoCaption struct {
-	LanguageCode string `json:"language_code"`
-	Filename     string `json:"filename"`
-	CaptionType  string `json:"caption_type"`
+	LanguageCode string  `json:"language_code"`
+	Filename     string  `json:"filename"`
+	CaptionType  string  `json:"caption_type"`
+	Filepath     *string `json:"filepath,omitempty"`
 }
 
 func (c VideoCaption) Path(filePath string) string {
 	return filepath.Join(filepath.Dir(filePath), c.Filename)
+}
+
+// SceneCaption represents a caption explicitly linked to a scene (not derived from the video file path).
+type SceneCaption struct {
+	LanguageCode string `json:"language_code"`
+	CaptionType  string `json:"caption_type"`
+	Filepath     string `json:"filepath"`
 }

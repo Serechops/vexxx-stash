@@ -325,6 +325,8 @@ input SceneFilterType {
   interactive: Boolean
   "Filter by InteractiveSpeed"
   interactive_speed: IntCriterionInput
+  "Filter by funscript path (explicitly assigned)"
+  has_funscript: Boolean
   "Filter by captions"
   captions: StringCriterionInput
   "Filter by resume time"

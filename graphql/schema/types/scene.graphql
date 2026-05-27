@@ -34,6 +34,14 @@ type SceneGroup {
 type VideoCaption {
   language_code: String!
   caption_type: String!
+  "Full file path for this caption. Populated for both auto-detected and manually linked captions."
+  filepath: String
+}
+
+input SceneCaptionInput {
+  language_code: String!
+  caption_type: String!
+  filepath: String!
 }
 
 enum VRMode {
@@ -75,6 +83,8 @@ type Scene {
   end_point: Float
   "Stored VR playback mode for this scene"
   vr_mode: VRMode
+  "Manually linked funscript file path (overrides auto-detected path from video filename)"
+  funscript_path: String
 
   "Times a scene was played"
   play_history: [Time!]!
@@ -138,6 +148,10 @@ input SceneCreateInput {
   start_point: Float
   end_point: Float
   vr_mode: VRMode
+  "Manually linked funscript file path"
+  funscript_path: String
+  "Manually linked caption files"
+  captions: [SceneCaptionInput!]
 }
 
 input SceneUpdateInput {
@@ -180,6 +194,10 @@ input SceneUpdateInput {
   start_point: Float
   end_point: Float
   vr_mode: VRMode
+  "Manually linked funscript file path"
+  funscript_path: String
+  "Manually linked caption files"
+  captions: [SceneCaptionInput!]
 }
 
 enum BulkUpdateIdMode {

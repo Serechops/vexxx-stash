@@ -42,13 +42,18 @@ type CaptionFinder interface {
 	GetCaptions(ctx context.Context, fileID models.FileID) ([]*models.VideoCaption, error)
 }
 
+type SceneCaptionFinder interface {
+	GetSceneCaptions(ctx context.Context, sceneID int) ([]*models.SceneCaption, error)
+}
+
 type sceneRoutes struct {
 	routes
-	sceneFinder       SceneFinder
-	fileGetter        models.FileGetter
-	captionFinder     CaptionFinder
-	sceneMarkerFinder SceneMarkerFinder
-	tagFinder         SceneMarkerTagFinder
+	sceneFinder        SceneFinder
+	fileGetter         models.FileGetter
+	captionFinder      CaptionFinder
+	sceneCaptionFinder SceneCaptionFinder
+	sceneMarkerFinder  SceneMarkerFinder
+	tagFinder          SceneMarkerTagFinder
 }
 
 func (rs sceneRoutes) Routes() chi.Router {
@@ -405,6 +410,9 @@ func (rs sceneRoutes) VttSprite(w http.ResponseWriter, r *http.Request) {
 func (rs sceneRoutes) Funscript(w http.ResponseWriter, r *http.Request) {
 	s := r.Context().Value(sceneKey).(*models.Scene)
 	filepath := video.GetFunscriptPath(s.Path)
+	if s.FunscriptPath != nil {
+		filepath = *s.FunscriptPath
+	}
 
 	utils.ServeStaticFile(w, r, filepath)
 }
@@ -434,17 +442,37 @@ func (rs sceneRoutes) InteractiveHeatmap(w http.ResponseWriter, r *http.Request)
 func (rs sceneRoutes) Caption(w http.ResponseWriter, r *http.Request, lang string, ext string) {
 	s := r.Context().Value(sceneKey).(*models.Scene)
 
-	var captions []*models.VideoCaption
+	// Merge file-level captions (auto-detected) with scene-level captions (manually linked).
+	// Scene-level entries override by (language_code, caption_type).
+	type captionKey struct{ lang, ext string }
+	type resolvedCaption struct {
+		path     string
+		isStored bool // true = absolute path from scene_captions, false = derive via VideoCaption.Path()
+	}
+	merged := make(map[captionKey]resolvedCaption)
+
 	readTxnErr := rs.withReadTxn(r, func(ctx context.Context) error {
-		var err error
 		primaryFile := s.Files.Primary()
-		if primaryFile == nil {
-			return nil
+		if primaryFile != nil {
+			fileCaptions, err := rs.captionFinder.GetCaptions(ctx, primaryFile.Base().ID)
+			if err != nil {
+				return err
+			}
+			for _, c := range fileCaptions {
+				merged[captionKey{c.LanguageCode, c.CaptionType}] = resolvedCaption{path: c.Path(s.Path)}
+			}
 		}
 
-		captions, err = rs.captionFinder.GetCaptions(ctx, primaryFile.Base().ID)
-
-		return err
+		if rs.sceneCaptionFinder != nil {
+			sceneCaptions, err := rs.sceneCaptionFinder.GetSceneCaptions(ctx, s.ID)
+			if err != nil {
+				return err
+			}
+			for _, c := range sceneCaptions {
+				merged[captionKey{c.LanguageCode, c.CaptionType}] = resolvedCaption{path: c.Filepath, isStored: true}
+			}
+		}
+		return nil
 	})
 	if errors.Is(readTxnErr, context.Canceled) {
 		return
@@ -455,12 +483,8 @@ func (rs sceneRoutes) Caption(w http.ResponseWriter, r *http.Request, lang strin
 		return
 	}
 
-	for _, caption := range captions {
-		if lang != caption.LanguageCode || ext != caption.CaptionType {
-			continue
-		}
-
-		sub, err := video.ReadSubs(caption.Path(s.Path))
+	if rc, ok := merged[captionKey{lang, ext}]; ok {
+		sub, err := video.ReadSubs(rc.path)
 		if err != nil {
 			logger.Warnf("error while reading subs: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -468,16 +492,13 @@ func (rs sceneRoutes) Caption(w http.ResponseWriter, r *http.Request, lang strin
 		}
 
 		var buf bytes.Buffer
-
-		err = sub.WriteToWebVTT(&buf)
-		if err != nil {
+		if err = sub.WriteToWebVTT(&buf); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
 		w.Header().Set("Content-Type", "text/vtt")
 		utils.ServeStaticContent(w, r, buf.Bytes())
-		return
 	}
 }
 

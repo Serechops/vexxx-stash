@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
-import { Button, ButtonGroup, Box, Typography, TextField, Select, MenuItem, FormControl } from "@mui/material";
+import { Button, ButtonGroup, Box, Typography, TextField, Select, MenuItem, FormControl, IconButton, Table, TableBody, TableCell, TableHead, TableRow } from "@mui/material";
 import Grid from "@mui/material/Grid";
 import Mousetrap from "mousetrap";
 import * as GQL from "src/core/generated-graphql";
@@ -23,6 +23,8 @@ import { useConfigurationContext } from "src/hooks/Config";
 import { IGroupEntry, SceneGroupTable } from "./SceneGroupTable";
 import SearchIcon from "@mui/icons-material/Search";
 import AddIcon from "@mui/icons-material/Add";
+import DeleteIcon from "@mui/icons-material/Delete";
+import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import { objectTitle } from "src/core/files";
 import { galleryTitle } from "src/core/galleries";
 import { lazyComponent } from "src/utils/lazyComponent";
@@ -43,6 +45,7 @@ import { Group } from "src/components/Groups/GroupSelect";
 import { useTagsEdit } from "src/hooks/tagsEdit";
 import { ScraperMenu } from "src/components/Shared/ScraperMenu";
 import StashBoxIDSearchModal from "src/components/Shared/StashBoxIDSearchModal";
+import { FileSelectDialog } from "src/components/Shared/FolderSelect/FileSelectDialog";
 
 const SceneScrapeDialog = lazyComponent(() => import("./SceneScrapeDialog"));
 const SceneQueryModal = lazyComponent(() => import("./SceneQueryModal"));
@@ -81,6 +84,9 @@ export const SceneEditPanel: React.FC<IProps> = ({
     useState<boolean>(false);
   const [isStashIDSearchOpen, setIsStashIDSearchOpen] =
     useState<boolean>(false);
+  const [showFunscriptBrowser, setShowFunscriptBrowser] = useState(false);
+  // Index of the caption being browsed for a file path, or -1 for "add new"
+  const [captionBrowseIndex, setCaptionBrowseIndex] = useState<number | null>(null);
   const [scrapedScene, setScrapedScene] = useState<GQL.ScrapedScene | null>();
   const [endpoint, setEndpoint] = useState<string>();
 
@@ -134,6 +140,12 @@ export const SceneEditPanel: React.FC<IProps> = ({
     details: yup.string().ensure(),
     cover_image: yup.string().nullable().optional(),
     vr_mode: yup.mixed<GQL.VrMode>().nullable().optional(),
+    funscript_path: yup.string().nullable().optional(),
+    captions: yup.array(yup.object({
+      language_code: yup.string().required(),
+      caption_type: yup.string().required(),
+      filepath: yup.string().required(),
+    }).required()).defined(),
   });
 
   const initialValues = useMemo(
@@ -154,6 +166,12 @@ export const SceneEditPanel: React.FC<IProps> = ({
       details: scene.details ?? "",
       cover_image: initialCoverImage,
       vr_mode: scene.vr_mode ?? null,
+      funscript_path: scene.funscript_path ?? null,
+      captions: (scene.captions ?? []).map((c) => ({
+        language_code: c.language_code,
+        caption_type: c.caption_type,
+        filepath: c.filepath ?? "",
+      })).filter((c) => c.filepath !== ""),
     }),
     [scene, initialCoverImage]
   );
@@ -737,6 +755,39 @@ export const SceneEditPanel: React.FC<IProps> = ({
           initialQuery={scene.title ?? ""}
         />
       )}
+
+      {showFunscriptBrowser && (
+        <FileSelectDialog
+          title={intl.formatMessage({ id: "funscript_path", defaultMessage: "Select Funscript" })}
+          defaultDirectory={formik.values.funscript_path ? formik.values.funscript_path.replace(/[\\/][^\\/]+$/, "") : ""}
+          extensions={[".funscript"]}
+          onClose={(filePath) => {
+            if (filePath !== undefined) {
+              formik.setFieldValue("funscript_path", filePath);
+            }
+            setShowFunscriptBrowser(false);
+          }}
+        />
+      )}
+
+      {captionBrowseIndex !== null && (
+        <FileSelectDialog
+          title={intl.formatMessage({ id: "actions.select_caption_file", defaultMessage: "Select Caption File" })}
+          defaultDirectory={
+            (formik.values.captions ?? [])[captionBrowseIndex]?.filepath?.replace(/[\\/][^\\/]+$/, "") ?? ""
+          }
+          extensions={[".srt", ".vtt"]}
+          onClose={(filePath) => {
+            if (filePath !== undefined && captionBrowseIndex !== null) {
+              const updated = [...(formik.values.captions ?? [])];
+              updated[captionBrowseIndex] = { ...updated[captionBrowseIndex], filepath: filePath };
+              formik.setFieldValue("captions", updated);
+            }
+            setCaptionBrowseIndex(null);
+          }}
+        />
+      )}
+
       <Box component="form" noValidate onSubmit={formik.handleSubmit}>
         <Grid container spacing={2} className="form-container edit-buttons-container px-3 pt-3">
           <div className="edit-buttons mb-3 pl-0">
@@ -821,6 +872,141 @@ export const SceneEditPanel: React.FC<IProps> = ({
                   <MenuItem value="MONO360">360° Mono</MenuItem>
                 </Select>
               </FormControl>
+            )}
+
+            {/* Funscript path override */}
+            {renderField(
+              "funscript_path",
+              intl.formatMessage({ id: "funscript_path", defaultMessage: "Funscript Path" }),
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  value={formik.values.funscript_path ?? ""}
+                  placeholder={intl.formatMessage({ id: "funscript_path_placeholder", defaultMessage: "Auto-detected (leave blank)" })}
+                  onChange={(e) => formik.setFieldValue("funscript_path", e.target.value || null)}
+                />
+                <IconButton size="small" onClick={() => setShowFunscriptBrowser(true)}>
+                  <FolderOpenIcon fontSize="small" />
+                </IconButton>
+                {formik.values.funscript_path && (
+                  <IconButton size="small" onClick={() => formik.setFieldValue("funscript_path", null)}>
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                )}
+              </Box>
+            )}
+
+            {/* Captions */}
+            {renderField(
+              "captions",
+              intl.formatMessage({ id: "captions", defaultMessage: "Captions" }),
+              <Box>
+                {(formik.values.captions ?? []).length > 0 && (
+                  <Box sx={{ overflowX: "auto", mb: 1 }}>
+                    <Table
+                      size="small"
+                      sx={{ tableLayout: "fixed", width: "100%", minWidth: 400 }}
+                    >
+                      <colgroup>
+                        <col style={{ width: "20%" }} />
+                        <col style={{ width: "15%" }} />
+                        <col />
+                        <col style={{ width: "40px" }} />
+                      </colgroup>
+                      <TableHead>
+                        <TableRow>
+                          <TableCell sx={{ px: 0.5 }}>
+                            <FormattedMessage id="language" defaultMessage="Language" />
+                          </TableCell>
+                          <TableCell sx={{ px: 0.5 }}>
+                            <FormattedMessage id="type" defaultMessage="Type" />
+                          </TableCell>
+                          <TableCell sx={{ px: 0.5 }}>
+                            <FormattedMessage id="file" defaultMessage="File" />
+                          </TableCell>
+                          <TableCell sx={{ px: 0.5 }} />
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {(formik.values.captions ?? []).map((cap, idx) => (
+                          <TableRow key={idx}>
+                            <TableCell sx={{ px: 0.5 }}>
+                              <TextField
+                                fullWidth
+                                size="small"
+                                value={cap.language_code}
+                                onChange={(e) => {
+                                  const updated = [...(formik.values.captions ?? [])];
+                                  updated[idx] = { ...updated[idx], language_code: e.target.value };
+                                  formik.setFieldValue("captions", updated);
+                                }}
+                              />
+                            </TableCell>
+                            <TableCell sx={{ px: 0.5 }}>
+                              <TextField
+                                fullWidth
+                                size="small"
+                                value={cap.caption_type}
+                                onChange={(e) => {
+                                  const updated = [...(formik.values.captions ?? [])];
+                                  updated[idx] = { ...updated[idx], caption_type: e.target.value };
+                                  formik.setFieldValue("captions", updated);
+                                }}
+                              />
+                            </TableCell>
+                            <TableCell sx={{ px: 0.5 }}>
+                              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                                <TextField
+                                  fullWidth
+                                  size="small"
+                                  value={cap.filepath}
+                                  onChange={(e) => {
+                                    const updated = [...(formik.values.captions ?? [])];
+                                    updated[idx] = { ...updated[idx], filepath: e.target.value };
+                                    formik.setFieldValue("captions", updated);
+                                  }}
+                                />
+                                <IconButton
+                                  size="small"
+                                  sx={{ flexShrink: 0 }}
+                                  onClick={() => setCaptionBrowseIndex(idx)}
+                                >
+                                  <FolderOpenIcon fontSize="small" />
+                                </IconButton>
+                              </Box>
+                            </TableCell>
+                            <TableCell sx={{ px: 0.5 }}>
+                              <IconButton
+                                size="small"
+                                onClick={() => {
+                                  const updated = (formik.values.captions ?? []).filter((_, i) => i !== idx);
+                                  formik.setFieldValue("captions", updated);
+                                }}
+                              >
+                                <DeleteIcon fontSize="small" />
+                              </IconButton>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </Box>
+                )}
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<AddIcon />}
+                  onClick={() => {
+                    const updated = [...(formik.values.captions ?? []), { language_code: "en", caption_type: "srt", filepath: "" }];
+                    formik.setFieldValue("captions", updated);
+                    setCaptionBrowseIndex(updated.length - 1);
+                  }}
+                >
+                  <FormattedMessage id="actions.add_caption" defaultMessage="Add Caption" />
+                </Button>
+              </Box>,
+              fullWidthProps
             )}
 
             {renderGalleriesField()}

@@ -9,8 +9,10 @@ import (
 	"time"
 
 	"github.com/stashapp/stash/internal/manager"
+	"github.com/stashapp/stash/pkg/logger"
 	"github.com/stashapp/stash/pkg/models"
 	"github.com/stashapp/stash/pkg/recommendation"
+	"github.com/stashapp/stash/pkg/recommendation/embedding"
 	"github.com/stashapp/stash/pkg/stashbox"
 )
 
@@ -765,13 +767,26 @@ func (r *queryResolver) RecommendPerformers(ctx context.Context, options *models
 }
 
 func (r *queryResolver) SimilarScenes(ctx context.Context, sceneID string, limit *int) ([]*models.RecommendationResult, error) {
-	id, _ := strconv.Atoi(sceneID)
+	// Signal weights — must sum to 1.0
+	const (
+		wMeta           = 0.40 // tag / performer / studio co-occurrence
+		wPhash          = 0.35 // perceptual-hash Hamming distance
+		wVisual         = 0.25 // HSV colour-histogram cosine similarity
+		phashMaxDist    = 10   // max Hamming bits to consider a pHash match
+		visualFullThr   = 0.80 // stored-signature cosine threshold (full visual search)
+		visualEnrichThr = 0.50 // on-the-fly cosine threshold (candidate enrichment)
+		scoreFloor      = 0.05 // discard anything below this blended score
+	)
+
+	id, err := strconv.Atoi(sceneID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid scene ID: %s", sceneID)
+	}
 	l := 20
 	if limit != nil {
 		l = *limit
 	}
 
-	// Create scorer with nil profile just to access SimilarScenes logic using readers
 	scorer := recommendation.NewScorer(
 		nil,
 		r.repository.Scene,
@@ -780,22 +795,166 @@ func (r *queryResolver) SimilarScenes(ctx context.Context, sceneID string, limit
 		r.repository.Tag,
 	)
 
+	// Per-scene accumulator for the three signals.
+	type signals struct {
+		meta   float64
+		phash  float64
+		visual float64
+		scene  *models.Scene // populated once the scene object is known
+		labels []string      // human-readable reason fragments
+	}
+	acc := make(map[int]*signals)
+	entry := func(sid int) *signals {
+		if s, ok := acc[sid]; ok {
+			return s
+		}
+		s := &signals{}
+		acc[sid] = s
+		return s
+	}
+
 	var searchResults []*models.RecommendationResult
-	err := r.withReadTxn(ctx, func(ctx context.Context) error {
-		results, err := scorer.SimilarScenes(ctx, id, l)
-		if err != nil {
-			return err
+	err = r.withReadTxn(ctx, func(ctx context.Context) error {
+		// ── Signal 1: metadata similarity (tags / performers / studio) ─────────
+		metaResults, metaErr := scorer.SimilarScenes(ctx, id, 0 /* no internal limit */)
+		if metaErr != nil {
+			return metaErr
+		}
+		for i := range metaResults {
+			res := &metaResults[i]
+			sid, _ := strconv.Atoi(res.ID)
+			e := entry(sid)
+			e.meta = res.Score
+			e.scene = res.Scene
+			if res.Reason != "" {
+				e.labels = append(e.labels, res.Reason)
+			}
 		}
 
-		// Convert to pointers
-		for i := range results {
-			item := results[i]
-			searchResults = append(searchResults, &item)
+		// ── Signal 2: pHash Hamming similarity ─────────────────────────────────
+		phashMatches, phashErr := r.repository.Scene.FindSimilarByPhash(ctx, id, phashMaxDist)
+		if phashErr != nil {
+			logger.Warnf("[SimilarScenes] pHash search error for scene %d: %v", id, phashErr)
+		}
+		for _, pm := range phashMatches {
+			e := entry(pm.SceneID)
+			e.phash = float64(64-pm.Distance) / 64.0
+			if pm.Distance == 0 {
+				e.labels = append(e.labels, "exact pHash match")
+			} else {
+				e.labels = append(e.labels, fmt.Sprintf("pHash dist %d", pm.Distance))
+			}
+		}
+
+		// ── Signal 3: visual colour-histogram similarity ────────────────────────
+		srcCover, coverErr := r.repository.Scene.GetCover(ctx, id)
+		if coverErr == nil && len(srcCover) > 0 {
+			srcSig := embedding.ComputeFromImage(srcCover)
+			if len(srcSig) > 0 {
+				// 3a – full visual search across all pre-computed stored signatures
+				if r.repository.VisualSignature != nil {
+					allSigs, sigErr := r.repository.VisualSignature.GetAll(ctx)
+					if sigErr != nil {
+						logger.Warnf("[SimilarScenes] visual signature DB error: %v", sigErr)
+					} else {
+						for candID, candSig := range allSigs {
+							if candID == id {
+								continue
+							}
+							cos := embedding.Cosine(srcSig, candSig)
+							if cos < visualFullThr {
+								continue
+							}
+							e := entry(candID)
+							if cos > e.visual {
+								e.visual = cos
+							}
+							e.labels = append(e.labels, fmt.Sprintf("visual %.0f%%", cos*100))
+						}
+					}
+				}
+
+				// 3b – on-the-fly enrichment for candidates already identified
+				for candID, e := range acc {
+					if e.visual > 0 {
+						continue // already scored from stored sigs
+					}
+					candCover, err := r.repository.Scene.GetCover(ctx, candID)
+					if err != nil || len(candCover) == 0 {
+						continue
+					}
+					candSig := embedding.ComputeFromImage(candCover)
+					if len(candSig) == 0 {
+						continue
+					}
+					cos := embedding.Cosine(srcSig, candSig)
+					if cos >= visualEnrichThr {
+						e.visual = cos
+						if cos >= 0.85 {
+							e.labels = append(e.labels, fmt.Sprintf("visual %.0f%%", cos*100))
+						}
+					}
+				}
+			}
+		}
+
+		// ── Fetch scene objects for candidates without one yet ─────────────────
+		var missing []int
+		for sid, e := range acc {
+			if e.scene == nil {
+				missing = append(missing, sid)
+			}
+		}
+		if len(missing) > 0 {
+			fetched, fetchErr := r.repository.Scene.FindMany(ctx, missing)
+			if fetchErr != nil {
+				return fetchErr
+			}
+			for _, s := range fetched {
+				acc[s.ID].scene = s
+			}
+		}
+
+		// ── Blend signals → final results ──────────────────────────────────────
+		for sid, e := range acc {
+			blended := e.meta*wMeta + e.phash*wPhash + e.visual*wVisual
+			if blended < scoreFloor || e.scene == nil {
+				continue
+			}
+			reason := strings.Join(dedupStrings(e.labels), " · ")
+			searchResults = append(searchResults, &models.RecommendationResult{
+				Type:   "scene",
+				ID:     strconv.Itoa(sid),
+				Name:   e.scene.GetTitle(),
+				Score:  blended,
+				Reason: reason,
+				Scene:  e.scene,
+			})
+		}
+
+		sort.Slice(searchResults, func(i, j int) bool {
+			return searchResults[i].Score > searchResults[j].Score
+		})
+		if l > 0 && len(searchResults) > l {
+			searchResults = searchResults[:l]
 		}
 		return nil
 	})
 
 	return searchResults, err
+}
+
+// dedupStrings returns a new slice with consecutive duplicate strings removed.
+func dedupStrings(in []string) []string {
+	seen := make(map[string]bool, len(in))
+	out := make([]string, 0, len(in))
+	for _, s := range in {
+		if s != "" && !seen[s] {
+			seen[s] = true
+			out = append(out, s)
+		}
+	}
+	return out
 }
 
 func (r *queryResolver) SimilarPerformers(ctx context.Context, performerID string, limit *int) ([]*models.RecommendationResult, error) {

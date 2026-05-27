@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/corona10/goimagehash"
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/jmoiron/sqlx"
@@ -1775,6 +1776,57 @@ func getFirstPath(scenes []*models.Scene) string {
 		}
 	}
 	return firstPath
+}
+
+// FindSimilarByPhash returns scenes whose phash is within maxDistance Hamming bits of sceneID's phash.
+// Results are sorted by ascending distance. Returns nil if sceneID has no phash fingerprint.
+func (qb *SceneStore) FindSimilarByPhash(ctx context.Context, sceneID int, maxDistance int) ([]models.PhashSimilarResult, error) {
+	var hashes []*utils.Phash
+	if err := sceneRepository.queryFunc(ctx, findAllPhashesQuery, nil, false, func(rows *sqlx.Rows) error {
+		phash := utils.Phash{Bucket: -1, Duration: -1}
+		if err := rows.StructScan(&phash); err != nil {
+			return err
+		}
+		hashes = append(hashes, &phash)
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	// Find the source scene's hash
+	var sourceHash int64
+	var found bool
+	for _, h := range hashes {
+		if h.SceneID == sceneID {
+			sourceHash = h.Hash
+			found = true
+			break
+		}
+	}
+	if !found {
+		return nil, nil // No phash fingerprint for this scene
+	}
+
+	src := goimagehash.NewImageHash(uint64(sourceHash), goimagehash.PHash)
+	var results []models.PhashSimilarResult
+	for _, h := range hashes {
+		if h.SceneID == sceneID {
+			continue
+		}
+		candidate := goimagehash.NewImageHash(uint64(h.Hash), goimagehash.PHash)
+		dist, _ := src.Distance(candidate)
+		if dist <= maxDistance {
+			results = append(results, models.PhashSimilarResult{
+				SceneID:  h.SceneID,
+				Distance: dist,
+			})
+		}
+	}
+
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Distance < results[j].Distance
+	})
+	return results, nil
 }
 
 // ---- Scene-level captions (scene_captions table) ----

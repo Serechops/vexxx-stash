@@ -329,9 +329,9 @@ func (s *Scorer) SimilarScenes(ctx context.Context, sceneID int, limit int) ([]m
 		sceneReader: s.sceneReader,
 	}
 
-	// Query scenes and score
+	// Query scenes and score — use all scenes (no page limit)
 	findFilter := &models.FindFilterType{
-		PerPage: intPtr(500),
+		PerPage: intPtr(-1),
 	}
 
 	result, err := s.sceneReader.Query(ctx, models.SceneQueryOptions{

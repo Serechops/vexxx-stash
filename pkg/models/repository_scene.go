@@ -15,6 +15,12 @@ type SceneGetter interface {
 	FindByIDs(ctx context.Context, ids []int) ([]*Scene, error)
 }
 
+// PhashSimilarResult holds a scene ID and its perceptual-hash Hamming distance to a reference scene.
+type PhashSimilarResult struct {
+	SceneID  int
+	Distance int
+}
+
 // SceneFinder provides methods to find scenes.
 type SceneFinder interface {
 	SceneGetter
@@ -29,6 +35,9 @@ type SceneFinder interface {
 	FindByGalleryID(ctx context.Context, performerID int) ([]*Scene, error)
 	FindByGroupID(ctx context.Context, groupID int) ([]*Scene, error)
 	FindDuplicates(ctx context.Context, distance int, durationDiff float64) ([][]*Scene, error)
+	// FindSimilarByPhash returns scenes whose phash is within maxDistance Hamming bits of sceneID's phash,
+	// sorted by ascending distance. Returns nil if sceneID has no phash fingerprint.
+	FindSimilarByPhash(ctx context.Context, sceneID int, maxDistance int) ([]PhashSimilarResult, error)
 }
 
 // SceneQueryer provides methods to query scenes.

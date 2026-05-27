@@ -34,7 +34,7 @@ const (
 	cacheSizeEnv = "STASH_SQLITE_CACHE_SIZE"
 )
 
-var appSchemaVersion uint = 94
+var appSchemaVersion uint = 95
 
 //go:embed migrations/*.sql
 var migrationsBox embed.FS
@@ -86,6 +86,7 @@ type storeRepository struct {
 	RecycleBin              *RecycleBinStore
 	DismissedRecommendation *DismissedRecommendationStore
 	LikedRecommendation     *LikedRecommendationStore
+	VisualSignature         *VisualSignatureStore
 }
 
 type Database struct {
@@ -138,6 +139,7 @@ func NewDatabase() *Database {
 		RecycleBin:              NewRecycleBinStore(),
 		DismissedRecommendation: &DismissedRecommendationStore{},
 		LikedRecommendation:     &LikedRecommendationStore{},
+		VisualSignature:         &VisualSignatureStore{},
 	}
 
 	ret := &Database{

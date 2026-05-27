@@ -34,6 +34,7 @@ type Repository struct {
 	RecycleBin              RecycleBinReaderWriter
 	DismissedRecommendation DismissedRecommendationReaderWriter
 	LikedRecommendation     LikedRecommendationReaderWriter
+	VisualSignature         VisualSignatureReaderWriter
 }
 
 func (r *Repository) WithTxn(ctx context.Context, fn txn.TxnFunc) error {

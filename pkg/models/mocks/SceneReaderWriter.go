@@ -710,6 +710,29 @@ func (_m *SceneReaderWriter) FindDuplicates(ctx context.Context, distance int, d
 	return r0, r1
 }
 
+// FindSimilarByPhash provides a mock function with given fields: ctx, sceneID, maxDistance
+func (_m *SceneReaderWriter) FindSimilarByPhash(ctx context.Context, sceneID int, maxDistance int) ([]models.PhashSimilarResult, error) {
+	ret := _m.Called(ctx, sceneID, maxDistance)
+
+	var r0 []models.PhashSimilarResult
+	if rf, ok := ret.Get(0).(func(context.Context, int, int) []models.PhashSimilarResult); ok {
+		r0 = rf(ctx, sceneID, maxDistance)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]models.PhashSimilarResult)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, int, int) error); ok {
+		r1 = rf(ctx, sceneID, maxDistance)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // FindMany provides a mock function with given fields: ctx, ids
 func (_m *SceneReaderWriter) FindMany(ctx context.Context, ids []int) ([]*models.Scene, error) {
 	ret := _m.Called(ctx, ids)
@@ -1543,36 +1566,36 @@ func (_m *SceneReaderWriter) Wall(ctx context.Context, q *string) ([]*models.Sce
 }
 
 func (_m *SceneReaderWriter) GetSceneCaptions(ctx context.Context, sceneID int) ([]*models.SceneCaption, error) {
-ret := _m.Called(ctx, sceneID)
+	ret := _m.Called(ctx, sceneID)
 
-var r0 []*models.SceneCaption
-if rf, ok := ret.Get(0).(func(context.Context, int) []*models.SceneCaption); ok {
-r0 = rf(ctx, sceneID)
-} else {
-if ret.Get(0) != nil {
-r0 = ret.Get(0).([]*models.SceneCaption)
-}
-}
+	var r0 []*models.SceneCaption
+	if rf, ok := ret.Get(0).(func(context.Context, int) []*models.SceneCaption); ok {
+		r0 = rf(ctx, sceneID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*models.SceneCaption)
+		}
+	}
 
-var r1 error
-if rf, ok := ret.Get(1).(func(context.Context, int) error); ok {
-r1 = rf(ctx, sceneID)
-} else {
-r1 = ret.Error(1)
-}
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, int) error); ok {
+		r1 = rf(ctx, sceneID)
+	} else {
+		r1 = ret.Error(1)
+	}
 
-return r0, r1
+	return r0, r1
 }
 
 func (_m *SceneReaderWriter) UpdateSceneCaptions(ctx context.Context, sceneID int, captions []*models.SceneCaption) error {
-ret := _m.Called(ctx, sceneID, captions)
+	ret := _m.Called(ctx, sceneID, captions)
 
-var r0 error
-if rf, ok := ret.Get(0).(func(context.Context, int, []*models.SceneCaption) error); ok {
-r0 = rf(ctx, sceneID, captions)
-} else {
-r0 = ret.Error(0)
-}
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, int, []*models.SceneCaption) error); ok {
+		r0 = rf(ctx, sceneID, captions)
+	} else {
+		r0 = ret.Error(0)
+	}
 
-return r0
+	return r0
 }

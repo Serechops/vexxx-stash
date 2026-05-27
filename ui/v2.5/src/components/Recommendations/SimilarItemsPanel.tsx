@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box } from '@mui/material';
+import { Box, Chip } from '@mui/material';
 import { useSimilarScenesQuery } from '../../core/generated-graphql';
 import { LoadingIndicator } from '../Shared/LoadingIndicator';
 import { AlertModal as Alert } from '../Shared/Alert';
@@ -38,6 +38,19 @@ export const SimilarScenesPanel: React.FC<SimilarScenesPanelProps> = ({ sceneId 
                     return (
                         <Box key={r.id}>
                             <SceneCard scene={r.scene} />
+                            {r.reason && (
+                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5, px: 0.5 }}>
+                                    {r.reason.split(' · ').map((label) => (
+                                        <Chip
+                                            key={label}
+                                            label={label}
+                                            size="small"
+                                            variant="outlined"
+                                            sx={{ fontSize: '0.7rem', height: 20 }}
+                                        />
+                                    ))}
+                                </Box>
+                            )}
                         </Box>
                     );
                 }

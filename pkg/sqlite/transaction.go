@@ -132,5 +132,6 @@ func (db *Database) Repository() models.Repository {
 		RecycleBin:              db.RecycleBin,
 		DismissedRecommendation: db.DismissedRecommendation,
 		LikedRecommendation:     db.LikedRecommendation,
+		VisualSignature:         db.VisualSignature,
 	}
 }

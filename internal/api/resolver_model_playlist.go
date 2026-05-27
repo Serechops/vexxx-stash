@@ -2,8 +2,10 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/stashapp/stash/internal/api/urlbuilders"
 	"github.com/stashapp/stash/pkg/models"
@@ -19,6 +21,11 @@ func (r *playlistResolver) ID(ctx context.Context, obj *models.Playlist) (string
 }
 
 func (r *playlistResolver) Items(ctx context.Context, obj *models.Playlist) ([]*models.PlaylistItem, error) {
+	if obj.Criteria != nil && strings.TrimSpace(*obj.Criteria) != "" {
+		items, _, err := r.resolveDynamicSceneItems(ctx, obj)
+		return items, err
+	}
+
 	var items []*models.PlaylistItem
 	if err := r.withReadTxn(ctx, func(ctx context.Context) error {
 		var err error
@@ -91,12 +98,8 @@ func (r *playlistResolver) CoverImagePath(ctx context.Context, obj *models.Playl
 	}
 
 	// Otherwise, use first item's thumbnail
-	var items []*models.PlaylistItem
-	if err := r.withReadTxn(ctx, func(ctx context.Context) error {
-		var err error
-		items, err = r.repository.Playlist.FindItems(ctx, obj.ID)
-		return err
-	}); err != nil {
+	items, err := r.Items(ctx, obj)
+	if err != nil {
 		return nil, err
 	}
 
@@ -122,6 +125,93 @@ func (r *playlistResolver) User(ctx context.Context, obj *models.Playlist) (*mod
 	}
 
 	return user, nil
+}
+
+func (r *playlistResolver) IsDynamic(ctx context.Context, obj *models.Playlist) (bool, error) {
+	return obj.Criteria != nil && strings.TrimSpace(*obj.Criteria) != "", nil
+}
+
+func (r *playlistResolver) ItemCount(ctx context.Context, obj *models.Playlist) (int, error) {
+	if obj.Criteria == nil || strings.TrimSpace(*obj.Criteria) == "" {
+		return obj.ItemCount, nil
+	}
+
+	items, _, err := r.resolveDynamicSceneItems(ctx, obj)
+	if err != nil {
+		return 0, err
+	}
+
+	return len(items), nil
+}
+
+func (r *playlistResolver) Duration(ctx context.Context, obj *models.Playlist) (int, error) {
+	if obj.Criteria == nil || strings.TrimSpace(*obj.Criteria) == "" {
+		return obj.Duration, nil
+	}
+
+	_, duration, err := r.resolveDynamicSceneItems(ctx, obj)
+	if err != nil {
+		return 0, err
+	}
+
+	return duration, nil
+}
+
+func (r *playlistResolver) resolveDynamicSceneItems(ctx context.Context, obj *models.Playlist) ([]*models.PlaylistItem, int, error) {
+	if obj.Criteria == nil || strings.TrimSpace(*obj.Criteria) == "" {
+		return nil, 0, nil
+	}
+
+	var criteria models.PlaylistCriteria
+	if err := json.Unmarshal([]byte(*obj.Criteria), &criteria); err != nil {
+		return nil, 0, fmt.Errorf("invalid playlist criteria: %w", err)
+	}
+
+	findFilter := criteria.FindFilter
+	if findFilter == nil {
+		findFilter = &models.FindFilterType{PerPage: intPtr(-1)}
+	}
+
+	var scenes []*models.Scene
+	if err := r.withReadTxn(ctx, func(ctx context.Context) error {
+		result, err := r.repository.Scene.Query(ctx, models.SceneQueryOptions{
+			QueryOptions: models.QueryOptions{FindFilter: findFilter},
+			SceneFilter:  criteria.SceneFilter,
+		})
+		if err != nil {
+			return err
+		}
+
+		scenes, err = result.Resolve(ctx)
+		return err
+	}); err != nil {
+		return nil, 0, err
+	}
+
+	items := make([]*models.PlaylistItem, 0, len(scenes))
+	totalDuration := 0
+	for i, scene := range scenes {
+		sceneID := scene.ID
+		if err := scene.LoadPrimaryFile(ctx, r.repository.File); err == nil {
+			if primary := scene.Files.Primary(); primary != nil {
+				totalDuration += int(primary.Duration)
+			}
+		}
+		items = append(items, &models.PlaylistItem{
+			ID:         -(sceneID + 1),
+			PlaylistID: obj.ID,
+			Position:   i,
+			MediaType:  models.PlaylistMediaTypeScene,
+			SceneID:    &sceneID,
+			CreatedAt:  obj.UpdatedAt,
+		})
+	}
+
+	return items, totalDuration, nil
+}
+
+func intPtr(i int) *int {
+	return &i
 }
 
 func (r *playlistResolver) playlistItemResolver() *playlistItemResolver {

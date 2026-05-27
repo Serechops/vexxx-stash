@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useFindScenes } from "src/core/StashService";
 import { ListFilterModel } from "src/models/list-filter/filter";
+import SceneQueue from "src/models/sceneQueue";
 import * as GQL from "src/core/generated-graphql";
 import { useConfigurationContext } from "src/hooks/Config";
 import { IUIConfig } from "src/core/config";
@@ -39,6 +40,11 @@ export const HeroBanner: React.FC = () => {
     }, [data]);
 
     const scene = scenes[currentIndex];
+
+    // Create a scene queue from the filter so the queue viewer has context
+    const sceneQueue = useMemo(() => {
+        return SceneQueue.fromListFilterModel(filter);
+    }, [filter]);
 
     useEffect(() => {
         if (videoRef.current && scene) {
@@ -116,7 +122,10 @@ export const HeroBanner: React.FC = () => {
 
                 <div className="flex gap-4 pt-2 md:pt-4">
                     <Link
-                        to={`/scenes/${scene.id}`}
+                        to={sceneQueue.makeLink(scene.id, {
+                            sceneIndex: currentIndex,
+                            autoPlay: true,
+                        })}
                         className="flex items-center gap-2 px-4 md:px-8 py-1.5 md:py-2 bg-white text-black hover:bg-gray-200 border-none rounded text-sm md:text-lg font-bold transition-colors"
                     >
                         <Play className="mr-2 h-5 w-5 md:h-7 md:w-7 text-black fill-black" strokeWidth={0} /> Play

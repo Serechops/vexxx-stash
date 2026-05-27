@@ -452,6 +452,14 @@ const PlaylistCard: React.FC<IPlaylistCardProps> = ({ playlist, onDelete }) => {
             transition: "top 0.3s, bottom 0.3s",
           }}
         >
+          {playlist.is_dynamic && (
+            <Chip
+              size="small"
+              label="Dynamic"
+              color="secondary"
+              sx={{ fontSize: "0.7rem" }}
+            />
+          )}
           <Chip
             size="small"
             label={`${playlist.item_count} items`}

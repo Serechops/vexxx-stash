@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -31,6 +32,12 @@ func (r *mutationResolver) PlaylistCreate(ctx context.Context, input models.Play
 	if input.Description != nil {
 		playlist.Description = *input.Description
 	}
+
+	criteriaJSON, err := playlistCriteriaJSON(input.Criteria)
+	if err != nil {
+		return nil, err
+	}
+	playlist.Criteria = criteriaJSON
 
 	if err := r.withTxn(ctx, func(ctx context.Context) error {
 		return r.repository.Playlist.Create(ctx, playlist)
@@ -72,6 +79,18 @@ func (r *mutationResolver) PlaylistUpdate(ctx context.Context, input models.Play
 
 		if input.Description != nil {
 			partial.Description = models.NewOptionalString(*input.Description)
+		}
+
+		if input.Criteria != nil {
+			criteriaJSON, err := playlistCriteriaJSON(input.Criteria)
+			if err != nil {
+				return err
+			}
+			if criteriaJSON == nil {
+				partial.Criteria = models.NewOptionalString("")
+			} else {
+				partial.Criteria = models.NewOptionalString(*criteriaJSON)
+			}
 		}
 
 		if input.CoverType != nil {
@@ -131,6 +150,9 @@ func (r *mutationResolver) PlaylistAddItems(ctx context.Context, input models.Pl
 		}
 		if existing == nil {
 			return fmt.Errorf("playlist not found: %d", playlistID)
+		}
+		if existing.Criteria != nil && strings.TrimSpace(*existing.Criteria) != "" {
+			return errors.New("cannot manually add items to a dynamic playlist")
 		}
 
 		// Convert input items to PlaylistItem
@@ -194,6 +216,9 @@ func (r *mutationResolver) PlaylistRemoveItems(ctx context.Context, input models
 		if existing == nil {
 			return fmt.Errorf("playlist not found: %d", playlistID)
 		}
+		if existing.Criteria != nil && strings.TrimSpace(*existing.Criteria) != "" {
+			return errors.New("cannot manually remove items from a dynamic playlist")
+		}
 
 		// Remove items
 		if err := r.repository.Playlist.RemoveItems(ctx, playlistID, itemIDs); err != nil {
@@ -245,6 +270,9 @@ func (r *mutationResolver) PlaylistReorderItems(ctx context.Context, input model
 		}
 		if existing == nil {
 			return fmt.Errorf("playlist not found: %d", playlistID)
+		}
+		if existing.Criteria != nil && strings.TrimSpace(*existing.Criteria) != "" {
+			return errors.New("cannot reorder items in a dynamic playlist")
 		}
 
 		// Reorder items - positions are implied by the order of itemIDs
@@ -340,4 +368,27 @@ func playlistItemFromInput(playlistID int, input models.PlaylistItemInput) (*mod
 	}
 
 	return item, nil
+}
+
+func playlistCriteriaJSON(input *models.PlaylistCriteriaInput) (*string, error) {
+	if input == nil {
+		return nil, nil
+	}
+
+	if input.SceneFilter == nil && input.FindFilter == nil {
+		return nil, nil
+	}
+
+	criteria := models.PlaylistCriteria{
+		SceneFilter: input.SceneFilter,
+		FindFilter:  input.FindFilter,
+	}
+
+	raw, err := json.Marshal(criteria)
+	if err != nil {
+		return nil, fmt.Errorf("invalid playlist criteria: %w", err)
+	}
+
+	jsonStr := string(raw)
+	return &jsonStr, nil
 }

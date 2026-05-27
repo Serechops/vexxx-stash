@@ -26,6 +26,8 @@ fragment PlaylistData on Playlist {
   id
   name
   description
+  criteria
+  is_dynamic
   duration
   item_count
   created_at
@@ -44,6 +46,8 @@ fragment SlimPlaylistData on Playlist {
   id
   name
   description
+  criteria
+  is_dynamic
   duration
   item_count
   created_at
@@ -55,6 +59,8 @@ fragment PlaylistCardData on Playlist {
   id
   name
   description
+  criteria
+  is_dynamic
   duration
   item_count
   created_at

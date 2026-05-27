@@ -59,6 +59,7 @@ type Playlist struct {
 	Duration    int       `json:"duration"`   // cached total duration in seconds
 	ItemCount   int       `json:"item_count"` // cached item count
 	UserID      *int      `json:"user_id"`
+	Criteria    *string   `json:"criteria"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
@@ -81,6 +82,7 @@ type PlaylistPartial struct {
 	Duration    OptionalInt
 	ItemCount   OptionalInt
 	UserID      OptionalInt
+	Criteria    OptionalString
 	UpdatedAt   OptionalTime
 }
 
@@ -130,17 +132,31 @@ func (pi *PlaylistItem) GetMediaID() *int {
 
 // PlaylistCreateInput contains data for creating a new playlist
 type PlaylistCreateInput struct {
-	Name        string  `json:"name"`
-	Description *string `json:"description"`
+	Name        string                 `json:"name"`
+	Description *string                `json:"description"`
+	Criteria    *PlaylistCriteriaInput `json:"criteria"`
 }
 
 // PlaylistUpdateInput contains data for updating an existing playlist
 type PlaylistUpdateInput struct {
-	ID          string             `json:"id"`
-	Name        *string            `json:"name"`
-	Description *string            `json:"description"`
-	CoverType   *PlaylistMediaType `json:"cover_type"`
-	CoverID     *string            `json:"cover_id"`
+	ID          string                 `json:"id"`
+	Name        *string                `json:"name"`
+	Description *string                `json:"description"`
+	Criteria    *PlaylistCriteriaInput `json:"criteria"`
+	CoverType   *PlaylistMediaType     `json:"cover_type"`
+	CoverID     *string                `json:"cover_id"`
+}
+
+// PlaylistCriteria contains filter rules for dynamic playlists.
+type PlaylistCriteria struct {
+	SceneFilter *SceneFilterType `json:"scene_filter"`
+	FindFilter  *FindFilterType  `json:"find_filter"`
+}
+
+// PlaylistCriteriaInput contains filter rules for creating/updating dynamic playlists.
+type PlaylistCriteriaInput struct {
+	SceneFilter *SceneFilterType `json:"scene_filter"`
+	FindFilter  *FindFilterType  `json:"find_filter"`
 }
 
 // PlaylistItemInput represents input for adding an item to a playlist

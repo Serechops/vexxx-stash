@@ -25,22 +25,26 @@ var playlistRepository = repository{
 }
 
 type playlistRow struct {
-	ID          int             `db:"id" goqu:"skipinsert"`
-	Name        string          `db:"name"`
-	Description sql.NullString  `db:"description"`
-	CoverType   sql.NullString  `db:"cover_type"`
-	CoverID     sql.NullInt64   `db:"cover_id"`
-	Duration    int             `db:"duration"`
-	ItemCount   int             `db:"item_count"`
-	UserID      sql.NullInt64   `db:"user_id"`
-	CreatedAt   Timestamp       `db:"created_at"`
-	UpdatedAt   Timestamp       `db:"updated_at"`
+	ID          int            `db:"id" goqu:"skipinsert"`
+	Name        string         `db:"name"`
+	Description sql.NullString `db:"description"`
+	Criteria    sql.NullString `db:"criteria"`
+	CoverType   sql.NullString `db:"cover_type"`
+	CoverID     sql.NullInt64  `db:"cover_id"`
+	Duration    int            `db:"duration"`
+	ItemCount   int            `db:"item_count"`
+	UserID      sql.NullInt64  `db:"user_id"`
+	CreatedAt   Timestamp      `db:"created_at"`
+	UpdatedAt   Timestamp      `db:"updated_at"`
 }
 
 func (r *playlistRow) fromPlaylist(p models.Playlist) {
 	r.ID = p.ID
 	r.Name = p.Name
 	r.Description = sql.NullString{String: p.Description, Valid: p.Description != ""}
+	if p.Criteria != nil && *p.Criteria != "" {
+		r.Criteria = sql.NullString{String: *p.Criteria, Valid: true}
+	}
 	if p.CoverType != nil {
 		r.CoverType = sql.NullString{String: *p.CoverType, Valid: true}
 	}
@@ -67,6 +71,10 @@ func (r playlistRow) toPlaylist() *models.Playlist {
 	}
 	if r.Description.Valid {
 		p.Description = r.Description.String
+	}
+	if r.Criteria.Valid {
+		criteria := r.Criteria.String
+		p.Criteria = &criteria
 	}
 	if r.CoverType.Valid {
 		p.CoverType = &r.CoverType.String
@@ -317,6 +325,13 @@ func playlistRecordFromPartial(partial models.PlaylistPartial) exp.Record {
 			r["description"] = partial.Description.Value
 		}
 	}
+	if partial.Criteria.Set {
+		if partial.Criteria.Value == "" {
+			r["criteria"] = nil
+		} else {
+			r["criteria"] = partial.Criteria.Value
+		}
+	}
 	if partial.CoverType.Set {
 		if partial.CoverType.Value == "" {
 			r["cover_type"] = nil
@@ -428,8 +443,6 @@ func (qb *PlaylistStore) QueryCount(ctx context.Context, playlistFilter *models.
 
 	return query.executeCount(ctx)
 }
-
-
 
 func (qb *PlaylistStore) applyPlaylistFilter(query *queryBuilder, filter *models.PlaylistFilterType) {
 	if filter.Name != nil {

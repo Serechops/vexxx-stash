@@ -2,7 +2,9 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"strconv"
+	"strings"
 
 	"github.com/stashapp/stash/pkg/models"
 )
@@ -17,7 +19,11 @@ func (r *queryResolver) FindPlaylist(ctx context.Context, id string) (*models.Pl
 	if err := r.withReadTxn(ctx, func(ctx context.Context) error {
 		var err error
 		playlist, err = r.repository.Playlist.Find(ctx, idInt)
-		return err
+		if err != nil || playlist == nil {
+			return err
+		}
+
+		return r.hydrateDynamicPlaylistStats(ctx, playlist)
 	}); err != nil {
 		return nil, err
 	}
@@ -41,7 +47,17 @@ func (r *queryResolver) FindPlaylists(
 		}
 
 		playlists, total, err = r.repository.Playlist.Query(ctx, playlistFilter, filter)
-		return err
+		if err != nil {
+			return err
+		}
+
+		for _, playlist := range playlists {
+			if err := r.hydrateDynamicPlaylistStats(ctx, playlist); err != nil {
+				return err
+			}
+		}
+
+		return nil
 	}); err != nil {
 		return nil, err
 	}
@@ -50,4 +66,40 @@ func (r *queryResolver) FindPlaylists(
 		Count:     total,
 		Playlists: playlists,
 	}, nil
+}
+
+func (r *queryResolver) hydrateDynamicPlaylistStats(ctx context.Context, playlist *models.Playlist) error {
+	if playlist == nil || playlist.Criteria == nil || strings.TrimSpace(*playlist.Criteria) == "" {
+		return nil
+	}
+
+	var criteria models.PlaylistCriteria
+	if err := json.Unmarshal([]byte(*playlist.Criteria), &criteria); err != nil {
+		return nil
+	}
+
+	findFilter := criteria.FindFilter
+	if findFilter == nil {
+		findFilter = &models.FindFilterType{PerPage: intPtrPlaylist(-1)}
+	}
+
+	result, err := r.repository.Scene.Query(ctx, models.SceneQueryOptions{
+		QueryOptions: models.QueryOptions{
+			FindFilter: findFilter,
+			Count:      true,
+		},
+		SceneFilter:   criteria.SceneFilter,
+		TotalDuration: true,
+	})
+	if err != nil {
+		return err
+	}
+
+	playlist.ItemCount = result.Count
+	playlist.Duration = int(result.TotalDuration)
+	return nil
+}
+
+func intPtrPlaylist(i int) *int {
+	return &i
 }

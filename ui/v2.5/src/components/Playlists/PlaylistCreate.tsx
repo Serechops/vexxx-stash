@@ -8,6 +8,8 @@ import {
   CardContent,
   TextField,
   Typography,
+  Switch,
+  FormControlLabel,
   Accordion,
   AccordionSummary,
   AccordionDetails,
@@ -19,6 +21,8 @@ import { Icon } from "../Shared/Icon";
 import { usePlaylistCreate, usePlaylistAddItems } from "src/core/StashService";
 import { useToast } from "src/hooks/Toast";
 import { MediaItemSelector, ISelectedMediaItem } from "./MediaItemSelector";
+import { PlaylistCriteriaBuilder } from "./PlaylistCriteriaBuilder";
+import * as GQL from "src/core/generated-graphql";
 
 export const PlaylistCreate: React.FC = () => {
   const intl = useIntl();
@@ -26,6 +30,15 @@ export const PlaylistCreate: React.FC = () => {
   const Toast = useToast();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [isDynamic, setIsDynamic] = useState(false);
+  type CriteriaState = {
+    scene_filter?: Record<string, unknown>;
+    find_filter?: { sort?: string; direction?: GQL.SortDirectionEnum; per_page?: number };
+  };
+  const [criteria, setCriteria] = useState<CriteriaState>({
+    scene_filter: {},
+    find_filter: { sort: "date", direction: GQL.SortDirectionEnum.Desc, per_page: -1 },
+  });
   const [selectedItems, setSelectedItems] = useState<ISelectedMediaItem[]>([]);
   const [itemsExpanded, setItemsExpanded] = useState(false);
 
@@ -45,6 +58,8 @@ export const PlaylistCreate: React.FC = () => {
       return;
     }
 
+    const criteriaInput = isDynamic ? criteria : undefined;
+
     try {
       // First create the playlist
       const result = await createPlaylist({
@@ -52,6 +67,7 @@ export const PlaylistCreate: React.FC = () => {
           input: {
             name: name.trim(),
             description: description.trim() || undefined,
+            criteria: criteriaInput,
           },
         },
       });
@@ -59,8 +75,8 @@ export const PlaylistCreate: React.FC = () => {
       if (result.data?.playlistCreate) {
         const playlistId = result.data.playlistCreate.id;
         
-        // If items are selected, add them to the playlist
-        if (selectedItems.length > 0) {
+        // Dynamic playlists auto-populate from criteria, so skip manual add.
+        if (!isDynamic && selectedItems.length > 0) {
           await addItems({
             variables: {
               input: {
@@ -143,11 +159,45 @@ export const PlaylistCreate: React.FC = () => {
           </CardContent>
         </Card>
 
+          {/* Playlist Mode Card */}
+          <Card sx={{ mb: 3 }}>
+            <CardContent>
+              <Typography variant="h6" sx={{ mb: 2 }}>
+                <FormattedMessage
+                  id="playlist_mode"
+                  defaultMessage="Playlist Mode"
+                />
+              </Typography>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={isDynamic}
+                    onChange={(e) => setIsDynamic(e.target.checked)}
+                  />
+                }
+                label={
+                  isDynamic
+                    ? intl.formatMessage({ id: "playlist_mode_dynamic", defaultMessage: "Dynamic (Smart Playlist)" })
+                    : intl.formatMessage({ id: "playlist_mode_static", defaultMessage: "Static" })
+                }
+              />
+              {isDynamic && (
+                <Box sx={{ mt: 2 }}>
+                  <PlaylistCriteriaBuilder
+                    criteria={criteria}
+                    onChange={(newCriteria) => setCriteria(newCriteria as CriteriaState)}
+                  />
+                </Box>
+              )}
+            </CardContent>
+          </Card>
+
         {/* Add Items Section */}
-        <Accordion 
+          <Accordion 
           expanded={itemsExpanded} 
           onChange={(_, expanded) => setItemsExpanded(expanded)}
-          sx={{ mb: 3 }}
+            sx={{ mb: 3, opacity: isDynamic ? 0.6 : 1 }}
+            disabled={isDynamic}
         >
           <AccordionSummary
             expandIcon={<Icon icon={faChevronDown} />}

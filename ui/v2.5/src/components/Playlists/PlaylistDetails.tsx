@@ -20,6 +20,8 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Switch,
+  FormControlLabel,
 } from "@mui/material";
 import {
   faPlay,
@@ -39,7 +41,9 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { Icon } from "../Shared/Icon";
 import { PlaylistAddItemsModal } from "./PlaylistAddItemsModal";
+import { PlaylistCriteriaBuilder } from "./PlaylistCriteriaBuilder";
 import { LoadingIndicator } from "../Shared/LoadingIndicator";
+import * as GQL from "src/core/generated-graphql";
 import { ErrorMessage } from "../Shared/ErrorMessage";
 import {
   useFindPlaylist,
@@ -48,7 +52,6 @@ import {
   usePlaylistReorderItems,
   usePlaylistRemoveItems,
 } from "src/core/StashService";
-import * as GQL from "src/core/generated-graphql";
 import TextUtils from "src/utils/text";
 import { useToast } from "src/hooks/Toast";
 
@@ -71,6 +74,7 @@ interface IPlaylistItemRowProps {
   item: GQL.PlaylistItemDataFragment;
   index: number;
   total: number;
+  readOnly?: boolean;
   onRemove: (itemId: string) => void;
   onMoveUp: (index: number) => void;
   onMoveDown: (index: number) => void;
@@ -81,6 +85,7 @@ const PlaylistItemRow: React.FC<IPlaylistItemRowProps> = ({
   item,
   index,
   total,
+  readOnly,
   onRemove,
   onMoveUp,
   onMoveDown,
@@ -98,14 +103,14 @@ const PlaylistItemRow: React.FC<IPlaylistItemRowProps> = ({
         <IconButton
           size="small"
           onClick={(e) => { e.stopPropagation(); onMoveUp(index); }}
-          disabled={index === 0}
+          disabled={readOnly || index === 0}
         >
           <Icon icon={faArrowUp} />
         </IconButton>
         <IconButton
           size="small"
           onClick={(e) => { e.stopPropagation(); onMoveDown(index); }}
-          disabled={index === total - 1}
+          disabled={readOnly || index === total - 1}
         >
           <Icon icon={faArrowDown} />
         </IconButton>
@@ -142,6 +147,7 @@ const PlaylistItemRow: React.FC<IPlaylistItemRowProps> = ({
         <IconButton
           onClick={(e) => { e.stopPropagation(); onRemove(item.id); }}
           color="error"
+          disabled={readOnly}
         >
           <Icon icon={faTrash} />
         </IconButton>
@@ -161,6 +167,15 @@ export const PlaylistDetails: React.FC = () => {
   const [editing, setEditing] = useState(isEditMode);
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
+  const [editDynamic, setEditDynamic] = useState(false);
+  type CriteriaState = {
+    scene_filter?: Record<string, unknown>;
+    find_filter?: { sort?: string; direction?: GQL.SortDirectionEnum; per_page?: number };
+  };
+  const [editCriteria, setEditCriteria] = useState<CriteriaState>({
+    scene_filter: {},
+    find_filter: { sort: "date", direction: GQL.SortDirectionEnum.Desc, per_page: -1 },
+  });
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [addItemsModalOpen, setAddItemsModalOpen] = useState(false);
 
@@ -176,6 +191,14 @@ export const PlaylistDetails: React.FC = () => {
     if (playlist) {
       setEditName(playlist.name);
       setEditDescription(playlist.description || "");
+      setEditDynamic(playlist.is_dynamic);
+      if (playlist.criteria) {
+        try {
+          setEditCriteria(JSON.parse(playlist.criteria) as CriteriaState);
+        } catch {
+          // Invalid JSON, keep default
+        }
+      }
     }
   }, [playlist]);
 
@@ -193,6 +216,8 @@ export const PlaylistDetails: React.FC = () => {
   }
 
   const handleSave = async () => {
+    const criteriaInput = editDynamic ? editCriteria : {};
+
     try {
       await updatePlaylist({
         variables: {
@@ -200,6 +225,7 @@ export const PlaylistDetails: React.FC = () => {
             id: playlist.id,
             name: editName.trim(),
             description: editDescription.trim() || undefined,
+            criteria: editDynamic ? criteriaInput : {},
           },
         },
       });
@@ -313,6 +339,27 @@ export const PlaylistDetails: React.FC = () => {
                 rows={2}
                 sx={{ mb: 2 }}
               />
+              <FormControlLabel
+                sx={{ mb: 2 }}
+                control={
+                  <Switch
+                    checked={editDynamic}
+                    onChange={(e) => setEditDynamic(e.target.checked)}
+                  />
+                }
+                label={intl.formatMessage({
+                  id: "playlist_mode_dynamic",
+                  defaultMessage: "Dynamic (Smart Playlist)",
+                })}
+              />
+              {editDynamic && (
+                <Box sx={{ mb: 2 }}>
+                  <PlaylistCriteriaBuilder
+                    criteria={editCriteria}
+                    onChange={(newCriteria) => setEditCriteria(newCriteria as CriteriaState)}
+                  />
+                </Box>
+              )}
               <Box sx={{ display: "flex", gap: 1, justifyContent: "flex-end" }}>
                 <Button
                   variant="outlined"
@@ -321,6 +368,14 @@ export const PlaylistDetails: React.FC = () => {
                     setEditing(false);
                     setEditName(playlist.name);
                     setEditDescription(playlist.description || "");
+                    setEditDynamic(playlist.is_dynamic);
+                    if (playlist.criteria) {
+                      try {
+                        setEditCriteria(JSON.parse(playlist.criteria) as CriteriaState);
+                      } catch {
+                        setEditCriteria({ scene_filter: {}, find_filter: { sort: "date", direction: GQL.SortDirectionEnum.Desc, per_page: -1 } });
+                      }
+                    }
                   }}
                   disabled={updating}
                 >
@@ -349,6 +404,16 @@ export const PlaylistDetails: React.FC = () => {
                     </Typography>
                   )}
                   <Box sx={{ display: "flex", gap: 2, color: "text.secondary" }}>
+                    {playlist.is_dynamic && (
+                      <Chip
+                        size="small"
+                        color="secondary"
+                        label={intl.formatMessage({
+                          id: "playlist_mode_dynamic",
+                          defaultMessage: "Dynamic",
+                        })}
+                      />
+                    )}
                     <Typography variant="body2">
                       {playlist.item_count} items
                     </Typography>
@@ -365,6 +430,7 @@ export const PlaylistDetails: React.FC = () => {
                     variant="outlined"
                     startIcon={<Icon icon={faPlus} />}
                     onClick={() => setAddItemsModalOpen(true)}
+                    disabled={playlist.is_dynamic}
                   >
                     <FormattedMessage id="actions.add" defaultMessage="Add" />
                   </Button>
@@ -417,6 +483,7 @@ export const PlaylistDetails: React.FC = () => {
                   item={item}
                   index={index}
                   total={playlist.items.length}
+                  readOnly={playlist.is_dynamic}
                   onRemove={handleRemoveItem}
                   onMoveUp={(i) => handleMoveItem(i, i - 1)}
                   onMoveDown={(i) => handleMoveItem(i, i + 1)}

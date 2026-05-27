@@ -9,6 +9,10 @@ type Playlist {
   id: ID!
   name: String!
   description: String
+  "JSON-encoded criteria for dynamic playlists"
+  criteria: String
+  "True if this playlist is dynamically generated from criteria"
+  is_dynamic: Boolean!
   "Cached total duration in seconds"
   duration: Int!
   "Cached item count"
@@ -53,14 +57,21 @@ type PlaylistItem {
 input PlaylistCreateInput {
   name: String!
   description: String
+  criteria: PlaylistCriteriaInput
 }
 
 input PlaylistUpdateInput {
   id: ID!
   name: String
   description: String
+  criteria: PlaylistCriteriaInput
   cover_type: PlaylistMediaType
   cover_id: ID
+}
+
+input PlaylistCriteriaInput {
+  scene_filter: SceneFilterType
+  find_filter: FindFilterType
 }
 
 input PlaylistItemInput {

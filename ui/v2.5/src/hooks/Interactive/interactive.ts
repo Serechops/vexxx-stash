@@ -58,6 +58,9 @@ async function uploadCsvToHosting(csv: File): Promise<{ url: string }> {
 export class Interactive {
   private _connected: boolean = false;
   private _playing: boolean = false;
+  private _isPaused: boolean = false;
+  private _lastPlayPosition: number = 0;
+  private _lastPlayTimestamp: number = 0;
   private _scriptOffset: number;
   private _api: HandyAPIv3;
   private _useStashHostedFunscript: boolean = false;
@@ -92,6 +95,25 @@ export class Interactive {
     }
     this._connected = true;
     this._startResyncTimer();
+    // On network recovery: re-sync clock then resume HSSP at estimated position.
+    this._api.onReconnect = () => {
+      if (!this._playing && !this._isPaused) return;
+      const elapsed = this._playing
+        ? (Date.now() - this._lastPlayTimestamp) / 1000
+        : 0;
+      const estimatedPos = this._lastPlayPosition + elapsed;
+      this._api
+        .syncServerTime({ samples: 5, outliers: 1 })
+        .then(() =>
+          this._api.hsspPlay(
+            Math.round(estimatedPos * 1000 + this._scriptOffset),
+            this._api.getEstimatedServerTime(),
+            { loop: this._looping }
+          )
+        )
+        .catch(() => {});
+      this._isPaused = false;
+    };
   }
 
   private _startResyncTimer(): void {
@@ -149,7 +171,8 @@ export class Interactive {
     }
 
     await this._api.setMode(HandyAPIv3.MODE.HSSP);
-    await this._api.hsspSetup(funscriptUrl);
+    // notify:true enables SSE state-change events from the server.
+    await this._api.hsspSetup(funscriptUrl, true);
     await this._api.hsspGetState();
     this._connected = true;
   }
@@ -183,13 +206,19 @@ export class Interactive {
       this._api.getEstimatedServerTime(),
       { loop: this._looping }
     );
+    this._lastPlayPosition = position;
+    this._lastPlayTimestamp = Date.now();
     this._playing = true;
+    this._isPaused = false;
   }
 
   async pause(): Promise<void> {
     if (!this._connected) return;
-    await this._api.hsspStop();
+    // Use hsspPause (not hsspStop) to preserve the device's position;
+    // play() will call hsspPlay with a new seek position on resume.
+    await this._api.hsspPause();
     this._playing = false;
+    this._isPaused = true;
   }
 
   async ensurePlaying(position: number): Promise<void> {

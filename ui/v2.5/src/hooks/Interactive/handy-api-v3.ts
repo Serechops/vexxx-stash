@@ -109,11 +109,15 @@ export class HandyAPIv3 {
     }, 5000);
   }
 
+  /** Called when the API transitions from offline back to online. */
+  onReconnect?: () => void;
+
   private _setOnline(status: boolean): void {
     if (this._isOnline !== status) {
       this._isOnline = status;
       if (status) {
         void this._flushQueue();
+        this.onReconnect?.();
       }
     }
   }
@@ -450,8 +454,14 @@ export class HandyAPIv3 {
 
   // ── HSSP ─────────────────────────────────────────────────────────────────
 
-  async hsspSetup(url: string): Promise<Record<string, unknown>> {
-    return this._put("/hssp/setup", { url });
+  /**
+   * Setup the HSSP protocol.
+   * @param notify When true, the server sends HSP state-change notifications over SSE.
+   */
+  async hsspSetup(url: string, notify = false): Promise<Record<string, unknown>> {
+    const body: Record<string, unknown> = { url };
+    if (notify) body["notify"] = true;
+    return this._put("/hssp/setup", body);
   }
 
   async hsspPlay(
@@ -469,6 +479,19 @@ export class HandyAPIv3 {
 
   async hsspStop(): Promise<Record<string, unknown>> {
     return this._put("/hssp/stop");
+  }
+
+  async hsspPause(): Promise<Record<string, unknown>> {
+    return this._put("/hssp/pause");
+  }
+
+  /**
+   * Resume HSSP playback.
+   * @param pickUp When true, jumps to the current 'live' script position.
+   *               When false (default), resumes from the paused position.
+   */
+  async hsspResume(pickUp = false): Promise<Record<string, unknown>> {
+    return this._put("/hssp/resume", { pickUp });
   }
 
   async hsspGetState(): Promise<Record<string, unknown>> {

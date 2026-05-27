@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
-import { Box } from "@mui/material";
+import { Box, Checkbox as MuiCheckbox } from "@mui/material";
+import { GlassBadge } from "src/theme/styledComponents";
 import { Link, useHistory } from "react-router-dom";
 import cx from "classnames";
 import * as GQL from "src/core/generated-graphql";
@@ -133,6 +134,38 @@ export const OverlayCard: React.FC<ISceneCardProps> = ({
                 <a href={finalLink} className="scene-card-link" target="_blank" rel="noopener noreferrer" onClick={e => selecting && e.preventDefault()} style={{ textDecoration: 'none', color: 'inherit' }}>
                     {renderCardContent()}
                 </a>
+            )}
+            {onSelectedChanged && (
+                <Box
+                    sx={{
+                        position: "absolute",
+                        top: "0.5rem",
+                        left: "0.5rem",
+                        zIndex: 30,
+                        opacity: (selecting || selected) ? 1 : 0,
+                        transition: "opacity 0.2s ease",
+                        ".scene-card-overlay-variant:hover &": { opacity: 1 },
+                    }}
+                >
+                    <MuiCheckbox
+                        className="card-check mousetrap"
+                        checked={selected ?? false}
+                        onChange={() => onSelectedChanged(!selected, false)}
+                        onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                            e.stopPropagation();
+                        }}
+                        size="small"
+                        sx={{
+                            color: "grey.400",
+                            bgcolor: "rgba(24, 24, 27, 0.8)",
+                            backdropFilter: "blur(4px)",
+                            borderRadius: 1,
+                            p: 0.5,
+                            "&.Mui-checked": { color: "primary.main" },
+                            "&:hover": { bgcolor: "rgba(24, 24, 27, 0.95)" },
+                        }}
+                    />
+                </Box>
             )}
         </Box>
     );
@@ -281,38 +314,14 @@ export const OverlayCard: React.FC<ISceneCardProps> = ({
                             )}
                             <Box sx={{ ml: "8px", display: "flex", gap: "4px" }}>
                                 {resolution && (
-                                    <Box
-                                        component="span"
-                                        className="inline-block px-1.5 py-0.5 text-xs font-bold text-white bg-zinc-600 rounded"
-                                        sx={{
-                                            backgroundColor: "rgba(255, 255, 255, 0.2)",
-                                            color: "#fff",
-                                            backdropFilter: "blur(4px)",
-                                            border: 0,
-                                            padding: "2px 4px",
-                                            fontSize: "0.75rem",
-                                            "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.3)" }
-                                        }}
-                                    >
+                                    <GlassBadge component="span" sx={{ borderRadius: "4px", padding: "2px 4px" }}>
                                         {resolution}
-                                    </Box>
+                                    </GlassBadge>
                                 )}
                                 {duration && (
-                                    <Box
-                                        component="span"
-                                        className="inline-block px-1.5 py-0.5 text-xs font-bold text-white bg-zinc-600 rounded"
-                                        sx={{
-                                            backgroundColor: "rgba(255, 255, 255, 0.2)",
-                                            color: "#fff",
-                                            backdropFilter: "blur(4px)",
-                                            border: 0,
-                                            padding: "2px 4px",
-                                            fontSize: "0.75rem",
-                                            "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.3)" }
-                                        }}
-                                    >
+                                    <GlassBadge component="span" sx={{ borderRadius: "4px", padding: "2px 4px" }}>
                                         {duration}
-                                    </Box>
+                                    </GlassBadge>
                                 )}
                             </Box>
                         </Box>

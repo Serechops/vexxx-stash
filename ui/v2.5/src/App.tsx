@@ -389,7 +389,7 @@ export const App: React.FC = () => {
         messages={messages}
         formats={intlFormats}
       >
-        <ThemeProvider theme={theme}>
+        <ThemeProvider theme={theme} defaultMode="dark" noSsr>
           <CssBaseline />
           <ToastProvider>
             <PluginsLoader>

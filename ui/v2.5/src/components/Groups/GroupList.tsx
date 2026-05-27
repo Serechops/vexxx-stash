@@ -200,8 +200,7 @@ const GroupListContent: React.FC<{
             position: "relative",
             zIndex: 10,
             mt: { xs: 4, md: '65vh' },
-            background: (theme) =>
-              `linear-gradient(to bottom, transparent, ${theme.palette.background.default} 20%, ${theme.palette.background.default})`,
+            background: "linear-gradient(to bottom, transparent, #09090b 20%, #09090b)",
             pt: { xs: 4, md: 8 },
             pb: 4,
             px: { xs: 2, md: 6 },

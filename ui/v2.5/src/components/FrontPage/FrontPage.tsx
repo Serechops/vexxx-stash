@@ -94,7 +94,7 @@ const FrontPage: React.FC = PatchComponent("FrontPage", () => {
           position: "relative",
           zIndex: 10,
           mt: { xs: "50vw", md: "65vh" }, // Push content down to reveal hero (responsive)
-          background: (theme) => `linear-gradient(to bottom, transparent, ${theme.palette.background.default} 20%, ${theme.palette.background.default})`,
+          background: "linear-gradient(to bottom, transparent, #09090b 20%, #09090b)",
           pt: { xs: 4, md: 10 },
           pb: 6,
           px: { xs: 2, md: 6 },

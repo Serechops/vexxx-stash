@@ -1,15 +1,8 @@
-import React, { useMemo, useState } from "react";
-import {
-  OnChangeValue,
-  StylesConfig,
-  GroupBase,
-  OptionsOrGroups,
-  Options,
-} from "react-select";
-import AsyncSelect from "react-select/async";
-import AsyncCreatableSelect, {
-  AsyncCreatableProps,
-} from "react-select/async-creatable";
+import React, { useEffect, useMemo, useState } from "react";
+import Autocomplete from "@mui/material/Autocomplete";
+import TextField from "@mui/material/TextField";
+import Chip from "@mui/material/Chip";
+import CircularProgress from "@mui/material/CircularProgress";
 import cx from "classnames";
 
 import { useToast } from "src/hooks/Toast";
@@ -18,97 +11,11 @@ import { IHasID } from "src/utils/data";
 
 export type Option<T> = { value: string; object: T };
 
-interface ISelectProps<T, IsMulti extends boolean>
-  extends AsyncCreatableProps<Option<T>, IsMulti, GroupBase<Option<T>>> {
-  selectedOptions?: OnChangeValue<Option<T>, IsMulti>;
-  creatable?: boolean;
-  isLoading?: boolean;
-  isDisabled?: boolean;
-  placeholder?: string;
-  showDropdown?: boolean;
-  groupHeader?: string;
-  noOptionsMessageText?: string | null;
+const CREATE_VALUE = "__create__";
+
+function isCreate<T>(opt: Option<T>) {
+  return opt.value === CREATE_VALUE;
 }
-
-interface IFilterSelectProps<T, IsMulti extends boolean>
-  extends Pick<
-    ISelectProps<T, IsMulti>,
-    | "selectedOptions"
-    | "isLoading"
-    | "isMulti"
-    | "components"
-    | "placeholder"
-    | "closeMenuOnSelect"
-  > { }
-
-const getSelectedItems = <T,>(
-  selectedItems: OnChangeValue<Option<T>, boolean>
-) => {
-  if (Array.isArray(selectedItems)) {
-    return selectedItems;
-  } else if (selectedItems) {
-    return [selectedItems];
-  } else {
-    return [];
-  }
-};
-
-const SelectComponent = <T, IsMulti extends boolean>(
-  props: ISelectProps<T, IsMulti>
-) => {
-  const {
-    selectedOptions,
-    isDisabled = false,
-    creatable = false,
-    components,
-    placeholder,
-    showDropdown = true,
-    noOptionsMessageText: noOptionsMessage = "None",
-  } = props;
-
-  const styles: StylesConfig<Option<T>, IsMulti> = {
-    option: (base) => ({
-      ...base,
-      color: "#000",
-    }),
-    container: (base, state) => ({
-      ...base,
-      zIndex: state.isFocused ? 10 : base.zIndex,
-    }),
-    multiValueRemove: (base, state) => ({
-      ...base,
-      color: state.isFocused ? base.color : "#333333",
-    }),
-    menuPortal: (base) => ({
-      ...base,
-      zIndex: 9999,
-    }),
-  };
-
-  const componentProps = {
-    ...props,
-    styles,
-    defaultOptions: true,
-    isClearable: true,
-    value: selectedOptions ?? null,
-    className: cx("react-select", "vexxx-filter-select", props.className),
-    classNamePrefix: "react-select",
-    noOptionsMessage: () => noOptionsMessage,
-    placeholder: isDisabled ? "" : placeholder,
-    components: {
-      ...components,
-      IndicatorSeparator: () => null,
-      ...((!showDropdown || isDisabled) && { DropdownIndicator: () => null }),
-      ...(isDisabled && { MultiValueRemove: () => null }),
-    },
-  };
-
-  return creatable ? (
-    <AsyncCreatableSelect {...componentProps} isDisabled={isDisabled} />
-  ) : (
-    <AsyncSelect {...componentProps} />
-  );
-};
 
 export interface IFilterValueProps<T> {
   values?: T[];
@@ -135,6 +42,27 @@ export interface IFilterComponentProps<T> extends IFilterProps {
   isValidNewOption?: (inputValue: string, options: T[]) => boolean;
 }
 
+export interface IFilterIDProps<T> {
+  ids?: string[];
+  onSelect?: (item: T[]) => void;
+}
+
+export function toOption<T extends IHasID>(item: T): Option<T> {
+  return { value: item.id, object: item };
+}
+
+interface IFilterSelectProps<T, IsMulti extends boolean> {
+  isMulti: IsMulti;
+  placeholder?: string;
+  closeMenuOnSelect?: boolean;
+  /** Custom option row renderer in the dropdown. */
+  renderOption?: (option: T, inputValue: string) => React.ReactNode;
+  /** Custom chip label renderer for multi-select tags. */
+  renderTag?: (option: T) => React.ReactNode;
+  /** String label used in the input field. Defaults to `object.name`. */
+  getOptionLabel?: (option: Option<T>) => string;
+}
+
 export const FilterSelectComponent = <
   T extends IHasID,
   IsMulti extends boolean
@@ -151,116 +79,183 @@ export const FilterSelectComponent = <
     isValidNewOption,
     getNamedObject,
     loadOptions,
+    renderOption,
+    renderTag,
+    isDisabled = false,
+    isClearable = true,
+    placeholder,
+    className,
+    closeMenuOnSelect,
   } = props;
-  const [loading, setLoading] = useState(false);
+
+  const [inputValue, setInputValue] = useState("");
+  const [asyncOptions, setAsyncOptions] = useState<Option<T>[]>([]);
+  const [asyncLoading, setAsyncLoading] = useState(false);
+  const [creating, setCreating] = useState(false);
   const Toast = useToast();
 
-  const selectedOptions = useMemo(() => {
-    if (isMulti && values) {
-      return values.map(
-        (value) =>
-        ({
-          object: value,
-          value: value.id,
-        } as Option<T>)
-      ) as unknown as OnChangeValue<Option<T>, IsMulti>;
+  const getLabel =
+    props.getOptionLabel ??
+    ((opt: Option<T>) => (opt.object as any).name ?? opt.value);
+
+  const debouncedLoad = useDebounce(async (value: string) => {
+    setAsyncLoading(true);
+    try {
+      setAsyncOptions(await loadOptions(value));
+    } finally {
+      setAsyncLoading(false);
     }
+  }, 100);
 
-    if (values?.length) {
-      return {
-        object: values[0],
-        value: values[0].id,
-      } as OnChangeValue<Option<T>, IsMulti>;
-    }
-  }, [values, isMulti]);
+  // Load default options on mount
+  useEffect(() => {
+    debouncedLoad("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const onChange = (selectedItems: OnChangeValue<Option<T>, boolean>) => {
-    const selected = getSelectedItems(selectedItems);
-
-    onSelect?.(selected.map((item) => item.object));
+  const handleInputChange = (_: React.SyntheticEvent, value: string) => {
+    setInputValue(value);
+    debouncedLoad(value);
   };
 
-  const onCreate =
-    creatable && props.onCreate
-      ? async (name: string) => {
-        try {
-          setLoading(true);
-          const {
-            value,
-            item: newItem,
-            message,
-          } = await props.onCreate!(name);
-          const newItemOption = {
-            object: newItem,
-            value,
-          } as Option<T>;
-          if (!isMulti) {
-            onChange(newItemOption);
-          } else {
-            const o = (selectedOptions ?? []) as Option<T>[];
-            onChange([...o, newItemOption]);
-          }
+  const options = useMemo((): Option<T>[] => {
+    const opts = [...asyncOptions];
+    if (
+      creatable &&
+      inputValue &&
+      isValidNewOption?.(inputValue, asyncOptions.map((o) => o.object))
+    ) {
+      opts.push({
+        value: CREATE_VALUE,
+        object: getNamedObject?.("", inputValue) as T,
+      });
+    }
+    return opts;
+  }, [asyncOptions, inputValue, creatable, isValidNewOption, getNamedObject]);
 
-          setLoading(false);
-          Toast.success(
-            <span>
-              {message}: <b>{name}</b>
-            </span>
-          );
-        } catch (e) {
-          Toast.error(e);
-        }
-      }
-      : undefined;
+  const selectedOptions = useMemo((): Option<T>[] => {
+    if (!values?.length) return [];
+    return values.map((v) => ({ value: v.id, object: v }));
+  }, [values]);
 
-  const getNewOptionData =
-    creatable && getNamedObject
-      ? (inputValue: string, optionLabel: React.ReactNode) => {
-        return {
-          value: "",
-          object: getNamedObject("", optionLabel as string),
-        };
-      }
-      : undefined;
+  const handleChange = async (
+    _: React.SyntheticEvent,
+    newValue: Option<T> | Option<T>[] | null
+  ) => {
+    if (newValue === null) {
+      onSelect?.([]);
+      return;
+    }
 
-  const validNewOption =
-    creatable && isValidNewOption
-      ? (
-        inputValue: string,
-        value: Options<Option<T>>,
-        options: OptionsOrGroups<Option<T>, GroupBase<Option<T>>>
-      ) => {
-        return isValidNewOption(
-          inputValue,
-          (options as Options<Option<T>>).map((o) => o.object)
+    const items = Array.isArray(newValue) ? newValue : [newValue];
+    const createItem = items.find(isCreate);
+
+    if (createItem && props.onCreate && getNamedObject) {
+      setCreating(true);
+      try {
+        const {
+          value: newId,
+          item: newObj,
+          message,
+        } = await props.onCreate!(inputValue);
+        const newOpt: Option<T> = { value: newId, object: newObj };
+        const existingItems = items.filter((i) => !isCreate(i));
+        const final = isMulti ? [...existingItems, newOpt] : [newOpt];
+        onSelect?.(final.map((o) => o.object));
+        Toast.success(
+          <span>
+            {message}: <b>{inputValue}</b>
+          </span>
         );
+        setInputValue("");
+      } catch (e) {
+        Toast.error(e);
+      } finally {
+        setCreating(false);
       }
-      : undefined;
+      return;
+    }
 
-  const debounceDelay = 100;
-  const debounceLoadOptions = useDebounce((inputValue, callback) => {
-    loadOptions(inputValue).then(callback);
-  }, debounceDelay);
+    onSelect?.(items.filter((i) => !isCreate(i)).map((o) => o.object));
+  };
+
+  const loading = asyncLoading || creating;
+  const shouldClose = closeMenuOnSelect ?? !isMulti;
 
   return (
-    <SelectComponent<T, IsMulti>
-      {...props}
-      loadOptions={debounceLoadOptions}
-      isLoading={props.isLoading || loading}
-      onChange={onChange}
-      selectedOptions={selectedOptions}
-      onCreateOption={onCreate}
-      getNewOptionData={getNewOptionData}
-      isValidNewOption={validNewOption}
+    <Autocomplete<Option<T>, IsMulti, boolean, false>
+      className={cx("vexxx-filter-select", className)}
+      multiple={isMulti as IsMulti}
+      disableClearable={!isClearable as any}
+      options={options}
+      value={(isMulti ? selectedOptions : selectedOptions[0] ?? null) as any}
+      inputValue={inputValue}
+      onInputChange={handleInputChange}
+      onChange={handleChange as any}
+      loading={loading}
+      filterOptions={(opts) => opts}
+      isOptionEqualToValue={(opt, val) => opt.value === val.value}
+      getOptionLabel={(opt) => {
+        if (isCreate(opt)) return `Create "${inputValue}"`;
+        return getLabel(opt);
+      }}
+      disabled={isDisabled}
+      noOptionsText="None"
+      disableCloseOnSelect={!shouldClose}
+      renderInput={(params) => (
+        <TextField
+          {...params}
+          variant="outlined"
+          size="small"
+          placeholder={isDisabled ? "" : placeholder}
+          slotProps={{
+            input: {
+              ...params.InputProps,
+              endAdornment: (
+                <>
+                  {loading && <CircularProgress color="inherit" size={16} />}
+                  {params.InputProps.endAdornment}
+                </>
+              ),
+            },
+          }}
+        />
+      )}
+      renderOption={(liProps, option, state) => {
+        const { key, ...rest } = liProps as any;
+        if (isCreate(option)) {
+          return (
+            <li {...rest} key="__create__">
+              <em>Create &ldquo;{inputValue}&rdquo;</em>
+            </li>
+          );
+        }
+        return (
+          <li {...rest} key={option.value}>
+            {renderOption
+              ? renderOption(option.object, state.inputValue)
+              : getLabel(option)}
+          </li>
+        );
+      }}
+      renderTags={
+        isMulti
+          ? (tagValues, getTagProps) =>
+              tagValues.map((option, index) => {
+                const { key, ...tagProps } = getTagProps({ index });
+                return (
+                  <Chip
+                    key={key}
+                    label={
+                      renderTag ? renderTag(option.object) : getLabel(option)
+                    }
+                    size="small"
+                    {...tagProps}
+                  />
+                );
+              })
+          : undefined
+      }
     />
   );
 };
-
-export interface IFilterIDProps<T> {
-  ids?: string[];
-  onSelect?: (item: T[]) => void;
-}
-
-export function toOption<T extends IHasID>(item: T): Option<T> {
-  return { value: item.id, object: item };
-}

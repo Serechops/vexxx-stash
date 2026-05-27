@@ -127,7 +127,7 @@ const Checkbox: React.FC<{
       size="small"
       sx={{
         color: "grey.400",
-        bgcolor: (t) => alpha(t.palette.background.paper, 0.8),
+        bgcolor: "rgba(24, 24, 27, 0.8)",
         backdropFilter: "blur(4px)",
         borderRadius: 1,
         p: 0.5,
@@ -135,7 +135,7 @@ const Checkbox: React.FC<{
           color: "primary.main",
         },
         "&:hover": {
-          bgcolor: (t) => alpha(t.palette.background.paper, 0.95),
+          bgcolor: "rgba(24, 24, 27, 0.95)",
         },
       }}
     />
@@ -165,12 +165,12 @@ const DragHandle: React.FC<{
         cursor: "grab",
         p: 0.5,
         borderRadius: 1,
-        bgcolor: (t) => alpha(t.palette.background.paper, 0.8),
+        bgcolor: "rgba(24, 24, 27, 0.8)",
         backdropFilter: "blur(4px)",
         color: "grey.400",
         transition: "all 0.15s ease",
         "&:hover": {
-          bgcolor: (t) => alpha(t.palette.background.paper, 0.95),
+          bgcolor: "rgba(24, 24, 27, 0.95)",
           color: "grey.200",
         },
         "&:active": {
@@ -199,6 +199,9 @@ const Controls: React.FC<PropsWithChildren<{}>> = ({ children }) => {
         opacity: 0,
         transition: "opacity 0.2s ease",
         ".stash-grid-card:hover &": {
+          opacity: 1,
+        },
+        ".stash-grid-card.selected &": {
           opacity: 1,
         },
       }}
@@ -310,7 +313,7 @@ export const GridCard: React.FC<ICardProps> = PatchComponent(
 
     return (
       <Card
-        className={cx(props.className, "stash-grid-card")}
+        className={cx(props.className, "stash-grid-card", { selected: props.selected })}
         onClick={handleImageClick}
         {...dragProps}
         sx={{

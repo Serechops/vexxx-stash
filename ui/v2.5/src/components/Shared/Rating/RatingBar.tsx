@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback } from "react";
-import { Box } from "@mui/material";
+import { Box, Rating } from "@mui/material";
 import {
   getRatingPrecision,
   RatingStarPrecision,
@@ -203,9 +203,47 @@ export const RatingBar = PatchComponent(
     // Sizing based on compact mode
     const barHeight = compact ? 8 : 12;
     const fontSize = compact ? "0.9rem" : "1.1rem";
-    const maxFontSize = compact ? "0.7rem" : "0.85rem";
     const minWidth = compact ? 100 : 160;
     const gap = compact ? 4 : 8;
+
+    // Stars mode — delegate to MUI Rating for the canonical star UI
+    if (isStars) {
+      return (
+        <Box
+          className="rating-bar rating-stars"
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: "4px",
+            opacity: disabled ? 0.6 : 1,
+          }}
+        >
+          <Rating
+            value={currentDisplayValue}
+            precision={step}
+            readOnly={disabled || !onSetRating}
+            size={compact ? "small" : "medium"}
+            onChange={(_e, newValue) => {
+              if (!onSetRating) return;
+              if (newValue === null) {
+                onSetRating(null);
+              } else {
+                onSetRating(displayToRating100(newValue));
+              }
+            }}
+            sx={{ color: "warning.light" }}
+          />
+          {orMore && (
+            <Box
+              component="span"
+              sx={{ fontSize: compact ? "0.75rem" : "0.85rem", color: "text.secondary", lineHeight: 1 }}
+            >
+              +
+            </Box>
+          )}
+        </Box>
+      );
+    }
 
     return (
       <Box

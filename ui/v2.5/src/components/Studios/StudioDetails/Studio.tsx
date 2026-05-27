@@ -44,6 +44,7 @@ import {
 } from "src/components/Shared/DetailsPage/Tabs";
 import { DetailTitle } from "src/components/Shared/DetailsPage/DetailTitle";
 import { ExpandCollapseButton } from "src/components/Shared/CollapseButton";
+import { DetailBreadcrumbs } from "src/components/Shared/DetailsPage/DetailBreadcrumbs";
 import { FavoriteIcon } from "src/components/Shared/FavoriteIcon";
 import { ExternalLinkButtons } from "src/components/Shared/ExternalLinksButton";
 import { OrganizedButton } from "src/components/Scenes/SceneDetails/OrganizedButton";
@@ -524,6 +525,16 @@ const StudioPage: React.FC<IProps> = ({ studio, tabKey }) => {
       <Helmet>
         <title>{studio.name ?? intl.formatMessage({ id: "studio" })}</title>
       </Helmet>
+
+      <DetailBreadcrumbs
+        crumbs={[
+          { label: intl.formatMessage({ id: "studios" }), to: "/studios" },
+          ...(studio.parent_studio
+            ? [{ label: studio.parent_studio.name, to: `/studios/${studio.parent_studio.id}` }]
+            : []),
+          { label: studio.name ?? intl.formatMessage({ id: "studio" }) },
+        ]}
+      />
 
       <Box
         className={headerClassName}

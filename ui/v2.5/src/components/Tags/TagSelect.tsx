@@ -1,11 +1,5 @@
 import { Box } from "@mui/material";
 import React, { useEffect, useMemo, useState } from "react";
-import {
-  OptionProps,
-  components as reactSelectComponents,
-  MultiValueGenericProps,
-  SingleValueProps,
-} from "react-select";
 import cx from "classnames";
 
 import * as GQL from "src/core/generated-graphql";
@@ -103,87 +97,39 @@ const _TagSelect: React.FC<TagSelectProps> = (props) => {
     return tagSelectSort(input, ret).map(toOption);
   }
 
-  const TagOption: React.FC<OptionProps<Option, boolean>> = (optionProps) => {
-    let thisOptionProps = optionProps;
-
-    const { object } = optionProps.data;
-
-    let { name } = object;
-
-    // if name does not match the input value but an alias does, show the alias
-    const { inputValue } = optionProps.selectProps;
+  const TagOption = (tag: Tag, inputValue: string) => {
+    let { name } = tag;
     let alias: string | undefined = "";
     if (!name.toLowerCase().includes(inputValue.toLowerCase())) {
-      alias = object.aliases?.find((a) =>
+      alias = tag.aliases?.find((a) =>
         a.toLowerCase().includes(inputValue.toLowerCase())
       );
     }
-
-    thisOptionProps = {
-      ...optionProps,
-      children: (
-        <TagPopover id={object.id} placement={props.hoverPlacement ?? "right"}>
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              "& .alias": {
-                ml: 1,
-                opacity: 0.6,
-                fontStyle: "italic",
-              }
-            }}
-          >
-            <Box component="span">{name}</Box>
-            {alias && (
-              <Box component="span" className="alias">
-                &nbsp;({alias})
-              </Box>
-            )}
-          </Box>
-        </TagPopover>
-      ),
-    };
-
-    return <reactSelectComponents.Option {...thisOptionProps} />;
-  };
-
-  const TagMultiValueLabel: React.FC<
-    MultiValueGenericProps<Option, boolean>
-  > = (optionProps) => {
-    let thisOptionProps = optionProps;
-
-    const { object } = optionProps.data;
-
-    thisOptionProps = {
-      ...optionProps,
-      children: (
-        <TagPopover
-          id={object.id}
-          placement={props.hoverPlacementLabel ?? "top"}
+    return (
+      <TagPopover id={tag.id} placement={props.hoverPlacement ?? "right"}>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            "& .alias": { ml: 1, opacity: 0.6, fontStyle: "italic" },
+          }}
         >
-          <span>{object.name}</span>
-        </TagPopover>
-      ),
-    };
-
-    return <reactSelectComponents.MultiValueLabel {...thisOptionProps} />;
+          <Box component="span">{name}</Box>
+          {alias && (
+            <Box component="span" className="alias">
+              &nbsp;({alias})
+            </Box>
+          )}
+        </Box>
+      </TagPopover>
+    );
   };
 
-  const TagValueLabel: React.FC<SingleValueProps<Option, boolean>> = (
-    optionProps
-  ) => {
-    let thisOptionProps = optionProps;
-
-    const { object } = optionProps.data;
-
-    thisOptionProps = {
-      ...optionProps,
-      children: <>{object.name}</>,
-    };
-
-    return <reactSelectComponents.SingleValue {...thisOptionProps} />;
-  };
+  const TagMultiValueLabel = (tag: Tag) => (
+    <TagPopover id={tag.id} placement={props.hoverPlacementLabel ?? "top"}>
+      <span>{tag.name}</span>
+    </TagPopover>
+  );
 
   const onCreate = async (name: string) => {
     const result = await createTag({
@@ -237,11 +183,8 @@ const _TagSelect: React.FC<TagSelectProps> = (props) => {
       loadOptions={loadTags}
       getNamedObject={getNamedObject}
       isValidNewOption={isValidNewOption}
-      components={{
-        Option: TagOption,
-        MultiValueLabel: TagMultiValueLabel,
-        SingleValue: TagValueLabel,
-      }}
+      renderOption={TagOption}
+      renderTag={TagMultiValueLabel}
       isMulti={props.isMulti ?? false}
       creatable={props.creatable ?? defaultCreatable}
       onCreate={onCreate}

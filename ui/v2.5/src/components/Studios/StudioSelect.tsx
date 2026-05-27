@@ -1,11 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  OptionProps,
-  components as reactSelectComponents,
-  MultiValueGenericProps,
-  SingleValueProps,
-} from "react-select";
-import {
   Box,
 } from "@mui/material";
 import cx from "classnames";
@@ -104,79 +98,30 @@ const _StudioSelect: React.FC<
     return studioSelectSort(input, ret).map(toOption);
   }
 
-  const StudioOption: React.FC<OptionProps<Option, boolean>> = (
-    optionProps
-  ) => {
-    let thisOptionProps = optionProps;
-
-    const { object } = optionProps.data;
-
+  const StudioOption = (object: Studio, inputValue: string) => {
     let { name } = object;
-
-    // if name does not match the input value but an alias does, show the alias
-    const { inputValue } = optionProps.selectProps;
     let alias: string | undefined = "";
     if (!name.toLowerCase().includes(inputValue.toLowerCase())) {
       alias = object.aliases?.find((a) =>
         a.toLowerCase().includes(inputValue.toLowerCase())
       );
     }
-
-    thisOptionProps = {
-      ...optionProps,
-      children: (
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            "& .alias": {
-              ml: 1,
-              opacity: 0.6,
-              fontStyle: "italic",
-            },
-          }}
-        >
-          <Box component="span">{name}</Box>
-          {alias && (
-            <Box component="span" className="alias">
-              &nbsp;({alias})
-            </Box>
-          )}
-        </Box>
-      ),
-    };
-
-    return <reactSelectComponents.Option {...thisOptionProps} />;
-  };
-
-  const StudioMultiValueLabel: React.FC<
-    MultiValueGenericProps<Option, boolean>
-  > = (optionProps) => {
-    let thisOptionProps = optionProps;
-
-    const { object } = optionProps.data;
-
-    thisOptionProps = {
-      ...optionProps,
-      children: object.name,
-    };
-
-    return <reactSelectComponents.MultiValueLabel {...thisOptionProps} />;
-  };
-
-  const StudioValueLabel: React.FC<SingleValueProps<Option, boolean>> = (
-    optionProps
-  ) => {
-    let thisOptionProps = optionProps;
-
-    const { object } = optionProps.data;
-
-    thisOptionProps = {
-      ...optionProps,
-      children: <>{object.name}</>,
-    };
-
-    return <reactSelectComponents.SingleValue {...thisOptionProps} />;
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          "& .alias": { ml: 1, opacity: 0.6, fontStyle: "italic" },
+        }}
+      >
+        <Box component="span">{name}</Box>
+        {alias && (
+          <Box component="span" className="alias">
+            &nbsp;({alias})
+          </Box>
+        )}
+      </Box>
+    );
   };
 
   const onCreate = async (name: string) => {
@@ -230,11 +175,7 @@ const _StudioSelect: React.FC<
       loadOptions={loadStudios}
       getNamedObject={getNamedObject}
       isValidNewOption={isValidNewOption}
-      components={{
-        Option: StudioOption,
-        MultiValueLabel: StudioMultiValueLabel,
-        SingleValue: StudioValueLabel,
-      }}
+      renderOption={StudioOption}
       isMulti={props.isMulti ?? false}
       creatable={props.creatable ?? defaultCreatable}
       onCreate={onCreate}

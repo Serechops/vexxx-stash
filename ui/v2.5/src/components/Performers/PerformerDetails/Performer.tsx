@@ -43,6 +43,7 @@ import {
   useTabKey,
 } from "src/components/Shared/DetailsPage/Tabs";
 import { DetailTitle } from "src/components/Shared/DetailsPage/DetailTitle";
+import { DetailBreadcrumbs } from "src/components/Shared/DetailsPage/DetailBreadcrumbs";
 import { ExpandCollapseButton } from "src/components/Shared/CollapseButton";
 import { FavoriteIcon } from "src/components/Shared/FavoriteIcon";
 import { AliasList } from "src/components/Shared/DetailsPage/AliasList";
@@ -461,8 +462,14 @@ const PerformerPage: React.FC<IProps> = PatchComponent(
           <title>{performer.name}</title>
         </Helmet>
 
+        <DetailBreadcrumbs
+          crumbs={[
+            { label: intl.formatMessage({ id: "performers" }), to: "/performers" },
+            { label: performer.name },
+          ]}
+        />
+
         <Box
-          className={cx(headerClassName)}
           sx={{
             bgcolor: '#18181b',
             minHeight: '15rem',

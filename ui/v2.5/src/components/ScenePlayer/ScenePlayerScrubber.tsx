@@ -450,7 +450,7 @@ export const ScenePlayerScrubber: React.FC<IScenePlayerScrubberProps> = ({
           width: 32,
           height: SCRUBBER_HEIGHT,
           color: theme.palette.primary.main,
-          backgroundColor: alpha(theme.palette.background.default, 0.6),
+          backgroundColor: "rgba(9, 9, 11, 0.6)",
           border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
           "&:hover": {
             backgroundColor: alpha(theme.palette.primary.main, 0.15),
@@ -574,7 +574,7 @@ export const ScenePlayerScrubber: React.FC<IScenePlayerScrubberProps> = ({
           width: 32,
           height: SCRUBBER_HEIGHT,
           color: theme.palette.primary.main,
-          backgroundColor: alpha(theme.palette.background.default, 0.6),
+          backgroundColor: "rgba(9, 9, 11, 0.6)",
           border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
           "&:hover": {
             backgroundColor: alpha(theme.palette.primary.main, 0.15),

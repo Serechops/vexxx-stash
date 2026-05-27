@@ -56,6 +56,7 @@ import { SceneMergeModal } from "../SceneMergeDialog";
 import { goBackOrReplace } from "src/utils/history";
 import { FormattedDate } from "src/components/Shared/Date";
 import { StudioLogo } from "src/components/Shared/StudioLogo";
+import { DetailBreadcrumbs } from "src/components/Shared/DetailsPage/DetailBreadcrumbs";
 
 const SubmitStashBoxDraft = lazyComponent(
   () => import("src/components/Dialogs/SubmitDraft")
@@ -868,6 +869,15 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
           },
         }}
       >
+        <DetailBreadcrumbs
+          crumbs={[
+            { label: intl.formatMessage({ id: "scenes" }), to: "/scenes" },
+            ...(scene.studio
+              ? [{ label: scene.studio.name, to: `/studios/${scene.studio.id}` }]
+              : []),
+            { label: title },
+          ]}
+        />
         <Box>
           <Box
             sx={{

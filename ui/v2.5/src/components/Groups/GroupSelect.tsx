@@ -1,11 +1,5 @@
 import { Box } from "@mui/material";
 import React, { useEffect, useMemo, useState } from "react";
-import {
-  OptionProps,
-  components as reactSelectComponents,
-  MultiValueGenericProps,
-  SingleValueProps,
-} from "react-select";
 import cx from "classnames";
 
 import * as GQL from "src/core/generated-graphql";
@@ -97,142 +91,60 @@ export const GroupSelect: React.FC<
     }));
   }
 
-  const GroupOption: React.FC<OptionProps<Option, boolean>> = (optionProps) => {
-    let thisOptionProps = optionProps;
-
-    const { object } = optionProps.data;
-
+  const GroupOption = (object: Group, inputValue: string) => {
     const title = object.name;
-
-    // if name does not match the input value but an alias does, show the alias
-    const { inputValue } = optionProps.selectProps;
     let alias: string | undefined = "";
     if (!title.toLowerCase().includes(inputValue.toLowerCase())) {
       alias = object.aliases || undefined;
     }
-
-    thisOptionProps = {
-      ...optionProps,
-      children: (
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            width: "100%",
-          }}
-        >
-          {object.front_image_path && (
-            <Box
-              component="img"
-              src={object.front_image_path}
-              loading="lazy"
-              sx={{
-                bgcolor: "background.default",
-                mr: 1,
-                maxHeight: "50px",
-                maxWidth: "89px",
-                objectFit: "contain",
-                objectPosition: "center",
-              }}
-            />
-          )}
-
+    return (
+      <Box sx={{ display: "flex", alignItems: "center", width: "100%" }}>
+        {object.front_image_path && (
           <Box
+            component="img"
+            src={object.front_image_path}
+            loading="lazy"
             sx={{
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "flex-start",
-              maxHeight: "4.1rem",
-              overflow: "hidden",
+              bgcolor: "background.default",
+              mr: 1,
+              maxHeight: "50px",
+              maxWidth: "89px",
+              objectFit: "contain",
+              objectPosition: "center",
             }}
-          >
-            <TruncatedText
-              className="group-select-title"
-              text={
-                <Box component="span">
-                  {title}
-                  {alias && (
-                    <Box
-                      component="span"
-                      sx={{
-                        fontSize: "0.8rem",
-                        fontWeight: "bold",
-                      }}
-                    >
-                      {` (${alias})`}
-                    </Box>
-                  )}
-                </Box>
-              }
-              lineCount={1}
-            />
-
-            {object.studio?.name && (
-              <Box
-                component="span"
-                sx={{
-                  color: "text.secondary",
-                  fontSize: "0.9rem",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {object.studio?.name}
+          />
+        )}
+        <Box sx={{ display: "flex", flexDirection: "column", justifyContent: "flex-start", maxHeight: "4.1rem", overflow: "hidden" }}>
+          <TruncatedText
+            className="group-select-title"
+            text={
+              <Box component="span">
+                {title}
+                {alias && (
+                  <Box component="span" sx={{ fontSize: "0.8rem", fontWeight: "bold" }}>
+                    {` (${alias})`}
+                  </Box>
+                )}
               </Box>
-            )}
-
-            {object.date && (
-              <Box
-                component="span"
-                sx={{
-                  color: "text.secondary",
-                  fontSize: "0.9rem",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {object.date}
-              </Box>
-            )}
-          </Box>
+            }
+            lineCount={1}
+          />
+          {object.studio?.name && (
+            <Box component="span" sx={{ color: "text.secondary", fontSize: "0.9rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {object.studio?.name}
+            </Box>
+          )}
+          {object.date && (
+            <Box component="span" sx={{ color: "text.secondary", fontSize: "0.9rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {object.date}
+            </Box>
+          )}
         </Box>
-      ),
-    };
-
-    return <reactSelectComponents.Option {...thisOptionProps} />;
+      </Box>
+    );
   };
 
-  const GroupMultiValueLabel: React.FC<
-    MultiValueGenericProps<Option, boolean>
-  > = (optionProps) => {
-    let thisOptionProps = optionProps;
-
-    const { object } = optionProps.data;
-
-    thisOptionProps = {
-      ...optionProps,
-      children: object.name,
-    };
-
-    return <reactSelectComponents.MultiValueLabel {...thisOptionProps} />;
-  };
-
-  const GroupValueLabel: React.FC<SingleValueProps<Option, boolean>> = (
-    optionProps
-  ) => {
-    let thisOptionProps = optionProps;
-
-    const { object } = optionProps.data;
-
-    thisOptionProps = {
-      ...optionProps,
-      children: <>{object.name}</>,
-    };
-
-    return <reactSelectComponents.SingleValue {...thisOptionProps} />;
-  };
+  const GroupMultiValueLabel = (object: Group) => object.name;
 
   const onCreate = async (name: string) => {
     const result = await createGroup({
@@ -284,11 +196,8 @@ export const GroupSelect: React.FC<
       loadOptions={loadGroups}
       getNamedObject={getNamedObject}
       isValidNewOption={isValidNewOption}
-      components={{
-        Option: GroupOption,
-        MultiValueLabel: GroupMultiValueLabel,
-        SingleValue: GroupValueLabel,
-      }}
+      renderOption={GroupOption}
+      renderTag={GroupMultiValueLabel}
       isMulti={props.isMulti ?? false}
       creatable={props.creatable ?? defaultCreatable}
       onCreate={onCreate}

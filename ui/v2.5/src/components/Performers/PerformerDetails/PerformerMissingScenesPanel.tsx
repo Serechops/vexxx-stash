@@ -1,5 +1,4 @@
 import React, { useState, useMemo } from "react";
-import Select from "react-select";
 import {
     Button,
     TextField,
@@ -12,7 +11,8 @@ import {
     FormControl,
     InputLabel,
     Stack,
-    Typography
+    Typography,
+    Autocomplete,
 } from "@mui/material";
 import { FormattedMessage, useIntl } from "react-intl";
 import * as GQL from "src/core/generated-graphql";
@@ -34,7 +34,7 @@ interface IPerformerMissingScenesPanelProps {
 type StatusFilter = "all" | "untracked" | "tracked" | "owned";
 type SortField = "date" | "title" | "studio";
 type SortDirection = "asc" | "desc";
-type Option = { label: string; value: string };
+
 
 export const PerformerMissingScenesPanel: React.FC<IPerformerMissingScenesPanelProps> = ({
     active,
@@ -449,55 +449,37 @@ export const PerformerMissingScenesPanel: React.FC<IPerformerMissingScenesPanelP
                     />
 
                     {/* Studio Filter */}
-                    <Box width={200}>
-                        <Select
-                            className="react-select"
-                            classNamePrefix="react-select"
-                            options={uniqueStudios.map(s => ({ label: s, value: s }))}
-                            value={selectedStudio ? { label: selectedStudio, value: selectedStudio } : null}
-                            onChange={(option: Option | null) => setSelectedStudio(option ? option.value : null)}
-                            placeholder="All Studios"
-                            isClearable
-                            menuPortalTarget={document.body}
-                            styles={{
-                                menuPortal: base => ({ ...base, zIndex: 9999 }),
-                            }}
-                        />
-                    </Box>
+                    <Autocomplete
+                        options={uniqueStudios}
+                        value={selectedStudio}
+                        onChange={(_, v) => setSelectedStudio(v)}
+                        sx={{ width: 200 }}
+                        renderInput={(params) => (
+                            <TextField {...params} size="small" placeholder="All Studios" />
+                        )}
+                    />
 
                     {/* Performer Filter */}
-                    <Box width={200}>
-                        <Select
-                            className="react-select"
-                            classNamePrefix="react-select"
-                            options={uniquePerformers.map(p => ({ label: p, value: p }))}
-                            value={selectedPerformer ? { label: selectedPerformer, value: selectedPerformer } : null}
-                            onChange={(option: Option | null) => setSelectedPerformer(option ? option.value : null)}
-                            placeholder="All Performers"
-                            isClearable
-                            menuPortalTarget={document.body}
-                            styles={{
-                                menuPortal: base => ({ ...base, zIndex: 9999 }),
-                            }}
-                        />
-                    </Box>
+                    <Autocomplete
+                        options={uniquePerformers}
+                        value={selectedPerformer}
+                        onChange={(_, v) => setSelectedPerformer(v)}
+                        sx={{ width: 200 }}
+                        renderInput={(params) => (
+                            <TextField {...params} size="small" placeholder="All Performers" />
+                        )}
+                    />
 
                     {/* Tag Filter */}
-                    <Box width={200}>
-                        <Select
-                            className="react-select"
-                            classNamePrefix="react-select"
-                            options={uniqueTags.map(t => ({ label: t, value: t }))}
-                            value={selectedTag ? { label: selectedTag, value: selectedTag } : null}
-                            onChange={(option: Option | null) => setSelectedTag(option ? option.value : null)}
-                            placeholder="All Tags"
-                            isClearable
-                            menuPortalTarget={document.body}
-                            styles={{
-                                menuPortal: base => ({ ...base, zIndex: 9999 }),
-                            }}
-                        />
-                    </Box>
+                    <Autocomplete
+                        options={uniqueTags}
+                        value={selectedTag}
+                        onChange={(_, v) => setSelectedTag(v)}
+                        sx={{ width: 200 }}
+                        renderInput={(params) => (
+                            <TextField {...params} size="small" placeholder="All Tags" />
+                        )}
+                    />
 
                     {/* Status Filter */}
                     <FormControl size="small">

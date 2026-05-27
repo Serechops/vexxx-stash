@@ -1,11 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { Box } from "@mui/material";
-import {
-  OptionProps,
-  components as reactSelectComponents,
-  MultiValueGenericProps,
-  SingleValueProps,
-} from "react-select";
 import cx from "classnames";
 
 import * as GQL from "src/core/generated-graphql";
@@ -117,17 +111,8 @@ const _PerformerSelect: React.FC<
     ).map(toOption);
   }
 
-  const PerformerOption: React.FC<OptionProps<Option, boolean>> = (
-    optionProps
-  ) => {
-    let thisOptionProps = optionProps;
-
-    const { object } = optionProps.data;
-
+  const PerformerOption = (object: Performer, inputValue: string) => {
     let { name } = object;
-
-    // if name does not match the input value but an alias does, show the alias
-    const { inputValue } = optionProps.selectProps;
     let alias: string | undefined = "";
     if (!name.toLowerCase().includes(inputValue.toLowerCase())) {
       alias = object.alias_list?.find((a) =>
@@ -136,129 +121,83 @@ const _PerformerSelect: React.FC<
     }
 
     const sceneAge = TextUtils.age(object.birthdate, props.ageFromDate);
-
     const age =
       sceneAge < 18
         ? TextUtils.age(object.birthdate, object.death_date)
         : sceneAge;
-
     const ageL10nId =
       !props.ageFromDate || sceneAge < 18
         ? "media_info.performer_card.age"
         : "age_on_date";
-
-    const ageL10String = intl.formatMessage({
-      id: "years_old",
-      defaultMessage: "years old",
-    });
+    const ageL10String = intl.formatMessage({ id: "years_old", defaultMessage: "years old" });
     const ageString = intl.formatMessage(
       { id: ageL10nId },
       { age, years_old: ageL10String }
     );
 
-    thisOptionProps = {
-      ...optionProps,
-      children: (
-        <Box component="span" className="performer-select-option">
-          <Box component="span" className="performer-select-row" sx={{ display: "flex", alignItems: "center", width: "100%" }}>
-            <Link
-              to={`/performers/${object.id}`}
-              target="_blank"
-              className="performer-select-image-link"
-            >
-              <Box
-                component="img"
-                className="performer-select-image"
-                src={object.image_path ?? ""}
-                loading="lazy"
-                sx={{ mr: 1, maxHeight: "50px", maxWidth: "50px" }}
-              />
-            </Link>
-            <Box component="span" className="performer-select-details" sx={{ display: "flex", flexDirection: "column", justifyContent: "flex-start", maxHeight: "4.1rem", overflow: "hidden" }}>
-              <TruncatedText
-                className="performer-select-name"
-                text={
-                  <Box component="span">
-                    {name}
-                    {alias && (
-                      <Box component="span" className="performer-select-alias" sx={{ fontSize: "0.8rem", fontWeight: "bold" }}>
-                        &nbsp;({alias})
-                      </Box>
-                    )}
-                  </Box>
-                }
-                lineCount={1}
-              />
-
-              {object.disambiguation && (
-                <Box component="span" className="performer-select-disambiguation" sx={{ color: "text.secondary", fontSize: "0.9rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {object.disambiguation}
+    return (
+      <Box component="span" className="performer-select-option">
+        <Box component="span" className="performer-select-row" sx={{ display: "flex", alignItems: "center", width: "100%" }}>
+          <Link
+            to={`/performers/${object.id}`}
+            target="_blank"
+            className="performer-select-image-link"
+          >
+            <Box
+              component="img"
+              className="performer-select-image"
+              src={object.image_path ?? ""}
+              loading="lazy"
+              sx={{ mr: 1, maxHeight: "50px", maxWidth: "50px" }}
+            />
+          </Link>
+          <Box component="span" className="performer-select-details" sx={{ display: "flex", flexDirection: "column", justifyContent: "flex-start", maxHeight: "4.1rem", overflow: "hidden" }}>
+            <TruncatedText
+              className="performer-select-name"
+              text={
+                <Box component="span">
+                  {name}
+                  {alias && (
+                    <Box component="span" className="performer-select-alias" sx={{ fontSize: "0.8rem", fontWeight: "bold" }}>
+                      &nbsp;({alias})
+                    </Box>
+                  )}
                 </Box>
-              )}
-
-              {object.birthdate && (
-                <Box component="span" className="performer-select-birthdate" sx={{ color: "text.secondary", fontSize: "0.9rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {object.birthdate}
-                  <Box component="span" className="performer-select-age">{` (${ageString})`}</Box>
-                </Box>
-              )}
-            </Box>
-          </Box>
-        </Box>
-      ),
-    };
-
-    return <reactSelectComponents.Option {...thisOptionProps} />;
-  };
-
-  const PerformerMultiValueLabel: React.FC<
-    MultiValueGenericProps<Option, boolean>
-  > = (optionProps) => {
-    let thisOptionProps = optionProps;
-
-    const { object } = optionProps.data;
-
-    thisOptionProps = {
-      ...optionProps,
-      children: (
-        <PerformerPopover
-          id={object.id}
-          placement={props.hoverPlacementLabel ?? "top"}
-        >
-          <Box component="span" className="performer-select-value">
-            <Box component="span">{object.name}</Box>
+              }
+              lineCount={1}
+            />
             {object.disambiguation && (
-              <Box component="span" className="performer-disambiguation" sx={{ color: "inherit", opacity: 0.6, fontSize: "0.875em" }}>{` (${object.disambiguation})`}</Box>
+              <Box component="span" className="performer-select-disambiguation" sx={{ color: "text.secondary", fontSize: "0.9rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {object.disambiguation}
+              </Box>
+            )}
+            {object.birthdate && (
+              <Box component="span" className="performer-select-birthdate" sx={{ color: "text.secondary", fontSize: "0.9rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {object.birthdate}
+                <Box component="span" className="performer-select-age">{` (${ageString})`}</Box>
+              </Box>
             )}
           </Box>
-        </PerformerPopover>
-      ),
-    };
-
-    return <reactSelectComponents.MultiValueLabel {...thisOptionProps} />;
-  };
-
-  const PerformerValueLabel: React.FC<SingleValueProps<Option, boolean>> = (
-    optionProps
-  ) => {
-    let thisOptionProps = optionProps;
-
-    const { object } = optionProps.data;
-
-    thisOptionProps = {
-      ...optionProps,
-      children: (
-        <Box component="span" className="performer-select-value">
-          {object.name}
-          {object.disambiguation && (
-            <Box component="span" className="performer-disambiguation" sx={{ color: "inherit", opacity: 0.6, fontSize: "0.875em" }}>{` (${object.disambiguation})`}</Box>
-          )}
         </Box>
-      ),
-    };
-
-    return <reactSelectComponents.SingleValue {...thisOptionProps} />;
+      </Box>
+    );
   };
+
+  const PerformerMultiValueLabel = (object: Performer) => (
+    <PerformerPopover
+      id={object.id}
+      placement={props.hoverPlacementLabel ?? "top"}
+    >
+      <Box component="span" className="performer-select-value">
+        <Box component="span">{object.name}</Box>
+        {object.disambiguation && (
+          <Box component="span" className="performer-disambiguation" sx={{ color: "inherit", opacity: 0.6, fontSize: "0.875em" }}>
+            {` (${object.disambiguation})`}
+          </Box>
+        )}
+      </Box>
+    </PerformerPopover>
+  );
 
   const onCreate = async (name: string) => {
     const result = await createPerformer({
@@ -313,10 +252,11 @@ const _PerformerSelect: React.FC<
       loadOptions={loadPerformers}
       getNamedObject={getNamedObject}
       isValidNewOption={isValidNewOption}
-      components={{
-        Option: PerformerOption,
-        MultiValueLabel: PerformerMultiValueLabel,
-        SingleValue: PerformerValueLabel,
+      renderOption={PerformerOption}
+      renderTag={PerformerMultiValueLabel}
+      getOptionLabel={(opt) => {
+        const p = opt.object;
+        return p.name + (p.disambiguation ? ` (${p.disambiguation})` : "");
       }}
       isMulti={props.isMulti ?? false}
       creatable={props.creatable ?? defaultCreatable}

@@ -1,5 +1,6 @@
 import React from "react";
-import Creatable from "react-select/creatable";
+import Autocomplete from "@mui/material/Autocomplete";
+import TextField from "@mui/material/TextField";
 import { useIntl } from "react-intl";
 import { getCountries } from "src/utils/country";
 import { CountryLabel } from "./CountryLabel";
@@ -22,32 +23,49 @@ const _CountrySelect: React.FC<IProps> = ({
   isClearable = true,
   showFlag,
   className,
-  menuPortalTarget,
 }) => {
   const { locale } = useIntl();
   const options = getCountries(locale);
-  const selected = options.find((opt) => opt.value === value) ?? {
-    label: value,
-    value,
-  };
+  const selected = options.find((opt) => opt.value === value) ?? (value ? { label: value, value } : null);
 
   return (
-    <Creatable
-      classNamePrefix="react-select"
-      value={selected}
-      isClearable={isClearable}
-      formatOptionLabel={(option) => (
-        <CountryLabel country={option.value} showFlag={showFlag} />
-      )}
-      placeholder="Country"
+    <Autocomplete
+      freeSolo
       options={options}
-      onChange={(selectedOption) => onChange?.(selectedOption?.value ?? "")}
-      isDisabled={disabled || !onChange}
-      components={{
-        IndicatorSeparator: null,
+      value={selected}
+      disableClearable={!isClearable}
+      disabled={disabled || !onChange}
+      className={`CountrySelect ${className ?? ""}`}
+      getOptionLabel={(opt) =>
+        typeof opt === "string" ? opt : (opt.label ?? "")
+      }
+      isOptionEqualToValue={(opt, val) =>
+        (typeof opt === "string" ? opt : opt.value) ===
+        (typeof val === "string" ? val : val.value)
+      }
+      onChange={(_, newValue) => {
+        if (typeof newValue === "string") {
+          onChange?.(newValue);
+        } else if (newValue) {
+          onChange?.(newValue.value ?? "");
+        } else {
+          onChange?.("");
+        }
       }}
-      className={`CountrySelect ${className}`}
-      menuPortalTarget={menuPortalTarget}
+      onInputChange={(_, newValue, reason) => {
+        if (reason === "input") onChange?.(newValue);
+      }}
+      renderOption={(liProps, opt) => {
+        const { key, ...rest } = liProps as React.HTMLAttributes<HTMLLIElement> & { key: React.Key };
+        return (
+          <li {...rest} key={key}>
+            <CountryLabel country={opt.value} showFlag={showFlag} />
+          </li>
+        );
+      }}
+      renderInput={(params) => (
+        <TextField {...params} size="small" placeholder="Country" />
+      )}
     />
   );
 };

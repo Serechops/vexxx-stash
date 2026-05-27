@@ -21,6 +21,8 @@ import {
   TableRow,
   TableSortLabel,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
   Toolbar,
   Tooltip,
   Typography,
@@ -611,13 +613,24 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
             />
           </Tooltip>
         )}
-        <IconButton
+        <ToggleButtonGroup
           size="small"
-          onClick={() => handleSetViewMode(viewMode === "list" ? "grid" : "list")}
-          title={viewMode === "list" ? "Switch to grid view" : "Switch to list view"}
+          value={viewMode}
+          exclusive
+          onChange={(_e, v) => { if (v !== null) handleSetViewMode(v); }}
+          aria-label="view mode"
         >
-          {viewMode === "list" ? <ViewModuleIcon fontSize="small" /> : <ViewListIcon fontSize="small" />}
-        </IconButton>
+          <ToggleButton value="list" aria-label="list view">
+            <Tooltip title="List view">
+              <ViewListIcon fontSize="small" />
+            </Tooltip>
+          </ToggleButton>
+          <ToggleButton value="grid" aria-label="grid view">
+            <Tooltip title="Grid view">
+              <ViewModuleIcon fontSize="small" />
+            </Tooltip>
+          </ToggleButton>
+        </ToggleButtonGroup>
         <IconButton
           size="small"
           onClick={handleQuickTagToggle}

@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from "react";
-import { Box, Typography } from "@mui/material";
+import { Box, Typography, Checkbox as MuiCheckbox } from "@mui/material";
 import { Link, useHistory } from "react-router-dom";
 import * as GQL from "src/core/generated-graphql";
 import { PatchComponent } from "src/patch";
 import { GridCard } from "../Shared/GridCard/GridCard";
+import { OverlayGradient } from "src/theme/styledComponents";
 import { TagLink } from "../Shared/TagLink";
 import { RatingBanner } from "../Shared/RatingBanner";
 import InfoIcon from "@mui/icons-material/Info";
@@ -205,19 +206,9 @@ export const GroupCard: React.FC<IProps> = PatchComponent(
                   </Box>
                 </Box>
 
-                {/* Selecting Checkbox */}
-                {selecting && (
-                  <Box sx={{ left: '0.5rem', position: 'absolute', top: '0.5rem', zIndex: 30 }}>
-                    <input
-                      type="checkbox"
-                      checked={selected}
-                      readOnly
-                      style={{ cursor: "pointer", height: "1.25rem", width: "1.25rem" }}
-                    />
-                  </Box>
-                )}
+                {/* Selecting Checkbox - moved outside Link below */}
 
-                <Box className="overlay-content" sx={{ background: 'linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.4) 70%, transparent 100%)', bottom: 0, color: '#fff', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', left: 0, p: '12px', pointerEvents: 'none', position: 'absolute', right: 0, transition: 'background 0.3s ease' }}>
+                <OverlayGradient className="overlay-content">
                   <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
                     <Typography
                       variant="subtitle1"
@@ -242,8 +233,40 @@ export const GroupCard: React.FC<IProps> = PatchComponent(
                       )}
                     </Box>
                   </Box>
-                </Box>
+                </OverlayGradient>
               </Link>
+              {onSelectedChanged && (
+                <Box
+                  sx={{
+                    position: "absolute",
+                    top: "0.5rem",
+                    left: "0.5rem",
+                    zIndex: 30,
+                    opacity: (selecting || selected) ? 1 : 0,
+                    transition: "opacity 0.2s ease",
+                    ".vexxx-group-card:hover &": { opacity: 1 },
+                  }}
+                >
+                  <MuiCheckbox
+                    className="card-check mousetrap"
+                    checked={selected ?? false}
+                    onChange={() => onSelectedChanged(!selected, false)}
+                    onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                      e.stopPropagation();
+                    }}
+                    size="small"
+                    sx={{
+                      color: "grey.400",
+                      bgcolor: "rgba(24, 24, 27, 0.8)",
+                      backdropFilter: "blur(4px)",
+                      borderRadius: 1,
+                      p: 0.5,
+                      "&.Mui-checked": { color: "primary.main" },
+                      "&:hover": { bgcolor: "rgba(24, 24, 27, 0.95)" },
+                    }}
+                  />
+                </Box>
+              )}
             </Box>
           </div>
 

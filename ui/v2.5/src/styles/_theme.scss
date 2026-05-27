@@ -65,36 +65,6 @@ $sepia1: #63411e;
 $dark-gray2: #202b33;
 $dark-gray5: #394b59;
 
-a.minimal,
-button.minimal {
-  &:focus-visible {
-    outline: 2px solid rgba(138, 155, 168, 0.5);
-    outline-offset: 2px;
-  }
 
-  background: none;
-  border: none;
-  color: $text-color;
-  transition: none;
-
-  &:disabled {
-    background: none;
-    opacity: 0.5;
-  }
-
-  &:hover:not(:disabled) {
-    background: rgba(138, 155, 168, 0.15);
-    color: $text-color;
-  }
-
-  &:active:not(:disabled) {
-    background: rgba(138, 155, 168, 0.3);
-    color: $text-color;
-  }
-}
-
-hr {
-  margin: 5px 0;
-}
 
 

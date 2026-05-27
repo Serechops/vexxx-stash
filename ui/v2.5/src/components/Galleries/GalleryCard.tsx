@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import * as GQL from "src/core/generated-graphql";
 import { GridCard } from "../Shared/GridCard/GridCard";
 import { Box, Typography } from "@mui/material";
+import { GlassBadge } from "src/theme/styledComponents";
 import { HoverPopover } from "../Shared/HoverPopover";
 import { SceneLink, TagLink } from "../Shared/TagLink";
 import { TruncatedText } from "../Shared/TruncatedText";
@@ -306,23 +307,9 @@ export const GalleryCard: React.FC<IGalleryCardProps> = PatchComponent(
               {gallery.performers.length > 0 && (
                 <Box sx={{ display: "flex", flexWrap: "wrap", gap: "4px", mb: "4px" }}>
                   {gallery.performers.slice(0, 4).map(p => (
-                    <Box
-                      component="span"
-                      key={p.id}
-                      sx={{
-                        alignItems: 'center',
-                        backdropFilter: 'blur(4px)',
-                        background: 'rgba(255, 255, 255, 0.2)',
-                        borderRadius: '12px',
-                        display: 'flex',
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        gap: '4px',
-                        p: '2px 8px',
-                      }}
-                    >
+                    <GlassBadge component="span" key={p.id}>
                       {p.name}
-                    </Box>
+                    </GlassBadge>
                   ))}
                 </Box>
               )}

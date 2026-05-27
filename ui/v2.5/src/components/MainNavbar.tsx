@@ -23,6 +23,7 @@ import {
   ListItemIcon,
   ListItemText,
   useMediaQuery,
+  useScrollTrigger,
   useTheme,
   Tooltip,
   Chip,
@@ -266,6 +267,7 @@ export const MainNavbar: React.FC = () => {
   const { openManual } = React.useContext(ManualStateContext);
   const theme = useTheme();
   const isDesktop = useMediaQuery(theme.breakpoints.up('lg'));
+  const scrolled = useScrollTrigger({ disableHysteresis: true, threshold: 10 });
   const { user } = useCurrentUser();
 
   const [expanded, setExpanded] = useState(false);
@@ -615,13 +617,13 @@ export const MainNavbar: React.FC = () => {
       <AppBar
         position="fixed"
         color="default"
-        elevation={0}
+        elevation={scrolled ? 4 : 0}
         sx={{
-          bgcolor: (t) => alpha(t.palette.background.default, 0.85),
+          bgcolor: scrolled ? "rgba(9, 9, 11, 0.97)" : "rgba(9, 9, 11, 0.85)",
           backdropFilter: 'blur(12px)',
-          borderBottom: 1,
+          borderBottom: scrolled ? 0 : 1,
           borderColor: (t) => alpha(t.palette.divider, 0.1),
-          transition: 'all 0.3s ease',
+          transition: 'background-color 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease',
         }}
         className="top-nav vexxx-navbar"
       >

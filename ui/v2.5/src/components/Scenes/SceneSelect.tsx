@@ -1,10 +1,4 @@
 import React, { useEffect, useMemo, useState } from "react";
-import {
-  OptionProps,
-  components as reactSelectComponents,
-  MultiValueGenericProps,
-  SingleValueProps,
-} from "react-select";
 import cx from "classnames";
 
 import * as GQL from "src/core/generated-graphql";
@@ -104,97 +98,45 @@ const _SceneSelect: React.FC<
     return sceneSelectSort(input, ret).map(toOption);
   }
 
-  const SceneOption: React.FC<OptionProps<Option, boolean>> = (optionProps) => {
-    let thisOptionProps = optionProps;
-
-    const { object } = optionProps.data;
-
+  const SceneOption = (object: Scene, inputValue: string) => {
     const title = objectTitle(object);
-
-    // if title does not match the input value but the path does, show the path
-    const { inputValue } = optionProps.selectProps;
     let matchedPath: string | undefined = "";
     if (!title.toLowerCase().includes(inputValue.toLowerCase())) {
       matchedPath = object.files?.find((a) =>
         a.path.toLowerCase().includes(inputValue.toLowerCase())
       )?.path;
     }
-
-    thisOptionProps = {
-      ...optionProps,
-      children: (
-        <span className="scene-select-option">
-          <span className="scene-select-row">
-            {object.paths?.screenshot && (
-              <img
-                className="scene-select-image"
-                src={object.paths.screenshot}
-                loading="lazy"
-              />
-            )}
-
-            <span className="scene-select-details">
-              <TruncatedText
-                className="scene-select-title"
-                text={title}
-                lineCount={1}
-              />
-
-              {object.studio?.name && (
-                <span className="scene-select-studio">
-                  {object.studio?.name}
-                </span>
-              )}
-
-              {object.date && (
-                <span className="scene-select-date">{object.date}</span>
-              )}
-
-              {object.code && (
-                <span className="scene-select-code">{object.code}</span>
-              )}
-            </span>
-          </span>
-
-          {matchedPath && (
-            <span className="scene-select-alias">{`(${matchedPath})`}</span>
+    return (
+      <span className="scene-select-option">
+        <span className="scene-select-row">
+          {object.paths?.screenshot && (
+            <img
+              className="scene-select-image"
+              src={object.paths.screenshot}
+              loading="lazy"
+            />
           )}
+          <span className="scene-select-details">
+            <TruncatedText className="scene-select-title" text={title} lineCount={1} />
+            {object.studio?.name && (
+              <span className="scene-select-studio">{object.studio?.name}</span>
+            )}
+            {object.date && (
+              <span className="scene-select-date">{object.date}</span>
+            )}
+            {object.code && (
+              <span className="scene-select-code">{object.code}</span>
+            )}
+          </span>
         </span>
-      ),
-    };
-
-    return <reactSelectComponents.Option {...thisOptionProps} />;
+        {matchedPath && (
+          <span className="scene-select-alias">{`(${matchedPath})`}</span>
+        )}
+      </span>
+    );
   };
 
-  const SceneMultiValueLabel: React.FC<
-    MultiValueGenericProps<Option, boolean>
-  > = (optionProps) => {
-    let thisOptionProps = optionProps;
-
-    const { object } = optionProps.data;
-
-    thisOptionProps = {
-      ...optionProps,
-      children: objectTitle(object),
-    };
-
-    return <reactSelectComponents.MultiValueLabel {...thisOptionProps} />;
-  };
-
-  const SceneValueLabel: React.FC<SingleValueProps<Option, boolean>> = (
-    optionProps
-  ) => {
-    let thisOptionProps = optionProps;
-
-    const { object } = optionProps.data;
-
-    thisOptionProps = {
-      ...optionProps,
-      children: <>{objectTitle(object)}</>,
-    };
-
-    return <reactSelectComponents.SingleValue {...thisOptionProps} />;
-  };
+  const SceneMultiValueLabel = (object: Scene) => objectTitle(object);
 
   return (
     <div
@@ -221,11 +163,9 @@ const _SceneSelect: React.FC<
         )}
         menuPortalTarget={document.body}
         loadOptions={loadScenes}
-        components={{
-          Option: SceneOption,
-          MultiValueLabel: SceneMultiValueLabel,
-          SingleValue: SceneValueLabel,
-        }}
+        renderOption={SceneOption}
+        renderTag={SceneMultiValueLabel}
+        getOptionLabel={(opt) => objectTitle(opt.object)}
         isMulti={props.isMulti ?? false}
         placeholder={
           props.noSelectionString ??

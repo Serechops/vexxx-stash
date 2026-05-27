@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { Button, Box, Typography } from "@mui/material";
+import { Button, Box, Typography, Checkbox as MuiCheckbox } from "@mui/material";
 import { Link, useHistory } from "react-router-dom";
 import TextUtils from "src/utils/text";
 import cx from "classnames";
@@ -280,14 +280,35 @@ export const ImageCard: React.FC<IImageCardProps> = PatchComponent(
           </Box>
         </Box>
 
-        {/* Selecting Checkbox */}
-        {selecting && (
-          <Box sx={{ position: "absolute", top: "0.5rem", left: "0.5rem", zIndex: 30 }}>
-            <input
-              type="checkbox"
-              checked={selected}
-              readOnly
-              style={{ cursor: "pointer", height: "1.25rem", width: "1.25rem" }}
+        {onSelectedChanged && (
+          <Box
+            sx={{
+              position: "absolute",
+              top: "0.5rem",
+              left: "0.5rem",
+              zIndex: 30,
+              opacity: (selecting || selected) ? 1 : 0,
+              transition: "opacity 0.2s ease",
+              ".image-card:hover &": { opacity: 1 },
+            }}
+          >
+            <MuiCheckbox
+              className="card-check mousetrap"
+              checked={selected ?? false}
+              onChange={() => onSelectedChanged(!selected, false)}
+              onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                e.stopPropagation();
+              }}
+              size="small"
+              sx={{
+                color: "grey.400",
+                bgcolor: "rgba(24, 24, 27, 0.8)",
+                backdropFilter: "blur(4px)",
+                borderRadius: 1,
+                p: 0.5,
+                "&.Mui-checked": { color: "primary.main" },
+                "&:hover": { bgcolor: "rgba(24, 24, 27, 0.95)" },
+              }}
             />
           </Box>
         )}

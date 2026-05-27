@@ -1,10 +1,4 @@
 import React, { useEffect, useMemo, useState } from "react";
-import {
-  OptionProps,
-  components as reactSelectComponents,
-  MultiValueGenericProps,
-  SingleValueProps,
-} from "react-select";
 import cx from "classnames";
 
 import * as GQL from "src/core/generated-graphql";
@@ -106,23 +100,13 @@ const _GallerySelect: React.FC<
     }));
   }
 
-  const GalleryOption: React.FC<OptionProps<Option, boolean>> = (
-    optionProps
-  ) => {
-    let thisOptionProps = optionProps;
-
-    const { object } = optionProps.data;
-
+  const GalleryOption = (object: Gallery, inputValue: string) => {
     const title = galleryTitle(object);
-
-    // if title does not match the input value but the path does, show the path
-    const { inputValue } = optionProps.selectProps;
     let matchedPath: string | undefined = "";
     if (!title.toLowerCase().includes(inputValue.toLowerCase())) {
       matchedPath = object.files?.find((a) =>
         a.path.toLowerCase().includes(inputValue.toLowerCase())
       )?.path;
-
       if (
         !matchedPath &&
         object.folder?.path.toLowerCase().includes(inputValue.toLowerCase())
@@ -130,82 +114,37 @@ const _GallerySelect: React.FC<
         matchedPath = object.folder?.path;
       }
     }
-
-    thisOptionProps = {
-      ...optionProps,
-      children: (
-        <span className="gallery-select-option">
-          <span className="gallery-select-row">
-            {object.cover?.paths?.thumbnail && (
-              <img
-                className="gallery-select-image"
-                src={object.cover.paths.thumbnail}
-                loading="lazy"
-              />
-            )}
-
-            <span className="gallery-select-details">
-              <TruncatedText
-                className="gallery-select-title"
-                text={title}
-                lineCount={1}
-              />
-
-              {object.studio?.name && (
-                <span className="gallery-select-studio">
-                  {object.studio?.name}
-                </span>
-              )}
-
-              {object.date && (
-                <span className="gallery-select-date">{object.date}</span>
-              )}
-
-              {object.code && (
-                <span className="gallery-select-code">{object.code}</span>
-              )}
-            </span>
-          </span>
-
-          {matchedPath && (
-            <span className="gallery-select-alias">{`(${matchedPath})`}</span>
+    return (
+      <span className="gallery-select-option">
+        <span className="gallery-select-row">
+          {object.cover?.paths?.thumbnail && (
+            <img
+              className="gallery-select-image"
+              src={object.cover.paths.thumbnail}
+              loading="lazy"
+            />
           )}
+          <span className="gallery-select-details">
+            <TruncatedText className="gallery-select-title" text={title} lineCount={1} />
+            {object.studio?.name && (
+              <span className="gallery-select-studio">{object.studio?.name}</span>
+            )}
+            {object.date && (
+              <span className="gallery-select-date">{object.date}</span>
+            )}
+            {object.code && (
+              <span className="gallery-select-code">{object.code}</span>
+            )}
+          </span>
         </span>
-      ),
-    };
-
-    return <reactSelectComponents.Option {...thisOptionProps} />;
+        {matchedPath && (
+          <span className="gallery-select-alias">{`(${matchedPath})`}</span>
+        )}
+      </span>
+    );
   };
 
-  const GalleryMultiValueLabel: React.FC<
-    MultiValueGenericProps<Option, boolean>
-  > = (optionProps) => {
-    let thisOptionProps = optionProps;
-
-    const { object } = optionProps.data;
-
-    thisOptionProps = {
-      ...optionProps,
-      children: galleryTitle(object),
-    };
-
-    return <reactSelectComponents.MultiValueLabel {...thisOptionProps} />;
-  };
-
-  const GalleryValueLabel: React.FC<SingleValueProps<Option, boolean>> = (
-    optionProps
-  ) => {
-    let thisOptionProps = optionProps;
-
-    const { object } = optionProps.data;
-
-    thisOptionProps = {
-      ...optionProps,
-      children: <>{galleryTitle(object)}</>,
-    };
-
-    return <reactSelectComponents.SingleValue {...thisOptionProps} />;
-  };
+  const GalleryMultiValueLabel = (object: Gallery) => galleryTitle(object);
 
   const onCreate = async (name: string) => {
     const result = await createGallery({
@@ -256,11 +195,9 @@ const _GallerySelect: React.FC<
       loadOptions={loadGalleries}
       getNamedObject={getNamedObject}
       isValidNewOption={isValidNewOption}
-      components={{
-        Option: GalleryOption,
-        MultiValueLabel: GalleryMultiValueLabel,
-        SingleValue: GalleryValueLabel,
-      }}
+      renderOption={GalleryOption}
+      renderTag={GalleryMultiValueLabel}
+      getOptionLabel={(opt) => galleryTitle(opt.object)}
       isMulti={props.isMulti ?? false}
       creatable={props.creatable ?? defaultCreatable}
       onCreate={onCreate}

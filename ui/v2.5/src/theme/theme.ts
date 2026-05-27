@@ -129,51 +129,54 @@ const baseTheme = createTheme({
     shape: {
         borderRadius: 8,
     },
-    palette: {
-        mode: "dark",
-        primary: {
-            main: colors.accent.primary,
-            light: colors.accent.primaryHover,
-            dark: colors.accent.primaryDark,
-            contrastText: "#ffffff",
-        },
-        secondary: {
-            main: colors.accent.secondary,
-            light: colors.accent.secondaryHover,
-            dark: colors.zinc[800],
-            contrastText: colors.zinc[50],
-        },
-        error: {
-            main: colors.error,
-            contrastText: "#ffffff",
-        },
-        warning: {
-            main: colors.warning,
-            contrastText: "#000000",
-        },
-        info: {
-            main: colors.info,
-            contrastText: "#ffffff",
-        },
-        success: {
-            main: colors.success,
-            contrastText: "#ffffff",
-        },
-        background: {
-            default: colors.zinc[950], // Body background
-            paper: colors.zinc[900],   // Card/paper background
-        },
-        text: {
-            primary: colors.zinc[50],
-            secondary: colors.zinc[400],
-        },
-        divider: colors.zinc[700],
-        action: {
-            active: colors.zinc[400],
-            hover: "rgba(255, 255, 255, 0.08)",
-            selected: "rgba(99, 102, 241, 0.16)", // primary with opacity
-            disabled: colors.zinc[600],
-            disabledBackground: colors.zinc[800],
+    colorSchemes: {
+        dark: {
+            palette: {
+                primary: {
+                    main: colors.accent.primary,
+                    light: colors.accent.primaryHover,
+                    dark: colors.accent.primaryDark,
+                    contrastText: "#ffffff",
+                },
+                secondary: {
+                    main: colors.accent.secondary,
+                    light: colors.accent.secondaryHover,
+                    dark: colors.zinc[800],
+                    contrastText: colors.zinc[50],
+                },
+                error: {
+                    main: colors.error,
+                    contrastText: "#ffffff",
+                },
+                warning: {
+                    main: colors.warning,
+                    contrastText: "#000000",
+                },
+                info: {
+                    main: colors.info,
+                    contrastText: "#ffffff",
+                },
+                success: {
+                    main: colors.success,
+                    contrastText: "#ffffff",
+                },
+                background: {
+                    default: colors.zinc[950],
+                    paper: colors.zinc[900],
+                },
+                text: {
+                    primary: colors.zinc[50],
+                    secondary: colors.zinc[400],
+                },
+                divider: colors.zinc[700],
+                action: {
+                    active: colors.zinc[400],
+                    hover: "rgba(255, 255, 255, 0.08)",
+                    selected: "rgba(99, 102, 241, 0.16)",
+                    disabled: colors.zinc[600],
+                    disabledBackground: colors.zinc[800],
+                },
+            },
         },
     },
     components: {
@@ -241,6 +244,9 @@ const baseTheme = createTheme({
                 ".form-group h6[title]:not([title='']), .form-group label[title]:not([title=''])": {
                     cursor: "help",
                     textDecoration: "underline dotted",
+                },
+                hr: {
+                    margin: "5px 0",
                 },
             },
         },

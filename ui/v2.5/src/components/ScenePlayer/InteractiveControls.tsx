@@ -1,6 +1,5 @@
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import TuneIcon from "@mui/icons-material/Tune";
 import WarningIcon from "@mui/icons-material/Warning";
 import {
   Box,
@@ -84,7 +83,7 @@ export const InteractiveControls: React.FC<IProps> = ({ client, show }) => {
     [client]
   );
 
-  if (!client.hasV3Capabilities) return null;
+  if (!client.hasV3Capabilities && !import.meta.env.DEV) return null;
 
   if (!show) {
     return (
@@ -101,14 +100,14 @@ export const InteractiveControls: React.FC<IProps> = ({ client, show }) => {
           <IconButton
             size="small"
             sx={{
-              color: "white",
               bgcolor: "rgba(0,0,0,0.6)",
               borderRadius: 1,
               "&:hover": { bgcolor: "rgba(0,0,0,0.85)" },
+              p: 0.5,
             }}
-            onClick={() => setShowDirectControls(true)}
+            onClick={() => setShowDirectControls((v) => !v)}
           >
-            <TuneIcon fontSize="small" />
+            <img src="/handy.png" alt="Handy" style={{ width: 40, height: 40, filter: "invert(1)" }} />
           </IconButton>
         </Tooltip>
         <HandyControlModal
@@ -171,10 +170,10 @@ export const InteractiveControls: React.FC<IProps> = ({ client, show }) => {
             >
               <IconButton
                 size="small"
-                sx={{ color: "white" }}
-                onClick={() => setShowDirectControls(true)}
+                sx={{ p: 0.5 }}
+                onClick={() => setShowDirectControls((v) => !v)}
               >
-                <TuneIcon fontSize="small" />
+                <img src="/handy.png" alt="Handy" style={{ width: 32, height: 32, filter: "invert(1)" }} />
               </IconButton>
             </Tooltip>
             <IconButton

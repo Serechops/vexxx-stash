@@ -1330,6 +1330,9 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
             show={scene.interactive && !getPlayer()?.paused()}
           />
         )}
+        {import.meta.env.DEV && interactiveState !== ConnectionState.Ready && (
+          <InteractiveControls client={interactiveClient} show={false} />
+        )}
         {file && showScrubber && (
           <ScenePlayerScrubber
             file={file}

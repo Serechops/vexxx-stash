@@ -3,10 +3,8 @@ import WarningIcon from "@mui/icons-material/Warning";
 import {
   Box,
   Button,
-  Dialog,
-  DialogContent,
-  DialogTitle,
   IconButton,
+  Paper,
   Slider,
   Stack,
   Tab,
@@ -368,26 +366,42 @@ export const HandyControlModal: React.FC<IProps> = ({
     [client, hvpActive, hvpAmplitude]
   );
 
+  if (!open) return null;
+
   return (
-    <Dialog
-      open={open}
-      onClose={handleClose}
-      maxWidth="xs"
-      fullWidth
-      PaperProps={{ sx: { bgcolor: "#1e1e1e", color: "white" } }}
+    <Paper
+      elevation={12}
+      sx={{
+        position: "fixed",
+        bottom: 72,
+        right: 16,
+        width: 320,
+        maxHeight: "calc(100vh - 120px)",
+        display: "flex",
+        flexDirection: "column",
+        bgcolor: "#1e1e1e",
+        color: "white",
+        zIndex: 1300,
+        borderRadius: 2,
+        overflow: "hidden",
+      }}
     >
-      <DialogTitle sx={{ pb: 0 }}>
-        <FormattedMessage id="handy_modal.title" />
-        <Stack
-          direction="row"
-          spacing={0.5}
-          sx={{ position: "absolute", right: 8, top: 8 }}
-        >
+      {/* sticky title bar */}
+      <Stack
+        direction="row"
+        alignItems="center"
+        justifyContent="space-between"
+        sx={{ px: 2, py: 1, borderBottom: "1px solid rgba(255,255,255,0.1)" }}
+      >
+        <Typography variant="subtitle2" fontWeight={600}>
+          <FormattedMessage id="handy_modal.title" />
+        </Typography>
+        <Stack direction="row" spacing={0.5}>
           <Tooltip
             title={intl.formatMessage({ id: "handy_controls.emergency_stop" })}
           >
             <IconButton size="small" color="error" onClick={handleEmergencyStop}>
-              <WarningIcon />
+              <WarningIcon fontSize="small" />
             </IconButton>
           </Tooltip>
           <IconButton
@@ -395,16 +409,18 @@ export const HandyControlModal: React.FC<IProps> = ({
             sx={{ color: "grey.400" }}
             onClick={handleClose}
           >
-            <CloseIcon />
+            <CloseIcon fontSize="small" />
           </IconButton>
         </Stack>
-      </DialogTitle>
+      </Stack>
 
-      <DialogContent sx={{ px: 2, pt: 1 }}>
+      <Box sx={{ px: 2, pt: 1, pb: 2, overflowY: "auto" }}>
         <Tabs
           value={tab}
           onChange={(_, v: number) => setTab(v)}
           textColor="inherit"
+          variant="scrollable"
+          scrollButtons="auto"
           TabIndicatorProps={{ style: { backgroundColor: "white" } }}
           sx={{ mb: 2, borderBottom: "1px solid rgba(255,255,255,0.12)" }}
         >
@@ -628,8 +644,8 @@ export const HandyControlModal: React.FC<IProps> = ({
             </Box>
           </Box>
         )}
-      </DialogContent>
-    </Dialog>
+      </Box>
+    </Paper>
   );
 };
 

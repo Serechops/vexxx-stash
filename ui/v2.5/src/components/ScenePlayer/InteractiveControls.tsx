@@ -94,7 +94,7 @@ export const InteractiveControls: React.FC<IProps> = ({ client, show, visible = 
         sx={{
           position: "absolute",
           bottom: 100,
-          left: 8,
+          left: 15,
           zIndex: 4,
         }}
       >

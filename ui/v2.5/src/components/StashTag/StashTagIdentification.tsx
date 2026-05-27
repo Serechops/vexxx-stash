@@ -780,7 +780,7 @@ export const StashTagIdentification: React.FC<StashTagIdentificationProps> = ({
         expanded={isExpanded}
         onChange={(_, expanded) => setIsExpanded(expanded)}
         sx={{
-          backgroundColor: theme.palette.background.paper,
+          backgroundColor: "#18181b",
           borderRadius: 2,
           border: `1px solid ${theme.palette.divider}`,
           "&:before": { display: "none" },
@@ -789,7 +789,7 @@ export const StashTagIdentification: React.FC<StashTagIdentificationProps> = ({
         <AccordionSummary
           expandIcon={<ExpandMoreIcon />}
           sx={{
-            backgroundColor: theme.palette.action.hover,
+            backgroundColor: "rgba(255, 255, 255, 0.08)",
             borderRadius: "8px 8px 0 0",
             minHeight: 56,
           }}

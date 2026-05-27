@@ -471,7 +471,7 @@ const MegafaceResultsCarousel: React.FC<MegafaceResultsCarouselProps> = ({ htmlR
                     sx={{
                         mt: 2,
                         p: 2,
-                        bgcolor: theme.palette.background.paper,
+                        bgcolor: "#18181b",
                         borderRadius: 1,
                         border: `1px solid ${theme.palette.divider}`,
                         "& img": {
@@ -802,7 +802,7 @@ export const StashFaceIdentification: React.FC<StashFaceIdentificationProps> = (
                     sx={{
                         border: `1px solid ${theme.palette.primary.main}`,
                         borderRadius: 2,
-                        background: `linear-gradient(135deg, ${theme.palette.primary.main}08, ${theme.palette.background.paper})`,
+                        background: "linear-gradient(135deg, rgba(99, 102, 241, 0.03), #18181b)",
                     }}
                 >
                     <CardContent sx={{ p: 2 }}>
@@ -994,7 +994,7 @@ export const StashFaceIdentification: React.FC<StashFaceIdentificationProps> = (
                                         ))}
 
                                         {results.processing_info && (
-                                            <Card sx={{ mt: 2, backgroundColor: theme.palette.grey[50] }}>
+                                            <Card sx={{ mt: 2, backgroundColor: "#27272a" }}>
                                                 <CardContent sx={{ p: 2 }}>
                                                     <Typography variant="h6" sx={{ fontSize: "1rem", mb: 1 }}>
                                                         Processing Information

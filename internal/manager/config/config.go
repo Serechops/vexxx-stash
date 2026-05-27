@@ -222,6 +222,7 @@ const (
 	DisableDropdownCreateGallery   = "disable_dropdown_create.gallery"
 
 	HandyKey                       = "handy_key"
+	HandyAppKey                    = "handy_app_key"
 	FunscriptOffset                = "funscript_offset"
 	UseStashHostedFunscript        = "use_stash_hosted_funscript"
 	useStashHostedFunscriptDefault = false
@@ -1533,6 +1534,10 @@ func (i *Config) GetCustomLocalesEnabled() bool {
 
 func (i *Config) GetHandyKey() string {
 	return i.getString(HandyKey)
+}
+
+func (i *Config) GetHandyAppKey() string {
+	return i.getString(HandyAppKey)
 }
 
 func (i *Config) GetFunscriptOffset() int {

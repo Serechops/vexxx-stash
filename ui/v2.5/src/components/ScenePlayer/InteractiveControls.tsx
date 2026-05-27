@@ -84,7 +84,41 @@ export const InteractiveControls: React.FC<IProps> = ({ client, show }) => {
     [client]
   );
 
-  if (!show || !client.hasV3Capabilities) return null;
+  if (!client.hasV3Capabilities) return null;
+
+  if (!show) {
+    return (
+      <Box
+        sx={{
+          position: "absolute",
+          bottom: 0,
+          right: 0,
+          m: 1,
+          zIndex: 10,
+        }}
+      >
+        <Tooltip title={intl.formatMessage({ id: "handy_modal.title" })}>
+          <IconButton
+            size="small"
+            sx={{
+              color: "white",
+              bgcolor: "rgba(0,0,0,0.6)",
+              borderRadius: 1,
+              "&:hover": { bgcolor: "rgba(0,0,0,0.85)" },
+            }}
+            onClick={() => setShowDirectControls(true)}
+          >
+            <TuneIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+        <HandyControlModal
+          open={showDirectControls}
+          onClose={() => setShowDirectControls(false)}
+          client={client}
+        />
+      </Box>
+    );
+  }
 
   return (
     <Box

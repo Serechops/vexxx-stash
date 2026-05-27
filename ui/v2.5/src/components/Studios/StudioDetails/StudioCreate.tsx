@@ -6,6 +6,7 @@ import * as GQL from "src/core/generated-graphql";
 import { useStudioCreate } from "src/core/StashService";
 import { LoadingIndicator } from "src/components/Shared/LoadingIndicator";
 import { useToast } from "src/hooks/Toast";
+import { Box, Typography } from "@mui/material";
 import { StudioEditPanel } from "./StudioEditPanel";
 
 const StudioCreate: React.FC = () => {
@@ -43,28 +44,43 @@ const StudioCreate: React.FC = () => {
 
   function renderImage() {
     if (image) {
-      return <img className="logo" alt="" src={image} />;
+      return (
+        <Box
+          component="img"
+          className="logo"
+          alt=""
+          src={image}
+          sx={{
+            maxHeight: 160,
+            maxWidth: 300,
+            width: "auto",
+            height: "auto",
+            objectFit: "contain",
+            display: "block",
+            mx: "auto",
+            borderRadius: 1,
+          }}
+        />
+      );
     }
   }
 
   return (
-    <div className="flex flex-wrap">
-      <div className="studio-details w-full md:w-2/3">
-        <h2>
+    <Box sx={{ display: "flex", justifyContent: "center", px: 2, py: 3 }}>
+      <Box sx={{ width: "100%", maxWidth: 800 }}>
+        <Typography variant="h5" gutterBottom>
           {intl.formatMessage(
             { id: "actions.add_entity" },
             { entityType: intl.formatMessage({ id: "studio" }) }
           )}
-        </h2>
-        <div className="text-center">
-          {encodingImage ? (
-            <LoadingIndicator
-              message={intl.formatMessage({ id: "actions.encoding_image" })}
-            />
-          ) : (
-            renderImage()
-          )}
-        </div>
+        </Typography>
+        {encodingImage ? (
+          <LoadingIndicator
+            message={intl.formatMessage({ id: "actions.encoding_image" })}
+          />
+        ) : (
+          <Box sx={{ textAlign: "center", mb: 2 }}>{renderImage()}</Box>
+        )}
         <StudioEditPanel
           studio={studio}
           onSubmit={onSave}
@@ -73,8 +89,8 @@ const StudioCreate: React.FC = () => {
           setImage={setImage}
           setEncodingImage={setEncodingImage}
         />
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 };
 

@@ -124,15 +124,18 @@ export const InteractiveProvider: React.FC = ({ children }) => {
       !config?.lastSyncTime ||
       Date.now() - config?.lastSyncTime > TIME_BETWEEN_SYNCS;
 
+    let serverOffset = config?.serverOffset ?? 0;
+
     if (!config?.serverOffset || shouldResync) {
       setState(ConnectionState.Syncing);
       const offset = await interactive.sync();
       setConfig({ serverOffset: offset, lastSyncTime: Date.now() });
+      serverOffset = offset;
     }
 
-    if (config?.serverOffset) {
+    if (serverOffset) {
       await interactive.configure({
-        estimatedServerTimeOffset: config.serverOffset,
+        estimatedServerTimeOffset: serverOffset,
       });
       setState(ConnectionState.Connecting);
       try {

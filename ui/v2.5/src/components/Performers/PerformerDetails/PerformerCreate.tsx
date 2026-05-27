@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
+import { Box, Typography } from "@mui/material";
 import { LoadingIndicator } from "src/components/Shared/LoadingIndicator";
 import { PerformerEditPanel } from "./PerformerEditPanel";
 import { useHistory, useLocation } from "react-router-dom";
@@ -50,27 +51,48 @@ const PerformerCreate: React.FC = () => {
     }
     if (image) {
       return (
-        <img
+        <Box
+          component="img"
           className="performer"
           src={image}
           alt={intl.formatMessage({ id: "performer" })}
+          sx={{
+            maxHeight: 380,
+            maxWidth: 260,
+            width: "auto",
+            height: "auto",
+            objectFit: "contain",
+            borderRadius: 2,
+            display: "block",
+          }}
         />
       );
     }
   }
 
   return (
-    <div className="flex flex-wrap new-view" id="performer-page">
-      <div className="w-full md:w-1/3 text-center" style={{ maxHeight: 'calc(100vh - 6rem)', maxWidth: '100%' }}>
+    <Box
+      sx={{ display: "flex", flexWrap: "wrap", gap: 3, px: 2, py: 3 }}
+      id="performer-page"
+    >
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "flex-start",
+          width: { xs: "100%", md: "auto" },
+          flexShrink: 0,
+        }}
+      >
         {renderPerformerImage()}
-      </div>
-      <div className="w-full md:w-2/3">
-        <h2>
+      </Box>
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Typography variant="h5" gutterBottom>
           <FormattedMessage
             id="actions.create_entity"
             values={{ entityType: intl.formatMessage({ id: "performer" }) }}
           />
-        </h2>
+        </Typography>
         <PerformerEditPanel
           performer={performer}
           isVisible
@@ -78,8 +100,8 @@ const PerformerCreate: React.FC = () => {
           setImage={setImage}
           setEncodingImage={setEncodingImage}
         />
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 };
 

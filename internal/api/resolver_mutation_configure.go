@@ -530,6 +530,7 @@ func (r *mutationResolver) ConfigureInterface(ctx context.Context, input ConfigI
 	}
 
 	r.setConfigString(config.HandyKey, input.HandyKey)
+	r.setConfigString(config.HandyAppKey, input.HandyAppKey)
 	r.setConfigInt(config.FunscriptOffset, input.FunscriptOffset)
 	r.setConfigBool(config.UseStashHostedFunscript, input.UseStashHostedFunscript)
 

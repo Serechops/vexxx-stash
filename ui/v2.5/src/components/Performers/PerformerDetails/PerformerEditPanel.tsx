@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import Button from "@mui/material/Button";
-import { Box, Menu, MenuItem } from "@mui/material";
+import { Box, Divider, Menu, MenuItem, Typography } from "@mui/material";
 import { FormattedMessage, useIntl } from "react-intl";
 import Mousetrap from "mousetrap";
 import * as GQL from "src/core/generated-graphql";
@@ -745,41 +745,50 @@ export const PerformerEditPanel: React.FC<IPerformerDetails> = ({
         when={formik.dirty}
         message={intl.formatMessage({ id: "dialogs.unsaved_changes" })}
       />
-      {renderButtons("mb-3")}
+      {!isNew && renderButtons("mb-3")}
 
       <Box component="form" noValidate onSubmit={formik.handleSubmit} id="performer-edit">
         {renderInputField("name")}
         {renderInputField("disambiguation")}
-
         {renderStringListField("alias_list", "aliases", { orderable: false })}
 
-        {renderSelectField("gender", stringGenderMap)}
+        <Divider sx={{ my: 2 }}>
+          <Typography variant="caption" color="text.secondary">Demographics</Typography>
+        </Divider>
 
+        {renderSelectField("gender", stringGenderMap)}
         {renderDateField("birthdate")}
         {renderDateField("death_date")}
-
+        {renderInputField("career_length")}
         {renderCountryField()}
-
         {renderInputField("ethnicity")}
+
+        <Divider sx={{ my: 2 }}>
+          <Typography variant="caption" color="text.secondary">Appearance</Typography>
+        </Divider>
+
         {renderInputField("hair_color")}
         {renderInputField("eye_color")}
         {renderInputField("height_cm", "number")}
         {renderInputField("weight", "number", "weight_kg")}
-        {renderInputField("penis_length", "number", "penis_length_cm")}
-
-        {renderSelectField("circumcised", stringCircumMap)}
-
         {renderInputField("measurements")}
         {renderInputField("fake_tits")}
+        {renderInputField("penis_length", "number", "penis_length_cm")}
+        {renderSelectField("circumcised", stringCircumMap)}
+
+        <Divider sx={{ my: 2 }}>
+          <Typography variant="caption" color="text.secondary">Notes</Typography>
+        </Divider>
 
         {renderInputField("tattoos", "textarea")}
         {renderInputField("piercings", "textarea")}
-
-        {renderInputField("career_length")}
-
         {renderURLListField("urls", onScrapePerformerURL, urlScrapable)}
-
         {renderInputField("details", "textarea")}
+
+        <Divider sx={{ my: 2 }}>
+          <Typography variant="caption" color="text.secondary">Classification</Typography>
+        </Divider>
+
         {renderTagsField()}
 
         {renderStashIDsField(

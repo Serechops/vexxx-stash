@@ -171,6 +171,7 @@ func makeConfigInterfaceResult() *ConfigInterfaceResult {
 	customLocalesEnabled := config.GetCustomLocalesEnabled()
 	language := config.GetLanguage()
 	handyKey := config.GetHandyKey()
+	handyAppKey := config.GetHandyAppKey()
 	scriptOffset := config.GetFunscriptOffset()
 	useStashHostedFunscript := config.GetUseStashHostedFunscript()
 	imageLightboxOptions := config.GetImageLightboxOptions()
@@ -203,6 +204,7 @@ func makeConfigInterfaceResult() *ConfigInterfaceResult {
 		DisableDropdownCreate: disableDropdownCreate,
 
 		HandyKey:                &handyKey,
+		HandyAppKey:             &handyAppKey,
 		FunscriptOffset:         &scriptOffset,
 		UseStashHostedFunscript: &useStashHostedFunscript,
 	}

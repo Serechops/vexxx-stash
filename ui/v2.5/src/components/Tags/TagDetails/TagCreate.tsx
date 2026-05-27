@@ -6,6 +6,7 @@ import { useTagCreate } from "src/core/StashService";
 import { LoadingIndicator } from "src/components/Shared/LoadingIndicator";
 import { useToast } from "src/hooks/Toast";
 import { tagRelationHook } from "src/core/tags";
+import { Box, Typography } from "@mui/material";
 import { TagEditPanel } from "./TagEditPanel";
 
 const TagCreate: React.FC = () => {
@@ -51,14 +52,31 @@ const TagCreate: React.FC = () => {
 
   function renderImage() {
     if (image) {
-      return <img className="logo" alt="" src={image} />;
+      return (
+        <Box
+          component="img"
+          className="logo"
+          alt=""
+          src={image}
+          sx={{
+            maxHeight: 160,
+            maxWidth: 300,
+            width: "auto",
+            height: "auto",
+            objectFit: "contain",
+            display: "block",
+            mx: "auto",
+            borderRadius: 1,
+          }}
+        />
+      );
     }
   }
 
   return (
-    <div className="flex flex-wrap">
-      <div className="w-full md:w-2/3" style={{ minHeight: '4rem' }}>
-        <div className="text-center logo-container">
+    <Box sx={{ display: "flex", justifyContent: "center", px: 2, py: 3 }}>
+      <Box sx={{ width: "100%", maxWidth: 700, minHeight: "4rem" }}>
+        <Box sx={{ textAlign: "center", mb: 2 }}>
           {encodingImage ? (
             <LoadingIndicator
               message={intl.formatMessage({ id: "actions.encoding_image" })}
@@ -66,7 +84,7 @@ const TagCreate: React.FC = () => {
           ) : (
             renderImage()
           )}
-        </div>
+        </Box>
         <TagEditPanel
           tag={tag}
           onSubmit={onSave}
@@ -75,8 +93,8 @@ const TagCreate: React.FC = () => {
           setImage={setImage}
           setEncodingImage={setEncodingImage}
         />
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 };
 

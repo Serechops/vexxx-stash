@@ -1324,10 +1324,10 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
         {scene.interactive &&
           (interactiveState !== ConnectionState.Ready ||
             getPlayer()?.paused()) && <SceneInteractiveStatus />}
-        {scene.interactive && interactiveState === ConnectionState.Ready && (
+        {interactiveState === ConnectionState.Ready && (
           <InteractiveControls
             client={interactiveClient}
-            show={!getPlayer()?.paused()}
+            show={scene.interactive && !getPlayer()?.paused()}
           />
         )}
         {file && showScrubber && (

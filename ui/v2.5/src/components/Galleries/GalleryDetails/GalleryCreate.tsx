@@ -4,6 +4,7 @@ import { useHistory, useLocation } from "react-router-dom";
 import * as GQL from "src/core/generated-graphql";
 import { useGalleryCreate } from "src/core/StashService";
 import { useToast } from "src/hooks/Toast";
+import { Box, Typography } from "@mui/material";
 import { GalleryEditPanel } from "./GalleryEditPanel";
 
 const GalleryCreate: React.FC = () => {
@@ -35,22 +36,22 @@ const GalleryCreate: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-wrap new-view">
-      <div className="w-full md:w-1/2">
-        <h2>
+    <Box sx={{ display: "flex", justifyContent: "center", px: 2, py: 3 }}>
+      <Box sx={{ width: "100%", maxWidth: 700 }}>
+        <Typography variant="h5" gutterBottom>
           <FormattedMessage
             id="actions.create_entity"
             values={{ entityType: intl.formatMessage({ id: "gallery" }) }}
           />
-        </h2>
+        </Typography>
         <GalleryEditPanel
           gallery={gallery}
           isVisible
           onSubmit={onSave}
           onDelete={() => {}}
         />
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 };
 

@@ -16,47 +16,113 @@ import {
 } from "@mui/material";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
+import { HandyAPIv3 } from "src/hooks/Interactive/handy-api-v3";
 import { IInteractiveClient } from "src/hooks/Interactive/utils";
 
-// Patterns derived from real funscript analysis (Slibowitz PMV script)
-const HDSP_PATTERNS = [
+interface PatternStep {
+  pos: number;    // target position 0–100
+  vel: number;    // velocity 0–100
+  holdMs: number; // ms to wait after sending before sending the next step
+}
+
+// Small helpers for natural variation
+// ±12% time jitter
+const jt = (ms: number): number => ms * (0.88 + Math.random() * 0.24);
+// position jitter ±spread, clamped to 0-100
+const jp = (pos: number, spread: number): number =>
+  Math.max(0, Math.min(100, pos + (Math.random() * 2 - 1) * spread));
+
+// holdMs guidelines (device travel at velocity v over range r%):
+//   travel_ms ≈ 300 * (100 / v) * (r / 100)   +   dwell_ms
+// e.g. v=55, r=100% → ~545 ms travel. Add ~50 ms dwell = 595 ms total.
+const HDSP_PATTERNS: Array<{
+  id: string;
+  labelId: string;
+  descId: string;
+  getSteps: () => PatternStep[];
+}> = [
   {
+    // Deep, slow full strokes — sensual baseline
     id: "slow_wave",
     labelId: "handy_modal.pattern_slow_wave",
     descId: "handy_modal.pattern_slow_wave_desc",
-    posA: 0, posB: 100, intervalMs: 750, velocity: 25,
+    getSteps: () => {
+      const v = 28 + Math.random() * 8;
+      return [
+        { pos: jp(2, 3),  vel: v, holdMs: jt(970) },
+        { pos: jp(98, 3), vel: v, holdMs: jt(920) },
+      ];
+    },
   },
   {
+    // Medium-pace full strokes — the workhorse
     id: "steady",
     labelId: "handy_modal.pattern_steady",
     descId: "handy_modal.pattern_steady_desc",
-    posA: 0, posB: 100, intervalMs: 400, velocity: 50,
+    getSteps: () => {
+      const v = 54 + Math.random() * 12;
+      return [
+        { pos: jp(3, 4),  vel: v, holdMs: jt(560) },
+        { pos: jp(97, 3), vel: v, holdMs: jt(535) },
+      ];
+    },
   },
   {
+    // Mixed full strokes + tip-focused short strokes
     id: "fast_pulse",
     labelId: "handy_modal.pattern_fast_pulse",
     descId: "handy_modal.pattern_fast_pulse_desc",
-    posA: 0, posB: 100, intervalMs: 220, velocity: 90,
+    getSteps: () => [
+      { pos: jp(4, 4),   vel: 60 + Math.random() * 8, holdMs: jt(530) }, // full down
+      { pos: jp(97, 3),  vel: 62 + Math.random() * 8, holdMs: jt(490) }, // full up
+      { pos: jp(5, 4),   vel: 58 + Math.random() * 8, holdMs: jt(510) }, // full down
+      { pos: jp(55, 6),  vel: 55 + Math.random() * 8, holdMs: jt(340) }, // partial up to mid
+      { pos: jp(98, 3),  vel: 76 + Math.random() * 8, holdMs: jt(265) }, // tip (fast)
+      { pos: jp(53, 6),  vel: 50 + Math.random() * 8, holdMs: jt(345) }, // back to mid
+      { pos: jp(100, 2), vel: 80 + Math.random() * 8, holdMs: jt(260) }, // tip again
+    ],
   },
   {
+    // Slow build-up strokes that never quite reach the top — teasing
     id: "tease",
     labelId: "handy_modal.pattern_tease",
     descId: "handy_modal.pattern_tease_desc",
-    posA: 0, posB: 35, intervalMs: 250, velocity: 70,
+    getSteps: () => [
+      { pos: jp(8, 5),  vel: 28 + Math.random() * 6, holdMs: jt(830) },
+      { pos: jp(55, 7), vel: 30 + Math.random() * 6, holdMs: jt(790) },
+      { pos: jp(10, 5), vel: 34 + Math.random() * 6, holdMs: jt(760) },
+      { pos: jp(70, 6), vel: 32 + Math.random() * 6, holdMs: jt(770) },
+      { pos: jp(12, 5), vel: 37 + Math.random() * 6, holdMs: jt(730) },
+      { pos: jp(48, 7), vel: 28 + Math.random() * 6, holdMs: jt(790) },
+    ],
   },
   {
+    // Focused on upper half — targets erogenous tip zone
+    // v=65, r=50% → travel ~230 ms + 120 ms dwell = 350 ms (well within holdMs)
     id: "upper_zone",
     labelId: "handy_modal.pattern_upper_zone",
     descId: "handy_modal.pattern_upper_zone_desc",
-    posA: 45, posB: 100, intervalMs: 170, velocity: 85,
+    getSteps: () => [
+      { pos: jp(50, 5), vel: 60 + Math.random() * 10, holdMs: jt(365) },
+      { pos: jp(98, 3), vel: 70 + Math.random() * 10, holdMs: jt(315) },
+    ],
   },
   {
+    // Short oscillating strokes across the upper shaft — ripple sensation
+    // v=82, r=25% → travel ~91 ms + 155 ms dwell = 246 ms (achievable over network)
     id: "ripple",
     labelId: "handy_modal.pattern_ripple",
     descId: "handy_modal.pattern_ripple_desc",
-    posA: 45, posB: 65, intervalMs: 100, velocity: 100,
+    getSteps: () => [
+      { pos: jp(40, 6), vel: 80 + Math.random() * 8, holdMs: jt(255) },
+      { pos: jp(65, 6), vel: 80 + Math.random() * 8, holdMs: jt(255) },
+      { pos: jp(35, 6), vel: 80 + Math.random() * 8, holdMs: jt(255) },
+      { pos: jp(70, 6), vel: 80 + Math.random() * 8, holdMs: jt(255) },
+      { pos: jp(42, 6), vel: 80 + Math.random() * 8, holdMs: jt(255) },
+      { pos: jp(62, 6), vel: 80 + Math.random() * 8, holdMs: jt(255) },
+    ],
   },
-] as const;
+];
 
 interface IProps {
   open: boolean;
@@ -87,22 +153,23 @@ export const HandyControlModal: React.FC<IProps> = ({
   const [hvpFrequency, setHvpFrequency] = useState(100);
 
   // Pattern state
-  const patternIntervalRef = useRef<number | null>(null);
-  const patternPosRef = useRef<boolean>(false);
+  const patternTimerRef = useRef<number | null>(null);
+  const patternRunningRef = useRef(false);
   const [activePattern, setActivePattern] = useState<string | null>(null);
 
   useEffect(() => {
     return () => {
-      if (patternIntervalRef.current !== null) {
-        clearInterval(patternIntervalRef.current);
+      if (patternTimerRef.current !== null) {
+        clearTimeout(patternTimerRef.current);
       }
     };
   }, []);
 
   const handleEmergencyStop = useCallback(async () => {
-    if (patternIntervalRef.current !== null) {
-      clearInterval(patternIntervalRef.current);
-      patternIntervalRef.current = null;
+    patternRunningRef.current = false;
+    if (patternTimerRef.current !== null) {
+      clearTimeout(patternTimerRef.current);
+      patternTimerRef.current = null;
     }
     setActivePattern(null);
     try {
@@ -115,9 +182,10 @@ export const HandyControlModal: React.FC<IProps> = ({
   }, [client]);
 
   const handleClose = useCallback(async () => {
-    if (patternIntervalRef.current !== null) {
-      clearInterval(patternIntervalRef.current);
-      patternIntervalRef.current = null;
+    patternRunningRef.current = false;
+    if (patternTimerRef.current !== null) {
+      clearTimeout(patternTimerRef.current);
+      patternTimerRef.current = null;
     }
     setActivePattern(null);
     if (hampActive) {
@@ -142,29 +210,54 @@ export const HandyControlModal: React.FC<IProps> = ({
   // ── Patterns ─────────────────────────────────────────────────────────────
 
   const clearPattern = useCallback(() => {
-    if (patternIntervalRef.current !== null) {
-      clearInterval(patternIntervalRef.current);
-      patternIntervalRef.current = null;
+    patternRunningRef.current = false;
+    if (patternTimerRef.current !== null) {
+      clearTimeout(patternTimerRef.current);
+      patternTimerRef.current = null;
     }
     setActivePattern(null);
   }, []);
 
   const startPattern = useCallback(
-    (patternId: string) => {
-      if (patternIntervalRef.current !== null) {
-        clearInterval(patternIntervalRef.current);
-        patternIntervalRef.current = null;
+    async (patternId: string) => {
+      // Stop any running pattern
+      patternRunningRef.current = false;
+      if (patternTimerRef.current !== null) {
+        clearTimeout(patternTimerRef.current);
+        patternTimerRef.current = null;
       }
+
       const pattern = HDSP_PATTERNS.find((p) => p.id === patternId);
       if (!pattern) return;
+
       setActivePattern(patternId);
-      patternPosRef.current = false;
-      client.hdspSetPosition?.(pattern.posA, pattern.velocity).catch(() => {});
-      patternIntervalRef.current = window.setInterval(() => {
-        patternPosRef.current = !patternPosRef.current;
-        const pos = patternPosRef.current ? pattern.posB : pattern.posA;
-        client.hdspSetPosition?.(pos, pattern.velocity).catch(() => {});
-      }, pattern.intervalMs);
+
+      // Device must be in HDSP mode to accept position commands.
+      // Silently ignore failures — the device may already be in HDSP mode.
+      try {
+        await client.setMode?.(HandyAPIv3.MODE.HDSP);
+      } catch {
+        // best-effort
+      }
+
+      patternRunningRef.current = true;
+
+      let stepIndex = 0;
+      let currentSteps = pattern.getSteps();
+
+      const tick = () => {
+        if (!patternRunningRef.current) return;
+        // Regenerate steps at loop boundary for natural variation each cycle
+        if (stepIndex >= currentSteps.length) {
+          stepIndex = 0;
+          currentSteps = pattern.getSteps();
+        }
+        const step = currentSteps[stepIndex++];
+        client.hdspSetPosition?.(step.pos, step.vel).catch(() => {});
+        patternTimerRef.current = window.setTimeout(tick, step.holdMs);
+      };
+
+      tick();
     },
     [client]
   );
@@ -220,6 +313,7 @@ export const HandyControlModal: React.FC<IProps> = ({
 
   const handleSendPosition = useCallback(async () => {
     try {
+      await client.setMode?.(HandyAPIv3.MODE.HDSP);
       await client.hdspSetPosition?.(hdspPosition, hdspVelocity);
     } catch {
       // best-effort

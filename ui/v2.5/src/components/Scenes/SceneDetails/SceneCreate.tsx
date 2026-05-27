@@ -7,6 +7,7 @@ import { mutateCreateScene, useFindScene } from "src/core/StashService";
 import ImageUtils from "src/utils/image";
 import { LoadingIndicator } from "src/components/Shared/LoadingIndicator";
 import { useToast } from "src/hooks/Toast";
+import { Box, Typography } from "@mui/material";
 
 const SceneCreate: React.FC = () => {
   const history = useHistory();
@@ -75,14 +76,17 @@ const SceneCreate: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-wrap new-view justify-center" id="create-scene-page">
-      <div className="w-full md:w-2/3">
-        <h2>
+    <Box
+      sx={{ display: "flex", justifyContent: "center", px: 2, py: 3 }}
+      id="create-scene-page"
+    >
+      <Box sx={{ width: "100%", maxWidth: 800 }}>
+        <Typography variant="h5" gutterBottom>
           <FormattedMessage
             id="actions.create_entity"
             values={{ entityType: intl.formatMessage({ id: "scene" }) }}
           />
-        </h2>
+        </Typography>
         <SceneEditPanel
           scene={scene}
           initialCoverImage={coverImage}
@@ -90,8 +94,8 @@ const SceneCreate: React.FC = () => {
           isNew
           onSubmit={onSave}
         />
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 };
 

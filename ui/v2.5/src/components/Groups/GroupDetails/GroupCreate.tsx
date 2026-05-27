@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Grid, Typography } from "@mui/material";
+import { Box, Grid, Typography } from "@mui/material";
 import * as GQL from "src/core/generated-graphql";
 import { useGroupCreate } from "src/core/StashService";
 import { useHistory, useLocation } from "react-router-dom";
@@ -44,9 +44,21 @@ const GroupCreate: React.FC = () => {
   function renderFrontImage() {
     if (frontImage) {
       return (
-        <div className="group-image-container">
-          <img alt="Front Cover" src={frontImage} />
-        </div>
+        <Box
+          component="img"
+          alt="Front Cover"
+          src={frontImage}
+          sx={{
+            maxHeight: 420,
+            maxWidth: 280,
+            width: "auto",
+            height: "auto",
+            objectFit: "contain",
+            borderRadius: 1,
+            border: "1px solid #27272a",
+            display: "block",
+          }}
+        />
       );
     }
   }
@@ -54,32 +66,63 @@ const GroupCreate: React.FC = () => {
   function renderBackImage() {
     if (backImage) {
       return (
-        <div className="group-image-container">
-          <img alt="Back Cover" src={backImage} />
-        </div>
+        <Box
+          component="img"
+          alt="Back Cover"
+          src={backImage}
+          sx={{
+            maxHeight: 420,
+            maxWidth: 280,
+            width: "auto",
+            height: "auto",
+            objectFit: "contain",
+            borderRadius: 1,
+            border: "1px solid #27272a",
+            display: "block",
+          }}
+        />
       );
     }
   }
 
   // TODO: CSS class
   return (
-    <Grid container spacing={2} className="group-details">
+    <Grid container spacing={3} className="group-details">
       <Grid size={{ xs: 12, md: 4 }}>
-        <Typography variant="h6" align="center" gutterBottom>
-          {intl.formatMessage({ id: "images" })}
-        </Typography>
-        <div className="logo w-full">
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 1.5,
+            p: 2,
+            bgcolor: "#18181b",
+            border: "1px solid #27272a",
+            borderRadius: 2,
+          }}
+        >
+          <Typography variant="subtitle2" color="text.secondary">
+            {intl.formatMessage({ id: "images" })}
+          </Typography>
           {encodingImage ? (
             <LoadingIndicator
               message={intl.formatMessage({ id: "actions.encoding_image" })}
             />
           ) : (
-            <div className="group-images">
+            <Box
+              sx={{
+                display: "flex",
+                gap: 2,
+                justifyContent: "center",
+                flexWrap: "wrap",
+                minHeight: 56,
+              }}
+            >
               {renderFrontImage()}
               {renderBackImage()}
-            </div>
+            </Box>
           )}
-        </div>
+        </Box>
       </Grid>
 
       <Grid size={{ xs: 12, md: 8 }}>

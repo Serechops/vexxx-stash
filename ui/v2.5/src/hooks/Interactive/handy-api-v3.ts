@@ -475,6 +475,25 @@ export class HandyAPIv3 {
     return this._get("/hssp/state");
   }
 
+  /**
+   * Fine-tune HSSP sync during active playback.
+   * @param currentTime Current playback position in milliseconds (from script start).
+   * @param serverTime  Current estimated server time (ms). Defaults to getEstimatedServerTime().
+   * @param filter      Optional smoothing factor (0–1). Omit to use device default.
+   */
+  async hsspSyncTime(
+    currentTime: number,
+    serverTime?: number,
+    filter?: number
+  ): Promise<Record<string, unknown>> {
+    const body: Record<string, unknown> = {
+      current_time: currentTime,
+      server_time: serverTime ?? this.getEstimatedServerTime(),
+    };
+    if (filter !== undefined) body["filter"] = filter;
+    return this._put("/hssp/synctime", body);
+  }
+
   // Note: HSSP v3 has no dedicated /hssp/loop endpoint.
   // Loop state is set via the `loop` param in hsspPlay(); to change it mid-playback,
   // stop and restart with the new loop value.
@@ -496,6 +515,23 @@ export class HandyAPIv3 {
 
   async hstpSetOffset(offset: number): Promise<Record<string, unknown>> {
     return this._put("/hstp/offset", { offset });
+  }
+
+  async hstpGetOffset(): Promise<Record<string, unknown>> {
+    return this._get("/hstp/offset");
+  }
+
+  /**
+   * Initiate server-device clock synchronisation.
+   * The device measures its round-trip latency to the Handy server and
+   * stores the result internally. This improves HSSP playback accuracy.
+   */
+  async hstpClockSync(): Promise<Record<string, unknown>> {
+    return this._get("/hstp/clocksync");
+  }
+
+  async hstpGetInfo(): Promise<Record<string, unknown>> {
+    return this._get("/hstp/info");
   }
 
   // ── Server time sync ──────────────────────────────────────────────────────

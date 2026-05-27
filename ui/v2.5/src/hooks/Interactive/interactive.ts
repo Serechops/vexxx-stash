@@ -63,6 +63,7 @@ export class Interactive {
   private _useStashHostedFunscript: boolean = false;
   private _looping: boolean = false;
   private _appKey: string = "";
+  private _resyncTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(handyKey: string, scriptOffset: number) {
     this._api = new HandyAPIv3();
@@ -90,6 +91,18 @@ export class Interactive {
       throw new Error("Handy not connected");
     }
     this._connected = true;
+    this._startResyncTimer();
+  }
+
+  private _startResyncTimer(): void {
+    if (this._resyncTimer) clearInterval(this._resyncTimer);
+    this._resyncTimer = setInterval(() => {
+      if (this._connected) {
+        this._api
+          .syncServerTime({ samples: 5, outliers: 1 })
+          .catch(() => {});
+      }
+    }, 5 * 60 * 1000);
   }
 
   set handyKey(key: string) {
@@ -142,7 +155,10 @@ export class Interactive {
   }
 
   async sync(): Promise<number> {
-    return this._api.syncServerTime({ samples: 10, outliers: 3 });
+    const offset = await this._api.syncServerTime({ samples: 10, outliers: 3 });
+    // Also trigger device-side clock synchronisation for better HSSP accuracy.
+    this._api.hstpClockSync().catch(() => {});
+    return offset;
   }
 
   // kept for context.tsx compatibility — server time is managed internally in v3

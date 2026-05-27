@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
-import { Button, ButtonGroup, Box, Typography, TextField, Select, MenuItem, FormControl, IconButton, Table, TableBody, TableCell, TableHead, TableRow } from "@mui/material";
+import { Button, ButtonGroup, Box, Typography, TextField, Select, MenuItem, FormControl, IconButton } from "@mui/material";
 import Grid from "@mui/material/Grid";
 import Mousetrap from "mousetrap";
 import * as GQL from "src/core/generated-graphql";
@@ -900,111 +900,68 @@ export const SceneEditPanel: React.FC<IProps> = ({
             {/* Captions */}
             {renderField(
               "captions",
-              intl.formatMessage({ id: "captions", defaultMessage: "Captions" }),
-              <Box>
-                {(formik.values.captions ?? []).length > 0 && (
-                  <Box sx={{ overflowX: "auto", mb: 1 }}>
-                    <Table
-                      size="small"
-                      sx={{ tableLayout: "fixed", width: "100%", minWidth: 400 }}
-                    >
-                      <colgroup>
-                        <col style={{ width: "20%" }} />
-                        <col style={{ width: "15%" }} />
-                        <col />
-                        <col style={{ width: "40px" }} />
-                      </colgroup>
-                      <TableHead>
-                        <TableRow>
-                          <TableCell sx={{ px: 0.5 }}>
-                            <FormattedMessage id="language" defaultMessage="Language" />
-                          </TableCell>
-                          <TableCell sx={{ px: 0.5 }}>
-                            <FormattedMessage id="type" defaultMessage="Type" />
-                          </TableCell>
-                          <TableCell sx={{ px: 0.5 }}>
-                            <FormattedMessage id="file" defaultMessage="File" />
-                          </TableCell>
-                          <TableCell sx={{ px: 0.5 }} />
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {(formik.values.captions ?? []).map((cap, idx) => (
-                          <TableRow key={idx}>
-                            <TableCell sx={{ px: 0.5 }}>
-                              <TextField
-                                fullWidth
-                                size="small"
-                                value={cap.language_code}
-                                onChange={(e) => {
-                                  const updated = [...(formik.values.captions ?? [])];
-                                  updated[idx] = { ...updated[idx], language_code: e.target.value };
-                                  formik.setFieldValue("captions", updated);
-                                }}
-                              />
-                            </TableCell>
-                            <TableCell sx={{ px: 0.5 }}>
-                              <TextField
-                                fullWidth
-                                size="small"
-                                value={cap.caption_type}
-                                onChange={(e) => {
-                                  const updated = [...(formik.values.captions ?? [])];
-                                  updated[idx] = { ...updated[idx], caption_type: e.target.value };
-                                  formik.setFieldValue("captions", updated);
-                                }}
-                              />
-                            </TableCell>
-                            <TableCell sx={{ px: 0.5 }}>
-                              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                                <TextField
-                                  fullWidth
-                                  size="small"
-                                  value={cap.filepath}
-                                  onChange={(e) => {
-                                    const updated = [...(formik.values.captions ?? [])];
-                                    updated[idx] = { ...updated[idx], filepath: e.target.value };
-                                    formik.setFieldValue("captions", updated);
-                                  }}
-                                />
-                                <IconButton
-                                  size="small"
-                                  sx={{ flexShrink: 0 }}
-                                  onClick={() => setCaptionBrowseIndex(idx)}
-                                >
-                                  <FolderOpenIcon fontSize="small" />
-                                </IconButton>
-                              </Box>
-                            </TableCell>
-                            <TableCell sx={{ px: 0.5 }}>
-                              <IconButton
-                                size="small"
-                                onClick={() => {
-                                  const updated = (formik.values.captions ?? []).filter((_, i) => i !== idx);
-                                  formik.setFieldValue("captions", updated);
-                                }}
-                              >
-                                <DeleteIcon fontSize="small" />
-                              </IconButton>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </Box>
-                )}
-                <Button
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                <FormattedMessage id="captions" defaultMessage="Captions" />
+                <IconButton
                   size="small"
-                  variant="outlined"
-                  startIcon={<AddIcon />}
                   onClick={() => {
                     const updated = [...(formik.values.captions ?? []), { language_code: "en", caption_type: "srt", filepath: "" }];
                     formik.setFieldValue("captions", updated);
                     setCaptionBrowseIndex(updated.length - 1);
                   }}
                 >
-                  <FormattedMessage id="actions.add_caption" defaultMessage="Add Caption" />
-                </Button>
+                  <AddIcon fontSize="small" />
+                </IconButton>
+              </Box>,
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+                {(formik.values.captions ?? []).map((cap, idx) => (
+                  <Box key={idx} sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                    <TextField
+                      size="small"
+                      value={cap.language_code}
+                      placeholder={intl.formatMessage({ id: "language_code_placeholder", defaultMessage: "lang" })}
+                      onChange={(e) => {
+                        const updated = [...(formik.values.captions ?? [])];
+                        updated[idx] = { ...updated[idx], language_code: e.target.value };
+                        formik.setFieldValue("captions", updated);
+                      }}
+                      sx={{ width: 70, flexShrink: 0 }}
+                    />
+                    <TextField
+                      size="small"
+                      value={cap.caption_type}
+                      placeholder={intl.formatMessage({ id: "caption_type_placeholder", defaultMessage: "type" })}
+                      onChange={(e) => {
+                        const updated = [...(formik.values.captions ?? [])];
+                        updated[idx] = { ...updated[idx], caption_type: e.target.value };
+                        formik.setFieldValue("captions", updated);
+                      }}
+                      sx={{ width: 60, flexShrink: 0 }}
+                    />
+                    <TextField
+                      fullWidth
+                      size="small"
+                      value={cap.filepath}
+                      onChange={(e) => {
+                        const updated = [...(formik.values.captions ?? [])];
+                        updated[idx] = { ...updated[idx], filepath: e.target.value };
+                        formik.setFieldValue("captions", updated);
+                      }}
+                    />
+                    <IconButton size="small" onClick={() => setCaptionBrowseIndex(idx)}>
+                      <FolderOpenIcon fontSize="small" />
+                    </IconButton>
+                    <IconButton
+                      size="small"
+                      onClick={() => {
+                        const updated = (formik.values.captions ?? []).filter((_, i) => i !== idx);
+                        formik.setFieldValue("captions", updated);
+                      }}
+                    >
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </Box>
+                ))}
               </Box>,
               fullWidthProps
             )}

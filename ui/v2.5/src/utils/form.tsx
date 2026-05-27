@@ -43,7 +43,7 @@ function getLabelProps(labelProps?: FormLabelProps) {
 }
 
 export function renderLabel(options: {
-  title: string;
+  title: React.ReactNode;
   labelProps?: FormLabelProps;
 }) {
   const props = getLabelProps(options.labelProps);
@@ -233,7 +233,7 @@ export function formikUtils<V extends FormikValues>(
 
   function renderField(
     field: Field,
-    title: string,
+    title: React.ReactNode,
     control: React.ReactNode,
     props?: IProps
   ) {

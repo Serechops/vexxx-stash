@@ -15,6 +15,10 @@ var UIBox fs.FS
 var loginUIBox embed.FS
 var LoginUIBox fs.FS
 
+//go:embed vr
+var vrBox embed.FS
+var VRBox fs.FS
+
 func init() {
 	var err error
 	UIBox, err = fs.Sub(uiBox, "v2.5/build")
@@ -23,6 +27,11 @@ func init() {
 	}
 
 	LoginUIBox, err = fs.Sub(loginUIBox, "login")
+	if err != nil {
+		panic(err)
+	}
+
+	VRBox, err = fs.Sub(vrBox, "vr")
 	if err != nil {
 		panic(err)
 	}

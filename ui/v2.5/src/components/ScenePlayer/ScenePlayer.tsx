@@ -49,6 +49,7 @@ import { languageMap } from "src/utils/caption";
 import { VIDEO_PLAYER_ID } from "./util";
 import TextUtils from "src/utils/text";
 import {
+  Box,
   Button,
   Dialog,
   DialogTitle,
@@ -59,6 +60,7 @@ import {
   TableCell,
   IconButton,
 } from "@mui/material";
+import { Close as CloseIcon } from "@mui/icons-material";
 
 // @ts-ignore
 import airplay from "@silvermine/videojs-airplay";
@@ -1346,19 +1348,38 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
           onClose={() => setShowShortcutsHelp(false)}
           maxWidth="xs"
           fullWidth
+          slotProps={{
+            paper: {
+              sx: {
+                bgcolor: "#18181b",
+                backgroundImage: "none",
+                border: "1px solid #27272a",
+              },
+            },
+          }}
         >
-          <DialogTitle sx={{ pb: 1 }}>
+          <DialogTitle
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              borderBottom: "1px solid #27272a",
+              pb: 1.5,
+              fontSize: "1rem",
+              fontWeight: 600,
+            }}
+          >
             Keyboard Shortcuts
             <IconButton
               onClick={() => setShowShortcutsHelp(false)}
               size="small"
-              sx={{ position: "absolute", right: 8, top: 8 }}
+              sx={{ color: "grey.500", "&:hover": { color: "grey.200" } }}
               aria-label="close"
             >
-              ✕
+              <CloseIcon fontSize="small" />
             </IconButton>
           </DialogTitle>
-          <DialogContent sx={{ pt: 0 }}>
+          <DialogContent sx={{ pt: 1.5, px: 2 }}>
             <Table size="small">
               <TableBody>
                 {[
@@ -1378,13 +1399,36 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
                   ["G", "Open gallery creator"],
                   ["?", "Show this help"],
                 ].map(([key, action]) => (
-                  <TableRow key={key}>
-                    <TableCell
-                      sx={{ fontFamily: "monospace", whiteSpace: "nowrap", width: "1%" }}
-                    >
-                      {key}
+                  <TableRow
+                    key={key}
+                    sx={{
+                      "&:hover": { bgcolor: "rgba(255, 255, 255, 0.04)" },
+                      "&:last-child td": { border: 0 },
+                    }}
+                  >
+                    <TableCell sx={{ border: 0, pr: 2, py: 0.75, width: "1%" }}>
+                      <Box
+                        component="span"
+                        sx={{
+                          fontFamily: "monospace",
+                          fontSize: "0.75rem",
+                          whiteSpace: "nowrap",
+                          bgcolor: "#27272a",
+                          border: "1px solid #3f3f46",
+                          borderRadius: "4px",
+                          px: 0.75,
+                          py: 0.25,
+                          color: "grey.200",
+                        }}
+                      >
+                        {key}
+                      </Box>
                     </TableCell>
-                    <TableCell>{action}</TableCell>
+                    <TableCell
+                      sx={{ border: 0, py: 0.75, color: "grey.400", fontSize: "0.875rem" }}
+                    >
+                      {action}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

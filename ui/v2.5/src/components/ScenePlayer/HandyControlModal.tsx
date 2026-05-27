@@ -372,9 +372,9 @@ export const HandyControlModal: React.FC<IProps> = ({
     <Paper
       elevation={12}
       sx={{
-        position: "fixed",
-        bottom: 72,
-        right: 16,
+        position: "absolute",
+        bottom: "calc(100% + 14px)",
+        left: 0,
         width: 320,
         maxHeight: "calc(100vh - 120px)",
         display: "flex",

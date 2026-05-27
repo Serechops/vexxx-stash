@@ -6,6 +6,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { createPortal } from "react-dom";
 import videojs, { VideoJsPlayer, VideoJsPlayerOptions } from "video.js";
 import useScript from "src/hooks/useScript";
 import "videojs-contrib-dash";
@@ -352,6 +353,8 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
 
     const [time, setTime] = useState(0);
     const [ready, setReady] = useState(false);
+    const [userActive, setUserActive] = useState(true);
+    const [playerEl, setPlayerEl] = useState<Element | null>(null);
 
     const {
       interactive: interactiveClient,
@@ -560,12 +563,14 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
 
       vjs.focus();
       setPlayer(vjs);
+      setPlayerEl(vjs.el());
 
       // Video player destructor
       return () => {
         vjs.dispose();
         videoEl.remove();
         setPlayer(undefined);
+        setPlayerEl(null);
 
         // reset sceneId to force reload sources
         sceneId.current = undefined;
@@ -1221,6 +1226,20 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
       auto.current = false;
     }, [getPlayer, scene, ready, interactiveClient, currentScript]);
 
+    // Mirror VideoJS user-activity state so the Handy icon hides during playback inactivity
+    useEffect(() => {
+      const player = getPlayer();
+      if (!player) return;
+      const onActive = () => setUserActive(true);
+      const onInactive = () => setUserActive(false);
+      player.on("useractive", onActive);
+      player.on("userinactive", onInactive);
+      return () => {
+        player.off("useractive", onActive);
+        player.off("userinactive", onInactive);
+      };
+    }, [getPlayer]);
+
     // Attach handler for onComplete event
     useEffect(() => {
       const player = getPlayer();
@@ -1321,18 +1340,25 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
           )}
         </div>
 
+        {playerEl && createPortal(
+          <>
+            {interactiveState === ConnectionState.Ready && (
+              <InteractiveControls
+                client={interactiveClient}
+                show={scene.interactive && !getPlayer()?.paused()}
+                visible={userActive}
+              />
+            )}
+            {import.meta.env.DEV && interactiveState !== ConnectionState.Ready && (
+              <InteractiveControls client={interactiveClient} show={false} visible={userActive} />
+            )}
+          </>,
+          playerEl
+        )}
+
         {scene.interactive &&
           (interactiveState !== ConnectionState.Ready ||
             getPlayer()?.paused()) && <SceneInteractiveStatus />}
-        {interactiveState === ConnectionState.Ready && (
-          <InteractiveControls
-            client={interactiveClient}
-            show={scene.interactive && !getPlayer()?.paused()}
-          />
-        )}
-        {import.meta.env.DEV && interactiveState !== ConnectionState.Ready && (
-          <InteractiveControls client={interactiveClient} show={false} />
-        )}
         {file && showScrubber && (
           <ScenePlayerScrubber
             file={file}

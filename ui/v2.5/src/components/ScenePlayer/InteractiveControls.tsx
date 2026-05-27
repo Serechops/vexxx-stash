@@ -21,9 +21,11 @@ import { HandyControlModal } from "./HandyControlModal";
 interface IProps {
   client: IInteractiveClient;
   show: boolean;
+  /** When false, fade the trigger/inline controls out (mirrors player inactivity). HandyControlModal stays visible. */
+  visible?: boolean;
 }
 
-export const InteractiveControls: React.FC<IProps> = ({ client, show }) => {
+export const InteractiveControls: React.FC<IProps> = ({ client, show, visible = true }) => {
   const intl = useIntl();
   const [expanded, setExpanded] = useState(false);
   const [hampMode, setHampMode] = useState(false);
@@ -86,30 +88,39 @@ export const InteractiveControls: React.FC<IProps> = ({ client, show }) => {
   if (!client.hasV3Capabilities && !import.meta.env.DEV) return null;
 
   if (!show) {
+    const showTrigger = visible || showDirectControls;
     return (
       <Box
         sx={{
           position: "absolute",
-          bottom: 0,
-          right: 0,
-          m: 1,
-          zIndex: 10,
+          bottom: 100,
+          left: 8,
+          zIndex: 4,
         }}
       >
-        <Tooltip title={intl.formatMessage({ id: "handy_modal.title" })}>
-          <IconButton
-            size="small"
-            sx={{
-              bgcolor: "rgba(0,0,0,0.6)",
-              borderRadius: 1,
-              "&:hover": { bgcolor: "rgba(0,0,0,0.85)" },
-              p: 0.5,
-            }}
-            onClick={() => setShowDirectControls((v) => !v)}
-          >
-            <img src="/handy.png" alt="Handy" style={{ width: 40, height: 40, filter: "invert(1)" }} />
-          </IconButton>
-        </Tooltip>
+        {/* opacity wrapper — HandyControlModal is a sibling so it is unaffected */}
+        <Box
+          sx={{
+            opacity: showTrigger ? 1 : 0,
+            transition: "opacity 0.3s ease",
+            pointerEvents: showTrigger ? "auto" : "none",
+          }}
+        >
+          <Tooltip title={intl.formatMessage({ id: "handy_modal.title" })}>
+            <IconButton
+              size="small"
+              sx={{
+                bgcolor: "rgba(0,0,0,0.6)",
+                borderRadius: 1,
+                "&:hover": { bgcolor: "rgba(0,0,0,0.85)" },
+                p: 0.5,
+              }}
+              onClick={() => setShowDirectControls((v) => !v)}
+            >
+              <img src="/handy.png" alt="Handy" style={{ width: 40, height: 40, filter: "invert(1)" }} />
+            </IconButton>
+          </Tooltip>
+        </Box>
         <HandyControlModal
           open={showDirectControls}
           onClose={() => setShowDirectControls(false)}
@@ -123,10 +134,9 @@ export const InteractiveControls: React.FC<IProps> = ({ client, show }) => {
     <Box
       sx={{
         position: "absolute",
-        bottom: 0,
-        right: 0,
-        zIndex: 10,
-        m: 1,
+        bottom: 72,
+        left: 8,
+        zIndex: 4,
       }}
     >
       <Paper
@@ -137,6 +147,9 @@ export const InteractiveControls: React.FC<IProps> = ({ client, show }) => {
           borderRadius: 1,
           overflow: "hidden",
           minWidth: 240,
+          opacity: visible || showDirectControls ? 1 : 0,
+          transition: "opacity 0.3s ease",
+          pointerEvents: visible || showDirectControls ? "auto" : "none",
         }}
       >
         {/* header row */}

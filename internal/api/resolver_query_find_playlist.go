@@ -95,8 +95,13 @@ func (r *queryResolver) hydrateDynamicPlaylistStats(ctx context.Context, playlis
 		return err
 	}
 
-	playlist.ItemCount = result.Count
-	playlist.Duration = int(result.TotalDuration)
+	// result.IDs is the paginated set (respects per_page and filters).
+	// result.Count is the total matching rows ignoring pagination.
+	// result.TotalDuration is the duration of all matching rows ignoring pagination.
+	playlist.ItemCount = len(result.IDs)
+	if result.Count > 0 {
+		playlist.Duration = int(result.TotalDuration * float64(len(result.IDs)) / float64(result.Count))
+	}
 	return nil
 }
 

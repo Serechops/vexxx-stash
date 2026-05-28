@@ -131,32 +131,6 @@ func (r *playlistResolver) IsDynamic(ctx context.Context, obj *models.Playlist) 
 	return obj.Criteria != nil && strings.TrimSpace(*obj.Criteria) != "", nil
 }
 
-func (r *playlistResolver) ItemCount(ctx context.Context, obj *models.Playlist) (int, error) {
-	if obj.Criteria == nil || strings.TrimSpace(*obj.Criteria) == "" {
-		return obj.ItemCount, nil
-	}
-
-	items, _, err := r.resolveDynamicSceneItems(ctx, obj)
-	if err != nil {
-		return 0, err
-	}
-
-	return len(items), nil
-}
-
-func (r *playlistResolver) Duration(ctx context.Context, obj *models.Playlist) (int, error) {
-	if obj.Criteria == nil || strings.TrimSpace(*obj.Criteria) == "" {
-		return obj.Duration, nil
-	}
-
-	_, duration, err := r.resolveDynamicSceneItems(ctx, obj)
-	if err != nil {
-		return 0, err
-	}
-
-	return duration, nil
-}
-
 func (r *playlistResolver) resolveDynamicSceneItems(ctx context.Context, obj *models.Playlist) ([]*models.PlaylistItem, int, error) {
 	if obj.Criteria == nil || strings.TrimSpace(*obj.Criteria) == "" {
 		return nil, 0, nil
@@ -173,14 +147,18 @@ func (r *playlistResolver) resolveDynamicSceneItems(ctx context.Context, obj *mo
 	}
 
 	var scenes []*models.Scene
+	var totalDuration int
 	if err := r.withReadTxn(ctx, func(ctx context.Context) error {
 		result, err := r.repository.Scene.Query(ctx, models.SceneQueryOptions{
-			QueryOptions: models.QueryOptions{FindFilter: findFilter},
-			SceneFilter:  criteria.SceneFilter,
+			QueryOptions:  models.QueryOptions{FindFilter: findFilter, Count: true},
+			SceneFilter:   criteria.SceneFilter,
+			TotalDuration: true,
 		})
 		if err != nil {
 			return err
 		}
+
+		totalDuration = int(result.TotalDuration)
 
 		scenes, err = result.Resolve(ctx)
 		return err
@@ -189,14 +167,8 @@ func (r *playlistResolver) resolveDynamicSceneItems(ctx context.Context, obj *mo
 	}
 
 	items := make([]*models.PlaylistItem, 0, len(scenes))
-	totalDuration := 0
 	for i, scene := range scenes {
 		sceneID := scene.ID
-		if err := scene.LoadPrimaryFile(ctx, r.repository.File); err == nil {
-			if primary := scene.Files.Primary(); primary != nil {
-				totalDuration += int(primary.Duration)
-			}
-		}
 		items = append(items, &models.PlaylistItem{
 			ID:         -(sceneID + 1),
 			PlaylistID: obj.ID,

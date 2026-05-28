@@ -15,21 +15,14 @@ import {
   DialogTitle,
   Divider,
   IconButton,
-  Fade,
   Switch,
   FormControlLabel,
   TextField,
   Tooltip,
 } from "@mui/material";
 import {
-  faChevronLeft,
-  faChevronRight,
   faPlay,
-  faPause,
-  faVolumeUp,
-  faVolumeMute,
   faExpand,
-  faCompress,
   faPlayCircle,
   faImage,
   faImages,
@@ -61,6 +54,7 @@ import { useToast } from "src/hooks/Toast";
 import * as GQL from "src/core/generated-graphql";
 import { PlaylistQueue, PlaybackItem } from "src/models/playlistQueue";
 import TextUtils from "src/utils/text";
+import { ScenePlayer } from "src/components/ScenePlayer/ScenePlayer";
 
 // ============================================
 // Types & Interfaces
@@ -97,19 +91,6 @@ const getMediaIcon = (type: string) => {
   }
 };
 
-const getStreamUrl = (scene: GQL.SceneDataFragment): string => {
-  if (!scene.sceneStreams || scene.sceneStreams.length === 0) {
-    return `/scene/${scene.id}/stream`;
-  }
-  // Prefer MP4/WebM for native playback
-  const compatibleStream = scene.sceneStreams.find(
-    (s) =>
-      s.mime_type?.includes("video/mp4") ||
-      s.mime_type?.includes("video/webm")
-  );
-  return compatibleStream?.url || scene.sceneStreams[0].url;
-};
-
 // ============================================
 // Media Player Component
 // ============================================
@@ -120,233 +101,21 @@ const MediaPlayer: React.FC<IMediaPlayerProps> = ({
   onComplete,
   onNext,
   onPrevious,
-  hasNext,
-  hasPrevious,
 }) => {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [playing, setPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState(1);
-  const [muted, setMuted] = useState(false);
-  const [fullscreen, setFullscreen] = useState(false);
-  const [showControls, setShowControls] = useState(true);
-  const [buffering, setBuffering] = useState(false);
-  const hideControlsTimeout = useRef<number>();
-
-  const streamUrl = useMemo(() => getStreamUrl(scene), [scene]);
-
-  // Auto-hide controls after inactivity
-  const resetControlsTimer = useCallback(() => {
-    setShowControls(true);
-    if (hideControlsTimeout.current) {
-      clearTimeout(hideControlsTimeout.current);
-    }
-    if (playing) {
-      hideControlsTimeout.current = setTimeout(() => {
-        setShowControls(false);
-      }, 3000);
-    }
-  }, [playing]);
-
-  useEffect(() => {
-    resetControlsTimer();
-    return () => {
-      if (hideControlsTimeout.current) {
-        clearTimeout(hideControlsTimeout.current);
-      }
-    };
-  }, [playing, resetControlsTimer]);
-
-  // Fullscreen handling
-  useEffect(() => {
-    const onFSChange = () => setFullscreen(!!document.fullscreenElement);
-    document.addEventListener("fullscreenchange", onFSChange);
-    return () => document.removeEventListener("fullscreenchange", onFSChange);
-  }, []);
-
-  // Autoplay on mount
-  useEffect(() => {
-    if (autoplay && videoRef.current) {
-      videoRef.current.play().catch(() => {
-        // Autoplay blocked, user needs to interact
-      });
-    }
-  }, [autoplay, scene.id]);
-
-  const togglePlay = useCallback(() => {
-    if (videoRef.current) {
-      if (videoRef.current.paused) {
-        videoRef.current.play();
-      } else {
-        videoRef.current.pause();
-      }
-    }
-  }, []);
-
-  const handleTimeUpdate = useCallback(() => {
-    if (videoRef.current) {
-      setCurrentTime(videoRef.current.currentTime);
-    }
-  }, []);
-
-  const handleLoadedMetadata = useCallback(() => {
-    if (videoRef.current) {
-      setDuration(videoRef.current.duration);
-    }
-  }, []);
-
-  const handleEnded = useCallback(() => {
-    onComplete();
-  }, [onComplete]);
-
-  const handleSeek = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const time = Number(e.target.value);
-      if (videoRef.current) {
-        videoRef.current.currentTime = time;
-        setCurrentTime(time);
-      }
-    },
-    []
-  );
-
-  const handleVolumeChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const newVolume = Number(e.target.value);
-      if (videoRef.current) {
-        videoRef.current.volume = newVolume;
-      }
-      setVolume(newVolume);
-      setMuted(newVolume === 0);
-    },
-    []
-  );
-
-  const toggleMute = useCallback(() => {
-    if (videoRef.current) {
-      videoRef.current.muted = !muted;
-      setMuted(!muted);
-    }
-  }, [muted]);
-
-  const toggleFullscreen = useCallback(() => {
-    if (!document.fullscreenElement) {
-      containerRef.current?.requestFullscreen();
-    } else {
-      document.exitFullscreen();
-    }
-  }, []);
-
-  const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
-
-  const navBtnSx = {
-    backgroundColor: 'rgba(0, 0, 0, 0.6) !important',
-    color: '#fff !important',
-    transition: 'all 0.2s',
-    '&:hover': {
-      backgroundColor: 'rgba(82, 82, 91, 0.8) !important',
-      transform: 'scale(1.1)',
-    },
-    '&:disabled': {
-      backgroundColor: 'rgba(0, 0, 0, 0.3) !important',
-      color: 'rgba(255, 255, 255, 0.3) !important',
-    },
-  };
+  const sendSetTimestamp = useCallback((_fn: (value: number) => void) => {}, []);
 
   return (
-    <Box
-      ref={containerRef}
-      sx={{
-        alignItems: 'center',
-        display: 'flex',
-        height: '100%',
-        justifyContent: 'center',
-        position: 'relative',
-        width: '100%',
-        ...(fullscreen && { backgroundColor: '#000' }),
-      }}
-      onMouseMove={resetControlsTimer}
-      onMouseLeave={() => playing && setShowControls(false)}
-    >
-      {/* Video Element */}
-      <video
-        ref={videoRef}
-        src={streamUrl}
-        style={{
-          height: '100%',
-          maxHeight: '100%',
-          maxWidth: '100%',
-          objectFit: 'contain' as const,
-          width: '100%',
-        }}
-        poster={scene.paths?.screenshot || undefined}
-        onTimeUpdate={handleTimeUpdate}
-        onLoadedMetadata={handleLoadedMetadata}
-        onPlay={() => setPlaying(true)}
-        onPause={() => setPlaying(false)}
-        onEnded={handleEnded}
-        onWaiting={() => setBuffering(true)}
-        onPlaying={() => setBuffering(false)}
-        controls
-      />
-
-      {/* Buffering Indicator */}
-      <Fade in={buffering}>
-        <Box
-          sx={{
-            alignItems: 'center',
-            display: 'flex',
-            height: '100%',
-            justifyContent: 'center',
-            left: 0,
-            position: 'absolute',
-            top: 0,
-            width: '100%',
-          }}
-        >
-          <LoadingIndicator />
-        </Box>
-      </Fade>
-
-      {/* Navigation Controls Overlay */}
-      <Fade in={showControls}>
-        <Box
-          sx={{
-            alignItems: 'center',
-            display: 'flex',
-            gap: '1rem',
-            justifyContent: 'space-between',
-            left: '1rem',
-            p: '1rem',
-            position: 'absolute',
-            right: '1rem',
-            top: '50%',
-            transform: 'translateY(-50%)',
-            zIndex: 10,
-          }}
-        >
-          <IconButton
-            onClick={onPrevious}
-            disabled={!hasPrevious}
-            sx={navBtnSx}
-            size="large"
-          >
-            <Icon icon={faChevronLeft} />
-          </IconButton>
-
-          <IconButton
-            onClick={onNext}
-            disabled={!hasNext}
-            sx={navBtnSx}
-            size="large"
-          >
-            <Icon icon={faChevronRight} />
-          </IconButton>
-        </Box>
-      </Fade>
-    </Box>
+    <ScenePlayer
+      scene={scene}
+      autoplay={autoplay}
+      permitLoop={false}
+      hideScrubberOverride={false}
+      initialTimestamp={0}
+      sendSetTimestamp={sendSetTimestamp}
+      onComplete={onComplete}
+      onNext={onNext}
+      onPrevious={onPrevious}
+    />
   );
 };
 
@@ -524,6 +293,8 @@ const QueuePanel: React.FC<IQueuePanelProps> = ({
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1 }}>
               <TextField
                 size="small"
+                id="playlist-edit-name"
+                name="playlist-edit-name"
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
                 label={intl.formatMessage({ id: "name", defaultMessage: "Name" })}
@@ -531,6 +302,8 @@ const QueuePanel: React.FC<IQueuePanelProps> = ({
               />
               <TextField
                 size="small"
+                id="playlist-edit-desc"
+                name="playlist-edit-desc"
                 value={editDesc}
                 onChange={(e) => setEditDesc(e.target.value)}
                 label={intl.formatMessage({ id: "description", defaultMessage: "Description" })}
@@ -1053,24 +826,31 @@ export const PlaylistPlayer: React.FC = () => {
   const playbackItems = queue?.getPlaybackItems() || [];
 
   // Navigation handlers
+  // Use a ref so these callbacks stay stable even when the queue object
+  // is replaced (e.g. after a refetch). A stable handleNext reference means
+  // the media-loading effect below won't re-fire just because the queue
+  // was rebuilt, which previously caused ScenePlayer to unmount/remount.
+  const queueRef = useRef<PlaylistQueue | null>(null);
+  useEffect(() => { queueRef.current = queue; }, [queue]);
+
   const handleNext = useCallback(() => {
-    if (queue && queue.hasNext()) {
+    if (queueRef.current && queueRef.current.hasNext()) {
       setCurrentIndex((prev) => prev + 1);
     }
-  }, [queue]);
+  }, []);
 
   const handlePrevious = useCallback(() => {
-    if (queue && queue.hasPrevious()) {
+    if (queueRef.current && queueRef.current.hasPrevious()) {
       setCurrentIndex((prev) => prev - 1);
     }
-  }, [queue]);
+  }, []);
 
   const handleRandom = useCallback(() => {
-    if (playbackItems.length > 0) {
-      const randomIndex = Math.floor(Math.random() * playbackItems.length);
-      setCurrentIndex(randomIndex);
+    const items = queueRef.current?.getPlaybackItems() ?? [];
+    if (items.length > 0) {
+      setCurrentIndex(Math.floor(Math.random() * items.length));
     }
-  }, [playbackItems.length]);
+  }, []);
 
   // ── Management handlers ──
   const handleRemoveItem = useCallback(async (playlistItemId: string) => {
@@ -1115,17 +895,21 @@ export const PlaylistPlayer: React.FC = () => {
     } catch (err) { Toast.error(err); }
   }, [playlist, destroyPlaylist, history, Toast, intl]);
 
-  // Load media when current item changes
+  // Load media when the current item changes.
+  // We intentionally do NOT clear the active media before the fetch
+  // completes: keeping the old scene/image alive prevents ScenePlayer from
+  // unmounting and remounting (which triggers VideoJS teardown and Cast SDK
+  // re-registration errors).  We only null out the previous media type when
+  // the new data for a *different* type arrives.
   useEffect(() => {
     if (!currentItem) return;
 
     setMediaLoading(true);
-    setCurrentScene(null);
-    setCurrentImage(null);
 
     if (currentItem.type === "scene") {
       fetchScene({ variables: { id: currentItem.id } }).then((result) => {
         if (result.data?.findScene) {
+          setCurrentImage(null);
           setCurrentScene(result.data.findScene);
         }
         setMediaLoading(false);
@@ -1133,11 +917,14 @@ export const PlaylistPlayer: React.FC = () => {
     } else if (currentItem.type === "image") {
       fetchImage({ variables: { id: currentItem.id } }).then((result) => {
         if (result.data?.findImage) {
+          setCurrentScene(null);
           setCurrentImage(result.data.findImage);
         }
         setMediaLoading(false);
       });
     } else if (currentItem.type === "gallery") {
+      setCurrentScene(null);
+      setCurrentImage(null);
       // For galleries, open lightbox directly
       fetchGalleryImages({
         variables: {
@@ -1180,12 +967,14 @@ export const PlaylistPlayer: React.FC = () => {
     }
   }, [
     currentItem,
-    fetchScene,
-    fetchImage,
-    fetchGalleryImages,
-    setLightboxState,
-    handleNext,
-  ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // fetchScene, fetchImage, fetchGalleryImages: Apollo lazy-query execute
+    // functions are guaranteed stable across renders.  Including them caused
+    // the effect to re-run every time the Apollo cache was written (e.g. after
+    // sceneIncrementPlayCount), which unmounted/remounted the player in a loop.
+    // setLightboxState: stabilised with useCallback inside LightboxProvider.
+    // handleNext: stabilised via queueRef (empty useCallback deps).
+  ]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleQueueItemClick = useCallback((index: number) => {
     setCurrentIndex(index);
@@ -1391,23 +1180,12 @@ export const PlaylistPlayer: React.FC = () => {
             },
           }}
         >
-          {mediaLoading ? (
-            <Box
-              sx={{
-                alignItems: 'center',
-                color: '#a1a1aa',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '1rem',
-                height: '100%',
-                justifyContent: 'center',
-                width: '100%',
-                '& p': { fontSize: '0.875rem' },
-              }}
-            >
-              <LoadingIndicator />
-            </Box>
-          ) : currentItem?.type === "scene" && currentScene ? (
+          {currentItem?.type === "scene" && currentScene ? (
+            // Render the player whenever scene data is available.
+            // Do NOT gate on mediaLoading here — hiding the player on refetch
+            // disposes VideoJS, which re-fires the "playing" event on the next
+            // mount and causes an infinite sceneIncrementPlayCount → cache
+            // update → effect re-run → unmount loop.
             <MediaPlayer
               scene={currentScene}
               autoplay={continuePlaylist}
@@ -1445,6 +1223,21 @@ export const PlaylistPlayer: React.FC = () => {
                   defaultMessage="Opening gallery..."
                 />
               </p>
+            </Box>
+          ) : mediaLoading ? (
+            // Only show a loading spinner when there is no media to display
+            // yet (first load, or switching from scene→image type).
+            <Box
+              sx={{
+                alignItems: 'center',
+                color: '#a1a1aa',
+                display: 'flex',
+                height: '100%',
+                justifyContent: 'center',
+                width: '100%',
+              }}
+            >
+              <LoadingIndicator />
             </Box>
           ) : (
             <Box

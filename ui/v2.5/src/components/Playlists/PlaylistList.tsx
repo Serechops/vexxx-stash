@@ -316,8 +316,7 @@ const PlaylistCard: React.FC<IPlaylistCardProps> = ({ playlist, onDelete }) => {
         "&:hover": { transform: "translateY(-4px)", boxShadow: 8 },
         cursor: "pointer",
       }}
-      component={Link}
-      to={`/playlists/${playlist.id}`}
+      onClick={() => history.push(`/playlists/${playlist.id}`)}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >

@@ -55,3 +55,31 @@ query SystemStats {
     goroutines
   }
 }
+
+query AnalyticsData {
+  analyticsData {
+    scenes_by_codec {
+      label
+      count
+      size
+    }
+    scenes_by_resolution {
+      label
+      count
+      size
+    }
+    scenes_by_studio {
+      label
+      count
+      size
+    }
+    scenes_by_rating {
+      label
+      count
+    }
+    scenes_by_month {
+      label
+      count
+    }
+  }
+}

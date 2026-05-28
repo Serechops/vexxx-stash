@@ -139,6 +139,7 @@ type Query {
   markerStrings(q: String, sort: String): [MarkerStringsResultType]!
   "Get stats"
   stats: StatsResultType!
+  analyticsData: AnalyticsData!
   "Organize scene markers by tag for a given scene ID"
   sceneMarkerTags(scene_id: ID!): [SceneMarkerTag!]!
 

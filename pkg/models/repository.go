@@ -35,6 +35,7 @@ type Repository struct {
 	DismissedRecommendation DismissedRecommendationReaderWriter
 	LikedRecommendation     LikedRecommendationReaderWriter
 	VisualSignature         VisualSignatureReaderWriter
+	Analytics               AnalyticsReader
 }
 
 func (r *Repository) WithTxn(ctx context.Context, fn txn.TxnFunc) error {

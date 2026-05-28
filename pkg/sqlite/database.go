@@ -87,6 +87,7 @@ type storeRepository struct {
 	DismissedRecommendation *DismissedRecommendationStore
 	LikedRecommendation     *LikedRecommendationStore
 	VisualSignature         *VisualSignatureStore
+	Analytics               *AnalyticsStore
 }
 
 type Database struct {
@@ -140,6 +141,7 @@ func NewDatabase() *Database {
 		DismissedRecommendation: &DismissedRecommendationStore{},
 		LikedRecommendation:     &LikedRecommendationStore{},
 		VisualSignature:         &VisualSignatureStore{},
+		Analytics:               &AnalyticsStore{},
 	}
 
 	ret := &Database{

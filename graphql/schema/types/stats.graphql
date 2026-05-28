@@ -1,3 +1,20 @@
+"""A single breakdown bucket for the analytics dashboard."""
+type AnalyticsBreakdown {
+  label: String!
+  count: Int!
+  """Total file size in bytes for this bucket. Zero for non-storage breakdowns."""
+  size: Float!
+}
+
+"""Aggregated analytics data for the library dashboard."""
+type AnalyticsData {
+  scenes_by_codec: [AnalyticsBreakdown!]!
+  scenes_by_resolution: [AnalyticsBreakdown!]!
+  scenes_by_studio: [AnalyticsBreakdown!]!
+  scenes_by_rating: [AnalyticsBreakdown!]!
+  scenes_by_month: [AnalyticsBreakdown!]!
+}
+
 type StatsResultType {
   scene_count: Int!
   scenes_size: Float!

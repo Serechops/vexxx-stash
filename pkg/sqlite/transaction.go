@@ -133,5 +133,6 @@ func (db *Database) Repository() models.Repository {
 		DismissedRecommendation: db.DismissedRecommendation,
 		LikedRecommendation:     db.LikedRecommendation,
 		VisualSignature:         db.VisualSignature,
+		Analytics:               db.Analytics,
 	}
 }

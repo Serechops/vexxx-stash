@@ -13,6 +13,12 @@ type AnalyticsData {
   scenes_by_studio: [AnalyticsBreakdown!]!
   scenes_by_rating: [AnalyticsBreakdown!]!
   scenes_by_month: [AnalyticsBreakdown!]!
+  """Top studios ranked by total accumulated watch time (size = seconds)."""
+  top_studios_by_watch_time: [AnalyticsBreakdown!]!
+  """Top performers ranked by total accumulated watch time (size = seconds)."""
+  top_performers_by_watch_time: [AnalyticsBreakdown!]!
+  """Play-event counts per calendar month (YYYY-MM)."""
+  monthly_watch_activity: [AnalyticsBreakdown!]!
 }
 
 type StatsResultType {

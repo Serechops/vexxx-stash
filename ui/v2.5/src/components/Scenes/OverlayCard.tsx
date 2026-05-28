@@ -15,6 +15,7 @@ import TextUtils from "src/utils/text";
 // Button, Tooltip, OverlayTrigger, Badge removed
 import { useSceneIncrementO } from "src/core/StashService";
 import { useToast } from "src/hooks/Toast";
+import { ResumeProgressBar } from "./ResumeProgressBar";
 
 
 
@@ -206,6 +207,12 @@ export const OverlayCard: React.FC<ISceneCardProps> = ({
                         isPortrait={false}
                         vttPath={scene.paths.vtt ?? undefined}
                         vrMode={scene.vr_mode}
+                    />
+
+                    <ResumeProgressBar
+                        resumeTime={scene.resume_time}
+                        duration={file?.duration}
+                        showLabel={isHovered}
                     />
 
                     {extraActions && (

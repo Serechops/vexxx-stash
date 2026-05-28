@@ -37,12 +37,30 @@ func (r *queryResolver) AnalyticsData(ctx context.Context) (*AnalyticsData, erro
 			return err
 		}
 
+		topStudios, err := analytics.TopStudiosByWatchTime(ctx)
+		if err != nil {
+			return err
+		}
+
+		topPerformers, err := analytics.TopPerformersByWatchTime(ctx)
+		if err != nil {
+			return err
+		}
+
+		watchActivity, err := analytics.MonthlyWatchActivity(ctx)
+		if err != nil {
+			return err
+		}
+
 		ret = AnalyticsData{
-			ScenesByCodec:      toAnalyticsBreakdownList(codecs),
-			ScenesByResolution: toAnalyticsBreakdownList(resolutions),
-			ScenesByStudio:     toAnalyticsBreakdownList(studios),
-			ScenesByRating:     toAnalyticsBreakdownList(ratings),
-			ScenesByMonth:      toAnalyticsBreakdownList(monthly),
+			ScenesByCodec:            toAnalyticsBreakdownList(codecs),
+			ScenesByResolution:       toAnalyticsBreakdownList(resolutions),
+			ScenesByStudio:           toAnalyticsBreakdownList(studios),
+			ScenesByRating:           toAnalyticsBreakdownList(ratings),
+			ScenesByMonth:            toAnalyticsBreakdownList(monthly),
+			TopStudiosByWatchTime:    toAnalyticsBreakdownList(topStudios),
+			TopPerformersByWatchTime: toAnalyticsBreakdownList(topPerformers),
+			MonthlyWatchActivity:     toAnalyticsBreakdownList(watchActivity),
 		}
 
 		return nil

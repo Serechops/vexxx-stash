@@ -135,3 +135,69 @@ LIMIT 60`
 	}
 	return rows, nil
 }
+
+// TopStudiosByWatchTime returns the top 15 studios ranked by total accumulated
+// play_duration across all their scenes. Size holds total seconds watched.
+func (s *AnalyticsStore) TopStudiosByWatchTime(ctx context.Context) ([]models.AnalyticsBreakdown, error) {
+	const q = `
+SELECT
+  COALESCE(st.name, 'No Studio')                  AS label,
+  COUNT(DISTINCT s.id)                             AS count,
+  CAST(COALESCE(SUM(s.play_duration), 0) AS REAL)  AS size
+FROM scenes s
+LEFT JOIN studios st ON st.id = s.studio_id
+WHERE s.play_duration > 0
+GROUP BY s.studio_id
+ORDER BY size DESC
+LIMIT 15`
+
+	var rows []models.AnalyticsBreakdown
+	if err := querySelect(ctx, q, nil, &rows); err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
+// TopPerformersByWatchTime returns the top 15 performers ranked by total
+// accumulated play_duration across all their scenes. Size holds total seconds.
+func (s *AnalyticsStore) TopPerformersByWatchTime(ctx context.Context) ([]models.AnalyticsBreakdown, error) {
+	const q = `
+SELECT
+  p.name                                           AS label,
+  COUNT(DISTINCT s.id)                             AS count,
+  CAST(COALESCE(SUM(s.play_duration), 0) AS REAL)  AS size
+FROM performers p
+INNER JOIN performers_scenes ps ON ps.performer_id = p.id
+INNER JOIN scenes s             ON s.id = ps.scene_id
+WHERE s.play_duration > 0
+GROUP BY p.id
+ORDER BY size DESC
+LIMIT 15`
+
+	var rows []models.AnalyticsBreakdown
+	if err := querySelect(ctx, q, nil, &rows); err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
+// MonthlyWatchActivity returns the number of play events per calendar month
+// from the scenes_view_dates table, up to the last 60 months.
+func (s *AnalyticsStore) MonthlyWatchActivity(ctx context.Context) ([]models.AnalyticsBreakdown, error) {
+	const q = `
+SELECT
+  strftime('%Y-%m', svd.view_date)  AS label,
+  COUNT(*)                           AS count,
+  0.0                                AS size
+FROM scenes_view_dates svd
+WHERE svd.view_date IS NOT NULL
+GROUP BY label
+ORDER BY label
+LIMIT 60`
+
+	var rows []models.AnalyticsBreakdown
+	if err := querySelect(ctx, q, nil, &rows); err != nil {
+		return nil, err
+	}
+	return rows, nil
+}

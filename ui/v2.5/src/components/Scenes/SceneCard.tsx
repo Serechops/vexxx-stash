@@ -26,6 +26,7 @@ import PlaceIcon from "@mui/icons-material/Place";
 import LocalOfferIcon from "@mui/icons-material/LocalOffer";
 import { objectPath, objectTitle } from "src/core/files";
 import { PreviewScrubber } from "./PreviewScrubber";
+import { ResumeProgressBar } from "./ResumeProgressBar";
 import { PatchComponent } from "src/patch";
 import { StudioOverlay } from "../Shared/GridCard/StudioOverlay";
 import { GroupTag } from "../Groups/GroupTag";
@@ -43,6 +44,8 @@ interface IScenePreviewProps {
   vrMode?: GQL.VrMode | null;
   onScrubberClick?: (timestamp: number) => void;
   playOnHover?: boolean;
+  resumeTime?: number | null;
+  duration?: number | null;
 }
 
 export const ScenePreview: React.FC<IScenePreviewProps> = ({
@@ -55,6 +58,8 @@ export const ScenePreview: React.FC<IScenePreviewProps> = ({
   vrMode,
   onScrubberClick,
   playOnHover = false,
+  resumeTime,
+  duration,
 }) => {
   const videoEl = useRef<HTMLVideoElement>(null);
   const [isHovered, setIsHovered] = useState(false);
@@ -154,6 +159,7 @@ export const ScenePreview: React.FC<IScenePreviewProps> = ({
         src={video}
       />
       <PreviewScrubber vttPath={vttPath} onClick={onScrubberClick} />
+      <ResumeProgressBar resumeTime={resumeTime} duration={duration} showLabel />
     </Box>
   );
 };
@@ -292,6 +298,8 @@ const SceneCardImage = PatchComponent(
           vttPath={props.scene.paths.vtt ?? undefined}
           vrMode={props.scene.vr_mode}
           onScrubberClick={onScrubberClick}
+          resumeTime={props.scene.resume_time}
+          duration={file?.duration}
         />
         {maybeRenderInteractiveSpeedOverlay()}
       </>

@@ -81,5 +81,19 @@ query AnalyticsData {
       label
       count
     }
+    top_studios_by_watch_time {
+      label
+      count
+      size
+    }
+    top_performers_by_watch_time {
+      label
+      count
+      size
+    }
+    monthly_watch_activity {
+      label
+      count
+    }
   }
 }

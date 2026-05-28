@@ -7,6 +7,7 @@ import { FrontPageConfig } from "./FrontPageConfig";
 import { HeroBanner } from "./HeroBanner";
 import { useToast } from "src/hooks/Toast";
 import { Control } from "./Control";
+import { ContinueWatchingRow } from "../Scenes/ContinueWatchingRow";
 import { useConfigurationContext } from "src/hooks/Config";
 import {
   FrontPageContent,
@@ -103,6 +104,7 @@ const FrontPage: React.FC = PatchComponent("FrontPage", () => {
           maxWidth: "100%",
         }}
       >
+        <ContinueWatchingRow />
         {frontPageContent?.map((content, i) => (
           <Control key={i} content={content} />
         ))}

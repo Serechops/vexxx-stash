@@ -16,4 +16,7 @@ type AnalyticsReader interface {
 	ScenesByStudio(ctx context.Context) ([]AnalyticsBreakdown, error)
 	ScenesByRating(ctx context.Context) ([]AnalyticsBreakdown, error)
 	ScenesByMonth(ctx context.Context) ([]AnalyticsBreakdown, error)
+	TopStudiosByWatchTime(ctx context.Context) ([]AnalyticsBreakdown, error)
+	TopPerformersByWatchTime(ctx context.Context) ([]AnalyticsBreakdown, error)
+	MonthlyWatchActivity(ctx context.Context) ([]AnalyticsBreakdown, error)
 }

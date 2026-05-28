@@ -410,25 +410,24 @@
     left: 16px;
     right: 16px;
     width: auto;
-    height: 20px; // Larger hitbox
+    height: 30px; // waveform (24px) + seekbar hitbox (6px)
     display: flex;
     align-items: flex-start;
-    padding-top: 8px;
+    padding-top: 24px; // seekbar starts below the waveform
 
-    // Funscript heatmap strip rendered in the 8px area above the seek bar.
-    // Only visible when --funscript-heatmap-url is set on the player element.
+    // Funscript sine-curve waveform — rendered as a client-generated SVG
+    // data URL.  Only visible when --funscript-heatmap-url is set on the
+    // player element (interactive scenes with a loaded funscript).
     &::before {
       content: "";
       position: absolute;
       left: 0;
       right: 0;
-      top: 1px;
-      height: 6px;
+      top: 0;
+      height: 24px;
       background-image: var(--funscript-heatmap-url, none);
       background-size: 100% 100%;
-      border-radius: 2px;
       pointer-events: none;
-      opacity: 0.75;
     }
 
     .vjs-progress-holder {

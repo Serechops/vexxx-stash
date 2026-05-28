@@ -70,6 +70,7 @@ import airplay from "@silvermine/videojs-airplay";
 import chromecast from "@silvermine/videojs-chromecast";
 import abLoopPlugin from "videojs-abloop";
 import ScreenUtils from "src/utils/screen";
+import { generateFunscriptWaveform } from "src/utils/funscriptWaveform";
 import { PatchComponent } from "src/patch";
 
 // register videojs plugins
@@ -1184,22 +1185,38 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
       interactiveClient.setLooping(looping);
     }, [getPlayer, interactiveClient, looping, scene.start_point, scene.end_point]);
 
-    // Show funscript heatmap in the VJS seek bar (::before on .vjs-progress-control).
-    // Sets --funscript-heatmap-url on the player root element; cleared when not interactive.
+    // Generate a client-side sine-curve waveform from the funscript JSON and
+    // set it as --funscript-heatmap-url on the player root element.
+    // Falls back to nothing when the scene is non-interactive or has no script.
     useEffect(() => {
       const player = getPlayer();
       if (!player) return;
       const el = player.el() as HTMLElement | null;
       if (!el) return;
-      if (scene.interactive && scene.paths.interactive_heatmap) {
-        el.style.setProperty(
-          "--funscript-heatmap-url",
-          `url("${scene.paths.interactive_heatmap}")`
-        );
-      } else {
+
+      if (!scene.interactive || !scene.paths.funscript) {
         el.style.removeProperty("--funscript-heatmap-url");
+        return;
       }
-    }, [getPlayer, scene.interactive, scene.paths.interactive_heatmap]);
+
+      let cancelled = false;
+      fetch(scene.paths.funscript)
+        .then((r) => r.json())
+        .then((data) => {
+          if (cancelled) return;
+          const actions = data?.actions;
+          if (!Array.isArray(actions) || actions.length < 2) return;
+          const url = generateFunscriptWaveform(actions);
+          if (url) el.style.setProperty("--funscript-heatmap-url", url);
+        })
+        .catch(() => {
+          // Silently ignore fetch/parse errors
+        });
+
+      return () => {
+        cancelled = true;
+      };
+    }, [getPlayer, scene.interactive, scene.paths.funscript]);
 
     // Add vjs-virtual class and intercept progress bar clicks for virtual scenes
     useEffect(() => {

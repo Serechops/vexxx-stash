@@ -474,6 +474,7 @@ export const ScenePlayerScrubber: React.FC<IScenePlayerScrubberProps> = ({
           userSelect: "none",
           WebkitUserSelect: "none",
           borderRadius: 0.5,
+          backgroundColor: "rgba(9, 9, 11, 0.92)",
         }}
       >
         {/* Tags Background */}
@@ -495,6 +496,7 @@ export const ScenePlayerScrubber: React.FC<IScenePlayerScrubberProps> = ({
               left: 0,
               right: 0,
               height: 20,
+              backgroundColor: "rgba(9, 9, 11, 0.85)",
               backgroundImage: `url(${scene.paths.interactive_heatmap})`,
               backgroundSize: "100% 100%",
             }}

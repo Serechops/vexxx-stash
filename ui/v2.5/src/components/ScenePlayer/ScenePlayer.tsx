@@ -1184,6 +1184,23 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
       interactiveClient.setLooping(looping);
     }, [getPlayer, interactiveClient, looping, scene.start_point, scene.end_point]);
 
+    // Show funscript heatmap in the VJS seek bar (::before on .vjs-progress-control).
+    // Sets --funscript-heatmap-url on the player root element; cleared when not interactive.
+    useEffect(() => {
+      const player = getPlayer();
+      if (!player) return;
+      const el = player.el() as HTMLElement | null;
+      if (!el) return;
+      if (scene.interactive && scene.paths.interactive_heatmap) {
+        el.style.setProperty(
+          "--funscript-heatmap-url",
+          `url("${scene.paths.interactive_heatmap}")`
+        );
+      } else {
+        el.style.removeProperty("--funscript-heatmap-url");
+      }
+    }, [getPlayer, scene.interactive, scene.paths.interactive_heatmap]);
+
     // Add vjs-virtual class and intercept progress bar clicks for virtual scenes
     useEffect(() => {
       const player = getPlayer();
@@ -1192,8 +1209,9 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
       if (isVirtual) {
         player.addClass("vjs-virtual");
 
-        const progressHolder = player
-          .el()
+        const playerEl = player.el();
+        if (!playerEl) return () => { player.removeClass("vjs-virtual"); };
+        const progressHolder = playerEl
           .querySelector(".vjs-progress-holder") as HTMLElement | null;
         if (!progressHolder) return () => { player.removeClass("vjs-virtual"); };
 

@@ -415,6 +415,22 @@
     align-items: flex-start;
     padding-top: 8px;
 
+    // Funscript heatmap strip rendered in the 8px area above the seek bar.
+    // Only visible when --funscript-heatmap-url is set on the player element.
+    &::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 1px;
+      height: 6px;
+      background-image: var(--funscript-heatmap-url, none);
+      background-size: 100% 100%;
+      border-radius: 2px;
+      pointer-events: none;
+      opacity: 0.75;
+    }
+
     .vjs-progress-holder {
       background: rgba(255, 255, 255, 0.2);
       border-radius: 2px;

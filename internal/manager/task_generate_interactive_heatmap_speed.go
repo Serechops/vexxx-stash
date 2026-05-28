@@ -27,7 +27,11 @@ func (t *GenerateInteractiveHeatmapSpeedTask) Start(ctx context.Context) {
 	}
 
 	videoChecksum := t.Scene.GetHash(t.fileNamingAlgorithm)
+	// Prefer the manually-assigned funscript path; fall back to the co-located convention.
 	funscriptPath := video.GetFunscriptPath(t.Scene.Path)
+	if t.Scene.FunscriptPath != nil {
+		funscriptPath = *t.Scene.FunscriptPath
+	}
 	heatmapPath := instance.Paths.Scene.GetInteractiveHeatmapPath(videoChecksum)
 	drawRange := instance.Config.GetDrawFunscriptHeatmapRange()
 
@@ -63,7 +67,13 @@ func (t *GenerateInteractiveHeatmapSpeedTask) Start(ctx context.Context) {
 
 func (t *GenerateInteractiveHeatmapSpeedTask) required() bool {
 	primaryFile := t.Scene.Files.Primary()
-	if primaryFile == nil || !primaryFile.Interactive {
+	if primaryFile == nil {
+		return false
+	}
+	// A scene is interactive if the primary file was auto-detected as interactive
+	// (co-located .funscript) OR if a funscript path was manually assigned.
+	isInteractive := primaryFile.Interactive || t.Scene.FunscriptPath != nil
+	if !isInteractive {
 		return false
 	}
 

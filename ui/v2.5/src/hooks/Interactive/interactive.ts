@@ -1,5 +1,28 @@
-import { HandyAPIv3 } from "./handy-api-v3";
+import { HandyAPIv3, HandyAPIError } from "./handy-api-v3";
 import { IDeviceSettings } from "./utils";
+
+/**
+ * Returns true when the URL is only reachable on a private network or localhost.
+ * Handy API v3 /hssp/setup rejects such URLs with UNSUPPORTED_URL (400).
+ */
+function isPrivateUrl(url: string): boolean {
+  try {
+    const { protocol, hostname } = new URL(url);
+    // Handy requires HTTPS; any non-HTTPS URL cannot be served to their cloud.
+    if (protocol !== "https:") return true;
+    if (hostname === "localhost" || hostname === "[::1]") return true;
+    // IPv4 loopback (127.x.x.x)
+    if (/^127\./.test(hostname)) return true;
+    // RFC-1918 private ranges
+    if (/^10\./.test(hostname)) return true;
+    if (/^192\.168\./.test(hostname)) return true;
+    if (/^172\.(1[6-9]|2\d|3[01])\./.test(hostname)) return true;
+    return false;
+  } catch {
+    // Unparseable URL — treat as private to avoid a confusing 400.
+    return true;
+  }
+}
 
 interface IFunscript {
   actions: Array<IAction>;
@@ -152,7 +175,11 @@ export class Interactive {
 
     let funscriptUrl: string;
 
-    if (this._useStashHostedFunscript) {
+    if (this._useStashHostedFunscript && !isPrivateUrl(funscriptPath)) {
+      // Only use the stash-hosted path when Stash is reachable from Handy's
+      // cloud servers (public HTTPS).  LAN / localhost URLs are rejected by
+      // the Handy API v3 /hssp/setup endpoint (UNSUPPORTED_URL), so we fall
+      // through to the hosting-upload path below.
       funscriptUrl = funscriptPath.replace("/funscript", "/interactive_csv");
       if (apiKey) {
         const url = new URL(funscriptUrl);
@@ -216,7 +243,15 @@ export class Interactive {
     if (!this._connected) return;
     // Use hsspPause (not hsspStop) to preserve the device's position;
     // play() will call hsspPlay with a new seek position on resume.
-    await this._api.hsspPause();
+    try {
+      await this._api.hsspPause();
+    } catch (e) {
+      // Any HSSP pause failure (e.g. "HSP pause failed", "Illegal state.") is
+      // safe to ignore — the device is either already stopped, not in HSSP mode,
+      // or in a transitional state between tracks. The next hsspPlay() call will
+      // resume with an explicit position, correcting device state.
+      if (!(e instanceof HandyAPIError)) throw e;
+    }
     this._playing = false;
     this._isPaused = true;
   }

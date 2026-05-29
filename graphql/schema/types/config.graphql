@@ -205,22 +205,34 @@ type ConfigGeneralResult {
   stashes: [StashConfig!]!
   "Path to the SQLite database"
   databasePath: String!
+  "Resolved absolute path to the SQLite database"
+  databasePathAbs: String!
   "Path to backup directory"
   backupDirectoryPath: String!
   "Path to trash directory - if set, deleted files will be moved here instead of being permanently deleted"
   deleteTrashPath: String!
   "Path to generated files"
   generatedPath: String!
+  "Resolved absolute path to generated files"
+  generatedPathAbs: String!
   "Path to import/export files"
   metadataPath: String!
+  "Resolved absolute path to import/export files"
+  metadataPathAbs: String!
   "Path to the config file used"
   configFilePath: String!
   "Path to scrapers"
   scrapersPath: String!
+  "Resolved absolute path to scrapers"
+  scrapersPathAbs: String!
   "Path to plugins"
   pluginsPath: String!
+  "Resolved absolute path to plugins"
+  pluginsPathAbs: String!
   "Path to cache"
   cachePath: String!
+  "Resolved absolute path to cache"
+  cachePathAbs: String!
   "Path to blobs - required for filesystem blob storage"
   blobsPath: String!
   "Where to store blobs"

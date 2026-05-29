@@ -934,6 +934,69 @@ func (i *Config) GetPluginsPath() string {
 	return i.getString(PluginsPath)
 }
 
+// resolvePathAbs resolves a configured path to an absolute path.
+// If the path is already absolute, it is returned as-is.
+// If the path is relative, it is resolved using filepath.Abs (relative to CWD).
+// If the path is empty, an empty string is returned.
+func (i *Config) resolvePathAbs(p string) string {
+	if p == "" {
+		return ""
+	}
+	if filepath.IsAbs(p) {
+		return p
+	}
+	ret, err := filepath.Abs(p)
+	if err != nil {
+		return p
+	}
+	return ret
+}
+
+// GetGeneratedPathAbs returns the resolved absolute path to the generated files directory.
+func (i *Config) GetGeneratedPathAbs() string {
+	return i.resolvePathAbs(i.GetGeneratedPath())
+}
+
+// GetCachePathAbs returns the resolved absolute path to the cache directory.
+func (i *Config) GetCachePathAbs() string {
+	return i.resolvePathAbs(i.GetCachePath())
+}
+
+// GetMetadataPathAbs returns the resolved absolute path to the metadata directory.
+func (i *Config) GetMetadataPathAbs() string {
+	return i.resolvePathAbs(i.GetMetadataPath())
+}
+
+// GetDatabasePathAbs returns the resolved absolute path to the database file.
+// Falls back to the default database path if not configured.
+func (i *Config) GetDatabasePathAbs() string {
+	p := i.GetDatabasePath()
+	if p == "" {
+		return i.GetDefaultDatabaseFilePath()
+	}
+	return i.resolvePathAbs(p)
+}
+
+// GetScrapersPathAbs returns the resolved absolute path to the scrapers directory.
+// Falls back to the default scrapers path if not configured.
+func (i *Config) GetScrapersPathAbs() string {
+	p := i.GetScrapersPath()
+	if p == "" {
+		return i.GetDefaultScrapersPath()
+	}
+	return i.resolvePathAbs(p)
+}
+
+// GetPluginsPathAbs returns the resolved absolute path to the plugins directory.
+// Falls back to the default plugins path if not configured.
+func (i *Config) GetPluginsPathAbs() string {
+	p := i.GetPluginsPath()
+	if p == "" {
+		return i.GetDefaultPluginsPath()
+	}
+	return i.resolvePathAbs(p)
+}
+
 func (i *Config) GetAllPluginConfiguration() map[string]map[string]interface{} {
 	i.RLock()
 	defer i.RUnlock()

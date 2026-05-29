@@ -5,13 +5,19 @@ fragment ConfigGeneralData on ConfigGeneralResult {
     excludeImage
   }
   databasePath
+  databasePathAbs
   backupDirectoryPath
   deleteTrashPath
   generatedPath
+  generatedPathAbs
   metadataPath
+  metadataPathAbs
   scrapersPath
+  scrapersPathAbs
   pluginsPath
+  pluginsPathAbs
   cachePath
+  cachePathAbs
   blobsPath
   blobsStorage
   ffmpegPath

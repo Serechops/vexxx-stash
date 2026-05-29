@@ -17,7 +17,7 @@ import {
   VideoPreviewSettingsInput,
 } from "./GeneratePreviewOptions";
 import { FormattedMessage, useIntl } from "react-intl";
-import { Button } from "@mui/material";
+import { Box, Button } from "@mui/material";
 import { useToast } from "src/hooks/Toast";
 import { useHistory } from "react-router-dom";
 
@@ -127,13 +127,34 @@ export const SettingsConfigurationPanel: React.FC = () => {
   if (error) return <h1>{error.message}</h1>;
   if (loading) return <LoadingIndicator />;
 
+  // The general state is ConfigGeneralInput but the data spread includes
+  // read-only resolved abs-path fields from ConfigGeneralDataFragment.
+  type GeneralWithAbsPaths = GQL.ConfigGeneralInput & {
+    generatedPathAbs?: string;
+    cachePathAbs?: string;
+    scrapersPathAbs?: string;
+    pluginsPathAbs?: string;
+    metadataPathAbs?: string;
+    databasePathAbs?: string;
+  };
+  const g = general as GeneralWithAbsPaths;
+
   return (
     <>
       <SettingSection headingID="config.application_paths.heading">
         <StringSetting
           id="generated-path"
           headingID="config.general.generated_path_head"
-          subHeadingID="config.general.generated_files_location"
+          subHeading={
+            <>
+              {intl.formatMessage({ id: "config.general.generated_files_location" })}
+              {g.generatedPathAbs && (
+                <Box component="span" sx={{ display: "block", mt: 0.5, fontFamily: "monospace", wordBreak: "break-all" }}>
+                  ↳ {g.generatedPathAbs}
+                </Box>
+              )}
+            </>
+          }
           value={general.generatedPath ?? undefined}
           onChange={(v) => saveGeneral({ generatedPath: v })}
         />
@@ -141,7 +162,16 @@ export const SettingsConfigurationPanel: React.FC = () => {
         <StringSetting
           id="cache-path"
           headingID="config.general.cache_path_head"
-          subHeadingID="config.general.cache_location"
+          subHeading={
+            <>
+              {intl.formatMessage({ id: "config.general.cache_location" })}
+              {g.cachePathAbs && (
+                <Box component="span" sx={{ display: "block", mt: 0.5, fontFamily: "monospace", wordBreak: "break-all" }}>
+                  ↳ {g.cachePathAbs}
+                </Box>
+              )}
+            </>
+          }
           value={general.cachePath ?? undefined}
           onChange={(v) => saveGeneral({ cachePath: v })}
         />
@@ -149,7 +179,16 @@ export const SettingsConfigurationPanel: React.FC = () => {
         <StringSetting
           id="scrapers-path"
           headingID="config.general.scrapers_path.heading"
-          subHeadingID="config.general.scrapers_path.description"
+          subHeading={
+            <>
+              {intl.formatMessage({ id: "config.general.scrapers_path.description" })}
+              {g.scrapersPathAbs && (
+                <Box component="span" sx={{ display: "block", mt: 0.5, fontFamily: "monospace", wordBreak: "break-all" }}>
+                  ↳ {g.scrapersPathAbs}
+                </Box>
+              )}
+            </>
+          }
           value={general.scrapersPath ?? undefined}
           onChange={(v) => saveGeneral({ scrapersPath: v })}
         />
@@ -157,7 +196,16 @@ export const SettingsConfigurationPanel: React.FC = () => {
         <StringSetting
           id="plugins-path"
           headingID="config.general.plugins_path.heading"
-          subHeadingID="config.general.plugins_path.description"
+          subHeading={
+            <>
+              {intl.formatMessage({ id: "config.general.plugins_path.description" })}
+              {g.pluginsPathAbs && (
+                <Box component="span" sx={{ display: "block", mt: 0.5, fontFamily: "monospace", wordBreak: "break-all" }}>
+                  ↳ {g.pluginsPathAbs}
+                </Box>
+              )}
+            </>
+          }
           value={general.pluginsPath ?? undefined}
           onChange={(v) => saveGeneral({ pluginsPath: v })}
         />
@@ -165,7 +213,16 @@ export const SettingsConfigurationPanel: React.FC = () => {
         <StringSetting
           id="metadata-path"
           headingID="config.general.metadata_path.heading"
-          subHeadingID="config.general.metadata_path.description"
+          subHeading={
+            <>
+              {intl.formatMessage({ id: "config.general.metadata_path.description" })}
+              {g.metadataPathAbs && (
+                <Box component="span" sx={{ display: "block", mt: 0.5, fontFamily: "monospace", wordBreak: "break-all" }}>
+                  ↳ {g.metadataPathAbs}
+                </Box>
+              )}
+            </>
+          }
           value={general.metadataPath ?? undefined}
           onChange={(v) => saveGeneral({ metadataPath: v })}
         />
@@ -236,7 +293,16 @@ export const SettingsConfigurationPanel: React.FC = () => {
         <StringSetting
           id="database-path"
           headingID="config.general.db_path_head"
-          subHeadingID="config.general.sqlite_location"
+          subHeading={
+            <>
+              {intl.formatMessage({ id: "config.general.sqlite_location" })}
+              {g.databasePathAbs && (
+                <Box component="span" sx={{ display: "block", mt: 0.5, fontFamily: "monospace", wordBreak: "break-all" }}>
+                  ↳ {g.databasePathAbs}
+                </Box>
+              )}
+            </>
+          }
           value={general.databasePath ?? undefined}
           onChange={(v) => saveGeneral({ databasePath: v })}
         />

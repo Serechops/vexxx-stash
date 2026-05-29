@@ -863,7 +863,7 @@
         "heading": "Scroll attempts before transition"
       },
       "sfw_mode": {
-        "description": "Enable if using stash to store SFW content. Hides or changes some adult-content-related aspects of the UI.",
+        "description": "Enable if using Vexxx to store SFW content. Hides or changes some adult-content-related aspects of the UI.",
         "heading": "SFW Content Mode"
       },
       "sfw_blur_scenes": {
@@ -1625,61 +1625,61 @@
     },
     "paths": {
       "database_filename_empty_for_default": "database filename (empty for default)",
-      "description": "Next up, we need to determine where to find your content, and where to store the Stash database, generated files and cache files. These settings can be changed later if needed.",
+      "description": "Next up, we need to determine where to find your content, and where to store the Vexxx database, generated files and cache files. These settings can be changed later if needed.",
       "path_to_blobs_directory_empty_for_default": "path to blobs directory (empty for default)",
       "path_to_cache_directory_empty_for_default": "path to cache directory (empty for default)",
       "path_to_generated_directory_empty_for_default": "path to generated directory (empty for default)",
       "set_up_your_paths": "Set up your paths",
-      "sfw_content_settings": "Using stash for SFW content?",
-      "sfw_content_settings_description": "stash can be used to manage SFW content such as photography, art, comics, and more. Enabling this option will adjust some UI behaviour to be more appropriate for SFW content.",
+      "sfw_content_settings": "Using Vexxx for SFW content?",
+      "sfw_content_settings_description": "Vexxx can be used to manage SFW content such as photography, art, comics, and more. Enabling this option will adjust some UI behaviour to be more appropriate for SFW content.",
       "stash_alert": "No library paths have been selected. No media will be able to be scanned into Stash. Are you sure?",
       "store_blobs_in_database": "Store blobs in database",
       "use_sfw_content_mode": "Use SFW content mode",
-      "where_can_stash_store_blobs": "Where can Stash store database binary data?",
-      "where_can_stash_store_blobs_description": "Stash can store binary data such as scene covers, performer, studio and tag images either in the database or in the filesystem. By default, it will store this data in the filesystem in the subdirectory <code>blobs</code> within the directory containing your config file. If you want to change this, please enter an absolute or relative (to the current working directory) path. Stash will create this directory if it does not already exist.",
+      "where_can_stash_store_blobs": "Where can Vexxx store database binary data?",
+      "where_can_stash_store_blobs_description": "Vexxx can store binary data such as scene covers, performer, studio and tag images either in the database or in the filesystem. By default, it will store this data in the filesystem in the subdirectory <code>blobs</code> within the directory containing your config file. If you want to change this, please enter an absolute or relative (to the current working directory) path. Vexxx will create this directory if it does not already exist.",
       "where_can_stash_store_blobs_description_addendum": "Alternatively, you can store this data in the database. <strong>Note:</strong> This will increase the size of your database file, and will increase database migration times.",
-      "where_can_stash_store_cache_files": "Where can Stash store cache files?",
-      "where_can_stash_store_cache_files_description": "In order for some functionality like HLS/DASH live transcoding to function, Stash requires a cache directory for temporary files. By default, Stash will create a <code>cache</code> directory within the directory containing your config file. If you want to change this, please enter an absolute or relative (to the current working directory) path. Stash will create this directory if it does not already exist.",
-      "where_can_stash_store_its_database": "Where can Stash store its database?",
-      "where_can_stash_store_its_database_description": "Stash uses an SQLite database to store your content metadata. By default, this will be created as <code>stash-go.sqlite</code> in the directory containing your config file. If you want to change this, please enter an absolute or relative (to the current working directory) filename.",
-      "where_can_stash_store_its_database_warning": "WARNING: storing the database on a different system to where Stash is run from (e.g. storing the database on a NAS while running the Stash server on another computer) is <strong>unsupported</strong>! SQLite is not intended for use across a network, and attempting to do so can very easily cause your entire database to become corrupted.",
-      "where_can_stash_store_its_generated_content": "Where can Stash store its generated content?",
-      "where_can_stash_store_its_generated_content_description": "In order to provide thumbnails, previews and sprites, Stash generates images and videos. This also includes transcodes for unsupported file formats. By default, Stash will create a <code>generated</code> directory within the directory containing your config file. If you want to change where this generated media will be stored, please enter an absolute or relative (to the current working directory) path. Stash will create this directory if it does not already exist.",
+      "where_can_stash_store_cache_files": "Where can Vexxx store cache files?",
+      "where_can_stash_store_cache_files_description": "In order for some functionality like HLS/DASH live transcoding to function, Vexxx requires a cache directory for temporary files. By default, Vexxx will create a <code>cache</code> directory within the directory containing your config file. If you want to change this, please enter an absolute or relative (to the current working directory) path. Vexxx will create this directory if it does not already exist.",
+      "where_can_stash_store_its_database": "Where can Vexxx store its database?",
+      "where_can_stash_store_its_database_description": "Vexxx uses an SQLite database to store your content metadata. By default, this will be created as <code>stash-go.sqlite</code> in the directory containing your config file. If you want to change this, please enter an absolute or relative (to the current working directory) filename.",
+      "where_can_stash_store_its_database_warning": "WARNING: storing the database on a different system to where Vexxx is run from (e.g. storing the database on a NAS while running the Vexxx server on another computer) is <strong>unsupported</strong>! SQLite is not intended for use across a network, and attempting to do so can very easily cause your entire database to become corrupted.",
+      "where_can_stash_store_its_generated_content": "Where can Vexxx store its generated content?",
+      "where_can_stash_store_its_generated_content_description": "In order to provide thumbnails, previews and sprites, Vexxx generates images and videos. This also includes transcodes for unsupported file formats. By default, Vexxx will create a <code>generated</code> directory within the directory containing your config file. If you want to change where this generated media will be stored, please enter an absolute or relative (to the current working directory) path. Vexxx will create this directory if it does not already exist.",
       "where_is_your_porn_located": "Where is your content located?",
-      "where_is_your_porn_located_description": "Add directories containing your videos and images. Stash will use these directories to find videos and images during scanning."
+      "where_is_your_porn_located_description": "Add directories containing your videos and images. Vexxx will use these directories to find videos and images during scanning."
     },
-    "stash_setup_wizard": "Stash Setup Wizard",
+    "stash_setup_wizard": "Vexxx Setup Wizard",
     "success": {
       "download_ffmpeg": "Download ffmpeg",
       "getting_help": "Getting help",
       "help_links": "If you run into issues or have any questions or suggestions, feel free to open an issue in the {githubLink}, or ask the community in the {discordLink}.",
       "in_app_manual_explained": "You are encouraged to check out the in-app manual which can be accessed from the icon in the top-right corner of the screen that looks like this: {icon}",
-      "missing_ffmpeg": "You are missing the required <code>ffmpeg</code> binary. You can automatically download it into your configuration directory by checking the box below. Alternatively, you can supply paths to the <code>ffmpeg</code> and <code>ffprobe</code> binaries in the System Settings. These binaries must be present for Stash to function.",
+      "missing_ffmpeg": "You are missing the required <code>ffmpeg</code> binary. You can automatically download it into your configuration directory by checking the box below. Alternatively, you can supply paths to the <code>ffmpeg</code> and <code>ffprobe</code> binaries in the System Settings. These binaries must be present for Vexxx to function.",
       "next_config_step_one": "You will be taken to the Configuration page next. This page will allow you to customize what files to include and exclude, set a username and password to protect your system, and a whole bunch of other options.",
-      "next_config_step_two": "When you are satisfied with these settings, you can begin scanning your content into Stash by clicking on <code>{localized_task}</code>, then <code>{localized_scan}</code>.",
+      "next_config_step_two": "When you are satisfied with these settings, you can begin scanning your content into Vexxx by clicking on <code>{localized_task}</code>, then <code>{localized_scan}</code>.",
       "open_collective": "Check out our {open_collective_link} to see how you can contribute to the continued development of Stash.",
       "support_us": "Support us",
-      "thanks_for_trying_stash": "Thanks for trying Stash!",
+      "thanks_for_trying_stash": "Thanks for trying Vexxx!",
       "welcome_contrib": "We also welcome contributions in the form of code (bug fixes, improvements and new features), testing, bug reports, improvement and feature requests, and user support. Details can be found in the Contribution section of the in-app manual.",
       "your_system_has_been_created": "Success! Your system has been created!"
     },
     "welcome": {
-      "config_path_logic_explained": "Stash tries to find its configuration file (<code>config.yml</code>) from the current working directory first, and if it does not find it there, it falls back to <code>{fallback_path}</code>. You can also make Stash read from a specific configuration file by running it with the <code>-c '<path to config file>'</code> or <code>--config '<path to config file>'</code> options.",
+      "config_path_logic_explained": "Vexxx tries to find its configuration file (<code>config.yml</code>) from the current working directory first, and if it does not find it there, it falls back to <code>{fallback_path}</code>. You can also make Vexxx read from a specific configuration file by running it with the <code>-c '<path to config file>'</code> or <code>--config '<path to config file>'</code> options.",
       "in_current_stash_directory": "In the <code>{path}</code> directory:",
       "in_the_current_working_directory": "In <code>{path}</code>, the working directory, currently:",
       "in_the_current_working_directory_disabled": "In <code>{path}</code>, the working directory:",
-      "in_the_current_working_directory_disabled_macos": "Unsupported when running <code>Stash.app</code>,<br></br>run <code>stash-macos</code> to set up in the working directory",
+      "in_the_current_working_directory_disabled_macos": "Unsupported when running <code>Vexxx.app</code>,<br></br>run <code>vexxx-macos</code> to set up in the working directory",
       "next_step": "With all of that out of the way, if you're ready to proceed with setting up a new system, please choose where you'd like to store your configuration file.",
-      "store_stash_config": "Where do you want to store your Stash configuration?",
-      "unable_to_locate_config": "If you're reading this, then Stash couldn't find an existing configuration. This wizard will guide you through the process of setting up a new configuration.",
-      "unexpected_explained": "If you're getting this screen unexpectedly, please try restarting Stash in the correct working directory or with the <code>-c</code> flag."
+      "store_stash_config": "Where do you want to store your Vexxx configuration?",
+      "unable_to_locate_config": "If you're reading this, then Vexxx couldn't find an existing configuration. This wizard will guide you through the process of setting up a new configuration.",
+      "unexpected_explained": "If you're getting this screen unexpectedly, please try restarting Vexxx in the correct working directory or with the <code>-c</code> flag."
     },
     "welcome_specific_config": {
-      "config_path": "Stash will use the following configuration file path: <code>{path}</code>",
+      "config_path": "Vexxx will use the following configuration file path: <code>{path}</code>",
       "next_step": "When you're ready to proceed with setting up a new system, click Next.",
-      "unable_to_locate_specified_config": "If you're reading this, then Stash couldn't find the configuration file specified at the command line or the environment. This wizard will guide you through the process of setting up a new configuration."
+      "unable_to_locate_specified_config": "If you're reading this, then Vexxx couldn't find the configuration file specified at the command line or the environment. This wizard will guide you through the process of setting up a new configuration."
     },
-    "welcome_to_stash": "Welcome to Stash"
+    "welcome_to_stash": "Welcome to Vexxx"
   },
   "stash_id": "Stash ID",
   "stash_id_endpoint": "Stash ID Endpoint URL",

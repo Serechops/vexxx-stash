@@ -254,6 +254,8 @@ type Query {
   validateLibraryPath(path: String!): LibraryPathValidationResult!
   "Returns the list of mounted volumes when running in Docker. Empty if not in Docker."
   dockerMountedVolumes: [DockerMountedVolume!]!
+  "Returns the list of system root paths (drive letters on Windows; '/' and mount points on Unix/macOS)."
+  systemRoots: [String!]!
 
   # System status
   systemStatus: SystemStatus!

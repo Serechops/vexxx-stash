@@ -109,11 +109,11 @@ export const Migrate: React.FC = () => {
     if (notes.length === 0) return;
 
     return (
-      <Box sx={{ m: '1rem', '& > div': { bgcolor: '#131316', borderRadius: '3px', p: 2 } }} mt={4} mb={4}>
+      <Box sx={{ mt: 3, mb: 3 }}>
         <Typography variant="h5" gutterBottom>
           <FormattedMessage id="setup.migrate.migration_notes" />
         </Typography>
-        <Box>
+        <Box sx={{ '& > div': { borderRadius: 1, p: 2, border: '1px solid', borderColor: 'divider', bgcolor: 'background.paper' } }}>
           {notes.map((n, i) => (
             <Box key={i} mb={2}>
               <MarkdownPage page={n} />
@@ -238,9 +238,9 @@ export const Migrate: React.FC = () => {
               />
             </Typography>
 
-            <Typography variant="h6" align="center" color="text.secondary" sx={{ my: 4 }}>
+            <Alert severity="warning" sx={{ my: 3 }}>
               <FormattedMessage id="setup.migrate.migration_irreversible_warning" />
-            </Typography>
+            </Alert>
 
             <Typography paragraph>
               <FormattedMessage
@@ -269,7 +269,6 @@ export const Migrate: React.FC = () => {
               onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                 setBackupPath(e.currentTarget.value)
               }
-              helperText={<FormattedMessage id="setup.migrate.backup_database_path_leave_empty_to_disable_backup" />}
             />
           </Box>
 

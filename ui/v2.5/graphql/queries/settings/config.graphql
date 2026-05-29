@@ -13,6 +13,10 @@ query Directory($path: String, $fileExtensions: [String!]) {
   }
 }
 
+query SystemRoots {
+  systemRoots
+}
+
 query ValidateStashBox($input: StashBoxInput!) {
   validateStashBoxCredentials(input: $input) {
     valid

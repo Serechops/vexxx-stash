@@ -422,6 +422,12 @@ func (r *queryResolver) DockerMountedVolumes(ctx context.Context) ([]*DockerMoun
 	return getDockerMounts(), nil
 }
 
+// SystemRoots returns the list of browsable root paths for the current OS:
+// drive letters on Windows, "/" (plus /Volumes and /mnt entries) on Unix/macOS.
+func (r *queryResolver) SystemRoots(ctx context.Context) ([]string, error) {
+	return getSystemRoots(), nil
+}
+
 // getDockerMounts reads /proc/mounts to get the list of mounted volumes
 func getDockerMounts() []*DockerMountedVolume {
 	var mounts []*DockerMountedVolume

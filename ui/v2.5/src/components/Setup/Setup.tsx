@@ -13,9 +13,14 @@ import {
   Box,
   Typography,
   CardContent,
-  CircularProgress,
-  Stack,
   Divider,
+  Paper,
+  Stepper,
+  Step as MuiStep,
+  StepLabel,
+  List,
+  ListItem,
+  ListItemText,
 } from "@mui/material";
 import * as GQL from "src/core/generated-graphql";
 import {
@@ -67,6 +72,8 @@ const useSetupContext = () => {
 
   return context;
 };
+
+const WIZARD_STEPS = ["Welcome", "Configure", "Review", "Done"];
 
 const SetupContext: React.FC<{
   setupState: Partial<GQL.SetupInput>;
@@ -165,7 +172,7 @@ const WelcomeSpecificConfig: React.FC<IWizardStep> = ({ next }) => {
       </Box>
 
       <Box sx={{ mt: 5, display: "flex", justifyContent: "center" }}>
-        <Button variant="contained" size="large" onClick={() => onNext()} sx={{ p: 4 }}>
+        <Button variant="contained" size="large" onClick={() => onNext()} sx={{ minWidth: 160 }}>
           <FormattedMessage id="actions.next_action" />
         </Button>
       </Box>
@@ -216,20 +223,27 @@ const DefaultWelcomeStep: React.FC<IWizardStep> = ({ next }) => {
         </Typography>
       </Box>
 
-      <Box sx={{ mt: 5 }}>
-        <Typography variant="h5" align="center" gutterBottom>
+      <Box sx={{ mt: 4 }}>
+        <Typography variant="h6" align="center" gutterBottom sx={{ mb: 2 }}>
           <FormattedMessage id="setup.welcome.store_stash_config" />
         </Typography>
 
-        <Box sx={{ display: "flex", justifyContent: "center", gap: 2 }}>
-          <Button
-            variant="contained"
-            color="secondary"
-            size="large"
+        <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
+          <Paper
+            variant="outlined"
             onClick={() => onConfigLocationChosen(false)}
-            sx={{ p: 4 }}
+            sx={{
+              p: 3,
+              cursor: "pointer",
+              textAlign: "center",
+              transition: "border-color 0.2s, background-color 0.2s",
+              "&:hover": {
+                borderColor: "primary.main",
+                bgcolor: "action.hover",
+              },
+            }}
           >
-            <Box>
+            <Typography variant="body1" gutterBottom>
               <FormattedMessage
                 id="setup.welcome.in_current_stash_directory"
                 values={{
@@ -237,29 +251,45 @@ const DefaultWelcomeStep: React.FC<IWizardStep> = ({ next }) => {
                   path: fallbackStashDir,
                 }}
               />
-              <br />
-              <code>{homeDirPath}</code>
-            </Box>
-          </Button>
-          <Button
-            variant="contained"
-            color="secondary"
-            size="large"
-            onClick={() => onConfigLocationChosen(true)}
-            disabled={macApp}
-            sx={{ p: 4 }}
+            </Typography>
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{ fontFamily: "monospace", wordBreak: "break-all" }}
+            >
+              {homeDirPath}
+            </Typography>
+          </Paper>
+
+          <Paper
+            variant="outlined"
+            onClick={!macApp ? () => onConfigLocationChosen(true) : undefined}
+            sx={{
+              p: 3,
+              textAlign: "center",
+              cursor: macApp ? "default" : "pointer",
+              opacity: macApp ? 0.55 : 1,
+              transition: "border-color 0.2s, background-color 0.2s",
+              ...(!macApp && {
+                "&:hover": {
+                  borderColor: "primary.main",
+                  bgcolor: "action.hover",
+                },
+              }),
+            }}
           >
             {macApp ? (
-              <Box>
-                <FormattedMessage
-                  id="setup.welcome.in_the_current_working_directory_disabled"
-                  values={{
-                    code: (chunks: string) => <code>{chunks}</code>,
-                    path: pwd,
-                  }}
-                />
-                <br />
-                <b>
+              <>
+                <Typography variant="body1" gutterBottom>
+                  <FormattedMessage
+                    id="setup.welcome.in_the_current_working_directory_disabled"
+                    values={{
+                      code: (chunks: string) => <code>{chunks}</code>,
+                      path: pwd,
+                    }}
+                  />
+                </Typography>
+                <Typography variant="body2" color="error.main">
                   <FormattedMessage
                     id="setup.welcome.in_the_current_working_directory_disabled_macos"
                     values={{
@@ -267,22 +297,29 @@ const DefaultWelcomeStep: React.FC<IWizardStep> = ({ next }) => {
                       br: () => <br />,
                     }}
                   />
-                </b>
-              </Box>
+                </Typography>
+              </>
             ) : (
-              <Box>
-                <FormattedMessage
-                  id="setup.welcome.in_the_current_working_directory"
-                  values={{
-                    code: (chunks: string) => <code>{chunks}</code>,
-                    path: pwd,
-                  }}
-                />
-                <br />
-                <code>{workingDir}</code>
-              </Box>
+              <>
+                <Typography variant="body1" gutterBottom>
+                  <FormattedMessage
+                    id="setup.welcome.in_the_current_working_directory"
+                    values={{
+                      code: (chunks: string) => <code>{chunks}</code>,
+                      path: pwd,
+                    }}
+                  />
+                </Typography>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ fontFamily: "monospace", wordBreak: "break-all" }}
+                >
+                  {workingDir}
+                </Typography>
+              </>
             )}
-          </Button>
+          </Paper>
         </Box>
       </Box>
     </>
@@ -331,11 +368,11 @@ const DatabaseSection: React.FC<{
   const intl = useIntl();
 
   return (
-    <Box id="database" mb={3}>
-      <Typography variant="h5" gutterBottom>
+    <Paper id="database" variant="outlined" sx={{ p: 2.5, mb: 3 }}>
+      <Typography variant="h6" gutterBottom fontWeight={600}>
         <FormattedMessage id="setup.paths.where_can_stash_store_its_database" />
       </Typography>
-      <Typography paragraph>
+      <Typography variant="body2" color="text.secondary" paragraph>
         <FormattedMessage
           id="setup.paths.where_can_stash_store_its_database_description"
           values={{
@@ -358,7 +395,7 @@ const DatabaseSection: React.FC<{
         })}
         onChange={(e) => setDatabaseFile(e.currentTarget.value)}
       />
-    </Box>
+    </Paper>
   );
 };
 
@@ -413,11 +450,11 @@ const GeneratedSection: React.FC<{
   const intl = useIntl();
 
   return (
-    <Box id="generated" mb={3}>
-      <Typography variant="h5" gutterBottom>
+    <Paper id="generated" variant="outlined" sx={{ p: 2.5, mb: 3 }}>
+      <Typography variant="h6" gutterBottom fontWeight={600}>
         <FormattedMessage id="setup.paths.where_can_stash_store_its_generated_content" />
       </Typography>
-      <Typography paragraph>
+      <Typography variant="body2" color="text.secondary" paragraph>
         <FormattedMessage
           id="setup.paths.where_can_stash_store_its_generated_content_description"
           values={{
@@ -432,7 +469,7 @@ const GeneratedSection: React.FC<{
           id: "setup.paths.path_to_generated_directory_empty_for_default",
         })}
       />
-    </Box>
+    </Paper>
   );
 };
 
@@ -443,11 +480,11 @@ const CacheSection: React.FC<{
   const intl = useIntl();
 
   return (
-    <Box id="cache" mb={3}>
-      <Typography variant="h5" gutterBottom>
+    <Paper id="cache" variant="outlined" sx={{ p: 2.5, mb: 3 }}>
+      <Typography variant="h6" gutterBottom fontWeight={600}>
         <FormattedMessage id="setup.paths.where_can_stash_store_cache_files" />
       </Typography>
-      <Typography paragraph>
+      <Typography variant="body2" color="text.secondary" paragraph>
         <FormattedMessage
           id="setup.paths.where_can_stash_store_cache_files_description"
           values={{
@@ -462,7 +499,7 @@ const CacheSection: React.FC<{
           id: "setup.paths.path_to_cache_directory_empty_for_default",
         })}
       />
-    </Box>
+    </Paper>
   );
 };
 
@@ -480,11 +517,11 @@ const BlobsSection: React.FC<{
     const intl = useIntl();
 
     return (
-      <Box id="blobs" mb={3}>
-        <Typography variant="h5" gutterBottom>
+      <Paper id="blobs" variant="outlined" sx={{ p: 2.5, mb: 3 }}>
+        <Typography variant="h6" gutterBottom fontWeight={600}>
           <FormattedMessage id="setup.paths.where_can_stash_store_blobs" />
         </Typography>
-        <Typography paragraph>
+        <Typography variant="body2" color="text.secondary" paragraph>
           <FormattedMessage
             id="setup.paths.where_can_stash_store_blobs_description"
             values={{
@@ -492,7 +529,7 @@ const BlobsSection: React.FC<{
             }}
           />
         </Typography>
-        <Typography paragraph>
+        <Typography variant="body2" color="text.secondary" paragraph>
           <FormattedMessage
             id="setup.paths.where_can_stash_store_blobs_description_addendum"
             values={{
@@ -526,7 +563,7 @@ const BlobsSection: React.FC<{
             disabled={storeBlobsInDatabase}
           />
         </Box>
-      </Box>
+      </Paper>
     );
   };
 
@@ -668,10 +705,10 @@ const SetPathsStep: React.FC<IWizardStep> = ({ goBack, next }) => {
         )}
       </Box>
       <Box sx={{ mt: 5, display: "flex", justifyContent: "center", gap: 2 }}>
-        <Button variant="contained" color="secondary" size="large" onClick={() => goBack()} sx={{ p: 4 }}>
+        <Button variant="contained" color="secondary" size="large" onClick={() => goBack()} sx={{ minWidth: 160 }}>
           <FormattedMessage id="actions.previous_action" />
         </Button>
-        <Button variant="contained" color="primary" size="large" onClick={() => preNext()} sx={{ p: 4 }}>
+        <Button variant="contained" color="primary" size="large" onClick={() => preNext()} sx={{ minWidth: 160 }}>
           <FormattedMessage id="actions.next_action" />
         </Button>
       </Box>
@@ -750,58 +787,60 @@ const ConfirmStep: React.FC<IWizardStep> = ({ goBack, next }) => {
         </Box>
 
         <Box mb={2}>
-          <Typography variant="h6"><FormattedMessage id="setup.confirm.stash_library_directories" /></Typography>
-          <Box ml={2}>
-            <ul>
-              {stashes.map((s) => (
-                <li key={s.path}>
-                  <code>{s.path} </code>
-                  <StashExclusions stash={s} />
-                </li>
-              ))}
-            </ul>
-          </Box>
+          <Typography variant="h6" gutterBottom><FormattedMessage id="setup.confirm.stash_library_directories" /></Typography>
+          <List dense disablePadding sx={{ pl: 1 }}>
+            {stashes.map((s) => (
+              <ListItem key={s.path} sx={{ px: 0 }}>
+                <ListItemText
+                  primary={
+                    <Typography variant="body2" sx={{ fontFamily: "monospace" }}>
+                      {s.path}
+                    </Typography>
+                  }
+                  secondary={<StashExclusions stash={s} />}
+                />
+              </ListItem>
+            ))}
+          </List>
         </Box>
 
         {!overrideDatabase && (
           <Box mb={2}>
-            <Typography variant="h6"><FormattedMessage id="setup.confirm.database_file_path" /></Typography>
-            <Box ml={2}><code>{databaseFile || joinCfgDir("stash-go.sqlite")}</code></Box>
+            <Typography variant="h6" gutterBottom><FormattedMessage id="setup.confirm.database_file_path" /></Typography>
+            <Typography variant="body2" sx={{ pl: 1, fontFamily: "monospace", wordBreak: "break-all" }}>{databaseFile || joinCfgDir("stash-go.sqlite")}</Typography>
           </Box>
         )}
         {!overrideGenerated && (
           <Box mb={2}>
-            <Typography variant="h6"><FormattedMessage id="setup.confirm.generated_directory" /></Typography>
-            <Box ml={2}><code>{generatedLocation || joinCfgDir("generated")}</code></Box>
+            <Typography variant="h6" gutterBottom><FormattedMessage id="setup.confirm.generated_directory" /></Typography>
+            <Typography variant="body2" sx={{ pl: 1, fontFamily: "monospace", wordBreak: "break-all" }}>{generatedLocation || joinCfgDir("generated")}</Typography>
           </Box>
         )}
         {!overrideCache && (
           <Box mb={2}>
-            <Typography variant="h6"><FormattedMessage id="setup.confirm.cache_directory" /></Typography>
-            <Box ml={2}><code>{cacheLocation || joinCfgDir("cache")}</code></Box>
+            <Typography variant="h6" gutterBottom><FormattedMessage id="setup.confirm.cache_directory" /></Typography>
+            <Typography variant="body2" sx={{ pl: 1, fontFamily: "monospace", wordBreak: "break-all" }}>{cacheLocation || joinCfgDir("cache")}</Typography>
           </Box>
         )}
         {!overrideBlobs && (
           <Box mb={2}>
-            <Typography variant="h6"><FormattedMessage id="setup.confirm.blobs_directory" /></Typography>
-            <Box ml={2}>
-              <code>
-                {storeBlobsInDatabase ? (
-                  <FormattedMessage id="setup.confirm.blobs_use_database" />
-                ) : (
-                  blobsLocation || joinCfgDir("blobs")
-                )}
-              </code>
-            </Box>
+            <Typography variant="h6" gutterBottom><FormattedMessage id="setup.confirm.blobs_directory" /></Typography>
+            <Typography variant="body2" sx={{ pl: 1, fontFamily: "monospace", wordBreak: "break-all" }}>
+              {storeBlobsInDatabase ? (
+                <FormattedMessage id="setup.confirm.blobs_use_database" />
+              ) : (
+                blobsLocation || joinCfgDir("blobs")
+              )}
+            </Typography>
           </Box>
         )}
       </Box>
 
       <Box sx={{ mt: 5, display: "flex", justifyContent: "center", gap: 2 }}>
-        <Button variant="contained" color="secondary" size="large" onClick={() => goBack()} sx={{ p: 4 }}>
+        <Button variant="contained" color="secondary" size="large" onClick={() => goBack()} sx={{ minWidth: 160 }}>
           <FormattedMessage id="actions.previous_action" />
         </Button>
-        <Button variant="contained" color="success" size="large" onClick={() => next()} sx={{ p: 4 }}>
+        <Button variant="contained" color="success" size="large" onClick={() => next()} sx={{ minWidth: 160 }}>
           <FormattedMessage id="actions.confirm" />
         </Button>
       </Box>
@@ -828,12 +867,12 @@ const ErrorStep: React.FC<{ error: string; goBack: () => void }> = ({
         <Typography variant="h4" gutterBottom>
           <FormattedMessage id="setup.errors.something_went_wrong" />
         </Typography>
-        <Typography paragraph>
+        <Alert severity="error" sx={{ mb: 2 }}>
           <FormattedMessage
             id="setup.errors.something_went_wrong_while_setting_up_your_system"
-            values={{ error: <pre>{error}</pre> }}
+            values={{ error: <Box component="pre" sx={{ mt: 1, mb: 0, fontFamily: "monospace", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{error}</Box> }}
           />
-        </Typography>
+        </Alert>
         <Typography paragraph>
           <FormattedMessage
             id="setup.errors.something_went_wrong_description"
@@ -842,7 +881,7 @@ const ErrorStep: React.FC<{ error: string; goBack: () => void }> = ({
         </Typography>
       </Box>
       <Box sx={{ mt: 5, display: "flex", justifyContent: "center" }}>
-        <Button variant="contained" color="secondary" size="large" onClick={goBack} sx={{ p: 4 }}>
+        <Button variant="contained" color="secondary" size="large" onClick={goBack} sx={{ minWidth: 160 }}>
           <FormattedMessage id="actions.previous_action" />
         </Button>
       </Box>
@@ -872,7 +911,7 @@ const SuccessStep: React.FC<{}> = () => {
   return (
     <>
       <Box mb={4}>
-        <Typography variant="h4" gutterBottom>
+        <Typography variant="h4" color="success.main" gutterBottom>
           <FormattedMessage id="setup.success.your_system_has_been_created" />
         </Typography>
         <Typography paragraph>
@@ -959,7 +998,7 @@ const SuccessStep: React.FC<{}> = () => {
         </Typography>
       </Box>
       <Box sx={{ mt: 5, display: "flex", justifyContent: "center" }}>
-        <Button variant="contained" color="success" size="large" onClick={() => onFinishClick()} sx={{ p: 4 }}>
+        <Button variant="contained" color="success" size="large" onClick={() => onFinishClick()} sx={{ minWidth: 160 }}>
           <FormattedMessage id="actions.finish" />
         </Button>
       </Box>
@@ -1002,7 +1041,7 @@ export const Setup: React.FC = () => {
     ConfirmStep,
     FinishStep,
   ];
-  const Step = steps[step];
+  const CurrentStep = steps[step];
 
   async function createSystem() {
     try {
@@ -1033,7 +1072,7 @@ export const Setup: React.FC = () => {
   function next(input?: Partial<GQL.SetupInput>) {
     setSetupInput({ ...setupInput, ...input });
 
-    if (Step === ConfirmStep) {
+    if (CurrentStep === ConfirmStep) {
       // create the system
       createSystem();
     } else {
@@ -1042,7 +1081,7 @@ export const Setup: React.FC = () => {
   }
 
   function goBack() {
-    if (Step === FinishStep) {
+    if (CurrentStep === FinishStep) {
       // go back to the step before ConfirmStep
       setStep(step - 2);
     } else {
@@ -1101,6 +1140,13 @@ export const Setup: React.FC = () => {
         <Typography variant="h3" align="center" gutterBottom>
           <FormattedMessage id="setup.stash_setup_wizard" />
         </Typography>
+        <Stepper activeStep={step} sx={{ mb: 3 }}>
+          {WIZARD_STEPS.map((label) => (
+            <MuiStep key={label}>
+              <StepLabel>{label}</StepLabel>
+            </MuiStep>
+          ))}
+        </Stepper>
         <Card variant="outlined">
           <CardContent>
             {creating ? (
@@ -1110,7 +1156,7 @@ export const Setup: React.FC = () => {
                 })}
               />
             ) : (
-              <Step next={next} goBack={goBack} />
+              <CurrentStep next={next} goBack={goBack} />
             )}
           </CardContent>
         </Card>

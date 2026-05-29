@@ -1657,7 +1657,7 @@
       "missing_ffmpeg": "You are missing the required <code>ffmpeg</code> binary. You can automatically download it into your configuration directory by checking the box below. Alternatively, you can supply paths to the <code>ffmpeg</code> and <code>ffprobe</code> binaries in the System Settings. These binaries must be present for Vexxx to function.",
       "next_config_step_one": "You will be taken to the Configuration page next. This page will allow you to customize what files to include and exclude, set a username and password to protect your system, and a whole bunch of other options.",
       "next_config_step_two": "When you are satisfied with these settings, you can begin scanning your content into Vexxx by clicking on <code>{localized_task}</code>, then <code>{localized_scan}</code>.",
-      "open_collective": "Check out our {open_collective_link} to see how you can contribute to the continued development of Stash.",
+      "open_collective": "Support ongoing Vexxx development on {open_collective_link}.",
       "support_us": "Support us",
       "thanks_for_trying_stash": "Thanks for trying Vexxx!",
       "welcome_contrib": "We also welcome contributions in the form of code (bug fixes, improvements and new features), testing, bug reports, improvement and feature requests, and user support. Details can be found in the Contribution section of the in-app manual.",

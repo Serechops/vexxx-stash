@@ -981,8 +981,8 @@ const SuccessStep: React.FC<{}> = () => {
             id="setup.success.open_collective"
             values={{
               open_collective_link: (
-                <ExternalLink href="https://opencollective.com/stashapp">
-                  Open Collective
+                <ExternalLink href="https://www.patreon.com/c/Creat1veB1te">
+                  Patreon
                 </ExternalLink>
               ),
             }}

@@ -331,10 +331,10 @@
         "maximum_session_age": "Maximum Session Age",
         "maximum_session_age_desc": "Maximum idle time before a login session is expired, in seconds. Requires restart.",
         "password": "Password",
-        "password_desc": "Password to access Stash. Leave blank to disable user authentication",
+        "password_desc": "Password to access Vexxx. Leave blank to disable user authentication",
         "stash-box_integration": "Stash-box integration",
         "username": "Username",
-        "username_desc": "Username to access Stash. Leave blank to disable user authentication"
+        "username_desc": "Username to access Vexxx. Leave blank to disable user authentication"
       },
       "backup_directory_path": {
         "description": "Directory location for SQLite database file backups",
@@ -751,7 +751,7 @@
         "sync": "Sync"
       },
       "handy_connection_key": {
-        "description": "Handy connection key to use for interactive scenes. Setting this key will allow Stash to share your current scene information with handyfeeling.com",
+        "description": "Handy connection key to use for interactive scenes. Setting this key will allow Vexxx to share your current scene information with handyfeeling.com",
         "heading": "Handy Connection Key"
       },
       "image_lightbox": {
@@ -1198,7 +1198,7 @@
     "image_index_greater_than_zero": "Image index must be greater than 0",
     "invalid_javascript_string": "Invalid javascript code: {error}",
     "invalid_json_string": "Invalid JSON string: {error}",
-    "lazy_component_error_help": "If you recently upgraded Stash, please reload the page or clear your browser cache.",
+    "lazy_component_error_help": "If you recently upgraded Vexxx, please reload the page or clear your browser cache.",
     "loading_type": "Error loading {type}",
     "something_went_wrong": "Something went wrong."
   },
@@ -1593,7 +1593,7 @@
       "database_file_path": "Database file path",
       "generated_directory": "Generated directory",
       "nearly_there": "Nearly there!",
-      "stash_library_directories": "Stash library directories"
+      "stash_library_directories": "Vexxx library directories"
     },
     "creating": {
       "creating_your_system": "Creating your system"
@@ -1621,7 +1621,7 @@
       "migration_notes": "Migration Notes",
       "migration_required": "Migration required",
       "perform_schema_migration": "Perform schema migration",
-      "schema_too_old": "Your current stash database is schema version <strong>{databaseSchema}</strong> and needs to be migrated to version <strong>{appSchema}</strong>. This version of Stash will not function without migrating the database. If you do not wish to migrate, you will need to downgrade to a version that matches your database schema."
+      "schema_too_old": "Your current Vexxx database is schema version <strong>{databaseSchema}</strong> and needs to be migrated to version <strong>{appSchema}</strong>. This version of Vexxx will not function without migrating the database. If you do not wish to migrate, you will need to downgrade to a version that matches your database schema."
     },
     "paths": {
       "database_filename_empty_for_default": "database filename (empty for default)",
@@ -1632,7 +1632,7 @@
       "set_up_your_paths": "Set up your paths",
       "sfw_content_settings": "Using Vexxx for SFW content?",
       "sfw_content_settings_description": "Vexxx can be used to manage SFW content such as photography, art, comics, and more. Enabling this option will adjust some UI behaviour to be more appropriate for SFW content.",
-      "stash_alert": "No library paths have been selected. No media will be able to be scanned into Stash. Are you sure?",
+      "stash_alert": "No library paths have been selected. No media will be able to be scanned into Vexxx. Are you sure?",
       "store_blobs_in_database": "Store blobs in database",
       "use_sfw_content_mode": "Use SFW content mode",
       "where_can_stash_store_blobs": "Where can Vexxx store database binary data?",

@@ -7,17 +7,12 @@ import {
   Checkbox,
   CircularProgress,
   Box,
-  TextField,
-  InputAdornment,
   Typography,
   List,
   ListItem,
   ListItemText,
   Divider,
   Chip,
-  Tabs,
-  Tab,
-  Badge,
 } from "@mui/material";
 import { useIntl } from "react-intl";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
@@ -25,16 +20,11 @@ import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import ShuffleIcon from "@mui/icons-material/Shuffle";
 import SkipPreviousIcon from "@mui/icons-material/SkipPrevious";
 import SkipNextIcon from "@mui/icons-material/SkipNext";
-import SearchIcon from "@mui/icons-material/Search";
 import CloseIcon from "@mui/icons-material/Close";
-import AddIcon from "@mui/icons-material/Add";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
-import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import QueueMusicIcon from "@mui/icons-material/QueueMusic";
 import { objectTitle } from "src/core/files";
 import { QueuedScene } from "src/models/sceneQueue";
-import * as GQL from "src/core/generated-graphql";
-import { useDebounce } from "src/hooks/debounce";
 
 export interface IPlaylistViewer {
   scenes: QueuedScene[];
@@ -76,40 +66,8 @@ export const QueueViewer: React.FC<IPlaylistViewer> = ({
   const intl = useIntl();
   const [lessLoading, setLessLoading] = useState(false);
   const [moreLoading, setMoreLoading] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<"queue" | "discover">("queue");
-  const searchRef = useRef<HTMLInputElement>(null);
 
   const currentIndex = scenes.findIndex((s) => s.id === currentID);
-
-  // Search query
-  const [searchScenes, { data: searchData, loading: searchLoading }] =
-    GQL.useFindScenesLazyQuery();
-
-  // Similar scenes suggestions
-  const { data: similarData, loading: similarLoading } =
-    GQL.useSimilarScenesQuery({
-      variables: { scene_id: currentID || "" },
-      skip: !currentID,
-    });
-
-  const debouncedSearch = useDebounce((query: string) => {
-    if (!query.trim()) return;
-    const filter: GQL.FindFilterType = {
-      q: query,
-      per_page: 10,
-      page: 1,
-      sort: "updated_at",
-      direction: GQL.SortDirectionEnum.Desc,
-    };
-    searchScenes({ variables: { filter } });
-  }, 300);
-
-  useEffect(() => {
-    if (searchQuery.trim()) {
-      debouncedSearch(searchQuery);
-    }
-  }, [searchQuery, debouncedSearch]);
 
   useEffect(() => {
     setLessLoading(false);
@@ -136,296 +94,6 @@ export const QueueViewer: React.FC<IPlaylistViewer> = ({
   function moreClicked() {
     setMoreLoading(true);
     onMoreScenes();
-  }
-
-  const isAlreadyInQueue = useCallback(
-    (id: string) => scenes.some((s) => s.id === id) || id === currentID,
-    [scenes, currentID]
-  );
-
-  function handleAddFromSearch(scene: GQL.SlimSceneDataFragment) {
-    if (!onAddScene || isAlreadyInQueue(scene.id)) return;
-
-    const queuedScene: QueuedScene = {
-      id: scene.id,
-      title: scene.title || undefined,
-      date: scene.date || undefined,
-      paths: scene.paths,
-      performers:
-        scene.performers?.map((p) => ({ id: p.id, name: p.name })) || [],
-      studio: scene.studio
-        ? { id: scene.studio.id, name: scene.studio.name }
-        : null,
-    };
-    onAddScene(queuedScene);
-    setSearchQuery("");
-  }
-
-  function handleAddFromSuggestion(rec: {
-    id: string;
-    scene?: {
-      id: string;
-      title?: string | null;
-      date?: string | null;
-      paths: any;
-      performers?: Array<{ id: string; name: string }>;
-      studio?: { id: string; name: string } | null;
-    } | null;
-  }) {
-    if (!onAddScene || !rec.scene || isAlreadyInQueue(rec.scene.id)) return;
-
-    const scene = rec.scene;
-    const queuedScene: QueuedScene = {
-      id: scene.id,
-      title: scene.title || undefined,
-      date: scene.date || undefined,
-      paths: scene.paths,
-      performers:
-        scene.performers?.map((p) => ({ id: p.id, name: p.name })) || [],
-      studio: scene.studio
-        ? { id: scene.studio.id, name: scene.studio.name }
-        : null,
-    };
-    onAddScene(queuedScene);
-  }
-
-  const searchResults = searchData?.findScenes?.scenes || [];
-  const suggestions = similarData?.similarScenes || [];
-
-  function SceneListItem({
-    id,
-    title,
-    thumbnail,
-    previewUrl,
-    studio,
-    performers,
-    alreadyAdded,
-    onAdd,
-  }: {
-    id: string;
-    title: string;
-    thumbnail?: string | null;
-    previewUrl?: string | null;
-    studio?: string | null;
-    performers?: string;
-    alreadyAdded?: boolean;
-    onAdd?: () => void;
-  }) {
-    const [hovered, setHovered] = useState(false);
-
-    return (
-      <ListItem
-        key={id}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-        secondaryAction={
-          <IconButton
-            edge="end"
-            size="small"
-            disabled={alreadyAdded}
-            onClick={onAdd}
-            color="primary"
-            sx={{ opacity: alreadyAdded ? 0.3 : 1 }}
-          >
-            <AddIcon fontSize="small" />
-          </IconButton>
-        }
-        sx={{
-          opacity: alreadyAdded ? 0.5 : 1,
-          "&:hover": { bgcolor: "action.hover" },
-          py: 0.75,
-          gap: 2,
-        }}
-      >
-        <Box
-          sx={{
-            width: 120,
-            height: 68,
-            flexShrink: 0,
-            borderRadius: 1,
-            overflow: "hidden",
-            bgcolor: "#000",
-            position: "relative",
-          }}
-        >
-          {hovered && previewUrl ? (
-            <video
-              src={previewUrl}
-              autoPlay
-              muted
-              loop
-              playsInline
-              style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-              }}
-            />
-          ) : (
-            <img
-              loading="lazy"
-              alt={title}
-              src={thumbnail || ""}
-              style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-              }}
-            />
-          )}
-        </Box>
-        <ListItemText
-          primary={
-            <Typography variant="body2" noWrap sx={{ fontWeight: 500 }}>
-              {title}
-            </Typography>
-          }
-          secondary={
-            <Typography variant="caption" color="text.secondary" noWrap>
-              {studio}
-              {performers && <> • {performers}</>}
-            </Typography>
-          }
-          sx={{ ml: 0 }}
-        />
-      </ListItem>
-    );
-  }
-
-  function renderDiscoverTab() {
-    return (
-      <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
-        {/* Search field */}
-        <Box sx={{ px: 1, pt: 1, pb: 0.5 }}>
-          <TextField
-            fullWidth
-            size="small"
-            placeholder="Search scenes to add..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            inputRef={searchRef}
-            autoFocus
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon sx={{ fontSize: 18 }} />
-                </InputAdornment>
-              ),
-              endAdornment: searchQuery ? (
-                <InputAdornment position="end">
-                  <IconButton
-                    size="small"
-                    onClick={() => setSearchQuery("")}
-                  >
-                    <CloseIcon sx={{ fontSize: 16 }} />
-                  </IconButton>
-                </InputAdornment>
-              ) : undefined,
-            }}
-            sx={{ "& .MuiOutlinedInput-root": { fontSize: "0.85rem" } }}
-          />
-        </Box>
-
-        {/* Inline results */}
-        <Box sx={{ flex: 1, overflow: "auto" }}>
-          {searchQuery.trim() ? (
-            // Search results
-            searchLoading ? (
-              <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>
-                <CircularProgress size={20} />
-              </Box>
-            ) : searchResults.length === 0 ? (
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                sx={{ p: 2, textAlign: "center" }}
-              >
-                No scenes found
-              </Typography>
-            ) : (
-              <List dense disablePadding>
-                {searchResults.map((scene) => (
-                  <SceneListItem
-                    key={scene.id}
-                    id={scene.id}
-                    title={scene.title || "Untitled"}
-                    thumbnail={scene.paths?.screenshot}
-                    previewUrl={scene.paths?.preview}
-                    studio={scene.studio?.name}
-                    performers={scene.performers?.map((p) => p.name).join(", ")}
-                    alreadyAdded={isAlreadyInQueue(scene.id)}
-                    onAdd={() => handleAddFromSearch(scene)}
-                  />
-                ))}
-              </List>
-            )
-          ) : (
-            // Suggestions (no search query)
-            <>
-              <Box
-                sx={{
-                  px: 1.5,
-                  py: 0.75,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 0.5,
-                  borderBottom: "1px solid",
-                  borderColor: "divider",
-                }}
-              >
-                <AutoAwesomeIcon sx={{ fontSize: 14, color: "primary.main" }} />
-                <Typography
-                  variant="caption"
-                  color="primary.main"
-                  sx={{ fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}
-                >
-                  Similar Scenes
-                </Typography>
-              </Box>
-              {similarLoading ? (
-                <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>
-                  <CircularProgress size={20} />
-                </Box>
-              ) : (() => {
-                const available = suggestions.filter(
-                  (s) => s.scene && !isAlreadyInQueue(s.scene.id)
-                );
-                return available.length === 0 ? (
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ p: 2, textAlign: "center" }}
-                  >
-                    No suggestions available
-                  </Typography>
-                ) : (
-                  <List dense disablePadding>
-                    {available.slice(0, 8).map((rec) => {
-                      if (!rec.scene) return null;
-                      const scene = rec.scene;
-                      return (
-                        <SceneListItem
-                          key={scene.id}
-                          id={scene.id}
-                          title={scene.title || "Untitled"}
-                          thumbnail={scene.paths?.screenshot}
-                          previewUrl={scene.paths?.preview}
-                          studio={scene.studio?.name}
-                          performers={scene.performers
-                            ?.map((p: any) => p.name)
-                            .join(", ")}
-                          onAdd={() => handleAddFromSuggestion(rec)}
-                        />
-                      );
-                    })}
-                  </List>
-                );
-              })()}
-            </>
-          )}
-        </Box>
-      </Box>
-    );
   }
 
   function renderOriginScene() {
@@ -774,85 +442,40 @@ export const QueueViewer: React.FC<IPlaylistViewer> = ({
         </Box>
       </Box>
 
-      {/* Tab bar */}
-      <Tabs
-        value={activeTab}
-        onChange={(_, v) => setActiveTab(v)}
-        variant="fullWidth"
-        sx={{
-          minHeight: 36,
-          borderBottom: "1px solid",
-          borderColor: "divider",
-          "& .MuiTab-root": { minHeight: 36, py: 0.5, fontSize: "0.75rem", textTransform: "none" },
-        }}
-      >
-        <Tab
-          value="queue"
-          label={
-            <Badge
-              badgeContent={scenes.length}
-              color="primary"
-              max={99}
-              sx={{ "& .MuiBadge-badge": { fontSize: "0.6rem", minWidth: 16, height: 16 } }}
-            >
-              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, pr: scenes.length > 0 ? 1 : 0 }}>
-                <QueueMusicIcon sx={{ fontSize: 15 }} />
-                Queue
+      <Box className="queue-content">
+        {renderOriginScene()}
+        {scenes.length === 0 ? (
+          renderEmptyState()
+        ) : (
+          <>
+            {start > 1 && (
+              <Box sx={{ display: "flex", justifyContent: "center" }}>
+                <Button onClick={() => lessClicked()} disabled={lessLoading}>
+                  {!lessLoading ? (
+                    <KeyboardArrowUpIcon />
+                  ) : (
+                    <CircularProgress size={20} />
+                  )}
+                </Button>
               </Box>
-            </Badge>
-          }
-        />
-        <Tab
-          value="discover"
-          label={
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-              <AutoAwesomeIcon sx={{ fontSize: 15 }} />
-              Discover
+            )}
+            <Box component="ul" sx={{ pl: 0, m: 0, listStyle: "none" }}>
+              {scenes.map(renderPlaylistEntry)}
             </Box>
-          }
-        />
-      </Tabs>
-
-      {/* Queue tab */}
-      {activeTab === "queue" && (
-        <Box className="queue-content">
-          {renderOriginScene()}
-          {scenes.length === 0 ? (
-            renderEmptyState()
-          ) : (
-            <>
-              {start > 1 && (
-                <Box sx={{ display: "flex", justifyContent: "center" }}>
-                  <Button onClick={() => lessClicked()} disabled={lessLoading}>
-                    {!lessLoading ? (
-                      <KeyboardArrowUpIcon />
-                    ) : (
-                      <CircularProgress size={20} />
-                    )}
-                  </Button>
-                </Box>
-              )}
-              <Box component="ul" sx={{ pl: 0, m: 0, listStyle: "none" }}>
-                {scenes.map(renderPlaylistEntry)}
+            {hasMoreScenes && (
+              <Box sx={{ display: "flex", justifyContent: "center" }}>
+                <Button onClick={() => moreClicked()} disabled={moreLoading}>
+                  {!moreLoading ? (
+                    <KeyboardArrowDownIcon />
+                  ) : (
+                    <CircularProgress size={20} />
+                  )}
+                </Button>
               </Box>
-              {hasMoreScenes && (
-                <Box sx={{ display: "flex", justifyContent: "center" }}>
-                  <Button onClick={() => moreClicked()} disabled={moreLoading}>
-                    {!moreLoading ? (
-                      <KeyboardArrowDownIcon />
-                    ) : (
-                      <CircularProgress size={20} />
-                    )}
-                  </Button>
-                </Box>
-              )}
-            </>
-          )}
-        </Box>
-      )}
-
-      {/* Discover tab */}
-      {activeTab === "discover" && renderDiscoverTab()}
+            )}
+          </>
+        )}
+      </Box>
     </Box>
   );
 };

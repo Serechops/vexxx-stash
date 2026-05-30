@@ -344,6 +344,20 @@
         "description": "Path where deleted files will be moved to instead of being permanently deleted. Leave empty to permanently delete files.",
         "heading": "Trash Path"
       },
+      "library_disk_stats": {
+        "capacity": "{free} free of {total}",
+        "collection": "Collection",
+        "description": "Shows free space on each filesystem containing your configured libraries and an estimate of collection size.",
+        "disk_used": "Disk used",
+        "empty": "No library directories configured yet.",
+        "group_count": "{count, plural, one {# library on this disk} other {# libraries on this disk}}",
+        "heading": "Library Disk Overview",
+        "libraries_label": "Libraries",
+        "libraries_more": "+{count} more",
+        "loading": "Calculating library disk usage...",
+        "media_usage": "{collection} used by media",
+        "summary": "Collection: {collection} ({percent} of disk) • Free: {free} / Total: {total}"
+      },
       "blobs_path": {
         "description": "Where in the filesystem to store binary data. Applicable only when using the Filesystem blob storage type. WARNING: changing this requires manually moving existing data.",
         "heading": "Binary data filesystem path"

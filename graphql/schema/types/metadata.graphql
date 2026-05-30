@@ -401,6 +401,30 @@ type SystemStatus {
   hardwareCodecs: [String!]!
 }
 
+"Disk capacity and usage details for a configured library path"
+type LibraryDiskStats {
+  "Configured library path as stored in settings"
+  path: String!
+  "Absolute library path"
+  pathAbs: String!
+  "Number of configured libraries aggregated into this disk/share group"
+  libraryCount: Int!
+  "Configured library paths aggregated into this disk/share group"
+  libraryPaths: [String!]!
+  "Total filesystem capacity in bytes"
+  totalBytes: Float!
+  "Free filesystem capacity in bytes"
+  freeBytes: Float!
+  "Used filesystem capacity in bytes"
+  usedBytes: Float!
+  "Approximate size of files under this library path in bytes"
+  collectionBytes: Float!
+  "Percent of the filesystem occupied by this library"
+  collectionPercentOfDisk: Float!
+  "Error details if this path could not be measured"
+  error: String
+}
+
 "Result of library path validation"
 type LibraryPathValidationResult {
   "Whether the path is valid and accessible"

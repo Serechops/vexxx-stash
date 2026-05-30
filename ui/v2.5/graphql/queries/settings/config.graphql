@@ -17,6 +17,21 @@ query SystemRoots {
   systemRoots
 }
 
+query LibraryDiskStats {
+  libraryDiskStats {
+    path
+    pathAbs
+    libraryCount
+    libraryPaths
+    totalBytes
+    freeBytes
+    usedBytes
+    collectionBytes
+    collectionPercentOfDisk
+    error
+  }
+}
+
 query ValidateStashBox($input: StashBoxInput!) {
   validateStashBoxCredentials(input: $input) {
     valid

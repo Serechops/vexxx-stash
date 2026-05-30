@@ -17,7 +17,11 @@ import {
   VideoPreviewSettingsInput,
 } from "./GeneratePreviewOptions";
 import { FormattedMessage, useIntl } from "react-intl";
-import { Box, Button } from "@mui/material";
+import {
+  Box,
+  Button,
+  Typography,
+} from "@mui/material";
 import { useToast } from "src/hooks/Toast";
 import { useHistory } from "react-router-dom";
 

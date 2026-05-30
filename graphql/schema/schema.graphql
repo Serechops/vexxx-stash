@@ -256,6 +256,8 @@ type Query {
   dockerMountedVolumes: [DockerMountedVolume!]!
   "Returns the list of system root paths (drive letters on Windows; '/' and mount points on Unix/macOS)."
   systemRoots: [String!]!
+  "Returns disk capacity and collection usage for each configured library path."
+  libraryDiskStats: [LibraryDiskStats!]!
 
   # System status
   systemStatus: SystemStatus!

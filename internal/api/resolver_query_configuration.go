@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/stashapp/stash/internal/manager"
 	"github.com/stashapp/stash/internal/manager/config"
@@ -13,6 +15,55 @@ import (
 	"github.com/stashapp/stash/pkg/models"
 	"golang.org/x/text/collate"
 )
+
+const libraryDiskStatsCacheTTL = 60 * time.Second
+
+var libraryDiskStatsCache = struct {
+	sync.Mutex
+	data      []*LibraryDiskStats
+	expiresAt time.Time
+}{}
+
+func appendError(existing string, err error) string {
+	if err == nil {
+		return existing
+	}
+	if existing == "" {
+		return err.Error()
+	}
+	return existing + "; " + err.Error()
+}
+
+func appendErrorText(existing, text string) string {
+	if text == "" {
+		return existing
+	}
+	if existing == "" {
+		return text
+	}
+	return existing + "; " + text
+}
+
+func cloneLibraryDiskStats(in []*LibraryDiskStats) []*LibraryDiskStats {
+	out := make([]*LibraryDiskStats, 0, len(in))
+	for _, entry := range in {
+		if entry == nil {
+			continue
+		}
+
+		copy := *entry
+		if len(entry.LibraryPaths) > 0 {
+			copy.LibraryPaths = append([]string(nil), entry.LibraryPaths...)
+		}
+		if entry.Error != nil {
+			errText := *entry.Error
+			copy.Error = &errText
+		}
+
+		out = append(out, &copy)
+	}
+	return out
+}
 
 func (r *queryResolver) Configuration(ctx context.Context) (*ConfigResult, error) {
 	return makeConfigResult(), nil
@@ -47,6 +98,123 @@ func (r *queryResolver) Directory(ctx context.Context, path, locale *string, fil
 	directory.Files = files
 
 	return directory, err
+}
+
+func (r *queryResolver) LibraryDiskStats(ctx context.Context) ([]*LibraryDiskStats, error) {
+	now := time.Now()
+
+	libraryDiskStatsCache.Lock()
+	if now.Before(libraryDiskStatsCache.expiresAt) && len(libraryDiskStatsCache.data) > 0 {
+		cached := cloneLibraryDiskStats(libraryDiskStatsCache.data)
+		libraryDiskStatsCache.Unlock()
+		return cached, nil
+	}
+	libraryDiskStatsCache.Unlock()
+
+	stashes := config.GetInstance().GetStashPaths()
+	grouped := map[string]*LibraryDiskStats{}
+	groupPathSet := map[string]map[string]struct{}{}
+	groupErrors := map[string]string{}
+	groupHasCapacity := map[string]bool{}
+	groupOrder := make([]string, 0, len(stashes))
+
+	for _, stash := range stashes {
+		if stash == nil {
+			continue
+		}
+
+		configuredPath := strings.TrimSpace(stash.Path)
+		if configuredPath == "" {
+			continue
+		}
+
+		pathAbs := configuredPath
+		if !filepath.IsAbs(pathAbs) {
+			if abs, err := filepath.Abs(pathAbs); err == nil {
+				pathAbs = abs
+			}
+		}
+
+		groupKey, groupLabel, groupErr := getDiskGroup(pathAbs)
+		if groupKey == "" {
+			groupKey = strings.ToLower(pathAbs)
+		}
+
+		entry, exists := grouped[groupKey]
+		if !exists {
+			entry = &LibraryDiskStats{
+				Path:    groupLabel,
+				PathAbs: groupLabel,
+			}
+			grouped[groupKey] = entry
+			groupPathSet[groupKey] = map[string]struct{}{}
+			groupOrder = append(groupOrder, groupKey)
+		}
+		entry.LibraryCount++
+		if _, ok := groupPathSet[groupKey][configuredPath]; !ok {
+			groupPathSet[groupKey][configuredPath] = struct{}{}
+			entry.LibraryPaths = append(entry.LibraryPaths, configuredPath)
+		}
+
+		if groupErr != nil {
+			groupErrors[groupKey] = appendErrorText(groupErrors[groupKey], fmt.Sprintf("%s: %v", configuredPath, groupErr))
+		}
+
+		fi, err := os.Stat(pathAbs)
+		if err != nil {
+			groupErrors[groupKey] = appendErrorText(groupErrors[groupKey], fmt.Sprintf("%s: %v", configuredPath, err))
+			continue
+		}
+		if !fi.IsDir() {
+			groupErrors[groupKey] = appendErrorText(groupErrors[groupKey], fmt.Sprintf("%s: path is not a directory", configuredPath))
+			continue
+		}
+
+		if !groupHasCapacity[groupKey] {
+			totalBytes, freeBytes, capacityErr := getDiskCapacity(pathAbs)
+			if capacityErr != nil {
+				groupErrors[groupKey] = appendErrorText(groupErrors[groupKey], fmt.Sprintf("%s: %v", configuredPath, capacityErr))
+			} else {
+				usedBytes := totalBytes - freeBytes
+				entry.TotalBytes = float64(totalBytes)
+				entry.FreeBytes = float64(freeBytes)
+				entry.UsedBytes = float64(usedBytes)
+				groupHasCapacity[groupKey] = true
+			}
+		}
+
+		collectionBytes, sizeErr := directorySize(pathAbs)
+		if sizeErr != nil {
+			groupErrors[groupKey] = appendErrorText(groupErrors[groupKey], fmt.Sprintf("%s: %v", configuredPath, sizeErr))
+		}
+		entry.CollectionBytes += float64(collectionBytes)
+	}
+
+	ret := make([]*LibraryDiskStats, 0, len(groupOrder))
+	for _, groupKey := range groupOrder {
+		entry := grouped[groupKey]
+		if entry == nil {
+			continue
+		}
+
+		if entry.TotalBytes > 0 {
+			entry.CollectionPercentOfDisk = (entry.CollectionBytes / entry.TotalBytes) * 100
+		}
+
+		if msg := strings.TrimSpace(groupErrors[groupKey]); msg != "" {
+			entry.Error = &msg
+		}
+
+		ret = append(ret, entry)
+	}
+
+	libraryDiskStatsCache.Lock()
+	libraryDiskStatsCache.data = cloneLibraryDiskStats(ret)
+	libraryDiskStatsCache.expiresAt = now.Add(libraryDiskStatsCacheTTL)
+	cached := cloneLibraryDiskStats(libraryDiskStatsCache.data)
+	libraryDiskStatsCache.Unlock()
+
+	return cached, nil
 }
 
 func getDir(path string) string {

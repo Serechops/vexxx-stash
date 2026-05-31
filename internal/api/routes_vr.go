@@ -42,7 +42,6 @@ func writeJSON(w http.ResponseWriter, v interface{}) {
 }
 
 func (rs vrRoutes) sceneToMediaItem(
-	ctx context.Context,
 	scene *models.Scene,
 	performers []*models.Performer,
 	studio *models.Studio,
@@ -141,7 +140,7 @@ func (rs vrRoutes) libraryHandler(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 
-			items = append(items, rs.sceneToMediaItem(ctx, scene, performers, studio, tags))
+			items = append(items, rs.sceneToMediaItem(scene, performers, studio, tags))
 		}
 
 		return nil
@@ -231,7 +230,7 @@ func (rs vrRoutes) singleMediaHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		response = vrMediaItemExtended{
-			vrMediaItem: rs.sceneToMediaItem(ctx, scene, performers, studio, tags),
+			vrMediaItem: rs.sceneToMediaItem(scene, performers, studio, tags),
 			Timestamps:  timestamps,
 		}
 

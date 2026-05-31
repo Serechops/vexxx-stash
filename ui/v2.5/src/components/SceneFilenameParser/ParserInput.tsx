@@ -112,10 +112,17 @@ export const ParserInput: React.FC<IParserInputProps> = (
   const [fieldAnchorEl, setFieldAnchorEl] = useState<null | HTMLElement>(null);
   const [recipeAnchorEl, setRecipeAnchorEl] = useState<null | HTMLElement>(null);
 
+  function parseIgnoreWordsInput(value: string): string[] {
+    return value
+      .split(/[\s,]+/)
+      .map((word) => word.trim())
+      .filter((word) => word.length > 0);
+  }
+
   function onFind() {
     props.onFind({
       pattern,
-      ignoreWords: ignoreWords.split(" "),
+      ignoreWords: parseIgnoreWordsInput(ignoreWords),
       whitespaceCharacters,
       capitalizeTitle,
       page: 1,

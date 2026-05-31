@@ -24,16 +24,6 @@ var libraryDiskStatsCache = struct {
 	expiresAt time.Time
 }{}
 
-func appendError(existing string, err error) string {
-	if err == nil {
-		return existing
-	}
-	if existing == "" {
-		return err.Error()
-	}
-	return existing + "; " + err.Error()
-}
-
 func appendErrorText(existing, text string) string {
 	if text == "" {
 		return existing

@@ -135,6 +135,11 @@ export const MovieFy: React.FC = () => {
         skip: debouncedMovieSearchTerm.length < 2 || !configData?.movieFyConfig?.database_exists,
     });
 
+    // Always restart MovieFy pagination from page 1 when the query changes.
+    useEffect(() => {
+        setMoviePage(1);
+    }, [debouncedMovieSearchTerm]);
+
     // Find scenes using Stash's native GraphQL
     const { data: scenesData, loading: scenesLoading } = GQL.useFindScenesQuery({
         variables: {
@@ -221,6 +226,22 @@ export const MovieFy: React.FC = () => {
     const movieFyMovies = movieFyData?.searchMovieFyDatabase?.movies || [];
     const movieFyPagination = movieFyData?.searchMovieFyDatabase?.pagination;
     const movieFyMode = movieFyData?.searchMovieFyDatabase?.mode || "basic";
+
+    // Keep page number in bounds when result count shrinks after a new search.
+    useEffect(() => {
+        if (!movieFyPagination) {
+            return;
+        }
+
+        if (movieFyPagination.pages <= 0 && moviePage !== 1) {
+            setMoviePage(1);
+            return;
+        }
+
+        if (movieFyPagination.pages > 0 && moviePage > movieFyPagination.pages) {
+            setMoviePage(movieFyPagination.pages);
+        }
+    }, [movieFyPagination, moviePage]);
 
     // Process scenes - group by folder
     const groupedScenes = useMemo(() => {
@@ -775,7 +796,7 @@ export const MovieFy: React.FC = () => {
                             title={
                                 <Box display="flex" alignItems="center">
                                     <Icon icon={faDatabase} className="mr-2" />
-                                    <Typography variant="h6">Database ({movieFyMovies.length})</Typography>
+                                    <Typography variant="h6">Database ({movieFyPagination?.total ?? movieFyMovies.length})</Typography>
                                 </Box>
                             }
                             sx={{ borderBottom: 1, borderColor: 'divider', bgcolor: 'background.paper' }}
@@ -811,15 +832,38 @@ export const MovieFy: React.FC = () => {
                                         size="small"
                                         placeholder="Search MovieFy Database..."
                                         value={movieSearchTerm}
-                                        onChange={(e) => setMovieSearchTerm(e.target.value)}
+                                        onChange={(e) => {
+                                            setMovieSearchTerm(e.target.value);
+                                            if (moviePage !== 1) {
+                                                setMoviePage(1);
+                                            }
+                                        }}
                                         InputProps={{
                                             startAdornment: (
                                                 <InputAdornment position="start">
                                                     <Icon icon={faSearch} />
                                                 </InputAdornment>
                                             ),
+                                            endAdornment: movieSearchTerm ? (
+                                                <InputAdornment position="end">
+                                                    <IconButton
+                                                        size="small"
+                                                        onClick={() => {
+                                                            setMovieSearchTerm("");
+                                                            setMoviePage(1);
+                                                        }}
+                                                    >
+                                                        <Icon icon={faTimes} />
+                                                    </IconButton>
+                                                </InputAdornment>
+                                            ) : undefined,
                                         }}
                                     />
+                                    {debouncedMovieSearchTerm.length >= 2 && movieFyPagination && (
+                                        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
+                                            Showing {movieFyMovies.length} of {movieFyPagination.total} results • Page {movieFyPagination.page} of {movieFyPagination.pages}
+                                        </Typography>
+                                    )}
                                 </Box>
                             </Box>
 
@@ -903,6 +947,18 @@ export const MovieFy: React.FC = () => {
                                     </List>
                                 )}
                             </CardContent>
+                            {debouncedMovieSearchTerm.length >= 2 && (movieFyPagination?.pages ?? 0) > 1 && (
+                                <Box sx={{ p: 2, display: 'flex', justifyContent: 'center', borderTop: 1, borderColor: 'divider' }}>
+                                    <Pagination
+                                        count={movieFyPagination?.pages ?? 1}
+                                        page={moviePage}
+                                        onChange={(e, v) => setMoviePage(v)}
+                                        size="small"
+                                        showFirstButton
+                                        showLastButton
+                                    />
+                                </Box>
+                            )}
                         </Box>
                     </Card>
 

@@ -14,10 +14,6 @@ import (
 
 // Note: intPtr is already defined in profile_builder.go, reuse it
 
-func strPtr(s string) *string {
-	return &s
-}
-
 func genderPtr(g models.GenderEnum) *models.GenderEnum {
 	return &g
 }
@@ -292,7 +288,7 @@ func TestScorePerformer_CombinedFactors(t *testing.T) {
 	profile := &ProfileData{
 		PerformerWeights: map[int]float64{1: 0.8},
 		AttributeWeights: map[string]map[string]float64{
-			"gender":    {"FEMALE": 1.0},
+			"gender":     {"FEMALE": 1.0},
 			"hair_color": {"Brunette": 0.8},
 		},
 	}
@@ -544,7 +540,7 @@ func TestRecommendPerformers_Integration(t *testing.T) {
 	profile := &ProfileData{
 		PerformerWeights: map[int]float64{1: 0.9, 2: 0.5},
 		AttributeWeights: map[string]map[string]float64{
-			"gender":    {"FEMALE": 0.8},
+			"gender":     {"FEMALE": 0.8},
 			"hair_color": {"Blonde": 0.7},
 		},
 	}

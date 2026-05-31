@@ -897,29 +897,3 @@ func mapEthnicity(s string) (graphql.EthnicityFilterEnum, bool) {
 	}
 	return "", false
 }
-
-func mapStashDBPerformerFromFragment(p *graphql.PerformerFragment) *models.ScrapedPerformer {
-	if p == nil {
-		return nil
-	}
-	name := p.Name
-	var gender *string
-	if p.Gender != nil {
-		g := string(*p.Gender)
-		gender = &g
-	}
-
-	ret := &models.ScrapedPerformer{
-		Name:    &name,
-		Gender:  gender,
-		Country: p.Country,
-	}
-
-	if len(p.Images) > 0 {
-		for _, img := range p.Images {
-			ret.Images = append(ret.Images, img.URL)
-		}
-	}
-
-	return ret
-}

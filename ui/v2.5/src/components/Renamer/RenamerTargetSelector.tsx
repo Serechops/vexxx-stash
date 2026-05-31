@@ -156,7 +156,7 @@ export const RenamerTargetSelector: React.FC<RenamerTargetSelectorProps> = ({
                                             <TableCell padding="checkbox">
                                                 <Checkbox
                                                     checked={isSelected}
-                                                    onChange={() => { }} // Handled by row click
+                                                    onChange={() => handleToggleScene(scene.id)}
                                                     onClick={(e) => e.stopPropagation()}
                                                     size="small"
                                                 />

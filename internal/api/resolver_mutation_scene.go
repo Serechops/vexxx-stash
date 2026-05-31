@@ -1581,34 +1581,41 @@ func (r *mutationResolver) RenameScenes(ctx context.Context, input RenameFilesIn
 	dryRun := utils.IsTrue(input.DryRun)
 	results := make([]*RenameResult, 0, len(sceneIDInts))
 
-	// Use withTxn for consistency
-	if err := r.withTxn(ctx, func(ctx context.Context) error {
-		for _, id := range sceneIDInts {
+	for _, id := range sceneIDInts {
+		err := r.withTxn(ctx, func(ctx context.Context) error {
 			s, err := r.repository.Scene.Find(ctx, id)
 			if err != nil {
 				return err
 			}
 			if s == nil {
-				return fmt.Errorf("scene not found: %d", id)
+				msg := fmt.Sprintf("scene not found: %d", id)
+				results = append(results, &RenameResult{
+					ID:    strconv.Itoa(id),
+					Error: &msg,
+				})
+				return nil
 			}
 
 			res, err := r.renameSceneFile(ctx, s, input.Template, dryRun, input.SetOrganized, input.MoveFiles)
 			if err != nil {
-				// if error returned, it might be fatal, but we want to return result with error
-				// renameSceneFile should probably return result with error populated if it's a "soft" error
-				// But let's handle hard errors too
 				msg := err.Error()
 				results = append(results, &RenameResult{
 					ID:    strconv.Itoa(id),
 					Error: &msg,
 				})
-			} else {
-				results = append(results, res)
+				return nil
 			}
+
+			results = append(results, res)
+			return nil
+		})
+		if err != nil {
+			msg := err.Error()
+			results = append(results, &RenameResult{
+				ID:    strconv.Itoa(id),
+				Error: &msg,
+			})
 		}
-		return nil
-	}); err != nil {
-		return nil, err
 	}
 
 	return results, nil

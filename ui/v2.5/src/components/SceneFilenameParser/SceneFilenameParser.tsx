@@ -239,7 +239,7 @@ export const SceneFilenameParser: React.FC = () => {
     setAllTitleSet(newAllTitleSet);
     setAllDateSet(newAllDateSet);
     setAllRatingSet(newAllRatingSet);
-    setAllTagSet(newAllPerformerSet);
+    setAllPerformerSet(newAllPerformerSet);
     setAllTagSet(newAllTagSet);
     setAllStudioSet(newAllStudioSet);
   }, [parserResult]);

@@ -273,7 +273,16 @@ export const StudioCard: React.FC<IProps> = PatchComponent(
       <Box
         data-has-stashid={studio.stash_ids?.length > 0 ? "" : undefined}
         sx={{
-          '&:hover': { '& .MuiIconButton-root': { opacity: '1 !important' } },
+          '& .favorite-button': {
+            opacity: 0,
+            transition: 'opacity 0.2s, color 0.2s',
+            '&.favorite': {
+              opacity: 1,
+              color: '#ff5252 !important',
+              '&:hover': { color: '#ff1744 !important' },
+            },
+          },
+          '&:hover': { '& .favorite-button': { opacity: 1 } },
         }}
       >
         <GridCard
@@ -308,12 +317,14 @@ export const StudioCard: React.FC<IProps> = PatchComponent(
               favorite={studio.favorite}
               onToggleFavorite={(v) => onToggleFavorite(v)}
               size="2x"
+              className="favorite-button"
               sx={{
                 p: 0,
                 position: 'absolute',
                 right: '5px',
                 top: '10px',
                 zIndex: 1,
+                color: 'rgba(255, 255, 255, 0.85)',
               }}
             />
           }

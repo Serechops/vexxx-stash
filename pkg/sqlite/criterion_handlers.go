@@ -675,7 +675,27 @@ type hierarchicalMultiCriterionHandlerBuilder struct {
 	relationsTable string
 }
 
+func dedupeStringValues(values []string) []string {
+	if len(values) < 2 {
+		return values
+	}
+
+	seen := make(map[string]struct{}, len(values))
+	ret := make([]string, 0, len(values))
+	for _, v := range values {
+		if _, ok := seen[v]; ok {
+			continue
+		}
+		seen[v] = struct{}{}
+		ret = append(ret, v)
+	}
+
+	return ret
+}
+
 func getHierarchicalValues(ctx context.Context, values []string, table, relationsTable, parentFK string, childFK string, depth *int) (string, error) {
+	values = dedupeStringValues(values)
+
 	var args []interface{}
 
 	if parentFK == "" {
@@ -754,6 +774,7 @@ WHERE id in {inBinding}
 `, withClauseMap)
 
 	query := fmt.Sprintf("WITH RECURSIVE %s SELECT 'VALUES' || GROUP_CONCAT('(' || root_id || ', ' || item_id || ')') AS val FROM items", withClause)
+	query = fmt.Sprintf("WITH RECURSIVE %s SELECT 'VALUES' || GROUP_CONCAT('(' || root_id || ', ' || item_id || ')') AS val FROM (SELECT DISTINCT root_id, item_id FROM items)", withClause)
 
 	var valuesClause sql.NullString
 	err := dbWrapper.Get(ctx, &valuesClause, query, args...)
@@ -763,10 +784,11 @@ WHERE id in {inBinding}
 
 	// if no values are found, just return a values string with the values only
 	if !valuesClause.Valid {
-		for i, value := range values {
-			values[i] = fmt.Sprintf("(%s, %s)", value, value)
+		pairs := make([]string, 0, len(values))
+		for _, value := range values {
+			pairs = append(pairs, fmt.Sprintf("(%s, %s)", value, value))
 		}
-		valuesClause.String = "VALUES" + strings.Join(values, ",")
+		valuesClause.String = "VALUES" + strings.Join(pairs, ",")
 	}
 
 	return valuesClause.String, nil

@@ -108,9 +108,10 @@ const UnselectedItem: React.FC<{
   onSelect: (exclude: boolean) => void;
   label: string;
   canExclude: boolean;
+  count?: number;
   // true if the object is a special modifier value
   modifier?: boolean;
-}> = ({ onSelect, label, canExclude, modifier = false }) => {
+}> = ({ onSelect, label, canExclude, count, modifier = false }) => {
   return (
     <Box
       component="li"
@@ -149,8 +150,19 @@ const UnselectedItem: React.FC<{
           </Box>
         </Box>
         <Box>
-          {/* TODO item count */}
-          {/* <span className="object-count">{p.id}</span> */}
+          {count !== undefined && (
+            <Box
+              component="span"
+              sx={{
+                mr: 0.75,
+                color: "text.secondary",
+                fontSize: "0.75rem",
+                fontWeight: 500,
+              }}
+            >
+              {count}
+            </Box>
+          )}
           {canExclude && (
             <Button
               onClick={(e) => {
@@ -389,6 +401,7 @@ const SelectableFilter: React.FC<ISelectableFilter> = ({
             key={p.id}
             onSelect={(exclude) => onSelect(p, exclude)}
             label={p.label}
+            count={p.count}
             canExclude={canExclude && !includingOnly && !excludingOnly}
           />
         ))}

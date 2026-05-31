@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 import cloneDeep from "lodash-es/cloneDeep";
 import { useHistory, useLocation } from "react-router-dom";
@@ -23,23 +23,18 @@ import {
 import { PatchComponent, PatchContainerComponent } from "src/patch";
 import { useCloseEditDelete, useFilterOperations } from "../List/util";
 import {
-  Sidebar,
-  SidebarPane,
-  SidebarPaneContent,
+  InlineFilterPanel,
   SidebarStateContext,
   useSidebarState,
 } from "../Shared/Sidebar";
 import useFocus from "src/utils/focus";
-import {
-  FilteredSidebarHeader,
-  useFilteredSidebarKeybinds,
-} from "../List/Filters/FilterSidebar";
+import { useFilteredSidebarKeybinds } from "../List/Filters/FilterSidebar";
 import { FilterTags } from "../List/FilterTags";
 import { Pagination, PaginationIndex } from "../List/Pagination";
 import { LoadedContent } from "../List/PagedList";
 import { SidebarPerformersFilter } from "../List/Filters/PerformersFilter";
 import { PerformersCriterionOption } from "src/models/list-filter/criteria/performers";
-import { Button } from "@mui/material";
+import { Box, Button, Paper } from "@mui/material";
 import { TagMergeModal } from "./TagMergeDialog";
 import { Tag } from "./TagSelect";
 import { TagListTable } from "./TagListTable";
@@ -59,18 +54,20 @@ const TagList: React.FC<{
       return null;
     }
 
+    const tagGrid = (
+      <SmartTagCardGrid
+        tags={tags}
+        zoomIndex={filter.zoomIndex}
+        itemsPerPage={filter.itemsPerPage}
+        selectedIds={selectedIds}
+        onSelectChange={onSelectChange}
+        loading={false}
+        virtualizationThreshold={50}
+      />
+    );
+
     if (filter.displayMode === DisplayMode.Grid) {
-      return (
-        <SmartTagCardGrid
-          tags={tags}
-          zoomIndex={filter.zoomIndex}
-          itemsPerPage={filter.itemsPerPage}
-          selectedIds={selectedIds}
-          onSelectChange={onSelectChange}
-          loading={false}
-          virtualizationThreshold={50}
-        />
-      );
+      return tagGrid;
     }
     if (filter.displayMode === DisplayMode.List) {
       return (
@@ -82,7 +79,7 @@ const TagList: React.FC<{
       );
     }
     if (filter.displayMode === DisplayMode.Wall) {
-      return <h1>TODO</h1>;
+      return tagGrid;
     }
 
     return null;
@@ -98,36 +95,16 @@ const SidebarContent: React.FC<{
   setFilter: (filter: ListFilterModel) => void;
   filterHook?: (filter: ListFilterModel) => ListFilterModel;
   view?: View;
-  sidebarOpen: boolean;
-  onClose?: () => void;
   showEditFilter: (editingCriterion?: string) => void;
-  count?: number;
-  focus?: ReturnType<typeof useFocus>;
 }> = ({
   filter,
   setFilter,
   filterHook,
   view,
   showEditFilter,
-  sidebarOpen,
-  onClose,
-  count,
-  focus,
 }) => {
-  const showResultsId =
-    count !== undefined ? "actions.show_count_results" : "actions.show_results";
-
   return (
-    <>
-      <FilteredSidebarHeader
-        sidebarOpen={sidebarOpen}
-        showEditFilter={showEditFilter}
-        filter={filter}
-        setFilter={setFilter}
-        view={view}
-        focus={focus}
-      />
-
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
       <TagFilterSidebarSections>
         <SidebarPerformersFilter
           title={<FormattedMessage id="performers" />}
@@ -139,13 +116,7 @@ const SidebarContent: React.FC<{
           sectionID="performers"
         />
       </TagFilterSidebarSections>
-
-      <div className="sidebar-footer">
-        <Button className="sidebar-close-button" onClick={onClose}>
-          <FormattedMessage id={showResultsId} values={{ count }} />
-        </Button>
-      </div>
-    </>
+    </Box>
   );
 };
 
@@ -201,8 +172,6 @@ export const FilteredTagList = PatchComponent(
     const history = useHistory();
     const location = useLocation();
     const Toast = useToast();
-
-    const searchFocus = useFocus();
 
     const { filterHook, view, alterQuery, extraOperations = [] } = props;
 
@@ -376,11 +345,7 @@ export const FilteredTagList = PatchComponent(
     if (sidebarStateLoading) return null;
 
     return (
-      <div
-        className={cx("item-list-container tag-list", {
-          "hide-sidebar": !showSidebar,
-        })}
-      >
+      <div className="item-list-container tag-list">
         {modal}
 
         {mergeTags && (
@@ -404,22 +369,21 @@ export const FilteredTagList = PatchComponent(
         )}
 
         <SidebarStateContext.Provider value={{ sectionOpen, setSectionOpen }}>
-          <SidebarPane hideSidebar={!showSidebar}>
-            <Sidebar hide={!showSidebar} onHide={() => setShowSidebar(false)}>
-              <SidebarContent
-                filter={filter}
-                setFilter={setFilter}
-                filterHook={filterHook}
-                showEditFilter={showEditFilter}
-                view={view}
-                sidebarOpen={showSidebar}
-                onClose={() => setShowSidebar(false)}
-                count={cachedResult.loading ? undefined : totalCount}
-                focus={searchFocus}
-              />
-            </Sidebar>
-            <SidebarPaneContent
-              onSidebarToggle={() => setShowSidebar(!showSidebar)}
+          <Paper
+            elevation={0}
+            sx={{
+              bgcolor: "transparent",
+            }}
+          >
+            <Box
+              sx={{
+                position: "sticky",
+                top: 48,
+                zIndex: 20,
+                px: 2,
+                py: 1,
+                bgcolor: "transparent",
+              }}
             >
               <FilteredListToolbar
                 filter={filter}
@@ -432,7 +396,20 @@ export const FilteredTagList = PatchComponent(
                 view={view}
                 zoomable
               />
+            </Box>
 
+            <Box sx={{ display: "flex", alignItems: "flex-start" }}>
+              <InlineFilterPanel>
+                <SidebarContent
+                  filter={filter}
+                  setFilter={setFilter}
+                  filterHook={filterHook}
+                  showEditFilter={showEditFilter}
+                  view={view}
+                />
+              </InlineFilterPanel>
+
+              <Box sx={{ flex: 1, minWidth: 0, p: 2 }}>
               <FilterTags
                 criteria={filter.criteria}
                 onEditCriterion={(c) => showEditFilter(c.criterionOption.type)}
@@ -477,8 +454,9 @@ export const FilteredTagList = PatchComponent(
                   </div>
                 </div>
               )}
-            </SidebarPaneContent>
-          </SidebarPane>
+              </Box>
+            </Box>
+          </Paper>
         </SidebarStateContext.Provider>
       </div>
     );

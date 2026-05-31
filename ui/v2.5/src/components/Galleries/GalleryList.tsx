@@ -21,19 +21,13 @@ import {
   IItemListOperation,
 } from "../List/FilteredListToolbar";
 import { PatchComponent, PatchContainerComponent } from "src/patch";
-import useFocus from "src/utils/focus";
 import {
-  Sidebar,
-  SidebarPane,
-  SidebarPaneContent,
+  InlineFilterPanel,
   SidebarStateContext,
   useSidebarState,
 } from "../Shared/Sidebar";
 import { useCloseEditDelete, useFilterOperations } from "../List/util";
-import {
-  FilteredSidebarHeader,
-  useFilteredSidebarKeybinds,
-} from "../List/Filters/FilterSidebar";
+import { useFilteredSidebarKeybinds } from "../List/Filters/FilterSidebar";
 import { FilterTags } from "../List/FilterTags";
 import { SidebarFolderFilter } from "../List/Filters/FolderFilter";
 import { ParentFolderCriterionOption } from "src/models/list-filter/criteria/folder";
@@ -44,7 +38,7 @@ import { SidebarPerformersFilter } from "../List/Filters/PerformersFilter";
 import { SidebarTagsFilter } from "../List/Filters/TagsFilter";
 import { SidebarRatingFilter } from "../List/Filters/RatingFilter";
 import { SidebarBooleanFilter } from "../List/Filters/BooleanFilter";
-import { Button, Box } from "@mui/material";
+import { Button, Box, Paper } from "@mui/material";
 import cx from "classnames";
 import { StudiosCriterionOption } from "src/models/list-filter/criteria/studios";
 import { PerformersCriterionOption } from "src/models/list-filter/criteria/performers";
@@ -109,38 +103,18 @@ const SidebarContent: React.FC<{
   setFilter: (filter: ListFilterModel) => void;
   filterHook?: (filter: ListFilterModel) => ListFilterModel;
   view?: View;
-  sidebarOpen: boolean;
-  onClose?: () => void;
   showEditFilter: (editingCriterion?: string) => void;
-  count?: number;
-  focus?: ReturnType<typeof useFocus>;
 }> = ({
   filter,
   setFilter,
   filterHook,
   view,
   showEditFilter,
-  sidebarOpen,
-  onClose,
-  count,
-  focus,
 }) => {
-  const showResultsId =
-    count !== undefined ? "actions.show_count_results" : "actions.show_results";
-
   const hideStudios = view === View.StudioGalleries;
 
   return (
-    <>
-      <FilteredSidebarHeader
-        sidebarOpen={sidebarOpen}
-        showEditFilter={showEditFilter}
-        filter={filter}
-        setFilter={setFilter}
-        view={view}
-        focus={focus}
-      />
-
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
       <GalleryFilterSidebarSections>
         {!hideStudios && (
           <SidebarStudiosFilter
@@ -195,13 +169,7 @@ const SidebarContent: React.FC<{
           sectionID="organized"
         />
       </GalleryFilterSidebarSections>
-
-      <div className="sidebar-footer">
-        <Button className="sidebar-close-button" onClick={onClose}>
-          <FormattedMessage id={showResultsId} values={{ count }} />
-        </Button>
-      </div>
-    </>
+    </Box>
   );
 };
 
@@ -256,8 +224,6 @@ export const FilteredGalleryList = PatchComponent(
     const intl = useIntl();
     const history = useHistory();
     const location = useLocation();
-
-    const searchFocus = useFocus();
 
     const {
       filterHook,
@@ -439,30 +405,25 @@ export const FilteredGalleryList = PatchComponent(
     if (sidebarStateLoading) return null;
 
     const content = (
-      <div
-        className={cx("item-list-container gallery-list", {
-          "hide-sidebar": !showSidebar,
-        })}
-      >
+      <div className="item-list-container gallery-list">
         {modal}
 
         <SidebarStateContext.Provider value={{ sectionOpen, setSectionOpen }}>
-          <SidebarPane hideSidebar={!showSidebar}>
-            <Sidebar hide={!showSidebar} onHide={() => setShowSidebar(false)}>
-              <SidebarContent
-                filter={filter}
-                setFilter={setFilter}
-                filterHook={filterHook}
-                showEditFilter={showEditFilter}
-                view={view}
-                sidebarOpen={showSidebar}
-                onClose={() => setShowSidebar(false)}
-                count={cachedResult.loading ? undefined : totalCount}
-                focus={searchFocus}
-              />
-            </Sidebar>
-            <SidebarPaneContent
-              onSidebarToggle={() => setShowSidebar(!showSidebar)}
+          <Paper
+            elevation={0}
+            sx={{
+              bgcolor: "transparent",
+            }}
+          >
+            <Box
+              sx={{
+                position: "sticky",
+                top: 48,
+                zIndex: 20,
+                px: 2,
+                py: 1,
+                bgcolor: "transparent",
+              }}
             >
               <FilteredListToolbar
                 filter={filter}
@@ -475,53 +436,67 @@ export const FilteredGalleryList = PatchComponent(
                 view={view}
                 zoomable
               />
+            </Box>
 
-              <FilterTags
-                criteria={filter.criteria}
-                onEditCriterion={(c) => showEditFilter(c.criterionOption.type)}
-                onRemoveCriterion={removeCriterion}
-                onRemoveAll={clearAllCriteria}
-              />
-
-              <div className="pagination-index-container">
-                <Pagination
-                  currentPage={filter.currentPage}
-                  itemsPerPage={filter.itemsPerPage}
-                  totalItems={totalCount}
-                  onChangePage={(page) => setFilter(filter.changePage(page))}
+            <Box sx={{ display: "flex", alignItems: "flex-start" }}>
+              <InlineFilterPanel>
+                <SidebarContent
+                  filter={filter}
+                  setFilter={setFilter}
+                  filterHook={filterHook}
+                  showEditFilter={showEditFilter}
+                  view={view}
                 />
-                <PaginationIndex
-                  loading={cachedResult.loading}
-                  itemsPerPage={filter.itemsPerPage}
-                  currentPage={filter.currentPage}
-                  totalItems={totalCount}
-                />
-              </div>
+              </InlineFilterPanel>
 
-              <LoadedContent loading={result.loading} error={result.error}>
-                <GalleryList
-                  filter={effectiveFilter}
-                  galleries={items}
-                  selectedIds={selectedIds}
-                  onSelectChange={onSelectChange}
+              <Box sx={{ flex: 1, minWidth: 0, p: 2 }}>
+                <FilterTags
+                  criteria={filter.criteria}
+                  onEditCriterion={(c) => showEditFilter(c.criterionOption.type)}
+                  onRemoveCriterion={removeCriterion}
+                  onRemoveAll={clearAllCriteria}
                 />
-              </LoadedContent>
 
-              {totalCount > filter.itemsPerPage && (
-                <div className="pagination-footer-container">
-                  <div className="pagination-footer">
-                    <Pagination
-                      itemsPerPage={filter.itemsPerPage}
-                      currentPage={filter.currentPage}
-                      totalItems={totalCount}
-                      onChangePage={setPage}
-                      pagePopupPlacement="top"
-                    />
-                  </div>
+                <div className="pagination-index-container">
+                  <Pagination
+                    currentPage={filter.currentPage}
+                    itemsPerPage={filter.itemsPerPage}
+                    totalItems={totalCount}
+                    onChangePage={(page) => setFilter(filter.changePage(page))}
+                  />
+                  <PaginationIndex
+                    loading={cachedResult.loading}
+                    itemsPerPage={filter.itemsPerPage}
+                    currentPage={filter.currentPage}
+                    totalItems={totalCount}
+                  />
                 </div>
-              )}
-            </SidebarPaneContent>
-          </SidebarPane>
+
+                <LoadedContent loading={result.loading} error={result.error}>
+                  <GalleryList
+                    filter={effectiveFilter}
+                    galleries={items}
+                    selectedIds={selectedIds}
+                    onSelectChange={onSelectChange}
+                  />
+                </LoadedContent>
+
+                {totalCount > filter.itemsPerPage && (
+                  <div className="pagination-footer-container">
+                    <div className="pagination-footer">
+                      <Pagination
+                        itemsPerPage={filter.itemsPerPage}
+                        currentPage={filter.currentPage}
+                        totalItems={totalCount}
+                        onChangePage={setPage}
+                        pagePopupPlacement="top"
+                      />
+                    </div>
+                  </div>
+                )}
+              </Box>
+            </Box>
+          </Paper>
         </SidebarStateContext.Provider>
       </div>
     );

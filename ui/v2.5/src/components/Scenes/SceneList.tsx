@@ -37,9 +37,7 @@ import {
 } from "../List/ListOperationButtons";
 import { useFilteredItemList } from "../List/ItemList";
 import {
-  Sidebar,
-  SidebarPane,
-  SidebarPaneContent,
+  InlineFilterPanel,
   SidebarStateContext,
   useSidebarState,
 } from "../Shared/Sidebar";
@@ -62,14 +60,10 @@ import {
 import { SidebarAgeFilter } from "../List/Filters/SidebarAgeFilter";
 import { SidebarDurationFilter } from "../List/Filters/SidebarDurationFilter";
 import { SidebarFolderFilter } from "../List/Filters/FolderFilter";
-import {
-  FilteredSidebarHeader,
-  useFilteredSidebarKeybinds,
-} from "../List/Filters/FilterSidebar";
+import { useFilteredSidebarKeybinds } from "../List/Filters/FilterSidebar";
 import { PatchComponent, PatchContainerComponent } from "src/patch";
 import { Pagination, PaginationIndex } from "../List/Pagination";
-import { Box, Button, ButtonGroup } from "@mui/material";
-import useFocus from "src/utils/focus";
+import { Box, Button, ButtonGroup, Paper } from "@mui/material";
 import { useZoomKeybinds } from "../List/ZoomSlider";
 import { SearchTermInput } from "../List/ListFilter";
 import { SavedFilterDropdown } from "../List/SavedFilterList";
@@ -261,41 +255,18 @@ const SidebarContent: React.FC<{
   setFilter: (filter: ListFilterModel) => void;
   filterHook?: (filter: ListFilterModel) => ListFilterModel;
   view?: View;
-  sidebarOpen: boolean;
-  onClose?: () => void;
   showEditFilter: (editingCriterion?: string) => void;
-  count?: number;
-  focus?: ReturnType<typeof useFocus>;
-  operations?: any[]; // Using any[] for simplicity or import ISidebarOperation
 }> = ({
   filter,
   setFilter,
   filterHook,
   view,
   showEditFilter,
-  sidebarOpen,
-  onClose,
-  count,
-  focus,
-  operations,
 }) => {
-    const showResultsId =
-      count !== undefined ? "actions.show_count_results" : "actions.show_results";
-
     const hideStudios = view === View.StudioScenes;
 
     return (
-      <>
-        <FilteredSidebarHeader
-          sidebarOpen={sidebarOpen}
-          showEditFilter={showEditFilter}
-          filter={filter}
-          setFilter={setFilter}
-          view={view}
-          focus={focus}
-          operations={operations}
-        />
-
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
         <ScenesFilterSidebarSections>
           {!hideStudios && (
             <SidebarStudiosFilter
@@ -371,13 +342,7 @@ const SidebarContent: React.FC<{
             sectionID="performer_age"
           />
         </ScenesFilterSidebarSections>
-
-        <div className="sidebar-footer">
-          <Button className="sidebar-close-button" onClick={onClose}>
-            <FormattedMessage id={showResultsId} values={{ count }} />
-          </Button>
-        </div>
-      </>
+      </Box>
     );
   };
 
@@ -402,8 +367,6 @@ interface IFilteredScenes {
 export const FilteredSceneList = (props: IFilteredScenes) => {
   const intl = useIntl();
   const history = useHistory();
-
-  const searchFocus = useFocus();
 
   const { filterHook, defaultSort, view, alterQuery, fromGroupId, hideFeatured } = props;
 
@@ -669,151 +632,140 @@ export const FilteredSceneList = (props: IFilteredScenes) => {
 
   return (
     <TaggerContext>
-      <div
-        className={cx("scene-list", "item-list-container", {
-          "hide-sidebar": !showSidebar,
-        })}
-      >
+      <div className={cx("scene-list", "item-list-container")}>
         {modal}
 
         <SidebarStateContext.Provider value={{ sectionOpen, setSectionOpen }}>
-          <SidebarPane hideSidebar={!showSidebar}>
-            <Sidebar hide={!showSidebar} onHide={() => setShowSidebar(false)}>
-              <SidebarContent
+          {displayFeatured && <FeaturedScene />}
+
+          <Box
+            sx={
+              displayFeatured
+                ? {
+                  position: "relative",
+                  zIndex: 10,
+                  mt: { xs: "50vw", md: "65vh" },
+                  background: "linear-gradient(to bottom, transparent, #09090b 20%, #09090b)",
+                  pt: { xs: 4, md: 8 },
+                  pb: 4,
+                  px: { xs: 2, md: 6 },
+                  minHeight: "100vh",
+                  width: "100vw",
+                  marginLeft: "calc(50% - 50vw)",
+                  marginRight: "calc(50% - 50vw)",
+                  maxWidth: "none",
+                  "& > *": { maxWidth: "none" },
+                }
+                : {}
+            }
+          >
+            <Paper
+              elevation={0}
+              sx={{
+                bgcolor: "transparent",
+              }}
+            >
+            {/* Sticky Header Control Bar */}
+            <Box
+              sx={{
+                position: "sticky",
+                top: 48,
+                zIndex: 20,
+                px: 2,
+                py: 1.5,
+                bgcolor: "transparent",
+              }}
+            >
+              <FilteredListToolbar
                 filter={filter}
                 setFilter={setFilter}
-                filterHook={filterHook}
                 showEditFilter={showEditFilter}
                 view={view}
-                sidebarOpen={showSidebar}
-                onClose={() => setShowSidebar(false)}
-                count={cachedResult.loading ? undefined : totalCount}
-                focus={searchFocus}
+                listSelect={listSelect}
+                onEdit={onEdit}
+                onDelete={onDelete}
+                operations={otherOperations}
+                zoomable
               />
-            </Sidebar>
-            <SidebarPaneContent
-              onSidebarToggle={() => setShowSidebar(!showSidebar)}
-            >
-              <>
-                {displayFeatured && <FeaturedScene />}
 
-                <Box
-                  sx={
-                    displayFeatured
-                      ? {
-                        position: "relative",
-                        zIndex: 10,
-                        mt: { xs: "50vw", md: "65vh" },
-                        background: "linear-gradient(to bottom, transparent, #09090b 20%, #09090b)",
-                        pt: { xs: 4, md: 8 },
-                        pb: 4,
-                        px: { xs: 2, md: 6 },
-                        minHeight: "100vh",
-                        width: "100vw",
-                        marginLeft: "calc(50% - 50vw)",
-                        marginRight: "calc(50% - 50vw)",
-                        maxWidth: "none",
-                        "& > *": { maxWidth: "none" },
-                      }
-                      : {}
-                  }
-                >
-                  {/* Sticky Header Control Bar */}
-                  <Box
-                    sx={{
-                      position: "sticky",
-                      top: 48, // Header height
-                      zIndex: 20,
-                      backgroundColor: "rgba(0, 0, 0, 0)",
-                      borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
-                      mx: -2, // Negative margin to stretch full width of container padding
-                      px: 2, // Restore padding
-                      pt: 2,
-                      pb: 2,
-                      mb: 2,
-                      transition: "all 0.3s ease",
-                    }}
-                  >
-                    <FilteredListToolbar
-                      filter={filter}
-                      setFilter={setFilter}
-                      showEditFilter={showEditFilter}
-                      view={view}
-                      listSelect={listSelect}
-                      onEdit={onEdit}
-                      onDelete={onDelete}
-                      operations={otherOperations}
-                      zoomable
+              {totalCount > filter.itemsPerPage && (
+                <Box display="flex" justifyContent="center" mt={2}>
+                  <Box display="flex" flexDirection="column" alignItems="center">
+                    <Pagination
+                      itemsPerPage={filter.itemsPerPage}
+                      currentPage={filter.currentPage}
+                      totalItems={totalCount}
+                      onChangePage={setPage}
+                      pagePopupPlacement="bottom"
                     />
-
-                    {totalCount > filter.itemsPerPage && (
-                      <Box display="flex" justifyContent="center" mt={2}>
-                        <Box display="flex" flexDirection="column" alignItems="center">
-                          <Pagination
-                            itemsPerPage={filter.itemsPerPage}
-                            currentPage={filter.currentPage}
-                            totalItems={totalCount}
-                            onChangePage={setPage}
-                            pagePopupPlacement="bottom"
-                          />
-                          <Box textAlign="center" mt={1}>
-                            <PaginationIndex
-                              itemsPerPage={filter.itemsPerPage}
-                              currentPage={filter.currentPage}
-                              totalItems={totalCount}
-                              metadataByline={metadataByline}
-                            />
-                          </Box>
-                        </Box>
-                      </Box>
-                    )}
+                    <Box textAlign="center" mt={1}>
+                      <PaginationIndex
+                        itemsPerPage={filter.itemsPerPage}
+                        currentPage={filter.currentPage}
+                        totalItems={totalCount}
+                        metadataByline={metadataByline}
+                      />
+                    </Box>
                   </Box>
+                </Box>
+              )}
+            </Box>
 
-                  <FilterTags
-                    criteria={filter.criteria}
-                    onEditCriterion={(c) => showEditFilter(c.criterionOption.type)}
-                    onRemoveCriterion={removeCriterion}
-                    onRemoveAll={clearAllCriteria}
+            <Box sx={{ display: "flex", alignItems: "flex-start" }}>
+              <InlineFilterPanel>
+                <SidebarContent
+                  filter={filter}
+                  setFilter={setFilter}
+                  filterHook={filterHook}
+                  showEditFilter={showEditFilter}
+                  view={view}
+                />
+              </InlineFilterPanel>
+
+              <Box sx={{ flex: 1, minWidth: 0, p: 2 }}>
+                <FilterTags
+                  criteria={filter.criteria}
+                  onEditCriterion={(c) => showEditFilter(c.criterionOption.type)}
+                  onRemoveCriterion={removeCriterion}
+                  onRemoveAll={clearAllCriteria}
+                />
+
+                <LoadedContent loading={false} error={result.error}>
+                  <SceneList
+                    filter={effectiveFilter}
+                    scenes={items}
+                    selectedIds={selectedIds}
+                    onSelectChange={onSelectChange}
+                    fromGroupId={fromGroupId}
+                    loading={result.loading}
                   />
+                </LoadedContent>
 
-                  {/* Top Pagination removed for cleaner UI */}
-
-                  <LoadedContent loading={false} error={result.error}>
-                    <SceneList
-                      filter={effectiveFilter}
-                      scenes={items}
-                      selectedIds={selectedIds}
-                      onSelectChange={onSelectChange}
-                      fromGroupId={fromGroupId}
-                      loading={result.loading}
-                    />
-                  </LoadedContent>
-
-                  {totalCount > filter.itemsPerPage && (
-                    <Box display="flex" justifyContent="center" mt={4}>
-                      <div className="pagination-footer">
-                        <Pagination
+                {totalCount > filter.itemsPerPage && (
+                  <Box display="flex" justifyContent="center" mt={4}>
+                    <div className="pagination-footer">
+                      <Pagination
+                        itemsPerPage={filter.itemsPerPage}
+                        currentPage={filter.currentPage}
+                        totalItems={totalCount}
+                        onChangePage={setPage}
+                        pagePopupPlacement="top"
+                      />
+                      <Box textAlign="center" mt={1}>
+                        <PaginationIndex
                           itemsPerPage={filter.itemsPerPage}
                           currentPage={filter.currentPage}
                           totalItems={totalCount}
-                          onChangePage={setPage}
-                          pagePopupPlacement="top"
+                          metadataByline={metadataByline}
                         />
-                        <Box textAlign="center" mt={1}>
-                          <PaginationIndex
-                            itemsPerPage={filter.itemsPerPage}
-                            currentPage={filter.currentPage}
-                            totalItems={totalCount}
-                            metadataByline={metadataByline}
-                          />
-                        </Box>
-                      </div>
-                    </Box>
-                  )}
-                </Box>
-              </>
-            </SidebarPaneContent>
-          </SidebarPane>
+                      </Box>
+                    </div>
+                  </Box>
+                )}
+              </Box>
+            </Box>
+            </Paper>
+          </Box>
         </SidebarStateContext.Provider>
       </div>
     </TaggerContext>

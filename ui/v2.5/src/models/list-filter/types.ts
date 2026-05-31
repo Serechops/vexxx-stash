@@ -21,6 +21,7 @@ export enum DisplayMode {
 export interface ILabeledId {
   id: string;
   label: string;
+  count?: number;
 }
 
 export interface ILabeledValue {

@@ -525,128 +525,8 @@ div.react-datepicker {
   }
 }
 
-.sidebar-pane {
-  display: flex;
-
-  .sidebar {
-    // TODO - use different colours for sidebar and toolbar
-    background-color: $body-bg;
-    border-right: 1px solid $secondary;
-    flex: $sidebar-width;
-    flex-grow: 0;
-    flex-shrink: 0;
-    padding-left: 15px;
-    transition: margin-left 0.1s;
-  }
-
-  .sidebar {
-    bottom: 0;
-    left: 0;
-    margin-top: $navbar-height;
-    overflow-y: auto;
-    padding-top: 0.5rem;
-    position: fixed;
-    scrollbar-gutter: stable;
-    top: 0;
-    width: $sidebar-width;
-    z-index: 100;
-  }
-
-  &.hide-sidebar .sidebar {
-    margin-left: -$sidebar-width;
-  }
-
-  &.hide-sidebar .sidebar+div {
-    width: 100%;
-  }
-
-  &:not(.hide-sidebar) .sidebar+div {
-    width: calc(100% - $sidebar-width);
-  }
-
-  > :nth-child(2) {
-    flex-grow: 1;
-    padding-left: 0.5rem;
-  }
-
-  &.hide-sidebar {
-    > :nth-child(2) {
-      padding-left: 0;
-    }
-  }
-
-  @media (min-width: 768px) {
-    transition: margin-left 0.1s;
-
-    &:not(.hide-sidebar) {
-      > :nth-child(2) {
-        margin-left: calc($sidebar-width - 15px);
-      }
-    }
-  }
-
-  @media (max-width: 575.98px) {
-    .sidebar {
-      margin-top: 0;
-    }
-  }
-}
-
-.sidebar-toggle-button-container {
-  height: 100%;
-  position: absolute;
-
-  .sidebar-toggle-button {
-    border-bottom: 1px solid $secondary;
-    border-bottom-left-radius: 0;
-    border-bottom-right-radius: 10px;
-    border-right: 1px solid $secondary;
-    border-top: 1px solid $secondary;
-    border-top-left-radius: 0;
-    border-top-right-radius: 10px;
-    margin-left: -15px;
-    opacity: 0.5;
-    position: sticky;
-    top: calc($navbar-height + 0.5rem);
-    z-index: 10;
-
-    @media (max-width: 767.98px) {
-      top: 0.5rem;
-    }
-  }
-}
-
-.sidebar-pane:not(.hide-sidebar) .sidebar-toggle-button-container {
-  .sidebar-toggle-button {
-    margin-left: -0.5rem;
-  }
-}
-
-.sidebar-section {
-  border-bottom: 1px solid $secondary;
-
-  .collapse-header {
-    // background-color: $secondary;
-
-    padding: 0.25rem;
-
-    .collapse-button {
-      font-weight: bold;
-      text-align: left;
-      width: 100%;
-    }
-  }
-
-  .collapse,
-  // include collapsing to allow for the transition
-  .collapsing {
-    padding-top: 0.25rem;
-  }
-}
-
-.sidebar-section:first-child .collapse-header {
-  border-top: 1px solid $secondary;
-}
+// sidebar-pane, sidebar-toggle-button-container, sidebar-section rules removed:
+// layout is now managed entirely by MUI components in Sidebar.tsx.
 
 $sticky-header-height: calc(50px + 3.3rem);
 
@@ -727,6 +607,11 @@ $sticky-header-height: calc(50px + 3.3rem);
   }
 }
 
+.double-range-input {
+  box-sizing: border-box;
+  width: 100%;
+}
+
 .double-range-input-labels {
   color: $text-color;
   display: flex;
@@ -737,6 +622,10 @@ $sticky-header-height: calc(50px + 3.3rem);
   padding: 0 0.25rem;
 
   input[type="text"] {
+    box-sizing: border-box;
+    min-width: 0;
+    width: 44%;
+
     &:first-child {
       text-align: left;
     }

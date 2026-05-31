@@ -1,50 +1,82 @@
-import React, { useCallback, useMemo } from "react";
-import { Box } from "@mui/material";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { Box, Button, Typography } from "@mui/material";
 import { useLightbox } from "src/hooks/Lightbox/hooks";
 import { LoadingIndicator } from "src/components/Shared/LoadingIndicator";
 import Gallery, { PhotoClickHandler } from "react-photo-gallery";
 import "flexbin/flexbin.css";
-import {
-  CriterionModifier,
-  useFindImagesQuery,
-} from "src/core/generated-graphql";
+import * as GQL from "src/core/generated-graphql";
 
 interface IProps {
   galleryId: string;
 }
 
 export const GalleryViewer: React.FC<IProps> = ({ galleryId }) => {
-  // TODO - add paging - don't load all images at once
-  const pageSize = -1;
+  const pageSize = 200;
+  const [currentPage, setCurrentPage] = useState(1);
+  const [loadedImages, setLoadedImages] =
+    useState<GQL.FindImagesQuery["findImages"]["images"]>([]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+    setLoadedImages([]);
+  }, [galleryId]);
 
   const currentFilter = useMemo(() => {
     return {
+      page: currentPage,
       per_page: pageSize,
       sort: "path",
     };
-  }, [pageSize]);
+  }, [currentPage, pageSize]);
 
-  const { data, loading } = useFindImagesQuery({
+  const { data, previousData, loading } = GQL.useFindImagesQuery({
+    notifyOnNetworkStatusChange: true,
     variables: {
       filter: currentFilter,
       image_filter: {
         galleries: {
-          modifier: CriterionModifier.Includes,
+          modifier: GQL.CriterionModifier.Includes,
           value: [galleryId],
         },
       },
     },
   });
 
-  const images = useMemo(() => data?.findImages?.images ?? [], [data]);
+  useEffect(() => {
+    const pageImages = data?.findImages?.images;
+    if (!pageImages) {
+      return;
+    }
+
+    setLoadedImages((previous) => {
+      if (currentPage === 1) {
+        return pageImages;
+      }
+
+      const seen = new Set(previous.map((image) => image.id));
+      const merged = [...previous];
+      pageImages.forEach((image) => {
+        if (!seen.has(image.id)) {
+          merged.push(image);
+          seen.add(image.id);
+        }
+      });
+
+      return merged;
+    });
+  }, [data, currentPage]);
+
+  const totalCount = data?.findImages?.count ?? previousData?.findImages?.count ?? 0;
+  const hasMore = loadedImages.length < totalCount;
+  const isInitialLoading = loading && loadedImages.length === 0;
 
   const lightboxState = useMemo(() => {
     return {
-      images,
+      images: loadedImages,
       showNavigation: false,
       showFilmstrip: true,
     };
-  }, [images]);
+  }, [loadedImages]);
 
   const showLightbox = useLightbox(lightboxState);
   const showLightboxOnClick: PhotoClickHandler = useCallback(
@@ -54,7 +86,7 @@ export const GalleryViewer: React.FC<IProps> = ({ galleryId }) => {
     [showLightbox]
   );
 
-  if (loading) return <LoadingIndicator />;
+  if (isInitialLoading) return <LoadingIndicator />;
 
   let photos: {
     src: string;
@@ -66,7 +98,7 @@ export const GalleryViewer: React.FC<IProps> = ({ galleryId }) => {
     key?: string | undefined;
   }[] = [];
 
-  images.forEach((image, index) => {
+  loadedImages.forEach((image, index) => {
     let imageData = {
       src: image.paths.thumbnail!,
       width: image.visual_files[0]?.width ?? 0,
@@ -90,6 +122,21 @@ export const GalleryViewer: React.FC<IProps> = ({ galleryId }) => {
       }}
     >
       <Gallery photos={photos} onClick={showLightboxOnClick} margin={2.5} />
+
+      <Box display="flex" justifyContent="center" alignItems="center" flexDirection="column" mt={2} gap={1}>
+        <Typography variant="body2" color="text.secondary">
+          Showing {loadedImages.length} of {totalCount} images
+        </Typography>
+        {hasMore && (
+          <Button
+            variant="outlined"
+            onClick={() => setCurrentPage((previous) => previous + 1)}
+            disabled={loading}
+          >
+            {loading ? "Loading..." : "Load More"}
+          </Button>
+        )}
+      </Box>
     </Box>
   );
 };

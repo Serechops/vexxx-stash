@@ -1,96 +1,34 @@
 import React, {
   PropsWithChildren,
   useCallback,
+  useContext,
   useEffect,
   useMemo,
   useState,
 } from "react";
-import { CollapseButton } from "./CollapseButton";
-import { useOnOutsideClick } from "src/hooks/OutsideClick";
-import ScreenUtils, { useMediaQuery } from "src/utils/screen";
+import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
+  Box,
+  Typography,
+} from "@mui/material";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { IViewConfig, useInterfaceLocalForage } from "src/hooks/LocalForage";
 import { View } from "../List/views";
-import cx from "classnames";
-import { Button, CollapseProps } from "@mui/material";
-import { useIntl } from "react-intl";
-import { Icon } from "./Icon";
-import { faSliders } from "@fortawesome/free-solid-svg-icons";
 import { useHistory } from "react-router-dom";
+import ScreenUtils from "src/utils/screen";
 
 export type SidebarSectionStates = Record<string, boolean>;
 
-// this needs to correspond to the CSS media query that overlaps the sidebar over content
-const fixedSidebarMediaQuery = "only screen and (max-width: 767px)";
+const mobileSidebarQuery = "only screen and (max-width: 767px)";
 
-export const Sidebar: React.FC<
-  PropsWithChildren<{
-    hide?: boolean;
-    onHide?: () => void;
-  }>
-> = ({ hide, onHide, children }) => {
-  const ref = React.useRef<HTMLDivElement>(null);
+// show sidebar by default if not on mobile
+export function defaultShowSidebar() {
+  return !ScreenUtils.matchesMediaQuery(mobileSidebarQuery);
+}
 
-  const closeOnOutsideClick = useMediaQuery(fixedSidebarMediaQuery) && !hide;
-
-  useOnOutsideClick(
-    ref,
-    !closeOnOutsideClick ? undefined : onHide,
-    "ignore-sidebar-outside-click"
-  );
-
-  return (
-    <div ref={ref} className="sidebar vexxx-sidebar !bg-card text-card-foreground border-r border-border shadow-2xl z-40 transform transition-transform duration-300">
-      {children}
-    </div>
-  );
-};
-
-// SidebarPane is a container for a Sidebar and content.
-// It is expected that the children will be two elements:
-// a Sidebar and a content element.
-export const SidebarPane: React.FC<
-  PropsWithChildren<{
-    hideSidebar?: boolean;
-  }>
-> = ({ hideSidebar = false, children }) => {
-  return (
-    <div className={cx("sidebar-pane", { "hide-sidebar": hideSidebar })}>
-      {children}
-    </div>
-  );
-};
-
-export const SidebarToggleButton: React.FC<{
-  onClick: () => void;
-}> = ({ onClick }) => {
-  const intl = useIntl();
-  return (
-    <div className="sidebar-toggle-button-container">
-      <Button
-        className="sidebar-toggle-button ignore-sidebar-outside-click !bg-card hover:!bg-secondary !text-foreground !border !border-border shadow-md rounded-r-md transition-all !z-[110]"
-        variant="contained"
-        color="secondary"
-        onClick={onClick}
-        title={intl.formatMessage({ id: "actions.sidebar.toggle" })}
-        sx={{ minWidth: 'unset', px: 1.5, py: 0.75 }}
-      >
-        <Icon icon={faSliders} className="w-5 h-5" />
-      </Button>
-    </div>
-  );
-};
-
-export const SidebarPaneContent: React.FC<{ onSidebarToggle: () => void }> = ({
-  onSidebarToggle,
-  children,
-}) => {
-  return (
-    <div className="sidebar-pane-content" style={{ position: "relative" }}>
-      <SidebarToggleButton onClick={onSidebarToggle} />
-      {children}
-    </div>
-  );
-};
+// ─── Context ──────────────────────────────────────────────────────────────────
 
 interface IContext {
   sectionOpen: SidebarSectionStates;
@@ -99,68 +37,102 @@ interface IContext {
 
 export const SidebarStateContext = React.createContext<IContext | null>(null);
 
+// ─── SidebarPanel ────────────────────────────────────────────────────────────
+// Always-visible vertical filter panel. Lives in normal document flow,
+// side-by-side with the content grid in a flex row.
+
+export const InlineFilterPanel: React.FC<PropsWithChildren> =
+  ({ children }) => (
+    <Box
+      sx={{
+        width: 260,
+        flexShrink: 0,
+        alignSelf: "stretch",
+      }}
+    >
+      <Box sx={{ position: "sticky", top: 112, p: { xs: 1, md: 1.5 }, maxHeight: "calc(100vh - 130px)", overflowY: "auto", overflowX: "hidden" }}>
+        {children}
+      </Box>
+    </Box>
+  );
+
+// ─── SidebarSection ───────────────────────────────────────────────────────────
+// MUI Accordion, controlled via SidebarStateContext so open/close state is
+// persisted in history.location.state (same as before).
+
 export interface ISidebarSectionProps {
   text: React.ReactNode;
   className?: string;
   outsideCollapse?: React.ReactNode;
   onOpen?: () => void;
-  // used to store open/closed state in SidebarStateContext
   sectionID?: string;
 }
 
 export const SidebarSection: React.FC<
   PropsWithChildren<ISidebarSectionProps>
-> = ({
-  className = "",
-  text,
-  outsideCollapse,
-  onOpen,
-  sectionID = "",
-  children,
-}) => {
-    // this is optional
-    const contextState = React.useContext(SidebarStateContext);
-    const openState =
-      !contextState || !sectionID
-        ? undefined
-        : contextState.sectionOpen[sectionID] ?? undefined;
+> = ({ text, sectionID = "", children, onOpen, outsideCollapse }) => {
+  const contextState = useContext(SidebarStateContext);
+  const expanded = contextState && sectionID
+    ? (contextState.sectionOpen[sectionID] ?? true)
+    : true;
 
-    function onOpenInternal(open: boolean) {
-      if (contextState && sectionID) {
-        contextState.setSectionOpen(sectionID, open);
-      }
+  const handleChange = (_: React.SyntheticEvent, isExpanded: boolean) => {
+    if (contextState && sectionID) {
+      contextState.setSectionOpen(sectionID, isExpanded);
     }
-
-    useEffect(() => {
-      if (openState && onOpen) {
-        onOpen();
-      }
-    }, [openState, onOpen]);
-
-    const collapseProps: Partial<CollapseProps> = {
-      mountOnEnter: true,
-      unmountOnExit: true,
-    };
-    return (
-      <CollapseButton
-        className={`sidebar-section border-b border-border/10 py-2 ${className}`}
-        collapseProps={collapseProps}
-        text={<span className="font-semibold text-sm tracking-wide uppercase text-muted-foreground">{text}</span>}
-        outsideCollapse={outsideCollapse}
-        onOpenChanged={onOpenInternal}
-        open={openState}
-      >
-        <div className="px-1 pt-2">
-          {children}
-        </div>
-      </CollapseButton>
-    );
+    if (isExpanded && onOpen) {
+      onOpen();
+    }
   };
 
-// show sidebar by default if not on mobile
-export function defaultShowSidebar() {
-  return !ScreenUtils.matchesMediaQuery(fixedSidebarMediaQuery);
-}
+  return (
+    <Accordion
+      disableGutters
+      elevation={0}
+      expanded={!!expanded}
+      onChange={handleChange}
+      sx={{
+        bgcolor: "transparent",
+        "&:before": { display: "none" },
+        borderBottom: "1px solid",
+        borderColor: "divider",
+      }}
+    >
+      <AccordionSummary
+        expandIcon={<ExpandMoreIcon fontSize="small" />}
+        sx={{
+          px: 0.5,
+          minHeight: 40,
+          "& .MuiAccordionSummary-content": {
+            my: 0.5,
+            alignItems: "center",
+            gap: 1,
+          },
+        }}
+      >
+        <Typography
+          variant="overline"
+          sx={{
+            lineHeight: 1.2,
+            color: "text.secondary",
+            fontSize: "0.7rem",
+            fontWeight: 600,
+          }}
+        >
+          {text}
+        </Typography>
+        {outsideCollapse}
+      </AccordionSummary>
+      <AccordionDetails sx={{ px: 1, pt: 1, pb: 0.5 }}>
+        {children}
+      </AccordionDetails>
+    </Accordion>
+  );
+};
+
+// ─── useSidebarState ──────────────────────────────────────────────────────────
+// Unchanged logic — reads/writes view config from localForage and persists
+// section open states in history.location.state.
 
 export function useSidebarState(view?: View) {
   const [interfaceLocalForage, setInterfaceLocalForage] =

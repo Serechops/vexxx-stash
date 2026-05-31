@@ -140,7 +140,6 @@ export const PerformerCard: React.FC<IPerformerCardProps> = PatchComponent(
           '&:hover': {
             boxShadow: '0 10px 30px rgba(0, 0, 0, 0.5)',
             transform: 'scale(1.02)',
-            zIndex: 20,
             '& .performer-card-overlay-inner': {
               background: 'linear-gradient(to top, rgba(0, 0, 0, 0.95) 20%, rgba(0, 0, 0, 0.7) 60%, transparent 100%)',
             },

@@ -5,6 +5,7 @@ import { DurationInput } from "src/components/Shared/DurationInput";
 import { PercentInput } from "src/components/Shared/PercentInput";
 import { LoadingIndicator } from "src/components/Shared/LoadingIndicator";
 import { CheckboxGroup } from "./CheckboxGroup";
+import { LanguageSelector } from "./LanguageSelector";
 import { SettingSection } from "../SettingSection";
 import {
   BooleanSetting,
@@ -200,52 +201,10 @@ export const SettingsInterfacePanel: React.FC = PatchComponent(
     return (
       <>
         <SettingSection headingID="config.ui.basic_settings">
-          <SelectSetting
-            id="language"
-            headingID="config.ui.language.heading"
+          <LanguageSelector
             value={iface.language ?? undefined}
             onChange={(v) => saveInterface({ language: v })}
-          >
-            <option value="af-ZA">Afrikaans (Preview)</option>
-            <option value="bg-BG">Bulgarian (Preview)</option>
-            <option value="bn-BD">বাংলা (বাংলাদেশ) (Preview)</option>
-            <option value="ca-ES">Catalan (Preview)</option>
-            <option value="cs-CZ">Čeština (Česko)</option>
-            <option value="da-DK">Dansk (Danmark)</option>
-            <option value="de-DE">Deutsch (Deutschland)</option>
-            <option value="en-GB">English (United Kingdom)</option>
-            <option value="en-US">English (United States)</option>
-            <option value="et-EE">Eesti</option>
-            <option value="fa-IR">فارسی (ایران) (Preview)</option>
-            <option value="fi-FI">Suomi</option>
-            <option value="fr-FR">Français (France)</option>
-            <option value="hi-IN">हिन्दी (Preview)</option>
-            <option value="hr-HR">Hrvatski (Preview)</option>
-            <option value="id-ID">Indonesian (Preview)</option>
-            <option value="hu-HU">Magyar (Preview)</option>
-            <option value="it-IT">Italiano</option>
-            <option value="ja-JP">日本語 (日本)</option>
-            <option value="ko-KR">한국어 (대한민국)</option>
-            <option value="lv-LV">Latviešu (Preview)</option>
-            <option value="lt-LT">Lithuanian (Preview)</option>
-            <option value="nb-NO">Norsk bokmål</option>
-            <option value="nn-NO">Nynorsk (Preview)</option>
-            <option value="nl-NL">Nederlands (Nederland)</option>
-            <option value="pl-PL">Polski</option>
-            <option value="pt-BR">Português (Brasil)</option>
-            <option value="ro-RO">Română (Preview)</option>
-            <option value="ru-RU">Русский (Россия)</option>
-            <option value="es-ES">Español (España)</option>
-            <option value="sk-SK">Slovenčina (Preview)</option>
-            <option value="sv-SE">Svenska</option>
-            <option value="tr-TR">Türkçe (Türkiye)</option>
-            <option value="th-TH">ภาษาไทย (ไทย)</option>
-            <option value="uk-UA">Ukrainian (Україна)</option>
-            <option value="ur-PK">Urdu (Preview)</option>
-            <option value="vi-VN">Tiếng Việt (Preview)</option>
-            <option value="zh-TW">繁體中文 (台灣)</option>
-            <option value="zh-CN">简体中文 (中国)</option>
-          </SelectSetting>
+          />
 
           <BooleanSetting
             id="sfw-content-mode"

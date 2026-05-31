@@ -1,5 +1,15 @@
 import React, { useState } from "react";
-import { Button, FormControlLabel, Checkbox, TextField, Box, Typography, FormHelperText, Chip } from "@mui/material";
+import {
+  Button,
+  FormControlLabel,
+  Checkbox,
+  TextField,
+  Box,
+  Typography,
+  FormHelperText,
+  Chip,
+  Stack,
+} from "@mui/material";
 import { FormattedMessage, useIntl } from "react-intl";
 import {
   useDisableDLNA,
@@ -334,21 +344,38 @@ export const SettingsServicesPanel: React.FC = () => {
 
     const { allowedIPAddresses } = statusData.dlnaStatus;
     return (
-      <Box className="content" sx={{ mb: 2 }}>
+      <Box sx={{ mb: 2 }}>
         <Typography variant="h6" gutterBottom>
           {intl.formatMessage({ id: "config.dlna.allowed_ip_addresses" })}
         </Typography>
 
-        <ul className="addresses">
+        <Stack spacing={1}>
           {allowedIPAddresses.map((a) => (
-            <li key={a.ipAddress}>
-              <div className="address">
-                <code>{a.ipAddress}</code>
-                <br />
-                <span className="deadline">{renderDeadline(a.until)}</span>
-              </div>
+            <Box
+              key={a.ipAddress}
+              sx={{
+                border: "1px solid",
+                borderColor: "divider",
+                borderRadius: 1,
+                p: 1,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 1,
+              }}
+            >
+              <Box sx={{ minWidth: 0 }}>
+                <Typography component="code" variant="body2" sx={{ wordBreak: "break-all" }}>
+                  {a.ipAddress}
+                </Typography>
+                {a.until ? (
+                  <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                    {renderDeadline(a.until)}
+                  </Typography>
+                ) : null}
+              </Box>
 
-              <div className="buttons">
+              <Box>
                 <Button
                   size="small"
                   title={intl.formatMessage({ id: "actions.disallow" })}
@@ -358,10 +385,10 @@ export const SettingsServicesPanel: React.FC = () => {
                 >
                   <Icon icon={faTimes} />
                 </Button>
-              </div>
-            </li>
+              </Box>
+            </Box>
           ))}
-        </ul>
+        </Stack>
       </Box>
     );
   }
@@ -373,13 +400,25 @@ export const SettingsServicesPanel: React.FC = () => {
 
     const { recentIPAddresses } = statusData.dlnaStatus;
     return (
-      <ul className="addresses">
+      <Stack spacing={1}>
         {recentIPAddresses.map((a) => (
-          <li key={a}>
-            <div className="address">
+          <Box
+            key={a}
+            sx={{
+              border: "1px solid",
+              borderColor: "divider",
+              borderRadius: 1,
+              p: 1,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 1,
+            }}
+          >
+            <Box sx={{ minWidth: 0 }}>
               <Typography component="code">{a}</Typography>
-            </div>
-            <div>
+            </Box>
+            <Box>
               <Button
                 size="small"
                 variant="outlined"
@@ -388,22 +427,37 @@ export const SettingsServicesPanel: React.FC = () => {
               >
                 <Icon icon={faUserClock} />
               </Button>
-            </div>
-          </li>
+            </Box>
+          </Box>
         ))}
-        <li>
-          <div className="address">
+
+        <Box
+          sx={{
+            border: "1px dashed",
+            borderColor: "divider",
+            borderRadius: 1,
+            p: 1,
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+          }}
+        >
+          <Box sx={{ flex: 1 }}>
             <TextField
-              className="text-input"
+              fullWidth
               value={ipEntry}
               onChange={(e) =>
                 setIPEntry(e.currentTarget.value)
               }
               variant="outlined"
               size="small"
+              placeholder={intl.formatMessage({
+                id: "config.dlna.ip_address_placeholder",
+                defaultMessage: "IP address",
+              })}
             />
-          </div>
-          <div className="buttons">
+          </Box>
+          <Box>
             <Button
               size="small"
               variant="outlined"
@@ -413,9 +467,9 @@ export const SettingsServicesPanel: React.FC = () => {
             >
               <Icon icon={faUserClock} />
             </Button>
-          </div>
-        </li>
-      </ul>
+          </Box>
+        </Box>
+      </Stack>
     );
   }
 
@@ -529,14 +583,14 @@ export const SettingsServicesPanel: React.FC = () => {
       </SettingSection>
 
       <SettingSection headingID="actions_name">
-        <Box className="content" sx={{ mb: 2 }}>
+        <Box sx={{ mb: 2, display: "flex", gap: 1, flexWrap: "wrap" }}>
           {renderEnableButton()}
           {renderTempCancelButton()}
         </Box>
 
         {renderAllowedIPs()}
 
-        <Box className="content" sx={{ mb: 2 }}>
+        <Box sx={{ mb: 2 }}>
           <Typography variant="subtitle1" gutterBottom>
             {intl.formatMessage({ id: "config.dlna.recent_ip_addresses" })}
           </Typography>

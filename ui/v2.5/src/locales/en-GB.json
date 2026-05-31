@@ -617,6 +617,8 @@
       "import_from_exported_json": "Import from exported JSON in the metadata directory. Wipes the existing database.",
       "incremental_import": "Incremental import from a supplied export zip file.",
       "job_queue": "Task Queue",
+      "lazy_sections_hint": "Sections load on demand when expanded to keep the tasks page responsive.",
+      "library_tasks": "Library Tasks",
       "maintenance": "Maintenance",
       "migrate_blobs": {
         "delete_old": "Delete old data",
@@ -634,6 +636,7 @@
       "optimise_database_warning": "Warning: while this task is running, any operations that modify the database will fail, and depending on your database size, it could take several minutes to complete. It also requires at the very minimum as much free disk space as your database is large, but 1.5x is recommended.",
       "plugin_tasks": "Plugin Tasks",
       "rescan": "Rescan files",
+      "scheduled_tasks": "Scheduled Tasks",
       "rescan_tooltip": "Rescan every file in the path. Used to force update file metadata and rescan zip files.",
       "scan": {
         "scanning_all_paths": "Scanning all paths",
@@ -645,6 +648,9 @@
     "tools": {
       "graphql_playground": "GraphQL playground",
       "heading": "Tools",
+      "moviefy": "MovieFy",
+      "open": "Open",
+      "renamer": "Renamer",
       "scene_duplicate_checker": "Scene Duplicate Checker",
       "scene_filename_parser": {
         "add_field": "Add Field",
@@ -1734,6 +1740,9 @@
   },
   "status": "Status: {statusText}",
   "config.dlna.status_label": "Status",
+  "config.dlna.ip_address_placeholder": "IP address",
+  "config.ui.language.search_placeholder": "Search language...",
+  "config.ui.language.custom_locale": "Custom locale ({locale})",
   "studio": "Studio",
   "studio_and_parent": "Studio & Parent",
   "studio_count": "Studio Count",

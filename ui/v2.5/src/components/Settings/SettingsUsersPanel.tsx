@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 import {
   Alert,
@@ -183,6 +183,7 @@ export const SettingsUsersPanel: React.FC = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<GQL.UserDataFragment | null>(null);
   const [deleteConfirmUser, setDeleteConfirmUser] = useState<GQL.UserDataFragment | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Setup mode state — inline first-admin creation form
   const [setupSkipped, setSetupSkipped] = useState(false);
@@ -192,6 +193,19 @@ export const SettingsUsersPanel: React.FC = () => {
   const [setupSaving, setSetupSaving] = useState(false);
 
   const users = data?.findUsers ?? [];
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+
+  const filteredUsers = useMemo(() => {
+    if (!normalizedSearch) {
+      return users;
+    }
+
+    return users.filter((user) => {
+      const username = user.username.toLowerCase();
+      const role = user.role.toLowerCase();
+      return username.includes(normalizedSearch) || role.includes(normalizedSearch);
+    });
+  }, [users, normalizedSearch]);
 
   const handleOpenCreate = () => {
     setEditingUser(null);
@@ -459,28 +473,50 @@ export const SettingsUsersPanel: React.FC = () => {
         </Alert>
       )}
       <SettingSection headingID="users.management" headingDefault="User Management">
-        <Box sx={{ mb: 2, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <Box sx={{ mb: 2, display: "flex", flexDirection: "column", gap: 1.5 }}>
           <Typography variant="body2" color="text.secondary">
             <FormattedMessage
               id="users.description"
               defaultMessage="Manage user accounts and their access levels. Admins have full access, while Viewers have read-only access."
             />
           </Typography>
-          <Box>
-            <Tooltip title={intl.formatMessage({ id: "actions.refresh", defaultMessage: "Refresh" })}>
-              <IconButton onClick={() => refetch()}>
-                <RefreshIcon />
-              </IconButton>
-            </Tooltip>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={handleOpenCreate}
-            >
-              <FormattedMessage id="users.add_user" defaultMessage="Add User" />
-            </Button>
+
+          <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", justifyContent: "space-between", alignItems: "center" }}>
+            <TextField
+              size="small"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={intl.formatMessage({
+                id: "users.search_placeholder",
+                defaultMessage: "Search users by name or role",
+              })}
+              sx={{ minWidth: 260, flex: 1, maxWidth: 420 }}
+            />
+
+            <Box>
+              <Tooltip title={intl.formatMessage({ id: "actions.refresh", defaultMessage: "Refresh" })}>
+                <IconButton onClick={() => refetch()}>
+                  <RefreshIcon />
+                </IconButton>
+              </Tooltip>
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={handleOpenCreate}
+              >
+                <FormattedMessage id="users.add_user" defaultMessage="Add User" />
+              </Button>
+            </Box>
           </Box>
         </Box>
+
+        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1.5 }}>
+          <FormattedMessage
+            id="users.filtered_count"
+            defaultMessage="Showing {shown} of {total} users"
+            values={{ shown: filteredUsers.length, total: users.length }}
+          />
+        </Typography>
 
         <TableContainer component={Paper}>
           <Table>
@@ -504,7 +540,7 @@ export const SettingsUsersPanel: React.FC = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {users.map((user) => (
+              {filteredUsers.map((user) => (
                 <TableRow key={user.id}>
                   <TableCell>
                     {user.username}
@@ -557,11 +593,18 @@ export const SettingsUsersPanel: React.FC = () => {
                   </TableCell>
                 </TableRow>
               ))}
-              {users.length === 0 && (
+              {filteredUsers.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={5} align="center">
                     <Typography color="text.secondary">
-                      <FormattedMessage id="users.no_users" defaultMessage="No users found" />
+                      {users.length === 0 ? (
+                        <FormattedMessage id="users.no_users" defaultMessage="No users found" />
+                      ) : (
+                        <FormattedMessage
+                          id="users.no_matching_users"
+                          defaultMessage="No users match the current search"
+                        />
+                      )}
                     </Typography>
                   </TableCell>
                 </TableRow>

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import * as GQL from "src/core/generated-graphql";
 import { LoadingIndicator } from "src/components/Shared/LoadingIndicator";
 import { SettingSection } from "./SettingSection";
@@ -18,17 +18,38 @@ import {
 } from "./GeneratePreviewOptions";
 import { FormattedMessage, useIntl } from "react-intl";
 import {
+  Alert,
   Box,
   Button,
+  CircularProgress,
   Typography,
 } from "@mui/material";
 import { useToast } from "src/hooks/Toast";
 import { useHistory } from "react-router-dom";
 
+const ResolvedPathHint: React.FC<{ value?: string }> = ({ value }) => {
+  if (!value) return null;
+
+  return (
+    <Box
+      component="span"
+      sx={{
+        display: "block",
+        mt: 0.5,
+        fontFamily: "monospace",
+        wordBreak: "break-all",
+      }}
+    >
+      ↳ {value}
+    </Box>
+  );
+};
+
 export const SettingsConfigurationPanel: React.FC = () => {
   const intl = useIntl();
   const Toast = useToast();
   const history = useHistory();
+  const [downloadingFFMpeg, setDownloadingFFMpeg] = useState(false);
 
   const { general, loading, error, saveGeneral } = useSettings();
   const [mutateDownloadFFMpeg] = GQL.useDownloadFfMpegMutation();
@@ -119,16 +140,19 @@ export const SettingsConfigurationPanel: React.FC = () => {
   }
 
   async function onDownloadFFMpeg() {
+    setDownloadingFFMpeg(true);
     try {
       await mutateDownloadFFMpeg();
       // navigate to tasks page to see the progress
       history.push("/settings?tab=tasks");
     } catch (e) {
       Toast.error(e);
+    } finally {
+      setDownloadingFFMpeg(false);
     }
   }
 
-  if (error) return <h1>{error.message}</h1>;
+  if (error) return <Alert severity="error">{error.message}</Alert>;
   if (loading) return <LoadingIndicator />;
 
   // The general state is ConfigGeneralInput but the data spread includes
@@ -152,11 +176,7 @@ export const SettingsConfigurationPanel: React.FC = () => {
           subHeading={
             <>
               {intl.formatMessage({ id: "config.general.generated_files_location" })}
-              {g.generatedPathAbs && (
-                <Box component="span" sx={{ display: "block", mt: 0.5, fontFamily: "monospace", wordBreak: "break-all" }}>
-                  ↳ {g.generatedPathAbs}
-                </Box>
-              )}
+              <ResolvedPathHint value={g.generatedPathAbs} />
             </>
           }
           value={general.generatedPath ?? undefined}
@@ -169,11 +189,7 @@ export const SettingsConfigurationPanel: React.FC = () => {
           subHeading={
             <>
               {intl.formatMessage({ id: "config.general.cache_location" })}
-              {g.cachePathAbs && (
-                <Box component="span" sx={{ display: "block", mt: 0.5, fontFamily: "monospace", wordBreak: "break-all" }}>
-                  ↳ {g.cachePathAbs}
-                </Box>
-              )}
+              <ResolvedPathHint value={g.cachePathAbs} />
             </>
           }
           value={general.cachePath ?? undefined}
@@ -186,11 +202,7 @@ export const SettingsConfigurationPanel: React.FC = () => {
           subHeading={
             <>
               {intl.formatMessage({ id: "config.general.scrapers_path.description" })}
-              {g.scrapersPathAbs && (
-                <Box component="span" sx={{ display: "block", mt: 0.5, fontFamily: "monospace", wordBreak: "break-all" }}>
-                  ↳ {g.scrapersPathAbs}
-                </Box>
-              )}
+              <ResolvedPathHint value={g.scrapersPathAbs} />
             </>
           }
           value={general.scrapersPath ?? undefined}
@@ -203,11 +215,7 @@ export const SettingsConfigurationPanel: React.FC = () => {
           subHeading={
             <>
               {intl.formatMessage({ id: "config.general.plugins_path.description" })}
-              {g.pluginsPathAbs && (
-                <Box component="span" sx={{ display: "block", mt: 0.5, fontFamily: "monospace", wordBreak: "break-all" }}>
-                  ↳ {g.pluginsPathAbs}
-                </Box>
-              )}
+              <ResolvedPathHint value={g.pluginsPathAbs} />
             </>
           }
           value={general.pluginsPath ?? undefined}
@@ -220,11 +228,7 @@ export const SettingsConfigurationPanel: React.FC = () => {
           subHeading={
             <>
               {intl.formatMessage({ id: "config.general.metadata_path.description" })}
-              {g.metadataPathAbs && (
-                <Box component="span" sx={{ display: "block", mt: 0.5, fontFamily: "monospace", wordBreak: "break-all" }}>
-                  ↳ {g.metadataPathAbs}
-                </Box>
-              )}
+              <ResolvedPathHint value={g.metadataPathAbs} />
             </>
           }
           value={general.metadataPath ?? undefined}
@@ -263,7 +267,14 @@ export const SettingsConfigurationPanel: React.FC = () => {
           }
           subHeadingID="config.general.ffmpeg.download_ffmpeg.description"
         >
-          <Button variant="outlined" onClick={() => onDownloadFFMpeg()}>
+          <Button
+            variant="outlined"
+            onClick={() => onDownloadFFMpeg()}
+            disabled={downloadingFFMpeg}
+            startIcon={
+              downloadingFFMpeg ? <CircularProgress size={16} /> : undefined
+            }
+          >
             <FormattedMessage id="config.general.ffmpeg.download_ffmpeg.heading" />
           </Button>
         </Setting>
@@ -300,11 +311,7 @@ export const SettingsConfigurationPanel: React.FC = () => {
           subHeading={
             <>
               {intl.formatMessage({ id: "config.general.sqlite_location" })}
-              {g.databasePathAbs && (
-                <Box component="span" sx={{ display: "block", mt: 0.5, fontFamily: "monospace", wordBreak: "break-all" }}>
-                  ↳ {g.databasePathAbs}
-                </Box>
-              )}
+              <ResolvedPathHint value={g.databasePathAbs} />
             </>
           }
           value={general.databasePath ?? undefined}

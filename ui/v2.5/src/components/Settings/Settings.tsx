@@ -9,7 +9,6 @@ import {
   Switch,
   Tab,
   Tabs,
-  Typography,
   useMediaQuery,
   useTheme
 } from "@mui/material";
@@ -91,19 +90,22 @@ const SettingTabs: React.FC<{ tab: TabKey }> = ({ tab }) => {
       sx={{
         display: 'flex',
         flexDirection: { xs: 'column', md: 'row' },
-        height: 'calc(100vh - 64px)',
+        minHeight: 'calc(100dvh - 64px)',
       }}
     >
       <Helmet {...titleProps} />
       <Box
+        component="nav"
+        aria-label="Settings sections"
         sx={{
           borderBottom: { xs: 1, md: 0 },
           borderRight: { xs: 0, md: 1 },
           borderColor: 'divider',
+          bgcolor: 'background.paper',
           display: 'flex',
           flexDirection: 'column',
           flexShrink: 0,
-          overflowY: { xs: 'hidden', md: 'auto' },
+          overflow: 'hidden',
           width: { xs: '100%', md: '250px', lg: '300px' },
         }}
       >
@@ -115,9 +117,16 @@ const SettingTabs: React.FC<{ tab: TabKey }> = ({ tab }) => {
           scrollButtons="auto"
           sx={{
             flexGrow: 1,
+            minHeight: 0,
+            '& .MuiTabs-scroller': {
+              overflowY: { md: 'auto !important' },
+            },
             "& .MuiTab-root": {
-              minHeight: '48px',
+              minHeight: { xs: 44, md: 48 },
+              minWidth: { xs: 'auto', md: 72 },
+              px: { xs: 1.5, md: 2 },
               textTransform: 'none',
+              alignItems: { xs: 'center', md: 'flex-start' },
             },
           }}
         >
@@ -222,7 +231,15 @@ const SettingTabs: React.FC<{ tab: TabKey }> = ({ tab }) => {
         </Box>
       </Box>
 
-      <Box sx={{ bgcolor: 'background.default', flexGrow: 1, overflowY: 'auto', p: 3 }}>
+      <Box
+        sx={{
+          bgcolor: 'background.default',
+          flexGrow: 1,
+          overflowY: 'auto',
+          p: { xs: 2, md: 3 },
+          pb: { xs: 4, md: 3 },
+        }}
+      >
         <Container maxWidth="xl" sx={{ p: 0 }}>
           {renderContent()}
         </Container>

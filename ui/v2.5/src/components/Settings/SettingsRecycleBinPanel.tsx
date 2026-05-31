@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   Box,
@@ -33,20 +33,57 @@ import { SettingSection } from "./SettingSection";
 
 const PAGE_SIZE = 50;
 
-const ENTITY_TYPE_LABELS: Record<string, string> = {
-  tag: "Tag",
-  performer: "Performer",
-  studio: "Studio",
-  gallery: "Gallery",
-  image: "Image",
-  group: "Group",
-  scene_marker: "Scene Marker",
+const ENTITY_TYPE_I18N_KEYS: Record<string, string> = {
+  tag: "tag",
+  performer: "performer",
+  studio: "studio",
+  gallery: "gallery",
+  image: "image",
+  group: "group",
+  scene_marker: "marker",
 };
 
 const ACTION_COLORS: Record<string, "error" | "success" | "default"> = {
   deleted: "error",
   restored: "success",
   purged: "default",
+};
+
+interface IPaginationControls {
+  currentPage: number;
+  totalPages: number;
+  canPrevious: boolean;
+  canNext: boolean;
+  onPrevious: () => void;
+  onNext: () => void;
+}
+
+const PaginationControls: React.FC<IPaginationControls> = ({
+  currentPage,
+  totalPages,
+  canPrevious,
+  canNext,
+  onPrevious,
+  onNext,
+}) => {
+  if (totalPages <= 1) return null;
+
+  return (
+    <Box sx={{ display: "flex", justifyContent: "center", gap: 2, mt: 2 }}>
+      <Button variant="outlined" size="small" disabled={!canPrevious} onClick={onPrevious}>
+        <FormattedMessage id="pagination.previous" />
+      </Button>
+      <Typography variant="body2" sx={{ alignSelf: "center" }}>
+        <FormattedMessage
+          id="pagination.current_total"
+          values={{ current: currentPage, total: totalPages }}
+        />
+      </Typography>
+      <Button variant="outlined" size="small" disabled={!canNext} onClick={onNext}>
+        <FormattedMessage id="pagination.next" />
+      </Button>
+    </Box>
+  );
 };
 
 // ── Recycle Bin tab ───────────────────────────────────────────────────────────
@@ -76,6 +113,12 @@ const RecycleBinTab: React.FC = () => {
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
   const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
   const busy = restoring || purging || purgingAll;
+
+  useEffect(() => {
+    if (offset > 0 && totalCount > 0 && offset >= totalCount) {
+      setOffset(Math.floor((totalCount - 1) / PAGE_SIZE) * PAGE_SIZE);
+    }
+  }, [offset, totalCount]);
 
   const handleRestore = async (id: string) => {
     try {
@@ -190,7 +233,10 @@ const RecycleBinTab: React.FC = () => {
                     <TableCell>
                       <Chip
                         label={
-                          ENTITY_TYPE_LABELS[entry.entityType] ??
+                          intl.formatMessage({
+                            id: ENTITY_TYPE_I18N_KEYS[entry.entityType] ?? entry.entityType,
+                            defaultMessage: entry.entityType,
+                          }) ??
                           entry.entityType
                         }
                         size="small"
@@ -243,32 +289,14 @@ const RecycleBinTab: React.FC = () => {
             </Table>
           </TableContainer>
 
-          {totalPages > 1 && (
-            <Box sx={{ display: "flex", justifyContent: "center", gap: 2, mt: 2 }}>
-              <Button
-                variant="outlined"
-                size="small"
-                disabled={offset === 0 || busy}
-                onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
-              >
-                <FormattedMessage id="pagination.previous" />
-              </Button>
-              <Typography variant="body2" sx={{ alignSelf: "center" }}>
-                <FormattedMessage
-                  id="pagination.page_of"
-                  values={{ page: currentPage, total: totalPages }}
-                />
-              </Typography>
-              <Button
-                variant="outlined"
-                size="small"
-                disabled={currentPage >= totalPages || busy}
-                onClick={() => setOffset(offset + PAGE_SIZE)}
-              >
-                <FormattedMessage id="pagination.next" />
-              </Button>
-            </Box>
-          )}
+          <PaginationControls
+            currentPage={currentPage}
+            totalPages={totalPages}
+            canPrevious={offset > 0 && !busy}
+            canNext={currentPage < totalPages && !busy}
+            onPrevious={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
+            onNext={() => setOffset(offset + PAGE_SIZE)}
+          />
         </>
       )}
 
@@ -316,6 +344,12 @@ const HistoryTab: React.FC = () => {
   const totalCount = countData?.recycleBinHistoryCount ?? 0;
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
   const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
+
+  useEffect(() => {
+    if (offset > 0 && totalCount > 0 && offset >= totalCount) {
+      setOffset(Math.floor((totalCount - 1) / PAGE_SIZE) * PAGE_SIZE);
+    }
+  }, [offset, totalCount]);
 
   const formatDate = (isoString: string) => {
     try {
@@ -389,7 +423,10 @@ const HistoryTab: React.FC = () => {
                     <TableCell>
                       <Chip
                         label={
-                          ENTITY_TYPE_LABELS[entry.entityType] ??
+                          intl.formatMessage({
+                            id: ENTITY_TYPE_I18N_KEYS[entry.entityType] ?? entry.entityType,
+                            defaultMessage: entry.entityType,
+                          }) ??
                           entry.entityType
                         }
                         size="small"
@@ -419,32 +456,14 @@ const HistoryTab: React.FC = () => {
             </Table>
           </TableContainer>
 
-          {totalPages > 1 && (
-            <Box sx={{ display: "flex", justifyContent: "center", gap: 2, mt: 2 }}>
-              <Button
-                variant="outlined"
-                size="small"
-                disabled={offset === 0}
-                onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
-              >
-                <FormattedMessage id="pagination.previous" />
-              </Button>
-              <Typography variant="body2" sx={{ alignSelf: "center" }}>
-                <FormattedMessage
-                  id="pagination.page_of"
-                  values={{ page: currentPage, total: totalPages }}
-                />
-              </Typography>
-              <Button
-                variant="outlined"
-                size="small"
-                disabled={currentPage >= totalPages}
-                onClick={() => setOffset(offset + PAGE_SIZE)}
-              >
-                <FormattedMessage id="pagination.next" />
-              </Button>
-            </Box>
-          )}
+          <PaginationControls
+            currentPage={currentPage}
+            totalPages={totalPages}
+            canPrevious={offset > 0}
+            canNext={currentPage < totalPages}
+            onPrevious={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
+            onNext={() => setOffset(offset + PAGE_SIZE)}
+          />
         </>
       )}
     </>

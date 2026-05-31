@@ -330,6 +330,7 @@
         "log_file_max_size_desc": "Maximum size in megabytes of the log file before it is compressed. 0MB is disabled. Requires restart.",
         "maximum_session_age": "Maximum Session Age",
         "maximum_session_age_desc": "Maximum idle time before a login session is expired, in seconds. Requires restart.",
+        "managed_by_users": "Authentication is managed through user accounts. Use the Users tab to create accounts and control access to this server.",
         "password": "Password",
         "password_desc": "Password to access Vexxx. Leave blank to disable user authentication",
         "stash-box_integration": "Stash-box integration",
@@ -1163,13 +1164,23 @@
   "distance": "Distance",
   "donate": "Donate",
   "dupe_check": {
+    "codec_mismatch": "Codecs differ in this group. Safe select is disabled.",
     "description": "Levels below 'Exact' can take longer to calculate. False positives might also be returned on lower accuracy levels.",
     "duration_diff": "Maximum Duration Difference",
     "duration_options": {
       "any": "Any",
       "equal": "Equal"
     },
+    "filtered_set_hint": "Showing {visible} of {total} groups (exact duration only)",
     "found_sets": "{setCount, plural, one{# set of duplicates found.} other {# sets of duplicates found.}}",
+    "group_label": "Group {index}",
+    "group_scene_count": "{count, plural, one {# scene} other {# scenes}}",
+    "keep_highest_resolution": "Keep highest resolution",
+    "keep_largest_file": "Keep largest file",
+    "keep_oldest": "Keep oldest",
+    "clear_group_selection": "Clear group",
+    "no_duplicates": "No duplicates found.",
+    "only_show_exact_duration_matches": "Only show duplicate groups where durations exactly match",
     "only_select_matching_codecs": "Only select if all codecs match in the duplicate group",
     "options": {
       "exact": "Exact",

@@ -1,4 +1,5 @@
 import React from "react";
+import { Alert } from "@mui/material";
 import { useIntl } from "react-intl";
 import { faQuestionCircle } from "@fortawesome/free-solid-svg-icons";
 import { useSettings } from "../context";
@@ -35,7 +36,7 @@ export const LibrarySettings: React.FC<IProps> = ({ modalProps }) => {
         }
     }
 
-    if (error) return <h1>{error.message}</h1>;
+    if (error) return <Alert severity="error">{error.message}</Alert>;
     if (loading) return <LoadingIndicator />;
 
     return (
@@ -98,7 +99,7 @@ export const LibrarySettings: React.FC<IProps> = ({ modalProps }) => {
                     }
                     value={general.excludes ?? undefined}
                     onChange={(v) => saveGeneral({ excludes: v })}
-                    defaultNewValue="sample\.mp4$"
+                    defaultNewValue="sample\\.mp4$"
                     modalProps={modalProps}
                 />
 
@@ -117,7 +118,7 @@ export const LibrarySettings: React.FC<IProps> = ({ modalProps }) => {
                     }
                     value={general.imageExcludes ?? undefined}
                     onChange={(v) => saveGeneral({ imageExcludes: v })}
-                    defaultNewValue="sample\.jpg$"
+                    defaultNewValue="sample\\.jpg$"
                     modalProps={modalProps}
                 />
             </SettingSection>

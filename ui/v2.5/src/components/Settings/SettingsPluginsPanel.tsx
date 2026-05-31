@@ -1,5 +1,5 @@
-import React from "react";
-import { Button } from "@mui/material";
+import React, { useState } from "react";
+import { Button, CircularProgress } from "@mui/material";
 import { FormattedMessage } from "react-intl";
 import {
   mutateReloadPlugins,
@@ -22,12 +22,16 @@ export const SettingsPluginsPanel: React.FC = () => {
   const Toast = useToast();
   const { loading: configLoading } = useSettings();
   const { loading } = usePlugins();
+  const [reloading, setReloading] = useState(false);
 
   async function onReloadPlugins() {
+    setReloading(true);
     try {
       await mutateReloadPlugins();
     } catch (e) {
       Toast.error(e);
+    } finally {
+      setReloading(false);
     }
   }
 
@@ -40,13 +44,13 @@ export const SettingsPluginsPanel: React.FC = () => {
 
       <SettingSection headingID="config.categories.plugins">
         <Setting headingID="actions.reload_plugins">
-          <Button onClick={() => onReloadPlugins()} variant="contained">
-            <span className="fa-icon">
-              <Icon icon={faSyncAlt} />
-            </span>
-            <span>
-              <FormattedMessage id="actions.reload_plugins" />
-            </span>
+          <Button
+            onClick={() => onReloadPlugins()}
+            variant="contained"
+            disabled={reloading}
+            startIcon={reloading ? <CircularProgress size={16} /> : <Icon icon={faSyncAlt} />}
+          >
+            <FormattedMessage id="actions.reload_plugins" />
           </Button>
         </Setting>
         <PluginList />

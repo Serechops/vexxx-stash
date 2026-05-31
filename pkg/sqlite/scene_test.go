@@ -4544,6 +4544,96 @@ func TestSceneStore_FindDuplicates(t *testing.T) {
 	})
 }
 
+func TestSceneStore_FindDuplicates_SceneBridgeIsSingleGroup(t *testing.T) {
+	runWithRollbackTxn(t, "bridge scene consolidates groups", func(t *testing.T, ctx context.Context) {
+		createSceneWithPhashes := func(name string, phashes []int64, duration float64) (int, error) {
+			fileIDs := make([]models.FileID, 0, len(phashes))
+			for i, phash := range phashes {
+				basename := fmt.Sprintf("%s_%d.mp4", name, i)
+				vf := &models.VideoFile{
+					BaseFile: &models.BaseFile{
+						Path:           getFilePath(folderIdxWithSceneFiles, basename),
+						Basename:       basename,
+						ParentFolderID: folderIDs[folderIdxWithSceneFiles],
+						Fingerprints: []models.Fingerprint{
+							{Type: models.FingerprintTypeMD5, Fingerprint: fmt.Sprintf("%s-md5-%d", name, i)},
+							{Type: models.FingerprintTypeOshash, Fingerprint: fmt.Sprintf("%s-oshash-%d", name, i)},
+							{Type: models.FingerprintTypePhash, Fingerprint: phash},
+						},
+					},
+					Duration: duration,
+					Width:    1920,
+					Height:   1080,
+				}
+
+				if err := db.File.Create(ctx, vf); err != nil {
+					return 0, err
+				}
+				fileIDs = append(fileIDs, vf.ID)
+			}
+
+			scene := &models.Scene{Title: name}
+			if err := db.Scene.Create(ctx, scene, fileIDs); err != nil {
+				return 0, err
+			}
+
+			return scene.ID, nil
+		}
+
+		const (
+			leftPhash  int64 = 900000001
+			rightPhash int64 = 900000002
+		)
+
+		bridgeSceneID, err := createSceneWithPhashes("bridge-scene", []int64{leftPhash, rightPhash}, 100)
+		assert.NoError(t, err)
+
+		leftSceneID, err := createSceneWithPhashes("left-scene", []int64{leftPhash}, 100)
+		assert.NoError(t, err)
+
+		rightSceneID, err := createSceneWithPhashes("right-scene", []int64{rightPhash}, 100)
+		assert.NoError(t, err)
+
+		assertBridgeGroupedOnce := func(groups [][]*models.Scene, mode string) {
+			countsByScene := make(map[int]int)
+			for _, group := range groups {
+				for _, scene := range group {
+					countsByScene[scene.ID]++
+				}
+			}
+
+			assert.Equal(t, 1, countsByScene[bridgeSceneID], "%s: bridge scene should only appear in one duplicate group", mode)
+			assert.Equal(t, 1, countsByScene[leftSceneID], "%s: left scene should only appear in one duplicate group", mode)
+			assert.Equal(t, 1, countsByScene[rightSceneID], "%s: right scene should only appear in one duplicate group", mode)
+
+			var bridgeGroupIDs []int
+			for _, group := range groups {
+				for _, scene := range group {
+					if scene.ID == bridgeSceneID {
+						for _, s := range group {
+							bridgeGroupIDs = append(bridgeGroupIDs, s.ID)
+						}
+						break
+					}
+				}
+				if len(bridgeGroupIDs) > 0 {
+					break
+				}
+			}
+
+			assert.ElementsMatch(t, []int{bridgeSceneID, leftSceneID, rightSceneID}, bridgeGroupIDs, "%s: bridge group should contain all linked scenes", mode)
+		}
+
+		exactGroups, err := db.Scene.FindDuplicates(ctx, 0, -1)
+		assert.NoError(t, err)
+		assertBridgeGroupedOnce(exactGroups, "exact")
+
+		nearExactGroups, err := db.Scene.FindDuplicates(ctx, 1, -1)
+		assert.NoError(t, err)
+		assertBridgeGroupedOnce(nearExactGroups, "near-exact")
+	})
+}
+
 func TestSceneStore_AssignFiles(t *testing.T) {
 	tests := []struct {
 		name    string

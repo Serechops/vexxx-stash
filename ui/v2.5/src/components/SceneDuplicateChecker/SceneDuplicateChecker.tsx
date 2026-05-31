@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { FormattedMessage, FormattedNumber, useIntl } from "react-intl";
 import { Link, useHistory } from "react-router-dom";
 import {
+  Alert,
   Button,
   Table,
   TableBody,
@@ -21,6 +22,8 @@ import {
   InputLabel,
   ButtonGroup,
   Tooltip,
+  Stack,
+  Chip,
 } from "@mui/material";
 import { Pagination } from "@mui/material";
 import * as GQL from "src/core/generated-graphql";
@@ -129,13 +132,30 @@ const SceneDuplicateChecker: React.FC = () => {
   const [mergeScenes, setMergeScenes] =
     useState<{ id: string; title: string }[]>();
 
+  const hasExactDurationMatch = (group: GQL.SlimSceneDataFragment[]) => {
+    const durations = group
+      .map((scene) => scene.files[0]?.duration)
+      .filter((duration): duration is number => duration !== null && duration !== undefined);
+
+    return durations.length > 1 && new Set(durations).size === 1;
+  };
+
+  const visibleScenes = useMemo(() => {
+    if (!chkSameDuration) return scenes;
+    return scenes.filter((group) => hasExactDurationMatch(group));
+  }, [chkSameDuration, scenes]);
+
   const pageOptions = useMemo(() => {
     const pageSizes = [
       10, 20, 30, 40, 50, 100, 150, 200, 250, 500, 750, 1000, 1250, 1500,
     ];
 
     const filteredSizes = pageSizes.filter((s, i) => {
-      return scenes.length > s || i == 0 || scenes.length > pageSizes[i - 1];
+      return (
+        visibleScenes.length > s ||
+        i === 0 ||
+        visibleScenes.length > pageSizes[i - 1]
+      );
     });
 
     return filteredSizes.map((size) => {
@@ -145,18 +165,7 @@ const SceneDuplicateChecker: React.FC = () => {
         </MenuItem>
       );
     });
-  }, [scenes.length]);
-
-  if (loading) return <LoadingIndicator />;
-  if (!data) return <ErrorMessage error="Error searching for duplicates." />;
-
-  const filteredScenes = scenes.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize
-  );
-  const checkCount = Object.keys(checkedScenes).filter(
-    (id) => checkedScenes[id]
-  ).length;
+  }, [visibleScenes.length]);
 
   const setQuery = (q: Record<string, string | number | undefined>) => {
     const newQuery = new URLSearchParams(query);
@@ -171,14 +180,29 @@ const SceneDuplicateChecker: React.FC = () => {
     history.push({ search: newQuery.toString() });
   };
 
+  useEffect(() => {
+    if (loading || !data) return;
+
+    const totalPages = Math.max(1, Math.ceil(visibleScenes.length / pageSize));
+    if (currentPage > totalPages) {
+      setQuery({ page: totalPages === 1 ? undefined : totalPages });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, data, currentPage, pageSize, visibleScenes.length]);
+
+  if (loading) return <LoadingIndicator />;
+  if (!data) return <ErrorMessage error="Error searching for duplicates." />;
+
+  const filteredScenes = visibleScenes.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
+  const checkCount = Object.keys(checkedScenes).filter(
+    (id) => checkedScenes[id]
+  ).length;
+
   const resetCheckboxSelection = () => {
-    const updatedScenes: Record<string, boolean> = {};
-
-    Object.keys(checkedScenes).forEach((sceneKey) => {
-      updatedScenes[sceneKey] = false;
-    });
-
-    setCheckedScenes(updatedScenes);
+    setCheckedScenes({});
   };
 
   function onDeleteDialogClosed(deleted: boolean) {
@@ -344,6 +368,19 @@ const SceneDuplicateChecker: React.FC = () => {
     setSelectedScenes(scenes.flat().filter((s) => checkedScenes[s.id]));
     setDeletingScenes(true);
     setIsMultiDelete(true);
+  };
+
+  const applyGroupSelection = (
+    group: GQL.SlimSceneDataFragment[],
+    keepScene?: GQL.SlimSceneDataFragment
+  ) => {
+    setCheckedScenes((previous) => {
+      const next = { ...previous };
+      group.forEach((scene) => {
+        next[scene.id] = keepScene ? scene.id !== keepScene.id : false;
+      });
+      return next;
+    });
   };
 
   const handleDeleteScene = (scene: GQL.SlimSceneDataFragment) => {
@@ -554,15 +591,45 @@ const SceneDuplicateChecker: React.FC = () => {
     }
   }
 
-  function renderPagination() {
+  function renderPagination(sticky = false) {
+    const totalPages = Math.max(1, Math.ceil(visibleScenes.length / currentPageSize));
+    const normalizedPage = Math.min(currentPage, totalPages);
+
     return (
-      <Box display="flex" mt={2} mb={2} alignItems="center">
+      <Box
+        display="flex"
+        mt={2}
+        mb={2}
+        alignItems="center"
+        sx={
+          sticky
+            ? {
+                position: "sticky",
+                top: 0,
+                zIndex: 2,
+                py: 1,
+                px: 1,
+                bgcolor: "background.paper",
+                borderBottom: 1,
+                borderColor: "divider",
+              }
+            : undefined
+        }
+      >
         <Typography variant="h6" className="mr-auto">
           <FormattedMessage
             id="dupe_check.found_sets"
-            values={{ setCount: scenes.length }}
+            values={{ setCount: visibleScenes.length }}
           />
         </Typography>
+        {chkSameDuration && visibleScenes.length !== scenes.length && (
+          <Typography variant="body2" color="text.secondary" mr={2}>
+            <FormattedMessage
+              id="dupe_check.filtered_set_hint"
+              values={{ visible: visibleScenes.length, total: scenes.length }}
+            />
+          </Typography>
+        )}
         {checkCount > 0 && (
           <ButtonGroup>
             <Tooltip title={intl.formatMessage({ id: "actions.edit" })}>
@@ -579,8 +646,8 @@ const SceneDuplicateChecker: React.FC = () => {
         )}
         <Box ml={2}>
           <Pagination
-            count={Math.ceil(scenes.length / currentPageSize)}
-            page={currentPage}
+            count={totalPages}
+            page={normalizedPage}
             onChange={(e, newPage) => {
               setQuery({ page: newPage === 1 ? undefined : newPage });
               resetCheckboxSelection();
@@ -598,6 +665,7 @@ const SceneDuplicateChecker: React.FC = () => {
                   newVal === 20
                     ? undefined
                     : newVal,
+                page: undefined,
               });
               resetCheckboxSelection();
             }}
@@ -742,11 +810,11 @@ const SceneDuplicateChecker: React.FC = () => {
 
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={2} flexWrap="wrap" gap={2}>
           <Box display="flex" alignItems="center" gap={2}>
-            {Object.keys(checkedScenes).length > 0 && (
+            {checkCount > 0 && (
               <Typography variant="body2">
                 <FormattedMessage
                   id="selected_count"
-                  values={{ count: Object.keys(checkedScenes).length }}
+                  values={{ count: checkCount }}
                 />
               </Typography>
             )}
@@ -754,20 +822,20 @@ const SceneDuplicateChecker: React.FC = () => {
               variant="outlined"
               color="inherit"
               onClick={resetCheckboxSelection}
-              disabled={Object.keys(checkedScenes).length === 0}
+              disabled={checkCount === 0}
               size="small"
             >
-              <FormattedMessage id="actions.deselect_all" />
+              <FormattedMessage id="actions.clear_selection" />
             </Button>
             <Button
               variant="contained"
               color="error"
               onClick={handleDeleteSelected}
-              disabled={Object.keys(checkedScenes).length === 0}
+              disabled={checkCount === 0}
               size="small"
               startIcon={<Icon icon={faTrash} />}
             >
-              <FormattedMessage id="actions.delete_selected" />
+              <FormattedMessage id="actions.delete" />
             </Button>
           </Box>
         </Box>
@@ -848,7 +916,7 @@ const SceneDuplicateChecker: React.FC = () => {
         </Box>
 
         {maybeRenderMissingPhashWarning()}
-        {renderPagination()}
+        {renderPagination(true)}
 
         <TableContainer component={Paper} variant="outlined" sx={{ mt: 2, mb: 2 }}>
           <Table size="small">
@@ -870,13 +938,84 @@ const SceneDuplicateChecker: React.FC = () => {
               {filteredScenes.map((group, groupIndex) =>
                 group.map((scene, i) => {
                   const file = scene.files.length > 0 ? scene.files[0] : undefined;
-                  const isGroupStart = i === 0 && groupIndex !== 0;
+                  const groupHasMatchingCodec = checkSameCodec(group);
+                  const groupLabel = intl.formatMessage(
+                    { id: "dupe_check.group_label" },
+                    { index: (currentPage - 1) * pageSize + groupIndex + 1 }
+                  );
 
                   return (
                     <React.Fragment key={scene.id}>
-                      {isGroupStart && (
+                      {i === 0 && (
                         <TableRow>
-                          <TableCell colSpan={10} sx={{ height: 20, bgcolor: 'action.hover', border: 0 }} />
+                          <TableCell colSpan={10} sx={{ bgcolor: "action.hover" }}>
+                            <Stack
+                              direction={{ xs: "column", md: "row" }}
+                              spacing={1}
+                              alignItems={{ xs: "flex-start", md: "center" }}
+                              justifyContent="space-between"
+                            >
+                              <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                                <Typography variant="subtitle2">{groupLabel}</Typography>
+                                <Chip
+                                  size="small"
+                                  label={intl.formatMessage(
+                                    { id: "dupe_check.group_scene_count" },
+                                    { count: group.length }
+                                  )}
+                                />
+                                <Chip
+                                  size="small"
+                                  label={
+                                    <>
+                                      <FormattedMessage id="filesize" />: <FileSize size={getGroupTotalSize(group)} />
+                                    </>
+                                  }
+                                />
+                                {!groupHasMatchingCodec && chkSafeSelect && (
+                                  <Typography variant="caption" color="warning.main">
+                                    <FormattedMessage id="dupe_check.codec_mismatch" />
+                                  </Typography>
+                                )}
+                              </Stack>
+                              <Stack direction="row" spacing={1} flexWrap="wrap">
+                                <Button
+                                  size="small"
+                                  variant="outlined"
+                                  disabled={chkSafeSelect && !groupHasMatchingCodec}
+                                  onClick={() => applyGroupSelection(group, findLargestScene(group))}
+                                >
+                                  <FormattedMessage id="dupe_check.keep_largest_file" />
+                                </Button>
+                                <Button
+                                  size="small"
+                                  variant="outlined"
+                                  disabled={chkSafeSelect && !groupHasMatchingCodec}
+                                  onClick={() => applyGroupSelection(group, findLargestResolutionScene(group))}
+                                >
+                                  <FormattedMessage id="dupe_check.keep_highest_resolution" />
+                                </Button>
+                                <Button
+                                  size="small"
+                                  variant="outlined"
+                                  disabled={chkSafeSelect && !groupHasMatchingCodec}
+                                  onClick={() => {
+                                    const keepScene = findFirstFileByAge(true, group);
+                                    applyGroupSelection(group, keepScene);
+                                  }}
+                                >
+                                  <FormattedMessage id="dupe_check.keep_oldest" />
+                                </Button>
+                                <Button
+                                  size="small"
+                                  variant="text"
+                                  onClick={() => applyGroupSelection(group)}
+                                >
+                                  <FormattedMessage id="dupe_check.clear_group_selection" />
+                                </Button>
+                              </Stack>
+                            </Stack>
+                          </TableCell>
                         </TableRow>
                       )}
                       <TableRow
@@ -972,9 +1111,9 @@ const SceneDuplicateChecker: React.FC = () => {
           </Table>
         </TableContainer>
 
-        {scenes.length === 0 && (
+        {visibleScenes.length === 0 && (
           <Typography variant="h6" align="center" sx={{ mt: 4, color: 'text.secondary' }}>
-            No duplicates found.
+            <FormattedMessage id="dupe_check.no_duplicates" />
           </Typography>
         )}
         {renderPagination()}

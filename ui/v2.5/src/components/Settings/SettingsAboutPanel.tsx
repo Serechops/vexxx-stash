@@ -1,5 +1,5 @@
 import React from "react";
-import { Button } from "@mui/material";
+import { Alert, Box, Button, Stack, Typography } from "@mui/material";
 import { useIntl } from "react-intl";
 import { useLatestVersion, useVersion } from "src/core/StashService";
 import { ExternalLink } from "../Shared/ExternalLink";
@@ -17,7 +17,6 @@ export const SettingsAboutPanel: React.FC = () => {
     data: dataLatest,
     error: errorLatest,
     loading: loadingLatest,
-    refetch,
     networkStatus,
   } = useLatestVersion();
   const { data: dataVersion } = useVersion();
@@ -27,13 +26,7 @@ export const SettingsAboutPanel: React.FC = () => {
 
   function renderLatestVersion() {
     if (errorLatest) {
-      return (
-        <SettingGroup
-          settingProps={{
-            heading: errorLatest.message,
-          }}
-        />
-      );
+      return <Alert severity="error">{errorLatest.message}</Alert>;
     } else if (!dataLatest || loadingLatest || networkStatus === 4) {
       return (
         <SettingGroup
@@ -75,21 +68,18 @@ export const SettingsAboutPanel: React.FC = () => {
             heading,
           }}
         >
-          <div className="setting">
-
-            <div>
-              <Button
-                href="https://www.patreon.com/c/Creat1veB1te"
-                variant="contained"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {intl.formatMessage({
-                  id: "config.about.check_for_new_version",
-                })}
-              </Button>
-            </div>
-          </div>
+          <Box sx={{ pb: 2 }}>
+            <Button
+              href="https://www.patreon.com/c/Creat1veB1te"
+              variant="contained"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {intl.formatMessage({
+                id: "config.about.check_for_new_version",
+              })}
+            </Button>
+          </Box>
           <ConstantSetting
             headingID="config.about.release_date"
             value={dataLatest.latestversion.release_date || (stashVersion === latestVersionString ? buildTime : "")}
@@ -137,9 +127,8 @@ export const SettingsAboutPanel: React.FC = () => {
       </SettingSection>
 
       <SettingSection headingID="config.categories.about">
-        <div className="setting">
-          <div>
-            <p>
+        <Stack spacing={1.5}>
+          <Typography component="p" sx={{ m: 0 }}>
               {intl.formatMessage(
                 { id: "config.about.stash_home" },
                 {
@@ -150,8 +139,8 @@ export const SettingsAboutPanel: React.FC = () => {
                   ),
                 }
               )}
-            </p>
-            <p>
+          </Typography>
+          <Typography component="p" sx={{ m: 0 }}>
               {intl.formatMessage(
                 { id: "config.about.stash_wiki" },
                 {
@@ -162,8 +151,8 @@ export const SettingsAboutPanel: React.FC = () => {
                   ),
                 }
               )}
-            </p>
-            <p>
+          </Typography>
+          <Typography component="p" sx={{ m: 0 }}>
               {intl.formatMessage(
                 { id: "config.about.stash_discord" },
                 {
@@ -174,8 +163,8 @@ export const SettingsAboutPanel: React.FC = () => {
                   ),
                 }
               )}
-            </p>
-            <p>
+          </Typography>
+          <Typography component="p" sx={{ m: 0 }}>
               {intl.formatMessage(
                 { id: "config.about.stash_open_collective" },
                 {
@@ -186,10 +175,8 @@ export const SettingsAboutPanel: React.FC = () => {
                   ),
                 }
               )}
-            </p>
-          </div>
-          <div />
-        </div>
+          </Typography>
+        </Stack>
       </SettingSection>
     </>
   );

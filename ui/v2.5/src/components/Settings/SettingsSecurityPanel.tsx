@@ -9,7 +9,7 @@ import { LoadingIndicator } from "../Shared/LoadingIndicator";
 export const SettingsSecurityPanel: React.FC = () => {
   const { general, loading, error, saveGeneral } = useSettings();
 
-  if (error) return <h1>{error.message}</h1>;
+  if (error) return <Alert severity="error">{error.message}</Alert>;
   if (loading) return <LoadingIndicator />;
 
   return (

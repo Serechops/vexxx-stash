@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/corona10/goimagehash"
@@ -19,7 +18,6 @@ import (
 	"gopkg.in/guregu/null.v4/zero"
 
 	"github.com/stashapp/stash/pkg/models"
-	"github.com/stashapp/stash/pkg/sliceutil"
 	"github.com/stashapp/stash/pkg/utils"
 )
 
@@ -1706,46 +1704,24 @@ func (qb *SceneStore) GetStashIDs(ctx context.Context, sceneID int) ([]models.St
 }
 
 func (qb *SceneStore) FindDuplicates(ctx context.Context, distance int, durationDiff float64) ([][]*models.Scene, error) {
-	var dupeIds [][]int
-	if distance == 0 {
-		var ids []string
-		if err := dbWrapper.Select(ctx, &ids, findExactDuplicateQuery, durationDiff); err != nil {
-			return nil, err
+	var hashes []*utils.Phash
+
+	if err := sceneRepository.queryFunc(ctx, findAllPhashesQuery, nil, false, func(rows *sqlx.Rows) error {
+		phash := utils.Phash{
+			Bucket:   -1,
+			Duration: -1,
+		}
+		if err := rows.StructScan(&phash); err != nil {
+			return err
 		}
 
-		for _, id := range ids {
-			strIds := strings.Split(id, ",")
-			var sceneIds []int
-			for _, strId := range strIds {
-				if intId, err := strconv.Atoi(strId); err == nil {
-					sceneIds = sliceutil.AppendUnique(sceneIds, intId)
-				}
-			}
-			// filter out
-			if len(sceneIds) > 1 {
-				dupeIds = append(dupeIds, sceneIds)
-			}
-		}
-	} else {
-		var hashes []*utils.Phash
-
-		if err := sceneRepository.queryFunc(ctx, findAllPhashesQuery, nil, false, func(rows *sqlx.Rows) error {
-			phash := utils.Phash{
-				Bucket:   -1,
-				Duration: -1,
-			}
-			if err := rows.StructScan(&phash); err != nil {
-				return err
-			}
-
-			hashes = append(hashes, &phash)
-			return nil
-		}); err != nil {
-			return nil, err
-		}
-
-		dupeIds = utils.FindDuplicates(hashes, distance, durationDiff)
+		hashes = append(hashes, &phash)
+		return nil
+	}); err != nil {
+		return nil, err
 	}
+
+	dupeIds := utils.FindDuplicates(hashes, distance, durationDiff)
 
 	var duplicates [][]*models.Scene
 	for _, sceneIds := range dupeIds {

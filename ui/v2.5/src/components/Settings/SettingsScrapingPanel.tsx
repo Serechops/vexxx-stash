@@ -125,8 +125,12 @@ interface IURLList {
 const URLList: React.FC<IURLList> = ({ urls }) => {
   const items = useMemo(() => {
     function linkSite(url: string) {
-      const u = new URL(url);
-      return `${u.protocol}//${u.host}`;
+      try {
+        const u = new URL(url);
+        return `${u.protocol}//${u.host}`;
+      } catch {
+        return url;
+      }
     }
 
     return urls
@@ -232,6 +236,16 @@ const ScrapersSection: React.FC = () => {
     filter,
   ]);
 
+  const filteredCount = useMemo(
+    () =>
+      (filteredScrapers.performers?.length ?? 0) +
+      (filteredScrapers.scenes?.length ?? 0) +
+      (filteredScrapers.galleries?.length ?? 0) +
+      (filteredScrapers.images?.length ?? 0) +
+      (filteredScrapers.groups?.length ?? 0),
+    [filteredScrapers]
+  );
+
   async function onReloadScrapers() {
     try {
       await mutateReloadScrapers();
@@ -255,9 +269,11 @@ const ScrapersSection: React.FC = () => {
 
   return (
     <SettingSection headingID="config.scraping.scrapers">
-      <div className="content scraper-toolbar">
+      <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mb: 2 }}>
         <ClearableInput
-          placeholder={`${intl.formatMessage({ id: "filter" })}...`}
+          placeholder={intl.formatMessage({
+            id: "config.scraping.search_by_name",
+          })}
           value={filter}
           setValue={(v) => setFilter(v)}
         />
@@ -270,9 +286,15 @@ const ScrapersSection: React.FC = () => {
             <FormattedMessage id="actions.reload_scrapers" />
           </span>
         </Button>
-      </div>
+      </Stack>
 
-      <div className="content">
+      {!loadingScenes && filteredCount === 0 && (
+        <Box sx={{ py: 1 }}>
+          <FormattedMessage id="no_results" defaultMessage="No results found" />
+        </Box>
+      )}
+
+      <Box>
         {!!filteredScrapers.scenes?.length && (
           <ScraperTable
             entityType="scene"
@@ -357,7 +379,7 @@ const ScrapersSection: React.FC = () => {
             ))}
           </ScraperTable>
         )}
-      </div>
+      </Box>
     </SettingSection>
   );
 };

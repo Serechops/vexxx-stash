@@ -1060,6 +1060,17 @@ func (qb *ImageStore) queryGroupedFields(ctx context.Context, options models.Ima
 		return models.NewImageQueryResult(qb), nil
 	}
 
+	if options.Count && !options.Megapixels && !options.TotalSize {
+		if count, ok, err := qb.fastParentFolderCount(ctx, options); err != nil {
+			logger.Warnf("FAST PATH parent-folder count failed, falling back: %v", err)
+		} else if ok {
+			logger.Infof("FAST PATH: Using parent-folder image count: %d", count)
+			ret := models.NewImageQueryResult(qb)
+			ret.Count = count
+			return ret, nil
+		}
+	}
+
 	// Fast path: If only count is requested and no filter is applied, use cached count
 	isUnfiltered := qb.isUnfilteredQuery(options)
 	logger.Debugf("queryGroupedFields: isUnfiltered=%v, stats=%v", isUnfiltered, qb.stats != nil)
@@ -1137,6 +1148,92 @@ func (qb *ImageStore) queryGroupedFields(ctx context.Context, options models.Ima
 	ret.Megapixels = out.Megapixels.Float64
 	ret.TotalSize = out.Size.Float64
 	return ret, nil
+}
+
+func hasOnlyParentFolderImageFilter(f *models.ImageFilterType) bool {
+	if f == nil {
+		return false
+	}
+
+	if f.SubFilter() != nil {
+		return false
+	}
+
+	if f.ID != nil || f.Title != nil || f.Code != nil || f.Details != nil || f.Photographer != nil {
+		return false
+	}
+	if f.Checksum != nil || f.PhashDistance != nil || f.Path != nil || f.FileCount != nil {
+		return false
+	}
+	if f.Rating100 != nil || f.Date != nil || f.URL != nil || f.Organized != nil || f.OCounter != nil {
+		return false
+	}
+	if f.Resolution != nil || f.Orientation != nil || f.IsMissing != nil {
+		return false
+	}
+	if f.Studios != nil || f.Tags != nil || f.TagCount != nil || f.PerformerTags != nil {
+		return false
+	}
+	if f.Performers != nil || f.PerformerCount != nil || f.PerformerFavorite != nil || f.PerformerAge != nil {
+		return false
+	}
+	if f.Galleries != nil || f.GalleriesFilter != nil || f.PerformersFilter != nil || f.StudiosFilter != nil || f.TagsFilter != nil || f.FilesFilter != nil {
+		return false
+	}
+	if f.CreatedAt != nil || f.UpdatedAt != nil {
+		return false
+	}
+
+	return f.ParentFolder != nil
+}
+
+func (qb *ImageStore) fastParentFolderCount(ctx context.Context, options models.ImageQueryOptions) (int, bool, error) {
+	if options.ImageFilter == nil || !hasOnlyParentFolderImageFilter(options.ImageFilter) {
+		return 0, false, nil
+	}
+
+	if options.FindFilter != nil && options.FindFilter.Q != nil && *options.FindFilter.Q != "" {
+		return 0, false, nil
+	}
+
+	criterion := *options.ImageFilter.ParentFolder
+	switch criterion.Modifier {
+	case models.CriterionModifierEquals:
+		criterion.Modifier = models.CriterionModifierIncludes
+	case models.CriterionModifierNotEquals:
+		criterion.Modifier = models.CriterionModifierExcludes
+	}
+
+	// Keep this path conservative: only handle include/equals style filters.
+	if criterion.Modifier != models.CriterionModifierIncludes {
+		return 0, false, nil
+	}
+
+	if len(criterion.Value) == 0 {
+		return 0, false, nil
+	}
+
+	valuesClause, err := getHierarchicalValues(ctx, criterion.Value, "folders", "", "parent_folder_id", "parent_folder_id", criterion.Depth)
+	if err != nil {
+		return 0, false, err
+	}
+
+	sql := fmt.Sprintf(`
+SELECT COUNT(DISTINCT images_files.image_id) as total
+FROM images_files
+INNER JOIN files ON images_files.file_id = files.id
+WHERE files.parent_folder_id IN (SELECT column2 FROM (%s))
+`, valuesClause)
+
+	var out struct {
+		Total int `db:"total"`
+	}
+
+	if err := dbWrapper.Get(ctx, &out, sql); err != nil {
+		return 0, false, err
+	}
+
+	return out.Total, true, nil
 }
 
 // isUnfilteredQuery checks if the query has no filters applied

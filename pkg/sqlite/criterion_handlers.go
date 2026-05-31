@@ -773,8 +773,7 @@ WHERE id in {inBinding}
 {unionClause})
 `, withClauseMap)
 
-	query := fmt.Sprintf("WITH RECURSIVE %s SELECT 'VALUES' || GROUP_CONCAT('(' || root_id || ', ' || item_id || ')') AS val FROM items", withClause)
-	query = fmt.Sprintf("WITH RECURSIVE %s SELECT 'VALUES' || GROUP_CONCAT('(' || root_id || ', ' || item_id || ')') AS val FROM (SELECT DISTINCT root_id, item_id FROM items)", withClause)
+	query := fmt.Sprintf("WITH RECURSIVE %s SELECT 'VALUES' || GROUP_CONCAT('(' || root_id || ', ' || item_id || ')') AS val FROM (SELECT DISTINCT root_id, item_id FROM items)", withClause)
 
 	var valuesClause sql.NullString
 	err := dbWrapper.Get(ctx, &valuesClause, query, args...)
@@ -842,6 +841,9 @@ func (m *hierarchicalMultiCriterionHandlerBuilder) handler(c *models.Hierarchica
 				criterion.Excludes = append(criterion.Excludes, criterion.Value...)
 				criterion.Value = nil
 			}
+
+			criterion.Value = dedupeStringValues(criterion.Value)
+			criterion.Excludes = dedupeStringValues(criterion.Excludes)
 
 			if len(criterion.Value) > 0 {
 				valuesClause, err := getHierarchicalValues(ctx, criterion.Value, m.foreignTable, m.relationsTable, m.parentFK, m.childFK, criterion.Depth)
@@ -949,6 +951,9 @@ func (m *joinedHierarchicalMultiCriterionHandlerBuilder) handler(c *models.Hiera
 				criterion.Excludes = append(criterion.Excludes, criterion.Value...)
 				criterion.Value = nil
 			}
+
+			criterion.Value = dedupeStringValues(criterion.Value)
+			criterion.Excludes = dedupeStringValues(criterion.Excludes)
 
 			if len(criterion.Value) == 0 && len(criterion.Excludes) == 0 {
 				return

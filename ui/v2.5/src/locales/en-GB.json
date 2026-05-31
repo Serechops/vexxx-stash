@@ -1733,6 +1733,7 @@
     "total_play_duration": "Total Play Duration"
   },
   "status": "Status: {statusText}",
+  "config.dlna.status_label": "Status",
   "studio": "Studio",
   "studio_and_parent": "Studio & Parent",
   "studio_count": "Studio Count",

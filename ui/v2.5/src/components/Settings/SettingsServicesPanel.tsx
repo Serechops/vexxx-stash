@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Button, FormControlLabel, Checkbox, TextField, Box, Typography, FormHelperText } from "@mui/material";
+import { Button, FormControlLabel, Checkbox, TextField, Box, Typography, FormHelperText, Chip } from "@mui/material";
 import { FormattedMessage, useIntl } from "react-intl";
 import {
   useDisableDLNA,
@@ -490,20 +490,43 @@ export const SettingsServicesPanel: React.FC = () => {
   };
 
   return (
-    <div id="settings-dlna">
+    <Box id="settings-dlna">
       {renderTempEnableDialog()}
       {renderTempWhitelistDialog()}
 
-      <h4>DLNA</h4>
-
-      <Box sx={{ mb: 2 }}>
-        <Typography variant="subtitle2" color="text.secondary">
-          <FormattedMessage id="status" />
-        </Typography>
-        <Typography variant="h6">
-          {renderStatus()}
-        </Typography>
-      </Box>
+      <SettingSection headingDefault="DLNA">
+        <Box
+          sx={{
+            alignItems: "center",
+            borderBottom: "1px solid",
+            borderColor: "divider",
+            display: "flex",
+            gap: 1,
+            justifyContent: "space-between",
+            p: 2,
+          }}
+        >
+          <Box>
+            <Typography variant="body2" color="text.secondary">
+              <FormattedMessage
+                id="config.dlna.status_label"
+                defaultMessage="Status"
+              />
+            </Typography>
+            {statusData?.dlnaStatus.until ? (
+              <Typography variant="caption" color="text.secondary">
+                {renderDeadline(statusData.dlnaStatus.until)}
+              </Typography>
+            ) : null}
+          </Box>
+          <Chip
+            size="small"
+            color={statusData?.dlnaStatus.running ? "success" : "default"}
+            label={renderStatus() || intl.formatMessage({ id: "actions.not_running" })}
+            sx={{ maxWidth: "65%", "& .MuiChip-label": { whiteSpace: "normal" } }}
+          />
+        </Box>
+      </SettingSection>
 
       <SettingSection headingID="actions_name">
         <Box className="content" sx={{ mb: 2 }}>
@@ -527,6 +550,6 @@ export const SettingsServicesPanel: React.FC = () => {
       </SettingSection>
 
       <DLNASettingsForm />
-    </div>
+    </Box>
   );
 };

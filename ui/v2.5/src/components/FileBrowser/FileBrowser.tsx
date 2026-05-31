@@ -1,12 +1,16 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 import StorageRoundedIcon from "@mui/icons-material/StorageRounded";
+import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
 import {
   Box,
   Chip,
   CircularProgress,
   Divider,
+  IconButton,
   LinearProgress,
+  Skeleton,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import * as GQL from "src/core/generated-graphql";
@@ -14,14 +18,92 @@ import { FileBrowserTree } from "./FileBrowserTree";
 import { FileBrowserContent } from "./FileBrowserContent";
 import { FileBrowserBreadcrumb } from "./FileBrowserBreadcrumb";
 
+const SELECTED_FOLDER_STORAGE_KEY = "fileBrowser.selectedFolderId";
+const EXPANDED_FOLDERS_STORAGE_KEY = "fileBrowser.expandedFolderIds";
+
 const FileBrowser: React.FC = () => {
   const intl = useIntl();
-  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
-  const { data: libraryDiskData, loading: libraryDiskLoading } =
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(() =>
+    localStorage.getItem(SELECTED_FOLDER_STORAGE_KEY)
+  );
+  const [expandedFolderIds, setExpandedFolderIds] = useState<Set<string>>(() => {
+    const raw = localStorage.getItem(EXPANDED_FOLDERS_STORAGE_KEY);
+    if (!raw) return new Set();
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return new Set(parsed.filter((id): id is string => typeof id === "string"));
+      }
+    } catch {
+      // ignore malformed persisted state
+    }
+    return new Set();
+  });
+  const [lastRefreshAt, setLastRefreshAt] = useState<number | null>(null);
+  const [refreshTicker, setRefreshTicker] = useState(() => Date.now());
+
+  const {
+    data: libraryDiskData,
+    loading: libraryDiskLoading,
+    refetch: refetchLibraryDiskStats,
+  } =
     GQL.useLibraryDiskStatsQuery({
       pollInterval: 60000,
       fetchPolicy: "cache-and-network",
     });
+
+  useEffect(() => {
+    if (selectedFolderId) {
+      localStorage.setItem(SELECTED_FOLDER_STORAGE_KEY, selectedFolderId);
+    } else {
+      localStorage.removeItem(SELECTED_FOLDER_STORAGE_KEY);
+    }
+  }, [selectedFolderId]);
+
+  useEffect(() => {
+    localStorage.setItem(
+      EXPANDED_FOLDERS_STORAGE_KEY,
+      JSON.stringify(Array.from(expandedFolderIds))
+    );
+  }, [expandedFolderIds]);
+
+  useEffect(() => {
+    if (libraryDiskData?.libraryDiskStats?.length) {
+      setLastRefreshAt(Date.now());
+    }
+  }, [libraryDiskData]);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => setRefreshTicker(Date.now()), 1000);
+    return () => window.clearInterval(interval);
+  }, []);
+
+  const lastUpdatedLabel = useMemo(() => {
+    if (!lastRefreshAt) {
+      return intl.formatMessage({
+        id: "config.general.library_disk_stats.last_updated.pending",
+        defaultMessage: "Waiting for first refresh",
+      });
+    }
+
+    const deltaSeconds = Math.max(0, Math.floor((refreshTicker - lastRefreshAt) / 1000));
+    return intl.formatMessage(
+      { id: "config.general.library_disk_stats.last_updated", defaultMessage: "Updated {seconds}s ago" },
+      { seconds: deltaSeconds }
+    );
+  }, [intl, lastRefreshAt, refreshTicker]);
+
+  const handleToggleExpanded = (id: string) => {
+    setExpandedFolderIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
 
   function formatBytes(value?: number | null) {
     if (!value || value <= 0) return "0 B";
@@ -60,11 +142,57 @@ const FileBrowser: React.FC = () => {
           <FormattedMessage id="file-browser" defaultMessage="File Browser" />
         </Typography>
 
+        <Box sx={{ mt: 0.5, display: "flex", alignItems: "center", gap: 0.75 }}>
+          <Typography variant="caption" color="text.secondary">
+            {lastUpdatedLabel}
+          </Typography>
+          <Tooltip
+            title={intl.formatMessage({
+              id: "config.general.library_disk_stats.refresh",
+              defaultMessage: "Refresh disk stats",
+            })}
+          >
+            <IconButton
+              size="small"
+              onClick={() => {
+                void refetchLibraryDiskStats();
+                setLastRefreshAt(Date.now());
+              }}
+              aria-label={intl.formatMessage({
+                id: "config.general.library_disk_stats.refresh",
+                defaultMessage: "Refresh disk stats",
+              })}
+            >
+              <RefreshRoundedIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Box>
+
         <Box sx={{ mt: 0.9, minHeight: 56 }}>
-          {libraryDiskLoading ? (
-            <Typography variant="body2" color="text.secondary">
-              <FormattedMessage id="config.general.library_disk_stats.loading" />
-            </Typography>
+          {libraryDiskLoading && !libraryDiskData?.libraryDiskStats?.length ? (
+            <Box sx={{ display: "flex", gap: 1, overflowX: "auto", pb: 0.25, pr: 0.5 }}>
+              {[0, 1, 2].map((idx) => (
+                <Box
+                  key={idx}
+                  sx={{
+                    minWidth: 220,
+                    maxWidth: 240,
+                    border: "1px solid",
+                    borderColor: "divider",
+                    borderRadius: 1.5,
+                    p: 1,
+                    bgcolor: "background.paper",
+                  }}
+                >
+                  <Skeleton variant="circular" width={40} height={40} />
+                  <Skeleton sx={{ mt: 1 }} width="75%" />
+                  <Skeleton width="90%" />
+                  <Skeleton sx={{ mt: 1 }} width="55%" />
+                  <Skeleton width="100%" height={18} />
+                  <Skeleton width="100%" height={18} />
+                </Box>
+              ))}
+            </Box>
           ) : libraryDiskData?.libraryDiskStats?.length ? (
             <Box
               sx={{
@@ -256,13 +384,38 @@ const FileBrowser: React.FC = () => {
                   </Typography>
 
                   {entry.error && (
-                    <Typography
-                      variant="caption"
-                      color="warning.main"
-                      sx={{ display: "block", mt: 0.5, fontSize: "0.68rem" }}
-                    >
-                      {entry.error}
-                    </Typography>
+                    <Box sx={{ mt: 0.5, display: "flex", gap: 0.5, alignItems: "center" }}>
+                      <Typography
+                        variant="caption"
+                        color="warning.main"
+                        sx={{ display: "block", fontSize: "0.68rem", flex: 1, minWidth: 0 }}
+                        title={entry.error}
+                        noWrap
+                      >
+                        {entry.error}
+                      </Typography>
+                      <Tooltip
+                        title={intl.formatMessage({
+                          id: "config.general.library_disk_stats.retry",
+                          defaultMessage: "Retry",
+                        })}
+                      >
+                        <IconButton
+                          size="small"
+                          onClick={() => {
+                            void refetchLibraryDiskStats();
+                            setLastRefreshAt(Date.now());
+                          }}
+                          sx={{ p: 0.35 }}
+                          aria-label={intl.formatMessage({
+                            id: "config.general.library_disk_stats.retry",
+                            defaultMessage: "Retry",
+                          })}
+                        >
+                          <RefreshRoundedIcon sx={{ fontSize: 14 }} />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
                   )}
                 </Box>
               ))}
@@ -289,6 +442,8 @@ const FileBrowser: React.FC = () => {
           <FileBrowserTree
             selectedId={selectedFolderId}
             onSelect={setSelectedFolderId}
+            expandedIds={expandedFolderIds}
+            onToggleExpanded={handleToggleExpanded}
           />
         </Box>
 

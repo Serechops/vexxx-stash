@@ -26,14 +26,28 @@ export const FolderPickerDialog: React.FC<IFolderPickerDialogProps> = ({
   onSuccess,
 }) => {
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
+  const [expandedFolderIds, setExpandedFolderIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
 
   const [moveFiles, { loading }] = GQL.useFileBrowserMoveFilesMutation();
 
   const handleClose = () => {
     setSelectedFolderId(null);
+    setExpandedFolderIds(new Set());
     setError(null);
     onClose();
+  };
+
+  const handleToggleExpanded = (id: string) => {
+    setExpandedFolderIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
   };
 
   const handleConfirm = async () => {
@@ -75,6 +89,8 @@ export const FolderPickerDialog: React.FC<IFolderPickerDialogProps> = ({
           <FileBrowserTree
             selectedId={selectedFolderId}
             onSelect={setSelectedFolderId}
+            expandedIds={expandedFolderIds}
+            onToggleExpanded={handleToggleExpanded}
           />
         </Box>
       </DialogContent>

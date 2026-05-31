@@ -497,8 +497,11 @@ export const SettingsServicesPanel: React.FC = () => {
       <h4>DLNA</h4>
 
       <Box sx={{ mb: 2 }}>
-        <Typography variant="h5">
-          {intl.formatMessage({ id: "status" }, { statusText: renderStatus() })}
+        <Typography variant="subtitle2" color="text.secondary">
+          <FormattedMessage id="status" />
+        </Typography>
+        <Typography variant="h6">
+          {renderStatus()}
         </Typography>
       </Box>
 

@@ -90,7 +90,7 @@ export const SettingsLibraryPanel: React.FC = () => {
           }
           value={general.excludes ?? undefined}
           onChange={(v) => saveGeneral({ excludes: v })}
-          defaultNewValue="sample\.mp4$"
+          defaultNewValue="sample\\.mp4$"
         />
 
         <StringListSetting
@@ -108,7 +108,7 @@ export const SettingsLibraryPanel: React.FC = () => {
           }
           value={general.imageExcludes ?? undefined}
           onChange={(v) => saveGeneral({ imageExcludes: v })}
-          defaultNewValue="sample\.jpg$"
+          defaultNewValue="sample\\.jpg$"
         />
       </SettingSection>
 

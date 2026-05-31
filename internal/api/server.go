@@ -380,7 +380,14 @@ func Initialize() (*Server, error) {
 			themeColor := cfg.GetThemeColor()
 			data, err := fs.ReadFile(uiFS, "index.html")
 			if err != nil {
-				panic(err)
+				logger.Errorf("unable to read index.html from configured UI source: %v", err)
+				data, err = fs.ReadFile(ui.UIBox, "index.html")
+				if err != nil {
+					logger.Errorf("unable to read embedded index.html fallback: %v", err)
+					http.Error(w, "UI index.html is missing", http.StatusInternalServerError)
+					return
+				}
+				logger.Warn("falling back to embedded UI index.html")
 			}
 			indexHtml := string(data)
 

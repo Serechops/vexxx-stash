@@ -58,7 +58,7 @@ function isTabKey(tab: string | null): tab is TabKey {
 
 const SettingTabs: React.FC<{ tab: TabKey }> = ({ tab }) => {
   const { advancedMode, setAdvancedMode } = useSettings();
-  const { canManageUsers, canModifySettings } = useCurrentUser();
+  const { canManageUsers } = useCurrentUser();
   const theme = useTheme();
   // Responsive sidebar: on small screens, tabs could be horizontal or simpler.
   // Original bootstrap used Col sm={3} md={3} xl={2} for sidebar.
@@ -97,8 +97,9 @@ const SettingTabs: React.FC<{ tab: TabKey }> = ({ tab }) => {
       <Helmet {...titleProps} />
       <Box
         sx={{
-          borderBottom: { xs: '1px solid #27272a', md: 0 },
-          borderRight: { xs: 0, md: '1px solid #27272a' },
+          borderBottom: { xs: 1, md: 0 },
+          borderRight: { xs: 0, md: 1 },
+          borderColor: 'divider',
           display: 'flex',
           flexDirection: 'column',
           flexShrink: 0,
@@ -208,7 +209,7 @@ const SettingTabs: React.FC<{ tab: TabKey }> = ({ tab }) => {
           />
         </Tabs>
 
-        <Box sx={{ borderTop: '1px solid #27272a', p: 2 }}>
+        <Box sx={{ borderTop: 1, borderColor: 'divider', p: 2 }}>
           <FormControlLabel
             control={
               <Switch
@@ -221,7 +222,7 @@ const SettingTabs: React.FC<{ tab: TabKey }> = ({ tab }) => {
         </Box>
       </Box>
 
-      <Box sx={{ bgcolor: '#09090b', flexGrow: 1, overflowY: 'auto', p: 3 }}>
+      <Box sx={{ bgcolor: 'background.default', flexGrow: 1, overflowY: 'auto', p: 3 }}>
         <Container maxWidth="xl" sx={{ p: 0 }}>
           {renderContent()}
         </Container>
@@ -239,7 +240,7 @@ export const Settings: React.FC = () => {
       <Redirect
         to={{
           ...location,
-          search: `tab=${defaultTab}`,
+          search: `?tab=${defaultTab}`,
         }}
       />
     );

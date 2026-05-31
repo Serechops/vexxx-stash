@@ -234,6 +234,15 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
     );
   };
 
+  const handleContentKeyboardShortcuts = (e: React.KeyboardEvent<HTMLElement>) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "a") {
+      e.preventDefault();
+      if (rows.length === 0) return;
+      const shouldSelectAll = selectedFileIds.size !== rows.length;
+      handleSelectAll(shouldSelectAll);
+    }
+  };
+
   const rows = useMemo<ContentRow[]>(() => {
     const result: ContentRow[] = [];
 
@@ -641,9 +650,46 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
         </IconButton>
       </Box>
 
+      <Box
+        sx={{
+          px: 2,
+          py: 0.75,
+          borderBottom: 1,
+          borderColor: "divider",
+          bgcolor: "background.default",
+          position: "sticky",
+          top: 0,
+          zIndex: 2,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 1,
+          flexWrap: "wrap",
+        }}
+      >
+        <Typography variant="caption" color="text.secondary">
+          <FormattedMessage
+            id="file-browser.items_summary"
+            defaultMessage="{total, plural, one {# item} other {# items}} in this folder"
+            values={{ total: totalItems }}
+          />
+        </Typography>
+        <Typography variant="caption" color="text.secondary">
+          <FormattedMessage
+            id="file-browser.selection_scope"
+            defaultMessage="{selected} selected on this page ({pageCount} shown)"
+            values={{ selected: numSelected, pageCount: rows.length }}
+          />
+        </Typography>
+      </Box>
+
       {viewMode === "grid" ? (
         /* ── Grid view: Windows Explorer–style tiles ── */
-        <Box sx={{ flex: 1, overflow: "auto", p: 1.5 }}>
+        <Box
+          sx={{ flex: 1, overflow: "auto", p: 1.5 }}
+          tabIndex={0}
+          onKeyDown={handleContentKeyboardShortcuts}
+        >
           <Box
             sx={{
               display: "grid",
@@ -801,7 +847,11 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
           </Box>
         </Box>
       ) : (
-      <TableContainer sx={{ flex: 1, overflow: "auto" }}>
+      <TableContainer
+        sx={{ flex: 1, overflow: "auto" }}
+        tabIndex={0}
+        onKeyDown={handleContentKeyboardShortcuts}
+      >
           <Table size="small" stickyHeader>
             <TableHead>
               <TableRow>
@@ -1001,8 +1051,8 @@ export const FileBrowserContent: React.FC<IFileBrowserContentProps> = ({
             <CircularProgress size={12} sx={{ mr: 1 }} />
           ) : (
             <FormattedMessage
-              id="file-browser.item_count"
-              defaultMessage="{count, plural, one {# item} other {# items}}"
+              id="file-browser.item_count_paged"
+              defaultMessage="{count, plural, one {# item total} other {# items total}}"
               values={{ count: totalItems }}
             />
           )}

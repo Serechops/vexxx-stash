@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useIntl } from "react-intl";
 import { Box, Chip, Paper, Typography } from "@mui/material";
 import * as GQL from "src/core/generated-graphql";
@@ -132,7 +132,7 @@ class LogEntry {
 const MAX_LOG_ENTRIES = 50000;
 // maximum number of log entries to display
 const MAX_DISPLAY_LOG_ENTRIES = 1000;
-const logLevels = ["Trace", "Debug", "Info", "Warning", "Error"];
+const logLevels = ["Trace", "Debug", "Info", "Progress", "Warning", "Error"];
 
 // Map backend config values to frontend names
 const configToLogLevel = (configLevel: string): string => {
@@ -140,11 +140,13 @@ const configToLogLevel = (configLevel: string): string => {
   return logLevels.includes(level) ? level : "Info";
 };
 
+const normalizeLevel = (value: string): string =>
+  value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+
 export const SettingsLogsPanel: React.FC = () => {
   const [entries, setEntries] = useState<LogEntry[]>([]);
   const { data, error } = useLoggingSubscribe();
   const intl = useIntl();
-  const logEndRef = useRef<HTMLDivElement>(null);
 
   // Get current config and update function
   const { configuration } = useConfigurationContext();
@@ -188,14 +190,15 @@ export const SettingsLogsPanel: React.FC = () => {
   // correctly shown when the filter is set to Info or lower.
   function filterByLogLevel(logEntry: LogEntry) {
     const selectedIndex = LOG_LEVEL_ORDER.indexOf(logLevel);
-    const entryIndex = LOG_LEVEL_ORDER.indexOf(logEntry.level);
+    const entryIndex = LOG_LEVEL_ORDER.indexOf(normalizeLevel(logEntry.level));
     // Unknown levels (entryIndex === -1) are always shown
     return entryIndex === -1 || entryIndex >= selectedIndex;
   }
 
-  const displayEntries = entries
-    .filter(filterByLogLevel)
-    .slice(0, MAX_DISPLAY_LOG_ENTRIES);
+  const displayEntries = useMemo(
+    () => entries.filter(filterByLogLevel).slice(0, MAX_DISPLAY_LOG_ENTRIES),
+    [entries, logLevel]
+  );
 
   // Handle log level change
   function handleLogLevelChange(level: string) {
@@ -242,7 +245,6 @@ export const SettingsLogsPanel: React.FC = () => {
         {displayEntries.map((logEntry) => (
           <LogElement logEntry={logEntry} key={logEntry.id} />
         ))}
-        <div ref={logEndRef} />
       </Paper>
     </>
   );

@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/stashapp/stash/pkg/logger"
 	"github.com/stashapp/stash/pkg/models"
@@ -65,6 +66,11 @@ type ScanHandler struct {
 	PluginCache *plugin.Cache
 
 	Paths *paths.Paths
+
+	// zipGalleryCache caches the gallery for each zip file to avoid repeated
+	// FindByFileID calls when scanning many images in the same zip.
+	// Key: models.FileID (zip file's ID), Value: *models.Gallery
+	zipGalleryCache sync.Map
 }
 
 func (h *ScanHandler) validate() error {
@@ -300,13 +306,20 @@ func (h *ScanHandler) associateFolderImages(ctx context.Context, g *models.Galle
 }
 
 func (h *ScanHandler) getOrCreateZipBasedGallery(ctx context.Context, zipFile models.File) (*models.Gallery, error) {
-	g, err := h.GalleryFinder.FindByFileID(ctx, zipFile.Base().ID)
+	zipFileID := zipFile.Base().ID
+
+	if v, ok := h.zipGalleryCache.Load(zipFileID); ok {
+		return v.(*models.Gallery), nil
+	}
+
+	g, err := h.GalleryFinder.FindByFileID(ctx, zipFileID)
 	if err != nil {
 		return nil, fmt.Errorf("finding zip based gallery: %w", err)
 	}
 
 	if len(g) > 0 {
 		gg := g[0]
+		h.zipGalleryCache.Store(zipFileID, gg)
 		return gg, nil
 	}
 
@@ -315,7 +328,7 @@ func (h *ScanHandler) getOrCreateZipBasedGallery(ctx context.Context, zipFile mo
 
 	logger.Infof("%s doesn't exist. Creating new gallery...", zipFile.Base().Path)
 
-	if err := h.GalleryFinder.Create(ctx, &newGallery, []models.FileID{zipFile.Base().ID}); err != nil {
+	if err := h.GalleryFinder.Create(ctx, &newGallery, []models.FileID{zipFileID}); err != nil {
 		return nil, fmt.Errorf("creating zip-based gallery: %w", err)
 	}
 
@@ -326,6 +339,7 @@ func (h *ScanHandler) getOrCreateZipBasedGallery(ctx context.Context, zipFile mo
 
 	h.PluginCache.RegisterPostHooks(ctx, newGallery.ID, hook.GalleryCreatePost, nil, nil)
 
+	h.zipGalleryCache.Store(zipFileID, &newGallery)
 	return &newGallery, nil
 }
 

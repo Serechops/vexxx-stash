@@ -245,6 +245,24 @@ func (qb *BlobStore) EntryExists(ctx context.Context, checksum string) (bool, er
 	return found != 0, nil
 }
 
+func (qb *BlobStore) GetAllChecksums(ctx context.Context) (map[string]struct{}, error) {
+	q := dialect.From(qb.table()).Select(blobChecksumColumn)
+
+	result := make(map[string]struct{})
+	if err := queryFunc(ctx, q, false, func(rows *sqlx.Rows) error {
+		var checksum string
+		if err := rows.Scan(&checksum); err != nil {
+			return err
+		}
+		result[checksum] = struct{}{}
+		return nil
+	}); err != nil {
+		return nil, fmt.Errorf("querying %s checksums: %w", qb.table(), err)
+	}
+
+	return result, nil
+}
+
 // Read reads the data from the database or filesystem, depending on which is enabled.
 func (qb *BlobStore) Read(ctx context.Context, checksum string) ([]byte, error) {
 	if !qb.options.UseDatabase && !qb.options.UseFilesystem {

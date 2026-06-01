@@ -15,6 +15,9 @@ type ImageFinder interface {
 	IDsFromFileIDsLoader
 	FindByFingerprints(ctx context.Context, fp []Fingerprint) ([]*Image, error)
 	FindByChecksum(ctx context.Context, checksum string) ([]*Image, error)
+	// GetAllMD5Checksums returns the set of all MD5 fingerprints associated with
+	// at least one image file.
+	GetAllMD5Checksums(ctx context.Context) (map[string]struct{}, error)
 	FindByFileID(ctx context.Context, fileID FileID) ([]*Image, error)
 	FindByFolderID(ctx context.Context, fileID FolderID) ([]*Image, error)
 	FindByZipFileID(ctx context.Context, zipFileID FileID) ([]*Image, error)

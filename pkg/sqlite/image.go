@@ -678,6 +678,33 @@ func (qb *ImageStore) FindByChecksum(ctx context.Context, checksum string) ([]*m
 	})
 }
 
+func (qb *ImageStore) GetAllMD5Checksums(ctx context.Context) (map[string]struct{}, error) {
+	fpTable := fingerprintTableMgr.table
+
+	q := dialect.From(fpTable).
+		InnerJoin(
+			imagesFilesJoinTable,
+			goqu.On(fpTable.Col(fileIDColumn).Eq(imagesFilesJoinTable.Col(fileIDColumn))),
+		).
+		Select(fpTable.Col("fingerprint")).
+		Where(fpTable.Col("type").Eq(models.FingerprintTypeMD5)).
+		Distinct()
+
+	result := make(map[string]struct{})
+	if err := queryFunc(ctx, q, false, func(rows *sqlx.Rows) error {
+		var fp string
+		if err := rows.Scan(&fp); err != nil {
+			return err
+		}
+		result[fp] = struct{}{}
+		return nil
+	}); err != nil {
+		return nil, fmt.Errorf("querying image MD5 checksums: %w", err)
+	}
+
+	return result, nil
+}
+
 var defaultGalleryOrder = []exp.OrderedExpression{
 	goqu.L("COALESCE(folders.path, '') || COALESCE(files.basename, '') COLLATE NATURAL_CI").Asc(),
 	goqu.L("COALESCE(images.title, images.id) COLLATE NATURAL_CI").Asc(),

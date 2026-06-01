@@ -1323,6 +1323,52 @@ func (_m *SceneReaderWriter) OCountByGroupID(ctx context.Context, groupID int) (
 	return r0, r1
 }
 
+// GetFingerprintsByType provides a mock function with given fields: ctx, fpType
+func (_m *SceneReaderWriter) GetFingerprintsByType(ctx context.Context, fpType string) (map[string]struct{}, error) {
+	ret := _m.Called(ctx, fpType)
+
+	var r0 map[string]struct{}
+	if rf, ok := ret.Get(0).(func(context.Context, string) map[string]struct{}); ok {
+		r0 = rf(ctx, fpType)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[string]struct{})
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, fpType)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetHashedMarkerSeconds provides a mock function with given fields: ctx, fpType
+func (_m *SceneReaderWriter) GetHashedMarkerSeconds(ctx context.Context, fpType string) (map[string]map[int]struct{}, error) {
+	ret := _m.Called(ctx, fpType)
+
+	var r0 map[string]map[int]struct{}
+	if rf, ok := ret.Get(0).(func(context.Context, string) map[string]map[int]struct{}); ok {
+		r0 = rf(ctx, fpType)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[string]map[int]struct{})
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, fpType)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // OCountByPerformerID provides a mock function with given fields: ctx, performerID
 func (_m *SceneReaderWriter) OCountByPerformerID(ctx context.Context, performerID int) (int, error) {
 	ret := _m.Called(ctx, performerID)

@@ -153,19 +153,22 @@ func (j *cleanJob) execute(ctx context.Context) error {
 	}
 
 	progress.ExecuteTask(fmt.Sprintf("Cleaning %d files and folders", toDelete.len()), func() {
-		for _, ff := range toDelete.orderedList {
+		const deleteBatchSize = 100
+		items := toDelete.orderedList
+		for len(items) > 0 {
 			if job.IsCancelled(ctx) {
 				return
 			}
-
-			if ff.fileID != 0 {
-				j.deleteFile(ctx, ff.fileID, toDelete.fileIDSet[ff.fileID])
+			n := deleteBatchSize
+			if n > len(items) {
+				n = len(items)
 			}
-			if ff.folderID != 0 {
-				j.deleteFolder(ctx, ff.folderID, toDelete.folderIDSet[ff.folderID])
+			batch := items[:n]
+			items = items[n:]
+			j.deleteBatch(ctx, batch, &toDelete)
+			for range batch {
+				progress.Increment()
 			}
-
-			progress.Increment()
 		}
 	})
 
@@ -181,6 +184,10 @@ func (j *cleanJob) assessFiles(ctx context.Context, toDelete *deleteSet) error {
 	r := j.Repository
 
 	includeZipContents := !j.options.IgnoreZipFileContents
+
+	// Cache zip paths whose existence on disk has already been checked.
+	// true = zip exists, false = zip is missing.
+	zipExistsCache := make(map[string]bool)
 
 	if err := r.WithReadTxn(ctx, func(ctx context.Context) error {
 		for more {
@@ -203,8 +210,29 @@ func (j *cleanJob) assessFiles(ctx context.Context, toDelete *deleteSet) error {
 					continue
 				}
 
+				// short-cut: if this file's parent zip is already known missing,
+				// flag it immediately without opening the zip.
+				if f.Base().ZipFile != nil {
+					zipPath := f.Base().ZipFile.Base().Path
+					if exists, checked := zipExistsCache[zipPath]; checked && !exists {
+						toDelete.add(fileID, path)
+						continue
+					}
+				}
+
 				progress.ExecuteTask(fmt.Sprintf("Assessing file %s for clean", path), func() {
 					if j.shouldClean(ctx, f) {
+						// Cache the zip path as missing so subsequent zip-contained
+						// files from the same zip are short-circuited without an OpenZip call.
+						if f.Base().ZipFile == nil {
+							_, statErr := j.FS.Lstat(path)
+							if isNotFound(statErr) {
+								zipExistsCache[path] = false
+							}
+						} else {
+							// Zip-contained file is missing — its zip must be gone too.
+							zipExistsCache[f.Base().ZipFile.Base().Path] = false
+						}
 						err = j.flagFileForDelete(ctx, toDelete, f)
 					} else {
 						// increment progress, no further processing
@@ -410,6 +438,43 @@ func (j *cleanJob) shouldCleanFolder(ctx context.Context, f *models.Folder) bool
 
 	// don't log anything - assume filter will have logged the reason
 	return !filter.Accept(ctx, path, info, zipFilePath)
+}
+
+// deleteBatch deletes a batch of files and folders in a single transaction.
+// If the batch transaction fails, it falls back to individual deletions.
+func (j *cleanJob) deleteBatch(ctx context.Context, batch []fileOrFolder, toDelete *deleteSet) {
+	fileDeleter := NewDeleterWithTrash(j.TrashPath)
+	r := j.Repository
+	if err := r.WithTxn(ctx, func(ctx context.Context) error {
+		fileDeleter.RegisterHooks(ctx)
+		for _, ff := range batch {
+			if ff.fileID != 0 {
+				if err := j.fireHandlers(ctx, fileDeleter, ff.fileID); err != nil {
+					return err
+				}
+				if err := r.File.Destroy(ctx, ff.fileID); err != nil {
+					return err
+				}
+			} else if ff.folderID != 0 {
+				if err := j.fireFolderHandlers(ctx, fileDeleter, ff.folderID); err != nil {
+					return err
+				}
+				if err := r.Folder.Destroy(ctx, ff.folderID); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	}); err != nil {
+		logger.Errorf("Error deleting batch, falling back to individual deletions: %s", err.Error())
+		for _, ff := range batch {
+			if ff.fileID != 0 {
+				j.deleteFile(ctx, ff.fileID, toDelete.fileIDSet[ff.fileID])
+			} else if ff.folderID != 0 {
+				j.deleteFolder(ctx, ff.folderID, toDelete.folderIDSet[ff.folderID])
+			}
+		}
+	}
 }
 
 func (j *cleanJob) deleteFile(ctx context.Context, fileID models.FileID, fn string) {

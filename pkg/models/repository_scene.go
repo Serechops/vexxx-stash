@@ -28,6 +28,12 @@ type SceneFinder interface {
 	FindByFingerprints(ctx context.Context, fp []Fingerprint) ([]*Scene, error)
 	FindByChecksum(ctx context.Context, checksum string) ([]*Scene, error)
 	FindByOSHash(ctx context.Context, oshash string) ([]*Scene, error)
+	// GetFingerprintsByType returns the set of all fingerprints of the given type
+	// that are associated with at least one scene file.
+	GetFingerprintsByType(ctx context.Context, fpType string) (map[string]struct{}, error)
+	// GetHashedMarkerSeconds returns a map of fingerprint → set of marker
+	// second-timestamps (truncated to int) for every scene that has markers.
+	GetHashedMarkerSeconds(ctx context.Context, fpType string) (map[string]map[int]struct{}, error)
 	FindByPath(ctx context.Context, path string) ([]*Scene, error)
 	FindByFileID(ctx context.Context, fileID FileID) ([]*Scene, error)
 	FindByPrimaryFileID(ctx context.Context, fileID FileID) ([]*Scene, error)

@@ -792,6 +792,61 @@ func (qb *SceneStore) FindByOSHash(ctx context.Context, oshash string) ([]*model
 	})
 }
 
+func (qb *SceneStore) GetFingerprintsByType(ctx context.Context, fpType string) (map[string]struct{}, error) {
+	fpTable := fingerprintTableMgr.table
+	sfTable := scenesFilesJoinTable
+
+	q := dialect.From(fpTable).
+		InnerJoin(sfTable, goqu.On(fpTable.Col(fileIDColumn).Eq(sfTable.Col(fileIDColumn)))).
+		Select(fpTable.Col("fingerprint")).
+		Where(fpTable.Col("type").Eq(fpType)).
+		Distinct()
+
+	result := make(map[string]struct{})
+	if err := queryFunc(ctx, q, false, func(rows *sqlx.Rows) error {
+		var fp string
+		if err := rows.Scan(&fp); err != nil {
+			return err
+		}
+		result[fp] = struct{}{}
+		return nil
+	}); err != nil {
+		return nil, fmt.Errorf("querying scene fingerprints by type: %w", err)
+	}
+
+	return result, nil
+}
+
+func (qb *SceneStore) GetHashedMarkerSeconds(ctx context.Context, fpType string) (map[string]map[int]struct{}, error) {
+	fpTable := fingerprintTableMgr.table
+	sfTable := scenesFilesJoinTable
+	smTable := goqu.T("scene_markers")
+
+	q := dialect.From(fpTable).
+		InnerJoin(sfTable, goqu.On(fpTable.Col(fileIDColumn).Eq(sfTable.Col(fileIDColumn)))).
+		InnerJoin(smTable, goqu.On(sfTable.Col(sceneIDColumn).Eq(smTable.Col("scene_id")))).
+		Select(fpTable.Col("fingerprint"), goqu.L("CAST(scene_markers.seconds AS INTEGER)")).
+		Where(fpTable.Col("type").Eq(fpType))
+
+	result := make(map[string]map[int]struct{})
+	if err := queryFunc(ctx, q, false, func(rows *sqlx.Rows) error {
+		var fp string
+		var sec int
+		if err := rows.Scan(&fp, &sec); err != nil {
+			return err
+		}
+		if _, ok := result[fp]; !ok {
+			result[fp] = make(map[int]struct{})
+		}
+		result[fp][sec] = struct{}{}
+		return nil
+	}); err != nil {
+		return nil, fmt.Errorf("querying hashed marker seconds: %w", err)
+	}
+
+	return result, nil
+}
+
 func (qb *SceneStore) FindByPath(ctx context.Context, p string) ([]*models.Scene, error) {
 	filesTable := fileTableMgr.table
 	foldersTable := folderTableMgr.table

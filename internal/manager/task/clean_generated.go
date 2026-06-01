@@ -7,7 +7,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strconv"
 
 	"github.com/stashapp/stash/internal/manager/config"
 	"github.com/stashapp/stash/pkg/job"
@@ -32,6 +31,7 @@ type CleanGeneratedOptions struct {
 
 type BlobCleaner interface {
 	EntryExists(ctx context.Context, checksum string) (bool, error)
+	GetAllChecksums(ctx context.Context) (map[string]struct{}, error)
 }
 
 type CleanGeneratedJob struct {
@@ -196,28 +196,6 @@ func (j *CleanGeneratedJob) logDelete(format string, args ...interface{}) {
 	logger.Infof(j.dryRunPrefix+format, args...)
 }
 
-// estimates the progress by the hash prefix - first two characters
-// this is a rough estimate, but it's better than nothing
-// the prefix ranges from 00 to ff
-func (j *CleanGeneratedJob) estimateProgress(hashPrefix string) (float64, error) {
-	toInt, err := strconv.ParseInt(hashPrefix, 16, 64)
-	if err != nil {
-		return 0, err
-	}
-
-	const total = 256 // ff
-	return float64(toInt) / total, nil
-}
-
-func (j *CleanGeneratedJob) setProgressFromFilename(prefix string, progress *job.Progress) {
-	p, err := j.estimateProgress(prefix)
-	if err != nil {
-		logger.Errorf("error estimating progress: %v", err)
-		return
-	}
-	j.setTaskProgress(p, progress)
-}
-
 func (j *CleanGeneratedJob) getIntraFolderPrefix(basename string) (string, error) {
 	var hash string
 	_, err := fmt.Sscanf(basename, "%2x", &hash)
@@ -238,11 +216,29 @@ func (j *CleanGeneratedJob) getBlobFileHash(basename string) (string, error) {
 	return fmt.Sprintf("%x", hash), nil
 }
 
-func (j *CleanGeneratedJob) cleanBlobFiles(ctx context.Context, progress *job.Progress) error {
-	if job.IsCancelled(ctx) {
-		return nil
+// sceneFingerprintType returns the fingerprint type used for scene file naming.
+func (j *CleanGeneratedJob) sceneFingerprintType() string {
+	if j.VideoFileNamingAlgorithm == models.HashAlgorithmMd5 {
+		return models.FingerprintTypeMD5
 	}
+	return models.FingerprintTypeOshash
+}
 
+// loadSceneHashes loads all scene fingerprints of the configured naming type
+// into a set using a single read transaction.
+func (j *CleanGeneratedJob) loadSceneHashes(ctx context.Context) (map[string]struct{}, error) {
+	var validHashes map[string]struct{}
+	if err := j.Repository.WithReadTxn(ctx, func(ctx context.Context) error {
+		var err error
+		validHashes, err = j.Repository.Scene.GetFingerprintsByType(ctx, j.sceneFingerprintType())
+		return err
+	}); err != nil {
+		return nil, fmt.Errorf("loading scene fingerprints: %w", err)
+	}
+	return validHashes, nil
+}
+
+func (j *CleanGeneratedJob) cleanBlobFiles(ctx context.Context, progress *job.Progress) error {
 	if j.BlobsStorageType != config.BlobStorageTypeFilesystem {
 		logger.Debugf("skipping blob file cleanup, storage type is not filesystem")
 		return nil
@@ -250,84 +246,66 @@ func (j *CleanGeneratedJob) cleanBlobFiles(ctx context.Context, progress *job.Pr
 
 	logger.Infof("Cleaning blob files")
 
-	// walk through the blob directory
-	if err := filepath.Walk(j.Paths.Blobs, func(path string, info fs.FileInfo, err error) error {
+	// Phase 1: collect all blob files on disk (no DB access).
+	type entry struct{ path, name string }
+	var entries []entry
+
+	if err := filepath.WalkDir(j.Paths.Blobs, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-
 		if err = ctx.Err(); err != nil {
 			return err
 		}
-
-		if info.IsDir() {
+		if d.IsDir() {
 			if path == j.Paths.Blobs {
 				return nil
 			}
-
-			// ignore any directory that isn't a two character hash prefix
-			_, err := j.getIntraFolderPrefix(info.Name())
-			if err != nil {
+			_, ferr := j.getIntraFolderPrefix(d.Name())
+			if ferr != nil {
 				logger.Warnf("Ignoring unknown directory: %s", path)
 				return fs.SkipDir
 			}
-
-			// estimate progress by the hash prefix
-			if filepath.Dir(path) == j.Paths.Blobs {
-				hashPrefix := filepath.Base(path)
-				j.setProgressFromFilename(hashPrefix, progress)
-			}
-
 			return nil
 		}
-
-		blobname := info.Name()
-
-		// ignore any files that aren't a 32 character hash
-		_, err = j.getBlobFileHash(blobname)
-		if err != nil {
+		blobname := d.Name()
+		if _, ferr := j.getBlobFileHash(blobname); ferr != nil {
 			logger.Warnf("ignoring unknown blob file: %s", blobname)
 			return nil
 		}
-
-		// if blob entry does not exist, delete the file
-		if err := j.Repository.WithReadTxn(ctx, func(ctx context.Context) error {
-			exists, err := j.BlobCleaner.EntryExists(ctx, blobname)
-			if err != nil {
-				return err
-			}
-
-			if !exists {
-				j.logDelete("deleting unused blob file: %s", blobname)
-				j.deleteFile(path)
-			}
-
-			return nil
-		}); err != nil {
-			logger.Errorf("error checking blob entry: %v", err)
-			return nil
-		}
-
+		entries = append(entries, entry{path: path, name: blobname})
 		return nil
 	}); err != nil {
 		return err
 	}
 
+	if job.IsCancelled(ctx) {
+		return nil
+	}
+
+	// Phase 2: load all valid checksums from DB in a single transaction.
+	var validChecksums map[string]struct{}
+	if err := j.Repository.WithReadTxn(ctx, func(ctx context.Context) error {
+		var err error
+		validChecksums, err = j.BlobCleaner.GetAllChecksums(ctx)
+		return err
+	}); err != nil {
+		return fmt.Errorf("loading blob checksums: %w", err)
+	}
+
+	// Phase 3: delete orphans.
+	for i, e := range entries {
+		if job.IsCancelled(ctx) {
+			return nil
+		}
+		j.setTaskProgress(float64(i)/float64(len(entries)), progress)
+		if _, ok := validChecksums[e.name]; !ok {
+			j.logDelete("deleting unused blob file: %s", e.name)
+			j.deleteFile(e.path)
+		}
+	}
+
 	return nil
-}
-
-func (j *CleanGeneratedJob) getScenesWithHash(ctx context.Context, hash string) ([]*models.Scene, error) {
-	fp := models.Fingerprint{
-		Fingerprint: hash,
-	}
-
-	if j.VideoFileNamingAlgorithm == models.HashAlgorithmMd5 {
-		fp.Type = models.FingerprintTypeMD5
-	} else {
-		fp.Type = models.FingerprintTypeOshash
-	}
-
-	return j.Repository.Scene.FindByFingerprints(ctx, []models.Fingerprint{fp})
 }
 
 const (
@@ -364,107 +342,57 @@ func (j *CleanGeneratedJob) getSpriteFileHash(basename string) (string, error) {
 }
 
 func (j *CleanGeneratedJob) cleanSpriteFiles(ctx context.Context, progress *job.Progress) error {
-	if job.IsCancelled(ctx) {
-		return nil
-	}
-
-	logger.Infof("Cleaning sprite files")
-
-	// walk through the sprite directory
-	if err := filepath.Walk(j.Paths.Generated.Vtt, func(path string, info fs.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if err = ctx.Err(); err != nil {
-			return err
-		}
-
-		if info.IsDir() {
-			return nil
-		}
-
-		filename := info.Name()
-
-		hash, err := j.getSpriteFileHash(filename)
-		if err != nil {
-			logger.Warnf("Ignoring unknown sprite file: %s", filename)
-			return nil
-		}
-
-		j.setProgressFromFilename(hash[0:2], progress)
-
-		var exists []*models.Scene
-
-		if err := j.Repository.WithReadTxn(ctx, func(ctx context.Context) error {
-			exists, err = j.getScenesWithHash(ctx, hash)
-			return err
-		}); err != nil {
-			logger.Errorf("error checking scene entry for sprite: %v", err)
-			return nil
-		}
-
-		if len(exists) == 0 {
-			j.logDelete("deleting unused sprite file: %s", filename)
-			j.deleteFile(path)
-		}
-
-		return nil
-	}); err != nil {
-		return err
-	}
-
-	return nil
+	return j.cleanSceneFiles(ctx, j.Paths.Generated.Vtt, "sprite", j.getSpriteFileHash, progress)
 }
 
 func (j *CleanGeneratedJob) cleanSceneFiles(ctx context.Context, path string, typ string, getSceneFileHash func(filename string) (string, error), progress *job.Progress) error {
+	logger.Infof("Cleaning %s files", typ)
+
+	// Phase 1: collect all relevant files on disk (no DB access).
+	type entry struct{ path, hash string }
+	var entries []entry
+
+	if err := filepath.WalkDir(path, func(fpath string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		if err = ctx.Err(); err != nil {
+			return err
+		}
+		hash, ferr := getSceneFileHash(d.Name())
+		if ferr != nil {
+			logger.Warnf("Ignoring unknown %s file: %s", typ, d.Name())
+			return nil
+		}
+		entries = append(entries, entry{path: fpath, hash: hash})
+		return nil
+	}); err != nil {
+		return err
+	}
+
 	if job.IsCancelled(ctx) {
 		return nil
 	}
 
-	logger.Infof("Cleaning %s files", typ)
-
-	// walk through the sprite directory
-	if err := filepath.Walk(path, func(path string, info fs.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if info.IsDir() {
-			return nil
-		}
-
-		if err = ctx.Err(); err != nil {
-			return err
-		}
-
-		filename := info.Name()
-		hash, err := getSceneFileHash(filename)
-		if err != nil {
-			logger.Warnf("Ignoring unknown %s file: %s", typ, filename)
-			return nil
-		}
-
-		j.setProgressFromFilename(hash[0:2], progress)
-
-		var exists []*models.Scene
-
-		if err := j.Repository.WithReadTxn(ctx, func(ctx context.Context) error {
-			exists, err = j.getScenesWithHash(ctx, hash)
-			return err
-		}); err != nil {
-			logger.Errorf("error checking scene entry: %v", err)
-			return nil
-		}
-
-		if len(exists) == 0 {
-			j.logDelete("deleting unused %s file: %s", typ, filename)
-			j.deleteFile(path)
-		}
-
-		return nil
-	}); err != nil {
+	// Phase 2: load all valid scene hashes from DB in a single transaction.
+	validHashes, err := j.loadSceneHashes(ctx)
+	if err != nil {
 		return err
+	}
+
+	// Phase 3: delete orphans.
+	for i, e := range entries {
+		if job.IsCancelled(ctx) {
+			return nil
+		}
+		j.setTaskProgress(float64(i)/float64(len(entries)), progress)
+		if _, ok := validHashes[e.hash]; !ok {
+			j.logDelete("deleting unused %s file: %s", typ, filepath.Base(e.path))
+			j.deleteFile(e.path)
+		}
 	}
 
 	return nil
@@ -523,131 +451,107 @@ func (j *CleanGeneratedJob) getMarkerFileSeconds(basename string) (int, error) {
 }
 
 func (j *CleanGeneratedJob) cleanMarkerFiles(ctx context.Context, progress *job.Progress) error {
+	logger.Infof("Cleaning marker files")
+
+	// Phase 1: walk FS collecting scene-hash directories and their marker files.
+	type markerFile struct {
+		path    string
+		seconds int
+	}
+	type markerDir struct {
+		path  string
+		hash  string
+		files []markerFile
+	}
+	var dirs []markerDir
+	currentIdx := -1
+
+	if err := filepath.WalkDir(j.Paths.Generated.Markers, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if err = ctx.Err(); err != nil {
+			return err
+		}
+		if d.IsDir() {
+			if path == j.Paths.Generated.Markers {
+				return nil
+			}
+			if filepath.Dir(path) != j.Paths.Generated.Markers {
+				logger.Warnf("Ignoring unknown marker directory: %s", path)
+				return fs.SkipDir
+			}
+			sceneHash, ferr := j.getMarkerSceneFileHash(d.Name())
+			if ferr != nil {
+				logger.Warnf("Ignoring unknown marker directory: %s", path)
+				return fs.SkipDir
+			}
+			dirs = append(dirs, markerDir{path: path, hash: sceneHash})
+			currentIdx = len(dirs) - 1
+			return nil
+		}
+		if currentIdx < 0 {
+			return nil
+		}
+		seconds, ferr := j.getMarkerFileSeconds(d.Name())
+		if ferr != nil {
+			logger.Warnf("Ignoring unknown marker file: %s", d.Name())
+			return nil
+		}
+		dirs[currentIdx].files = append(dirs[currentIdx].files, markerFile{path: path, seconds: seconds})
+		return nil
+	}); err != nil {
+		return err
+	}
+
 	if job.IsCancelled(ctx) {
 		return nil
 	}
 
-	logger.Infof("Cleaning marker files")
-
-	var scenes []*models.Scene
-	var sceneHash string
-	var markers []*models.SceneMarker
-
-	// walk through the markers directory
-	if err := filepath.Walk(j.Paths.Generated.Markers, func(path string, info fs.FileInfo, err error) error {
+	// Phase 2: load valid scene hashes and their marker seconds in one transaction.
+	fpType := j.sceneFingerprintType()
+	var validScenes map[string]struct{}
+	var validMarkers map[string]map[int]struct{}
+	if err := j.Repository.WithReadTxn(ctx, func(ctx context.Context) error {
+		var err error
+		validScenes, err = j.Repository.Scene.GetFingerprintsByType(ctx, fpType)
 		if err != nil {
 			return err
 		}
-
-		if err = ctx.Err(); err != nil {
-			return err
-		}
-
-		if info.IsDir() {
-			// ignore markers directory
-			if path == j.Paths.Generated.Markers {
-				return nil
-			}
-
-			markers = nil
-
-			if filepath.Dir(path) != j.Paths.Generated.Markers {
-				logger.Warnf("Ignoring unknown marker directory: %s", path)
-				return nil
-			}
-
-			sceneHash, err = j.getMarkerSceneFileHash(info.Name())
-			if err != nil {
-				logger.Warnf("Ignoring unknown marker directory: %s", path)
-				return nil
-			}
-
-			j.setProgressFromFilename(sceneHash[0:2], progress)
-
-			// check if the scene exists
-			if err := j.Repository.WithReadTxn(ctx, func(ctx context.Context) error {
-				var err error
-				scenes, err = j.getScenesWithHash(ctx, sceneHash)
-				if err != nil {
-					return fmt.Errorf("error checking scene entry: %v", err)
-				}
-
-				if len(scenes) == 0 {
-					j.logDelete("deleting unused marker directory: %s", sceneHash)
-					j.deleteDir(path)
-				} else {
-					// get the markers now
-					for _, scene := range scenes {
-						thisMarkers, err := j.Repository.SceneMarker.FindBySceneID(ctx, scene.ID)
-						if err != nil {
-							return fmt.Errorf("error getting markers for scene: %v", err)
-						}
-						markers = append(markers, thisMarkers...)
-					}
-				}
-
-				return nil
-			}); err != nil {
-				logger.Error(err.Error())
-			}
-
-			return nil
-		}
-
-		filename := info.Name()
-		seconds, err := j.getMarkerFileSeconds(filename)
-		if err != nil {
-			logger.Warnf("Ignoring unknown marker file: %s", filename)
-			return nil
-		}
-
-		// scenes should be set by the directory walk
-		hash := filepath.Base(filepath.Dir(path))
-		if hash != sceneHash {
-			logger.Errorf("internal error: scene hash mismatch: %s != %s", hash, sceneHash)
-			return nil
-		}
-
-		if len(scenes) == 0 {
-			logger.Errorf("no scenes found for marker file: %s", filename)
-			return nil
-		}
-
-		// find the marker
-		var marker *models.SceneMarker
-		for _, m := range markers {
-			if int(m.Seconds) == seconds {
-				marker = m
-				break
-			}
-		}
-
-		if marker == nil {
-			// not found, delete the file
-			j.logDelete("deleting unused marker file: %s", filename)
-			j.deleteFile(path)
-		}
-
-		return nil
-	}); err != nil {
+		validMarkers, err = j.Repository.Scene.GetHashedMarkerSeconds(ctx, fpType)
 		return err
+	}); err != nil {
+		return fmt.Errorf("loading marker data: %w", err)
+	}
+
+	// Phase 3: delete orphan directories and files.
+	for i, dir := range dirs {
+		if job.IsCancelled(ctx) {
+			return nil
+		}
+		j.setTaskProgress(float64(i)/float64(len(dirs)), progress)
+
+		if _, ok := validScenes[dir.hash]; !ok {
+			j.logDelete("deleting unused marker directory: %s", dir.hash)
+			j.deleteDir(dir.path)
+			continue
+		}
+
+		markerSeconds := validMarkers[dir.hash]
+		for _, f := range dir.files {
+			if markerSeconds == nil {
+				j.logDelete("deleting unused marker file: %s", filepath.Base(f.path))
+				j.deleteFile(f.path)
+				continue
+			}
+			if _, ok := markerSeconds[f.seconds]; !ok {
+				j.logDelete("deleting unused marker file: %s", filepath.Base(f.path))
+				j.deleteFile(f.path)
+			}
+		}
 	}
 
 	return nil
-}
-
-func (j *CleanGeneratedJob) getImagesWithHash(ctx context.Context, checksum string) ([]*models.Image, error) {
-	var exists []*models.Image
-	if err := j.Repository.WithReadTxn(ctx, func(ctx context.Context) error {
-		// if scene entry does not exist, delete the file
-		var err error
-		exists, err = j.Repository.Image.FindByChecksum(ctx, checksum)
-		return err
-	}); err != nil {
-		return nil, err
-	}
-
-	return exists, nil
 }
 
 func (j *CleanGeneratedJob) getThumbnailFileHash(basename string) (string, error) {
@@ -666,64 +570,65 @@ func (j *CleanGeneratedJob) getThumbnailFileHash(basename string) (string, error
 }
 
 func (j *CleanGeneratedJob) cleanThumbnailFiles(ctx context.Context, progress *job.Progress) error {
+	logger.Infof("Cleaning image thumbnail files")
+
+	// Phase 1: collect all thumbnail files on disk (no DB access).
+	type entry struct{ path, checksum string }
+	var entries []entry
+
+	if err := filepath.WalkDir(j.Paths.Generated.Thumbnails, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if err = ctx.Err(); err != nil {
+			return err
+		}
+		if d.IsDir() {
+			if path == j.Paths.Generated.Thumbnails {
+				return nil
+			}
+			_, ferr := j.getIntraFolderPrefix(d.Name())
+			if ferr != nil {
+				logger.Warnf("Ignoring unknown thumbnail directory: %s", path)
+				return fs.SkipDir
+			}
+			return nil
+		}
+		checksum, ferr := j.getThumbnailFileHash(d.Name())
+		if ferr != nil {
+			logger.Warnf("Ignoring unknown thumbnail file: %s", d.Name())
+			return nil
+		}
+		entries = append(entries, entry{path: path, checksum: checksum})
+		return nil
+	}); err != nil {
+		return err
+	}
+
 	if job.IsCancelled(ctx) {
 		return nil
 	}
 
-	logger.Infof("Cleaning image thumbnail files")
-
-	// walk through the sprite directory
-	if err := filepath.Walk(j.Paths.Generated.Thumbnails, func(path string, info fs.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if err = ctx.Err(); err != nil {
-			return err
-		}
-
-		if info.IsDir() {
-			if path == j.Paths.Generated.Thumbnails {
-				return nil
-			}
-
-			// ensure the directory is a hash prefix
-			_, err := j.getIntraFolderPrefix(info.Name())
-			if err != nil {
-				logger.Warnf("Ignoring unknown thumbnail directory: %s", path)
-				return nil
-			}
-
-			// estimate progress by the hash prefix
-			if filepath.Dir(path) == j.Paths.Generated.Thumbnails {
-				hashPrefix := filepath.Base(path)
-				j.setProgressFromFilename(hashPrefix, progress)
-			}
-
-			return nil
-		}
-
-		filename := info.Name()
-		checksum, err := j.getThumbnailFileHash(filename)
-		if err != nil {
-			logger.Warnf("Ignoring unknown thumbnail file: %s", filename)
-			return nil
-		}
-
-		exists, err := j.getImagesWithHash(ctx, checksum)
-		if err != nil {
-			logger.Errorf("error checking image entry: %v", err)
-			return nil
-		}
-
-		if len(exists) == 0 {
-			j.logDelete("deleting unused thumbnail file: %s", filename)
-			j.deleteFile(path)
-		}
-
-		return nil
-	}); err != nil {
+	// Phase 2: load all valid image MD5 checksums from DB in a single transaction.
+	var validChecksums map[string]struct{}
+	if err := j.Repository.WithReadTxn(ctx, func(ctx context.Context) error {
+		var err error
+		validChecksums, err = j.Repository.Image.GetAllMD5Checksums(ctx)
 		return err
+	}); err != nil {
+		return fmt.Errorf("loading image checksums: %w", err)
+	}
+
+	// Phase 3: delete orphans.
+	for i, e := range entries {
+		if job.IsCancelled(ctx) {
+			return nil
+		}
+		j.setTaskProgress(float64(i)/float64(len(entries)), progress)
+		if _, ok := validChecksums[e.checksum]; !ok {
+			j.logDelete("deleting unused thumbnail file: %s", filepath.Base(e.path))
+			j.deleteFile(e.path)
+		}
 	}
 
 	return nil

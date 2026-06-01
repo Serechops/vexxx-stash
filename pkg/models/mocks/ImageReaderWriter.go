@@ -638,6 +638,29 @@ func (_m *ImageReaderWriter) OCountByStudioID(ctx context.Context, studioID int)
 	return r0, r1
 }
 
+// GetAllMD5Checksums provides a mock function with given fields: ctx
+func (_m *ImageReaderWriter) GetAllMD5Checksums(ctx context.Context) (map[string]struct{}, error) {
+	ret := _m.Called(ctx)
+
+	var r0 map[string]struct{}
+	if rf, ok := ret.Get(0).(func(context.Context) map[string]struct{}); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[string]struct{})
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // Query provides a mock function with given fields: ctx, options
 func (_m *ImageReaderWriter) Query(ctx context.Context, options models.ImageQueryOptions) (*models.ImageQueryResult, error) {
 	ret := _m.Called(ctx, options)

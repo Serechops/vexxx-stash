@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
-	"slices"
 	"sort"
 	"strings"
 
@@ -251,7 +250,8 @@ type SceneStore struct {
 	oDateManager
 	viewDateManager
 
-	repo *storeRepository
+	repo   *storeRepository
+	caches *EntityCaches
 }
 
 func NewSceneStore(r *storeRepository, blobStore *BlobStore) *SceneStore {
@@ -426,6 +426,9 @@ func (qb *SceneStore) UpdatePartial(ctx context.Context, id int, partial models.
 		}
 	}
 
+	if qb.caches != nil {
+		qb.caches.Scenes.Invalidate(id)
+	}
 	return qb.find(ctx, id)
 }
 
@@ -484,6 +487,9 @@ func (qb *SceneStore) Update(ctx context.Context, updatedObject *models.Scene) e
 		}
 	}
 
+	if qb.caches != nil {
+		qb.caches.InvalidateScene(updatedObject.ID)
+	}
 	return nil
 }
 
@@ -496,11 +502,20 @@ func (qb *SceneStore) Destroy(ctx context.Context, id int) error {
 	// scene markers should be handled prior to calling destroy
 	// galleries should be handled prior to calling destroy
 
-	return qb.tableMgr.destroyExisting(ctx, []int{id})
+	if err := qb.tableMgr.destroyExisting(ctx, []int{id}); err != nil {
+		return err
+	}
+	if qb.caches != nil {
+		qb.caches.InvalidateScene(id)
+	}
+	return nil
 }
 
 // returns nil, nil if not found
 func (qb *SceneStore) Find(ctx context.Context, id int) (*models.Scene, error) {
+	if qb.caches != nil {
+		return qb.caches.Scenes.Get(ctx, id)
+	}
 	ret, err := qb.find(ctx, id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
@@ -540,8 +555,12 @@ func (qb *SceneStore) FindMany(ctx context.Context, ids []int) ([]*models.Scene,
 		return nil, err
 	}
 
+	posMap := make(map[int]int, len(ids))
+	for i, id := range ids {
+		posMap[id] = i
+	}
 	for _, s := range unsorted {
-		i := slices.Index(ids, s.ID)
+		i := posMap[s.ID]
 		scenes[i] = s
 	}
 
@@ -1603,6 +1622,10 @@ func (qb *SceneStore) ResetActivity(ctx context.Context, id int, resetResume boo
 
 func (qb *SceneStore) GetURLs(ctx context.Context, sceneID int) ([]string, error) {
 	return scenesURLsTableMgr.get(ctx, sceneID)
+}
+
+func (qb *SceneStore) GetManyURLs(ctx context.Context, ids []int) ([][]string, error) {
+	return scenesURLsTableMgr.getMany(ctx, ids)
 }
 
 func (qb *SceneStore) GetCover(ctx context.Context, sceneID int) ([]byte, error) {

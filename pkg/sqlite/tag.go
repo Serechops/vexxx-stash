@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"slices"
 	"strings"
 
 	"github.com/doug-martin/goqu/v9"
@@ -168,6 +167,7 @@ type TagStore struct {
 	blobJoinQueryBuilder
 
 	tableMgr *table
+	caches   *EntityCaches
 }
 
 func NewTagStore(blobStore *BlobStore) *TagStore {
@@ -270,6 +270,9 @@ func (qb *TagStore) UpdatePartial(ctx context.Context, id int, partial models.Ta
 		}
 	}
 
+	if qb.caches != nil {
+		qb.caches.Tags.Invalidate(id)
+	}
 	return qb.find(ctx, id)
 }
 
@@ -305,6 +308,9 @@ func (qb *TagStore) Update(ctx context.Context, updatedObject *models.Tag) error
 		}
 	}
 
+	if qb.caches != nil {
+		qb.caches.InvalidateTag(updatedObject.ID)
+	}
 	return nil
 }
 
@@ -314,7 +320,13 @@ func (qb *TagStore) Destroy(ctx context.Context, id int) error {
 		return err
 	}
 
-	return tagRepository.destroyExisting(ctx, []int{id})
+	if err := tagRepository.destroyExisting(ctx, []int{id}); err != nil {
+		return err
+	}
+	if qb.caches != nil {
+		qb.caches.InvalidateTag(id)
+	}
+	return nil
 }
 
 // ReassignPrimaryMarkers updates all scene markers that use fromTagID as their primary tag to use toTagID instead.
@@ -326,6 +338,9 @@ func (qb *TagStore) ReassignPrimaryMarkers(ctx context.Context, fromTagID, toTag
 
 // returns nil, nil if not found
 func (qb *TagStore) Find(ctx context.Context, id int) (*models.Tag, error) {
+	if qb.caches != nil {
+		return qb.caches.Tags.Get(ctx, id)
+	}
 	ret, err := qb.find(ctx, id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
@@ -336,6 +351,10 @@ func (qb *TagStore) Find(ctx context.Context, id int) (*models.Tag, error) {
 func (qb *TagStore) FindMany(ctx context.Context, ids []int) ([]*models.Tag, error) {
 	ret := make([]*models.Tag, len(ids))
 
+	posMap := make(map[int]int, len(ids))
+	for i, id := range ids {
+		posMap[id] = i
+	}
 	table := qb.table()
 	if err := batchExec(ids, defaultBatchSize, func(batch []int) error {
 		q := qb.selectDataset().Prepared(true).Where(table.Col(idColumn).In(batch))
@@ -345,7 +364,7 @@ func (qb *TagStore) FindMany(ctx context.Context, ids []int) ([]*models.Tag, err
 		}
 
 		for _, s := range unsorted {
-			i := slices.Index(ids, s.ID)
+			i := posMap[s.ID]
 			ret[i] = s
 		}
 

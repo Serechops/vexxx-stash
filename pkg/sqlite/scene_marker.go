@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"slices"
 
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
@@ -212,8 +211,12 @@ func (qb *SceneMarkerStore) FindMany(ctx context.Context, ids []int) ([]*models.
 		return nil, err
 	}
 
+	posMap := make(map[int]int, len(ids))
+	for i, id := range ids {
+		posMap[id] = i
+	}
 	for _, s := range unsorted {
-		i := slices.Index(ids, s.ID)
+		i := posMap[s.ID]
 		ret[i] = s
 	}
 

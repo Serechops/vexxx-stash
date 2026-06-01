@@ -2,6 +2,8 @@ package sqlite
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"time"
 
 	"github.com/stashapp/stash/pkg/cache"
@@ -51,28 +53,44 @@ func NewEntityCaches(config CacheConfig, db *Database) *EntityCaches {
 			TTL:       config.CacheTTL,
 			KeyPrefix: "scene",
 		}, func(ctx context.Context, id int) (*models.Scene, error) {
-			return db.Scene.find(ctx, id)
+			s, err := db.Scene.find(ctx, id)
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil, nil
+			}
+			return s, err
 		}),
 		Performers: cache.NewEntityCache(cache.EntityCacheConfig{
 			Capacity:  config.PerformerCacheSize,
 			TTL:       config.CacheTTL,
 			KeyPrefix: "performer",
 		}, func(ctx context.Context, id int) (*models.Performer, error) {
-			return db.Performer.find(ctx, id)
+			p, err := db.Performer.find(ctx, id)
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil, nil
+			}
+			return p, err
 		}),
 		Studios: cache.NewEntityCache(cache.EntityCacheConfig{
 			Capacity:  config.StudioCacheSize,
 			TTL:       config.CacheTTL,
 			KeyPrefix: "studio",
 		}, func(ctx context.Context, id int) (*models.Studio, error) {
-			return db.Studio.find(ctx, id)
+			s, err := db.Studio.find(ctx, id)
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil, nil
+			}
+			return s, err
 		}),
 		Tags: cache.NewEntityCache(cache.EntityCacheConfig{
 			Capacity:  config.TagCacheSize,
 			TTL:       config.CacheTTL,
 			KeyPrefix: "tag",
 		}, func(ctx context.Context, id int) (*models.Tag, error) {
-			return db.Tag.find(ctx, id)
+			t, err := db.Tag.find(ctx, id)
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil, nil
+			}
+			return t, err
 		}),
 	}
 }

@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"slices"
 
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
@@ -350,6 +349,10 @@ func (qb *GroupStore) Find(ctx context.Context, id int) (*models.Group, error) {
 func (qb *GroupStore) FindMany(ctx context.Context, ids []int) ([]*models.Group, error) {
 	ret := make([]*models.Group, len(ids))
 
+	posMap := make(map[int]int, len(ids))
+	for i, id := range ids {
+		posMap[id] = i
+	}
 	table := qb.table()
 	if err := batchExec(ids, defaultBatchSize, func(batch []int) error {
 		q := qb.selectDataset().Prepared(true).Where(table.Col(idColumn).In(batch))
@@ -359,7 +362,7 @@ func (qb *GroupStore) FindMany(ctx context.Context, ids []int) ([]*models.Group,
 		}
 
 		for _, s := range unsorted {
-			i := slices.Index(ids, s.ID)
+			i := posMap[s.ID]
 			ret[i] = s
 		}
 

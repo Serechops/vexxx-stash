@@ -1030,6 +1030,29 @@ func (_m *SceneReaderWriter) GetManyStashIDs(ctx context.Context, ids []int) ([]
 	return r0, r1
 }
 
+// GetManyURLs provides a mock function with given fields: ctx, ids
+func (_m *SceneReaderWriter) GetManyURLs(ctx context.Context, ids []int) ([][]string, error) {
+	ret := _m.Called(ctx, ids)
+
+	var r0 [][]string
+	if rf, ok := ret.Get(0).(func(context.Context, []int) [][]string); ok {
+		r0 = rf(ctx, ids)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([][]string)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, []int) error); ok {
+		r1 = rf(ctx, ids)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetManyTagIDs provides a mock function with given fields: ctx, ids
 func (_m *SceneReaderWriter) GetManyTagIDs(ctx context.Context, ids []int) ([][]int, error) {
 	ret := _m.Called(ctx, ids)

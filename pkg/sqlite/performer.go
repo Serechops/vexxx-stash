@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"slices"
 
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
@@ -233,6 +232,7 @@ type PerformerStore struct {
 	customFieldsStore
 
 	tableMgr *table
+	caches   *EntityCaches
 }
 
 func NewPerformerStore(blobStore *BlobStore) *PerformerStore {
@@ -348,6 +348,9 @@ func (qb *PerformerStore) UpdatePartial(ctx context.Context, id int, partial mod
 		return nil, err
 	}
 
+	if qb.caches != nil {
+		qb.caches.Performers.Invalidate(id)
+	}
 	return qb.find(ctx, id)
 }
 
@@ -387,6 +390,9 @@ func (qb *PerformerStore) Update(ctx context.Context, updatedObject *models.Upda
 		return err
 	}
 
+	if qb.caches != nil {
+		qb.caches.InvalidatePerformer(updatedObject.ID)
+	}
 	return nil
 }
 
@@ -396,11 +402,20 @@ func (qb *PerformerStore) Destroy(ctx context.Context, id int) error {
 		return err
 	}
 
-	return performerRepository.destroyExisting(ctx, []int{id})
+	if err := performerRepository.destroyExisting(ctx, []int{id}); err != nil {
+		return err
+	}
+	if qb.caches != nil {
+		qb.caches.InvalidatePerformer(id)
+	}
+	return nil
 }
 
 // returns nil, nil if not found
 func (qb *PerformerStore) Find(ctx context.Context, id int) (*models.Performer, error) {
+	if qb.caches != nil {
+		return qb.caches.Performers.Get(ctx, id)
+	}
 	ret, err := qb.find(ctx, id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
@@ -412,6 +427,10 @@ func (qb *PerformerStore) FindMany(ctx context.Context, ids []int) ([]*models.Pe
 	tableMgr := performerTableMgr
 	ret := make([]*models.Performer, len(ids))
 
+	posMap := make(map[int]int, len(ids))
+	for i, id := range ids {
+		posMap[id] = i
+	}
 	if err := batchExec(ids, defaultBatchSize, func(batch []int) error {
 		q := goqu.Select("*").From(tableMgr.table).Where(tableMgr.byIDInts(batch...))
 		unsorted, err := qb.getMany(ctx, q)
@@ -420,7 +439,7 @@ func (qb *PerformerStore) FindMany(ctx context.Context, ids []int) ([]*models.Pe
 		}
 
 		for _, s := range unsorted {
-			i := slices.Index(ids, s.ID)
+			i := posMap[s.ID]
 			ret[i] = s
 		}
 

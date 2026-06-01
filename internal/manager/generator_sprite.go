@@ -35,7 +35,7 @@ type SpriteGenerator struct {
 	g *generate.Generator
 }
 
-func NewSpriteGenerator(videoFile ffmpeg.VideoFile, videoChecksum string, imageOutputPath string, vttOutputPath string, rows int, cols int) (*SpriteGenerator, error) {
+func NewSpriteGenerator(ctx context.Context, videoFile ffmpeg.VideoFile, videoChecksum string, imageOutputPath string, vttOutputPath string, rows int, cols int) (*SpriteGenerator, error) {
 	exists, err := fsutil.FileExists(videoFile.Path)
 	if !exists {
 		return nil, err
@@ -67,7 +67,7 @@ func NewSpriteGenerator(videoFile ffmpeg.VideoFile, videoChecksum string, imageO
 		return nil, err
 	}
 	generator.ChunkCount = chunkCount
-	if err := generator.configure(); err != nil {
+	if err := generator.configure(ctx); err != nil {
 		return nil, err
 	}
 
@@ -88,17 +88,17 @@ func NewSpriteGenerator(videoFile ffmpeg.VideoFile, videoChecksum string, imageO
 	}, nil
 }
 
-func (g *SpriteGenerator) Generate() error {
-	if err := g.generateSpriteImage(); err != nil {
+func (g *SpriteGenerator) Generate(ctx context.Context) error {
+	if err := g.generateSpriteImage(ctx); err != nil {
 		return err
 	}
-	if err := g.generateSpriteVTT(); err != nil {
+	if err := g.generateSpriteVTT(ctx); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (g *SpriteGenerator) generateSpriteImage() error {
+func (g *SpriteGenerator) generateSpriteImage(ctx context.Context) error {
 	if !g.Overwrite && g.imageExists() {
 		return nil
 	}
@@ -116,7 +116,7 @@ func (g *SpriteGenerator) generateSpriteImage() error {
 
 		for i := 0; i < g.Info.ChunkCount; i++ {
 			time := g.StartOffset + (float64(i) * stepSize)
-			img, err := g.g.SpriteScreenshot(context.TODO(), g.Info.VideoFile.Path, time)
+			img, err := g.g.SpriteScreenshot(ctx, g.Info.VideoFile.Path, time)
 			if err != nil {
 				return fmt.Errorf("sprite screenshot at index %d: %w", i, err)
 			}
@@ -133,7 +133,7 @@ func (g *SpriteGenerator) generateSpriteImage() error {
 				return errors.New("invalid frame number conversion")
 			}
 
-			img, err := g.g.SpriteScreenshotSlow(context.TODO(), g.Info.VideoFile.Path, int(frame))
+			img, err := g.g.SpriteScreenshotSlow(ctx, g.Info.VideoFile.Path, int(frame))
 			if err != nil {
 				return fmt.Errorf("sprite screenshot (slow) at index %d: %w", i, err)
 			}
@@ -148,7 +148,7 @@ func (g *SpriteGenerator) generateSpriteImage() error {
 	return imaging.Save(g.g.CombineSpriteImages(images), g.ImageOutputPath)
 }
 
-func (g *SpriteGenerator) generateSpriteVTT() error {
+func (g *SpriteGenerator) generateSpriteVTT(ctx context.Context) error {
 	if !g.Overwrite && g.vttExists() {
 		return nil
 	}
@@ -166,7 +166,7 @@ func (g *SpriteGenerator) generateSpriteVTT() error {
 		stepSize /= g.Info.FrameRate
 	}
 
-	return g.g.SpriteVTT(context.TODO(), g.VTTOutputPath, g.ImageOutputPath, stepSize, g.StartOffset)
+	return g.g.SpriteVTT(ctx, g.VTTOutputPath, g.ImageOutputPath, stepSize, g.StartOffset)
 }
 
 func (g *SpriteGenerator) imageExists() bool {

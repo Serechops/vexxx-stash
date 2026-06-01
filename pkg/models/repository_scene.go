@@ -119,6 +119,7 @@ type SceneReader interface {
 	GetManyPerformerIDs(ctx context.Context, ids []int) ([][]int, error)
 	GetManyGalleryIDs(ctx context.Context, ids []int) ([][]int, error)
 	GetManyStashIDs(ctx context.Context, ids []int) ([][]StashID, error)
+	GetManyURLs(ctx context.Context, ids []int) ([][]string, error)
 
 	All(ctx context.Context) ([]*Scene, error)
 	Wall(ctx context.Context, q *string) ([]*Scene, error)

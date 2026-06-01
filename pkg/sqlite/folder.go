@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
-	"slices"
 
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
@@ -281,8 +280,12 @@ func (qb *FolderStore) FindMany(ctx context.Context, ids []models.FolderID) ([]*
 		return nil, err
 	}
 
+	posMap := make(map[models.FolderID]int, len(ids))
+	for i, id := range ids {
+		posMap[id] = i
+	}
 	for _, s := range unsorted {
-		i := slices.Index(ids, s.ID)
+		i := posMap[s.ID]
 		folders[i] = s
 	}
 

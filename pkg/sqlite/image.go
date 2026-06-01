@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
-	"slices"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -428,6 +427,10 @@ func (qb *ImageStore) Find(ctx context.Context, id int) (*models.Image, error) {
 func (qb *ImageStore) FindMany(ctx context.Context, ids []int) ([]*models.Image, error) {
 	images := make([]*models.Image, len(ids))
 
+	posMap := make(map[int]int, len(ids))
+	for i, id := range ids {
+		posMap[id] = i
+	}
 	if err := batchExec(ids, defaultBatchSize, func(batch []int) error {
 		q := qb.selectDataset().Prepared(true).Where(qb.table().Col(idColumn).In(batch))
 		unsorted, err := qb.getMany(ctx, q)
@@ -436,7 +439,7 @@ func (qb *ImageStore) FindMany(ctx context.Context, ids []int) ([]*models.Image,
 		}
 
 		for _, s := range unsorted {
-			i := slices.Index(ids, s.ID)
+			i := posMap[s.ID]
 			images[i] = s
 		}
 

@@ -141,7 +141,7 @@ func NewDatabase() *Database {
 		DismissedRecommendation: &DismissedRecommendationStore{},
 		LikedRecommendation:     &LikedRecommendationStore{},
 		VisualSignature:         &VisualSignatureStore{},
-		Analytics:               &AnalyticsStore{},
+		Analytics:               NewAnalyticsStore(30 * time.Second),
 	}
 
 	ret := &Database{
@@ -165,6 +165,11 @@ func (db *Database) InitCaches(config *CacheConfig) {
 		config = &defaultConfig
 	}
 	db.Caches = NewEntityCaches(*config, db)
+	// Wire caches into stores so reads hit the cache and writes invalidate it.
+	db.Scene.caches = db.Caches
+	db.Performer.caches = db.Caches
+	db.Studio.caches = db.Caches
+	db.Tag.caches = db.Caches
 }
 
 // InvalidateCache invalidates specific entity from caches after mutations.

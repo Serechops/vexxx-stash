@@ -48,6 +48,10 @@ const (
 	TagUpdatePost  TriggerEnum = "Tag.Update.Post"
 	TagMergePost   TriggerEnum = "Tag.Merge.Post"
 	TagDestroyPost TriggerEnum = "Tag.Destroy.Post"
+
+	UserCreatePost  TriggerEnum = "User.Create.Post"
+	UserUpdatePost  TriggerEnum = "User.Update.Post"
+	UserDestroyPost TriggerEnum = "User.Destroy.Post"
 )
 
 var AllHookTriggerEnum = []TriggerEnum{
@@ -87,6 +91,10 @@ var AllHookTriggerEnum = []TriggerEnum{
 	TagUpdatePost,
 	TagMergePost,
 	TagDestroyPost,
+
+	UserCreatePost,
+	UserUpdatePost,
+	UserDestroyPost,
 }
 
 func (e TriggerEnum) IsValid() bool {
@@ -126,7 +134,11 @@ func (e TriggerEnum) IsValid() bool {
 
 		TagCreatePost,
 		TagUpdatePost,
-		TagDestroyPost:
+		TagDestroyPost,
+
+		UserCreatePost,
+		UserUpdatePost,
+		UserDestroyPost:
 		return true
 	}
 	return false

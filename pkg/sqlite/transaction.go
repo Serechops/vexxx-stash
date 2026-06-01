@@ -60,10 +60,13 @@ func (db *Database) Commit(ctx context.Context) error {
 		return err
 	}
 
-	defer db.txnComplete(ctx)
-
 	if err := tx.Commit(); err != nil {
 		return err
+	}
+
+	writable, _ := ctx.Value(writableKey).(bool)
+	if writable && db.writeDB != nil {
+		_, _ = db.writeDB.ExecContext(ctx, "PRAGMA wal_checkpoint(PASSIVE)")
 	}
 
 	return nil
@@ -75,16 +78,11 @@ func (db *Database) Rollback(ctx context.Context) error {
 		return err
 	}
 
-	defer db.txnComplete(ctx)
-
 	if err := tx.Rollback(); err != nil {
 		return err
 	}
 
 	return nil
-}
-
-func (db *Database) txnComplete(ctx context.Context) {
 }
 
 func getTx(ctx context.Context) (*sqlx.Tx, error) {

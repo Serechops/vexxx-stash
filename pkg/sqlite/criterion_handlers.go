@@ -67,7 +67,7 @@ func stringCriterionHandler(c *models.StringCriterionInput, column string) crite
 				case models.CriterionModifierNotNull:
 					f.addWhere("(" + column + " IS NOT NULL AND TRIM(" + column + ") != '')")
 				default:
-					panic("unsupported string filter modifier")
+					f.setError(fmt.Errorf("unsupported string filter modifier: %v", modifier))
 				}
 			}
 		}
@@ -102,7 +102,7 @@ func enumCriterionHandler(modifier models.CriterionModifier, values []string, co
 			case models.CriterionModifierNotNull:
 				f.addWhere("(" + column + " IS NOT NULL AND TRIM(" + column + ") != '')")
 			default:
-				panic("unsupported string filter modifier")
+				f.setError(fmt.Errorf("unsupported enum filter modifier: %v", modifier))
 			}
 		}
 	}
@@ -150,7 +150,7 @@ func pathCriterionHandler(c *models.StringCriterionInput, pathColumn string, bas
 				case models.CriterionModifierNotNull:
 					f.addWhere(fmt.Sprintf("%s IS NOT NULL AND TRIM(%[1]s) != '' AND %s IS NOT NULL AND TRIM(%[2]s) != ''", pathColumn, basenameColumn))
 				default:
-					panic("unsupported string filter modifier")
+					f.setError(fmt.Errorf("unsupported path filter modifier: %v", modifier))
 				}
 			}
 		}

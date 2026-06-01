@@ -2,15 +2,72 @@ package sqlite
 
 import (
 	"context"
+	"sync"
+	"time"
 
 	"github.com/stashapp/stash/pkg/models"
 )
 
+// analyticsEntry holds a cached query result and its expiry time.
+type analyticsEntry struct {
+	data      []models.AnalyticsBreakdown
+	expiresAt time.Time
+}
+
+// analyticsCache holds per-method cached results protected by a single RWMutex.
+type analyticsCache struct {
+	mu  sync.RWMutex
+	ttl time.Duration
+
+	byCodec         analyticsEntry
+	byResolution    analyticsEntry
+	byStudio        analyticsEntry
+	byRating        analyticsEntry
+	byMonth         analyticsEntry
+	topStudios      analyticsEntry
+	topPerformers   analyticsEntry
+	monthlyActivity analyticsEntry
+}
+
+func (c *analyticsCache) lookup(e *analyticsEntry) ([]models.AnalyticsBreakdown, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	if time.Now().Before(e.expiresAt) {
+		return e.data, true
+	}
+	return nil, false
+}
+
+func (c *analyticsCache) store(e *analyticsEntry, data []models.AnalyticsBreakdown) {
+	c.mu.Lock()
+	e.data = data
+	e.expiresAt = time.Now().Add(c.ttl)
+	c.mu.Unlock()
+}
+
 // AnalyticsStore runs aggregation queries for the analytics dashboard.
-type AnalyticsStore struct{}
+type AnalyticsStore struct {
+	cache *analyticsCache
+}
+
+// NewAnalyticsStore creates an AnalyticsStore with a result cache of the given TTL.
+// Pass 0 to disable caching.
+func NewAnalyticsStore(ttl time.Duration) *AnalyticsStore {
+	if ttl <= 0 {
+		return &AnalyticsStore{}
+	}
+	return &AnalyticsStore{
+		cache: &analyticsCache{ttl: ttl},
+	}
+}
 
 // ScenesByCodec returns scene counts and total file size grouped by video codec.
 func (s *AnalyticsStore) ScenesByCodec(ctx context.Context) ([]models.AnalyticsBreakdown, error) {
+	if s.cache != nil {
+		if result, ok := s.cache.lookup(&s.cache.byCodec); ok {
+			return result, nil
+		}
+	}
 	const q = `
 SELECT
   COALESCE(NULLIF(vf.video_codec, ''), 'Unknown') AS label,
@@ -27,11 +84,19 @@ ORDER BY count DESC`
 	if err := querySelect(ctx, q, nil, &rows); err != nil {
 		return nil, err
 	}
+	if s.cache != nil {
+		s.cache.store(&s.cache.byCodec, rows)
+	}
 	return rows, nil
 }
 
 // ScenesByResolution returns scene counts and total file size grouped by height bucket.
 func (s *AnalyticsStore) ScenesByResolution(ctx context.Context) ([]models.AnalyticsBreakdown, error) {
+	if s.cache != nil {
+		if result, ok := s.cache.lookup(&s.cache.byResolution); ok {
+			return result, nil
+		}
+	}
 	const q = `
 SELECT
   CASE
@@ -55,11 +120,19 @@ ORDER BY count DESC`
 	if err := querySelect(ctx, q, nil, &rows); err != nil {
 		return nil, err
 	}
+	if s.cache != nil {
+		s.cache.store(&s.cache.byResolution, rows)
+	}
 	return rows, nil
 }
 
 // ScenesByStudio returns the top 20 studios by scene count with total file size.
 func (s *AnalyticsStore) ScenesByStudio(ctx context.Context) ([]models.AnalyticsBreakdown, error) {
+	if s.cache != nil {
+		if result, ok := s.cache.lookup(&s.cache.byStudio); ok {
+			return result, nil
+		}
+	}
 	const q = `
 SELECT
   COALESCE(st.name, 'No Studio')                  AS label,
@@ -77,11 +150,19 @@ LIMIT 20`
 	if err := querySelect(ctx, q, nil, &rows); err != nil {
 		return nil, err
 	}
+	if s.cache != nil {
+		s.cache.store(&s.cache.byStudio, rows)
+	}
 	return rows, nil
 }
 
 // ScenesByRating returns scene counts grouped by star-rating bucket.
 func (s *AnalyticsStore) ScenesByRating(ctx context.Context) ([]models.AnalyticsBreakdown, error) {
+	if s.cache != nil {
+		if result, ok := s.cache.lookup(&s.cache.byRating); ok {
+			return result, nil
+		}
+	}
 	const q = `
 SELECT
   CASE
@@ -110,12 +191,20 @@ ORDER BY
 	if err := querySelect(ctx, q, nil, &rows); err != nil {
 		return nil, err
 	}
+	if s.cache != nil {
+		s.cache.store(&s.cache.byRating, rows)
+	}
 	return rows, nil
 }
 
 // ScenesByMonth returns scene counts per calendar month (YYYY-MM) based on
 // file creation date, up to the last 60 months.
 func (s *AnalyticsStore) ScenesByMonth(ctx context.Context) ([]models.AnalyticsBreakdown, error) {
+	if s.cache != nil {
+		if result, ok := s.cache.lookup(&s.cache.byMonth); ok {
+			return result, nil
+		}
+	}
 	const q = `
 SELECT
   strftime('%Y-%m', f.created_at)  AS label,
@@ -133,12 +222,20 @@ LIMIT 60`
 	if err := querySelect(ctx, q, nil, &rows); err != nil {
 		return nil, err
 	}
+	if s.cache != nil {
+		s.cache.store(&s.cache.byMonth, rows)
+	}
 	return rows, nil
 }
 
 // TopStudiosByWatchTime returns the top 15 studios ranked by total accumulated
 // play_duration across all their scenes. Size holds total seconds watched.
 func (s *AnalyticsStore) TopStudiosByWatchTime(ctx context.Context) ([]models.AnalyticsBreakdown, error) {
+	if s.cache != nil {
+		if result, ok := s.cache.lookup(&s.cache.topStudios); ok {
+			return result, nil
+		}
+	}
 	const q = `
 SELECT
   COALESCE(st.name, 'No Studio')                  AS label,
@@ -155,12 +252,20 @@ LIMIT 15`
 	if err := querySelect(ctx, q, nil, &rows); err != nil {
 		return nil, err
 	}
+	if s.cache != nil {
+		s.cache.store(&s.cache.topStudios, rows)
+	}
 	return rows, nil
 }
 
 // TopPerformersByWatchTime returns the top 15 performers ranked by total
 // accumulated play_duration across all their scenes. Size holds total seconds.
 func (s *AnalyticsStore) TopPerformersByWatchTime(ctx context.Context) ([]models.AnalyticsBreakdown, error) {
+	if s.cache != nil {
+		if result, ok := s.cache.lookup(&s.cache.topPerformers); ok {
+			return result, nil
+		}
+	}
 	const q = `
 SELECT
   p.name                                           AS label,
@@ -178,12 +283,20 @@ LIMIT 15`
 	if err := querySelect(ctx, q, nil, &rows); err != nil {
 		return nil, err
 	}
+	if s.cache != nil {
+		s.cache.store(&s.cache.topPerformers, rows)
+	}
 	return rows, nil
 }
 
 // MonthlyWatchActivity returns the number of play events per calendar month
 // from the scenes_view_dates table, up to the last 60 months.
 func (s *AnalyticsStore) MonthlyWatchActivity(ctx context.Context) ([]models.AnalyticsBreakdown, error) {
+	if s.cache != nil {
+		if result, ok := s.cache.lookup(&s.cache.monthlyActivity); ok {
+			return result, nil
+		}
+	}
 	const q = `
 SELECT
   strftime('%Y-%m', svd.view_date)  AS label,
@@ -198,6 +311,9 @@ LIMIT 60`
 	var rows []models.AnalyticsBreakdown
 	if err := querySelect(ctx, q, nil, &rows); err != nil {
 		return nil, err
+	}
+	if s.cache != nil {
+		s.cache.store(&s.cache.monthlyActivity, rows)
 	}
 	return rows, nil
 }

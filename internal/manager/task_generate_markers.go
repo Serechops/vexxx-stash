@@ -66,7 +66,7 @@ func (t *GenerateMarkersTask) Start(ctx context.Context) {
 			return
 		}
 
-		t.generateMarker(videoFile, scene, t.Marker)
+		t.generateMarker(ctx, videoFile, scene, t.Marker)
 	}
 }
 
@@ -100,11 +100,11 @@ func (t *GenerateMarkersTask) generateSceneMarkers(ctx context.Context) {
 		index := i + 1
 		logger.Progressf("[generator] <%s> scene marker %d of %d", sceneHash, index, len(sceneMarkers))
 
-		t.generateMarker(videoFile, t.Scene, sceneMarker)
+		t.generateMarker(ctx, videoFile, t.Scene, sceneMarker)
 	}
 }
 
-func (t *GenerateMarkersTask) generateMarker(videoFile *models.VideoFile, scene *models.Scene, sceneMarker *models.SceneMarker) {
+func (t *GenerateMarkersTask) generateMarker(ctx context.Context, videoFile *models.VideoFile, scene *models.Scene, sceneMarker *models.SceneMarker) {
 	sceneHash := scene.GetHash(t.fileNamingAlgorithm)
 	seconds := float64(sceneMarker.Seconds)
 
@@ -117,21 +117,21 @@ func (t *GenerateMarkersTask) generateMarker(videoFile *models.VideoFile, scene 
 	g := t.generator
 
 	if t.VideoPreview {
-		if err := g.MarkerPreviewVideo(context.TODO(), videoFile.Path, sceneHash, seconds, sceneMarker.EndSeconds, instance.Config.GetPreviewAudio()); err != nil {
+		if err := g.MarkerPreviewVideo(ctx, videoFile.Path, sceneHash, seconds, sceneMarker.EndSeconds, instance.Config.GetPreviewAudio()); err != nil {
 			logger.Errorf("[generator] failed to generate marker video: %v", err)
 			logErrorOutput(err)
 		}
 	}
 
 	if t.ImagePreview {
-		if err := g.SceneMarkerWebp(context.TODO(), videoFile.Path, sceneHash, seconds); err != nil {
+		if err := g.SceneMarkerWebp(ctx, videoFile.Path, sceneHash, seconds); err != nil {
 			logger.Errorf("[generator] failed to generate marker image: %v", err)
 			logErrorOutput(err)
 		}
 	}
 
 	if t.Screenshot {
-		if err := g.SceneMarkerScreenshot(context.TODO(), videoFile.Path, sceneHash, seconds, videoFile.Width); err != nil {
+		if err := g.SceneMarkerScreenshot(ctx, videoFile.Path, sceneHash, seconds, videoFile.Width); err != nil {
 			logger.Errorf("[generator] failed to generate marker screenshot: %v", err)
 			logErrorOutput(err)
 		}

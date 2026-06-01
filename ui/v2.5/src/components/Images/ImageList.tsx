@@ -659,20 +659,8 @@ export const ImageList: React.FC<IImageList> = PatchComponent(
         text: intl.formatMessage({ id: "actions.view_random" }),
         onClick: viewRandom,
       },
-      {        text: intl.formatMessage({ id: "actions.generate" }),
-        onClick: (result, filter, selectedIds) => {
-          showModal(
-            <GenerateDialog
-              type="image"
-              selectedIds={Array.from(selectedIds.values())}
-              onClose={() => closeModal()}
-            />
-          );
-          return Promise.resolve();
-        },
-        isDisplayed: showWhenSelected,
-      },
-      {        text: intl.formatMessage({ id: "actions.generate" }),
+      {
+        text: intl.formatMessage({ id: "actions.generate" }),
         onClick: (result, filter, selectedIds) => {
           showModal(
             <GenerateDialog

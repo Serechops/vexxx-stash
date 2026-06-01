@@ -64,7 +64,7 @@ func (t *GenerateCoverTask) Start(ctx context.Context) {
 		Overwrite:    true,
 	}
 
-	coverImageData, err := g.Screenshot(context.TODO(), videoFile.Path, videoFile.Width, videoFile.Duration, generate.ScreenshotOptions{
+	coverImageData, err := g.Screenshot(ctx, videoFile.Path, videoFile.Width, videoFile.Duration, generate.ScreenshotOptions{
 		At: &at,
 	})
 	if err != nil {

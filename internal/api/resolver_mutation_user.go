@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stashapp/stash/internal/manager"
 	"github.com/stashapp/stash/pkg/models"
+	"github.com/stashapp/stash/pkg/plugin/hook"
 	"github.com/stashapp/stash/pkg/session"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -109,8 +110,7 @@ func (r *mutationResolver) UserCreate(ctx context.Context, input models.UserCrea
 		}
 	}
 
-	// TODO: Add plugin hook support for user events
-	// r.hookExecutor.ExecutePostHooks(ctx, user.ID, hook.UserCreatePost, nil, nil)
+	r.hookExecutor.ExecutePostHooks(ctx, user.ID, hook.UserCreatePost, nil, nil)
 
 	return user, nil
 }
@@ -206,8 +206,7 @@ func (r *mutationResolver) UserUpdate(ctx context.Context, input models.UserUpda
 		return nil, err
 	}
 
-	// TODO: Add plugin hook support for user events
-	// r.hookExecutor.ExecutePostHooks(ctx, user.ID, hook.UserUpdatePost, nil, nil)
+	r.hookExecutor.ExecutePostHooks(ctx, user.ID, hook.UserUpdatePost, nil, nil)
 
 	return user, nil
 }
@@ -256,8 +255,7 @@ func (r *mutationResolver) UserDestroy(ctx context.Context, id string) (bool, er
 		return false, err
 	}
 
-	// TODO: Add plugin hook support for user events
-	// r.hookExecutor.ExecutePostHooks(ctx, id, hook.UserDestroyPost, nil, nil)
+	r.hookExecutor.ExecutePostHooks(ctx, idInt, hook.UserDestroyPost, nil, nil)
 
 	return true, nil
 }

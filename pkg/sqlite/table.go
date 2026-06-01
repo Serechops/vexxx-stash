@@ -524,6 +524,29 @@ func (t *orderedValueTable[T]) get(ctx context.Context, id int) ([]T, error) {
 	return ret, nil
 }
 
+func (t *orderedValueTable[T]) getMany(ctx context.Context, ids []int) ([][]T, error) {
+	q := dialect.Select(t.idColumn, t.valueColumn).From(t.table.table).Where(t.idColumn.In(ids)).Order(t.positionColumn().Asc())
+
+	ret := make([][]T, len(ids))
+	idToIndex := idToIndexMap(ids)
+
+	const single = false
+	if err := queryFunc(ctx, q, single, func(rows *sqlx.Rows) error {
+		var id int
+		var v T
+		if err := rows.Scan(&id, &v); err != nil {
+			return err
+		}
+		idx := idToIndex[id]
+		ret[idx] = append(ret[idx], v)
+		return nil
+	}); err != nil {
+		return nil, fmt.Errorf("getting values from %s: %w", t.table.table.GetTable(), err)
+	}
+
+	return ret, nil
+}
+
 func (t *orderedValueTable[T]) insertJoin(ctx context.Context, id int, position int, v T) (sql.Result, error) {
 	q := dialect.Insert(t.table.table).Cols(t.idColumn.GetCol(), t.positionColumn().GetCol(), t.valueColumn.GetCol()).Vals(
 		goqu.Vals{id, position, v},

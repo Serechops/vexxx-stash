@@ -33,7 +33,7 @@ func newGeneratorInfo(videoFile ffmpeg.VideoFile) (*generatorInfo, error) {
 	return generator, nil
 }
 
-func (g *generatorInfo) calculateFrameRate(videoStream *ffmpeg.FFProbeStream) error {
+func (g *generatorInfo) calculateFrameRate(ctx context.Context, videoStream *ffmpeg.FFProbeStream) error {
 	var framerate float64
 	if g.VideoFile.FrameRate == 0 {
 		framerate, _ = strconv.ParseFloat(videoStream.RFrameRate, 64)
@@ -49,7 +49,7 @@ func (g *generatorInfo) calculateFrameRate(videoStream *ffmpeg.FFProbeStream) er
 
 	// If we are missing the frame count or frame rate then seek through the file and extract the info with regex
 	if numberOfFrames == 0 || !isValidFloat64(framerate) {
-		info, err := instance.FFMpeg.CalculateFrameRate(context.TODO(), &g.VideoFile)
+		info, err := instance.FFMpeg.CalculateFrameRate(ctx, &g.VideoFile)
 		if err != nil {
 			logger.Errorf("error calculating frame rate: %v", err)
 		} else {
@@ -83,13 +83,13 @@ func isValidFloat64(value float64) bool {
 	return !math.IsNaN(value) && value != 0
 }
 
-func (g *generatorInfo) configure() error {
+func (g *generatorInfo) configure(ctx context.Context) error {
 	videoStream := g.VideoFile.VideoStream
 	if videoStream == nil {
 		return fmt.Errorf("missing video stream")
 	}
 
-	if err := g.calculateFrameRate(videoStream); err != nil {
+	if err := g.calculateFrameRate(ctx, videoStream); err != nil {
 		return err
 	}
 

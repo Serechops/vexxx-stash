@@ -53,7 +53,7 @@ func (t *GeneratePreviewTask) Start(ctx context.Context) {
 			duration = *t.Options.LimitEnd - *t.Options.LimitStart
 		}
 
-		if err := t.generateVideo(videoChecksum, duration, videoFile.FrameRate); err != nil {
+		if err := t.generateVideo(ctx, videoChecksum, duration, videoFile.FrameRate); err != nil {
 			logger.Errorf("error generating preview: %v", err)
 			logErrorOutput(err)
 			return
@@ -77,14 +77,14 @@ func (t *GeneratePreviewTask) Start(ctx context.Context) {
 	}
 
 	if t.imagePreviewRequired() {
-		if err := t.generateWebp(videoChecksum); err != nil {
+		if err := t.generateWebp(ctx, videoChecksum); err != nil {
 			logger.Errorf("error generating preview webp: %v", err)
 			logErrorOutput(err)
 		}
 	}
 }
 
-func (t *GeneratePreviewTask) generateVideo(videoChecksum string, videoDuration float64, videoFrameRate float64) error {
+func (t *GeneratePreviewTask) generateVideo(ctx context.Context, videoChecksum string, videoDuration float64, videoFrameRate float64) error {
 	videoFilename := t.Scene.Path
 	useVsync2 := false
 
@@ -93,9 +93,9 @@ func (t *GeneratePreviewTask) generateVideo(videoChecksum string, videoDuration 
 		useVsync2 = true
 	}
 
-	if err := t.generator.PreviewVideo(context.TODO(), videoFilename, videoDuration, videoChecksum, t.Options, false, useVsync2); err != nil {
+	if err := t.generator.PreviewVideo(ctx, videoFilename, videoDuration, videoChecksum, t.Options, false, useVsync2); err != nil {
 		logger.Warnf("[generator] failed generating scene preview, trying fallback")
-		if err := t.generator.PreviewVideo(context.TODO(), videoFilename, videoDuration, videoChecksum, t.Options, true, useVsync2); err != nil {
+		if err := t.generator.PreviewVideo(ctx, videoFilename, videoDuration, videoChecksum, t.Options, true, useVsync2); err != nil {
 			return err
 		}
 	}
@@ -103,9 +103,9 @@ func (t *GeneratePreviewTask) generateVideo(videoChecksum string, videoDuration 
 	return nil
 }
 
-func (t *GeneratePreviewTask) generateWebp(videoChecksum string) error {
+func (t *GeneratePreviewTask) generateWebp(ctx context.Context, videoChecksum string) error {
 	videoFilename := t.Scene.Path
-	return t.generator.PreviewWebp(context.TODO(), videoFilename, videoChecksum)
+	return t.generator.PreviewWebp(ctx, videoFilename, videoChecksum)
 }
 
 func (t *GeneratePreviewTask) required() bool {

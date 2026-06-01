@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"slices"
 
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
@@ -147,6 +146,7 @@ type StudioStore struct {
 	tagRelationshipStore
 
 	tableMgr *table
+	caches   *EntityCaches
 }
 
 func NewStudioStore(blobStore *BlobStore) *StudioStore {
@@ -257,6 +257,9 @@ func (qb *StudioStore) UpdatePartial(ctx context.Context, input models.StudioPar
 		}
 	}
 
+	if qb.caches != nil {
+		qb.caches.Studios.Invalidate(input.ID)
+	}
 	return qb.Find(ctx, input.ID)
 }
 
@@ -291,6 +294,9 @@ func (qb *StudioStore) Update(ctx context.Context, updatedObject *models.Studio)
 		}
 	}
 
+	if qb.caches != nil {
+		qb.caches.InvalidateStudio(updatedObject.ID)
+	}
 	return nil
 }
 
@@ -300,11 +306,20 @@ func (qb *StudioStore) Destroy(ctx context.Context, id int) error {
 		return err
 	}
 
-	return studioRepository.destroyExisting(ctx, []int{id})
+	if err := studioRepository.destroyExisting(ctx, []int{id}); err != nil {
+		return err
+	}
+	if qb.caches != nil {
+		qb.caches.InvalidateStudio(id)
+	}
+	return nil
 }
 
 // returns nil, nil if not found
 func (qb *StudioStore) Find(ctx context.Context, id int) (*models.Studio, error) {
+	if qb.caches != nil {
+		return qb.caches.Studios.Get(ctx, id)
+	}
 	ret, err := qb.find(ctx, id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
@@ -315,6 +330,10 @@ func (qb *StudioStore) Find(ctx context.Context, id int) (*models.Studio, error)
 func (qb *StudioStore) FindMany(ctx context.Context, ids []int) ([]*models.Studio, error) {
 	ret := make([]*models.Studio, len(ids))
 
+	posMap := make(map[int]int, len(ids))
+	for i, id := range ids {
+		posMap[id] = i
+	}
 	table := qb.table()
 	if err := batchExec(ids, defaultBatchSize, func(batch []int) error {
 		q := qb.selectDataset().Prepared(true).Where(table.Col(idColumn).In(batch))
@@ -324,7 +343,7 @@ func (qb *StudioStore) FindMany(ctx context.Context, ids []int) ([]*models.Studi
 		}
 
 		for _, s := range unsorted {
-			i := slices.Index(ids, s.ID)
+			i := posMap[s.ID]
 			ret[i] = s
 		}
 

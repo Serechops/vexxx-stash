@@ -352,10 +352,7 @@ func (s *Manager) Import(ctx context.Context) (int, error) {
 			MissingRefBehaviour: models.ImportMissingRefEnumFail,
 			fileNamingAlgorithm: config.GetVideoFileNamingAlgorithm(),
 		}
-		task.Start(ctx)
-
-		// TODO - return error from task
-		return nil
+		return task.Start(ctx)
 	})
 
 	return s.JobManager.Add(ctx, "Importing...", j), nil
@@ -377,8 +374,7 @@ func (s *Manager) Export(ctx context.Context) (int, error) {
 			fileNamingAlgorithm: config.GetVideoFileNamingAlgorithm(),
 		}
 		task.Start(ctx, &wg)
-		// TODO - return error from task
-		return nil
+		return task.errResult
 	})
 
 	return s.JobManager.Add(ctx, "Exporting...", j), nil
@@ -389,10 +385,8 @@ func (s *Manager) RunSingleTask(ctx context.Context, t Task) int {
 	wg.Add(1)
 
 	j := job.MakeJobExec(func(ctx context.Context, progress *job.Progress) error {
-		t.Start(ctx)
 		defer wg.Done()
-		// TODO - return error from task
-		return nil
+		return t.Start(ctx)
 	})
 
 	return s.JobManager.Add(ctx, t.GetDescription(), j)
@@ -456,11 +450,12 @@ func (s *Manager) generateScreenshot(ctx context.Context, sceneId string, at *fl
 			Overwrite:    true,
 		}
 
-		task.Start(ctx)
+		if err := task.Start(ctx); err != nil {
+			logger.Errorf("Error generating screenshot: %v", err)
+		}
 
 		logger.Infof("Generate screenshot finished")
 
-		// TODO - return error from task
 		return nil
 	})
 

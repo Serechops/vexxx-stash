@@ -26,10 +26,10 @@ func (t *GenerateTranscodeTask) GetDescription() string {
 	return fmt.Sprintf("Generating transcode for %s", t.Scene.Path)
 }
 
-func (t *GenerateTranscodeTask) Start(ctx context.Context) {
+func (t *GenerateTranscodeTask) Start(ctx context.Context) error {
 	hasTranscode := HasTranscode(&t.Scene, t.fileNamingAlgorithm)
 	if !t.Overwrite && hasTranscode {
-		return
+		return nil
 	}
 
 	f := t.Scene.Files.Primary()
@@ -41,7 +41,7 @@ func (t *GenerateTranscodeTask) Start(ctx context.Context) {
 	container, err = GetVideoFileContainer(f)
 	if err != nil {
 		logger.Errorf("[transcode] error getting scene container: %s", err.Error())
-		return
+		return nil
 	}
 
 	var videoCodec string
@@ -56,7 +56,7 @@ func (t *GenerateTranscodeTask) Start(ctx context.Context) {
 	}
 
 	if !t.Force && ffmpeg.IsStreamable(videoCodec, audioCodec, container) == nil {
-		return
+		return nil
 	}
 
 	// TODO - move transcode generation logic elsewhere
@@ -64,7 +64,7 @@ func (t *GenerateTranscodeTask) Start(ctx context.Context) {
 	videoFile, err := ffprobe.NewVideoFile(f.Path)
 	if err != nil {
 		logger.Errorf("[transcode] error reading video file: %s", err.Error())
-		return
+		return nil
 	}
 
 	sceneHash := t.Scene.GetHash(t.fileNamingAlgorithm)
@@ -97,8 +97,9 @@ func (t *GenerateTranscodeTask) Start(ctx context.Context) {
 
 	if err != nil {
 		logger.Errorf("[transcode] error generating transcode: %v", err)
-		return
+		return nil
 	}
+	return nil
 }
 
 // return true if transcode is needed

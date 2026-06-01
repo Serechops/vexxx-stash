@@ -3,6 +3,7 @@ package manager
 import (
 	"archive/zip"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -51,6 +52,8 @@ type ExportTask struct {
 	includeDependencies bool
 
 	DownloadHash string
+
+	errResult error
 }
 
 type ExportObjectTypeInput struct {
@@ -133,6 +136,7 @@ func (t *ExportTask) Start(ctx context.Context, wg *sync.WaitGroup) {
 		t.baseDir, err = instance.Paths.Generated.TempDir("export")
 		if err != nil {
 			logger.Errorf("error creating temporary directory for export: %v", err)
+			t.errResult = err
 			return
 		}
 
@@ -146,6 +150,7 @@ func (t *ExportTask) Start(ctx context.Context, wg *sync.WaitGroup) {
 
 	if t.baseDir == "" {
 		logger.Errorf("baseDir must not be empty")
+		t.errResult = errors.New("baseDir must not be empty")
 		return
 	}
 

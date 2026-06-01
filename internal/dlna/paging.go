@@ -22,37 +22,56 @@ func (p *scenePager) getPageID(page int) string {
 func (p *scenePager) getPages(ctx context.Context, r models.SceneQueryer, total int) ([]interface{}, error) {
 	var objs []interface{}
 
-	// get the first scene of each page to set an appropriate title
 	pages := int(math.Ceil(float64(total) / float64(pageSize)))
 
-	singlePageSize := 1
-	sort := "title"
-	findFilter := &models.FindFilterType{
-		PerPage: &singlePageSize,
-		Sort:    &sort,
+	// Determine which pages need title-prefix labels (up to 10 sample pages).
+	// For small libraries (≤10 pages) every page gets a label; for larger ones
+	// we label every (pages/10)th page.
+	type labelledPage struct {
+		page     int
+		sceneIdx int // 0-based position in the sorted scene list
+	}
+	var labelled []labelledPage
+	for page := 1; page <= pages; page++ {
+		if pages <= 10 || (page-1)%(pages/10) == 0 {
+			labelled = append(labelled, labelledPage{page: page, sceneIdx: (page - 1) * pageSize})
+		}
+	}
+
+	// Fetch all needed sample scenes in one query.
+	// We request up to (last needed position + 1) scenes sorted by title,
+	// then index into the slice by each sample's position.
+	titlePrefixes := make(map[int]string) // page -> prefix
+	if len(labelled) > 0 {
+		lastIdx := labelled[len(labelled)-1].sceneIdx
+		fetchCount := lastIdx + 1
+		sort := "title"
+		page := 1
+		findFilter := &models.FindFilterType{
+			PerPage: &fetchCount,
+			Sort:    &sort,
+			Page:    &page,
+		}
+		scenes, err := scene.Query(ctx, r, p.sceneFilter, findFilter)
+		if err != nil {
+			return nil, err
+		}
+		for _, lp := range labelled {
+			if lp.sceneIdx < len(scenes) {
+				title := scenes[lp.sceneIdx].GetTitle()
+				if len(title) > 3 {
+					title = title[0:3]
+				}
+				titlePrefixes[lp.page] = title
+			}
+		}
 	}
 
 	for page := 1; page <= pages; page++ {
-		// TODO - this is really slow. Not sure if there's a better way
 		title := fmt.Sprintf("Page %d", page)
-		if pages <= 10 || (page-1)%(pages/10) == 0 {
-			thisPage := ((page - 1) * pageSize) + 1
-			findFilter.Page = &thisPage
-			scenes, err := scene.Query(ctx, r, p.sceneFilter, findFilter)
-			if err != nil {
-				return nil, err
-			}
-
-			sceneTitle := scenes[0].GetTitle()
-
-			// use the first three letters as a prefix
-			if len(sceneTitle) > 3 {
-				sceneTitle = sceneTitle[0:3]
-			}
-
-			title += fmt.Sprintf(" (%s...)", sceneTitle)
+		if prefix, ok := titlePrefixes[page]; ok {
+			title += fmt.Sprintf(" (%s...)", prefix)
 		}
-
 		objs = append(objs, makeStorageFolder(p.getPageID(page), title, p.parentID))
 	}
 

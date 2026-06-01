@@ -84,7 +84,7 @@ func (rs imageRoutes) serveThumbnail(w http.ResponseWriter, r *http.Request, img
 		}
 
 		encoder := image.NewThumbnailEncoder(manager.GetInstance().FFMpeg, manager.GetInstance().FFProbe, clipPreviewOptions)
-		data, err := encoder.GetThumbnail(f, models.DefaultGthumbWidth)
+		data, err := encoder.GetThumbnail(r.Context(), f, models.DefaultGthumbWidth)
 		if err != nil {
 			// don't log for unsupported image format
 			// don't log for file not found - can optionally be logged in serveImage

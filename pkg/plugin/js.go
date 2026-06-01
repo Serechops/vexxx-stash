@@ -1,7 +1,6 @@
 package plugin
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -94,7 +93,7 @@ func (t *jsPluginTask) initVM() error {
 	}
 
 	gql := &javascript.GQL{
-		Context:    context.TODO(),
+		Context:    t.ctx,
 		Cookie:     t.input.ServerConnection.SessionCookie,
 		GQLHandler: t.gqlHandler,
 	}

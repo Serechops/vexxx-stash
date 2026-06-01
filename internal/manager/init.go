@@ -33,7 +33,8 @@ import (
 
 // Called at startup
 func Initialize(cfg *config.Config, l *log.Logger) (*Manager, error) {
-	ctx := context.TODO()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
 
 	db := sqlite.NewDatabase()
 	repo := db.Repository()

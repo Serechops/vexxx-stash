@@ -20,7 +20,7 @@ func (t *GenerateCoverTask) GetDescription() string {
 	return fmt.Sprintf("Generating cover for %s", t.Scene.GetTitle())
 }
 
-func (t *GenerateCoverTask) Start(ctx context.Context) {
+func (t *GenerateCoverTask) Start(ctx context.Context) error {
 	scenePath := t.Scene.Path
 
 	r := t.repository
@@ -32,16 +32,16 @@ func (t *GenerateCoverTask) Start(ctx context.Context) {
 		return t.Scene.LoadPrimaryFile(ctx, r.File)
 	}); err != nil {
 		logger.Error(err)
-		return
+		return err
 	}
 
 	if !required {
-		return
+		return nil
 	}
 
 	videoFile := t.Scene.Files.Primary()
 	if videoFile == nil {
-		return
+		return nil
 	}
 
 	var at float64
@@ -70,7 +70,7 @@ func (t *GenerateCoverTask) Start(ctx context.Context) {
 	if err != nil {
 		logger.Errorf("Error generating screenshot: %v", err)
 		logErrorOutput(err)
-		return
+		return err
 	}
 
 	if err := r.WithTxn(ctx, func(ctx context.Context) error {
@@ -91,7 +91,9 @@ func (t *GenerateCoverTask) Start(ctx context.Context) {
 		return nil
 	}); err != nil && ctx.Err() == nil {
 		logger.Error(err.Error())
+		return err
 	}
+	return nil
 }
 
 // required returns true if the sprite needs to be generated

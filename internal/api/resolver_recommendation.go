@@ -112,15 +112,25 @@ func (r *contentProfileResolver) TopTags(ctx context.Context, obj *models.Conten
 	var ret []*models.WeightedTag
 
 	err := r.withReadTxn(ctx, func(ctx context.Context) error {
+		ids := make([]int, len(topTags))
+		for i, item := range topTags {
+			ids[i] = item.ID
+		}
+		tags, err := r.repository.Tag.FindMany(ctx, ids)
+		if err != nil {
+			return err
+		}
+		tagMap := make(map[int]*models.Tag, len(tags))
+		for _, t := range tags {
+			tagMap[t.ID] = t
+		}
 		for _, item := range topTags {
-			tag, err := r.repository.Tag.Find(ctx, item.ID)
-			if err != nil {
-				continue // Skip if not found
+			if tag, ok := tagMap[item.ID]; ok {
+				ret = append(ret, &models.WeightedTag{
+					Tag:    tag,
+					Weight: item.Weight,
+				})
 			}
-			ret = append(ret, &models.WeightedTag{
-				Tag:    tag,
-				Weight: item.Weight,
-			})
 		}
 		return nil
 	})
@@ -146,15 +156,25 @@ func (r *contentProfileResolver) TopPerformers(ctx context.Context, obj *models.
 	var ret []*models.WeightedPerformer
 
 	err := r.withReadTxn(ctx, func(ctx context.Context) error {
+		ids := make([]int, len(topInfo))
+		for i, item := range topInfo {
+			ids[i] = item.ID
+		}
+		performers, err := r.repository.Performer.FindMany(ctx, ids)
+		if err != nil {
+			return err
+		}
+		perfMap := make(map[int]*models.Performer, len(performers))
+		for _, p := range performers {
+			perfMap[p.ID] = p
+		}
 		for _, item := range topInfo {
-			perf, err := r.repository.Performer.Find(ctx, item.ID)
-			if err != nil {
-				continue
+			if perf, ok := perfMap[item.ID]; ok {
+				ret = append(ret, &models.WeightedPerformer{
+					Performer: perf,
+					Weight:    item.Weight,
+				})
 			}
-			ret = append(ret, &models.WeightedPerformer{
-				Performer: perf,
-				Weight:    item.Weight,
-			})
 		}
 		return nil
 	})
@@ -180,15 +200,25 @@ func (r *contentProfileResolver) TopStudios(ctx context.Context, obj *models.Con
 	var ret []*models.WeightedStudio
 
 	err := r.withReadTxn(ctx, func(ctx context.Context) error {
+		ids := make([]int, len(topInfo))
+		for i, item := range topInfo {
+			ids[i] = item.ID
+		}
+		studios, err := r.repository.Studio.FindMany(ctx, ids)
+		if err != nil {
+			return err
+		}
+		studioMap := make(map[int]*models.Studio, len(studios))
+		for _, s := range studios {
+			studioMap[s.ID] = s
+		}
 		for _, item := range topInfo {
-			studio, err := r.repository.Studio.Find(ctx, item.ID)
-			if err != nil {
-				continue
+			if studio, ok := studioMap[item.ID]; ok {
+				ret = append(ret, &models.WeightedStudio{
+					Studio: studio,
+					Weight: item.Weight,
+				})
 			}
-			ret = append(ret, &models.WeightedStudio{
-				Studio: studio,
-				Weight: item.Weight,
-			})
 		}
 		return nil
 	})
@@ -308,17 +338,18 @@ func (r *recommendationResolver) Studio(ctx context.Context, obj *models.Recomme
 // --- QueryResolver implementation ---
 
 func (r *queryResolver) UserContentProfile(ctx context.Context) (*models.ContentProfile, error) {
-	// For now, always return the single user profile (ID 1) or create/calculate if missing
-	// TODO: Multi-user support later
-
 	// Helper to get or build profile
 	// NOTE: Accessed as FIELD now
 	store := r.repository.ContentProfile
 
 	var profile *models.ContentProfile
 	err := r.withReadTxn(ctx, func(ctx context.Context) error {
+		profileID := 1
+		if user, _ := GetCurrentUserFromContext(ctx, r.repository.User); user != nil {
+			profileID = user.ID
+		}
 		var err error
-		profile, err = store.Find(ctx, 1)
+		profile, err = store.Find(ctx, profileID)
 		if err == nil && profile != nil {
 			// Load weights
 			return store.LoadWeights(ctx, profile)
@@ -1010,8 +1041,10 @@ func (r *mutationResolver) RebuildContentProfile(ctx context.Context) (*models.C
 			return err
 		}
 
-		// Force ID 1
 		profileID := 1
+		if user, _ := GetCurrentUserFromContext(ctx, r.repository.User); user != nil {
+			profileID = user.ID
+		}
 
 		// Save to DB
 		profile = &models.ContentProfile{

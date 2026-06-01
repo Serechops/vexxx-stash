@@ -29,9 +29,9 @@ func (t *GenerateGalleryTask) GetDescription() string {
 	return fmt.Sprintf("Generating gallery for scene #%d", t.Scene.ID)
 }
 
-func (t *GenerateGalleryTask) Start(ctx context.Context) {
+func (t *GenerateGalleryTask) Start(ctx context.Context) error {
 	if !t.required(ctx) {
-		return
+		return nil
 	}
 
 	logger.Debugf("Generating gallery for scene %d", t.Scene.ID)
@@ -71,13 +71,13 @@ func (t *GenerateGalleryTask) Start(ctx context.Context) {
 	files := t.Scene.Files.List()
 	if len(files) == 0 {
 		logger.Warnf("Scene %d has no files, skipping gallery generation", t.Scene.ID)
-		return
+		return nil
 	}
 	file := files[0]
 	duration := file.Duration
 	if duration <= 0 {
 		logger.Warnf("Scene %d has no duration, skipping gallery generation", t.Scene.ID)
-		return
+		return nil
 	}
 
 	timestamps := make([]float64, imageCount)
@@ -102,14 +102,14 @@ func (t *GenerateGalleryTask) Start(ctx context.Context) {
 	if err != nil {
 		logger.Errorf("Failed to generate gallery images for scene %d: %v", t.Scene.ID, err)
 		os.RemoveAll(tempDir) // clean up on failure
-		return
+		return nil
 	}
 
 	// Zip contents
 	if err := utils.Zip(tempDir, zipPath); err != nil {
 		logger.Errorf("Failed to zip gallery for scene %d: %v", t.Scene.ID, err)
 		os.RemoveAll(tempDir)
-		return
+		return nil
 	}
 
 	// Clean up temp dir
@@ -120,7 +120,7 @@ func (t *GenerateGalleryTask) Start(ctx context.Context) {
 	finfo, err := os.Stat(zipPath)
 	if err != nil {
 		logger.Errorf("Failed to stat zip file: %v", err)
-		return
+		return nil
 	}
 
 	// Register the Zip file and create the Gallery in a single transaction.
@@ -167,7 +167,7 @@ func (t *GenerateGalleryTask) Start(ctx context.Context) {
 
 	if err != nil {
 		logger.Errorf("Failed to create gallery records for scene %d: %v", t.Scene.ID, err)
-		return
+		return nil
 	}
 
 	// Trigger Scan for this gallery to populate images.
@@ -180,6 +180,7 @@ func (t *GenerateGalleryTask) Start(ctx context.Context) {
 			ScanGenerateThumbnails: true,
 		},
 	})
+	return nil
 }
 
 func (t *GenerateGalleryTask) required(_ context.Context) bool {

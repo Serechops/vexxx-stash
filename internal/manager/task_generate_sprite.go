@@ -19,16 +19,16 @@ func (t *GenerateSpriteTask) GetDescription() string {
 	return fmt.Sprintf("Generating sprites for %s", t.Scene.Path)
 }
 
-func (t *GenerateSpriteTask) Start(ctx context.Context) {
+func (t *GenerateSpriteTask) Start(ctx context.Context) error {
 	if !t.required() {
-		return
+		return nil
 	}
 
 	ffprobe := instance.FFProbe
 	videoFile, err := ffprobe.NewVideoFile(t.Scene.Path)
 	if err != nil {
 		logger.Errorf("error reading video file: %s", err.Error())
-		return
+		return nil
 	}
 
 	sceneHash := t.Scene.GetHash(t.fileNamingAlgorithm)
@@ -38,7 +38,7 @@ func (t *GenerateSpriteTask) Start(ctx context.Context) {
 
 	if err != nil {
 		logger.Errorf("error creating sprite generator: %s", err.Error())
-		return
+		return nil
 	}
 	generator.Overwrite = t.Overwrite
 
@@ -51,8 +51,9 @@ func (t *GenerateSpriteTask) Start(ctx context.Context) {
 	if err := generator.Generate(ctx); err != nil {
 		logger.Errorf("error generating sprite: %s", err.Error())
 		logErrorOutput(err)
-		return
+		return nil
 	}
+	return nil
 }
 
 // required returns true if the sprite needs to be generated

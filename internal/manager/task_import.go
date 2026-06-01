@@ -89,7 +89,7 @@ func (t *ImportTask) GetDescription() string {
 	return "Importing..."
 }
 
-func (t *ImportTask) Start(ctx context.Context) {
+func (t *ImportTask) Start(ctx context.Context) error {
 	if t.TmpZip != "" {
 		defer func() {
 			err := fsutil.RemoveDir(t.BaseDir)
@@ -100,7 +100,7 @@ func (t *ImportTask) Start(ctx context.Context) {
 
 		if err := t.unzipFile(); err != nil {
 			logger.Errorf("error unzipping provided file for import: %v", err)
-			return
+			return err
 		}
 	}
 
@@ -121,7 +121,7 @@ func (t *ImportTask) Start(ctx context.Context) {
 
 		if err != nil {
 			logger.Errorf("Error resetting database: %v", err)
-			return
+			return err
 		}
 	}
 
@@ -135,6 +135,7 @@ func (t *ImportTask) Start(ctx context.Context) {
 
 	t.ImportScenes(ctx)
 	t.ImportImages(ctx)
+	return nil
 }
 
 func (t *ImportTask) unzipFile() error {

@@ -40,11 +40,11 @@ func (t *stashBoxBatchPerformerTagTask) getName() string {
 	}
 }
 
-func (t *stashBoxBatchPerformerTagTask) Start(ctx context.Context) {
+func (t *stashBoxBatchPerformerTagTask) Start(ctx context.Context) error {
 	performer, err := t.findStashBoxPerformer(ctx)
 	if err != nil {
 		logger.Errorf("Error fetching performer data from stash-box: %v", err)
-		return
+		return nil
 	}
 
 	excluded := map[string]bool{}
@@ -57,6 +57,7 @@ func (t *stashBoxBatchPerformerTagTask) Start(ctx context.Context) {
 	} else {
 		logger.Infof("No match found for %s", t.getName())
 	}
+	return nil
 }
 
 func (t *stashBoxBatchPerformerTagTask) GetDescription() string {
@@ -274,16 +275,16 @@ func (t *stashBoxBatchStudioTagTask) getName() string {
 	}
 }
 
-func (t *stashBoxBatchStudioTagTask) Start(ctx context.Context) {
+func (t *stashBoxBatchStudioTagTask) Start(ctx context.Context) error {
 	if t.studio != nil && t.studio.Organized {
 		logger.Infof("Skipping organized studio %s", t.studio.Name)
-		return
+		return nil
 	}
 
 	studio, err := t.findStashBoxStudio(ctx)
 	if err != nil {
 		logger.Errorf("Error fetching studio data from stash-box: %v", err)
-		return
+		return nil
 	}
 
 	excluded := map[string]bool{}
@@ -296,6 +297,7 @@ func (t *stashBoxBatchStudioTagTask) Start(ctx context.Context) {
 	} else {
 		logger.Infof("No match found for %s", t.getName())
 	}
+	return nil
 }
 
 func (t *stashBoxBatchStudioTagTask) GetDescription() string {

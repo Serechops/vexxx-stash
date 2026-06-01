@@ -482,7 +482,10 @@ func (s *Manager) GetSystemStatus() *SystemStatus {
 
 // Shutdown gracefully stops the manager
 func (s *Manager) Shutdown() {
-	// TODO: Each part of the manager needs to gracefully stop at some point
+	const shutdownTimeout = 30 * time.Second
+
+	logger.Info("Stopping in-flight tasks...")
+	s.JobManager.StopAndWait(shutdownTimeout)
 
 	if s.StreamManager != nil {
 		s.StreamManager.Shutdown()

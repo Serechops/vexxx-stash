@@ -19,9 +19,9 @@ func (t *GenerateImagePhashTask) GetDescription() string {
 	return fmt.Sprintf("Generating phash for %s", t.File.Path)
 }
 
-func (t *GenerateImagePhashTask) Start(ctx context.Context) {
+func (t *GenerateImagePhashTask) Start(ctx context.Context) error {
 	if !t.required() {
-		return
+		return nil
 	}
 
 	var hash int64
@@ -45,7 +45,7 @@ func (t *GenerateImagePhashTask) Start(ctx context.Context) {
 		if err != nil {
 			logger.Errorf("Error generating phash for %q: %v", t.File.Path, err)
 			logErrorOutput(err)
-			return
+			return nil
 		}
 
 		hash = int64(*generated)
@@ -62,6 +62,7 @@ func (t *GenerateImagePhashTask) Start(ctx context.Context) {
 	}); err != nil && ctx.Err() == nil {
 		logger.Errorf("Error setting phash: %v", err)
 	}
+	return nil
 }
 
 func (t *GenerateImagePhashTask) findExistingPhash(ctx context.Context) (interface{}, error) {

@@ -268,7 +268,7 @@ func (r *mutationResolver) ConfigureGeneral(ctx context.Context, input ConfigGen
 		}
 
 		// validate changing VideoFileNamingAlgorithm
-		if err := r.withTxn(context.TODO(), func(ctx context.Context) error {
+		if err := r.withTxn(ctx, func(ctx context.Context) error {
 			return manager.ValidateVideoFileNamingAlgorithm(ctx, r.repository.Scene, *input.VideoFileNamingAlgorithm)
 		}); err != nil {
 			return makeConfigGeneralResult(), err

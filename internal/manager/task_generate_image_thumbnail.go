@@ -28,9 +28,9 @@ func (t *GenerateImageThumbnailTask) logStderr(err error) {
 	}
 }
 
-func (t *GenerateImageThumbnailTask) Start(ctx context.Context) {
+func (t *GenerateImageThumbnailTask) Start(ctx context.Context) error {
 	if !t.required() {
-		return
+		return nil
 	}
 
 	thumbPath := GetInstance().Paths.Generated.GetThumbnailPath(t.Image.Checksum, models.DefaultGthumbWidth)
@@ -49,7 +49,7 @@ func (t *GenerateImageThumbnailTask) Start(ctx context.Context) {
 	}
 
 	encoder := image.NewThumbnailEncoder(mgr.FFMpeg, mgr.FFProbe, clipPreviewOptions)
-	data, err := encoder.GetThumbnail(f, models.DefaultGthumbWidth)
+	data, err := encoder.GetThumbnail(ctx, f, models.DefaultGthumbWidth)
 
 	if err != nil {
 		// don't log for animated images
@@ -57,14 +57,15 @@ func (t *GenerateImageThumbnailTask) Start(ctx context.Context) {
 			logger.Errorf("[generator] getting thumbnail for image %s: %s", path, err.Error())
 			t.logStderr(err)
 		}
-		return
+		return nil
 	}
 
 	err = fsutil.WriteFile(thumbPath, data)
 	if err != nil {
 		logger.Errorf("[generator] writing thumbnail for image %s: %s", path, err.Error())
-		return
+		return nil
 	}
+	return nil
 }
 
 func (t *GenerateImageThumbnailTask) required() bool {

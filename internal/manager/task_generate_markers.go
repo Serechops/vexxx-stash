@@ -35,7 +35,7 @@ func (t *GenerateMarkersTask) GetDescription() string {
 	return "Generating markers"
 }
 
-func (t *GenerateMarkersTask) Start(ctx context.Context) {
+func (t *GenerateMarkersTask) Start(ctx context.Context) error {
 	if t.Scene != nil {
 		t.generateSceneMarkers(ctx)
 	}
@@ -56,18 +56,19 @@ func (t *GenerateMarkersTask) Start(ctx context.Context) {
 			return scene.LoadPrimaryFile(ctx, r.File)
 		}); err != nil {
 			logger.Errorf("error finding scene for marker generation: %v", err)
-			return
+			return nil
 		}
 
 		videoFile := scene.Files.Primary()
 
 		if videoFile == nil {
 			// nothing to do
-			return
+			return nil
 		}
 
 		t.generateMarker(ctx, videoFile, scene, t.Marker)
 	}
+	return nil
 }
 
 func (t *GenerateMarkersTask) generateSceneMarkers(ctx context.Context) {

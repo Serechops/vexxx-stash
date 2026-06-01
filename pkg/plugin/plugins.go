@@ -291,6 +291,7 @@ func (c Cache) CreateTask(ctx context.Context, pluginID string, operationName *s
 		progress:     progress,
 		gqlHandler:   c.gqlHandler,
 		serverConfig: c.config,
+		ctx:          ctx,
 	}
 	return task.createTask(), nil
 }

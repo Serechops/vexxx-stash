@@ -19,9 +19,9 @@ func (t *GenerateClipPreviewTask) GetDescription() string {
 	return fmt.Sprintf("Generating Preview for image Clip %s", t.Image.Path)
 }
 
-func (t *GenerateClipPreviewTask) Start(ctx context.Context) {
+func (t *GenerateClipPreviewTask) Start(ctx context.Context) error {
 	if !t.required() {
-		return
+		return nil
 	}
 
 	prevPath := GetInstance().Paths.Generated.GetClipPreviewPath(t.Image.Checksum, models.DefaultGthumbWidth)
@@ -34,12 +34,12 @@ func (t *GenerateClipPreviewTask) Start(ctx context.Context) {
 	}
 
 	encoder := image.NewThumbnailEncoder(GetInstance().FFMpeg, GetInstance().FFProbe, clipPreviewOptions)
-	err := encoder.GetPreview(filePath, prevPath, models.DefaultGthumbWidth)
+	err := encoder.GetPreview(ctx, filePath, prevPath, models.DefaultGthumbWidth)
 	if err != nil {
 		logger.Errorf("getting preview for image %s: %w", filePath, err)
-		return
+		return nil
 	}
-
+	return nil
 }
 
 func (t *GenerateClipPreviewTask) required() bool {

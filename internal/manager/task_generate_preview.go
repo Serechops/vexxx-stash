@@ -30,7 +30,7 @@ func (t *GeneratePreviewTask) GetDescription() string {
 	return fmt.Sprintf("Generating preview for %s", t.Scene.Path)
 }
 
-func (t *GeneratePreviewTask) Start(ctx context.Context) {
+func (t *GeneratePreviewTask) Start(ctx context.Context) error {
 	videoChecksum := t.Scene.GetHash(t.fileNamingAlgorithm)
 
 	previewValid := false
@@ -45,7 +45,7 @@ func (t *GeneratePreviewTask) Start(ctx context.Context) {
 		videoFile, err := ffprobe.NewVideoFile(t.Scene.Path)
 		if err != nil {
 			logger.Errorf("error reading video file: %v", err)
-			return
+			return nil
 		}
 
 		duration := videoFile.VideoStreamDuration
@@ -56,7 +56,7 @@ func (t *GeneratePreviewTask) Start(ctx context.Context) {
 		if err := t.generateVideo(ctx, videoChecksum, duration, videoFile.FrameRate); err != nil {
 			logger.Errorf("error generating preview: %v", err)
 			logErrorOutput(err)
-			return
+			return nil
 		}
 		previewValid = true
 	} else if t.videoPreviewExists != nil && *t.videoPreviewExists {
@@ -82,6 +82,7 @@ func (t *GeneratePreviewTask) Start(ctx context.Context) {
 			logErrorOutput(err)
 		}
 	}
+	return nil
 }
 
 func (t *GeneratePreviewTask) generateVideo(ctx context.Context, videoChecksum string, videoDuration float64, videoFrameRate float64) error {

@@ -20,6 +20,7 @@ type Manager struct {
 	mutex    sync.Mutex
 	notEmpty *sync.Cond
 	stop     chan struct{}
+	stopOnce sync.Once
 
 	lastID int
 
@@ -48,7 +49,33 @@ func NewManager() *Manager {
 // more Jobs will be processed.
 func (m *Manager) Stop() {
 	m.CancelAll()
-	close(m.stop)
+	m.stopOnce.Do(func() { close(m.stop) })
+}
+
+// StopAndWait cancels all in-flight jobs, waits for running jobs to finish
+// (up to timeout), then stops the dispatcher. Prefer this over Stop when a
+// clean shutdown is needed.
+func (m *Manager) StopAndWait(timeout time.Duration) {
+	m.CancelAll()
+
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		m.mutex.Lock()
+		running := false
+		for _, j := range m.queue {
+			if j.Status == StatusRunning {
+				running = true
+				break
+			}
+		}
+		m.mutex.Unlock()
+		if !running {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	m.stopOnce.Do(func() { close(m.stop) })
 }
 
 // Add queues a job.

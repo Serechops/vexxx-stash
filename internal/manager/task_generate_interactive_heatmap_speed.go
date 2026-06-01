@@ -21,9 +21,9 @@ func (t *GenerateInteractiveHeatmapSpeedTask) GetDescription() string {
 	return fmt.Sprintf("Generating heatmap and speed for %s", t.Scene.Path)
 }
 
-func (t *GenerateInteractiveHeatmapSpeedTask) Start(ctx context.Context) {
+func (t *GenerateInteractiveHeatmapSpeedTask) Start(ctx context.Context) error {
 	if !t.required() {
-		return
+		return nil
 	}
 
 	videoChecksum := t.Scene.GetHash(t.fileNamingAlgorithm)
@@ -41,7 +41,7 @@ func (t *GenerateInteractiveHeatmapSpeedTask) Start(ctx context.Context) {
 
 	if err != nil {
 		logger.Errorf("error generating heatmap for %s: %s", t.Scene.Path, err.Error())
-		return
+		return nil
 	}
 
 	median := generator.InteractiveSpeed
@@ -63,6 +63,7 @@ func (t *GenerateInteractiveHeatmapSpeedTask) Start(ctx context.Context) {
 	}); err != nil && ctx.Err() == nil {
 		logger.Error(err.Error())
 	}
+	return nil
 }
 
 func (t *GenerateInteractiveHeatmapSpeedTask) required() bool {

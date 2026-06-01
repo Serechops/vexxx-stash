@@ -1,7 +1,7 @@
 type GalleryChapter {
   id: ID!
   gallery: Gallery!
-  title: String!
+  title: String
   image_index: Int!
   created_at: Time!
   updated_at: Time!

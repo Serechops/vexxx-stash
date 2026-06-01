@@ -564,7 +564,7 @@ func (r *mutationResolver) GalleryChapterCreate(ctx context.Context, input Galle
 	// Populate a new gallery chapter from the input
 	newChapter := models.NewGalleryChapter()
 
-	newChapter.Title = input.Title
+	newChapter.Title = &input.Title
 	newChapter.ImageIndex = input.ImageIndex
 	newChapter.GalleryID = galleryID
 

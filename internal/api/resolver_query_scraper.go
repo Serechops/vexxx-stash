@@ -165,6 +165,8 @@ func (r *queryResolver) ScrapeSingleScene(ctx context.Context, source scraper.So
 		}
 	}
 
+	var endpoint string
+
 	switch {
 	case source.ScraperID != nil:
 		var err error
@@ -203,6 +205,7 @@ func (r *queryResolver) ScrapeSingleScene(ctx context.Context, source scraper.So
 		}
 
 		client := r.newStashBoxClient(*b)
+		endpoint = b.Endpoint
 
 		switch {
 		case input.SceneID != nil:
@@ -221,13 +224,12 @@ func (r *queryResolver) ScrapeSingleScene(ctx context.Context, source scraper.So
 		if err != nil {
 			return nil, err
 		}
-
-		// TODO - this should happen after any scene is scraped
-		if err := r.matchScenesRelationships(ctx, ret, b.Endpoint); err != nil {
-			return nil, err
-		}
 	default:
 		return nil, fmt.Errorf("%w: scraper_id or stash_box_index must be set", ErrInput)
+	}
+
+	if err := r.matchScenesRelationships(ctx, ret, endpoint); err != nil {
+		return nil, err
 	}
 
 	for i := range ret {

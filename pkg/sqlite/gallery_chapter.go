@@ -9,6 +9,7 @@ import (
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/jmoiron/sqlx"
+	"gopkg.in/guregu/null.v4/zero"
 
 	"github.com/stashapp/stash/pkg/models"
 )
@@ -18,17 +19,17 @@ const (
 )
 
 type galleryChapterRow struct {
-	ID         int       `db:"id" goqu:"skipinsert"`
-	Title      string    `db:"title"` // TODO: make db schema (and gql schema) nullable
-	ImageIndex int       `db:"image_index"`
-	GalleryID  int       `db:"gallery_id"`
-	CreatedAt  Timestamp `db:"created_at"`
-	UpdatedAt  Timestamp `db:"updated_at"`
+	ID         int         `db:"id" goqu:"skipinsert"`
+	Title      zero.String `db:"title"`
+	ImageIndex int         `db:"image_index"`
+	GalleryID  int         `db:"gallery_id"`
+	CreatedAt  Timestamp   `db:"created_at"`
+	UpdatedAt  Timestamp   `db:"updated_at"`
 }
 
 func (r *galleryChapterRow) fromGalleryChapter(o models.GalleryChapter) {
 	r.ID = o.ID
-	r.Title = o.Title
+	r.Title = zero.StringFromPtr(o.Title)
 	r.ImageIndex = o.ImageIndex
 	r.GalleryID = o.GalleryID
 	r.CreatedAt = Timestamp{Timestamp: o.CreatedAt}
@@ -38,7 +39,7 @@ func (r *galleryChapterRow) fromGalleryChapter(o models.GalleryChapter) {
 func (r *galleryChapterRow) resolve() *models.GalleryChapter {
 	ret := &models.GalleryChapter{
 		ID:         r.ID,
-		Title:      r.Title,
+		Title:      r.Title.Ptr(),
 		ImageIndex: r.ImageIndex,
 		GalleryID:  r.GalleryID,
 		CreatedAt:  r.CreatedAt.Timestamp,
@@ -53,12 +54,7 @@ type galleryChapterRowRecord struct {
 }
 
 func (r *galleryChapterRowRecord) fromPartial(o models.GalleryChapterPartial) {
-	// TODO: replace with setNullString after schema is made nullable
-	// r.setNullString("title", o.Title)
-	// saves a null input as the empty string
-	if o.Title.Set {
-		r.set("title", o.Title.Value)
-	}
+	r.setNullString("title", o.Title)
 	r.setInt("image_index", o.ImageIndex)
 	r.setInt("gallery_id", o.GalleryID)
 	r.setTimestamp("created_at", o.CreatedAt)

@@ -65,7 +65,7 @@ func NewThumbnailEncoder(ffmpegEncoder *ffmpeg.FFMpeg, ffProbe *ffmpeg.FFProbe, 
 // the provided max size. It resizes based on the largest X/Y direction.
 // It returns nil and an error if an error occurs reading, decoding or encoding
 // the image, or if the image is not suitable for thumbnails.
-func (e *ThumbnailEncoder) GetThumbnail(f models.File, maxSize int) ([]byte, error) {
+func (e *ThumbnailEncoder) GetThumbnail(ctx context.Context, f models.File, maxSize int) ([]byte, error) {
 	reader, err := f.Open(&file.OsFS{})
 	if err != nil {
 		return nil, err
@@ -104,13 +104,13 @@ func (e *ThumbnailEncoder) GetThumbnail(f models.File, maxSize int) ([]byte, err
 			if e.vips != nil {
 				return e.vips.ImageThumbnailPath(f.Base().Path, maxSize)
 			}
-			return e.ffmpegImageThumbnailPath(f.Base().Path, maxSize)
+			return e.ffmpegImageThumbnailPath(ctx, f.Base().Path, maxSize)
 		}
 	}
 
 	// Videofiles can only be thumbnailed with ffmpeg
 	if _, ok := f.(*models.VideoFile); ok {
-		return e.ffmpegImageThumbnail(buf, maxSize)
+		return e.ffmpegImageThumbnail(ctx, buf, maxSize)
 	}
 
 	// vips has issues loading files from stdin on Windows
@@ -122,13 +122,13 @@ func (e *ThumbnailEncoder) GetThumbnail(f models.File, maxSize int) ([]byte, err
 			return e.vips.ImageThumbnail(buf, maxSize)
 		}
 	}
-	return e.ffmpegImageThumbnail(buf, maxSize)
+	return e.ffmpegImageThumbnail(ctx, buf, maxSize)
 }
 
 // GetPreview returns the preview clip of the provided image clip resized to
 // the provided max size. It resizes based on the largest X/Y direction.
 // It is hardcoded to 30 seconds maximum right now
-func (e *ThumbnailEncoder) GetPreview(inPath string, outPath string, maxSize int) error {
+func (e *ThumbnailEncoder) GetPreview(ctx context.Context, inPath string, outPath string, maxSize int) error {
 	fileData, err := e.FFProbe.NewVideoFile(inPath)
 	if err != nil {
 		return err
@@ -140,10 +140,10 @@ func (e *ThumbnailEncoder) GetPreview(inPath string, outPath string, maxSize int
 	if clipDuration > 30.0 {
 		clipDuration = 30.0
 	}
-	return e.getClipPreview(inPath, outPath, maxSize, clipDuration, fileData.FrameRate)
+	return e.getClipPreview(ctx, inPath, outPath, maxSize, clipDuration, fileData.FrameRate)
 }
 
-func (e *ThumbnailEncoder) ffmpegImageThumbnail(image *bytes.Buffer, maxSize int) ([]byte, error) {
+func (e *ThumbnailEncoder) ffmpegImageThumbnail(ctx context.Context, image *bytes.Buffer, maxSize int) ([]byte, error) {
 	options := transcoder.ImageThumbnailOptions{
 		OutputFormat:  ffmpeg.ImageFormatJpeg,
 		OutputPath:    "-",
@@ -153,11 +153,11 @@ func (e *ThumbnailEncoder) ffmpegImageThumbnail(image *bytes.Buffer, maxSize int
 
 	args := transcoder.ImageThumbnail("-", options)
 
-	return e.FFMpeg.GenerateOutput(context.TODO(), args, image)
+	return e.FFMpeg.GenerateOutput(ctx, args, image)
 }
 
 // ffmpegImageThumbnailPath generates a thumbnail from a file path (used for AVIF which can't be piped)
-func (e *ThumbnailEncoder) ffmpegImageThumbnailPath(inputPath string, maxSize int) ([]byte, error) {
+func (e *ThumbnailEncoder) ffmpegImageThumbnailPath(ctx context.Context, inputPath string, maxSize int) ([]byte, error) {
 	options := transcoder.ImageThumbnailOptions{
 		OutputFormat:  ffmpeg.ImageFormatJpeg,
 		OutputPath:    "-",
@@ -167,10 +167,10 @@ func (e *ThumbnailEncoder) ffmpegImageThumbnailPath(inputPath string, maxSize in
 
 	args := transcoder.ImageThumbnail(inputPath, options)
 
-	return e.FFMpeg.GenerateOutput(context.TODO(), args, nil)
+	return e.FFMpeg.GenerateOutput(ctx, args, nil)
 }
 
-func (e *ThumbnailEncoder) getClipPreview(inPath string, outPath string, maxSize int, clipDuration float64, frameRate float64) error {
+func (e *ThumbnailEncoder) getClipPreview(ctx context.Context, inPath string, outPath string, maxSize int, clipDuration float64, frameRate float64) error {
 	var thumbFilter ffmpeg.VideoFilter
 	thumbFilter = thumbFilter.ScaleMaxSize(maxSize)
 
@@ -211,5 +211,5 @@ func (e *ThumbnailEncoder) getClipPreview(inPath string, outPath string, maxSize
 		return err
 	}
 	args := transcoder.Transcode(inPath, thumbOptions)
-	return e.FFMpeg.Generate(context.TODO(), args)
+	return e.FFMpeg.Generate(ctx, args)
 }

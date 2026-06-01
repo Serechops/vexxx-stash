@@ -24,7 +24,7 @@ type ChapterImporter struct {
 
 func (i *ChapterImporter) PreImport(ctx context.Context) error {
 	i.chapter = models.GalleryChapter{
-		Title:      i.Input.Title,
+		Title:      &i.Input.Title,
 		ImageIndex: i.Input.ImageIndex,
 		GalleryID:  i.GalleryID,
 		CreatedAt:  i.Input.CreatedAt.GetTime(),

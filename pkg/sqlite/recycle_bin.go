@@ -399,8 +399,10 @@ func (s *RecycleBinStore) SnapshotSceneMarker(ctx context.Context, qb models.Sce
 		"tag_ids":        intSliceOrEmpty(tagIDs),
 	}
 
-	name := m.Title
-	if name == "" {
+	var name string
+	if m.Title != nil && *m.Title != "" {
+		name = *m.Title
+	} else {
 		name = fmt.Sprintf("marker #%d", m.ID)
 	}
 	return s.record(ctx, "scene_marker", m.ID, name, data, groupID)

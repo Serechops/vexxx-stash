@@ -226,7 +226,11 @@ func (rs vrRoutes) singleMediaHandler(w http.ResponseWriter, r *http.Request) {
 
 		timestamps := make([]vrTimestamp, 0, len(markers))
 		for _, m := range markers {
-			timestamps = append(timestamps, vrTimestamp{Label: m.Title, Seconds: m.Seconds})
+			label := ""
+			if m.Title != nil {
+				label = *m.Title
+			}
+			timestamps = append(timestamps, vrTimestamp{Label: label, Seconds: m.Seconds})
 		}
 
 		response = vrMediaItemExtended{

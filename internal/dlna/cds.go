@@ -228,10 +228,6 @@ func (me *contentDirectoryService) Handle(action string, argsXML []byte, r *http
 }
 
 func (me *contentDirectoryService) handleBrowseDirectChildren(ctx context.Context, obj object, host string) (map[string]string, error) {
-	// Read folder and return children
-	// TODO: check if obj == 0 and return root objects
-	// TODO: check if special path and return files
-
 	var objs []interface{}
 
 	if obj.IsRoot() {

@@ -303,8 +303,8 @@ func (rs sceneRoutes) Webp(w http.ResponseWriter, r *http.Request) {
 }
 
 func (rs sceneRoutes) getChapterVttTitle(r *http.Request, marker *models.SceneMarker) (*string, error) {
-	if marker.Title != "" {
-		return &marker.Title, nil
+	if marker.Title != nil && *marker.Title != "" {
+		return marker.Title, nil
 	}
 
 	var title string

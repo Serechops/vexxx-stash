@@ -234,8 +234,13 @@ func GetSceneMarkersJSON(ctx context.Context, markerReader models.SceneMarkerFin
 			return nil, fmt.Errorf("invalid tags for scene marker: %v", err)
 		}
 
+		var markerTitle string
+		if sceneMarker.Title != nil {
+			markerTitle = *sceneMarker.Title
+		}
+
 		sceneMarkerJSON := jsonschema.SceneMarker{
-			Title:      sceneMarker.Title,
+			Title:      markerTitle,
 			Seconds:    getDecimalString(sceneMarker.Seconds),
 			PrimaryTag: primaryTagName,
 			Tags:       getTagNames(sceneMarkerTags),

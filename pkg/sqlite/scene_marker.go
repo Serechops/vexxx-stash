@@ -10,6 +10,7 @@ import (
 	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/jmoiron/sqlx"
 	"gopkg.in/guregu/null.v4"
+	"gopkg.in/guregu/null.v4/zero"
 
 	"github.com/stashapp/stash/pkg/models"
 )
@@ -28,19 +29,19 @@ GROUP BY scene_markers.id
 `
 
 type sceneMarkerRow struct {
-	ID           int        `db:"id" goqu:"skipinsert"`
-	Title        string     `db:"title"` // TODO: make db schema (and gql schema) nullable
-	Seconds      float64    `db:"seconds"`
-	PrimaryTagID null.Int   `db:"primary_tag_id"`
-	SceneID      int        `db:"scene_id"`
-	CreatedAt    Timestamp  `db:"created_at"`
-	UpdatedAt    Timestamp  `db:"updated_at"`
-	EndSeconds   null.Float `db:"end_seconds"`
+	ID           int         `db:"id" goqu:"skipinsert"`
+	Title        zero.String `db:"title"`
+	Seconds      float64     `db:"seconds"`
+	PrimaryTagID null.Int    `db:"primary_tag_id"`
+	SceneID      int         `db:"scene_id"`
+	CreatedAt    Timestamp   `db:"created_at"`
+	UpdatedAt    Timestamp   `db:"updated_at"`
+	EndSeconds   null.Float  `db:"end_seconds"`
 }
 
 func (r *sceneMarkerRow) fromSceneMarker(o models.SceneMarker) {
 	r.ID = o.ID
-	r.Title = o.Title
+	r.Title = zero.StringFromPtr(o.Title)
 	r.Seconds = o.Seconds
 	if o.EndSeconds != nil {
 		r.EndSeconds = null.FloatFrom(*o.EndSeconds)
@@ -62,7 +63,7 @@ func (r *sceneMarkerRow) resolve() *models.SceneMarker {
 
 	ret := &models.SceneMarker{
 		ID:           r.ID,
-		Title:        r.Title,
+		Title:        r.Title.Ptr(),
 		Seconds:      r.Seconds,
 		EndSeconds:   r.EndSeconds.Ptr(),
 		PrimaryTagID: primaryTagID,
@@ -79,12 +80,7 @@ type sceneMarkerRowRecord struct {
 }
 
 func (r *sceneMarkerRowRecord) fromPartial(o models.SceneMarkerPartial) {
-	// TODO: replace with setNullString after schema is made nullable
-	// r.setNullString("title", o.Title)
-	// saves a null input as the empty string
-	if o.Title.Set {
-		r.set("title", o.Title.Value)
-	}
+	r.setNullString("title", o.Title)
 	r.setFloat64("seconds", o.Seconds)
 	r.setNullFloat64("end_seconds", o.EndSeconds)
 	r.setNullInt("primary_tag_id", o.PrimaryTagID)
@@ -297,9 +293,9 @@ func (qb *SceneMarkerStore) CountByPrimaryTagID(ctx context.Context, tagID int) 
 }
 
 func (qb *SceneMarkerStore) GetMarkerStrings(ctx context.Context, q *string, sort *string) ([]*models.MarkerStringsResultType, error) {
-	query := "SELECT count(*) as `count`, scene_markers.id as id, scene_markers.title as title FROM scene_markers"
+	query := "SELECT count(*) as `count`, scene_markers.id as id, scene_markers.title as title FROM scene_markers WHERE title IS NOT NULL AND title != ''"
 	if q != nil {
-		query += " WHERE title LIKE '%" + *q + "%'"
+		query += " AND title LIKE '%" + *q + "%'"
 	}
 	query += " GROUP BY title"
 	if sort != nil && *sort == "count" {

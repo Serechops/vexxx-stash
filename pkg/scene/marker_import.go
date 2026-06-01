@@ -34,8 +34,14 @@ func (i *MarkerImporter) PreImport(ctx context.Context) error {
 		endSeconds = &parsedEndSeconds
 	}
 
+	var markerTitle *string
+	if i.Input.Title != "" {
+		t := i.Input.Title
+		markerTitle = &t
+	}
+
 	i.marker = models.SceneMarker{
-		Title:      i.Input.Title,
+		Title:      markerTitle,
 		Seconds:    seconds,
 		EndSeconds: endSeconds,
 		SceneID:    i.SceneID,

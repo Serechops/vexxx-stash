@@ -778,7 +778,8 @@ func (r *mutationResolver) SceneMarkerCreate(ctx context.Context, input SceneMar
 	// Populate a new scene marker from the input
 	newMarker := models.NewSceneMarker()
 
-	newMarker.Title = strings.TrimSpace(input.Title)
+	t := strings.TrimSpace(input.Title)
+	newMarker.Title = &t
 	newMarker.Seconds = input.Seconds
 	newMarker.PrimaryTagID = &primaryTagID
 	newMarker.SceneID = sceneID

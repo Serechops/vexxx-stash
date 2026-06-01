@@ -76,6 +76,17 @@ export const SidebarSection: React.FC<
     ? (contextState.sectionOpen[sectionID] ?? true)
     : true;
 
+  // If the section is expanded on initial mount, trigger onOpen so that
+  // deferred queries (which start with skip=true) are kicked off immediately.
+  const onOpenRef = React.useRef(onOpen);
+  onOpenRef.current = onOpen;
+  useEffect(() => {
+    if (expanded && onOpenRef.current) {
+      onOpenRef.current();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // run once on mount only
+
   const handleChange = (_: React.SyntheticEvent, isExpanded: boolean) => {
     if (contextState && sectionID) {
       contextState.setSectionOpen(sectionID, isExpanded);

@@ -270,7 +270,6 @@ func (s *scriptScraper) runScraperScript(ctx context.Context, command []string, 
 
 	logger.Debugf("Scraper script <%s> started", strings.Join(cmd.Args, " "))
 
-	// TODO - add a timeout here
 	// Make a copy of stdout here. This allows us to decode it twice.
 	var sb strings.Builder
 	tr := io.TeeReader(stdout, &sb)

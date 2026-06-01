@@ -1404,7 +1404,7 @@ func (r *mutationResolver) SceneGenerateScreenshot(ctx context.Context, id strin
 		manager.GetInstance().GenerateDefaultScreenshot(ctx, id)
 	}
 
-	return "todo", nil
+	return "screenshot generation started", nil
 }
 
 func (r *mutationResolver) SceneGenerateGallery(ctx context.Context, sceneID string, timestamps []float64, createInput *GalleryCreateInput) (*models.Gallery, error) {

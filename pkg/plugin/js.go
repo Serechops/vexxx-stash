@@ -136,7 +136,7 @@ func (t *jsPluginTask) Start() error {
 
 			if caught := recover(); caught != nil {
 				if err, ok := caught.(error); ok && errors.Is(err, errStop) {
-					// TODO - log this
+					logger.Debugf("[js plugin] task stopped")
 					return
 				}
 			}

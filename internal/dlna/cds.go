@@ -173,6 +173,7 @@ func childPath(paths []string) []string {
 }
 
 func (me *contentDirectoryService) Handle(action string, argsXML []byte, r *http.Request) (map[string]string, error) {
+	ctx := r.Context()
 	host := r.Host
 	// userAgent := r.UserAgent()
 	switch action {
@@ -197,9 +198,9 @@ func (me *contentDirectoryService) Handle(action string, argsXML []byte, r *http
 
 		switch browse.BrowseFlag {
 		case "BrowseDirectChildren":
-			return me.handleBrowseDirectChildren(obj, host)
+			return me.handleBrowseDirectChildren(ctx, obj, host)
 		case "BrowseMetadata":
-			return me.handleBrowseMetadata(obj, host)
+			return me.handleBrowseMetadata(ctx, obj, host)
 		default:
 			return nil, upnp.Errorf(upnp.ArgumentValueInvalidErrorCode, "unhandled browse flag: %v", browse.BrowseFlag)
 		}
@@ -226,7 +227,7 @@ func (me *contentDirectoryService) Handle(action string, argsXML []byte, r *http
 	}
 }
 
-func (me *contentDirectoryService) handleBrowseDirectChildren(obj object, host string) (map[string]string, error) {
+func (me *contentDirectoryService) handleBrowseDirectChildren(ctx context.Context, obj object, host string) (map[string]string, error) {
 	// Read folder and return children
 	// TODO: check if obj == 0 and return root objects
 	// TODO: check if special path and return files
@@ -241,13 +242,13 @@ func (me *contentDirectoryService) handleBrowseDirectChildren(obj object, host s
 
 	// All videos
 	if obj.Path == "all" {
-		objs = me.getAllScenes(host)
+		objs = me.getAllScenes(ctx, host)
 	}
 
 	if strings.HasPrefix(obj.Path, "all/") {
 		page := getPageFromID(paths)
 		if page != nil {
-			objs = me.getPageVideos(&models.SceneFilterType{}, "all", *page, host)
+			objs = me.getPageVideos(ctx, &models.SceneFilterType{}, "all", *page, host)
 		}
 	}
 
@@ -291,38 +292,38 @@ func (me *contentDirectoryService) handleBrowseDirectChildren(obj object, host s
 
 	// Studios
 	if obj.Path == "studios" {
-		objs = me.getStudios()
+		objs = me.getStudios(ctx)
 	}
 
 	if strings.HasPrefix(obj.Path, "studios/") {
-		objs = me.getStudioScenes(childPath(paths), host)
+		objs = me.getStudioScenes(ctx, childPath(paths), host)
 	}
 
 	// Tags
 	if obj.Path == "tags" {
-		objs = me.getTags()
+		objs = me.getTags(ctx)
 	}
 
 	if strings.HasPrefix(obj.Path, "tags/") {
-		objs = me.getTagScenes(childPath(paths), host)
+		objs = me.getTagScenes(ctx, childPath(paths), host)
 	}
 
 	// Performers
 	if obj.Path == "performers" {
-		objs = me.getPerformers()
+		objs = me.getPerformers(ctx)
 	}
 
 	if strings.HasPrefix(obj.Path, "performers/") {
-		objs = me.getPerformerScenes(childPath(paths), host)
+		objs = me.getPerformerScenes(ctx, childPath(paths), host)
 	}
 
 	// Groups - deprecated
 	if obj.Path == "groups" {
-		objs = me.getGroups()
+		objs = me.getGroups(ctx)
 	}
 
 	if strings.HasPrefix(obj.Path, "groups/") {
-		objs = me.getGroupScenes(childPath(paths), host)
+		objs = me.getGroupScenes(ctx, childPath(paths), host)
 	}
 
 	// Rating
@@ -331,13 +332,13 @@ func (me *contentDirectoryService) handleBrowseDirectChildren(obj object, host s
 	}
 
 	if strings.HasPrefix(obj.Path, "rating/") {
-		objs = me.getRatingScenes(childPath(paths), host)
+		objs = me.getRatingScenes(ctx, childPath(paths), host)
 	}
 
 	return makeBrowseResult(objs, me.updateIDString())
 }
 
-func (me *contentDirectoryService) handleBrowseMetadata(obj object, host string) (map[string]string, error) {
+func (me *contentDirectoryService) handleBrowseMetadata(ctx context.Context, obj object, host string) (map[string]string, error) {
 	var objs []interface{}
 	var updateID string
 
@@ -359,7 +360,7 @@ func (me *contentDirectoryService) handleBrowseMetadata(obj object, host string)
 		var scene *models.Scene
 
 		r := me.repository
-		if err := r.WithReadTxn(context.TODO(), func(ctx context.Context) error {
+		if err := r.WithReadTxn(ctx, func(ctx context.Context) error {
 			scene, err = r.SceneFinder.Find(ctx, sceneID)
 			if scene != nil {
 				err = scene.LoadPrimaryFile(ctx, r.FileGetter)
@@ -448,11 +449,11 @@ func getSortDirection(sort string) models.SortDirectionEnum {
 	return direction
 }
 
-func (me *contentDirectoryService) getVideos(sceneFilter *models.SceneFilterType, parentID string, host string) []interface{} {
+func (me *contentDirectoryService) getVideos(ctx context.Context, sceneFilter *models.SceneFilterType, parentID string, host string) []interface{} {
 	var objs []interface{}
 
 	r := me.repository
-	if err := r.WithReadTxn(context.TODO(), func(ctx context.Context) error {
+	if err := r.WithReadTxn(ctx, func(ctx context.Context) error {
 		sort := me.VideoSortOrder
 		direction := getSortDirection(sort)
 		findFilter := &models.FindFilterType{
@@ -494,11 +495,11 @@ func (me *contentDirectoryService) getVideos(sceneFilter *models.SceneFilterType
 	return objs
 }
 
-func (me *contentDirectoryService) getPageVideos(sceneFilter *models.SceneFilterType, parentID string, page int, host string) []interface{} {
+func (me *contentDirectoryService) getPageVideos(ctx context.Context, sceneFilter *models.SceneFilterType, parentID string, page int, host string) []interface{} {
 	var objs []interface{}
 
 	r := me.repository
-	if err := r.WithReadTxn(context.TODO(), func(ctx context.Context) error {
+	if err := r.WithReadTxn(ctx, func(ctx context.Context) error {
 		pager := scenePager{
 			sceneFilter: sceneFilter,
 			parentID:    parentID,
@@ -534,15 +535,15 @@ func getPageFromID(paths []string) *int {
 	return &ret
 }
 
-func (me *contentDirectoryService) getAllScenes(host string) []interface{} {
-	return me.getVideos(&models.SceneFilterType{}, "all", host)
+func (me *contentDirectoryService) getAllScenes(ctx context.Context, host string) []interface{} {
+	return me.getVideos(ctx, &models.SceneFilterType{}, "all", host)
 }
 
-func (me *contentDirectoryService) getStudios() []interface{} {
+func (me *contentDirectoryService) getStudios(ctx context.Context) []interface{} {
 	var objs []interface{}
 
 	r := me.repository
-	if err := r.WithReadTxn(context.TODO(), func(ctx context.Context) error {
+	if err := r.WithReadTxn(ctx, func(ctx context.Context) error {
 		studios, err := r.StudioFinder.All(ctx)
 		if err != nil {
 			return err
@@ -560,7 +561,7 @@ func (me *contentDirectoryService) getStudios() []interface{} {
 	return objs
 }
 
-func (me *contentDirectoryService) getStudioScenes(paths []string, host string) []interface{} {
+func (me *contentDirectoryService) getStudioScenes(ctx context.Context, paths []string, host string) []interface{} {
 	sceneFilter := &models.SceneFilterType{
 		Studios: &models.HierarchicalMultiCriterionInput{
 			Modifier: models.CriterionModifierIncludes,
@@ -572,17 +573,17 @@ func (me *contentDirectoryService) getStudioScenes(paths []string, host string) 
 
 	page := getPageFromID(paths)
 	if page != nil {
-		return me.getPageVideos(sceneFilter, parentID, *page, host)
+		return me.getPageVideos(ctx, sceneFilter, parentID, *page, host)
 	}
 
-	return me.getVideos(sceneFilter, parentID, host)
+	return me.getVideos(ctx, sceneFilter, parentID, host)
 }
 
-func (me *contentDirectoryService) getTags() []interface{} {
+func (me *contentDirectoryService) getTags(ctx context.Context) []interface{} {
 	var objs []interface{}
 
 	r := me.repository
-	if err := r.WithReadTxn(context.TODO(), func(ctx context.Context) error {
+	if err := r.WithReadTxn(ctx, func(ctx context.Context) error {
 		tags, err := r.TagFinder.All(ctx)
 		if err != nil {
 			return err
@@ -600,7 +601,7 @@ func (me *contentDirectoryService) getTags() []interface{} {
 	return objs
 }
 
-func (me *contentDirectoryService) getTagScenes(paths []string, host string) []interface{} {
+func (me *contentDirectoryService) getTagScenes(ctx context.Context, paths []string, host string) []interface{} {
 	sceneFilter := &models.SceneFilterType{
 		Tags: &models.HierarchicalMultiCriterionInput{
 			Modifier: models.CriterionModifierIncludes,
@@ -612,17 +613,17 @@ func (me *contentDirectoryService) getTagScenes(paths []string, host string) []i
 
 	page := getPageFromID(paths)
 	if page != nil {
-		return me.getPageVideos(sceneFilter, parentID, *page, host)
+		return me.getPageVideos(ctx, sceneFilter, parentID, *page, host)
 	}
 
-	return me.getVideos(sceneFilter, parentID, host)
+	return me.getVideos(ctx, sceneFilter, parentID, host)
 }
 
-func (me *contentDirectoryService) getPerformers() []interface{} {
+func (me *contentDirectoryService) getPerformers(ctx context.Context) []interface{} {
 	var objs []interface{}
 
 	r := me.repository
-	if err := r.WithReadTxn(context.TODO(), func(ctx context.Context) error {
+	if err := r.WithReadTxn(ctx, func(ctx context.Context) error {
 		performers, err := r.PerformerFinder.All(ctx)
 		if err != nil {
 			return err
@@ -640,7 +641,7 @@ func (me *contentDirectoryService) getPerformers() []interface{} {
 	return objs
 }
 
-func (me *contentDirectoryService) getPerformerScenes(paths []string, host string) []interface{} {
+func (me *contentDirectoryService) getPerformerScenes(ctx context.Context, paths []string, host string) []interface{} {
 	sceneFilter := &models.SceneFilterType{
 		Performers: &models.MultiCriterionInput{
 			Modifier: models.CriterionModifierIncludes,
@@ -652,17 +653,17 @@ func (me *contentDirectoryService) getPerformerScenes(paths []string, host strin
 
 	page := getPageFromID(paths)
 	if page != nil {
-		return me.getPageVideos(sceneFilter, parentID, *page, host)
+		return me.getPageVideos(ctx, sceneFilter, parentID, *page, host)
 	}
 
-	return me.getVideos(sceneFilter, parentID, host)
+	return me.getVideos(ctx, sceneFilter, parentID, host)
 }
 
-func (me *contentDirectoryService) getGroups() []interface{} {
+func (me *contentDirectoryService) getGroups(ctx context.Context) []interface{} {
 	var objs []interface{}
 
 	r := me.repository
-	if err := r.WithReadTxn(context.TODO(), func(ctx context.Context) error {
+	if err := r.WithReadTxn(ctx, func(ctx context.Context) error {
 		groups, err := r.GroupFinder.All(ctx)
 		if err != nil {
 			return err
@@ -680,7 +681,7 @@ func (me *contentDirectoryService) getGroups() []interface{} {
 	return objs
 }
 
-func (me *contentDirectoryService) getGroupScenes(paths []string, host string) []interface{} {
+func (me *contentDirectoryService) getGroupScenes(ctx context.Context, paths []string, host string) []interface{} {
 	sceneFilter := &models.SceneFilterType{
 		Groups: &models.HierarchicalMultiCriterionInput{
 			Modifier: models.CriterionModifierIncludes,
@@ -692,10 +693,10 @@ func (me *contentDirectoryService) getGroupScenes(paths []string, host string) [
 
 	page := getPageFromID(paths)
 	if page != nil {
-		return me.getPageVideos(sceneFilter, parentID, *page, host)
+		return me.getPageVideos(ctx, sceneFilter, parentID, *page, host)
 	}
 
-	return me.getVideos(sceneFilter, parentID, host)
+	return me.getVideos(ctx, sceneFilter, parentID, host)
 }
 
 func (me *contentDirectoryService) getRating() []interface{} {
@@ -709,7 +710,7 @@ func (me *contentDirectoryService) getRating() []interface{} {
 	return objs
 }
 
-func (me *contentDirectoryService) getRatingScenes(paths []string, host string) []interface{} {
+func (me *contentDirectoryService) getRatingScenes(ctx context.Context, paths []string, host string) []interface{} {
 	r, err := strconv.Atoi(paths[0])
 	if err != nil {
 		return nil
@@ -726,10 +727,10 @@ func (me *contentDirectoryService) getRatingScenes(paths []string, host string) 
 
 	page := getPageFromID(paths)
 	if page != nil {
-		return me.getPageVideos(sceneFilter, parentID, *page, host)
+		return me.getPageVideos(ctx, sceneFilter, parentID, *page, host)
 	}
 
-	return me.getVideos(sceneFilter, parentID, host)
+	return me.getVideos(ctx, sceneFilter, parentID, host)
 }
 
 // Represents a ContentDirectory object.

@@ -409,7 +409,11 @@ func Initialize() (*Server, error) {
 	})
 
 	logger.Infof("stash version: %s", build.VersionString())
-	go printLatestVersion(context.TODO())
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		printLatestVersion(ctx)
+	}()
 
 	return server, nil
 }
@@ -455,7 +459,9 @@ func (s *Server) Start() error {
 
 // Shutdown gracefully shuts down the server without interrupting any active connections.
 func (s *Server) Shutdown() {
-	err := s.Server.Shutdown(context.TODO())
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	err := s.Server.Shutdown(ctx)
 	if err != nil {
 		logger.Errorf("Error shutting down http server: %v", err)
 	}

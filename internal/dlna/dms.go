@@ -508,7 +508,8 @@ func (me *Server) contentDirectoryInitialEvent(ctx context.Context, urls []*url.
 		req.Header["SEQ"] = []string{"0"}
 		// req.Header["TRANSFER-ENCODING"] = []string{"chunked"}
 		// req.ContentLength = int64(bodyReader.Len())
-		resp, err := http.DefaultClient.Do(req)
+		notifyClient := &http.Client{Timeout: 10 * time.Second}
+		resp, err := notifyClient.Do(req)
 		if err != nil {
 			logger.Errorf("Could not notify %s: %s", _url.String(), err)
 			continue

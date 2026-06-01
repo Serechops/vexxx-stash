@@ -5,6 +5,7 @@ import (
 	"context"
 	"net/http"
 	"regexp"
+	"time"
 
 	"github.com/Yamashou/gqlgenc/clientv2"
 	"github.com/stashapp/stash/pkg/models"
@@ -71,7 +72,7 @@ func NewClient(box models.StashBox, options ...ClientOption) *Client {
 	ret := &Client{
 		box:                  box,
 		maxRequestsPerMinute: DefaultMaxRequestsPerMinute,
-		httpClient:           http.DefaultClient,
+		httpClient:           &http.Client{Timeout: 30 * time.Second},
 	}
 
 	if box.MaxRequestsPerMinute > 0 {

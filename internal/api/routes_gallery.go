@@ -94,11 +94,14 @@ func (rs galleryRoutes) Preview(w http.ResponseWriter, r *http.Request) {
 
 	_ = rs.withReadTxn(r, func(ctx context.Context) error {
 		qb := rs.imageFinder
-		i, _ = qb.FindByGalleryIDIndex(ctx, g.ID, uint(index))
+		var err error
+		i, err = qb.FindByGalleryIDIndex(ctx, g.ID, uint(index))
+		if err != nil {
+			return err
+		}
 		if i == nil {
 			return nil
 		}
-		// TODO - handle errors?
 
 		// serveThumbnail needs files populated
 		if err := i.LoadPrimaryFile(ctx, rs.fileGetter); err != nil {

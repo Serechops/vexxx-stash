@@ -204,7 +204,10 @@ func (r *mutationResolver) SubmitStashBoxPerformerDraft(ctx context.Context, inp
 			return err
 		}
 
-		img, _ := pqb.GetImage(ctx, performer.ID)
+		img, err := pqb.GetImage(ctx, performer.ID)
+		if err != nil {
+			logger.Warnf("error getting performer image for stash-box update: %v", err)
+		}
 
 		res, err = client.SubmitPerformerDraft(ctx, performer, img)
 		return err

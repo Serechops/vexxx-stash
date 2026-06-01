@@ -27,7 +27,7 @@ import { SmartImageGridCard } from "./VirtualizedImageGridCard";
 import { View } from "../List/views";
 import { IItemListOperation, FilteredListToolbar } from "../List/FilteredListToolbar";
 import { FileSize } from "../Shared/FileSize";
-import { PatchComponent } from "src/patch";
+import { PatchComponent, PatchContainerComponent } from "src/patch";
 import { GenerateDialog } from "../Dialogs/GenerateDialog";
 import { FilterTags } from "../List/FilterTags";
 import { PagedList } from "../List/PagedList";
@@ -37,6 +37,21 @@ import { useListContext, useQueryResultContext } from "../List/ListProvider";
 import { useModal } from "src/hooks/modal";
 import { Box } from "@mui/material";
 import { Pagination, PaginationIndex } from "../List/Pagination";
+import {
+  InlineFilterPanel,
+  SidebarStateContext,
+  useSidebarState,
+} from "../Shared/Sidebar";
+import { useFilteredSidebarKeybinds } from "../List/Filters/FilterSidebar";
+import { SidebarStudiosFilter } from "../List/Filters/StudiosFilter";
+import { SidebarPerformersFilter } from "../List/Filters/PerformersFilter";
+import { SidebarTagsFilter } from "../List/Filters/TagsFilter";
+import { SidebarRatingFilter } from "../List/Filters/RatingFilter";
+import { StudiosCriterionOption } from "src/models/list-filter/criteria/studios";
+import { PerformersCriterionOption } from "src/models/list-filter/criteria/performers";
+import { TagsCriterionOption } from "src/models/list-filter/criteria/tags";
+import { RatingCriterionOption } from "src/models/list-filter/criteria/rating";
+import { FormattedMessage } from "react-intl";
 
 interface IImageWallProps {
   images: GQL.SlimImageDataFragment[];
@@ -320,6 +335,62 @@ function renderMetadataByline(
   );
 }
 
+const ImageFilterSidebarSections = PatchContainerComponent(
+  "FilteredImageList.SidebarSections"
+);
+
+const SidebarContent: React.FC<{
+  filter: ListFilterModel;
+  setFilter: (filter: ListFilterModel) => void;
+  filterHook?: (filter: ListFilterModel) => ListFilterModel;
+  view?: View;
+}> = ({ filter, setFilter, filterHook, view }) => {
+  const hideStudios = view === View.StudioImages;
+  const hidePerformers = view === View.PerformerImages;
+
+  return (
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+      <ImageFilterSidebarSections>
+        {!hideStudios && (
+          <SidebarStudiosFilter
+            title={<FormattedMessage id="studios" />}
+            option={StudiosCriterionOption}
+            filter={filter}
+            setFilter={setFilter}
+            filterHook={filterHook}
+            sectionID="studios"
+          />
+        )}
+        {!hidePerformers && (
+          <SidebarPerformersFilter
+            title={<FormattedMessage id="performers" />}
+            option={PerformersCriterionOption}
+            filter={filter}
+            setFilter={setFilter}
+            filterHook={filterHook}
+            sectionID="performers"
+          />
+        )}
+        <SidebarTagsFilter
+          title={<FormattedMessage id="tags" />}
+          option={TagsCriterionOption}
+          filter={filter}
+          setFilter={setFilter}
+          filterHook={filterHook}
+          sectionID="tags"
+        />
+        <SidebarRatingFilter
+          title={<FormattedMessage id="rating" />}
+          option={RatingCriterionOption}
+          filter={filter}
+          setFilter={setFilter}
+          sectionID="rating"
+        />
+      </ImageFilterSidebarSections>
+    </Box>
+  );
+};
+
 interface IImageList {
   filterHook?: (filter: ListFilterModel) => ListFilterModel;
   view?: View;
@@ -330,6 +401,7 @@ interface IImageList {
 
 const ImageListContent: React.FC<{
   view?: View;
+  filterHook?: (filter: ListFilterModel) => ListFilterModel;
   otherOperations: IItemListOperation<GQL.FindImagesQueryResult>[];
   addKeybinds: any;
   renderContent: any;
@@ -338,6 +410,7 @@ const ImageListContent: React.FC<{
   renderMetadataByline: any;
 }> = ({
   view,
+  filterHook,
   otherOperations,
   addKeybinds,
   renderContent,
@@ -349,6 +422,16 @@ const ImageListContent: React.FC<{
     const { effectiveFilter, result, metadataInfo, cachedResult, totalCount } =
       useQueryResultContext<GQL.FindImagesQueryResult, GQL.SlimImageDataFragment>();
     const listSelect = useListContext<GQL.SlimImageDataFragment>();
+
+    const {
+      showSidebar,
+      setShowSidebar,
+      sectionOpen,
+      setSectionOpen,
+      loading: sidebarStateLoading,
+    } = useSidebarState(view);
+
+    useFilteredSidebarKeybinds({ showSidebar, setShowSidebar });
 
     const {
       selectedIds,
@@ -423,94 +506,111 @@ const ImageListContent: React.FC<{
       }));
     }
 
-    return (
-      <Box sx={
-        view === View.Images ? {
-          position: "relative",
-          zIndex: 10,
-          mt: { xs: 2, md: "65vh" },
-          background: "linear-gradient(to bottom, transparent, #09090b 20%, #09090b)",
-          pt: { xs: 4, md: 8 },
-          pb: 4,
-          px: { xs: 2, md: 6 },
-          minHeight: "100vh",
-          width: "100vw",
-          marginLeft: "calc(50% - 50vw)",
-          marginRight: "calc(50% - 50vw)",
-          maxWidth: "none",
-          "& > *": { maxWidth: "none" },
-        } : {
-          mt: 4,
-          pb: 4,
-        }
-      }>
-        {/* Sticky Header Control Bar */}
-        <Box sx={{
-          position: "sticky",
-          top: 48,
-          zIndex: 20,
-          backgroundColor: "rgba(0,0,0,0)",
-          borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
-          mx: -2, px: 2, pt: 2, pb: 2, mb: 2,
-          transition: "all 0.3s ease",
-        }}>
-          <FilteredListToolbar
-            filter={filter}
-            setFilter={updateFilter}
-            listSelect={listSelect}
-            showEditFilter={showEditFilter}
-            view={view}
-            operations={operations}
-            zoomable={zoomable}
-            onEdit={onEdit}
-            onDelete={onDelete}
-          />
+    if (sidebarStateLoading) return null;
 
-          {totalCount > filter.itemsPerPage && (
-            <Box display="flex" justifyContent="center" mt={2}>
-              <Box display="flex" flexDirection="column" alignItems="center">
-                <Pagination itemsPerPage={filter.itemsPerPage} currentPage={filter.currentPage} totalItems={totalCount} onChangePage={onChangePage} pagePopupPlacement="bottom" />
-                <Box textAlign="center" mt={1}>
-                  <PaginationIndex itemsPerPage={filter.itemsPerPage} currentPage={filter.currentPage} totalItems={totalCount} metadataByline={metadataByline} />
+    return (
+      <SidebarStateContext.Provider value={{ sectionOpen, setSectionOpen }}>
+        <Box sx={
+          view === View.Images ? {
+            position: "relative",
+            zIndex: 10,
+            mt: { xs: 2, md: "65vh" },
+            background: "linear-gradient(to bottom, transparent, #09090b 20%, #09090b)",
+            pt: { xs: 4, md: 8 },
+            pb: 4,
+            px: { xs: 2, md: 6 },
+            minHeight: "100vh",
+            width: "100vw",
+            marginLeft: "calc(50% - 50vw)",
+            marginRight: "calc(50% - 50vw)",
+            maxWidth: "none",
+            "& > *": { maxWidth: "none" },
+          } : {
+            mt: 4,
+            pb: 4,
+          }
+        }>
+          {/* Sticky Header Control Bar */}
+          <Box sx={{
+            position: "sticky",
+            top: 48,
+            zIndex: 20,
+            backgroundColor: "rgba(0,0,0,0)",
+            borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
+            mx: -2, px: 2, pt: 2, pb: 2, mb: 2,
+            transition: "all 0.3s ease",
+          }}>
+            <FilteredListToolbar
+              filter={filter}
+              setFilter={updateFilter}
+              listSelect={listSelect}
+              showEditFilter={showEditFilter}
+              view={view}
+              operations={operations}
+              zoomable={zoomable}
+              onEdit={onEdit}
+              onDelete={onDelete}
+            />
+
+            {totalCount > filter.itemsPerPage && (
+              <Box display="flex" justifyContent="center" mt={2}>
+                <Box display="flex" flexDirection="column" alignItems="center">
+                  <Pagination itemsPerPage={filter.itemsPerPage} currentPage={filter.currentPage} totalItems={totalCount} onChangePage={onChangePage} pagePopupPlacement="bottom" />
+                  <Box textAlign="center" mt={1}>
+                    <PaginationIndex itemsPerPage={filter.itemsPerPage} currentPage={filter.currentPage} totalItems={totalCount} metadataByline={metadataByline} />
+                  </Box>
                 </Box>
               </Box>
-            </Box>
-          )}
-        </Box>
-
-        <FilterTags
-          criteria={filter.criteria}
-          onEditCriterion={(c) => showEditFilter(c.criterionOption.type)}
-          onRemoveCriterion={(c) => updateFilter(filter.removeCriterion(c.criterionOption.type))}
-          onRemoveAll={() => updateFilter(filter.clearCriteria())}
-        />
-
-        {modal}
-
-        <PagedList
-          result={result}
-          cachedResult={cachedResult}
-          filter={filter}
-          totalCount={totalCount}
-          onChangePage={onChangePage}
-          metadataByline={metadataByline}
-          hidePagination={true}
-          allowSkeleton={true}
-        >
-          {renderContent(result, effectiveFilter, selectedIds, onSelectChange, onChangePage, pages)}
-        </PagedList>
-
-        {totalCount > filter.itemsPerPage && (
-          <Box display="flex" justifyContent="center" mt={4}>
-            <div className="pagination-footer">
-              <Pagination itemsPerPage={filter.itemsPerPage} currentPage={filter.currentPage} totalItems={totalCount} onChangePage={onChangePage} pagePopupPlacement="top" />
-              <Box textAlign="center" mt={1}>
-                <PaginationIndex itemsPerPage={filter.itemsPerPage} currentPage={filter.currentPage} totalItems={totalCount} metadataByline={metadataByline} />
-              </Box>
-            </div>
+            )}
           </Box>
-        )}
-      </Box>
+
+          <Box sx={{ display: "flex", alignItems: "flex-start" }}>
+            <InlineFilterPanel>
+              <SidebarContent
+                filter={filter}
+                setFilter={updateFilter}
+                filterHook={filterHook}
+                view={view}
+              />
+            </InlineFilterPanel>
+
+            <Box sx={{ flex: 1, minWidth: 0, p: 2 }}>
+              <FilterTags
+                criteria={filter.criteria}
+                onEditCriterion={(c) => showEditFilter(c.criterionOption.type)}
+                onRemoveCriterion={(c) => updateFilter(filter.removeCriterion(c.criterionOption.type))}
+                onRemoveAll={() => updateFilter(filter.clearCriteria())}
+              />
+
+              {modal}
+
+              <PagedList
+                result={result}
+                cachedResult={cachedResult}
+                filter={filter}
+                totalCount={totalCount}
+                onChangePage={onChangePage}
+                metadataByline={metadataByline}
+                hidePagination={true}
+                allowSkeleton={true}
+              >
+                {renderContent(result, effectiveFilter, selectedIds, onSelectChange, onChangePage, pages)}
+              </PagedList>
+
+              {totalCount > filter.itemsPerPage && (
+                <Box display="flex" justifyContent="center" mt={4}>
+                  <div className="pagination-footer">
+                    <Pagination itemsPerPage={filter.itemsPerPage} currentPage={filter.currentPage} totalItems={totalCount} onChangePage={onChangePage} pagePopupPlacement="top" />
+                    <Box textAlign="center" mt={1}>
+                      <PaginationIndex itemsPerPage={filter.itemsPerPage} currentPage={filter.currentPage} totalItems={totalCount} metadataByline={metadataByline} />
+                    </Box>
+                  </div>
+                </Box>
+              )}
+            </Box>
+          </Box>
+        </Box>
+      </SidebarStateContext.Provider>
     );
   }
 
@@ -694,6 +794,7 @@ export const ImageList: React.FC<IImageList> = PatchComponent(
       >
         <ImageListContent
           view={view}
+          filterHook={filterHook}
           otherOperations={otherOperations}
           addKeybinds={addKeybinds}
           renderContent={renderContent}

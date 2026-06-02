@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Button, ButtonGroup, Box, Stack } from "@mui/material";
+import { Button, ButtonGroup, Box, Stack, Skeleton } from "@mui/material";
 import { FormattedMessage } from "react-intl";
 
 import * as GQL from "src/core/generated-graphql";
@@ -107,7 +107,7 @@ const PerformerResult: React.FC<IPerformerResultProps> = ({
     selectPerformer(undefined);
   };
 
-  if (stashLoading) return <div>Loading performer</div>;
+  if (stashLoading) return <Skeleton variant="rectangular" height={40} />;
 
   if (matchedPerformer && matchedStashID) {
     return (

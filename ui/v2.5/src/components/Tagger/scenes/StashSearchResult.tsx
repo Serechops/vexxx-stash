@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { Chip, Button, FormControlLabel, Checkbox, Box, Stack, Typography, Grid } from "@mui/material";
+import { Chip, Button, IconButton, Box, Typography, Grid } from "@mui/material";
 import { FormattedMessage, useIntl } from "react-intl";
 import uniq from "lodash-es/uniq";
 import { blobToBase64 } from "base64-blob";
@@ -592,13 +592,13 @@ const StashSearchResult: React.FC<IStashSearchResultProps> = ({
   const renderPerformerList = () => {
     if (scene.performers?.length) {
       return (
-        <div>
+        <Typography variant="body2">
           {intl.formatMessage(
             { id: "countables.performers" },
             { count: scene?.performers?.length }
           )}
-          : {scene?.performers?.map((p) => p.name).join(", ")}
-        </div>
+          {": "}{scene?.performers?.map((p) => p.name).join(", ")}
+        </Typography>
       );
     }
   };
@@ -606,14 +606,14 @@ const StashSearchResult: React.FC<IStashSearchResultProps> = ({
   const maybeRenderStudioCode = () => {
     if (isActive && scene.code) {
       return (
-        <h5>
+        <Typography variant="subtitle2">
           <OptionalField
             exclude={excludedFields[fields.code]}
             setExclude={(v) => setExcludedField(fields.code, v)}
           >
             {scene.code}
           </OptionalField>
-        </h5>
+        </Typography>
       );
     }
   };
@@ -621,14 +621,14 @@ const StashSearchResult: React.FC<IStashSearchResultProps> = ({
   const maybeRenderDateField = () => {
     if (isActive && scene.date) {
       return (
-        <h5>
+        <Typography variant="subtitle2">
           <OptionalField
             exclude={excludedFields[fields.date]}
             setExclude={(v) => setExcludedField(fields.date, v)}
           >
             {scene.date}
           </OptionalField>
-        </h5>
+        </Typography>
       );
     }
   };
@@ -636,14 +636,14 @@ const StashSearchResult: React.FC<IStashSearchResultProps> = ({
   const maybeRenderDirector = () => {
     if (scene.director) {
       return (
-        <h5>
+        <Typography variant="subtitle2">
           <OptionalField
             exclude={excludedFields[fields.director]}
             setExclude={(v) => setExcludedField(fields.director, v)}
           >
             <FormattedMessage id="director" />: {scene.director}
           </OptionalField>
-        </h5>
+        </Typography>
       );
     }
   };
@@ -779,43 +779,23 @@ const StashSearchResult: React.FC<IStashSearchResultProps> = ({
           </Grid>
         </Box>
         {createTags?.map((t) => (
-          <Chip
-            className="tag-item"
-            key={t.name}
-            label={t.name}
-            onClick={() => {
-              onCreateTag(t);
-            }}
-            deleteIcon={
-              <Stack direction="row" spacing={0.5}>
-                <Button
-                  size="small"
-                  className="minimal"
-                  title={intl.formatMessage({ id: "actions.create" })}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onCreateTag(t);
-                  }}
-                >
-                  <Icon className="fa-fw" icon={faPlus} />
-                </Button>
-                <Button
-                  size="small"
-                  className="minimal"
-                  onClick={(e) => {
-                    showTagModal(t);
-                    e.stopPropagation();
-                  }}
-                  title={intl.formatMessage({
-                    id: "component_tagger.verb_link_existing",
-                  })}
-                >
-                  <Icon className="fa-fw" icon={faLink} />
-                </Button>
-              </Stack>
-            }
-            onDelete={() => { }}
-          />
+          <Box key={t.name} sx={{ display: "flex", alignItems: "center", gap: 0.5, py: 0.25 }}>
+            <Chip size="small" label={t.name} onClick={() => onCreateTag(t)} />
+            <IconButton
+              size="small"
+              title={intl.formatMessage({ id: "actions.create" })}
+              onClick={() => onCreateTag(t)}
+            >
+              <Icon className="fa-fw" icon={faPlus} />
+            </IconButton>
+            <IconButton
+              size="small"
+              title={intl.formatMessage({ id: "component_tagger.verb_link_existing" })}
+              onClick={() => showTagModal(t)}
+            >
+              <Icon className="fa-fw" icon={faLink} />
+            </IconButton>
+          </Box>
         ))}
       </Box>
     );
@@ -898,7 +878,7 @@ export const SceneSearchResults: React.FC<ISceneSearchResults> = ({
 
   useEffect(() => {
     // #3198 - if the selected result is no longer in the list, reset it
-    if (!selectedResult || scenes?.length <= selectedResult) {
+    if (selectedResult == null || scenes?.length <= selectedResult) {
       if (!scenes) {
         setSelectedResult(undefined);
       } else if (scenes.length > 0 && scenes[0].resolved) {

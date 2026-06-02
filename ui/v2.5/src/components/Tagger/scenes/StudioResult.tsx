@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { Button, ButtonGroup, Box } from "@mui/material";
+import { Button, ButtonGroup, Box, Skeleton } from "@mui/material";
 import { FormattedMessage } from "react-intl";
 
 import { StudioSelect, SelectObject } from "src/components/Shared/Select";
@@ -75,7 +75,7 @@ const StudioResult: React.FC<IStudioResultProps> = ({
     setSelectedID(undefined);
   };
 
-  if (stashLoading) return <div>Loading studio</div>;
+  if (stashLoading) return <Skeleton variant="rectangular" height={40} />;
 
   if (matchedStudio && matchedStashID) {
     return (

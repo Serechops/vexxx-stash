@@ -794,3 +794,11 @@ extend type Mutation {
   "Clear cached results for a StashTag batch analysis job"
   stashTagClearJobResult(jobID: String!): Boolean!
 }
+
+# Server lifecycle
+extend type Mutation {
+  "Gracefully restarts the server process."
+  restartServer: Boolean!
+  "Gracefully shuts down the server process."
+  shutdownServer: Boolean!
+}

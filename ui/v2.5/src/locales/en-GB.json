@@ -109,7 +109,9 @@
     "reset_cover": "Restore Default Cover",
     "reshuffle": "Reshuffle",
     "running": "running",
+    "restart_server": "Restart Server",
     "save": "Save",
+    "shutdown_server": "Shut Down Server",
     "save_delete_settings": "Use these options by default when deleting",
     "reorder_top": "Reorder to top",
     "replace": "Replace",
@@ -801,6 +803,17 @@
         }
       },
       "interactive_options": "Interactive Options",
+      "server_controls": {
+        "heading": "Server Controls",
+        "restart": {
+          "heading": "Restart Server",
+          "description": "Gracefully restart the server process. The page will become temporarily unavailable."
+        },
+        "shutdown": {
+          "heading": "Shut Down Server",
+          "description": "Gracefully stop the server process."
+        }
+      },
       "language": {
         "heading": "Language"
       },

@@ -1,0 +1,7 @@
+mutation RestartServer {
+  restartServer
+}
+
+mutation ShutdownServer {
+  shutdownServer
+}

@@ -33,9 +33,19 @@ import (
 	_ "github.com/stashapp/stash/pkg/sqlite/migrations"
 )
 
+// ExitCodeRestart is sent to the exit channel to request a graceful restart of the server process.
+const ExitCodeRestart = 3
+
+// ExitCodeShutdown is sent to the exit channel to request a graceful shutdown of the server process.
+const ExitCodeShutdown = 0
+
 type Manager struct {
 	Config *config.Config
 	Logger *log.Logger
+
+	// exitCh is used to signal the main loop to shut down or restart.
+	// Set via SetExitChannel after initialization.
+	exitCh chan<- int
 
 	// ImageThumbnailGenerateWaitGroup is the global wait group image thumbnail generation
 	// It uses the parallel tasks setting from the configuration.
@@ -81,6 +91,33 @@ func GetInstance() *Manager {
 		panic("manager not initialized")
 	}
 	return instance
+}
+
+// SetExitChannel wires the main-loop exit channel into the manager so that
+// RequestRestart and RequestShutdown can signal the process lifecycle.
+func (s *Manager) SetExitChannel(ch chan<- int) {
+	s.exitCh = ch
+}
+
+// RequestRestart triggers a graceful restart of the server process. The HTTP
+// server and manager will be shut down cleanly before the process re-executes
+// itself. Returns an error if the exit channel has not been wired up.
+func (s *Manager) RequestRestart() error {
+	if s.exitCh == nil {
+		return fmt.Errorf("exit channel not configured")
+	}
+	s.exitCh <- ExitCodeRestart
+	return nil
+}
+
+// RequestShutdown triggers a graceful shutdown of the server process. Returns
+// an error if the exit channel has not been wired up.
+func (s *Manager) RequestShutdown() error {
+	if s.exitCh == nil {
+		return fmt.Errorf("exit channel not configured")
+	}
+	s.exitCh <- ExitCodeShutdown
+	return nil
 }
 
 func (s *Manager) SetBlobStoreOptions() {

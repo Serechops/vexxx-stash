@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { Button } from "@mui/material";
 import { FormattedMessage, useIntl } from "react-intl";
 import { DurationInput } from "src/components/Shared/DurationInput";
@@ -190,6 +190,20 @@ export const SettingsInterfacePanel: React.FC = PatchComponent(
             }
           )
         );
+      }
+    }
+
+    const [restartServer, { loading: restarting }] = GQL.useRestartServerMutation();
+    const [shutdownServer, { loading: shuttingDown }] = GQL.useShutdownServerMutation();
+    const [confirmAction, setConfirmAction] = useState<"restart" | "shutdown" | null>(null);
+
+    async function handleConfirmedAction() {
+      const action = confirmAction;
+      setConfirmAction(null);
+      if (action === "restart") {
+        await restartServer();
+      } else if (action === "shutdown") {
+        await shutdownServer();
       }
     }
 
@@ -858,6 +872,76 @@ export const SettingsInterfacePanel: React.FC = PatchComponent(
         <CustomCssSettings />
         <CustomJavascriptSettings />
         <CustomLocalesSettings />
+
+        <SettingSection headingID="config.ui.server_controls.heading">
+          <Setting
+            headingID="config.ui.server_controls.restart.heading"
+            subHeadingID="config.ui.server_controls.restart.description"
+          >
+            {confirmAction === "restart" ? (
+              <>
+                <Button
+                  variant="contained"
+                  color="warning"
+                  disabled={restarting}
+                  onClick={handleConfirmedAction}
+                  sx={{ mr: 1 }}
+                >
+                  <FormattedMessage id="actions.confirm" />
+                </Button>
+                <Button
+                  variant="outlined"
+                  onClick={() => setConfirmAction(null)}
+                >
+                  <FormattedMessage id="actions.cancel" />
+                </Button>
+              </>
+            ) : (
+              <Button
+                variant="contained"
+                color="warning"
+                disabled={restarting || shuttingDown}
+                onClick={() => setConfirmAction("restart")}
+              >
+                <FormattedMessage id="actions.restart_server" />
+              </Button>
+            )}
+          </Setting>
+
+          <Setting
+            headingID="config.ui.server_controls.shutdown.heading"
+            subHeadingID="config.ui.server_controls.shutdown.description"
+          >
+            {confirmAction === "shutdown" ? (
+              <>
+                <Button
+                  variant="contained"
+                  color="error"
+                  disabled={shuttingDown}
+                  onClick={handleConfirmedAction}
+                  sx={{ mr: 1 }}
+                >
+                  <FormattedMessage id="actions.confirm" />
+                </Button>
+                <Button
+                  variant="outlined"
+                  onClick={() => setConfirmAction(null)}
+                >
+                  <FormattedMessage id="actions.cancel" />
+                </Button>
+              </>
+            ) : (
+              <Button
+                variant="contained"
+                color="error"
+                disabled={restarting || shuttingDown}
+                onClick={() => setConfirmAction("shutdown")}
+              >
+                <FormattedMessage id="actions.shutdown_server" />
+              </Button>
+            )}
+          </Setting>
+        </SettingSection>
 
         <SettingSection headingID="config.ui.interactive_options">
           <StringSetting

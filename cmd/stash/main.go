@@ -27,9 +27,19 @@ import (
 )
 
 var exitCode = 0
+var restartPending = false
 
 func main() {
 	defer func() {
+		if restartPending {
+			if err := restart(); err != nil {
+				logger.Errorf("Failed to restart process: %v", err)
+				os.Exit(1)
+			}
+			// On Unix, restart() calls syscall.Exec which replaces the process;
+			// on Windows it launches a child and calls os.Exit — we never reach here.
+			return
+		}
 		if exitCode != 0 {
 			os.Exit(exitCode)
 		}
@@ -95,6 +105,7 @@ func main() {
 	defer server.Shutdown()
 
 	exit := make(chan int)
+	mgr.SetExitChannel(exit)
 
 	go func() {
 		err := server.Start()
@@ -107,7 +118,13 @@ func main() {
 	go handleSignals(exit)
 	desktop.Start(exit, &ui.FaviconProvider)
 
-	exitCode = <-exit
+	code := <-exit
+	if code == manager.ExitCodeRestart {
+		restartPending = true
+		exitCode = 0
+	} else {
+		exitCode = code
+	}
 }
 
 // initLogTemp initializes a temporary logger for use before the config is loaded.

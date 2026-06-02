@@ -56,6 +56,10 @@ export class ControlPanel {
     this._getXrHelper = opts.getXrHelper || (() => null);
     this._onExitPlaying = opts.onExitPlaying || (() => { });
     this._onSwitchFormat = opts.onSwitchFormat || (() => { });
+    this._onBrowseLibrary = opts.onBrowseLibrary || null;
+    this._onSnapTurnToggle = opts.onSnapTurnToggle || null;
+    this._onVignetteToggle = opts.onVignetteToggle || null;
+    this._getVideoFeatures = opts.getVideoFeatures || (() => null);
 
     // WebXR anchors
     this._anchorSystem = null;
@@ -81,11 +85,27 @@ export class ControlPanel {
     this.handyConnected = false;
     this.scriptActive = false;
     this.hasScript = false;
+    this._scriptMediaId = null;
+    this._handyServerTimeOffset = 0;
+    this._handyOnSeeked = null;
+    this._handyOnPause = null;
+    this._handyOnPlaying = null;
     this._showRemaining = false; // toggle: elapsed/total vs -remaining
+
+    // Snap-turn
+    this._snapTurnEnabled = opts.isSnapTurnEnabled ?? CONFIG.VR.SNAP_TURN_ENABLED;
+
+    // Comfort vignette
+    this._vignetteEnabled = false;
+
+    // Sleep timer
+    this._sleepStepIdx = 0;       // 0 = off, 1..n = CONFIG.VIDEO.SLEEP_TIMER_STEPS index
+    this._sleepSecondsRemaining = 0;
+    this._sleepCountdownInterval = null;
 
     // Auto-hide
     this._autoHideTimer = null;
-    this._autoHideDelay = 5000;  // ms before controls hide
+    this._autoHideDelay = CONFIG.UI.AUTOHIDE_DELAY;
     this._autoHidden = false;
     this._isPointerOver = false;
 
@@ -100,6 +120,12 @@ export class ControlPanel {
     this.formatBtn = null;
     this.handyBtn = null;
     this.scriptBtn = null;
+    this.snapTurnBtn = null;
+    this.vignetteBtn = null;
+    this.sleepBtn = null;
+    this.bkmAddBtn = null;
+    this.bkmNextBtn = null;
+    this.browseBtn = null;
     this.chapterRow = null;
     this.scrubHit = null;
     this.hoverDot = null;
@@ -267,6 +293,17 @@ export class ControlPanel {
     this._btn(row3, 'btnZI', '🔍+', '50px', '42px', () => this.adjustZoom(-0.15), 'Zoom In');
     this.handyBtn = this._btn(row3, 'btnHandy', '🔌 Off', '78px', '42px', () => this.toggleHandy(), 'Handy Device');
     this.scriptBtn = this._btn(row3, 'btnScript', '🎮 —', '70px', '42px', () => this.toggleScript(), 'Script Sync');
+    this.snapTurnBtn = this._btn(row3, 'btnSnap', this._snapTurnEnabled ? '↪ On' : '↪ Off', '60px', '42px', () => this._handleSnapTurnClick(), 'Snap Turn');
+    if (this._snapTurnEnabled) {
+      this.snapTurnBtn.background = 'rgba(79,142,255,0.20)';
+      this.snapTurnBtn.color = 'rgba(79,142,255,0.50)';
+      if (this.snapTurnBtn._label) this.snapTurnBtn._label.color = '#8ab4f8';
+    }
+    this.vignetteBtn = this._btn(row3, 'btnVig', '👁 Off', '60px', '42px', () => this.toggleVignette(), 'Comfort Vignette');
+    this.sleepBtn = this._btn(row3, 'btnSleep', '💤 Off', '76px', '42px', () => this.cycleSleepTimer(), 'Sleep Timer');
+    this.bkmAddBtn = this._btn(row3, 'btnBkmAdd', '🔖+', '52px', '42px', () => this.addBookmark(), 'Add Bookmark');
+    this.bkmNextBtn = this._btn(row3, 'btnBkmNext', '🔖►', '54px', '42px', () => this.nextBookmark(), 'Next Bookmark');
+    this.browseBtn = this._btn(row3, 'btnBrowse', '📚 Browse', '88px', '42px', () => this._handleBrowseClick(), 'Browse Library');
     this._btn(row3, 'btnExit', 'Exit', '52px', '42px', () => this.exitVR(), 'Exit VR');
     this._btn(row3, 'btnRC', '◎', '42px', '42px', () => { this.positionForCamera(); this._display.recenter(); }, 'Recenter Screen');
     this._btn(row3, 'btnMin', '▾', '40px', '42px', () => this.setMinimized(true), 'Minimize Controls');
@@ -772,7 +809,10 @@ export class ControlPanel {
   async toggleHandy() {
     if (this.handyConnected) {
       this.handyConnected = false;
-      this.scriptActive = false;
+      if (this.scriptActive) {
+        this.scriptActive = false;
+        await this._stopHandyScript();
+      }
       this._updateHandyBtn();
       this._updateScriptBtn();
       this._dbg('[handy] disconnected');
@@ -813,12 +853,119 @@ export class ControlPanel {
     this.scriptActive = !this.scriptActive;
     this._updateScriptBtn();
     this._dbg('[handy] script ' + (this.scriptActive ? 'ON' : 'OFF'));
-    // TODO: start/stop HSSP script playback via Handy API
+    if (this.scriptActive) {
+      this._startHandyScript();
+    } else {
+      this._stopHandyScript();
+    }
   }
 
-  setHasScript(val) {
-    this.hasScript = val;
+  setHasScript(val, mediaId = null) {
+    this.hasScript = !!val;
+    this._scriptMediaId = mediaId;
+    if (!this.hasScript && this.scriptActive) {
+      this.scriptActive = false;
+      this._stopHandyScript();
+    }
     this._updateScriptBtn();
+  }
+
+  async _startHandyScript() {
+    if (!this._handyToken || !this._scriptMediaId) {
+      this._dbg('[handy] HSSP: missing token or media id');
+      return;
+    }
+    try {
+      // 1. Sync clocks with Handy server
+      const stRes = await fetch('https://www.handyfeeling.com/api/handy-rest/v3/servertime');
+      if (!stRes.ok) throw new Error('servertime ' + stRes.status);
+      const stData = await stRes.json();
+      this._handyServerTimeOffset = stData.serverTime - Date.now();
+
+      // 2. Set the script URL (must be reachable by Handy's cloud from this host)
+      const scriptUrl = new URL(
+        apiUrl('/media/script?id=' + encodeURIComponent(this._scriptMediaId)),
+        window.location.origin
+      ).href;
+      this._dbg('[handy] HSSP setup url:', scriptUrl);
+      const setupRes = await fetch('https://www.handyfeeling.com/api/handy-rest/v3/hssp/setup', {
+        method: 'PUT',
+        headers: {
+          'Authorization': 'Bearer ' + this._handyToken,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ url: scriptUrl, timeout: 10000 })
+      });
+      if (!setupRes.ok) throw new Error('HSSP setup ' + setupRes.status);
+
+      // 3. Start playing at current position
+      await this._syncHandyScript();
+
+      // 4. Keep device in sync on seek, pause, and resume
+      this._stopHandySyncListeners();
+      this._handyOnSeeked = () => this._syncHandyScript();
+      this._handyOnPause = () => this._hsspStop();
+      this._handyOnPlaying = () => this._syncHandyScript();
+      this.vc._el.addEventListener('seeked', this._handyOnSeeked);
+      this.vc._el.addEventListener('pause', this._handyOnPause);
+      this.vc._el.addEventListener('playing', this._handyOnPlaying);
+
+      this._dbg('[handy] HSSP started ✓');
+    } catch (e) {
+      this._dbg('[handy] HSSP start error: ' + e.message);
+      this.scriptActive = false;
+      this._updateScriptBtn();
+    }
+  }
+
+  async _syncHandyScript() {
+    if (!this._handyToken) return;
+    try {
+      const estServerTime = Date.now() + (this._handyServerTimeOffset || 0);
+      const startTimeMs = Math.round(this.vc.currentTime * 1000);
+      const res = await fetch('https://www.handyfeeling.com/api/handy-rest/v3/hssp/play', {
+        method: 'PUT',
+        headers: {
+          'Authorization': 'Bearer ' + this._handyToken,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          estimatedServerTime: estServerTime,
+          startTime: startTimeMs
+        })
+      });
+      if (!res.ok) throw new Error('HSSP play ' + res.status);
+      this._dbg(`[handy] HSSP synced @${this.vc.currentTime.toFixed(1)}s`);
+    } catch (e) {
+      this._dbg('[handy] HSSP sync error: ' + e.message);
+    }
+  }
+
+  async _hsspStop() {
+    if (!this._handyToken) return;
+    try {
+      await fetch('https://www.handyfeeling.com/api/handy-rest/v3/hssp/stop', {
+        method: 'PUT',
+        headers: { 'Authorization': 'Bearer ' + this._handyToken, 'Accept': 'application/json' }
+      });
+    } catch (e) { this._dbg('[handy] HSSP stop error: ' + e.message); }
+  }
+
+  async _stopHandyScript() {
+    this._stopHandySyncListeners();
+    await this._hsspStop();
+    this._dbg('[handy] HSSP stopped');
+  }
+
+  _stopHandySyncListeners() {
+    if (this._handyOnSeeked) this.vc._el.removeEventListener('seeked', this._handyOnSeeked);
+    if (this._handyOnPause) this.vc._el.removeEventListener('pause', this._handyOnPause);
+    if (this._handyOnPlaying) this.vc._el.removeEventListener('playing', this._handyOnPlaying);
+    this._handyOnSeeked = null;
+    this._handyOnPause = null;
+    this._handyOnPlaying = null;
   }
 
   _updateHandyBtn() {
@@ -1087,19 +1234,35 @@ export class ControlPanel {
    * Matches the SLR format: 4096×4096 image, 12 cols × 21 rows, 341×195 per frame.
    * Pass `url` to begin loading immediately; the browser cache is warmed with a
    * native Image so Babylon GUI picks it up from cache (near-instant).
+   *
+   * Cell size is auto-calibrated from the image's natural dimensions once it
+   * loads, overriding the passed-in frameW/frameH fallbacks. This ensures
+   * correctness even if the server generates a different resolution (e.g. 2048
+   * or 8192 px sheets) than the hardcoded SLR defaults.
    */
   configureSpriteSheet(cols, rows, frameW, frameH, url = null) {
     this._spriteCols = cols;
     this._spriteRows = rows;
     this._cellW = frameW;
     this._cellH = frameH;
-    this._dbg(`[scrubPreview] configureSpriteSheet ${cols}x${rows} @ ${frameW}x${frameH}`);
+    this._dbg(`[scrubPreview] configureSpriteSheet ${cols}x${rows} @ ${frameW}x${frameH} (fallback)`);
 
     if (url && this.previewImg) {
       if (this.previewImg.source !== url) {
         // Warm the browser's native image cache first so Babylon GUI's load
         // completes from memory rather than hitting the network again.
         const cacheImg = new window.Image();
+        cacheImg.onload = () => {
+          if (cacheImg.naturalWidth && cacheImg.naturalHeight) {
+            const cw = Math.floor(cacheImg.naturalWidth / cols);
+            const ch = Math.floor(cacheImg.naturalHeight / rows);
+            if (cw > 0 && ch > 0 && (cw !== this._cellW || ch !== this._cellH)) {
+              this._cellW = cw;
+              this._cellH = ch;
+              this._dbg(`[scrubPreview] auto-calibrated: ${cols}x${rows} @ ${cw}x${ch}`);
+            }
+          }
+        };
         cacheImg.src = url;
 
         this._spriteImgReady = false;
@@ -1419,6 +1582,146 @@ export class ControlPanel {
     if (this.speedBtn) {
       this.speedBtn._label.text = this.currentSpeed.toFixed(1) + 'x';
     }
+    // Persist across scenes
+    try { localStorage.setItem('vr_speed', String(this.currentSpeed)); } catch (_) { }
+  }
+
+  /* ── Snap-turn ────────────────────────────────────────────── */
+
+  _handleSnapTurnClick() {
+    const next = !this._snapTurnEnabled;
+    this.setSnapTurnEnabled(next);
+    if (this._onSnapTurnToggle) this._onSnapTurnToggle(next);
+  }
+
+  setSnapTurnEnabled(enabled) {
+    this._snapTurnEnabled = enabled;
+    if (!this.snapTurnBtn) return;
+    this.snapTurnBtn._label.text = enabled ? '↪ On' : '↪ Off';
+    this.snapTurnBtn.background = enabled
+      ? 'rgba(79,142,255,0.20)'
+      : 'rgba(12,12,24,0.90)';
+    this.snapTurnBtn.color = enabled
+      ? 'rgba(79,142,255,0.50)'
+      : 'rgba(255,255,255,0.09)';
+    if (this.snapTurnBtn._label) {
+      this.snapTurnBtn._label.color = enabled ? '#8ab4f8' : '#e8eaed';
+    }
+  }
+
+  /* ── Comfort vignette ─────────────────────────────────────── */
+
+  toggleVignette() {
+    this._vignetteEnabled = !this._vignetteEnabled;
+    if (this.vignetteBtn) {
+      this.vignetteBtn._label.text = this._vignetteEnabled ? '👁 On' : '👁 Off';
+      this.vignetteBtn.background = this._vignetteEnabled
+        ? 'rgba(79,142,255,0.20)'
+        : 'rgba(12,12,24,0.90)';
+      this.vignetteBtn.color = this._vignetteEnabled
+        ? 'rgba(79,142,255,0.50)'
+        : 'rgba(255,255,255,0.09)';
+      if (this.vignetteBtn._label) {
+        this.vignetteBtn._label.color = this._vignetteEnabled ? '#8ab4f8' : '#e8eaed';
+      }
+    }
+    if (this._onVignetteToggle) this._onVignetteToggle(this._vignetteEnabled);
+  }
+
+  /* ── Sleep timer ──────────────────────────────────────────── */
+
+  cycleSleepTimer() {
+    const steps = CONFIG.VIDEO.SLEEP_TIMER_STEPS; // [15, 30, 60]
+    this._sleepStepIdx = (this._sleepStepIdx + 1) % (steps.length + 1);
+    const minutes = this._sleepStepIdx === 0 ? 0 : steps[this._sleepStepIdx - 1];
+    this._setSleepTimer(minutes);
+  }
+
+  _setSleepTimer(minutes) {
+    clearInterval(this._sleepCountdownInterval);
+    this._sleepCountdownInterval = null;
+    this._sleepSecondsRemaining = minutes * 60;
+    this._updateSleepBtn();
+    if (minutes <= 0) return;
+    this._sleepCountdownInterval = setInterval(() => {
+      this._sleepSecondsRemaining--;
+      this._updateSleepBtn();
+      if (this._sleepSecondsRemaining <= 0) {
+        clearInterval(this._sleepCountdownInterval);
+        this._sleepCountdownInterval = null;
+        this._sleepStepIdx = 0;
+        this._sleepSecondsRemaining = 0;
+        this._updateSleepBtn();
+        this._dbg('[sleep] timer expired — pausing');
+        this.vc.pause();
+      }
+    }, 1000);
+    this._dbg(`[sleep] timer set: ${minutes}m`);
+  }
+
+  _updateSleepBtn() {
+    if (!this.sleepBtn) return;
+    if (!this._sleepSecondsRemaining) {
+      this.sleepBtn._label.text = '💤 Off';
+      this.sleepBtn.background = 'rgba(12,12,24,0.90)';
+      this.sleepBtn.color = 'rgba(255,255,255,0.09)';
+      return;
+    }
+    const m = Math.floor(this._sleepSecondsRemaining / 60);
+    const s = this._sleepSecondsRemaining % 60;
+    this.sleepBtn._label.text = `💤 ${m}:${String(s).padStart(2, '0')}`;
+    this.sleepBtn.background = 'rgba(253,214,99,0.15)';
+    this.sleepBtn.color = 'rgba(253,214,99,0.50)';
+  }
+
+  /** Cancel sleep timer — called when exiting playback. */
+  resetSleepTimer() {
+    clearInterval(this._sleepCountdownInterval);
+    this._sleepCountdownInterval = null;
+    this._sleepStepIdx = 0;
+    this._sleepSecondsRemaining = 0;
+    this._updateSleepBtn();
+  }
+
+  /* ── Library browse ───────────────────────────────────────── */
+
+  _handleBrowseClick() {
+    if (this._onBrowseLibrary) {
+      this._onBrowseLibrary();
+    } else {
+      // Fall back to exit-playing which naturally returns to the lobby browser
+      this._onExitPlaying();
+    }
+  }
+
+  /* ── Bookmark navigation ──────────────────────────────────── */
+
+  addBookmark() {
+    const vf = this._getVideoFeatures();
+    if (!vf) return;
+    vf.addBookmark(this.vc.currentTime);
+    this._dbg(`[bkm] added @${this.vc.currentTime.toFixed(1)}s`);
+    // Brief ✓ flash on the button for feedback
+    if (this.bkmAddBtn) {
+      const orig = this.bkmAddBtn._label.text;
+      this.bkmAddBtn._label.text = '✓';
+      setTimeout(() => { if (this.bkmAddBtn) this.bkmAddBtn._label.text = orig; }, 700);
+    }
+  }
+
+  nextBookmark() {
+    const vf = this._getVideoFeatures();
+    if (!vf) return;
+    const mediaId = vf.session.id;
+    const sorted = (vf.bookmarks || [])
+      .filter(b => b.mediaId === mediaId)
+      .sort((a, b) => a.time - b.time);
+    if (!sorted.length) return;
+    const cur = this.vc.currentTime;
+    // Find first bookmark strictly after current time, wrap around
+    const next = sorted.find(b => b.time > cur + 1) || sorted[0];
+    this.vc.seek(next.time);
+    this._dbg(`[bkm] → ${next.name} @${next.time.toFixed(1)}s`);
   }
 
   cycleFormat() {

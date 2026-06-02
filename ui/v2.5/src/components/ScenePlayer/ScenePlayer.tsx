@@ -438,6 +438,26 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
       window.open(`/vr/?${params}`, "_blank");
     }, [scene.id, vrType, getPlayer]);
 
+    // Receive position hand-off when the VR Theatre window closes
+    useEffect(() => {
+      const onVRMessage = (ev: MessageEvent) => {
+        if (!ev.data || ev.data.type !== "vr-theatre-exit") return;
+        if (ev.data.id !== scene.id) return;
+        const t = Number(ev.data.t);
+        if (!isFinite(t) || t < 0) return;
+        const player = getPlayer();
+        if (!player) return;
+        // Seek to where the user left off in the headset
+        if (player.hasStarted()) {
+          player.currentTime(t);
+        } else {
+          player.play()?.then(() => player.currentTime(t)).catch(() => {});
+        }
+      };
+      window.addEventListener("message", onVRMessage);
+      return () => window.removeEventListener("message", onVRMessage);
+    }, [scene.id, getPlayer]);
+
     useEffect(() => {
       if (hideScrubberOverride || fullscreen) {
         setShowScrubber(false);

@@ -468,6 +468,12 @@ async function initXR() {
           pipeline.bloomEnabled = true;
           pipeline.imageProcessingEnabled = true;
           pipeline.samples = 4;
+          // Re-apply vignette if the user had it enabled before entering XR
+          if (controlPanel?._vignetteEnabled) {
+            pipeline.imageProcessing.vignetteEnabled = true;
+            pipeline.imageProcessing.vignetteWeight = 0.8;
+            pipeline.imageProcessing.vignetteBlendMode = 1;
+          }
           dbg('[xr] post-processing re-enabled for desktop');
 
           // Re-create the video display to fall back to WebGL meshes for the desktop view
@@ -1009,8 +1015,11 @@ async function enterPlaying(media) {
   // Show in-scene spinner (visible in XR where HTML overlays aren't)
   showLoadingSpinner(media.title || 'Loading…');
 
-  // Determine video mode
-  const { mode, stereo } = guessMode(media);
+  // Determine video mode; honour the user's last manual stereo choice for the
+  // same mode so e.g. their preferred "180 SBS" survives scene changes.
+  const { mode, stereo: guessStereo } = guessMode(media);
+  const lastFmt = session.lastFormat;
+  const stereo = (lastFmt && lastFmt.mode === mode) ? lastFmt.stereo : guessStereo;
   patchSession({ mode, stereo, id: media.id, title: media.title });
 
   // Update format button
@@ -1051,8 +1060,8 @@ async function enterPlaying(media) {
   controlPanel.positionForCamera();
   controlPanel.startAutoHide();
 
-  // Set script indicator
-  controlPanel.setHasScript(!!(media.scriptPath));
+  // Set script indicator (pass id so Handy HSSP can build the URL)
+  controlPanel.setHasScript(!!(media.scriptPath), media.id);
 
   // Load heatmap + chapter markers + scrub preview
   controlPanel.resetSpriteSheet();
@@ -1104,6 +1113,16 @@ async function enterPlaying(media) {
       vc.setPlaybackRate(session.playbackRate);
       if (controlPanel.speedBtn) controlPanel.speedBtn._label.text = session.playbackRate.toFixed(1) + 'x';
     }
+    // Restore persisted playback speed preference (survives across sessions)
+    try {
+      const savedSpeed = parseFloat(localStorage.getItem('vr_speed'));
+      if (savedSpeed && savedSpeed !== 1.0 && CONFIG.VIDEO.PLAYBACK_SPEEDS.includes(savedSpeed)) {
+        vc.setPlaybackRate(savedSpeed);
+        controlPanel.currentSpeed = savedSpeed;
+        if (controlPanel.speedBtn) controlPanel.speedBtn._label.text = savedSpeed.toFixed(1) + 'x';
+        dbg(`[app] restored playback speed: ${savedSpeed}x`);
+      }
+    } catch (_) { }
     controlPanel.updateMuteButton();
 
     appState.set('playing');
@@ -1152,6 +1171,8 @@ function exitPlaying() {
   videoDisplay.dispose2D();
   const currentTime = vc.currentTime;
   patchSession({ startTime: currentTime });
+  // Cancel any running sleep timer so it doesn't fire after the user leaves
+  controlPanel.resetSleepTimer();
 
   // 5-C: Notify opener window (web player) of current position
   try {
@@ -1170,7 +1191,8 @@ function exitPlaying() {
 }
 
 function switchFormat(mode, stereo) {
-  patchSession({ mode, stereo });
+  // Persist so the next scene of the same mode starts with the same stereo
+  patchSession({ mode, stereo, lastFormat: { mode, stereo } });
 
   // When switching formats manually, we exit passthrough if it was active
   if (controlPanel.currentEnvIdx !== 0) {
@@ -1220,7 +1242,35 @@ async function boot() {
     ground,
     getXrHelper: () => xrHelper,
     onExitPlaying: exitPlaying,
-    onSwitchFormat: switchFormat
+    onSwitchFormat: switchFormat,
+    isSnapTurnEnabled: CONFIG.VR.SNAP_TURN_ENABLED,
+    onSnapTurnToggle: (enabled) => {
+      if (vrControllerManager) vrControllerManager.snapTurnEnabled = enabled;
+      dbg('[app] snap turn (UI):', enabled);
+    },
+    onVignetteToggle: (enabled) => {
+      pipeline.imageProcessing.vignetteEnabled = enabled;
+      pipeline.imageProcessing.vignetteWeight = 0.8;
+      pipeline.imageProcessing.vignetteBlendMode = 1; // multiply
+      dbg('[app] vignette:', enabled);
+    },
+    getVideoFeatures: () => videoFeatures,
+    onBrowseLibrary: () => {
+      // Save position, pause, and reveal the library browser without fully
+      // tearing down the video — the user can pick a new scene or re-select the
+      // same one (which resumes from saved position via session.startTime).
+      const savedTime = vc.currentTime;
+      patchSession({ startTime: savedTime });
+      vc.pause();
+      appState.set('lobby');
+      controlPanel.setVisible(false);
+      controlPanel.setMinimized(false);
+      controlPanel.stopAutoHide();
+      setLobbyVisible(true);
+      animateLightIntensity(hemi, 0.18, 500);
+      libraryBrowser.load().catch(e => dbg('[app] browse library load failed:', e));
+      dbg('[app] browse: paused at', savedTime.toFixed(1) + 's');
+    },
   });
 
   // Tap anywhere in scene (dome/sky) to show auto-hidden controls
@@ -1236,6 +1286,27 @@ async function boot() {
     if (mesh && (mesh.name === 'controls' || mesh.name === 'miniCtl' || mesh.name === 'progBar')) return;
     controlPanel.showFromAutoHide();
   };
+
+  // ── Gaze hot zone: looking down reveals controls ───────────────────────
+  // Works in desktop (mouse look) and headset (head direction) without any
+  // eye-tracking API. If the camera pitch drops below GAZE_REVEAL_ANGLE the
+  // controls appear, with a 1 s cooldown so it can't spam-fire.
+  const GAZE_REVEAL_ANGLE = -Math.PI / 5; // -36° from horizontal
+  let _gazeRevealCooldown = false;
+  scene.onBeforeRenderObservable.add(() => {
+    if (appState.current !== 'playing') return;
+    if (!controlPanel._autoHidden) return;
+    if (_gazeRevealCooldown) return;
+
+    const cam = scene.activeCamera || camera;
+    const fwd = cam.getForwardRay ? cam.getForwardRay().direction : cam.getDirection(BABYLON.Vector3.Forward());
+    // pitch = arcsin(y) — negative means looking down
+    if (fwd.y < Math.sin(GAZE_REVEAL_ANGLE)) {
+      _gazeRevealCooldown = true;
+      controlPanel.showFromAutoHide();
+      setTimeout(() => { _gazeRevealCooldown = false; }, 1000);
+    }
+  });
 
   // Initialize video features (bookmarks, history, etc.)
   window.updateLoadingProgress?.(20, 'Loading video features...');
@@ -1428,6 +1499,7 @@ function setupVRControllerEvents(vrControllerManager, videoFeatures) {
   // Handle snap turn toggle
   vrControllerManager.on('snapTurnToggled', (data) => {
     dbg('[vr] snap turn:', data.enabled);
+    controlPanel?.setSnapTurnEnabled(data.enabled);
     showHint(data.enabled ? 'Snap turn enabled' : 'Smooth turn enabled');
   });
 

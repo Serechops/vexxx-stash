@@ -15,6 +15,7 @@ export const CONFIG = {
     SEEK_STEP: 10,
     VOLUME_STEP: 0.1,
     PLAYBACK_SPEEDS: [0.5, 0.75, 1.0, 1.25, 1.5, 2.0],
+    SLEEP_TIMER_STEPS: [15, 30, 60],   // minutes; 0 = off (implicit first step)
     BUFFER_TARGET: 30,
     QUALITY_LEVELS: {
       AUTO: -1,
@@ -48,7 +49,7 @@ export const CONFIG = {
     SHOW_HINTS: true,
     HINTS_TIMEOUT: 5000,
     AUTOHIDE_CONTROLS: true,
-    AUTOHIDE_DELAY: 3000
+    AUTOHIDE_DELAY: 5000
   },
 
   // Library settings

@@ -128,6 +128,21 @@ class VRMenuPlugin extends videojs.getPlugin("plugin") {
    */
   onTypeSelected: ((type: VRType | null) => void) | undefined = undefined;
 
+  // Track the last-applied projection so we can skip redundant init() calls.
+  // vr.init() resets the Three.js OrbitControls camera to its default heading,
+  // causing the "snap to center" glitch when the effect re-runs for the same scene.
+  private _currentProjection: ProjectionType | null = null;
+
+  // Drag-suppression state: while the user is dragging the 360/180 view,
+  // mousemove events on the Three.js canvas bubble up to VideoJS and reset
+  // its 700 ms inactivity timer, preventing the controls from ever auto-hiding.
+  // We intercept those events in the capture phase during a drag and stop propagation.
+  private _vrDragCanvas: HTMLCanvasElement | null = null;
+  private _vrDragging = false;
+  private _onVrMouseDown: (() => void) | null = null;
+  private _onDocMouseUp: (() => void) | null = null;
+  private _onVrMouseMove: ((e: Event) => void) | null = null;
+
   constructor(player: VideoJsPlayer, options: VRMenuOptions) {
     super(player);
 
@@ -154,12 +169,72 @@ class VRMenuPlugin extends videojs.getPlugin("plugin") {
         this.addButton();
       }
     });
+
+    // Clean up document-level listener on player disposal.
+    player.on("dispose", () => {
+      this._disableVRDragSuppression();
+    });
   }
 
   private loadVR(type: VRType) {
     const projection = vrTypeProjection[type];
+    // Skip reinit if the projection hasn't changed. Calling vr.init() resets
+    // the Three.js camera to its default orientation (snap to center), so we
+    // only call it when the projection actually changes.
+    if (projection === this._currentProjection) return;
+    this._currentProjection = projection;
     this.vr?.setProjection(projection);
     this.vr?.init();
+    if (projection === "NONE") {
+      this._disableVRDragSuppression();
+    } else {
+      this._enableVRDragSuppression();
+    }
+  }
+
+  /** Attach capture-phase mousemove suppression to the Three.js VR canvas. */
+  private _enableVRDragSuppression() {
+    const canvas =
+      this.player.el().querySelector<HTMLCanvasElement>("canvas");
+    if (!canvas || canvas === this._vrDragCanvas) return;
+    // Clean up any stale listeners from a previous canvas before re-attaching.
+    this._disableVRDragSuppression();
+    this._vrDragging = false;
+    this._onVrMouseDown = () => {
+      this._vrDragging = true;
+    };
+    this._onDocMouseUp = () => {
+      this._vrDragging = false;
+    };
+    this._onVrMouseMove = (e: Event) => {
+      // Only suppress during an active drag so normal hover still works.
+      if (this._vrDragging) e.stopImmediatePropagation();
+    };
+    canvas.addEventListener("mousedown", this._onVrMouseDown);
+    document.addEventListener("mouseup", this._onDocMouseUp);
+    // Capture phase runs before VideoJS's bubble-phase activity listeners.
+    canvas.addEventListener("mousemove", this._onVrMouseMove, true);
+    this._vrDragCanvas = canvas;
+  }
+
+  /** Remove all drag-suppression listeners. */
+  private _disableVRDragSuppression() {
+    if (!this._vrDragCanvas) return;
+    if (this._onVrMouseDown)
+      this._vrDragCanvas.removeEventListener("mousedown", this._onVrMouseDown);
+    if (this._onVrMouseMove)
+      this._vrDragCanvas.removeEventListener(
+        "mousemove",
+        this._onVrMouseMove,
+        true
+      );
+    if (this._onDocMouseUp)
+      document.removeEventListener("mouseup", this._onDocMouseUp);
+    this._vrDragCanvas = null;
+    this._onVrMouseDown = null;
+    this._onDocMouseUp = null;
+    this._onVrMouseMove = null;
+    this._vrDragging = false;
   }
 
   private addButton() {

@@ -98,7 +98,6 @@ const SettingTabs: React.FC<{ tab: TabKey }> = ({ tab }) => {
         component="nav"
         aria-label="Settings sections"
         sx={{
-          alignSelf: { md: 'flex-start' },
           borderBottom: { xs: 1, md: 0 },
           borderRight: { xs: 0, md: 1 },
           borderColor: 'divider',
@@ -106,7 +105,10 @@ const SettingTabs: React.FC<{ tab: TabKey }> = ({ tab }) => {
           display: 'flex',
           flexDirection: 'column',
           flexShrink: 0,
+          height: { md: 'calc(100dvh - 64px)' },
           overflow: 'hidden',
+          position: { md: 'sticky' },
+          top: { md: 0 },
           width: { xs: '100%', md: '250px', lg: '300px' },
         }}
       >

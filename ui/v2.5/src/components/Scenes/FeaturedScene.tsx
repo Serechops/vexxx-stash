@@ -16,7 +16,7 @@ export const FeaturedScene: React.FC = () => {
     const { configuration } = useConfigurationContext();
     const [currentIndex, setCurrentIndex] = useState(0);
 
-    // Fetch 20 random scenes for variety (increased checks for previews)
+    // Fetch 20 random scenes for variety
     const filter = useMemo(() => {
         const f = new ListFilterModel(GQL.FilterMode.Scenes, configuration);
         f.itemsPerPage = 20;
@@ -27,10 +27,8 @@ export const FeaturedScene: React.FC = () => {
 
     const { data, loading } = useFindScenes(filter);
 
-    // Filter scenes to only include those with a valid video preview
-    // Prioritize scenes where the preview is NOT a default placeholder
     const scenes = useMemo(() => {
-        return (data?.findScenes.scenes || []).filter(s => s.has_preview);
+        return (data?.findScenes.scenes || []);
     }, [data]);
 
     const scene = scenes[currentIndex];

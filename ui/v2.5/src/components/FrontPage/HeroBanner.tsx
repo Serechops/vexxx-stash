@@ -23,7 +23,7 @@ export const HeroBanner: React.FC = () => {
     const [currentIndex, setCurrentIndex] = useState(0);
     const { configuration } = useConfigurationContext();
 
-    // Create a filter to fetch 40 random scenes (increased to ensure we find ones with previews)
+    // Create a filter to fetch 40 random scenes
     const filter = useMemo(() => {
         const f = new ListFilterModel(GQL.FilterMode.Scenes, configuration);
         f.itemsPerPage = 40;
@@ -34,9 +34,8 @@ export const HeroBanner: React.FC = () => {
 
     const { data, loading } = useFindScenes(filter);
 
-    // Filter scenes to only include those with a valid video preview
     const scenes = useMemo(() => {
-        return (data?.findScenes.scenes || []).filter(s => s.has_preview);
+        return (data?.findScenes.scenes || []);
     }, [data]);
 
     const scene = scenes[currentIndex];

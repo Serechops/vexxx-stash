@@ -13,6 +13,7 @@ import (
 
 	"github.com/99designs/gqlgen/graphql/handler/lru"
 	"github.com/remeh/sizedwaitgroup"
+	"github.com/stashapp/stash/internal/identify"
 	"github.com/stashapp/stash/internal/manager/config"
 	"github.com/stashapp/stash/pkg/file"
 	"github.com/stashapp/stash/pkg/file/video"
@@ -35,6 +36,9 @@ type ScanJob struct {
 
 	fileQueue chan file.ScannedFile
 	count     int
+
+	mu          sync.Mutex
+	phashScenes []*models.Scene
 }
 
 func (j *ScanJob) Execute(ctx context.Context, progress *job.Progress) error {
@@ -68,16 +72,54 @@ func (j *ScanJob) Execute(ctx context.Context, progress *job.Progress) error {
 		minModTime = *j.input.Filter.MinModTime
 	}
 
+	// Wire up phash collection for batch identification after all phashes complete.
+	var phashNotifier func(scene *models.Scene)
+	if input.ScanAutoIdentify && input.ScanGeneratePhashes {
+		phashNotifier = func(scene *models.Scene) {
+			j.mu.Lock()
+			j.phashScenes = append(j.phashScenes, scene)
+			j.mu.Unlock()
+		}
+	}
+
 	logger.Infof("Starting scan of %d paths with %d parallel tasks", len(paths), nTasks)
 
 	// HACK - these should really be set in the scanner initialization
-	j.scanner.FileHandlers = getScanHandlers(j.input, taskQueue, progress)
+	j.scanner.FileHandlers = getScanHandlers(j.input, taskQueue, progress, phashNotifier)
 	j.scanner.ScanFilters = []file.PathFilter{newScanFilter(c, repo, minModTime)}
 	j.scanner.HandlerRequiredFilters = []file.Filter{newHandlerRequiredFilter(cfg, repo)}
 
 	j.runJob(ctx, paths, nTasks, progress)
 
 	taskQueue.Close()
+
+	// Batch identify all scenes that received a phash during this scan.
+	if len(j.phashScenes) > 0 {
+		logger.Infof("Batch identifying %d scenes with new phashes", len(j.phashScenes))
+		defaultSettings := cfg.GetDefaultIdentifySettings()
+		if defaultSettings != nil && len(defaultSettings.Sources) > 0 {
+			identifyJob := &IdentifyJob{
+				postHookExecutor: instance.PluginCache,
+				input: identify.Options{
+					Sources: defaultSettings.Sources,
+					Options: defaultSettings.Options,
+				},
+				stashBoxes: cfg.GetStashBoxes(),
+			}
+			sources, err := identifyJob.getSources()
+			if err != nil {
+				logger.Errorf("Batch identify: error resolving sources: %v", err)
+			} else {
+				batchCtx := context.WithoutCancel(ctx)
+				for _, s := range j.phashScenes {
+					if s != nil {
+						identifyJob.identifyScene(batchCtx, s, sources)
+					}
+				}
+				identifyJob.processRenames(batchCtx)
+			}
+		}
+	}
 
 	if job.IsCancelled(ctx) {
 		logger.Info("Stopping due to user request")
@@ -641,11 +683,21 @@ func galleryFileFilter(ctx context.Context, f models.File) bool {
 	return isZip(f.Base().Basename)
 }
 
-func getScanHandlers(options ScanMetadataInput, taskQueue *job.TaskQueue, progress *job.Progress) []file.Handler {
+func getScanHandlers(options ScanMetadataInput, taskQueue *job.TaskQueue, progress *job.Progress, phashNotifier func(scene *models.Scene)) []file.Handler {
 	mgr := GetInstance()
 	c := mgr.Config
 	r := mgr.Repository
 	pluginCache := mgr.PluginCache
+
+	sceneGen := &sceneGenerators{
+		input:               options,
+		taskQueue:           taskQueue,
+		progress:            progress,
+		paths:               mgr.Paths,
+		fileNamingAlgorithm: c.GetVideoFileNamingAlgorithm(),
+		sequentialScanning:  c.GetSequentialScanning(),
+		phashNotifier:       phashNotifier,
+	}
 
 	return []file.Handler{
 		&file.FilteredHandler{
@@ -686,16 +738,9 @@ func getScanHandlers(options ScanMetadataInput, taskQueue *job.TaskQueue, progre
 				GalleryFinderUpdater: r.Gallery,
 				CaptionUpdater:       r.File,
 				PluginCache:          pluginCache,
-				ScanGenerator: &sceneGenerators{
-					input:               options,
-					taskQueue:           taskQueue,
-					progress:            progress,
-					paths:               mgr.Paths,
-					fileNamingAlgorithm: c.GetVideoFileNamingAlgorithm(),
-					sequentialScanning:  c.GetSequentialScanning(),
-				},
-				FileNamingAlgorithm: c.GetVideoFileNamingAlgorithm(),
-				Paths:               mgr.Paths,
+				ScanGenerator:        sceneGen,
+				FileNamingAlgorithm:  c.GetVideoFileNamingAlgorithm(),
+				Paths:                mgr.Paths,
 			},
 		},
 	}
@@ -787,6 +832,10 @@ type sceneGenerators struct {
 	paths               *paths.Paths
 	fileNamingAlgorithm models.HashAlgorithm
 	sequentialScanning  bool
+
+	// phashNotifier is called after a phash is successfully generated and saved.
+	// It is used to collect scenes for batch identification after all phashes finish.
+	phashNotifier func(scene *models.Scene)
 }
 
 func (g *sceneGenerators) Generate(ctx context.Context, s *models.Scene, f *models.VideoFile) error {
@@ -827,8 +876,8 @@ func (g *sceneGenerators) Generate(ctx context.Context, s *models.Scene, f *mode
 				fileNamingAlgorithm: g.fileNamingAlgorithm,
 			}
 			taskPhash.Start(ctx)
-			if t.ScanAutoIdentify {
-				autoIdentifyScene(ctx, s)
+			if g.phashNotifier != nil {
+				g.phashNotifier(s)
 			}
 			progress.Increment()
 		}

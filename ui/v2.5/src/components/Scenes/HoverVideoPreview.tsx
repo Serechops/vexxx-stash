@@ -18,9 +18,17 @@ interface IHoverVideoPreviewProps {
 function vrTransformStyle(vrMode?: GQL.VrMode | null): React.CSSProperties {
     switch (vrMode) {
         case GQL.VrMode.Lr180:
-            return { transform: "scaleX(2)", transformOrigin: "left center" };
+            return {
+                objectPosition: "left center",
+                transform: "scale(1.77778)",
+                transformOrigin: "left center",
+            };
         case GQL.VrMode.Tb360:
-            return { transform: "scaleY(2)", transformOrigin: "center top" };
+            return {
+                objectPosition: "center top",
+                transform: "scale(1.125)",
+                transformOrigin: "center top",
+            };
         default:
             return {};
     }
@@ -92,7 +100,6 @@ export const HoverVideoPreview: React.FC<IHoverVideoPreviewProps> = ({
                     objectPosition: "top",
                     transition: "opacity 0.2s",
                     "&.hidden": { opacity: 0 },
-                    ...vrStyle,
                 }}
             />
             <Box

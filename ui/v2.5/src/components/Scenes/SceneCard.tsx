@@ -127,8 +127,6 @@ export const ScenePreview: React.FC<IScenePreviewProps> = ({
           objectFit: "cover",
           objectPosition: "top",
           width: "100%",
-          ...(vrMode === GQL.VrMode.Lr180 && { transform: "scaleX(2)", transformOrigin: "left center" }),
-          ...(vrMode === GQL.VrMode.Tb360 && { transform: "scaleY(2)", transformOrigin: "center top" }),
         }}
         className="scene-card-preview-image"
         loading="lazy"
@@ -149,8 +147,16 @@ export const ScenePreview: React.FC<IScenePreviewProps> = ({
           top: playOnHover ? (isHovered ? 0 : "-9999px") : "-9999px",
           transition: "top 0s",
           transitionDelay: "0s",
-          ...(vrMode === GQL.VrMode.Lr180 && { transform: "scaleX(2)", transformOrigin: "left center" }),
-          ...(vrMode === GQL.VrMode.Tb360 && { transform: "scaleY(2)", transformOrigin: "center top" }),
+          ...(vrMode === GQL.VrMode.Lr180 && {
+            objectPosition: "left center",
+            transform: "scale(1.77778)",
+            transformOrigin: "left center",
+          }),
+          ...(vrMode === GQL.VrMode.Tb360 && {
+            objectPosition: "center top",
+            transform: "scale(1.125)",
+            transformOrigin: "center top",
+          }),
         }}
         className="scene-card-preview-video"
         loop

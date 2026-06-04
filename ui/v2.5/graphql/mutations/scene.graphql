@@ -139,3 +139,7 @@ mutation SceneGenerateGallery($scene_id: ID!, $timestamps: [Float!]!, $create_in
     ...GalleryData
   }
 }
+
+mutation SceneDestroyGenerated($ids: [ID!]!) {
+  sceneDestroyGenerated(ids: $ids)
+}

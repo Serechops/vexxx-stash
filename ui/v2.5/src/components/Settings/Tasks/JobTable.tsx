@@ -49,7 +49,14 @@ interface IJob {
 const Task: React.FC<IJob> = ({ job }) => {
   const [stopping, setStopping] = useState(false);
   const [className, setClassName] = useState("");
-  const [subTaskHistory, setSubTaskHistory] = useState<string[]>([]);
+  const [subTaskHistory, setSubTaskHistory] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem(`job-history-${job.id}`);
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
   const terminalRef = useRef<HTMLDivElement>(null);
 
   const prevStatus = useRef(job.status);
@@ -99,6 +106,18 @@ const Task: React.FC<IJob> = ({ job }) => {
       });
     }
   }, [job.subTasks]);
+
+  useEffect(() => {
+    try {
+      if (subTaskHistory.length > 0) {
+        localStorage.setItem(`job-history-${job.id}`, JSON.stringify(subTaskHistory));
+      } else {
+        localStorage.removeItem(`job-history-${job.id}`);
+      }
+    } catch (e) {
+      console.error("Failed to save job history to localStorage", e);
+    }
+  }, [subTaskHistory, job.id]);
 
   useEffect(() => {
     if (terminalRef.current) {
@@ -525,6 +544,28 @@ export const JobTable: React.FC = () => {
   useEffect(() => {
     setQueue(jobStatus.data?.jobQueue ?? []);
   }, [jobStatus]);
+
+  useEffect(() => {
+    if (jobStatus.loading || !jobStatus.data) {
+      return;
+    }
+
+    try {
+      const activeIds = new Set(queue.map((j) => j.id));
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith("job-history-")) {
+          const jobId = key.substring("job-history-".length);
+          if (!activeIds.has(jobId)) {
+            localStorage.removeItem(key);
+            i--;
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Failed to clean up stale job histories from localStorage", e);
+    }
+  }, [queue, jobStatus.loading, jobStatus.data]);
 
   useEffect(() => {
     if (!jobsSubscribe.data) {

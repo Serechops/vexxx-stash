@@ -895,6 +895,35 @@ export const useSceneResetActivity = (
 export const useSceneGenerateScreenshot = () =>
   GQL.useSceneGenerateScreenshotMutation();
 
+export const useSceneDestroyGenerated = () =>
+  GQL.useSceneDestroyGeneratedMutation({
+    update(cache, result, { variables }) {
+      if (!result.data?.sceneDestroyGenerated || !variables) return;
+
+      for (const id of variables.ids) {
+        const obj = { __typename: "Scene", id };
+        cache.modify({
+          id: cache.identify(obj),
+          fields: {
+            paths(value) {
+              return {
+                ...value,
+                preview: null,
+                webp: null,
+                vtt: null,
+                sprite: null,
+                caption: null,
+              };
+            },
+            has_preview() {
+              return false;
+            },
+          },
+        });
+      }
+    },
+  });
+
 export const mutateSceneSetPrimaryFile = (id: string, fileID: string) =>
   client.mutate<GQL.SceneUpdateMutation>({
     mutation: GQL.SceneUpdateDocument,

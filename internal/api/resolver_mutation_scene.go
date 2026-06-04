@@ -1654,3 +1654,46 @@ func (r *mutationResolver) renameSceneFile(ctx context.Context, s *models.Scene,
 
 	return gqlRes, nil
 }
+
+func (r *mutationResolver) SceneDestroyGenerated(ctx context.Context, ids []string) (bool, error) {
+	fileNamingAlgo := manager.GetInstance().Config.GetVideoFileNamingAlgorithm()
+	trashPath := manager.GetInstance().Config.GetDeleteTrashPath()
+
+	fileDeleter := &scene.FileDeleter{
+		Deleter:        file.NewDeleterWithTrash(trashPath),
+		FileNamingAlgo: fileNamingAlgo,
+		Paths:          manager.GetInstance().Paths,
+	}
+
+	if err := r.withTxn(ctx, func(ctx context.Context) error {
+		qb := r.repository.Scene
+		for _, idStr := range ids {
+			id, err := strconv.Atoi(idStr)
+			if err != nil {
+				return err
+			}
+			s, err := qb.Find(ctx, id)
+			if err != nil {
+				return err
+			}
+			if s == nil {
+				continue
+			}
+
+			// kill any running encoders
+			manager.KillRunningStreams(s, fileNamingAlgo)
+
+			if err := fileDeleter.MarkGeneratedFiles(s); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		fileDeleter.Rollback()
+		return false, err
+	}
+
+	fileDeleter.Commit()
+	return true, nil
+}
+

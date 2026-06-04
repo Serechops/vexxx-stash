@@ -11,6 +11,7 @@ import {
   useListSceneScrapers,
   mutateReloadScrapers,
   queryScrapeSceneQueryFragment,
+  useSceneDestroyGenerated,
 } from "src/core/StashService";
 import { LoadingIndicator } from "src/components/Shared/LoadingIndicator";
 import { ImageInput } from "src/components/Shared/ImageInput";
@@ -20,6 +21,7 @@ import { addUpdateStashID, getStashIDs } from "src/utils/stashIds";
 import { useFormik } from "formik";
 import { Prompt } from "react-router-dom";
 import { useConfigurationContext } from "src/hooks/Config";
+import { ModalComponent } from "src/components/Shared/Modal";
 import { IGroupEntry, SceneGroupTable } from "./SceneGroupTable";
 import SearchIcon from "@mui/icons-material/Search";
 import AddIcon from "@mui/icons-material/Add";
@@ -84,6 +86,10 @@ export const SceneEditPanel: React.FC<IProps> = ({
     useState<boolean>(false);
   const [isStashIDSearchOpen, setIsStashIDSearchOpen] =
     useState<boolean>(false);
+  const [isDeleteGeneratedAlertOpen, setIsDeleteGeneratedAlertOpen] =
+    useState<boolean>(false);
+  const [destroyGenerated, { loading: isDestroyingGenerated }] =
+    useSceneDestroyGenerated();
   const [showFunscriptBrowser, setShowFunscriptBrowser] = useState(false);
   // Index of the caption being browsed for a file path, or -1 for "add new"
   const [captionBrowseIndex, setCaptionBrowseIndex] = useState<number | null>(null);
@@ -732,6 +738,48 @@ export const SceneEditPanel: React.FC<IProps> = ({
     return renderInputField("details", "textarea", "details", props);
   }
 
+  async function onDeleteGenerated() {
+    if (!scene.id) return;
+    try {
+      await destroyGenerated({ variables: { ids: [scene.id] } });
+      Toast.success(intl.formatMessage({ id: "toast.delete_generated_success" }));
+    } catch (e) {
+      Toast.error(e);
+    }
+    setIsDeleteGeneratedAlertOpen(false);
+  }
+
+  function renderDeleteGeneratedDialog() {
+    if (!isDeleteGeneratedAlertOpen) return;
+
+    return (
+      <ModalComponent
+        show
+        icon={<DeleteIcon />}
+        header={intl.formatMessage({
+          id: "dialogs.delete_generated_title",
+        })}
+        accept={{
+          variant: "danger",
+          onClick: onDeleteGenerated,
+          text: intl.formatMessage({ id: "actions.delete" }),
+        }}
+        cancel={{
+          onClick: () => setIsDeleteGeneratedAlertOpen(false),
+          text: intl.formatMessage({ id: "actions.cancel" }),
+          variant: "secondary",
+        }}
+        isRunning={isDestroyingGenerated}
+      >
+        <p>
+          <FormattedMessage
+            id="dialogs.delete_generated_desc"
+          />
+        </p>
+      </ModalComponent>
+    );
+  }
+
   return (
     <div id="scene-edit-details">
       <Prompt
@@ -740,6 +788,7 @@ export const SceneEditPanel: React.FC<IProps> = ({
       />
 
       {renderScrapeQueryModal()}
+      {renderDeleteGeneratedDialog()}
       {maybeRenderScrapeDialog()}
       {isStashIDSearchOpen && (
         <StashBoxIDSearchModal
@@ -810,6 +859,16 @@ export const SceneEditPanel: React.FC<IProps> = ({
                 onClick={() => onDelete()}
               >
                 <FormattedMessage id="actions.delete" />
+              </Button>
+            )}
+            {!isNew && (
+              <Button
+                className="edit-button"
+                variant="contained"
+                color="warning"
+                onClick={() => setIsDeleteGeneratedAlertOpen(true)}
+              >
+                <FormattedMessage id="actions.delete_generated" />
               </Button>
             )}
           </div>

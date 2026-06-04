@@ -94,9 +94,14 @@ func (t *GeneratePreviewTask) generateVideo(ctx context.Context, videoChecksum s
 		useVsync2 = true
 	}
 
-	if err := t.generator.PreviewVideo(ctx, videoFilename, videoDuration, videoChecksum, t.Options, false, useVsync2); err != nil {
+	vrModeStr := ""
+	if t.Scene.VRMode != nil {
+		vrModeStr = string(*t.Scene.VRMode)
+	}
+
+	if err := t.generator.PreviewVideo(ctx, videoFilename, videoDuration, videoChecksum, t.Options, vrModeStr, false, useVsync2); err != nil {
 		logger.Warnf("[generator] failed generating scene preview, trying fallback")
-		if err := t.generator.PreviewVideo(ctx, videoFilename, videoDuration, videoChecksum, t.Options, true, useVsync2); err != nil {
+		if err := t.generator.PreviewVideo(ctx, videoFilename, videoDuration, videoChecksum, t.Options, vrModeStr, true, useVsync2); err != nil {
 			return err
 		}
 	}

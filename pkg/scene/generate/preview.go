@@ -79,7 +79,7 @@ func (g PreviewOptions) getStepSizeAndOffset(videoDuration float64) (stepSize fl
 	return
 }
 
-func (g Generator) PreviewVideo(ctx context.Context, input string, videoDuration float64, hash string, options PreviewOptions, fallback bool, useVsync2 bool) error {
+func (g Generator) PreviewVideo(ctx context.Context, input string, videoDuration float64, hash string, options PreviewOptions, vrMode string, fallback bool, useVsync2 bool) error {
 	lockCtx := g.LockManager.ReadLock(ctx, input)
 	defer lockCtx.Cancel()
 
@@ -92,7 +92,7 @@ func (g Generator) PreviewVideo(ctx context.Context, input string, videoDuration
 
 	logger.Infof("[generator] generating video preview for %s", input)
 
-	if err := g.generateFile(lockCtx, g.ScenePaths, mp4Pattern, output, g.previewVideo(input, videoDuration, options, fallback, useVsync2)); err != nil {
+	if err := g.generateFile(lockCtx, g.ScenePaths, mp4Pattern, output, g.previewVideo(input, videoDuration, options, vrMode, fallback, useVsync2)); err != nil {
 		return err
 	}
 
@@ -101,10 +101,10 @@ func (g Generator) PreviewVideo(ctx context.Context, input string, videoDuration
 	return nil
 }
 
-func (g *Generator) previewVideo(input string, videoDuration float64, options PreviewOptions, fallback bool, useVsync2 bool) generateFn {
+func (g *Generator) previewVideo(input string, videoDuration float64, options PreviewOptions, vrMode string, fallback bool, useVsync2 bool) generateFn {
 	// #2496 - generate a single preview video for videos shorter than segments * segment duration
 	if videoDuration < options.SegmentDuration*float64(options.Segments) {
-		return g.previewVideoSingle(input, videoDuration, options, fallback, useVsync2)
+		return g.previewVideoSingle(input, videoDuration, options, vrMode, fallback, useVsync2)
 	}
 
 	return func(lockCtx *fsutil.LockContext, tmpFn string) error {
@@ -142,7 +142,7 @@ func (g *Generator) previewVideo(input string, videoDuration float64, options Pr
 				Preset:     options.Preset,
 			}
 
-			if err := g.previewVideoChunk(lockCtx, input, chunkOptions, fallback, useVsync2); err != nil {
+			if err := g.previewVideoChunk(lockCtx, input, chunkOptions, vrMode, fallback, useVsync2); err != nil {
 				return err
 			}
 		}
@@ -161,7 +161,7 @@ func (g *Generator) previewVideo(input string, videoDuration float64, options Pr
 	}
 }
 
-func (g *Generator) previewVideoSingle(input string, videoDuration float64, options PreviewOptions, fallback bool, useVsync2 bool) generateFn {
+func (g *Generator) previewVideoSingle(input string, videoDuration float64, options PreviewOptions, vrMode string, fallback bool, useVsync2 bool) generateFn {
 	return func(lockCtx *fsutil.LockContext, tmpFn string) error {
 		startTime := 0.0
 		if options.LimitStart != nil {
@@ -176,7 +176,7 @@ func (g *Generator) previewVideoSingle(input string, videoDuration float64, opti
 			Preset:     options.Preset,
 		}
 
-		return g.previewVideoChunk(lockCtx, input, chunkOptions, fallback, useVsync2)
+		return g.previewVideoChunk(lockCtx, input, chunkOptions, vrMode, fallback, useVsync2)
 	}
 }
 
@@ -188,8 +188,15 @@ type previewChunkOptions struct {
 	Preset     string
 }
 
-func (g Generator) previewVideoChunk(lockCtx *fsutil.LockContext, fn string, options previewChunkOptions, fallback bool, useVsync2 bool) error {
+func (g Generator) previewVideoChunk(lockCtx *fsutil.LockContext, fn string, options previewChunkOptions, vrMode string, fallback bool, useVsync2 bool) error {
 	var videoFilter ffmpeg.VideoFilter
+	if vrMode == "LR180" {
+		videoFilter = videoFilter.Append("v360=input=hequirect:output=flat:in_stereo=sbs:out_stereo=2d:d_fov=120:w=1280:h=720")
+	} else if vrMode == "TB360" {
+		videoFilter = videoFilter.Append("v360=input=equirect:output=flat:in_stereo=tb:out_stereo=2d:d_fov=120:w=1280:h=720")
+	} else if vrMode == "MONO360" {
+		videoFilter = videoFilter.Append("v360=input=equirect:output=flat:in_stereo=2d:out_stereo=2d:d_fov=120:w=1280:h=720")
+	}
 	videoFilter = videoFilter.ScaleWidth(scenePreviewWidth)
 
 	var videoArgs ffmpeg.Args

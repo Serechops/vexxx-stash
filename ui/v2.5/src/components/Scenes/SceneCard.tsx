@@ -63,6 +63,25 @@ export const ScenePreview: React.FC<IScenePreviewProps> = ({
 }) => {
   const videoEl = useRef<HTMLVideoElement>(null);
   const [isHovered, setIsHovered] = useState(false);
+  const [needsCrop, setNeedsCrop] = useState(false);
+
+  const handleLoadedMetadata = (e: React.SyntheticEvent<HTMLVideoElement>) => {
+    const video = e.currentTarget;
+    if (!video.videoWidth || !video.videoHeight) return;
+    const ratio = video.videoWidth / video.videoHeight;
+
+    if (vrMode === GQL.VrMode.Lr180) {
+      // Legacy SBS dual-eye is wide (~2.0); new de-warped rectilinear preview is 16:9 (~1.777)
+      if (ratio > 1.85) {
+        setNeedsCrop(true);
+      }
+    } else if (vrMode === GQL.VrMode.Tb360) {
+      // Legacy TB dual-eye is square (~1.0); new de-warped rectilinear preview is 16:9 (~1.777)
+      if (ratio < 1.2) {
+        setNeedsCrop(true);
+      }
+    }
+  };
 
   useEffect(() => {
     if (playOnHover) return; // Skip IntersectionObserver if using hover
@@ -138,6 +157,7 @@ export const ScenePreview: React.FC<IScenePreviewProps> = ({
         disableRemotePlayback
         playsInline
         muted={!soundActive}
+        onLoadedMetadata={handleLoadedMetadata}
         sx={{
           height: "100%",
           objectFit: "cover",
@@ -147,12 +167,12 @@ export const ScenePreview: React.FC<IScenePreviewProps> = ({
           top: playOnHover ? (isHovered ? 0 : "-9999px") : "-9999px",
           transition: "top 0s",
           transitionDelay: "0s",
-          ...(vrMode === GQL.VrMode.Lr180 && {
+          ...(needsCrop && vrMode === GQL.VrMode.Lr180 && {
             objectPosition: "left center",
             transform: "scale(1.77778)",
             transformOrigin: "left center",
           }),
-          ...(vrMode === GQL.VrMode.Tb360 && {
+          ...(needsCrop && vrMode === GQL.VrMode.Tb360 && {
             objectPosition: "center top",
             transform: "scale(1.125)",
             transformOrigin: "center top",

@@ -98,7 +98,12 @@ func (t *GenerateGalleryTask) Start(ctx context.Context) error {
 
 	// Run Generation to Temp Dir (Pass cleanTitle + timestamp as prefix)
 	imagePrefix := fmt.Sprintf("%s_%s", cleanTitle, timestamp)
-	_, err := t.generator.GalleryImages(ctx, t.Scene.Path, timestamps, tempDir, imagePrefix)
+	vrModeStr := ""
+	if t.Scene.VRMode != nil {
+		vrModeStr = string(*t.Scene.VRMode)
+	}
+
+	_, err := t.generator.GalleryImages(ctx, t.Scene.Path, timestamps, tempDir, imagePrefix, vrModeStr)
 	if err != nil {
 		logger.Errorf("Failed to generate gallery images for scene %d: %v", t.Scene.ID, err)
 		os.RemoveAll(tempDir) // clean up on failure

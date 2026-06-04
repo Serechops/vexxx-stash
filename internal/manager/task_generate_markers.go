@@ -117,22 +117,27 @@ func (t *GenerateMarkersTask) generateMarker(ctx context.Context, videoFile *mod
 
 	g := t.generator
 
+	vrModeStr := ""
+	if scene.VRMode != nil {
+		vrModeStr = string(*scene.VRMode)
+	}
+
 	if t.VideoPreview {
-		if err := g.MarkerPreviewVideo(ctx, videoFile.Path, sceneHash, seconds, sceneMarker.EndSeconds, instance.Config.GetPreviewAudio()); err != nil {
+		if err := g.MarkerPreviewVideo(ctx, videoFile.Path, sceneHash, seconds, sceneMarker.EndSeconds, instance.Config.GetPreviewAudio(), vrModeStr); err != nil {
 			logger.Errorf("[generator] failed to generate marker video: %v", err)
 			logErrorOutput(err)
 		}
 	}
 
 	if t.ImagePreview {
-		if err := g.SceneMarkerWebp(ctx, videoFile.Path, sceneHash, seconds); err != nil {
+		if err := g.SceneMarkerWebp(ctx, videoFile.Path, sceneHash, seconds, vrModeStr); err != nil {
 			logger.Errorf("[generator] failed to generate marker image: %v", err)
 			logErrorOutput(err)
 		}
 	}
 
 	if t.Screenshot {
-		if err := g.SceneMarkerScreenshot(ctx, videoFile.Path, sceneHash, seconds, videoFile.Width); err != nil {
+		if err := g.SceneMarkerScreenshot(ctx, videoFile.Path, sceneHash, seconds, videoFile.Width, vrModeStr); err != nil {
 			logger.Errorf("[generator] failed to generate marker screenshot: %v", err)
 			logErrorOutput(err)
 		}

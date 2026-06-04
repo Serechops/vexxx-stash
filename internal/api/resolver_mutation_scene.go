@@ -1483,7 +1483,11 @@ func (r *mutationResolver) SceneGenerateGallery(ctx context.Context, sceneID str
 
 	// Generate Images
 	imagePrefix := fmt.Sprintf("%s_%s", cleanTitle, timestamp)
-	_, err = gen.GalleryImages(ctx, s.Path, timestamps, tempDir, imagePrefix)
+	vrModeStr := ""
+	if s.VRMode != nil {
+		vrModeStr = string(*s.VRMode)
+	}
+	_, err = gen.GalleryImages(ctx, s.Path, timestamps, tempDir, imagePrefix, vrModeStr)
 	if err != nil {
 		os.RemoveAll(tempDir)
 		return nil, err

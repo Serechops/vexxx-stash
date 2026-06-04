@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import cx from "classnames";
 import { Box } from "@mui/material";
 import { PreviewScrubber } from "./PreviewScrubber";
@@ -44,8 +44,28 @@ export const HoverVideoPreview: React.FC<IHoverVideoPreviewProps> = ({
     vrMode,
     onScrubberClick,
 }) => {
-    const vrStyle = vrTransformStyle(vrMode);
     const videoEl = useRef<HTMLVideoElement>(null);
+    const [needsCrop, setNeedsCrop] = useState(false);
+
+    const handleLoadedMetadata = (e: React.SyntheticEvent<HTMLVideoElement>) => {
+        const video = e.currentTarget;
+        if (!video.videoWidth || !video.videoHeight) return;
+        const ratio = video.videoWidth / video.videoHeight;
+
+        if (vrMode === GQL.VrMode.Lr180) {
+            // Legacy SBS dual-eye is wide (~2.0); new de-warped rectilinear preview is 16:9 (~1.777)
+            if (ratio > 1.85) {
+                setNeedsCrop(true);
+            }
+        } else if (vrMode === GQL.VrMode.Tb360) {
+            // Legacy TB dual-eye is square (~1.0); new de-warped rectilinear preview is 16:9 (~1.777)
+            if (ratio < 1.2) {
+                setNeedsCrop(true);
+            }
+        }
+    };
+
+    const vrStyle = needsCrop ? vrTransformStyle(vrMode) : {};
 
     useEffect(() => {
         if (!videoEl.current) return;
@@ -112,6 +132,7 @@ export const HoverVideoPreview: React.FC<IHoverVideoPreviewProps> = ({
                 preload="none"
                 ref={videoEl}
                 src={video}
+                onLoadedMetadata={handleLoadedMetadata}
                 sx={{
                     position: "absolute",
                     top: 0,

@@ -22,7 +22,8 @@ const (
 )
 
 type ScreenshotOptions struct {
-	At *float64
+	At     *float64
+	VRMode string
 }
 
 func (g Generator) Screenshot(ctx context.Context, input string, videoWidth int, videoDuration float64, options ScreenshotOptions) ([]byte, error) {
@@ -39,6 +40,7 @@ func (g Generator) Screenshot(ctx context.Context, input string, videoWidth int,
 	ret, err := g.generateBytes(lockCtx, g.ScenePaths, jpgPattern, g.screenshot(input, screenshotOptions{
 		Time:    at,
 		Quality: screenshotQuality,
+		VRMode:  options.VRMode,
 		// default Width is video width
 	}))
 	if err != nil {
@@ -48,7 +50,7 @@ func (g Generator) Screenshot(ctx context.Context, input string, videoWidth int,
 	return ret, nil
 }
 
-func (g Generator) GalleryImages(ctx context.Context, input string, timestamps []float64, outputDir string, imagePrefix string) ([]string, error) {
+func (g Generator) GalleryImages(ctx context.Context, input string, timestamps []float64, outputDir string, imagePrefix string, vrMode string) ([]string, error) {
 	lockCtx := g.LockManager.ReadLock(ctx, input)
 	defer lockCtx.Cancel()
 
@@ -73,6 +75,7 @@ func (g Generator) GalleryImages(ctx context.Context, input string, timestamps [
 			OutputPath: outputPath,
 			OutputType: transcoder.ScreenshotOutputTypeImage2,
 			Quality:    screenshotQuality,
+			VRMode:     vrMode,
 		}
 
 		args := transcoder.ScreenshotTime(input, t, ssOptions)
@@ -91,6 +94,7 @@ type screenshotOptions struct {
 	Time    float64
 	Width   int
 	Quality int
+	VRMode  string
 }
 
 func (g Generator) screenshot(input string, options screenshotOptions) generateFn {
@@ -100,6 +104,7 @@ func (g Generator) screenshot(input string, options screenshotOptions) generateF
 			OutputType: transcoder.ScreenshotOutputTypeImage2,
 			Quality:    options.Quality,
 			Width:      options.Width,
+			VRMode:     options.VRMode,
 		}
 
 		args := transcoder.ScreenshotTime(input, options.Time, ssOptions)

@@ -64,8 +64,14 @@ func (t *GenerateCoverTask) Start(ctx context.Context) error {
 		Overwrite:    true,
 	}
 
+	vrModeStr := ""
+	if t.Scene.VRMode != nil {
+		vrModeStr = string(*t.Scene.VRMode)
+	}
+
 	coverImageData, err := g.Screenshot(ctx, videoFile.Path, videoFile.Width, videoFile.Duration, generate.ScreenshotOptions{
-		At: &at,
+		At:     &at,
+		VRMode: vrModeStr,
 	})
 	if err != nil {
 		logger.Errorf("Error generating screenshot: %v", err)

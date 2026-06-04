@@ -20,7 +20,7 @@ const (
 	markerScreenshotQuality = 2
 )
 
-func (g Generator) MarkerPreviewVideo(ctx context.Context, input string, hash string, seconds float64, endSeconds *float64, includeAudio bool) error {
+func (g Generator) MarkerPreviewVideo(ctx context.Context, input string, hash string, seconds float64, endSeconds *float64, includeAudio bool, vrMode string) error {
 	lockCtx := g.LockManager.ReadLock(ctx, input)
 	defer lockCtx.Cancel()
 
@@ -42,6 +42,7 @@ func (g Generator) MarkerPreviewVideo(ctx context.Context, input string, hash st
 		Seconds:  seconds,
 		Duration: duration,
 		Audio:    includeAudio,
+		VRMode:   vrMode,
 	})); err != nil {
 		return err
 	}
@@ -55,11 +56,19 @@ type sceneMarkerOptions struct {
 	Seconds  float64
 	Duration float64
 	Audio    bool
+	VRMode   string
 }
 
 func (g Generator) markerPreviewVideo(input string, options sceneMarkerOptions) generateFn {
 	return func(lockCtx *fsutil.LockContext, tmpFn string) error {
 		var videoFilter ffmpeg.VideoFilter
+		if options.VRMode == "LR180" {
+			videoFilter = videoFilter.Append("v360=input=hequirect:output=flat:in_stereo=sbs:out_stereo=2d:d_fov=120:w=1280:h=720")
+		} else if options.VRMode == "TB360" {
+			videoFilter = videoFilter.Append("v360=input=equirect:output=flat:in_stereo=tb:out_stereo=2d:d_fov=120:w=1280:h=720")
+		} else if options.VRMode == "MONO360" {
+			videoFilter = videoFilter.Append("v360=input=equirect:output=flat:in_stereo=2d:out_stereo=2d:d_fov=120:w=1280:h=720")
+		}
 		videoFilter = videoFilter.ScaleWidth(markerPreviewWidth)
 
 		var videoArgs ffmpeg.Args
@@ -99,7 +108,7 @@ func (g Generator) markerPreviewVideo(input string, options sceneMarkerOptions) 
 	}
 }
 
-func (g Generator) SceneMarkerWebp(ctx context.Context, input string, hash string, seconds float64) error {
+func (g Generator) SceneMarkerWebp(ctx context.Context, input string, hash string, seconds float64, vrMode string) error {
 	lockCtx := g.LockManager.ReadLock(ctx, input)
 	defer lockCtx.Cancel()
 
@@ -112,6 +121,7 @@ func (g Generator) SceneMarkerWebp(ctx context.Context, input string, hash strin
 
 	if err := g.generateFile(lockCtx, g.MarkerPaths, webpPattern, output, g.sceneMarkerWebp(input, sceneMarkerOptions{
 		Seconds: seconds,
+		VRMode:  vrMode,
 	})); err != nil {
 		return err
 	}
@@ -124,6 +134,13 @@ func (g Generator) SceneMarkerWebp(ctx context.Context, input string, hash strin
 func (g Generator) sceneMarkerWebp(input string, options sceneMarkerOptions) generateFn {
 	return func(lockCtx *fsutil.LockContext, tmpFn string) error {
 		var videoFilter ffmpeg.VideoFilter
+		if options.VRMode == "LR180" {
+			videoFilter = videoFilter.Append("v360=input=hequirect:output=flat:in_stereo=sbs:out_stereo=2d:d_fov=120:w=1280:h=720")
+		} else if options.VRMode == "TB360" {
+			videoFilter = videoFilter.Append("v360=input=equirect:output=flat:in_stereo=tb:out_stereo=2d:d_fov=120:w=1280:h=720")
+		} else if options.VRMode == "MONO360" {
+			videoFilter = videoFilter.Append("v360=input=equirect:output=flat:in_stereo=2d:out_stereo=2d:d_fov=120:w=1280:h=720")
+		}
 		videoFilter = videoFilter.ScaleWidth(markerPreviewWidth)
 		videoFilter = videoFilter.Fps(markerWebpFPS)
 
@@ -152,7 +169,7 @@ func (g Generator) sceneMarkerWebp(input string, options sceneMarkerOptions) gen
 	}
 }
 
-func (g Generator) SceneMarkerScreenshot(ctx context.Context, input string, hash string, seconds float64, width int) error {
+func (g Generator) SceneMarkerScreenshot(ctx context.Context, input string, hash string, seconds float64, width int, vrMode string) error {
 	lockCtx := g.LockManager.ReadLock(ctx, input)
 	defer lockCtx.Cancel()
 
@@ -166,6 +183,7 @@ func (g Generator) SceneMarkerScreenshot(ctx context.Context, input string, hash
 	if err := g.generateFile(lockCtx, g.MarkerPaths, jpgPattern, output, g.sceneMarkerScreenshot(input, SceneMarkerScreenshotOptions{
 		Seconds: seconds,
 		Width:   width,
+		VRMode:  vrMode,
 	})); err != nil {
 		return err
 	}
@@ -178,6 +196,7 @@ func (g Generator) SceneMarkerScreenshot(ctx context.Context, input string, hash
 type SceneMarkerScreenshotOptions struct {
 	Seconds float64
 	Width   int
+	VRMode  string
 }
 
 func (g Generator) sceneMarkerScreenshot(input string, options SceneMarkerScreenshotOptions) generateFn {
@@ -187,6 +206,7 @@ func (g Generator) sceneMarkerScreenshot(input string, options SceneMarkerScreen
 			OutputType: transcoder.ScreenshotOutputTypeImage2,
 			Quality:    markerScreenshotQuality,
 			Width:      options.Width,
+			VRMode:     options.VRMode,
 		}
 
 		args := transcoder.ScreenshotTime(input, options.Seconds, ssOptions)

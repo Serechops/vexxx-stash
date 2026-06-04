@@ -15,6 +15,7 @@ type ScreenshotOptions struct {
 	Verbosity ffmpeg.LogLevel
 
 	UseSelectFilter bool
+	VRMode          string
 }
 
 func (o *ScreenshotOptions) setDefaults() {
@@ -67,8 +68,19 @@ func ScreenshotTime(input string, t float64, options ScreenshotOptions) ffmpeg.A
 
 	var vf ffmpeg.VideoFilter
 
+	if options.VRMode == "LR180" {
+		vf = vf.Append("v360=input=hequirect:output=flat:in_stereo=sbs:out_stereo=2d:d_fov=120:w=1280:h=720")
+	} else if options.VRMode == "TB360" {
+		vf = vf.Append("v360=input=equirect:output=flat:in_stereo=tb:out_stereo=2d:d_fov=120:w=1280:h=720")
+	} else if options.VRMode == "MONO360" {
+		vf = vf.Append("v360=input=equirect:output=flat:in_stereo=2d:out_stereo=2d:d_fov=120:w=1280:h=720")
+	}
+
 	if options.Width > 0 {
 		vf = vf.ScaleWidth(options.Width)
+	}
+
+	if vf != "" {
 		args = args.VideoFilter(vf)
 	}
 
@@ -95,6 +107,14 @@ func ScreenshotFrame(input string, frame int, options ScreenshotOptions) ffmpeg.
 	var vf ffmpeg.VideoFilter
 	// keep only frame number options.Frame)
 	vf = vf.Select(frame)
+
+	if options.VRMode == "LR180" {
+		vf = vf.Append("v360=input=hequirect:output=flat:in_stereo=sbs:out_stereo=2d:d_fov=120:w=1280:h=720")
+	} else if options.VRMode == "TB360" {
+		vf = vf.Append("v360=input=equirect:output=flat:in_stereo=tb:out_stereo=2d:d_fov=120:w=1280:h=720")
+	} else if options.VRMode == "MONO360" {
+		vf = vf.Append("v360=input=equirect:output=flat:in_stereo=2d:out_stereo=2d:d_fov=120:w=1280:h=720")
+	}
 
 	if options.Width > 0 {
 		vf = vf.ScaleWidth(options.Width)

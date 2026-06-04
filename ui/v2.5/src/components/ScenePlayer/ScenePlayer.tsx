@@ -297,7 +297,7 @@ function vrTypeToGqlMode(type: VRType): GQL.VrMode | null {
 }
 
 type MarkerFragment = Pick<GQL.SceneMarker, "title" | "seconds"> & {
-  primary_tag: Pick<GQL.Tag, "name"> | null;
+  primary_tag?: Pick<GQL.Tag, "name"> | null;
   tags: Array<Pick<GQL.Tag, "name">>;
 };
 
@@ -380,7 +380,9 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
     // VR theatre integration — derived flags (no getPlayer dependency)
     const vrType = vrModeToVRType(scene.vr_mode);
     const hasVrMode = !!scene.vr_mode;
-    const hasVrTag = vrTag ? scene.tags.some((tag) => vrTag === tag.name) : false;
+    const hasVrTag = vrTag
+      ? scene.tags.some((tag) => vrTag === tag.name)
+      : false;
     const showVRTheatreButton = hasVrMode || hasVrTag;
 
     useScript(
@@ -407,9 +409,11 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
     const isVirtual = (scene.start_point ?? 0) > 0 || !!scene.end_point;
     const virtualSegmentStart = scene.start_point ?? 0;
     const virtualSegmentEnd = isVirtual
-      ? (scene.end_point ?? file?.duration ?? 0)
+      ? scene.end_point ?? file?.duration ?? 0
       : 0;
-    const virtualDuration = isVirtual ? virtualSegmentEnd - virtualSegmentStart : 0;
+    const virtualDuration = isVirtual
+      ? virtualSegmentEnd - virtualSegmentStart
+      : 0;
 
     // Derive the currently-playing chapter from sorted marker list
     const activeMarker = useMemo(() => {
@@ -431,10 +435,20 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
     const openVRTheatre = useCallback(() => {
       let mode = "180";
       let stereo = "sbs";
-      if (vrType === VRType.TB360) { mode = "360"; stereo = "tb"; }
-      else if (vrType === VRType.Mono360) { mode = "360"; stereo = "mono"; }
+      if (vrType === VRType.TB360) {
+        mode = "360";
+        stereo = "tb";
+      } else if (vrType === VRType.Mono360) {
+        mode = "360";
+        stereo = "mono";
+      }
       const t = Math.floor(getPlayer()?.currentTime() ?? 0);
-      const params = new URLSearchParams({ id: scene.id, t: String(t), mode, stereo });
+      const params = new URLSearchParams({
+        id: scene.id,
+        t: String(t),
+        mode,
+        stereo,
+      });
       window.open(`/vr/?${params}`, "_blank");
     }, [scene.id, vrType, getPlayer]);
 
@@ -451,7 +465,10 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
         if (player.hasStarted()) {
           player.currentTime(t);
         } else {
-          player.play()?.then(() => player.currentTime(t)).catch(() => {});
+          player
+            .play()
+            ?.then(() => player.currentTime(t))
+            .catch(() => {});
         }
       };
       window.addEventListener("message", onVRMessage);
@@ -552,12 +569,14 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
           sourceSelector: {},
           persistVolume: {},
           bigButtons: {},
-          ...(videojs.getPlugin("seekButtons") ? {
-            seekButtons: {
-              forward: 10,
-              back: 10,
-            }
-          } : {}),
+          ...(videojs.getPlugin("seekButtons")
+            ? {
+                seekButtons: {
+                  forward: 10,
+                  back: 10,
+                },
+              }
+            : {}),
           skipButtons: {},
           trackActivity: {},
           vrMenu: {},
@@ -657,18 +676,20 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
 
       const vrMenu = player.vrMenu();
 
-    // Show the VR button when the scene has a stored vr_mode, or when the
-    // scene is tagged with the configured VR tag.
-    const hasVrMode = !!scene.vr_mode;
-    const hasVrTag = vrTag ? scene.tags.some((tag) => vrTag === tag.name) : false;
-    const showButton = hasVrMode || hasVrTag;
+      // Show the VR button when the scene has a stored vr_mode, or when the
+      // scene is tagged with the configured VR tag.
+      const hasVrMode = !!scene.vr_mode;
+      const hasVrTag = vrTag
+        ? scene.tags.some((tag) => vrTag === tag.name)
+        : false;
+      const showButton = hasVrMode || hasVrTag;
 
-    vrMenu.setShowButton(showButton);
+      vrMenu.setShowButton(showButton);
 
-    // Restore the stored mode (or reset to Off) every time the scene changes.
-    // In-session VR mode changes are ephemeral and do not persist to the scene.
-    vrMenu.setInitialMode(vrModeToVRType(scene.vr_mode));
-  }, [getPlayer, scene, vrTag]);
+      // Restore the stored mode (or reset to Off) every time the scene changes.
+      // In-session VR mode changes are ephemeral and do not persist to the scene.
+      vrMenu.setInitialMode(vrModeToVRType(scene.vr_mode));
+    }, [getPlayer, scene, vrTag]);
     useEffect(() => {
       const player = getPlayer();
       if (!player) return;
@@ -746,8 +767,11 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
           const vEnd = this.virtualEnd ?? this.duration();
           if (vEnd > vStart) {
             const pct =
-              Math.min(1, Math.max(0, (currentTime - vStart) / (vEnd - vStart))) * 100;
-            this.el().style.setProperty(
+              Math.min(
+                1,
+                Math.max(0, (currentTime - vStart) / (vEnd - vStart))
+              ) * 100;
+            (this.el() as HTMLElement).style.setProperty(
               "--vjs-virtual-progress",
               `${pct.toFixed(2)}%`
             );
@@ -977,13 +1001,14 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
         title: getMarkerTitle(marker),
         seconds: marker.seconds,
         end_seconds: marker.end_seconds ?? null,
-        primaryTag: marker.primary_tag,
+        primaryTag: marker.primary_tag || { name: "" },
       }));
 
       const markers = player!.markers();
 
       const uniqueTagNames = markerData
         .map((marker) => marker.primaryTag.name)
+        .filter((value) => !!value)
         .filter((value, index, self) => self.indexOf(value) === index);
 
       // Wait for colors
@@ -1092,7 +1117,8 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
     // Handle return from VR theatre — seek to the position where the user left off
     useEffect(() => {
       const handler = (e: MessageEvent) => {
-        if (e.data?.type !== "vr-theatre-exit" || e.data.id !== scene.id) return;
+        if (e.data?.type !== "vr-theatre-exit" || e.data.id !== scene.id)
+          return;
         const t = e.data.t;
         if (typeof t === "number" && isFinite(t)) {
           const player = getPlayer();
@@ -1117,24 +1143,30 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
       const handleKeyDown = (e: globalThis.KeyboardEvent) => {
         // Only trigger if not typing in input
         if (e.defaultPrevented) return;
-        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+        if (
+          e.target instanceof HTMLInputElement ||
+          e.target instanceof HTMLTextAreaElement
+        )
+          return;
 
-        if (e.key === 'g') {
+        if (e.key === "g") {
           setShowGalleryDialog(true);
         }
-        if (e.key === '?') {
+        if (e.key === "?") {
           setShowShortcutsHelp((v) => !v);
         }
       };
 
-      window.addEventListener('keydown', handleKeyDown);
-      return () => window.removeEventListener('keydown', handleKeyDown);
+      window.addEventListener("keydown", handleKeyDown);
+      return () => window.removeEventListener("keydown", handleKeyDown);
     }, []);
 
     const getVideoElement = () => {
       const player = getPlayer();
       if (!player) return null;
-      return player.tech({ IWillNotUseThisInPlugins: true }).el() as HTMLVideoElement;
+      return player
+        .tech({ IWillNotUseThisInPlugins: true })
+        .el() as HTMLVideoElement;
     };
 
     // Sync autostart button with config changes
@@ -1203,7 +1235,13 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
 
       player.loop(looping);
       interactiveClient.setLooping(looping);
-    }, [getPlayer, interactiveClient, looping, scene.start_point, scene.end_point]);
+    }, [
+      getPlayer,
+      interactiveClient,
+      looping,
+      scene.start_point,
+      scene.end_point,
+    ]);
 
     // Generate a client-side sine-curve waveform from the funscript JSON and
     // set it as --funscript-heatmap-url on the player root element.
@@ -1247,10 +1285,17 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
         player.addClass("vjs-virtual");
 
         const playerEl = player.el();
-        if (!playerEl) return () => { player.removeClass("vjs-virtual"); };
-        const progressHolder = playerEl
-          .querySelector(".vjs-progress-holder") as HTMLElement | null;
-        if (!progressHolder) return () => { player.removeClass("vjs-virtual"); };
+        if (!playerEl)
+          return () => {
+            player.removeClass("vjs-virtual");
+          };
+        const progressHolder = playerEl.querySelector(
+          ".vjs-progress-holder"
+        ) as HTMLElement | null;
+        if (!progressHolder)
+          return () => {
+            player.removeClass("vjs-virtual");
+          };
 
         const handleProgressSeek = (e: MouseEvent) => {
           const vStart = player.virtualStart ?? 0;
@@ -1278,7 +1323,11 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
         };
 
         progressHolder.addEventListener("mousedown", handleProgressSeek, true);
-        progressHolder.addEventListener("touchstart", handleProgressTouchSeek, true);
+        progressHolder.addEventListener(
+          "touchstart",
+          handleProgressTouchSeek,
+          true
+        );
         return () => {
           progressHolder.removeEventListener(
             "mousedown",
@@ -1421,30 +1470,33 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
             </div>
           )}
           {ready && activeMarker && (
-            <div
-              key={activeMarker.id}
-              className="chapter-overlay"
-            >
+            <div key={activeMarker.id} className="chapter-overlay">
               {activeMarker.primary_tag?.name || activeMarker.title}
             </div>
           )}
         </div>
 
-        {playerEl && createPortal(
-          <>
-            {interactiveState === ConnectionState.Ready && (
-              <InteractiveControls
-                client={interactiveClient}
-                show={scene.interactive && !getPlayer()?.paused()}
-                visible={userActive}
-              />
-            )}
-            {import.meta.env.DEV && interactiveState !== ConnectionState.Ready && (
-              <InteractiveControls client={interactiveClient} show={false} visible={userActive} />
-            )}
-          </>,
-          playerEl
-        )}
+        {playerEl &&
+          createPortal(
+            <>
+              {interactiveState === ConnectionState.Ready && (
+                <InteractiveControls
+                  client={interactiveClient}
+                  show={scene.interactive && !getPlayer()?.paused()}
+                  visible={userActive}
+                />
+              )}
+              {import.meta.env.DEV &&
+                interactiveState !== ConnectionState.Ready && (
+                  <InteractiveControls
+                    client={interactiveClient}
+                    show={false}
+                    visible={userActive}
+                  />
+                )}
+            </>,
+            playerEl
+          )}
 
         {scene.interactive &&
           (interactiveState !== ConnectionState.Ready ||
@@ -1571,7 +1623,12 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
                       </Box>
                     </TableCell>
                     <TableCell
-                      sx={{ border: 0, py: 0.75, color: "grey.400", fontSize: "0.875rem" }}
+                      sx={{
+                        border: 0,
+                        py: 0.75,
+                        color: "grey.400",
+                        fontSize: "0.875rem",
+                      }}
                     >
                       {action}
                     </TableCell>

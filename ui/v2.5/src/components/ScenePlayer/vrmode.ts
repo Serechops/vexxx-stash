@@ -153,6 +153,11 @@ class VRMenuPlugin extends videojs.getPlugin("plugin") {
 
     if (this.player.vr) {
       this.vr = this.player.vr();
+      this.vr.on("initialized", () => {
+        if (this._currentProjection && this._currentProjection !== "NONE") {
+          this._enableVRDragSuppression();
+        }
+      });
     } else {
       console.warn("videojs-vr plugin not found");
     }
@@ -187,15 +192,12 @@ class VRMenuPlugin extends videojs.getPlugin("plugin") {
     this.vr?.init();
     if (projection === "NONE") {
       this._disableVRDragSuppression();
-    } else {
-      this._enableVRDragSuppression();
     }
   }
 
   /** Attach capture-phase mousemove suppression to the Three.js VR canvas. */
   private _enableVRDragSuppression() {
-    const canvas =
-      this.player.el().querySelector<HTMLCanvasElement>("canvas");
+    const canvas = this.player.el().querySelector<HTMLCanvasElement>("canvas");
     if (!canvas || canvas === this._vrDragCanvas) return;
     // Clean up any stale listeners from a previous canvas before re-attaching.
     this._disableVRDragSuppression();
@@ -208,7 +210,33 @@ class VRMenuPlugin extends videojs.getPlugin("plugin") {
     };
     this._onVrMouseMove = (e: Event) => {
       // Only suppress during an active drag so normal hover still works.
-      if (this._vrDragging) e.stopImmediatePropagation();
+      if (this._vrDragging) {
+        e.stopPropagation();
+
+        // Disable play/pause toggle in videojs-vr CanvasPlayerControls
+        const controls = (this.vr as any)?.canvasPlayerControls;
+        if (controls) {
+          controls.shouldTogglePlay = false;
+        }
+
+        if (e instanceof MouseEvent) {
+          const clonedEvent = new MouseEvent("mousemove", {
+            bubbles: true,
+            cancelable: true,
+            clientX: e.clientX,
+            clientY: e.clientY,
+            screenX: e.screenX,
+            screenY: e.screenY,
+            ctrlKey: e.ctrlKey,
+            altKey: e.altKey,
+            shiftKey: e.shiftKey,
+            metaKey: e.metaKey,
+            buttons: e.buttons,
+            button: e.button,
+          });
+          document.dispatchEvent(clonedEvent);
+        }
+      }
     };
     canvas.addEventListener("mousedown", this._onVrMouseDown);
     document.addEventListener("mouseup", this._onDocMouseUp);

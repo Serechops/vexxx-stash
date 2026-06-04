@@ -130,7 +130,8 @@ export const EditSceneMarkersDialog: React.FC<IListOperationProps> = (
           value={value === null ? "" : value ?? undefined}
           valueChanged={(newValue) => setter(newValue)}
           unsetDisabled={props.selected.length < 2}
-          as={area ? "textarea" : undefined}
+          multiline={area}
+          minRows={area ? 3 : undefined}
         />
       </Box>
     );

@@ -22,7 +22,13 @@ interface IListOperationProps {
   onClose: (applied: boolean) => void;
 }
 
-const studioFields = ["favorite", "rating100", "details", "ignore_auto_tag", "organized"];
+const studioFields = [
+  "favorite",
+  "rating100",
+  "details",
+  "ignore_auto_tag",
+  "organized",
+];
 
 export const EditStudiosDialog: React.FC<IListOperationProps> = (
   props: IListOperationProps
@@ -134,7 +140,8 @@ export const EditStudiosDialog: React.FC<IListOperationProps> = (
           value={value === null ? "" : value ?? undefined}
           valueChanged={(newValue) => setter(newValue)}
           unsetDisabled={props.selected.length < 2}
-          as={area ? "textarea" : undefined}
+          multiline={area}
+          minRows={area ? 3 : undefined}
         />
       </Box>
     );
@@ -166,13 +173,15 @@ export const EditStudiosDialog: React.FC<IListOperationProps> = (
             maxHeight: "70vh",
             overflowY: "auto",
             overflowX: "hidden",
-            px: 1
+            px: 1,
           }}
         >
           <Box mb={2} data-field="parent-studio">
             <Grid container alignItems="center">
               <Grid size={{ xs: 3 }}>
-                <Typography variant="body1">{intl.formatMessage({ id: "parent_studio" })}</Typography>
+                <Typography variant="body1">
+                  {intl.formatMessage({ id: "parent_studio" })}
+                </Typography>
               </Grid>
               <Grid size={{ xs: 9 }}>
                 <StudioSelect
@@ -192,7 +201,9 @@ export const EditStudiosDialog: React.FC<IListOperationProps> = (
           <Box mb={2} data-field="rating">
             <Grid container alignItems="center">
               <Grid size={{ xs: 3 }}>
-                <Typography variant="body1">{intl.formatMessage({ id: "rating" })}</Typography>
+                <Typography variant="body1">
+                  {intl.formatMessage({ id: "rating" })}
+                </Typography>
               </Grid>
               <Grid size={{ xs: 9 }}>
                 <RatingSystem
@@ -222,7 +233,9 @@ export const EditStudiosDialog: React.FC<IListOperationProps> = (
               <MultiSet
                 type="tags"
                 disabled={isUpdating}
-                onUpdate={(itemIDs) => setTagIds((v) => ({ ...v, ids: itemIDs }))}
+                onUpdate={(itemIDs) =>
+                  setTagIds((v) => ({ ...v, ids: itemIDs }))
+                }
                 onSetMode={(newMode) =>
                   setTagIds((v) => ({ ...v, mode: newMode }))
                 }

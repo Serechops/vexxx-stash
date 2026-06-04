@@ -1,5 +1,5 @@
-import React, { useState, useRef, useCallback } from "react";
-import { Box, Rating } from "@mui/material";
+import React, { useState, useRef, useCallback, useEffect } from "react";
+import { Box } from "@mui/material";
 import {
   getRatingPrecision,
   RatingStarPrecision,
@@ -45,26 +45,32 @@ export const RatingBar = PatchComponent(
     const minValue = step;
 
     // Convert rating100 to display value - preserve precision
-    const rating100ToDisplay = (rating100: number | null): number | null => {
-      if (rating100 === null) return null;
-      if (isStars) {
-        // rating100 / 20 gives 0-5 scale
-        const raw = rating100 / 20;
-        return Math.round(raw / step) * step;
-      }
-      // rating100 / 10 gives 0-10 scale
-      return Math.round(rating100 / 10);
-    };
+    const rating100ToDisplay = useCallback(
+      (rating100: number | null): number | null => {
+        if (rating100 === null) return null;
+        if (isStars) {
+          // rating100 / 20 gives 0-5 scale
+          const raw = rating100 / 20;
+          return Math.round(raw / step) * step;
+        }
+        // rating100 / 10 gives 0-10 scale
+        return Math.round(rating100 / 10);
+      },
+      [isStars, step]
+    );
 
     // Convert display value back to rating100
-    const displayToRating100 = (display: number): number => {
-      if (isStars) {
-        // display * 20 gives rating100
-        return Math.max(step * 20, Math.min(100, Math.round(display * 20)));
-      }
-      // display * 10 gives rating100
-      return Math.max(10, Math.min(100, display * 10));
-    };
+    const displayToRating100 = useCallback(
+      (display: number): number => {
+        if (isStars) {
+          // display * 20 gives rating100
+          return Math.max(step * 20, Math.min(100, Math.round(display * 20)));
+        }
+        // display * 10 gives rating100
+        return Math.max(10, Math.min(100, display * 10));
+      },
+      [isStars, step]
+    );
 
     // Round to nearest step
     const roundToStep = useCallback(
@@ -91,15 +97,7 @@ export const RatingBar = PatchComponent(
         const x = clientX - rect.left;
         let ratio = Math.max(0, Math.min(1, x / rect.width));
 
-        // Extend clickable area slightly beyond the bar for easier max value selection
-        // If within 5% of the end, snap to max
-        if (ratio > 0.95) {
-          ratio = 1.0;
-        }
-        // If within 2% of the start, snap to min
-        if (ratio < 0.02 && ratio > 0) {
-          ratio = minValue / maxValue;
-        }
+
 
         // Map 0-1 ratio to 0-maxValue, then round to step
         const rawValue = ratio * maxValue;
@@ -122,13 +120,12 @@ export const RatingBar = PatchComponent(
       },
       [
         maxValue,
-        minValue,
         step,
         currentDisplayValue,
         onSetRating,
         disabled,
         roundToStep,
-        isStars,
+        displayToRating100,
       ]
     );
 
@@ -148,39 +145,72 @@ export const RatingBar = PatchComponent(
     };
 
     // Touch event handlers for mobile support
-    const handleTouchStart = (e: React.TouchEvent) => {
-      if (disabled || !onSetRating) return;
-      e.stopPropagation();
-      // Show hover value on initial touch
-      const touch = e.touches[0];
-      handleBarInteraction(touch.clientX, false);
-    };
+    useEffect(() => {
+      const barEl = barRef.current;
+      if (!barEl || disabled || !onSetRating) return;
 
-    const handleTouchMove = (e: React.TouchEvent) => {
-      if (disabled || !onSetRating) return;
-      e.preventDefault(); // Prevent scrolling while dragging
-      e.stopPropagation();
-      const touch = e.touches[0];
-      handleBarInteraction(touch.clientX, false);
-    };
-
-    const handleTouchEnd = (e: React.TouchEvent) => {
-      if (disabled || !onSetRating) return;
-      e.stopPropagation();
-      // Use the last hover value to set rating
-      if (hoverValue !== null) {
-        // Toggle off if tapping same value
-        if (
-          currentDisplayValue !== null &&
-          Math.abs(hoverValue - currentDisplayValue) < step / 2
-        ) {
-          onSetRating(null);
-        } else {
-          onSetRating(displayToRating100(hoverValue));
+      const handleTouchStartRaw = (e: TouchEvent) => {
+        e.stopPropagation();
+        const touch = e.touches[0];
+        if (touch) {
+          handleBarInteraction(touch.clientX, false);
         }
-      }
-      setHoverValue(null);
-    };
+      };
+
+      const handleTouchMoveRaw = (e: TouchEvent) => {
+        // Prevent default scrolling behavior on mobile while dragging
+        if (e.cancelable) {
+          e.preventDefault();
+        }
+        e.stopPropagation();
+        const touch = e.touches[0];
+        if (touch) {
+          handleBarInteraction(touch.clientX, false);
+        }
+      };
+
+      const handleTouchEndRaw = (e: TouchEvent) => {
+        e.stopPropagation();
+        const touch = e.changedTouches[0];
+        if (touch) {
+          const rect = barEl.getBoundingClientRect();
+          const x = touch.clientX - rect.left;
+          const ratio = Math.max(0, Math.min(1, x / rect.width));
+
+          const rawValue = ratio * maxValue;
+          const steppedValue = roundToStep(rawValue);
+
+          if (
+            currentDisplayValue !== null &&
+            Math.abs(steppedValue - currentDisplayValue) < step / 2
+          ) {
+            onSetRating(null);
+          } else {
+            onSetRating(displayToRating100(steppedValue));
+          }
+        }
+        setHoverValue(null);
+      };
+
+      barEl.addEventListener("touchstart", handleTouchStartRaw, { passive: false });
+      barEl.addEventListener("touchmove", handleTouchMoveRaw, { passive: false });
+      barEl.addEventListener("touchend", handleTouchEndRaw, { passive: false });
+
+      return () => {
+        barEl.removeEventListener("touchstart", handleTouchStartRaw);
+        barEl.removeEventListener("touchmove", handleTouchMoveRaw);
+        barEl.removeEventListener("touchend", handleTouchEndRaw);
+      };
+    }, [
+      disabled,
+      onSetRating,
+      handleBarInteraction,
+      currentDisplayValue,
+      displayToRating100,
+      maxValue,
+      roundToStep,
+      step,
+    ]);
 
     // Format display text based on precision
     const formatValue = (val: number | null): string => {
@@ -205,45 +235,6 @@ export const RatingBar = PatchComponent(
     const fontSize = compact ? "0.9rem" : "1.1rem";
     const minWidth = compact ? 100 : 160;
     const gap = compact ? 4 : 8;
-
-    // Stars mode — delegate to MUI Rating for the canonical star UI
-    if (isStars) {
-      return (
-        <Box
-          className="rating-bar rating-stars"
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            gap: "4px",
-            opacity: disabled ? 0.6 : 1,
-          }}
-        >
-          <Rating
-            value={currentDisplayValue}
-            precision={step}
-            readOnly={disabled || !onSetRating}
-            size={compact ? "small" : "medium"}
-            onChange={(_e, newValue) => {
-              if (!onSetRating) return;
-              if (newValue === null) {
-                onSetRating(null);
-              } else {
-                onSetRating(displayToRating100(newValue));
-              }
-            }}
-            sx={{ color: "warning.light" }}
-          />
-          {orMore && (
-            <Box
-              component="span"
-              sx={{ fontSize: compact ? "0.75rem" : "0.85rem", color: "text.secondary", lineHeight: 1 }}
-            >
-              +
-            </Box>
-          )}
-        </Box>
-      );
-    }
 
     return (
       <Box
@@ -294,9 +285,6 @@ export const RatingBar = PatchComponent(
           className="rating-bar-container"
           onMouseMove={handleMouseMove}
           onClick={handleClick}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
           sx={{
             position: "relative",
             height: `${barHeight}px`,

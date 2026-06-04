@@ -742,7 +742,7 @@
         },
         "rating_system": {
           "star_precision": {
-            "label": "Rating Star Precision",
+            "label": "Rating Gauge Precision",
             "options": {
               "full": "Full",
               "half": "Half",
@@ -754,7 +754,7 @@
             "label": "Rating System Type",
             "options": {
               "decimal": "Decimal",
-              "stars": "Stars"
+              "stars": "Gauge"
             }
           }
         }

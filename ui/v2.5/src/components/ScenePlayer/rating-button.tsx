@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import videojs, { VideoJsPlayer } from "video.js";
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import ReactDOM from "react-dom";
 import {
   getRatingPrecision,
@@ -39,36 +39,45 @@ const FullscreenRatingGauge: React.FC<FullscreenRatingGaugeProps> = ({
   const minValue = step;
   
   // Convert rating100 to display value - NO rounding, preserve precision
-  const rating100ToDisplay = (rating100: number | null): number | null => {
-    if (rating100 === null) return null;
-    if (isStars) {
-      // rating100 / 20 gives 0-5 scale
-      // Round to nearest step to handle floating point
-      const raw = rating100 / 20;
-      return Math.round(raw / step) * step;
-    }
-    // rating100 / 10 gives 0-10 scale
-    return Math.round(rating100 / 10);
-  };
-  
+  const rating100ToDisplay = useCallback(
+    (rating100: number | null): number | null => {
+      if (rating100 === null) return null;
+      if (isStars) {
+        // rating100 / 20 gives 0-5 scale
+        // Round to nearest step to handle floating point
+        const raw = rating100 / 20;
+        return Math.round(raw / step) * step;
+      }
+      // rating100 / 10 gives 0-10 scale
+      return Math.round(rating100 / 10);
+    },
+    [isStars, step]
+  );
+
   // Convert display value back to rating100
-  const displayToRating100 = (display: number): number => {
-    if (isStars) {
-      // display * 20 gives rating100
-      // Clamp to valid range (step*20 to 100)
-      return Math.max(step * 20, Math.min(100, Math.round(display * 20)));
-    }
-    // display * 10 gives rating100
-    return Math.max(10, Math.min(100, display * 10));
-  };
-  
+  const displayToRating100 = useCallback(
+    (display: number): number => {
+      if (isStars) {
+        // display * 20 gives rating100
+        // Clamp to valid range (step*20 to 100)
+        return Math.max(step * 20, Math.min(100, Math.round(display * 20)));
+      }
+      // display * 10 gives rating100
+      return Math.max(10, Math.min(100, display * 10));
+    },
+    [isStars, step]
+  );
+
   // Round to nearest step
-  const roundToStep = (val: number): number => {
-    const rounded = Math.round(val / step) * step;
-    // Ensure we stay within valid range
-    return Math.max(minValue, Math.min(maxValue, rounded));
-  };
-  
+  const roundToStep = useCallback(
+    (val: number): number => {
+      const rounded = Math.round(val / step) * step;
+      // Ensure we stay within valid range
+      return Math.max(minValue, Math.min(maxValue, rounded));
+    },
+    [minValue, maxValue, step]
+  );
+
   const currentDisplayValue = rating100ToDisplay(value);
   const displayValue = hoverValue !== null ? hoverValue : currentDisplayValue;
   
@@ -76,29 +85,42 @@ const FullscreenRatingGauge: React.FC<FullscreenRatingGaugeProps> = ({
   const percentage = displayValue !== null ? (displayValue / maxValue) * 100 : 0;
   
   // Handle mouse/touch interaction on the bar
-  const handleBarInteraction = useCallback((clientX: number, isClick: boolean) => {
-    if (!barRef.current) return;
-    
-    const rect = barRef.current.getBoundingClientRect();
-    const x = clientX - rect.left;
-    const ratio = Math.max(0, Math.min(1, x / rect.width));
-    
-    // Map 0-1 ratio to 0-maxValue, then round to step
-    const rawValue = ratio * maxValue;
-    const steppedValue = roundToStep(rawValue);
-    
-    if (isClick) {
-      // Toggle off if clicking same value
-      if (currentDisplayValue !== null && Math.abs(steppedValue - currentDisplayValue) < step / 2) {
-        onSetRating(null);
+  const handleBarInteraction = useCallback(
+    (clientX: number, isClick: boolean) => {
+      if (!barRef.current) return;
+
+      const rect = barRef.current.getBoundingClientRect();
+      const x = clientX - rect.left;
+      const ratio = Math.max(0, Math.min(1, x / rect.width));
+
+      // Map 0-1 ratio to 0-maxValue, then round to step
+      const rawValue = ratio * maxValue;
+      const steppedValue = roundToStep(rawValue);
+
+      if (isClick) {
+        // Toggle off if clicking same value
+        if (
+          currentDisplayValue !== null &&
+          Math.abs(steppedValue - currentDisplayValue) < step / 2
+        ) {
+          onSetRating(null);
+        } else {
+          onSetRating(displayToRating100(steppedValue));
+        }
+        setHoverValue(null);
       } else {
-        onSetRating(displayToRating100(steppedValue));
+        setHoverValue(steppedValue);
       }
-      setHoverValue(null);
-    } else {
-      setHoverValue(steppedValue);
-    }
-  }, [maxValue, step, currentDisplayValue, onSetRating, minValue]);
+    },
+    [
+      maxValue,
+      step,
+      currentDisplayValue,
+      onSetRating,
+      roundToStep,
+      displayToRating100,
+    ]
+  );
   
   const handleMouseMove = (e: React.MouseEvent) => {
     handleBarInteraction(e.clientX, false);
@@ -114,36 +136,70 @@ const FullscreenRatingGauge: React.FC<FullscreenRatingGaugeProps> = ({
   };
   
   // Touch event handlers for mobile support
-  const handleTouchStart = (e: React.TouchEvent) => {
-    e.stopPropagation();
-    // Show hover value on initial touch
-    const touch = e.touches[0];
-    handleBarInteraction(touch.clientX, false);
-  };
-  
-  const handleTouchMove = (e: React.TouchEvent) => {
-    e.preventDefault(); // Prevent scrolling while dragging
-    e.stopPropagation();
-    const touch = e.touches[0];
-    handleBarInteraction(touch.clientX, false);
-  };
-  
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    e.stopPropagation();
-    // Use the last hover value to set rating
-    if (hoverValue !== null) {
-      // Toggle off if tapping same value
-      if (
-        currentDisplayValue !== null &&
-        Math.abs(hoverValue - currentDisplayValue) < step / 2
-      ) {
-        onSetRating(null);
-      } else {
-        onSetRating(displayToRating100(hoverValue));
+  useEffect(() => {
+    const barEl = barRef.current;
+    if (!barEl) return;
+
+    const handleTouchStartRaw = (e: TouchEvent) => {
+      e.stopPropagation();
+      const touch = e.touches[0];
+      if (touch) {
+        handleBarInteraction(touch.clientX, false);
       }
-    }
-    setHoverValue(null);
-  };
+    };
+
+    const handleTouchMoveRaw = (e: TouchEvent) => {
+      if (e.cancelable) {
+        e.preventDefault();
+      }
+      e.stopPropagation();
+      const touch = e.touches[0];
+      if (touch) {
+        handleBarInteraction(touch.clientX, false);
+      }
+    };
+
+    const handleTouchEndRaw = (e: TouchEvent) => {
+      e.stopPropagation();
+      const touch = e.changedTouches[0];
+      if (touch) {
+        const rect = barEl.getBoundingClientRect();
+        const x = touch.clientX - rect.left;
+        const ratio = Math.max(0, Math.min(1, x / rect.width));
+
+        const rawValue = ratio * maxValue;
+        const steppedValue = roundToStep(rawValue);
+
+        if (
+          currentDisplayValue !== null &&
+          Math.abs(steppedValue - currentDisplayValue) < step / 2
+        ) {
+          onSetRating(null);
+        } else {
+          onSetRating(displayToRating100(steppedValue));
+        }
+      }
+      setHoverValue(null);
+    };
+
+    barEl.addEventListener("touchstart", handleTouchStartRaw, { passive: false });
+    barEl.addEventListener("touchmove", handleTouchMoveRaw, { passive: false });
+    barEl.addEventListener("touchend", handleTouchEndRaw, { passive: false });
+
+    return () => {
+      barEl.removeEventListener("touchstart", handleTouchStartRaw);
+      barEl.removeEventListener("touchmove", handleTouchMoveRaw);
+      barEl.removeEventListener("touchend", handleTouchEndRaw);
+    };
+  }, [
+    handleBarInteraction,
+    currentDisplayValue,
+    displayToRating100,
+    maxValue,
+    roundToStep,
+    step,
+    onSetRating,
+  ]);
   
   // Format display text based on precision
   const formatValue = (val: number | null): string => {
@@ -172,9 +228,6 @@ const FullscreenRatingGauge: React.FC<FullscreenRatingGaugeProps> = ({
         className="rating-bar-container"
         onMouseMove={handleMouseMove}
         onClick={handleClick}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
       >
         <div className="rating-bar-bg" />
         <div 

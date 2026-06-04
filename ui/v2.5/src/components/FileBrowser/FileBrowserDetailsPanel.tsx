@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import {
   Box,
   Chip,
@@ -6,11 +6,11 @@ import {
   Divider,
   IconButton,
   Link,
-  Rating,
   Stack,
   Tooltip,
   Typography,
 } from "@mui/material";
+import { RatingSystem } from "src/components/Shared/Rating/RatingSystem";
 import CloseIcon from "@mui/icons-material/Close";
 import CollectionsOutlinedIcon from "@mui/icons-material/CollectionsOutlined";
 import MovieOutlinedIcon from "@mui/icons-material/MovieOutlined";
@@ -63,12 +63,11 @@ const StarRating: React.FC<{ rating100: number | null | undefined }> = ({
 }) => {
   if (!rating100) return <Typography variant="body2" color="text.disabled">—</Typography>;
   return (
-    <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-      <Rating value={rating100 / 20} precision={0.5} readOnly size="small" />
-      <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>
-        {rating100}/100
-      </Typography>
-    </Box>
+    <RatingSystem
+      value={rating100}
+      disabled
+      compact
+    />
   );
 };
 

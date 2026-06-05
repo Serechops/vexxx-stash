@@ -614,12 +614,14 @@ input StashConfigInput {
   path: String!
   excludeVideo: Boolean!
   excludeImage: Boolean!
+  watch: Boolean!
 }
 
 type StashConfig {
   path: String!
   excludeVideo: Boolean!
   excludeImage: Boolean!
+  watch: Boolean!
 }
 
 input GenerateAPIKeyInput {

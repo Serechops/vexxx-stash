@@ -235,12 +235,12 @@ const Stash: React.FC<IStashProps> = ({
 
   return (
     <Grid container alignItems="center" sx={{ p: 1, bgcolor }}>
-      <Grid size={{ xs: 12, md: 7 }}>
+      <Grid size={{ xs: 12, md: 5 }}>
         <Typography variant="body2" sx={{ wordBreak: 'break-all' }}>
           {stash.path}
         </Typography>
       </Grid>
-      <Grid size={{ xs: 4, md: 2 }}>
+      <Grid size={{ xs: 3, md: 2 }}>
         <Box>
           <Typography variant="subtitle2" sx={{ display: { md: 'none' } }}>
             <FormattedMessage id="videos" />
@@ -252,7 +252,7 @@ const Stash: React.FC<IStashProps> = ({
           />
         </Box>
       </Grid>
-      <Grid size={{ xs: 4, md: 2 }}>
+      <Grid size={{ xs: 3, md: 2 }}>
         <Box>
           <Typography variant="subtitle2" sx={{ display: { md: 'none' } }}>
             <FormattedMessage id="images" />
@@ -264,7 +264,19 @@ const Stash: React.FC<IStashProps> = ({
           />
         </Box>
       </Grid>
-      <Grid size={{ xs: 4, md: 1 }} display="flex" justifyContent="flex-end">
+      <Grid size={{ xs: 3, md: 2 }}>
+        <Box>
+          <Typography variant="subtitle2" sx={{ display: { md: 'none' } }}>
+            <FormattedMessage id="config.general.watch" />
+          </Typography>
+          <BooleanSetting
+            id={`stash-watch-${index}`}
+            checked={stash.watch}
+            onChange={(v) => handleInput("watch", v)}
+          />
+        </Box>
+      </Grid>
+      <Grid size={{ xs: 3, md: 1 }} display="flex" justifyContent="flex-end">
         <IconButton
           id={`stash-menu-${index}`}
           aria-controls={open ? 'stash-menu' : undefined}
@@ -371,6 +383,7 @@ const StashConfiguration: React.FC<IStashConfigurationProps> = ({
         path,
         excludeVideo: false,
         excludeImage: false,
+        watch: false,
       },
     ]);
     setIsCreating(false);
@@ -398,6 +411,7 @@ const StashConfiguration: React.FC<IStashConfigurationProps> = ({
         path,
         excludeVideo: false,
         excludeImage: false,
+        watch: false,
       },
     ]);
     setIsCreating(false);
@@ -467,7 +481,7 @@ const StashConfiguration: React.FC<IStashConfigurationProps> = ({
       <div className="content" id="stash-table">
         {stashes.length > 0 && (
           <Grid container sx={{ display: { xs: 'none', md: 'flex' }, borderBottom: 1, borderColor: 'divider', pb: 1, mb: 1 }}>
-            <Grid size={{ md: 7 }}>
+            <Grid size={{ md: 5 }}>
               <Typography variant="subtitle2"><FormattedMessage id="path" /></Typography>
             </Grid>
             <Grid size={{ md: 2 }}>
@@ -475,6 +489,9 @@ const StashConfiguration: React.FC<IStashConfigurationProps> = ({
             </Grid>
             <Grid size={{ md: 2 }}>
               <Typography variant="subtitle2"><FormattedMessage id="images" /></Typography>
+            </Grid>
+            <Grid size={{ md: 2 }}>
+              <Typography variant="subtitle2"><FormattedMessage id="config.general.watch" /></Typography>
             </Grid>
           </Grid>
         )}

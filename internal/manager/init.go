@@ -279,6 +279,8 @@ func (s *Manager) postInit(ctx context.Context) error {
 	s.RefreshFFMpeg(ctx)
 	s.RefreshStreamManager()
 
+	InitLibraryWatcher(context.Background())
+
 	return nil
 }
 

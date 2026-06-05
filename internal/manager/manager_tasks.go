@@ -22,6 +22,7 @@ import (
 	"github.com/stashapp/stash/pkg/models/paths"
 	"github.com/stashapp/stash/pkg/plugin"
 	"github.com/stashapp/stash/pkg/scene"
+	"github.com/stashapp/stash/pkg/scene/generate"
 )
 
 func useAsVideo(pathname string) bool {
@@ -294,6 +295,121 @@ func (s *Manager) ScanFile(ctx context.Context, input ScanFileInput) (*ScanFileR
 	}, nil
 }
 
+type watcherImageGenerator struct {
+	paths *paths.Paths
+}
+
+func (g *watcherImageGenerator) Generate(ctx context.Context, i *models.Image, f models.File) error {
+	const overwrite = false
+	cfg := config.GetInstance()
+	opts := cfg.GetDefaultScanSettings()
+	if opts == nil {
+		return nil
+	}
+
+	ii := *i
+	ii.Files = models.NewRelatedFiles([]models.File{f})
+
+	if opts.ScanGenerateThumbnails {
+		taskThumbnail := GenerateImageThumbnailTask{
+			Image:     ii,
+			Overwrite: overwrite,
+		}
+		taskThumbnail.Start(ctx)
+	}
+
+	_, isVideo := f.(*models.VideoFile)
+	if isVideo && opts.ScanGenerateClipPreviews {
+		taskPreview := GenerateClipPreviewTask{
+			Image:     ii,
+			Overwrite: overwrite,
+		}
+		taskPreview.Start(ctx)
+	}
+
+	if opts.ScanGenerateImagePhashes {
+		if imageFile, ok := f.(*models.ImageFile); ok {
+			taskPhash := GenerateImagePhashTask{
+				repository: GetInstance().Repository,
+				File:       imageFile,
+				Overwrite:  overwrite,
+			}
+			taskPhash.Start(ctx)
+		}
+	}
+
+	return nil
+}
+
+type watcherSceneGenerator struct {
+	paths *paths.Paths
+}
+
+func (g *watcherSceneGenerator) Generate(ctx context.Context, s *models.Scene, f *models.VideoFile) error {
+	const overwrite = false
+	cfg := config.GetInstance()
+	opts := cfg.GetDefaultScanSettings()
+	if opts == nil {
+		return nil
+	}
+
+	mgr := GetInstance()
+
+	if opts.ScanGenerateSprites {
+		taskSprite := GenerateSpriteTask{
+			Scene:               *s,
+			Overwrite:           overwrite,
+			fileNamingAlgorithm: cfg.GetVideoFileNamingAlgorithm(),
+		}
+		taskSprite.Start(ctx)
+	}
+
+	if opts.ScanGeneratePhashes {
+		taskPhash := GeneratePhashTask{
+			repository:          mgr.Repository,
+			File:                f,
+			Overwrite:           overwrite,
+			fileNamingAlgorithm: cfg.GetVideoFileNamingAlgorithm(),
+		}
+		taskPhash.Start(ctx)
+	}
+
+	if opts.ScanGeneratePreviews {
+		options := getGeneratePreviewOptions(GeneratePreviewOptionsInput{})
+
+		generator := &generate.Generator{
+			Encoder:      mgr.FFMpeg,
+			FFMpegConfig: mgr.Config,
+			LockManager:  mgr.ReadLockManager,
+			MarkerPaths:  g.paths.SceneMarkers,
+			ScenePaths:   g.paths.Scene,
+			Overwrite:    overwrite,
+		}
+
+		taskPreview := GeneratePreviewTask{
+			Scene:               *s,
+			ImagePreview:        opts.ScanGenerateImagePreviews,
+			Options:             options,
+			Overwrite:           overwrite,
+			fileNamingAlgorithm: cfg.GetVideoFileNamingAlgorithm(),
+			generator:           generator,
+			repository:          mgr.Repository,
+		}
+		taskPreview.Start(ctx)
+	}
+
+	if opts.ScanGenerateCovers {
+		taskCover := GenerateCoverTask{
+			repository: mgr.Repository,
+			Scene:      *s,
+			Overwrite:  overwrite,
+		}
+		taskCover.Start(ctx)
+	}
+
+	return nil
+}
+
 // getScanHandlersSync returns scan handlers for synchronous scanning (without task queue)
 func getScanHandlersSync(cfg *config.Config, repo models.Repository, paths *paths.Paths, pluginCache *plugin.Cache) []file.Handler {
 	return []file.Handler{
@@ -302,7 +418,7 @@ func getScanHandlersSync(cfg *config.Config, repo models.Repository, paths *path
 			Handler: &image.ScanHandler{
 				CreatorUpdater: repo.Image,
 				GalleryFinder:  repo.Gallery,
-				ScanGenerator:  nil, // No generation during synchronous scan
+				ScanGenerator:  &watcherImageGenerator{paths: paths},
 				ScanConfig: &scanConfig{
 					isGenerateThumbnails:       false,
 					isGenerateClipPreviews:     false,
@@ -327,7 +443,7 @@ func getScanHandlersSync(cfg *config.Config, repo models.Repository, paths *path
 				CreatorUpdater:      repo.Scene,
 				CaptionUpdater:      repo.File,
 				PluginCache:         pluginCache,
-				ScanGenerator:       nil, // No generation during synchronous scan
+				ScanGenerator:       &watcherSceneGenerator{paths: paths},
 				FileNamingAlgorithm: cfg.GetVideoFileNamingAlgorithm(),
 				Paths:               paths,
 			},

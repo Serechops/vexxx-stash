@@ -156,8 +156,11 @@ func (s *Manager) RefreshConfig() {
 		if err := fsutil.EnsureDir(s.Paths.Generated.InteractiveHeatmap); err != nil {
 			logger.Warnf("could not create interactive heatmaps directory: %v", err)
 		}
-
 		s.ImageThumbnailGenerateWaitGroup.Size = cfg.GetParallelTasksWithAutoDetection()
+	}
+
+	if libraryWatcherInstance != nil {
+		libraryWatcherInstance.UpdateWatches()
 	}
 }
 
@@ -524,6 +527,10 @@ func (s *Manager) GetSystemStatus() *SystemStatus {
 // Shutdown gracefully stops the manager
 func (s *Manager) Shutdown() {
 	const shutdownTimeout = 30 * time.Second
+
+	if libraryWatcherInstance != nil {
+		libraryWatcherInstance.Stop()
+	}
 
 	logger.Info("Stopping in-flight tasks...")
 	s.JobManager.StopAndWait(shutdownTimeout)

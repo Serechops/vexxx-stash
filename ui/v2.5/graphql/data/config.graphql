@@ -3,6 +3,7 @@ fragment ConfigGeneralData on ConfigGeneralResult {
     path
     excludeVideo
     excludeImage
+    watch
   }
   databasePath
   databasePathAbs

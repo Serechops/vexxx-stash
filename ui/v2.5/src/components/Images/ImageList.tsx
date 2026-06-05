@@ -60,6 +60,7 @@ interface IImageWallProps {
   pageCount: number;
   handleImageOpen: (index: number) => void;
   zoomIndex: number;
+  forceRowDirection?: boolean;
 }
 
 const zoomWidths = [280, 340, 420, 560, 800];
@@ -74,6 +75,7 @@ const ImageWall: React.FC<IImageWallProps> = ({
   images,
   zoomIndex,
   handleImageOpen,
+  forceRowDirection,
 }) => {
   const { configuration } = useConfigurationContext();
   const uiConfig = configuration?.ui;
@@ -155,7 +157,7 @@ const ImageWall: React.FC<IImageWallProps> = ({
           renderImage={renderImage}
           onClick={showLightboxOnClick}
           margin={uiConfig?.imageWallOptions?.margin!}
-          direction={uiConfig?.imageWallOptions?.direction!}
+          direction={forceRowDirection ? "row" : (uiConfig?.imageWallOptions?.direction!)}
           columns={columns}
           targetRowHeight={targetRowHeight}
         />
@@ -284,6 +286,19 @@ const ImageListImages: React.FC<IImageListImages> = ({
         pageCount={pageCount}
         handleImageOpen={handleImageOpen}
         zoomIndex={filter.zoomIndex}
+      />
+    );
+  }
+  if (filter.displayMode === DisplayMode.Justified) {
+    return (
+      <ImageWall
+        images={images}
+        onChangePage={onChangePage}
+        currentPage={filter.currentPage}
+        pageCount={pageCount}
+        handleImageOpen={handleImageOpen}
+        zoomIndex={filter.zoomIndex}
+        forceRowDirection
       />
     );
   }

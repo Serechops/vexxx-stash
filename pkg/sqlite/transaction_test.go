@@ -285,3 +285,108 @@ func TestConcurrentExclusiveAndReadTxn(t *testing.T) {
 
 // 	wg.Wait()
 // }
+
+func TestNestedTransactions(t *testing.T) {
+	ctx := context.Background()
+
+	var (
+		outerHookRun bool
+		innerHookRun bool
+	)
+
+	err := txn.WithTxn(ctx, db, func(ctx context.Context) error {
+		txn.AddPostCommitHook(ctx, func(ctx context.Context) {
+			outerHookRun = true
+		})
+
+		// Nested transaction
+		err := txn.WithTxn(ctx, db, func(ctx context.Context) error {
+			txn.AddPostCommitHook(ctx, func(ctx context.Context) {
+				innerHookRun = true
+			})
+
+			scene := &models.Scene{
+				Title: "nested transaction test",
+			}
+			if err := db.Scene.Create(ctx, scene, nil); err != nil {
+				return err
+			}
+
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+
+		if outerHookRun || innerHookRun {
+			t.Errorf("expected hooks not to run before outer commit")
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if !outerHookRun {
+		t.Errorf("expected outer hook to run after commit")
+	}
+	if !innerHookRun {
+		t.Errorf("expected inner hook to run after commit")
+	}
+}
+
+func TestNestedTransactionsRollback(t *testing.T) {
+	ctx := context.Background()
+
+	var (
+		outerHookRun         bool
+		innerHookRun         bool
+		outerRollbackHookRun bool
+		innerRollbackHookRun bool
+	)
+
+	err := txn.WithTxn(ctx, db, func(ctx context.Context) error {
+		txn.AddPostCommitHook(ctx, func(ctx context.Context) {
+			outerHookRun = true
+		})
+		txn.AddPostRollbackHook(ctx, func(ctx context.Context) {
+			outerRollbackHookRun = true
+		})
+
+		// Nested transaction that fails
+		err := txn.WithTxn(ctx, db, func(ctx context.Context) error {
+			txn.AddPostCommitHook(ctx, func(ctx context.Context) {
+				innerHookRun = true
+			})
+			txn.AddPostRollbackHook(ctx, func(ctx context.Context) {
+				innerRollbackHookRun = true
+			})
+
+			return errors.New("nested rollback error")
+		})
+		if err == nil {
+			t.Errorf("expected nested transaction to fail")
+		}
+
+		// return the error to fail the outer transaction
+		return err
+	})
+
+	if err == nil {
+		t.Fatalf("expected error from outer transaction")
+	}
+
+	if outerHookRun || innerHookRun {
+		t.Errorf("expected commit hooks not to run on rollback")
+	}
+
+	if !outerRollbackHookRun {
+		t.Errorf("expected outer rollback hook to run")
+	}
+	if !innerRollbackHookRun {
+		t.Errorf("expected inner rollback hook to run")
+	}
+}
+

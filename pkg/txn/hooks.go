@@ -11,6 +11,7 @@ const (
 )
 
 type hookManager struct {
+	parent            *hookManager
 	preCommitHooks    []TxnFunc
 	postCommitHooks   []MustFunc
 	postRollbackHooks []MustFunc
@@ -47,18 +48,34 @@ func executeMustHooks(ctx context.Context, hooks []MustFunc) {
 }
 
 func (m *hookManager) executePostCommitHooks(ctx context.Context) {
+	if m.parent != nil {
+		m.parent.postCommitHooks = append(m.parent.postCommitHooks, m.postCommitHooks...)
+		return
+	}
 	executeMustHooks(ctx, m.postCommitHooks)
 }
 
 func (m *hookManager) executePostRollbackHooks(ctx context.Context) {
+	if m.parent != nil {
+		m.parent.postRollbackHooks = append(m.parent.postRollbackHooks, m.postRollbackHooks...)
+		return
+	}
 	executeMustHooks(ctx, m.postRollbackHooks)
 }
 
 func (m *hookManager) executePreCommitHooks(ctx context.Context) error {
+	if m.parent != nil {
+		m.parent.preCommitHooks = append(m.parent.preCommitHooks, m.preCommitHooks...)
+		return nil
+	}
 	return executeHooks(ctx, m.preCommitHooks)
 }
 
 func (m *hookManager) executePostCompleteHooks(ctx context.Context) {
+	if m.parent != nil {
+		m.parent.postCompleteHooks = append(m.parent.postCompleteHooks, m.postCompleteHooks...)
+		return
+	}
 	executeMustHooks(ctx, m.postCompleteHooks)
 }
 

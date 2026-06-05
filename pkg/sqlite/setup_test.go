@@ -1903,7 +1903,7 @@ func createMarker(ctx context.Context, mqb models.SceneMarkerReaderWriter, marke
 func createChapter(ctx context.Context, mqb models.GalleryChapterReaderWriter, chapterSpec chapterSpec) error {
 	chapter := models.GalleryChapter{
 		GalleryID:  sceneIDs[chapterSpec.galleryIdx],
-		Title:      chapterSpec.title,
+		Title:      &chapterSpec.title,
 		ImageIndex: chapterSpec.imageIndex,
 	}
 

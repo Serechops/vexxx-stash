@@ -15,6 +15,7 @@ type SystemStatus struct {
 	HomeDir        string           `json:"home_dir"`
 	FfmpegPath     *string          `json:"ffmpegPath"`
 	FfprobePath    *string          `json:"ffprobePath"`
+	VipsPath       *string          `json:"vipsPath"`
 	IsDocker       bool             `json:"isDocker"`
 	HardwareCodecs []string         `json:"hardwareCodecs"`
 }

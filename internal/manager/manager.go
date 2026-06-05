@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"time"
@@ -495,6 +496,8 @@ func (s *Manager) GetSystemStatus() *SystemStatus {
 		ffprobePath = s.FFProbe.Path()
 	}
 
+	vipsPath, _ := exec.LookPath("vips")
+
 	// Get hardware codec names
 	var hardwareCodecs []string
 	if s.FFMpeg != nil {
@@ -512,6 +515,7 @@ func (s *Manager) GetSystemStatus() *SystemStatus {
 		ConfigPath:     &configFile,
 		FfmpegPath:     &ffmpegPath,
 		FfprobePath:    &ffprobePath,
+		VipsPath:       &vipsPath,
 		IsDocker:       isDockerized(),
 		HardwareCodecs: hardwareCodecs,
 	}

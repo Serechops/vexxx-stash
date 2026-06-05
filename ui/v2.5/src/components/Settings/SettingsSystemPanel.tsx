@@ -54,6 +54,9 @@ export const SettingsConfigurationPanel: React.FC = () => {
   const { general, loading, error, saveGeneral } = useSettings();
   const [mutateDownloadFFMpeg] = GQL.useDownloadFfMpegMutation();
 
+  const { data: systemStatusData } = GQL.useSystemStatusQuery();
+  const vipsPath = systemStatusData?.systemStatus.vipsPath;
+
   const transcodeQualities = [
     GQL.StreamingResolutionEnum.Low,
     GQL.StreamingResolutionEnum.Standard,
@@ -277,6 +280,32 @@ export const SettingsConfigurationPanel: React.FC = () => {
           >
             <FormattedMessage id="config.general.ffmpeg.download_ffmpeg.heading" />
           </Button>
+        </Setting>
+
+        <Setting
+          heading="Vips Status"
+          subHeading={
+            <>
+              Optional high-performance image processing library. Install libvips on your system to enable 4x-8x faster image thumbnailing.
+              {vipsPath && (
+                <Box
+                  component="span"
+                  sx={{
+                    display: "block",
+                    mt: 0.5,
+                    fontFamily: "monospace",
+                    wordBreak: "break-all",
+                  }}
+                >
+                  ↳ {vipsPath}
+                </Box>
+              )}
+            </>
+          }
+        >
+          <Typography variant="body2" sx={{ fontWeight: 600, color: vipsPath ? "success.main" : "text.secondary" }}>
+            {vipsPath ? "Found & Active" : "Not Found (Using FFmpeg fallback)"}
+          </Typography>
         </Setting>
 
         <StringSetting

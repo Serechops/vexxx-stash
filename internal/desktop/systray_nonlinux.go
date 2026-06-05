@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/kermieisinthehouse/systray"
 	"golang.org/x/text/cases"
@@ -62,14 +63,21 @@ func systrayInitialize(exit chan<- int, faviconProvider FaviconProvider) {
 	c := config.GetInstance()
 	systray.SetTooltip(fmt.Sprintf("🟢 Vexxx is Running on port %d.", c.GetPort()))
 
+	logger.Infof("[Systray] Initializing systray menu. ConfigFile: %s, IsNewSystem: %v", c.GetConfigFile(), c.IsNewSystem())
+
 	openStashButton := systray.AddMenuItem("Open Vexxx", "Open a browser window to Vexxx")
 	var menuItems []string
 	systray.AddSeparator()
-	if !c.IsNewSystem() {
+
+	quitStashButton := systray.AddMenuItem("Quit Vexxx Server", "Quits the Vexxx server")
+
+	addMenuItems := func() {
 		menuItems = c.GetMenuItems()
+		logger.Infof("[Systray] Found %d menu items to add: %v", len(menuItems), menuItems)
 		for _, item := range menuItems {
 			c := cases.Title(language.Und)
 			titleCaseItem := c.String(strings.ToLower(strings.ReplaceAll(item, "_", " ")))
+			logger.Infof("[Systray] Adding menu item: %s", titleCaseItem)
 			curr := systray.AddMenuItem(titleCaseItem, "Open to "+titleCaseItem)
 			go func(item string) {
 				for {
@@ -83,14 +91,37 @@ func systrayInitialize(exit chan<- int, faviconProvider FaviconProvider) {
 			}(item)
 		}
 		systray.AddSeparator()
-		// TODO - Some ideas for future expansions
-		// systray.AddMenuItem("Start a Scan", "Scan all libraries with default settings")
-		// systray.AddMenuItem("Start Auto Tagging", "Auto Tag all libraries")
-		// systray.AddMenuItem("Check for updates", "Check for a new Stash release")
-		// systray.AddSeparator()
 	}
 
-	quitStashButton := systray.AddMenuItem("Quit Vexxx Server", "Quits the Vexxx server")
+	if !c.IsNewSystem() {
+		addMenuItems()
+	} else {
+		logger.Warn("[Systray] Skipping menu items because system is in new/setup state. Starting setup completion listener.")
+		go func() {
+			for {
+				time.Sleep(1 * time.Second)
+				if !c.IsNewSystem() {
+					break
+				}
+			}
+			logger.Info("[Systray] Setup completed! Dynamically adding menu items to systray.")
+
+			// 1. Hide the old quit button
+			quitStashButton.Hide()
+
+			// 2. Add menu items and separator
+			addMenuItems()
+
+			// 3. Create a new quit button at the bottom
+			newQuitButton := systray.AddMenuItem("Quit Vexxx Server", "Quits the Vexxx server")
+			go func() {
+				for {
+					<-newQuitButton.ClickedCh
+					exit <- 0
+				}
+			}()
+		}()
+	}
 
 	go func() {
 		for {

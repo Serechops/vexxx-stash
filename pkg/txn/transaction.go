@@ -91,13 +91,17 @@ func withTxn(ctx context.Context, m Manager, fn TxnFunc, writable bool, execComp
 }
 
 func begin(ctx context.Context, m Manager, writable bool) (context.Context, error) {
+	parentHm := hookManagerCtx(ctx)
+
 	var err error
 	ctx, err = m.Begin(ctx, writable)
 	if err != nil {
 		return nil, err
 	}
 
-	hm := hookManager{}
+	hm := hookManager{
+		parent: parentHm,
+	}
 	ctx = hm.register(ctx)
 
 	return ctx, nil

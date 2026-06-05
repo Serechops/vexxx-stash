@@ -405,7 +405,9 @@ func (j *ScanJob) scanZipFile(ctx context.Context, f file.ScannedFile, progress 
 
 	defer zipFS.Close()
 
-	return file.SymWalk(zipFS, f.Path, j.queueFileFunc(ctx, zipFS, &f, progress))
+	return j.scanner.Repository.WithTxn(ctx, func(ctx context.Context) error {
+		return file.SymWalk(zipFS, f.Path, j.queueFileFunc(ctx, zipFS, &f, progress))
+	})
 }
 
 type extensionConfig struct {

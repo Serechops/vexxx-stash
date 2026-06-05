@@ -3,10 +3,8 @@ package sqlite
 import (
 	"context"
 	"fmt"
-	"runtime/debug"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/stashapp/stash/pkg/logger"
 	"github.com/stashapp/stash/pkg/models"
 )
 
@@ -16,6 +14,7 @@ const (
 	txnKey key = iota + 1
 	dbKey
 	writableKey
+	txnDepthKey
 )
 
 func (db *Database) WithDatabase(ctx context.Context) (context.Context, error) {
@@ -29,10 +28,10 @@ func (db *Database) WithDatabase(ctx context.Context) (context.Context, error) {
 
 func (db *Database) Begin(ctx context.Context, writable bool) (context.Context, error) {
 	if tx, _ := getTx(ctx); tx != nil {
-		// log the stack trace so we can see
-		logger.Error(string(debug.Stack()))
-
-		return nil, fmt.Errorf("already in transaction")
+		depth, _ := ctx.Value(txnDepthKey).(int)
+		depth++
+		ctx = context.WithValue(ctx, txnDepthKey, depth)
+		return ctx, nil
 	}
 
 	if db.readDB == nil || db.writeDB == nil {
@@ -50,11 +49,17 @@ func (db *Database) Begin(ctx context.Context, writable bool) (context.Context, 
 	}
 
 	ctx = context.WithValue(ctx, writableKey, writable)
+	ctx = context.WithValue(ctx, txnDepthKey, 0)
 
 	return context.WithValue(ctx, txnKey, tx), nil
 }
 
 func (db *Database) Commit(ctx context.Context) error {
+	depth, _ := ctx.Value(txnDepthKey).(int)
+	if depth > 0 {
+		return nil
+	}
+
 	tx, err := getTx(ctx)
 	if err != nil {
 		return err
@@ -73,6 +78,11 @@ func (db *Database) Commit(ctx context.Context) error {
 }
 
 func (db *Database) Rollback(ctx context.Context) error {
+	depth, _ := ctx.Value(txnDepthKey).(int)
+	if depth > 0 {
+		return nil
+	}
+
 	tx, err := getTx(ctx)
 	if err != nil {
 		return err

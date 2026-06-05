@@ -65,3 +65,6 @@ dist
 .DS_Store
 /.local*
 .agent/workflows/upstream-sync.md
+stash-go.sqlite
+stash-go.sqlite-shm
+stash-go.sqlite-wal

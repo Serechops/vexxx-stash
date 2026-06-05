@@ -15,6 +15,7 @@ import FormatListBulletedIcon from "@mui/icons-material/FormatListBulleted";
 import SquareIcon from "@mui/icons-material/Square";
 import LocalOfferIcon from "@mui/icons-material/LocalOffer";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import ViewQuiltIcon from "@mui/icons-material/ViewQuilt";
 import { ZoomSelect } from "./ZoomSlider";
 import { useCurrentUser } from "src/hooks/UserContext";
 
@@ -36,6 +37,8 @@ function getIcon(option: DisplayMode) {
       return <SquareIcon fontSize="small" />;
     case DisplayMode.Tagger:
       return <LocalOfferIcon fontSize="small" />;
+    case DisplayMode.Justified:
+      return <ViewQuiltIcon fontSize="small" />;
   }
 }
 
@@ -53,6 +56,9 @@ function getLabelId(option: DisplayMode) {
       break;
     case DisplayMode.Tagger:
       displayModeId = "tagger";
+      break;
+    case DisplayMode.Justified:
+      displayModeId = "justified";
       break;
   }
   return `display_mode.${displayModeId}`;
@@ -105,12 +111,18 @@ export const ListViewOptions: React.FC<IListViewOptionsProps> = ({
         onSetDisplayMode(DisplayMode.Tagger);
       }
     });
+    Mousetrap.bind("v j", () => {
+      if (filteredDisplayModeOptions.includes(DisplayMode.Justified)) {
+        onSetDisplayMode(DisplayMode.Justified);
+      }
+    });
 
     return () => {
       Mousetrap.unbind("v g");
       Mousetrap.unbind("v l");
       Mousetrap.unbind("v w");
       Mousetrap.unbind("v t");
+      Mousetrap.unbind("v j");
     };
   });
 
@@ -168,7 +180,8 @@ export const ListViewOptions: React.FC<IListViewOptionsProps> = ({
             {onSetZoom &&
               zoomIndex !== undefined &&
               (displayMode === DisplayMode.Grid ||
-                displayMode === DisplayMode.Wall) ? (
+                displayMode === DisplayMode.Wall ||
+                displayMode === DisplayMode.Justified) ? (
               <Box display="flex" justifyContent="center" py={1} minHeight="1rem">
                 <ZoomSelect
                   zoomIndex={zoomIndex}
@@ -237,7 +250,8 @@ export const ListViewButtonGroup: React.FC<IListViewOptionsProps> = ({
         {onSetZoom &&
           zoomIndex !== undefined &&
           (displayMode === DisplayMode.Grid ||
-            displayMode === DisplayMode.Wall) ? (
+            displayMode === DisplayMode.Wall ||
+            displayMode === DisplayMode.Justified) ? (
           <ZoomSelect zoomIndex={zoomIndex} onChangeZoom={onSetZoom} />
         ) : null}
       </Box>

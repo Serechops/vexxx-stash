@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -346,5 +347,12 @@ func (s *Manager) RefreshFFMpeg(ctx context.Context) {
 
 		// initialise hardware support with background context
 		s.FFMpeg.InitHWSupport(context.Background())
+	}
+
+	vipsPath, _ := exec.LookPath("vips")
+	if vipsPath != "" {
+		logger.Infof("Vexxx: using vips for high-speed image processing: %s", vipsPath)
+	} else {
+		logger.Info("Vexxx: vips was not found in PATH; using ffmpeg for image thumbnailing. (Tip: install libvips to enable 4x-8x faster image thumbnailing!)")
 	}
 }

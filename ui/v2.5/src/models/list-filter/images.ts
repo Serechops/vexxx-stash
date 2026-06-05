@@ -42,7 +42,7 @@ const sortByOptions = [
       sfwMessageID: "o_count_sfw",
     },
   ]);
-const displayModeOptions = [DisplayMode.Grid, DisplayMode.Wall];
+const displayModeOptions = [DisplayMode.Grid, DisplayMode.Wall, DisplayMode.Justified];
 const criterionOptions = [
   createStringCriterionOption("title"),
   createStringCriterionOption("code", "scene_code"),

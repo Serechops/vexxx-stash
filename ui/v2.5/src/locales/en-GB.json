@@ -1171,6 +1171,7 @@
   "disambiguation": "Disambiguation",
   "display_mode": {
     "grid": "Grid",
+    "justified": "Justified Row",
     "label_current": "Display Mode: {current}",
     "list": "List",
     "tagger": "Tagger",

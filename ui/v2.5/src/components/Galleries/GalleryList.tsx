@@ -89,6 +89,27 @@ const GalleryList: React.FC<{
         </div>
       );
     }
+    if (filter.displayMode === DisplayMode.Justified) {
+      return (
+        <Box
+          sx={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: "8px",
+            width: "100%",
+          }}
+        >
+          {galleries.map((gallery) => (
+            <GalleryWallCard
+              key={gallery.id}
+              gallery={gallery}
+              zoomIndex={filter.zoomIndex}
+              justified
+            />
+          ))}
+        </Box>
+      );
+    }
 
     return null;
   }

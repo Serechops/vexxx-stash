@@ -20,6 +20,7 @@ const CLASSNAME_IMG_CONTAIN = `${CLASSNAME}-img-contain`;
 interface IProps {
   gallery: GQL.SlimGalleryDataFragment;
   zoomIndex?: number;
+  justified?: boolean;
 }
 
 type Orientation = "landscape" | "portrait";
@@ -31,12 +32,15 @@ function getOrientation(width: number, height: number): Orientation {
 // Heights in vh for zoom levels 0-4 (6 columns -> 2 columns approx)
 const ZOOM_HEIGHTS = [15, 20, 25, 33, 50];
 
-const GalleryWallCard: React.FC<IProps> = ({ gallery, zoomIndex = 0 }) => {
+const GalleryWallCard: React.FC<IProps> = ({ gallery, zoomIndex = 0, justified }) => {
   const intl = useIntl();
   const [coverOrientation, setCoverOrientation] =
     React.useState<Orientation>("landscape");
   const [imageOrientation, setImageOrientation] =
     React.useState<Orientation>("landscape");
+  const [aspectRatio, setAspectRatio] = React.useState<number>(
+    coverOrientation === "landscape" ? 1.5 : 0.67
+  );
   const showLightbox = useGalleryLightbox(gallery.id, gallery.chapters);
 
   const cover = gallery?.paths.cover;
@@ -46,6 +50,9 @@ const GalleryWallCard: React.FC<IProps> = ({ gallery, zoomIndex = 0 }) => {
     setCoverOrientation(
       getOrientation(target.naturalWidth, target.naturalHeight)
     );
+    if (target.naturalWidth && target.naturalHeight) {
+      setAspectRatio(target.naturalWidth / target.naturalHeight);
+    }
   }
 
   function onNonCoverLoad(e: React.SyntheticEvent<HTMLImageElement, Event>) {
@@ -53,6 +60,9 @@ const GalleryWallCard: React.FC<IProps> = ({ gallery, zoomIndex = 0 }) => {
     setImageOrientation(
       getOrientation(target.naturalWidth, target.naturalHeight)
     );
+    if (target.naturalWidth && target.naturalHeight) {
+      setAspectRatio(target.naturalWidth / target.naturalHeight);
+    }
   }
 
   const [imgSrc, setImgSrc] = useState<string | undefined>(cover ?? undefined);
@@ -88,7 +98,8 @@ const GalleryWallCard: React.FC<IProps> = ({ gallery, zoomIndex = 0 }) => {
         height: `${zoomHeight}vh`,
         padding: "2px",
         position: "relative",
-        flexGrow: coverOrientation === "landscape" ? 2 : 1,
+        flexGrow: justified ? aspectRatio : (coverOrientation === "landscape" ? 2 : 1),
+        flexBasis: justified ? `${zoomHeight * aspectRatio}vh` : "auto",
         width: "auto",
         minWidth: "150px", // Prevent too small squish
         maxWidth: "96vw", // Prevent overflow on single item

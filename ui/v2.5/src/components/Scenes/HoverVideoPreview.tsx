@@ -46,6 +46,13 @@ export const HoverVideoPreview: React.FC<IHoverVideoPreviewProps> = ({
 }) => {
     const videoEl = useRef<HTMLVideoElement>(null);
     const [needsCrop, setNeedsCrop] = useState(false);
+    const [videoReady, setVideoReady] = useState(false);
+
+    useEffect(() => {
+        if (!isHovered) {
+            setVideoReady(false);
+        }
+    }, [isHovered]);
 
     const handleLoadedMetadata = (e: React.SyntheticEvent<HTMLVideoElement>) => {
         const video = e.currentTarget;
@@ -109,7 +116,7 @@ export const HoverVideoPreview: React.FC<IHoverVideoPreviewProps> = ({
         >
             <Box
                 component="img"
-                className={cx("scene-card-preview-image", { hidden: isHovered && video })}
+                className={cx("scene-card-preview-image", { hidden: isHovered && video && videoReady })}
                 loading="lazy"
                 src={image}
                 alt=""
@@ -122,32 +129,35 @@ export const HoverVideoPreview: React.FC<IHoverVideoPreviewProps> = ({
                     "&.hidden": { opacity: 0 },
                 }}
             />
-            <Box
-                component="video"
-                disableRemotePlayback
-                playsInline
-                muted={!soundActive}
-                className={cx("scene-card-preview-video", { hidden: !isHovered })}
-                loop
-                preload="none"
-                ref={videoEl}
-                src={video}
-                onLoadedMetadata={handleLoadedMetadata}
-                sx={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    height: "100%",
-                    width: "100%",
-                    objectFit: "cover",
-                    objectPosition: "top",
-                    opacity: 0,
-                    transition: "opacity 0.2s",
-                    "&.hidden": { display: "none" },
-                    ...(isHovered && { opacity: 1 }),
-                    ...vrStyle,
-                }}
-            />
+            {video && (
+                <Box
+                    component="video"
+                    disableRemotePlayback
+                    playsInline
+                    muted={!soundActive}
+                    className={cx("scene-card-preview-video", { hidden: !isHovered })}
+                    loop
+                    preload="none"
+                    ref={videoEl}
+                    src={video}
+                    onLoadedMetadata={handleLoadedMetadata}
+                    onPlaying={() => setVideoReady(true)}
+                    sx={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        height: "100%",
+                        width: "100%",
+                        objectFit: "cover",
+                        objectPosition: "top",
+                        opacity: 0,
+                        transition: "opacity 0.2s",
+                        "&.hidden": { display: "none" },
+                        ...(isHovered && videoReady && { opacity: 1 }),
+                        ...vrStyle,
+                    }}
+                />
+            )}
             {/* Show scrubber when video is playing/hovered */}
             {isHovered && vttPath && <PreviewScrubber vttPath={vttPath} onClick={onScrubberClick} />}
         </Box>

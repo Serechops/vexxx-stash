@@ -309,6 +309,9 @@ func (t *SceneIdentifier) modifyScene(ctx context.Context, s *models.Scene, resu
 			as = fmt.Sprintf(" as %s", title.Value)
 		}
 		logger.Infof("Successfully identified %s%s using %s", s.Path, as, result.source.Name)
+		if updater.Partial.StudioID.Ptr() != nil {
+			logger.Infof("[Auto-Identify] Assigned scene %d to studio %d", s.ID, *updater.Partial.StudioID.Ptr())
+		}
 
 		return nil
 	}); err != nil {

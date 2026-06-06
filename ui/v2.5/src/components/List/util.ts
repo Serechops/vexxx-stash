@@ -420,6 +420,14 @@ export function useListSelect<T extends IHasID = IHasID>(items: T[]) {
     setLastClickedId(undefined);
   }
 
+  function onInvertSelection() {
+    setItemsSelected((prevSelected) => {
+      const selectedIds = new Set(prevSelected.map((i) => i.id));
+      return items.filter((item) => !selectedIds.has(item.id));
+    });
+    setLastClickedId(undefined);
+  }
+
   // TODO - this is for backwards compatibility
   const getSelected = useCallback(() => itemsSelected, [itemsSelected]);
 
@@ -433,6 +441,7 @@ export function useListSelect<T extends IHasID = IHasID>(items: T[]) {
     onSelectChange,
     onSelectAll,
     onSelectNone,
+    onInvertSelection,
     hasSelection,
   };
 }

@@ -8,6 +8,7 @@ import {
   queryFindStudios,
   useFindStudios,
   useStudiosDestroy,
+  useLoggingSubscribe,
 } from "src/core/StashService";
 import { useFilteredItemList } from "../List/ItemList";
 import { ListFilterModel } from "src/models/list-filter/filter";
@@ -213,6 +214,23 @@ export const FilteredStudioList = PatchComponent(
           filterHook,
         },
       });
+
+    const { data: logSubData } = useLoggingSubscribe();
+    useEffect(() => {
+      if (!logSubData) return;
+      for (const entry of logSubData.loggingSubscribe) {
+        const match = entry.message.match(/\[Auto-Identify\] Assigned scene (\d+) to studio (\d+)/);
+        if (match) {
+          const sceneId = match[1];
+          const studioId = match[2];
+          window.dispatchEvent(
+            new CustomEvent("studio-scene-identified", {
+              detail: { sceneId, studioId },
+            })
+          );
+        }
+      }
+    }, [logSubData]);
 
     const { filter, setFilter } = filterState;
 

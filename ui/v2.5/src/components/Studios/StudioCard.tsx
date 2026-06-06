@@ -1,3 +1,4 @@
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Box, Button, ButtonGroup, Tooltip, Typography } from "@mui/material";
 import * as GQL from "src/core/generated-graphql";
@@ -81,6 +82,30 @@ export const StudioCard: React.FC<IProps> = PatchComponent(
   }) => {
     const intl = useIntl();
     const [updateStudio] = useStudioUpdate();
+    const [identifiedCount, setIdentifiedCount] = useState(0);
+    const [isPulsing, setIsPulsing] = useState(false);
+
+    useEffect(() => {
+      const handleIdentified = (event: Event) => {
+        const customEvent = event as CustomEvent<{ sceneId: string; studioId: string }>;
+        if (customEvent.detail.studioId === studio.id) {
+          setIdentifiedCount((prev) => prev + 1);
+          setIsPulsing(true);
+          
+          // Reset pulsing after 2 seconds
+          const pulseTimeout = setTimeout(() => {
+            setIsPulsing(false);
+          }, 2000);
+          
+          return () => clearTimeout(pulseTimeout);
+        }
+      };
+
+      window.addEventListener("studio-scene-identified", handleIdentified);
+      return () => {
+        window.removeEventListener("studio-scene-identified", handleIdentified);
+      };
+    }, [studio.id]);
 
     function onToggleFavorite(v: boolean) {
       if (studio.id) {
@@ -96,13 +121,14 @@ export const StudioCard: React.FC<IProps> = PatchComponent(
     }
 
     function maybeRenderScenesPopoverButton() {
-      if (!studio.scene_count) return;
+      const count = (studio.scene_count ?? 0) + identifiedCount;
+      if (!count) return;
 
       return (
         <PopoverCountButton
           className="scene-count"
           type="scene"
-          count={studio.scene_count}
+          count={count}
           url={`/studios/${studio.id}/scenes`}
         />
       );
@@ -229,7 +255,7 @@ export const StudioCard: React.FC<IProps> = PatchComponent(
             <PopoverCountButton
               className="scene-count"
               type="scene"
-              count={studio.scene_count}
+              count={(studio.scene_count ?? 0) + identifiedCount}
               url={`/studios/${studio.id}/scenes`}
               showZero={true}
             />
@@ -313,20 +339,66 @@ export const StudioCard: React.FC<IProps> = PatchComponent(
             </Box>
           }
           overlays={
-            <FavoriteIcon
-              favorite={studio.favorite}
-              onToggleFavorite={(v) => onToggleFavorite(v)}
-              size="2x"
-              className="favorite-button"
-              sx={{
-                p: 0,
-                position: 'absolute',
-                right: '5px',
-                top: '10px',
-                zIndex: 1,
-                color: 'rgba(255, 255, 255, 0.85)',
-              }}
-            />
+            <>
+              <FavoriteIcon
+                favorite={studio.favorite}
+                onToggleFavorite={(v) => onToggleFavorite(v)}
+                size="2x"
+                className="favorite-button"
+                sx={{
+                  p: 0,
+                  position: 'absolute',
+                  right: '5px',
+                  top: '10px',
+                  zIndex: 1,
+                  color: 'rgba(255, 255, 255, 0.85)',
+                }}
+              />
+              {identifiedCount > 0 && (
+                <Box
+                  sx={{
+                    position: "absolute",
+                    left: "8px",
+                    top: "8px",
+                    zIndex: 2,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 0.5,
+                    bgcolor: "rgba(16, 185, 129, 0.85)",
+                    backdropFilter: "blur(4px)",
+                    color: "#ffffff",
+                    fontSize: "0.75rem",
+                    fontWeight: 600,
+                    px: 1.25,
+                    py: 0.5,
+                    borderRadius: "9999px",
+                    boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+                    transition: "all 0.3s ease",
+                    border: "1px solid rgba(255, 255, 255, 0.2)",
+                    animation: isPulsing ? "pulse-scale 1.5s infinite ease-in-out" : "none",
+                    "@keyframes pulse-scale": {
+                      "0%, 100%": { transform: "scale(1)" },
+                      "50%": { transform: "scale(1.05)", bgcolor: "rgba(16, 185, 129, 1)" },
+                    }
+                  }}
+                >
+                  <Box
+                    sx={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: "50%",
+                      bgcolor: "#ffffff",
+                      animation: "blink 1s infinite alternate",
+                      "@keyframes blink": {
+                        "0%": { opacity: 0.4 },
+                        "100%": { opacity: 1 },
+                      }
+                    }}
+                  />
+                  <span>+{identifiedCount} identified</span>
+                </Box>
+              )}
+            </>
           }
           popovers={maybeRenderPopoverButtonGroup()}
           selected={selected}

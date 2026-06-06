@@ -64,6 +64,13 @@ export const ScenePreview: React.FC<IScenePreviewProps> = ({
   const videoEl = useRef<HTMLVideoElement>(null);
   const [isHovered, setIsHovered] = useState(false);
   const [needsCrop, setNeedsCrop] = useState(false);
+  const [videoReady, setVideoReady] = useState(false);
+
+  useEffect(() => {
+    if (!isHovered) {
+      setVideoReady(false);
+    }
+  }, [isHovered]);
 
   const handleLoadedMetadata = (e: React.SyntheticEvent<HTMLVideoElement>) => {
     const video = e.currentTarget;
@@ -146,44 +153,49 @@ export const ScenePreview: React.FC<IScenePreviewProps> = ({
           objectFit: "cover",
           objectPosition: "top",
           width: "100%",
+          transition: "opacity 0.2s",
+          ...((playOnHover ? (isHovered && video && videoReady) : false) && { opacity: 0 }),
         }}
         className="scene-card-preview-image"
         loading="lazy"
         src={image}
         alt=""
       />
-      <Box
-        component="video"
-        disableRemotePlayback
-        playsInline
-        muted={!soundActive}
-        onLoadedMetadata={handleLoadedMetadata}
-        sx={{
-          height: "100%",
-          objectFit: "cover",
-          objectPosition: "top",
-          width: "100%",
-          position: "absolute",
-          top: playOnHover ? (isHovered ? 0 : "-9999px") : "-9999px",
-          transition: "top 0s",
-          transitionDelay: "0s",
-          ...(needsCrop && vrMode === GQL.VrMode.Lr180 && {
-            objectPosition: "left center",
-            transform: "scale(1.77778)",
-            transformOrigin: "left center",
-          }),
-          ...(needsCrop && vrMode === GQL.VrMode.Tb360 && {
-            objectPosition: "center top",
-            transform: "scale(1.125)",
-            transformOrigin: "center top",
-          }),
-        }}
-        className="scene-card-preview-video"
-        loop
-        preload="none"
-        ref={videoEl}
-        src={video}
-      />
+      {video && (
+        <Box
+          component="video"
+          disableRemotePlayback
+          playsInline
+          muted={!soundActive}
+          onLoadedMetadata={handleLoadedMetadata}
+          onPlaying={() => setVideoReady(true)}
+          sx={{
+            height: "100%",
+            objectFit: "cover",
+            objectPosition: "top",
+            width: "100%",
+            position: "absolute",
+            top: playOnHover ? (isHovered && videoReady ? 0 : "-9999px") : "-9999px",
+            transition: "top 0s",
+            transitionDelay: "0s",
+            ...(needsCrop && vrMode === GQL.VrMode.Lr180 && {
+              objectPosition: "left center",
+              transform: "scale(1.77778)",
+              transformOrigin: "left center",
+            }),
+            ...(needsCrop && vrMode === GQL.VrMode.Tb360 && {
+              objectPosition: "center top",
+              transform: "scale(1.125)",
+              transformOrigin: "center top",
+            }),
+          }}
+          className="scene-card-preview-video"
+          loop
+          preload="none"
+          ref={videoEl}
+          src={video}
+        />
+      )}
       <PreviewScrubber vttPath={vttPath} onClick={onScrubberClick} />
       <ResumeProgressBar resumeTime={resumeTime} duration={duration} showLabel />
     </Box>

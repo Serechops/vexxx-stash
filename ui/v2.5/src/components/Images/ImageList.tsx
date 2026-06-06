@@ -549,7 +549,7 @@ const ImageListContent: React.FC<{
           <Box sx={{
             position: "sticky",
             top: 48,
-            zIndex: 20,
+            zIndex: 100,
             backgroundColor: "rgba(0,0,0,0)",
             borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
             mx: -2, px: 2, pt: 2, pb: 2, mb: 2,

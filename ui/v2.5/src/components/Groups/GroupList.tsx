@@ -221,7 +221,7 @@ const GroupListContent: React.FC<{
           sx={{
             position: "sticky",
             top: 48,
-            zIndex: 20,
+            zIndex: 100,
             backgroundColor: "rgba(0,0,0,0)",
             borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
             mx: -2,

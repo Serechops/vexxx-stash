@@ -670,7 +670,7 @@ export const FilteredSceneList = (props: IFilteredScenes) => {
               sx={{
                 position: "sticky",
                 top: 48,
-                zIndex: 20,
+                zIndex: 100,
                 px: 2,
                 py: 1.5,
                 bgcolor: "transparent",

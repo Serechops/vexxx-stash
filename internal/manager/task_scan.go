@@ -36,9 +36,6 @@ type ScanJob struct {
 
 	fileQueue chan file.ScannedFile
 	count     int
-
-	mu          sync.Mutex
-	phashScenes []*models.Scene
 }
 
 func (j *ScanJob) Execute(ctx context.Context, progress *job.Progress) error {
@@ -72,13 +69,80 @@ func (j *ScanJob) Execute(ctx context.Context, progress *job.Progress) error {
 		minModTime = *j.input.Filter.MinModTime
 	}
 
-	// Wire up phash collection for batch identification after all phashes complete.
-	var phashNotifier func(scene *models.Scene)
+	// Set up sequential identify worker channel and goroutine if auto-identify is enabled
+	var identifyWg sync.WaitGroup
+	var identifyChan chan *models.Scene
+
 	if input.ScanAutoIdentify && input.ScanGeneratePhashes {
+		defaultSettings := cfg.GetDefaultIdentifySettings()
+		if defaultSettings != nil && len(defaultSettings.Sources) > 0 {
+			identifyChan = make(chan *models.Scene, 1000)
+			identifyWg.Add(1)
+
+			go func() {
+				defer identifyWg.Done()
+
+				identifyJob := &IdentifyJob{
+					postHookExecutor: instance.PluginCache,
+					input: identify.Options{
+						Sources: defaultSettings.Sources,
+						Options: defaultSettings.Options,
+					},
+					stashBoxes: cfg.GetStashBoxes(),
+					progress:   progress,
+				}
+
+				sources, err := identifyJob.getSources()
+				if err != nil {
+					logger.Errorf("Sequential identify: error resolving sources: %v", err)
+					// Drain channel if sources can't be resolved
+					for range identifyChan {}
+					return
+				}
+
+				// Single-threaded worker: processes scenes one-by-one as they finish phash generation
+				for s := range identifyChan {
+					if job.IsCancelled(ctx) {
+						// Drain channel on cancellation
+						continue
+					}
+					if s == nil {
+						continue
+					}
+
+					// Invalidate the scene from the cache so that GetScenesFingerprints loads it and its files fresh from the DB
+					if instance.Database.Caches != nil {
+						instance.Database.Caches.InvalidateScene(s.ID)
+					}
+
+					// Reload scene inside read transaction context to get fresh files and generated phash fingerprint
+					var dbScene *models.Scene
+					if err := txn.WithReadTxn(ctx, repo.TxnManager, func(ctx context.Context) error {
+						var err error
+						dbScene, err = repo.Scene.Find(ctx, s.ID)
+						return err
+					}); err != nil {
+						logger.Errorf("Sequential identify: error reloading scene %d: %v", s.ID, err)
+						continue
+					}
+					if dbScene == nil {
+						logger.Errorf("Sequential identify: scene %d not found in database", s.ID)
+						continue
+					}
+
+					identifyJob.identifyScene(ctx, dbScene, sources)
+				}
+
+				// Process all pending renames triggered by identifies in this job
+				identifyJob.processRenames(ctx)
+			}()
+		}
+	}
+
+	var phashNotifier func(scene *models.Scene)
+	if identifyChan != nil {
 		phashNotifier = func(scene *models.Scene) {
-			j.mu.Lock()
-			j.phashScenes = append(j.phashScenes, scene)
-			j.mu.Unlock()
+			identifyChan <- scene
 		}
 	}
 
@@ -93,32 +157,9 @@ func (j *ScanJob) Execute(ctx context.Context, progress *job.Progress) error {
 
 	taskQueue.Close()
 
-	// Batch identify all scenes that received a phash during this scan.
-	if len(j.phashScenes) > 0 {
-		logger.Infof("Batch identifying %d scenes with new phashes", len(j.phashScenes))
-		defaultSettings := cfg.GetDefaultIdentifySettings()
-		if defaultSettings != nil && len(defaultSettings.Sources) > 0 {
-			identifyJob := &IdentifyJob{
-				postHookExecutor: instance.PluginCache,
-				input: identify.Options{
-					Sources: defaultSettings.Sources,
-					Options: defaultSettings.Options,
-				},
-				stashBoxes: cfg.GetStashBoxes(),
-			}
-			sources, err := identifyJob.getSources()
-			if err != nil {
-				logger.Errorf("Batch identify: error resolving sources: %v", err)
-			} else {
-				batchCtx := context.WithoutCancel(ctx)
-				for _, s := range j.phashScenes {
-					if s != nil {
-						identifyJob.identifyScene(batchCtx, s, sources)
-					}
-				}
-				identifyJob.processRenames(batchCtx)
-			}
-		}
+	if identifyChan != nil {
+		close(identifyChan)
+		identifyWg.Wait()
 	}
 
 	if job.IsCancelled(ctx) {

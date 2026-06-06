@@ -1,6 +1,6 @@
 import { Box, Button } from "@mui/material";
 import React, { useEffect, useState } from "react";
-import { useIntl } from "react-intl";
+import { useIntl, FormattedMessage } from "react-intl";
 import * as GQL from "src/core/generated-graphql";
 import * as yup from "yup";
 import Mousetrap from "mousetrap";
@@ -125,9 +125,15 @@ export const StudioEditPanel: React.FC<IStudioEditPanel> = ({
         formik.submitForm();
       }
     });
+    if (!isNew) {
+      Mousetrap.bind("d d", () => {
+        onDelete();
+      });
+    }
 
     return () => {
       Mousetrap.unbind("s s");
+      Mousetrap.unbind("d d");
     };
   });
 
@@ -254,6 +260,17 @@ export const StudioEditPanel: React.FC<IStudioEditPanel> = ({
         onClearImage={() => onImageLoad(null)}
         onDelete={onDelete}
         acceptSVG
+        customButtons={
+          !isNew ? (
+            <Button
+              variant="contained"
+              color="error"
+              onClick={onDelete}
+            >
+              <FormattedMessage id="actions.delete" />
+            </Button>
+          ) : undefined
+        }
       />
     </>
   );

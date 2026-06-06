@@ -23,6 +23,7 @@ interface IProps {
   onClearBackImage?: () => void;
   acceptSVG?: boolean;
   customButtons?: JSX.Element;
+  customDelete?: boolean;
   classNames?: string;
   children?: JSX.Element | JSX.Element[];
 }
@@ -71,7 +72,7 @@ export const DetailsEditNavbar: React.FC<IProps> = (props: IProps) => {
         variant="contained"
         color="error"
         className="delete"
-        onClick={() => setIsDeleteAlertOpen(true)}
+        onClick={props.customDelete ? props.onDelete : () => setIsDeleteAlertOpen(true)}
       >
         <FormattedMessage id="actions.delete" />
       </Button>

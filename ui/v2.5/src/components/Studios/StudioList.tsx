@@ -13,7 +13,7 @@ import { useFilteredItemList } from "../List/ItemList";
 import { ListFilterModel } from "src/models/list-filter/filter";
 import { DisplayMode } from "src/models/list-filter/types";
 import { ExportDialog } from "../Shared/ExportDialog";
-import { DeleteEntityDialog } from "../Shared/DeleteEntityDialog";
+import { DeleteStudiosDialog } from "./DeleteStudiosDialog";
 import { StudioTagger } from "../Tagger/studios/StudioTagger";
 import { SmartStudioCardGrid } from "./VirtualizedStudioCardGrid";
 import { View } from "../List/views";
@@ -304,12 +304,9 @@ export const FilteredStudioList = PatchComponent(
 
     function onDelete() {
       showModal(
-        <DeleteEntityDialog
+        <DeleteStudiosDialog
           selected={selectedItems}
           onClose={onCloseEditDelete}
-          singularEntity={intl.formatMessage({ id: "studio" })}
-          pluralEntity={intl.formatMessage({ id: "studios" })}
-          destroyMutation={useStudiosDestroy}
         />
       );
     }

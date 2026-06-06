@@ -1,4 +1,4 @@
-import { Tabs, Tab, Box, FormControlLabel, Switch } from "@mui/material";
+import { Tabs, Tab, Box, FormControlLabel, Switch, Checkbox } from "@mui/material";
 import React, { useEffect, useMemo, useState } from "react";
 import { useHistory, Redirect, RouteComponentProps } from "react-router-dom";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -12,7 +12,9 @@ import {
   useStudioUpdate,
   useStudioDestroy,
   mutateMetadataAutoTag,
+  useScenesDestroy,
 } from "src/core/StashService";
+import { objectPath } from "src/core/files";
 import { DetailsEditNavbar } from "src/components/Shared/DetailsEditNavbar";
 import { ModalComponent } from "src/components/Shared/Modal";
 import { LoadingIndicator } from "src/components/Shared/LoadingIndicator";
@@ -341,6 +343,14 @@ const StudioPage: React.FC<IProps> = ({ studio, tabKey }) => {
   // Editing state
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState<boolean>(false);
+  const [cascadeDelete, setCascadeDelete] = useState<boolean>(false);
+  const [deleteFile, setDeleteFile] = useState<boolean>(
+    configuration?.defaults.deleteFile ?? false
+  );
+  const [deleteGenerated, setDeleteGenerated] = useState<boolean>(
+    configuration?.defaults.deleteGenerated ?? true
+  );
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
 
   // Editing studio state
   const [image, setImage] = useState<string | null>();
@@ -349,6 +359,31 @@ const StudioPage: React.FC<IProps> = ({ studio, tabKey }) => {
 
   const [updateStudio] = useStudioUpdate();
   const [deleteStudio] = useStudioDestroy({ id: studio.id });
+
+  const { data: scenesData } = GQL.useFindScenesQuery({
+    variables: {
+      filter: {
+        per_page: -1,
+      },
+      scene_filter: {
+        studios: {
+          value: [studio.id],
+          modifier: GQL.CriterionModifier.Equals,
+        },
+      },
+    },
+    skip: !isDeleteAlertOpen,
+  });
+
+  const sceneIds = useMemo(() => {
+    return scenesData?.findScenes?.scenes.map((s) => s.id) ?? [];
+  }, [scenesData]);
+
+  const [destroyScenes] = useScenesDestroy({
+    ids: sceneIds,
+    delete_file: deleteFile,
+    delete_generated: deleteGenerated,
+  });
 
   const showAllCounts = uiConfig?.showChildStudioContent;
 
@@ -448,15 +483,106 @@ const StudioPage: React.FC<IProps> = ({ studio, tabKey }) => {
     }
   }
 
-  async function onDelete() {
+  function onDelete() {
+    setIsDeleteAlertOpen(true);
+  }
+
+  async function handleDelete() {
+    setIsDeleting(true);
     try {
+      if (cascadeDelete && sceneIds.length > 0) {
+        await destroyScenes();
+        Toast.success(
+          intl.formatMessage(
+            { id: "toast.delete_past_tense" },
+            {
+              count: sceneIds.length,
+              singularEntity: intl.formatMessage({ id: "scene" }),
+              pluralEntity: intl.formatMessage({ id: "scenes" }),
+            }
+          )
+        );
+      }
       await deleteStudio();
+      Toast.success(
+        intl.formatMessage(
+          { id: "toast.delete_past_tense" },
+          {
+            count: 1,
+            singularEntity: intl.formatMessage({ id: "studio" }).toLocaleLowerCase(),
+            pluralEntity: intl.formatMessage({ id: "studios" }).toLocaleLowerCase(),
+          }
+        )
+      );
     } catch (e) {
       Toast.error(e);
+      setIsDeleting(false);
       return;
     }
 
+    setIsDeleting(false);
+    setIsDeleteAlertOpen(false);
     goBackOrReplace(history, "/studios");
+  }
+
+  function funscriptPath(sp: string) {
+    const extIndex = sp.lastIndexOf(".");
+    if (extIndex !== -1) {
+      return sp.substring(0, extIndex + 1) + "funscript";
+    }
+
+    return sp;
+  }
+
+  function maybeRenderDeleteFileAlert() {
+    if (!deleteFile || !scenesData?.findScenes) {
+      return;
+    }
+
+    const deletedFiles: string[] = [];
+
+    scenesData.findScenes.scenes.forEach((s) => {
+      const paths = s.files.map((f) => f.path);
+      deletedFiles.push(...paths);
+      if (s.interactive && s.files.length) {
+        deletedFiles.push(funscriptPath(objectPath(s)));
+      }
+    });
+
+    const deleteTrashPath = configuration?.general.deleteTrashPath;
+    const deleteAlertId = deleteTrashPath
+      ? "dialogs.delete_alert_to_trash"
+      : "dialogs.delete_alert";
+
+    return (
+      <div className="delete-dialog alert alert-danger text-break mb-3">
+        <p className="font-bold">
+          <FormattedMessage
+            values={{
+              count: deletedFiles.length,
+              singularEntity: intl.formatMessage({ id: "file" }),
+              pluralEntity: intl.formatMessage({ id: "files" }),
+            }}
+            id={deleteAlertId}
+          />
+        </p>
+        <ul className="pl-3 mb-0">
+          {deletedFiles.slice(0, 5).map((s) => (
+            <li key={s}>{s}</li>
+          ))}
+          {deletedFiles.length > 5 && (
+            <FormattedMessage
+              values={{
+                count: deletedFiles.length - 5,
+                singularEntity: intl.formatMessage({ id: "file" }),
+                pluralEntity: intl.formatMessage({ id: "files" }),
+              }}
+              id="dialogs.delete_object_overflow"
+            />
+          )}
+        </ul>
+      </div>
+    );
   }
 
   function renderDeleteAlert() {
@@ -467,9 +593,15 @@ const StudioPage: React.FC<IProps> = ({ studio, tabKey }) => {
         accept={{
           text: intl.formatMessage({ id: "actions.delete" }),
           variant: "danger",
-          onClick: onDelete,
+          onClick: handleDelete,
         }}
-        cancel={{ onClick: () => setIsDeleteAlertOpen(false) }}
+        cancel={{
+          onClick: () => {
+            setIsDeleteAlertOpen(false);
+            setCascadeDelete(false);
+          },
+        }}
+        isRunning={isDeleting}
       >
         <p>
           <FormattedMessage
@@ -481,6 +613,54 @@ const StudioPage: React.FC<IProps> = ({ studio, tabKey }) => {
             }}
           />
         </p>
+
+        {scenesData?.findScenes && scenesData.findScenes.count > 0 && (
+          <Box component="div" sx={{ mt: 2, display: "flex", flexDirection: "column" }}>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  id="cascade-delete"
+                  checked={cascadeDelete}
+                  onChange={() => setCascadeDelete(!cascadeDelete)}
+                />
+              }
+              label={intl.formatMessage({
+                id: "dialogs.delete_studio_scenes",
+                defaultMessage: "Delete scenes contained within this studio",
+              })}
+            />
+
+            {cascadeDelete && (
+              <Box sx={{ pl: 4, display: "flex", flexDirection: "column" }}>
+                {maybeRenderDeleteFileAlert()}
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      id="delete-file"
+                      checked={deleteFile}
+                      onChange={() => setDeleteFile(!deleteFile)}
+                    />
+                  }
+                  label={intl.formatMessage({
+                    id: "actions.delete_file_and_funscript",
+                  })}
+                />
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      id="delete-generated"
+                      checked={deleteGenerated}
+                      onChange={() => setDeleteGenerated(!deleteGenerated)}
+                    />
+                  }
+                  label={intl.formatMessage({
+                    id: "actions.delete_generated_supporting_files",
+                  })}
+                />
+              </Box>
+            )}
+          </Box>
+        )}
       </ModalComponent>
     );
   }
@@ -635,6 +815,7 @@ const StudioPage: React.FC<IProps> = ({ studio, tabKey }) => {
                   onAutoTag={onAutoTag}
                   autoTagDisabled={studio.ignore_auto_tag}
                   onDelete={onDelete}
+                  customDelete
                 />
               )}
             </Box>

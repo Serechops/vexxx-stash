@@ -339,7 +339,7 @@ func (lw *LibraryWatcher) ensureParentFoldersExist(ctx context.Context, fileDir 
 	current := fileDir
 	for {
 		dirsToEnsure = append([]string{current}, dirsToEnsure...)
-		if strings.ToLower(current) == strings.ToLower(matchedRoot) || current == filepath.Dir(current) {
+		if strings.EqualFold(current, matchedRoot) || current == filepath.Dir(current) {
 			break
 		}
 		current = filepath.Dir(current)
@@ -366,7 +366,7 @@ func (lw *LibraryWatcher) ensureParentFoldersExist(ctx context.Context, fileDir 
 
 			if existing == nil {
 				logger.Infof("Library watcher: parent folder %s doesn't exist. Creating database entry...", dir)
-				
+
 				// Get folder info using os.Stat
 				info, err := os.Stat(dir)
 				var modTime time.Time
@@ -387,7 +387,7 @@ func (lw *LibraryWatcher) ensureParentFoldersExist(ctx context.Context, fileDir 
 
 				// Link parent folder ID if there is one
 				parentDir := filepath.Dir(dir)
-				if strings.ToLower(parentDir) != strings.ToLower(filepath.Dir(matchedRoot)) && parentDir != dir {
+				if !strings.EqualFold(parentDir, filepath.Dir(matchedRoot)) && parentDir != dir {
 					parentFolder, err := repo.Folder.FindByPath(ctx, parentDir, true)
 					if err == nil && parentFolder != nil {
 						toCreate.ParentFolderID = &parentFolder.ID

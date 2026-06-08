@@ -282,19 +282,6 @@ function vrModeToVRType(mode: GQL.VrMode | null | undefined): VRType | null {
   }
 }
 
-/** Convert a vrmode.ts VRType back to the GQL VrMode enum value (null for Off). */
-function vrTypeToGqlMode(type: VRType): GQL.VrMode | null {
-  switch (type) {
-    case VRType.LR180:
-      return GQL.VrMode.Lr180;
-    case VRType.TB360:
-      return GQL.VrMode.Tb360;
-    case VRType.Mono360:
-      return GQL.VrMode.Mono360;
-    default:
-      return null;
-  }
-}
 
 type MarkerFragment = Pick<GQL.SceneMarker, "title" | "seconds"> & {
   primary_tag?: Pick<GQL.Tag, "name"> | null;
@@ -377,13 +364,7 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
     const countOnStart = uiConfig?.countOnStart ?? false;
     const vrTag = uiConfig?.vrTag ?? undefined;
 
-    // VR theatre integration — derived flags (no getPlayer dependency)
-    const vrType = vrModeToVRType(scene.vr_mode);
-    const hasVrMode = !!scene.vr_mode;
-    const hasVrTag = vrTag
-      ? scene.tags.some((tag) => vrTag === tag.name)
-      : false;
-    const showVRTheatreButton = hasVrMode || hasVrTag;
+
 
     useScript(
       "https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1",
@@ -431,49 +412,7 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
       return _player;
     }, [_player]);
 
-    // VR theatre — open in new tab at current playback position
-    const openVRTheatre = useCallback(() => {
-      let mode = "180";
-      let stereo = "sbs";
-      if (vrType === VRType.TB360) {
-        mode = "360";
-        stereo = "tb";
-      } else if (vrType === VRType.Mono360) {
-        mode = "360";
-        stereo = "mono";
-      }
-      const t = Math.floor(getPlayer()?.currentTime() ?? 0);
-      const params = new URLSearchParams({
-        id: scene.id,
-        t: String(t),
-        mode,
-        stereo,
-      });
-      window.open(`/vr/?${params}`, "_blank");
-    }, [scene.id, vrType, getPlayer]);
 
-    // Receive position hand-off when the VR Theatre window closes
-    useEffect(() => {
-      const onVRMessage = (ev: MessageEvent) => {
-        if (!ev.data || ev.data.type !== "vr-theatre-exit") return;
-        if (ev.data.id !== scene.id) return;
-        const t = Number(ev.data.t);
-        if (!isFinite(t) || t < 0) return;
-        const player = getPlayer();
-        if (!player) return;
-        // Seek to where the user left off in the headset
-        if (player.hasStarted()) {
-          player.currentTime(t);
-        } else {
-          player
-            .play()
-            ?.then(() => player.currentTime(t))
-            .catch(() => {});
-        }
-      };
-      window.addEventListener("message", onVRMessage);
-      return () => window.removeEventListener("message", onVRMessage);
-    }, [scene.id, getPlayer]);
 
     useEffect(() => {
       if (hideScrubberOverride || fullscreen) {
@@ -571,11 +510,11 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
           bigButtons: {},
           ...(videojs.getPlugin("seekButtons")
             ? {
-                seekButtons: {
-                  forward: 10,
-                  back: 10,
-                },
-              }
+              seekButtons: {
+                forward: 10,
+                back: 10,
+              },
+            }
             : {}),
           skipButtons: {},
           trackActivity: {},
@@ -1114,23 +1053,7 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
       countOnStart,
     ]);
 
-    // Handle return from VR theatre — seek to the position where the user left off
-    useEffect(() => {
-      const handler = (e: MessageEvent) => {
-        if (e.data?.type !== "vr-theatre-exit" || e.data.id !== scene.id)
-          return;
-        const t = e.data.t;
-        if (typeof t === "number" && isFinite(t)) {
-          const player = getPlayer();
-          if (player) {
-            player.currentTime(t);
-            player.play();
-          }
-        }
-      };
-      window.addEventListener("message", handler);
-      return () => window.removeEventListener("message", handler);
-    }, [scene.id, getPlayer]);
+
 
     // Gallery Creator Logic
     const [showGalleryDialog, setShowGalleryDialog] = useState(false);
@@ -1501,32 +1424,7 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
         {scene.interactive &&
           (interactiveState !== ConnectionState.Ready ||
             getPlayer()?.paused()) && <SceneInteractiveStatus />}
-        {showVRTheatreButton && (
-          <Tooltip title="Open in VR Theatre" placement="left">
-            <Button
-              size="small"
-              onClick={openVRTheatre}
-              sx={{
-                position: "absolute",
-                top: 8,
-                right: 8,
-                zIndex: 10,
-                minWidth: 0,
-                px: 1.5,
-                py: 0.5,
-                fontSize: "0.75rem",
-                fontWeight: 600,
-                bgcolor: "rgba(0,0,0,0.6)",
-                color: "white",
-                border: "1px solid rgba(255,255,255,0.25)",
-                backdropFilter: "blur(4px)",
-                "&:hover": { bgcolor: "rgba(0,0,0,0.85)" },
-              }}
-            >
-              VR
-            </Button>
-          </Tooltip>
-        )}
+
 
         {file && showScrubber && (
           <ScenePlayerScrubber

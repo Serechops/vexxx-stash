@@ -15,9 +15,6 @@ var UIBox fs.FS
 var loginUIBox embed.FS
 var LoginUIBox fs.FS
 
-//go:embed vr
-var vrBox embed.FS
-var VRBox fs.FS
 
 func init() {
 	var err error
@@ -31,10 +28,6 @@ func init() {
 		panic(err)
 	}
 
-	VRBox, err = fs.Sub(vrBox, "vr")
-	if err != nil {
-		panic(err)
-	}
 }
 
 type faviconProvider struct{}

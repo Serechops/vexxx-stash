@@ -257,57 +257,13 @@ func Initialize() (*Server, error) {
 	r.Mount("/stashtag", server.getStashTagRoutes())
 	r.Mount("/megaface", server.getMegaFaceRoutes())
 
-	// VR theatre — static files served at /vr/*
-	//
-	// Note: Go's http.FileServer (used by statigz) redirects requests for
-	// "/index.html" to "./" (canonical cleanup).  That redirect, combined with
-	// StripSlashes removing the trailing slash from "/vr/", would cause the
-	// browser to hit the React SPA catch-all and show a blank page.  We avoid
-	// this by reading index.html directly from the embedded FS for any root-
-	// level VR navigation request.
-	vrIndexHandler := func(w http.ResponseWriter, r *http.Request) {
-		data, err := fs.ReadFile(ui.VRBox, "index.html")
-		if err != nil {
-			http.Error(w, "vr index not found", http.StatusNotFound)
-			return
-		}
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.Header().Set("Cache-Control", "no-cache")
-		_, _ = w.Write(data)
-	}
-	staticVR := statigz.FileServer(ui.VRBox.(fs.ReadDirFS))
-	// /vr (after StripSlashes strips the trailing slash from /vr/)
-	r.Get("/vr", vrIndexHandler)
-	r.Post("/vr/debug", func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusNoContent)
-	})
-	r.HandleFunc("/vr/*", func(w http.ResponseWriter, r *http.Request) {
-		assetPath := strings.TrimPrefix(r.URL.Path, "/vr")
-		if assetPath == "" || assetPath == "/" || assetPath == "/index.html" {
-			vrIndexHandler(w, r)
-			return
-		}
-		r.URL.Path = assetPath
-		w.Header().Set("Cache-Control", "no-cache")
-		staticVR.ServeHTTP(w, r)
-	})
-
-	// VR theatre — API shim routes consumed by the Babylon.js player.
-	// These are at root level because session.js derives base URL from window.location.origin.
+	// DeoVR routes
 	vr := vrRoutes{
 		routes:     routes{txnManager: repo.TxnManager},
 		repository: &repo,
 		config:     cfg,
 	}
-	r.Get("/api/library", vr.libraryHandler)
-	r.Get("/api/library/studios", vr.studiosHandler)
-	r.Get("/api/library/performers", vr.performersHandler)
-	r.Get("/api/library/tags", vr.tagsHandler)
-	r.Get("/api/library/media", vr.singleMediaHandler)
-	r.Get("/api/settings", vr.settingsHandler)
-	r.Get("/api/ping", vr.pingHandler)
-	r.Get("/media/stream", vr.streamRedirectHandler)
-	r.Get("/media/script", vr.scriptRedirectHandler)
+	r.Get("/deovr", vr.deovrHandler)
 
 	// Debug endpoints for profiling and metrics
 	// Enable via STASH_DEBUG=1 environment variable or debug config

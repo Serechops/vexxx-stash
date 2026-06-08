@@ -10,7 +10,7 @@
     "build:diag": "make -C ../.. stash-diag",
     "run:diag": "make -C ../.. stash-diag && ../../dist/stash-diag.exe",
     "server": "make -C ../.. server-start GITHASH=dev STASH_VERSION=dev BUILD_DATE=2026-01-01",
-    "all": "make -C ../.. ui && make -C ../.. build && pnpm run dev",
+    "all": "pnpm run dev",
     "release": "make -C ../.. build-release",
     "generate": "make -C ../.. generate",
     "dev": "concurrently -k -n \"BACKEND,FRONTEND\" -c \"blue,magenta\" \"pnpm run server\" \"pnpm run start\"",

@@ -1,19 +1,21 @@
 package api
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os/exec"
 	"path"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/stashapp/stash/internal/manager/config"
 	"github.com/stashapp/stash/pkg/models"
 	"github.com/stashapp/stash/pkg/txn"
 )
-
 
 // vrRoutes holds the handler methods for the VR theatre API shim.
 // Route registration is handled in server.go.
@@ -31,7 +33,6 @@ func writeJSON(w http.ResponseWriter, v interface{}) {
 		http.Error(w, "encoding error", http.StatusInternalServerError)
 	}
 }
-
 
 // GET /deovr — returns the HTML page list, the shortened paginated JSON, or single video detail JSON.
 type deovrCorrection struct {
@@ -57,6 +58,20 @@ type deovrEncoding struct {
 	VideoSources []deovrSource `json:"videoSources"`
 }
 
+type deovrActor struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+}
+
+type deovrCategoryTag struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+}
+
+type deovrCategory struct {
+	Tag deovrCategoryTag `json:"tag"`
+}
+
 type deovrVideoDetail struct {
 	Encodings      []deovrEncoding  `json:"encodings"`
 	Title          string           `json:"title"`
@@ -71,13 +86,18 @@ type deovrVideoDetail struct {
 	ThumbnailURL   string           `json:"thumbnailUrl"`
 	TimeStamps     []deovrTimestamp `json:"timeStamps,omitempty"`
 	Corrections    *deovrCorrection `json:"corrections,omitempty"`
+	Description    string           `json:"description,omitempty"`
+	Actors         []deovrActor     `json:"actors,omitempty"`
+	Categories     []deovrCategory  `json:"categories,omitempty"`
 }
 
 type deovrVideoShort struct {
-	Title        string `json:"title"`
-	VideoLength  int    `json:"videoLength"`
-	ThumbnailURL string `json:"thumbnailUrl"`
-	VideoURL     string `json:"video_url"`
+	Title          string `json:"title"`
+	VideoLength    int    `json:"videoLength"`
+	ThumbnailURL   string `json:"thumbnailUrl"`
+	VideoURL       string `json:"video_url"`
+	VideoThumbnail string `json:"videoThumbnail,omitempty"`
+	VideoPreview   string `json:"videoPreview,omitempty"`
 }
 
 type deovrSceneShort struct {
@@ -90,45 +110,15 @@ type deovrResponseShort struct {
 	Authorized string            `json:"authorized"`
 }
 
-func buildDeoVRURL(baseURL string, path string, apiKey string) string {
+func buildDeoVRURL(baseURL string, pathStr string, apiKey string) string {
 	if apiKey != "" {
-		return fmt.Sprintf("%s%s?apikey=%s", baseURL, path, apiKey)
+		separator := "?"
+		if strings.Contains(pathStr, "?") {
+			separator = "&"
+		}
+		return fmt.Sprintf("%s%s%sapikey=%s", baseURL, pathStr, separator, apiKey)
 	}
-	return fmt.Sprintf("%s%s", baseURL, path)
-}
-
-func buildFilterQuery(r *http.Request) string {
-	var parts []string
-	if apiKey := r.URL.Query().Get("apikey"); apiKey != "" {
-		parts = append(parts, "apikey="+apiKey)
-	}
-	if tagID := r.URL.Query().Get("tag_id"); tagID != "" {
-		parts = append(parts, "tag_id="+tagID)
-	}
-	if performerID := r.URL.Query().Get("performer_id"); performerID != "" {
-		parts = append(parts, "performer_id="+performerID)
-	}
-	if studioID := r.URL.Query().Get("studio_id"); studioID != "" {
-		parts = append(parts, "studio_id="+studioID)
-	}
-	if q := r.URL.Query().Get("q"); q != "" {
-		parts = append(parts, "q="+q)
-	}
-	if len(parts) > 0 {
-		return "&" + strings.Join(parts, "&")
-	}
-	return ""
-}
-
-func htmlEscape(s string) string {
-	r := strings.NewReplacer(
-		"&", "&amp;",
-		"<", "&lt;",
-		">", "&gt;",
-		`"`, "&quot;",
-		`'`, "&#39;",
-	)
-	return r.Replace(s)
+	return fmt.Sprintf("%s%s", baseURL, pathStr)
 }
 
 func (rs vrRoutes) deovrHandler(w http.ResponseWriter, r *http.Request) {
@@ -143,20 +133,19 @@ func (rs vrRoutes) deovrHandler(w http.ResponseWriter, r *http.Request) {
 		baseURL = scheme + "://" + r.Host + getProxyPrefix(r)
 	}
 
-	// Derive a plain-HTTP base URL for all DeoVR-facing media resources
-	// (streams, thumbnails, previews, video detail URLs).  DeoVR's VR
-	// Selection Scene plays media over plain HTTP without needing SSL,
-	// mirroring how DLNA serves content.  We intentionally ignore proxy
-	// headers and ExternalHost here because DeoVR must connect directly
-	// to the server's actual address over HTTP.
-	deovrBaseURL := "http://" + r.Host + getProxyPrefix(r)
+	// Derive the base URL for all DeoVR-facing media resources
+	// (streams, thumbnails, previews, video detail URLs). We respect the
+	// incoming protocol (HTTP or HTTPS) to ensure that if Stash is accessed
+	// over a secure connection (such as an HTTPS reverse proxy or tunnel),
+	// the media and thumbnail URLs are served over HTTPS to comply with
+	// DeoVR's security policies.
+	scheme := "http"
+	if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" || r.URL.Scheme == "https" {
+		scheme = "https"
+	}
+	deovrBaseURL := scheme + "://" + r.Host + getProxyPrefix(r)
 
 	apiKey := r.URL.Query().Get("apikey")
-	filterQuery := buildFilterQuery(r)
-	apiKeyQuery := ""
-	if apiKey != "" {
-		apiKeyQuery = "&apikey=" + apiKey
-	}
 
 	// Branch A: Single video detail JSON
 	if r.URL.Query().Has("video_id") {
@@ -222,7 +211,23 @@ func (rs vrRoutes) deovrHandler(w http.ResponseWriter, r *http.Request) {
 				title = path.Base(filepath)
 			}
 
+			// Fetch tags early so we can apply tag-based VR overrides
+			// before calculating screenType/stereoMode
+			tags, err := rs.repository.Tag.FindBySceneID(ctx, scene.ID)
+
+			// Build tag name set for lookups
+			tagNames := make(map[string]bool)
+			if err == nil {
+				for _, t := range tags {
+					tagNames[t.Name] = true
+				}
+			}
+
 			screenType, stereoMode, is3d := getDeoVRMode(scene, title, filepath)
+			// Apply tag-based overrides (from stash-deovr convention) on top of
+			// the scene.VRMode / heuristic result.  This allows per-scene tags to
+			// override the projection without needing the explicit VRMode field.
+			screenType, stereoMode, is3d = applyDeoVRTagOverrides(tagNames, screenType, stereoMode, is3d)
 
 			// Get markers for timeStamps
 			markers, err := rs.repository.SceneMarker.FindBySceneID(ctx, videoID)
@@ -241,9 +246,51 @@ func (rs vrRoutes) deovrHandler(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 
-			thumbURL := buildDeoVRURL(deovrBaseURL, fmt.Sprintf("/scene/%d/screenshot", scene.ID), apiKey)
+			// Fetch performers
+			performers, err := rs.repository.Performer.FindBySceneID(ctx, scene.ID)
+			var deovrActors []deovrActor
+			if err == nil && len(performers) > 0 {
+				deovrActors = make([]deovrActor, 0, len(performers))
+				for _, p := range performers {
+					deovrActors = append(deovrActors, deovrActor{
+						ID:   p.ID,
+						Name: p.Name,
+					})
+				}
+			}
+
+			// Build categories from tags (already fetched above)
+			var deovrCategories []deovrCategory
+			if len(tags) > 0 {
+				deovrCategories = make([]deovrCategory, 0, len(tags))
+				for _, t := range tags {
+					deovrCategories = append(deovrCategories, deovrCategory{
+						Tag: deovrCategoryTag{
+							ID:   t.ID,
+							Name: t.Name,
+						},
+					})
+				}
+			}
+
+			// Optionally fetch studio and add it to categories
+			studio, err := rs.repository.Studio.FindBySceneID(ctx, scene.ID)
+			if err == nil && studio != nil {
+				deovrCategories = append(deovrCategories, deovrCategory{
+					Tag: deovrCategoryTag{
+						ID:   studio.ID,
+						Name: studio.Name,
+					},
+				})
+			}
+
+			thumbURL := buildDeoVRURL(deovrBaseURL, fmt.Sprintf("/scene/%d/screenshot.jpg", scene.ID), apiKey)
 			streamURL := buildDeoVRURL(deovrBaseURL, fmt.Sprintf("/scene/%d/stream", scene.ID), apiKey)
-			previewURL := buildDeoVRURL(deovrBaseURL, fmt.Sprintf("/scene/%d/preview", scene.ID), apiKey)
+
+			var videoPreviewURL string
+			if scene.HasPreview {
+				videoPreviewURL = buildDeoVRURL(deovrBaseURL, fmt.Sprintf("/scene/%d/preview.mp4", scene.ID), apiKey)
+			}
 
 			detail = deovrVideoDetail{
 				Encodings: []deovrEncoding{
@@ -264,10 +311,13 @@ func (rs vrRoutes) deovrHandler(w http.ResponseWriter, r *http.Request) {
 				ScreenType:     screenType,
 				StereoMode:     stereoMode,
 				SkipIntro:      0,
-				VideoThumbnail: previewURL,
-				VideoPreview:   previewURL,
+				VideoThumbnail: "",
+				VideoPreview:   videoPreviewURL,
 				ThumbnailURL:   thumbURL,
 				TimeStamps:     timeStamps,
+				Description:    scene.Details,
+				Actors:         deovrActors,
+				Categories:     deovrCategories,
 			}
 			return nil
 		}); err != nil {
@@ -280,7 +330,8 @@ func (rs vrRoutes) deovrHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Filter helper logic
-	applyFilters := func(sceneFilter *models.SceneFilterType) {
+	// requireTag names are resolved inside the transaction where ctx is available.
+	applyFilters := func(ctx context.Context, sceneFilter *models.SceneFilterType) {
 		if qQuery := r.URL.Query().Get("q"); qQuery != "" {
 			sceneFilter.Title = &models.StringCriterionInput{
 				Value:    qQuery,
@@ -291,6 +342,26 @@ func (rs vrRoutes) deovrHandler(w http.ResponseWriter, r *http.Request) {
 			sceneFilter.Tags = &models.HierarchicalMultiCriterionInput{
 				Value:    []string{tagIDQuery},
 				Modifier: models.CriterionModifierIncludes,
+			}
+		}
+		if requireTag := r.URL.Query().Get("require_tag"); requireTag != "" {
+			names := strings.Split(requireTag, ",")
+			var ids []string
+			for _, name := range names {
+				name = strings.TrimSpace(name)
+				if name == "" {
+					continue
+				}
+				tag, err := rs.repository.Tag.FindByName(ctx, name, false)
+				if err == nil && tag != nil {
+					ids = append(ids, strconv.Itoa(tag.ID))
+				}
+			}
+			if len(ids) > 0 {
+				sceneFilter.Tags = &models.HierarchicalMultiCriterionInput{
+					Value:    ids,
+					Modifier: models.CriterionModifierIncludesAll,
+				}
 			}
 		}
 		if performerIDQuery := r.URL.Query().Get("performer_id"); performerIDQuery != "" {
@@ -311,7 +382,7 @@ func (rs vrRoutes) deovrHandler(w http.ResponseWriter, r *http.Request) {
 	var totalScenes int
 	if err := txn.WithReadTxn(r.Context(), rs.txnManager, func(ctx context.Context) error {
 		sceneFilter := &models.SceneFilterType{}
-		applyFilters(sceneFilter)
+		applyFilters(ctx, sceneFilter)
 		result, err := rs.repository.Scene.Query(ctx, models.SceneQueryOptions{
 			QueryOptions: models.QueryOptions{
 				FindFilter: models.BatchFindFilter(0), // Count only
@@ -344,25 +415,29 @@ func (rs vrRoutes) deovrHandler(w http.ResponseWriter, r *http.Request) {
 		page = totalPages
 	}
 
-	format := r.URL.Query().Get("format")
-	// Content negotiation: serve JSON (VR Selection Scene, no SSL needed) when
-	// DeoVR is detected, or when explicitly requested via ?format=json.
-	// Serve HTML (styled portal with filters) for everything else.
-	// Detection signals (in priority order):
-	//   - ?format=json  → JSON (force VR mode)
-	//   - ?format=html  → HTML (force portal)
-	//   - User-Agent contains "deovr" → JSON (VR Selection Scene, HTTP streaming)
-	//   - Default        → HTML (desktop browser portal)
+	// Content negotiation: serve JSON (VR Selection Scene format) when
+	// the DeoVR native player is requesting, or when explicitly asked.
+	// Serve a minimal launch page for everything else (browsers) so they
+	// get a "Launch in VR" button that triggers the deovr:// protocol.
 	userAgent := strings.ToLower(r.UserAgent())
-	isJSON := format == "json" || (format != "html" && strings.Contains(userAgent, "deovr"))
+	isJSON := strings.Contains(userAgent, "deovr") || r.URL.Query().Get("format") == "json"
 
-	// Branch B: Shortened Paginated List JSON
+	// Branch B: Categorized Index JSON for the native DeoVR player.
+	// Returns sections: Recent, VR, 2D, then per-performer and per-studio sections.
+	// Each item's video_url points back to Branch A for the full video detail JSON.
 	if isJSON {
-		var list []deovrVideoShort
+		type categorizedShort struct {
+			entry deovrVideoShort
+			vr    bool
+		}
+		var categorized []categorizedShort
+		// Caches for dynamic studio/performer sections: name → list of entries
+		studioSections := make(map[string][]deovrVideoShort)
+		performerSections := make(map[string][]deovrVideoShort)
 
 		if err := txn.WithReadTxn(r.Context(), rs.txnManager, func(ctx context.Context) error {
 			sceneFilter := &models.SceneFilterType{}
-			applyFilters(sceneFilter)
+			applyFilters(ctx, sceneFilter)
 			findFilter := &models.FindFilterType{
 				PerPage: &pageSize,
 				Page:    &page,
@@ -384,7 +459,7 @@ func (rs vrRoutes) deovrHandler(w http.ResponseWriter, r *http.Request) {
 				return err
 			}
 
-			list = make([]deovrVideoShort, 0, len(scenes))
+			categorized = make([]categorizedShort, 0, len(scenes))
 			for _, scene := range scenes {
 				if err := scene.LoadFiles(ctx, rs.repository.Scene); err != nil {
 					return err
@@ -402,16 +477,54 @@ func (rs vrRoutes) deovrHandler(w http.ResponseWriter, r *http.Request) {
 					title = path.Base(filepath)
 				}
 
-				thumbURL := buildDeoVRURL(deovrBaseURL, fmt.Sprintf("/scene/%d/screenshot", scene.ID), apiKey)
+				thumbURL := buildDeoVRURL(deovrBaseURL, fmt.Sprintf("/scene/%d/screenshot.jpg", scene.ID), apiKey)
 				// video_url points back to /deovr to get single video JSON detail (Branch A)
 				videoDetailURL := buildDeoVRURL(deovrBaseURL, fmt.Sprintf("/deovr?video_id=%d", scene.ID), apiKey)
 
-				list = append(list, deovrVideoShort{
-					Title:        title,
-					VideoLength:  duration,
-					ThumbnailURL: thumbURL,
-					VideoURL:     videoDetailURL,
+				var videoPreviewURL string
+				if scene.HasPreview {
+					videoPreviewURL = buildDeoVRURL(deovrBaseURL, fmt.Sprintf("/scene/%d/preview.mp4", scene.ID), apiKey)
+				}
+
+				entry := deovrVideoShort{
+					Title:          title,
+					VideoLength:    duration,
+					ThumbnailURL:   thumbURL,
+					VideoURL:       videoDetailURL,
+					VideoThumbnail: "",
+					VideoPreview:   videoPreviewURL,
+				}
+
+				// Classify as VR — check VRMode field first,
+				// then fall back to tag-based classification matching stash-deovr conventions.
+				sceneTags, tagErr := rs.repository.Tag.FindBySceneID(ctx, scene.ID)
+				tagNames := make(map[string]bool)
+				if tagErr == nil {
+					for _, t := range sceneTags {
+						tagNames[t.Name] = true
+					}
+				}
+				_, _, is3d := getDeoVRMode(scene, title, filepath)
+				_, _, is3d = applyDeoVRTagOverrides(tagNames, "dome", "sbs", is3d)
+
+				categorized = append(categorized, categorizedShort{
+					entry: entry,
+					vr:    is3d,
 				})
+
+				// Build per-performer sections
+				performers, perfErr := rs.repository.Performer.FindBySceneID(ctx, scene.ID)
+				if perfErr == nil {
+					for _, p := range performers {
+						performerSections[p.Name] = append(performerSections[p.Name], entry)
+					}
+				}
+
+				// Build per-studio sections
+				studio, studioErr := rs.repository.Studio.FindBySceneID(ctx, scene.ID)
+				if studioErr == nil && studio != nil {
+					studioSections[studio.Name] = append(studioSections[studio.Name], entry)
+				}
 			}
 			return nil
 		}); err != nil {
@@ -419,782 +532,79 @@ func (rs vrRoutes) deovrHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// Build ordered output: Recent, VR, 2D, then studio sections, then performer sections.
+		recent := make([]deovrVideoShort, 0, len(categorized))
+		var vrSection []deovrVideoShort
+		var flatSection []deovrVideoShort
+		for _, cs := range categorized {
+			recent = append(recent, cs.entry)
+			if cs.vr {
+				vrSection = append(vrSection, cs.entry)
+			} else {
+				flatSection = append(flatSection, cs.entry)
+			}
+		}
+
+		scenesOut := []deovrSceneShort{
+			{Name: "Recent", List: recent},
+		}
+		if len(vrSection) > 0 {
+			scenesOut = append(scenesOut, deovrSceneShort{Name: "VR", List: vrSection})
+		}
+		if len(flatSection) > 0 {
+			scenesOut = append(scenesOut, deovrSceneShort{Name: "2D", List: flatSection})
+		}
+		// Append studio sections
+		for name, list := range studioSections {
+			scenesOut = append(scenesOut, deovrSceneShort{Name: name, List: list})
+		}
+		// Append performer sections
+		for name, list := range performerSections {
+			scenesOut = append(scenesOut, deovrSceneShort{Name: name, List: list})
+		}
+
 		writeJSON(w, deovrResponseShort{
-			Scenes: []deovrSceneShort{
-				{
-					Name: fmt.Sprintf("Page %d of %d (Scenes %d-%d)", page, totalPages, (page-1)*pageSize+1, (page-1)*pageSize+len(list)),
-					List: list,
-				},
-			},
+			Scenes:     scenesOut,
 			Authorized: "0",
 		})
 		return
 	}
 
-	// Fetch filter lists to render dropdowns in Branch C HTML
-	type filterItem struct {
-		ID   string
-		Name string
-	}
-	var tagItems []filterItem
-	var performerItems []filterItem
-	var studioItems []filterItem
-
-	_ = txn.WithReadTxn(r.Context(), rs.txnManager, func(ctx context.Context) error {
-		tags, _, _ := rs.repository.Tag.Query(ctx, &models.TagFilterType{}, models.BatchFindFilter(500))
-		for _, t := range tags {
-			tagItems = append(tagItems, filterItem{ID: strconv.Itoa(t.ID), Name: t.Name})
-		}
-		performers, _, _ := rs.repository.Performer.Query(ctx, &models.PerformerFilterType{}, models.BatchFindFilter(500))
-		for _, p := range performers {
-			performerItems = append(performerItems, filterItem{ID: strconv.Itoa(p.ID), Name: p.Name})
-		}
-		studios, _, _ := rs.repository.Studio.Query(ctx, &models.StudioFilterType{}, models.BatchFindFilter(500))
-		for _, s := range studios {
-			studioItems = append(studioItems, filterItem{ID: strconv.Itoa(s.ID), Name: s.Name})
-		}
-		return nil
-	})
-
-	var tagOptions strings.Builder
-	tagOptions.WriteString(`<option value="">All Tags</option>`)
-	activeTagID := r.URL.Query().Get("tag_id")
-	for _, t := range tagItems {
-		selected := ""
-		if t.ID == activeTagID {
-			selected = "selected"
-		}
-		tagOptions.WriteString(fmt.Sprintf(`<option value="%s" %s>%s</option>`, t.ID, selected, htmlEscape(t.Name)))
+	// Branch C: Minimal launch page for browsers — auto-triggers the
+	// deovr:// protocol to enter VR Selection Scene mode.  DeoVR's
+	// built-in browser shows the native grid when opened via this URL.
+	pageUrl := fmt.Sprintf("%s/deovr?page=%d&format=json", deovrBaseURL, page)
+	if apiKey != "" {
+		pageUrl += "&apikey=" + apiKey
 	}
 
-	var performerOptions strings.Builder
-	performerOptions.WriteString(`<option value="">All Performers</option>`)
-	activePerformerID := r.URL.Query().Get("performer_id")
-	for _, p := range performerItems {
-		selected := ""
-		if p.ID == activePerformerID {
-			selected = "selected"
-		}
-		performerOptions.WriteString(fmt.Sprintf(`<option value="%s" %s>%s</option>`, p.ID, selected, htmlEscape(p.Name)))
-	}
-
-	var studioOptions strings.Builder
-	studioOptions.WriteString(`<option value="">All Studios</option>`)
-	activeStudioID := r.URL.Query().Get("studio_id")
-	for _, s := range studioItems {
-		selected := ""
-		if s.ID == activeStudioID {
-			selected = "selected"
-		}
-		studioOptions.WriteString(fmt.Sprintf(`<option value="%s" %s>%s</option>`, s.ID, selected, htmlEscape(s.Name)))
-	}
-
-	// Fetch scenes for this page in Branch C (HTML format)
-	var htmlScenes []*models.Scene
-	if err := txn.WithReadTxn(r.Context(), rs.txnManager, func(ctx context.Context) error {
-		sceneFilter := &models.SceneFilterType{}
-		applyFilters(sceneFilter)
-		findFilter := &models.FindFilterType{
-			PerPage: &pageSize,
-			Page:    &page,
-		}
-
-		result, err := rs.repository.Scene.Query(ctx, models.SceneQueryOptions{
-			QueryOptions: models.QueryOptions{
-				FindFilter: findFilter,
-				Count:      false,
-			},
-			SceneFilter: sceneFilter,
-		})
-		if err != nil {
-			return err
-		}
-
-		resolvedScenes, err := result.Resolve(ctx)
-		if err != nil {
-			return err
-		}
-		htmlScenes = resolvedScenes
-		for _, scene := range htmlScenes {
-			_ = scene.LoadFiles(ctx, rs.repository.Scene)
-		}
-		return nil
-	}); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Build Scene Cards HTML
-	var sceneCardsHTML strings.Builder
-	for _, scene := range htmlScenes {
-		duration := 0
-		filepath := ""
-		if files := scene.Files.List(); len(files) > 0 {
-			duration = int(files[0].Duration)
-			filepath = files[0].Path
-		}
-
-		title := scene.Title
-		if title == "" && filepath != "" {
-			title = path.Base(filepath)
-		}
-
-		thumbURL := buildDeoVRURL(baseURL, fmt.Sprintf("/scene/%d/screenshot", scene.ID), apiKey)
-		previewURL := buildDeoVRURL(baseURL, fmt.Sprintf("/scene/%d/preview", scene.ID), apiKey)
-		// videoDetailURL is consumed by DeoVR to fetch the single-video JSON
-		// detail, so it must use the plain-HTTP deovrBaseURL to avoid SSL errors.
-		videoDetailURL := buildDeoVRURL(deovrBaseURL, fmt.Sprintf("/deovr?video_id=%d", scene.ID), apiKey)
-
-		deovrVideoURL := "deovr://" + videoDetailURL
-
-		vrModeLabel := ""
-		if scene.VRMode != nil {
-			switch *scene.VRMode {
-			case models.VRModeLR180:
-				vrModeLabel = "180° LR"
-			case models.VRModeTB360:
-				vrModeLabel = "360° TB"
-			case models.VRModeMono360:
-				vrModeLabel = "360° Mono"
-			}
-		} else {
-			vrModeLabel = "Not Set"
-		}
-		vrModeClass := "scene-vrmode"
-		if scene.VRMode == nil {
-			vrModeClass += " not-set"
-		}
-
-		sceneCardsHTML.WriteString(fmt.Sprintf(`
-			<div class="scene-card">
-				<div class="scene-thumbnail-container">
-					<img class="scene-thumbnail" src="%s" alt="%s" />
-					<video class="scene-preview" src="%s" loop muted playsinline></video>
-					<span class="scene-duration">%s</span>
-					<span class="%s">%s</span>
-				</div>
-				<div class="scene-info">
-					<div class="scene-title">%s</div>
-					<div class="scene-actions">
-						<a href="%s" class="btn-play">Play in DeoVR</a>
-						<a href="%s" class="btn-json" target="_blank">JSON</a>
-					</div>
-				</div>
-			</div>
-		`,
-			thumbURL,
-			htmlEscape(title),
-			previewURL,
-			formatDuration(duration),
-			vrModeClass,
-			vrModeLabel,
-			htmlEscape(title),
-			deovrVideoURL,
-			videoDetailURL,
-		))
-	}
-	if len(htmlScenes) == 0 {
-		sceneCardsHTML.WriteString(`<div class="no-scenes">No scenes found matching your filters.</div>`)
-	}
-
-	// Build Pagination HTML
-	var paginationHTML strings.Builder
-	if totalPages > 1 {
-		paginationHTML.WriteString(`<div class="pagination">`)
-
-		buildPageURL := func(p int) string {
-			return fmt.Sprintf("%s/deovr?page=%d&format=html%s%s", baseURL, p, apiKeyQuery, filterQuery)
-		}
-
-		if page > 1 {
-			paginationHTML.WriteString(fmt.Sprintf(`<a href="%s" class="page-nav">&laquo; Prev</a>`, buildPageURL(page-1)))
-		}
-
-		for p := 1; p <= totalPages; p++ {
-			activeClass := ""
-			if p == page {
-				activeClass = "active"
-			}
-			paginationHTML.WriteString(fmt.Sprintf(`<a href="%s" class="page-num-link %s">%d</a>`, buildPageURL(p), activeClass, p))
-		}
-
-		if page < totalPages {
-			paginationHTML.WriteString(fmt.Sprintf(`<a href="%s" class="page-nav">Next &raquo;</a>`, buildPageURL(page+1)))
-		}
-
-		paginationHTML.WriteString(`</div>`)
-	}
-
-	// Build Feed Launch URL — uses deovrBaseURL (plain HTTP) so DeoVR
-	// can fetch the JSON feed without SSL errors.
-	pageUrl := fmt.Sprintf("%s/deovr?page=%d&format=json%s%s", deovrBaseURL, page, apiKeyQuery, filterQuery)
 	deovrUrl := "deovr://" + pageUrl
 
-	// Branch C: Serve Glassmorphic HTML Portal Page
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 
-	// We use strings.Replace to safely substitute template values and avoid formatting % characters in CSS
-	htmlTemplate := `<!DOCTYPE html>
+	fmt.Fprintf(w, `<!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8">
-    <title>Vexxx VR Portal</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Access your high-performance Vexxx VR library directly in your DeoVR headset.">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --bg-color: #05070f;
-            --card-bg: rgba(13, 17, 30, 0.45);
-            --card-border: rgba(255, 255, 255, 0.06);
-            --accent-primary: #8a2be2;
-            --accent-primary-glow: rgba(138, 43, 226, 0.35);
-            --accent-secondary: #00f0ff;
-            --accent-secondary-glow: rgba(0, 240, 255, 0.25);
-            --text-main: #f3f4f6;
-            --text-muted: #9ca3af;
-        }
-
-        body {
-            background-color: var(--bg-color);
-            background-image: 
-                radial-gradient(circle at 10% 20%, rgba(138, 43, 226, 0.08) 0%, transparent 40%),
-                radial-gradient(circle at 90% 80%, rgba(0, 240, 255, 0.06) 0%, transparent 40%);
-            color: var(--text-main);
-            font-family: 'Inter', sans-serif;
-            margin: 0;
-            padding: 60px 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
-            box-sizing: border-box;
-        }
-
-        .container {
-            max-width: 1200px;
-            width: 100%;
-            text-align: center;
-        }
-
-        .header-logo {
-            font-family: 'Outfit', sans-serif;
-            font-size: 3.5rem;
-            font-weight: 800;
-            background: linear-gradient(135deg, var(--text-main) 30%, var(--accent-secondary) 70%, var(--accent-primary) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin: 0 0 10px 0;
-            letter-spacing: -1px;
-            filter: drop-shadow(0 2px 10px rgba(0, 240, 255, 0.15));
-        }
-
-        .subtitle {
-            font-size: 1.25rem;
-            color: var(--text-muted);
-            margin-bottom: 30px;
-            font-weight: 300;
-            letter-spacing: 0.5px;
-        }
-
-        .stats-badge {
-            background: linear-gradient(135deg, rgba(138, 43, 226, 0.15) 0%, rgba(0, 240, 255, 0.05) 100%);
-            border: 1px solid var(--card-border);
-            padding: 10px 24px;
-            border-radius: 50px;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 30px;
-            font-weight: 500;
-            font-size: 0.95rem;
-            color: var(--text-main);
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-            backdrop-filter: blur(10px);
-        }
-
-        .stats-badge .dot {
-            width: 8px;
-            height: 8px;
-            background-color: var(--accent-secondary);
-            border-radius: 50%;
-            box-shadow: 0 0 8px var(--accent-secondary);
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 240, 255, 0.7); }
-            70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(0, 240, 255, 0); }
-            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 240, 255, 0); }
-        }
-
-        .filter-bar {
-            background: var(--card-bg);
-            border: 1px solid var(--card-border);
-            border-radius: 24px;
-            padding: 20px;
-            margin-bottom: 30px;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
-            align-items: center;
-            justify-content: center;
-            backdrop-filter: blur(12px);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-            width: 100%;
-            box-sizing: border-box;
-        }
-
-        .filter-input, .filter-select {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
-            padding: 10px 15px;
-            color: var(--text-main);
-            font-family: inherit;
-            font-size: 0.95rem;
-            outline: none;
-            transition: all 0.3s ease;
-            min-width: 160px;
-            flex: 1;
-        }
-
-        .filter-input::placeholder {
-            color: rgba(255, 255, 255, 0.3);
-        }
-
-        .filter-input:focus, .filter-select:focus {
-            border-color: var(--accent-secondary);
-            box-shadow: 0 0 10px rgba(0, 240, 255, 0.15);
-            background: rgba(255, 255, 255, 0.08);
-        }
-
-        .filter-select option {
-            background: #0d111e;
-            color: var(--text-main);
-        }
-
-        .btn-filter, .btn-reset {
-            padding: 10px 24px;
-            border-radius: 12px;
-            font-weight: 600;
-            font-size: 0.95rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            border: none;
-            font-family: inherit;
-        }
-
-        .btn-filter {
-            background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
-            color: #ffffff;
-            box-shadow: 0 4px 15px var(--accent-primary-glow);
-        }
-
-        .btn-filter:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(138, 43, 226, 0.5);
-        }
-
-        .btn-reset {
-            background: rgba(255, 255, 255, 0.08);
-            color: var(--text-muted);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .btn-reset:hover {
-            background: rgba(255, 255, 255, 0.15);
-            color: var(--text-main);
-        }
-
-        .feed-launch-container {
-            display: flex;
-            justify-content: center;
-            margin-bottom: 40px;
-        }
-
-        .btn-launch-feed {
-            background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
-            color: #ffffff;
-            padding: 14px 36px;
-            border-radius: 50px;
-            font-size: 1.1rem;
-            font-weight: 700;
-            text-decoration: none;
-            letter-spacing: 0.5px;
-            box-shadow: 0 8px 25px var(--accent-primary-glow), 0 0 15px var(--accent-secondary-glow);
-            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .btn-launch-feed:hover {
-            transform: translateY(-3px) scale(1.03);
-            box-shadow: 0 12px 30px rgba(138, 43, 226, 0.6), 0 0 25px rgba(0, 240, 255, 0.5);
-        }
-
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 28px;
-            width: 100%;
-            perspective: 1000px;
-            margin-bottom: 50px;
-        }
-
-        .scene-card {
-            background: var(--card-bg);
-            border: 1px solid var(--card-border);
-            border-radius: 20px;
-            padding: 12px;
-            display: flex;
-            flex-direction: column;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-            backdrop-filter: blur(16px);
-            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-            position: relative;
-            overflow: hidden;
-            text-align: left;
-        }
-
-        .scene-card::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
-            opacity: 0;
-            transition: opacity 0.4s ease;
-            z-index: 0;
-            border-radius: 19px;
-        }
-
-        .scene-card:hover {
-            transform: translateY(-6px);
-            border-color: rgba(0, 240, 255, 0.3);
-            box-shadow: 0 15px 35px rgba(138, 43, 226, 0.15), 0 0 30px rgba(0, 240, 255, 0.1);
-        }
-
-        .scene-card:hover::before {
-            opacity: 0.04;
-        }
-
-        .scene-thumbnail-container {
-            position: relative;
-            width: 100%;
-            padding-top: 56.25%; /* 16:9 */
-            border-radius: 14px;
-            overflow: hidden;
-            background: #000;
-            z-index: 1;
-        }
-
-        .scene-thumbnail {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            object-fit: cover;
-            transition: transform 0.5s ease, opacity 0.3s ease;
-        }
-
-        .scene-preview {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            object-fit: cover;
-            opacity: 0;
-            transition: opacity 0.4s ease;
-        }
-
-        .scene-card:hover .scene-thumbnail {
-            transform: scale(1.05);
-        }
-
-        .scene-card:hover .scene-preview {
-            opacity: 1;
-        }
-
-        .scene-duration {
-            position: absolute;
-            bottom: 10px;
-            right: 10px;
-            background: rgba(0, 0, 0, 0.75);
-            backdrop-filter: blur(4px);
-            color: #ffffff;
-            padding: 3px 8px;
-            border-radius: 6px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .scene-vrmode {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            background: linear-gradient(135deg, rgba(138, 43, 226, 0.85) 0%, rgba(0, 240, 255, 0.85) 100%);
-            backdrop-filter: blur(4px);
-            color: #ffffff;
-            padding: 3px 8px;
-            border-radius: 6px;
-            font-size: 0.75rem;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-            box-shadow: 0 2px 8px rgba(0, 240, 255, 0.25);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .scene-vrmode.not-set {
-            background: rgba(255, 255, 255, 0.12);
-            color: rgba(255, 255, 255, 0.5);
-            box-shadow: none;
-            font-weight: 500;
-        }
-
-        .scene-info {
-            padding: 12px 6px 4px 6px;
-            display: flex;
-            flex-direction: column;
-            flex-grow: 1;
-            z-index: 1;
-        }
-
-        .scene-title {
-            font-size: 0.95rem;
-            font-weight: 600;
-            color: var(--text-main);
-            margin-bottom: 12px;
-            line-height: 1.4;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            height: 2.8em;
-        }
-
-        .scene-actions {
-            display: flex;
-            gap: 8px;
-            margin-top: auto;
-        }
-
-        .btn-play {
-            flex-grow: 1;
-            background: rgba(255, 255, 255, 0.06);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: var(--text-main);
-            padding: 8px 12px;
-            border-radius: 10px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            text-decoration: none;
-            text-align: center;
-            transition: all 0.2s ease;
-        }
-
-        .btn-play:hover {
-            background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
-            border-color: transparent;
-            box-shadow: 0 4px 15px rgba(0, 240, 255, 0.25);
-            color: #ffffff;
-            transform: translateY(-1px);
-        }
-
-        .btn-json {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            color: var(--text-muted);
-            padding: 8px 12px;
-            border-radius: 10px;
-            font-size: 0.85rem;
-            text-decoration: none;
-            text-align: center;
-            transition: all 0.2s ease;
-        }
-
-        .btn-json:hover {
-            background: rgba(255, 255, 255, 0.1);
-            color: var(--text-main);
-            border-color: rgba(255, 255, 255, 0.2);
-        }
-
-        .no-scenes {
-            grid-column: 1 / -1;
-            padding: 50px;
-            text-align: center;
-            color: var(--text-muted);
-            font-size: 1.1rem;
-            background: var(--card-bg);
-            border: 1px solid var(--card-border);
-            border-radius: 20px;
-        }
-
-        .pagination {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 8px;
-            margin-top: 20px;
-            margin-bottom: 40px;
-        }
-
-        .page-num-link, .page-nav {
-            color: var(--text-muted);
-            text-decoration: none;
-            padding: 8px 16px;
-            border-radius: 10px;
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            transition: all 0.2s ease;
-            font-size: 0.9rem;
-            font-weight: 500;
-        }
-
-        .page-num-link:hover, .page-nav:hover {
-            color: var(--text-main);
-            background: rgba(255, 255, 255, 0.08);
-            border-color: rgba(255, 255, 255, 0.15);
-        }
-
-        .page-num-link.active {
-            color: #ffffff;
-            background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
-            border-color: transparent;
-            font-weight: 700;
-            box-shadow: 0 4px 12px rgba(138, 43, 226, 0.25);
-        }
-
-        .footer-note {
-            margin-top: 60px;
-            font-size: 0.85rem;
-            color: rgba(255, 255, 255, 0.3);
-            letter-spacing: 0.5px;
-        }
-        
-        .footer-note a {
-            color: var(--accent-secondary);
-            text-decoration: none;
-        }
-        .footer-note a:hover {
-            text-decoration: underline;
-        }
-    </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vexxx DeoVR Library</title>
+<style>
+body { font-family: system-ui, sans-serif; background: #0d1117; color: #e6edf3; text-align: center; padding: 3rem 1rem; margin: 0; display: flex; flex-direction: column; align-items: center; min-height: 100vh; justify-content: center; }
+h1 { font-size: 2rem; margin-bottom: 0.5rem; }
+p { color: #8b949e; margin-bottom: 2rem; }
+.btn { display: inline-block; background: linear-gradient(135deg, #8a2be2, #00f0ff); color: #fff; padding: 1rem 2.5rem; border-radius: 50px; font-size: 1.25rem; font-weight: 700; text-decoration: none; box-shadow: 0 4px 20px rgba(138,43,226,0.4); transition: transform 0.2s; }
+.btn:hover { transform: scale(1.05); }
+.meta { font-size: 0.85rem; color: #484f58; margin-top: 2rem; }
+</style>
 </head>
 <body>
-    <div class="container">
-        <h1 class="header-logo">VEXXX VR</h1>
-        <div class="subtitle">DeoVR Player Library Portal</div>
-        
-        <div class="stats-badge">
-            <span class="dot"></span>
-            <span>__TOTAL_SCENES__ Scenes Connected</span>
-        </div>
-
-        <div class="filter-bar">
-            <input type="text" id="search-query" class="filter-input" placeholder="Search title..." value="__SEARCH_QUERY__" onkeydown="if(event.key === 'Enter') applyFilters()">
-            <select id="filter-tag" class="filter-select" onchange="applyFilters()">
-                __TAG_OPTIONS__
-            </select>
-            <select id="filter-performer" class="filter-select" onchange="applyFilters()">
-                __PERFORMER_OPTIONS__
-            </select>
-            <select id="filter-studio" class="filter-select" onchange="applyFilters()">
-                __STUDIO_OPTIONS__
-            </select>
-            <button class="btn-filter" onclick="applyFilters()">Filter</button>
-            <button class="btn-reset" onclick="resetFilters()">Reset</button>
-        </div>
-
-        <div class="feed-launch-container">
-            <a href="__LAUNCH_FEED_URL__" class="btn-launch-feed">⚡ Open Page __PAGE_NUM__ in DeoVR Feed</a>
-        </div>
-
-        <div class="grid">
-            __SCENE_CARDS__
-        </div>
-
-        __PAGINATION__
-
-        <div class="footer-note">
-            Open this page in the <strong>DeoVR Internet Browser</strong> to stream directly.<br>
-            Powered by Vexxx VR Theatre Integration.
-        </div>
-    </div>
-
-    <script>
-        // Hover previews logic
-        document.querySelectorAll('.scene-card').forEach(card => {
-            const video = card.querySelector('.scene-preview');
-            if (video) {
-                card.addEventListener('mouseenter', () => {
-                    video.play().catch(e => {
-                        console.log("Play failed: ", e);
-                    });
-                });
-                card.addEventListener('mouseleave', () => {
-                    video.pause();
-                    video.currentTime = 0;
-                });
-            }
-        });
-
-        function applyFilters() {
-            const q = document.getElementById('search-query').value.trim();
-            const tag = document.getElementById('filter-tag').value;
-            const performer = document.getElementById('filter-performer').value;
-            const studio = document.getElementById('filter-studio').value;
-            
-            const params = new URLSearchParams(window.location.search);
-            params.set('format', 'html');
-            
-            if (q) params.set('q', q); else params.delete('q');
-            if (tag) params.set('tag_id', tag); else params.delete('tag_id');
-            if (performer) params.set('performer_id', performer); else params.delete('performer_id');
-            if (studio) params.set('studio_id', studio); else params.delete('studio_id');
-            
-            params.delete('page');
-            
-            window.location.search = params.toString();
-        }
-
-        function resetFilters() {
-            const params = new URLSearchParams(window.location.search);
-            const apikey = params.get('apikey');
-            
-            const newParams = new URLSearchParams();
-            newParams.set('format', 'html');
-            if (apikey) newParams.set('apikey', apikey);
-            
-            window.location.search = newParams.toString();
-        }
-    </script>
+<h1>Vexxx DeoVR Library</h1>
+<p>%d scenes available · Page %d of %d</p>
+<a class="btn" href="%s">Launch in DeoVR</a>
+<p class="meta">Opens the VR Selection Scene in the DeoVR player app</p>
 </body>
-</html>`
-
-	replacer := strings.NewReplacer(
-		"__TOTAL_SCENES__", strconv.Itoa(totalScenes),
-		"__SEARCH_QUERY__", htmlEscape(r.URL.Query().Get("q")),
-		"__TAG_OPTIONS__", tagOptions.String(),
-		"__PERFORMER_OPTIONS__", performerOptions.String(),
-		"__STUDIO_OPTIONS__", studioOptions.String(),
-		"__LAUNCH_FEED_URL__", deovrUrl,
-		"__PAGE_NUM__", strconv.Itoa(page),
-		"__SCENE_CARDS__", sceneCardsHTML.String(),
-		"__PAGINATION__", paginationHTML.String(),
-	)
-
-	_, _ = w.Write([]byte(replacer.Replace(htmlTemplate)))
-}
-
-func formatDuration(seconds int) string {
-	h := seconds / 3600
-	m := (seconds % 3600) / 60
-	s := seconds % 60
-	if h > 0 {
-		return fmt.Sprintf("%d:%02d:%02d", h, m, s)
-	}
-	return fmt.Sprintf("%d:%02d", m, s)
+</html>`, totalScenes, page, totalPages, deovrUrl)
 }
 
 func guessDeoVRMode(title string, filepath string) (string, string, bool) {
@@ -1242,4 +652,201 @@ func getDeoVRMode(scene *models.Scene, title string, filepath string) (string, s
 		}
 	}
 	return guessDeoVRMode(title, filepath)
+}
+
+// applyDeoVRTagOverrides applies stash-deovr tag conventions (FLAT, DOME,
+// SPHERE, FISHEYE, MKX200, SBS, TB) to override screenType/stereoMode on top
+// of whatever the VRMode field or filename heuristic determined.  Tag overrides
+// are applied independently — screen-type tags change the projection and stereo
+// tags change the layout — so the two sets can be combined (e.g. DOME + SBS).
+func applyDeoVRTagOverrides(tagNames map[string]bool, screenType string, stereoMode string, is3d bool) (string, string, bool) {
+	// Screen-type tags — mutually exclusive, first match wins.
+	switch {
+	case tagNames["FLAT"]:
+		return "flat", "off", false
+	case tagNames["DOME"]:
+		screenType = "dome"
+		is3d = true
+	case tagNames["SPHERE"]:
+		screenType = "sphere"
+		is3d = true
+	case tagNames["FISHEYE"]:
+		screenType = "fisheye"
+		is3d = true
+	case tagNames["MKX200"]:
+		screenType = "mkx200"
+		is3d = true
+	}
+
+	// Stereo-mode tags — mutually exclusive, first match wins.
+	switch {
+	case tagNames["SBS"]:
+		return screenType, "sbs", is3d
+	case tagNames["TB"]:
+		return screenType, "tb", is3d
+	}
+
+	return screenType, stereoMode, is3d
+}
+
+// ─── Tunnel Manager ──────────────────────────────────────────────────────────
+
+// tunnelState tracks a running localtunnel process.
+type tunnelState struct {
+	mu      sync.Mutex
+	cmd     *exec.Cmd
+	cancel  context.CancelFunc
+	url     string
+	running bool
+	err     string
+}
+
+var deovrTunnel tunnelState
+
+// tunnelHandler manages the lifecycle of a localtunnel HTTPS tunnel for DeoVR.
+func (rs vrRoutes) tunnelStartHandler(w http.ResponseWriter, r *http.Request) {
+	deovrTunnel.mu.Lock()
+	defer deovrTunnel.mu.Unlock()
+
+	if deovrTunnel.running {
+		writeJSON(w, map[string]interface{}{
+			"status": "already_running",
+			"url":    deovrTunnel.url,
+		})
+		return
+	}
+
+	// Verify npx/localtunnel is available before starting.
+	if _, err := exec.LookPath("npx"); err != nil {
+		writeJSON(w, map[string]interface{}{
+			"status": "error",
+			"error":  "Node.js/npx not found. Install Node.js from https://nodejs.org/, then run: npm install -g localtunnel",
+		})
+		return
+	}
+
+	// Use background context so the process outlives this HTTP request.
+	ctx, cancel := context.WithCancel(context.Background())
+	port := rs.config.GetPort()
+
+	// Build localtunnel args from query params
+	args := []string{"localtunnel", "--port", strconv.Itoa(port)}
+	if subdomain := r.URL.Query().Get("subdomain"); subdomain != "" {
+		args = append(args, "--subdomain", subdomain)
+	}
+	if localHost := r.URL.Query().Get("local_host"); localHost != "" {
+		args = append(args, "--local-host", localHost)
+	}
+	cmd := exec.CommandContext(ctx, "npx", args...)
+
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		cancel()
+		http.Error(w, fmt.Sprintf("failed to create stdout pipe: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		cancel()
+		http.Error(w, fmt.Sprintf("failed to create stderr pipe: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	if err := cmd.Start(); err != nil {
+		cancel()
+		http.Error(w, fmt.Sprintf("failed to start localtunnel: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	deovrTunnel.cmd = cmd
+	deovrTunnel.cancel = cancel
+	deovrTunnel.running = true
+	deovrTunnel.url = ""
+	deovrTunnel.err = ""
+
+	// Parse stdout in background to capture the tunnel URL
+	go func() {
+		scanner := bufio.NewScanner(stdout)
+		for scanner.Scan() {
+			line := scanner.Text()
+			// localtunnel prints: "your url is: https://xxxx.loca.lt"
+			if strings.Contains(line, "your url is:") {
+				parts := strings.Split(line, "https://")
+				if len(parts) > 1 {
+					url := "https://" + strings.TrimSpace(parts[len(parts)-1])
+					deovrTunnel.mu.Lock()
+					deovrTunnel.url = url
+					deovrTunnel.mu.Unlock()
+				}
+			}
+		}
+	}()
+
+	// Capture stderr for error diagnostics
+	go func() {
+		stderrScanner := bufio.NewScanner(stderr)
+		var errBuf strings.Builder
+		for stderrScanner.Scan() {
+			line := stderrScanner.Text()
+			errBuf.WriteString(line)
+			errBuf.WriteString("\n")
+		}
+		if errBuf.Len() > 0 {
+			deovrTunnel.mu.Lock()
+			deovrTunnel.err = errBuf.String()
+			deovrTunnel.mu.Unlock()
+		}
+	}()
+
+	// Wait for process exit in background and update state
+	go func() {
+		err := cmd.Wait()
+		deovrTunnel.mu.Lock()
+		deovrTunnel.running = false
+		if err != nil && deovrTunnel.err == "" {
+			deovrTunnel.err = err.Error()
+		}
+		deovrTunnel.mu.Unlock()
+	}()
+
+	writeJSON(w, map[string]interface{}{
+		"status": "starting",
+		"port":   port,
+	})
+}
+
+func (rs vrRoutes) tunnelStopHandler(w http.ResponseWriter, r *http.Request) {
+	deovrTunnel.mu.Lock()
+	defer deovrTunnel.mu.Unlock()
+
+	if !deovrTunnel.running {
+		writeJSON(w, map[string]interface{}{
+			"status": "not_running",
+		})
+		return
+	}
+
+	if deovrTunnel.cancel != nil {
+		deovrTunnel.cancel()
+	}
+	deovrTunnel.cmd = nil
+	deovrTunnel.cancel = nil
+	deovrTunnel.running = false
+	deovrTunnel.url = ""
+
+	writeJSON(w, map[string]interface{}{
+		"status": "stopped",
+	})
+}
+
+func (rs vrRoutes) tunnelStatusHandler(w http.ResponseWriter, r *http.Request) {
+	deovrTunnel.mu.Lock()
+	defer deovrTunnel.mu.Unlock()
+
+	writeJSON(w, map[string]interface{}{
+		"running": deovrTunnel.running,
+		"url":     deovrTunnel.url,
+		"error":   deovrTunnel.err,
+	})
 }

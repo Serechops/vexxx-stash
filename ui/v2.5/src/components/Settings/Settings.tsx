@@ -29,6 +29,7 @@ import { SettingsLibraryPanel } from "./SettingsLibraryPanel";
 import { SettingsSecurityPanel } from "./SettingsSecurityPanel";
 import { SettingsUsersPanel } from "./SettingsUsersPanel";
 import { SettingsRecycleBinPanel } from "./SettingsRecycleBinPanel";
+import { SettingsDeoVRTunnelPanel } from "./SettingsDeoVRTunnelPanel";
 import Changelog from "../Changelog/Changelog";
 
 const validTabs = [
@@ -46,6 +47,7 @@ const validTabs = [
   "changelog",
   "about",
   "recycle-bin",
+  "deovr-tunnel",
 ] as const;
 type TabKey = (typeof validTabs)[number];
 
@@ -81,6 +83,7 @@ const SettingTabs: React.FC<{ tab: TabKey }> = ({ tab }) => {
       case "changelog": return <Changelog />;
       case "about": return <SettingsAboutPanel />;
       case "recycle-bin": return <SettingsRecycleBinPanel />;
+      case "deovr-tunnel": return <SettingsDeoVRTunnelPanel />;
       default: return null;
     }
   };
@@ -217,6 +220,12 @@ const SettingTabs: React.FC<{ tab: TabKey }> = ({ tab }) => {
             value="recycle-bin"
             component={Link}
             to="/settings?tab=recycle-bin"
+          />
+          <Tab
+            label={<FormattedMessage id="config.categories.deovr-tunnel" />}
+            value="deovr-tunnel"
+            component={Link}
+            to="/settings?tab=deovr-tunnel"
           />
         </Tabs>
 

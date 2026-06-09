@@ -74,7 +74,9 @@ func (rs sceneRoutes) Routes() chi.Router {
 		r.Get("/stream.mpd/{segment}_a.webm", rs.StreamDASHAudioSegment)
 
 		r.Get("/screenshot", rs.Screenshot)
+		r.Get("/screenshot.jpg", rs.Screenshot)
 		r.Get("/preview", rs.Preview)
+		r.Get("/preview.mp4", rs.Preview)
 		r.Get("/webp", rs.Webp)
 		r.Get("/vtt/chapter", rs.VttChapter)
 		r.Get("/vtt/thumbs", rs.VttThumbs)

@@ -6,6 +6,7 @@ import (
 	"mime"
 	"net/http"
 	"path/filepath"
+	"strings"
 
 	"github.com/stashapp/stash/internal/manager/config"
 	"github.com/stashapp/stash/internal/static"
@@ -94,8 +95,14 @@ func (s *SceneServer) ServeScreenshot(scene *models.Scene, w http.ResponseWriter
 			}
 		}
 
-		// fallback to default cover if none found
-		cover = static.ReadAll(static.DefaultSceneImage)
+		// fallback to default cover if none found.
+		// If the request is for a .jpg/.png or comes from DeoVR, return the PNG placeholder
+		// instead of the default SVG image (which DeoVR cannot render).
+		if strings.HasSuffix(r.URL.Path, ".jpg") || strings.HasSuffix(r.URL.Path, ".png") || strings.Contains(strings.ToLower(r.UserAgent()), "deovr") {
+			cover = utils.PendingGenerateResource
+		} else {
+			cover = static.ReadAll(static.DefaultSceneImage)
+		}
 	}
 
 	utils.ServeImage(w, r, cover)

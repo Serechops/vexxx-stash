@@ -266,6 +266,7 @@
     "categories": {
       "about": "About",
       "changelog": "Changelog",
+      "deovr-tunnel": "DeoVR Tunnel",
       "interface": "Interface",
       "logs": "Logs",
       "metadata_providers": "Metadata Providers",
@@ -311,6 +312,33 @@
       "until_restart": "until restart",
       "video_sort_order": "Default Video Sort Order",
       "video_sort_order_desc": "Order to sort videos by default."
+    },
+    "deovr_tunnel": {
+      "heading": "DeoVR HTTPS Tunnel",
+      "description": "Expose Stash over a secure HTTPS tunnel so DeoVR can load screenshots and stream media without SSL certificate errors. Uses localtunnel (npx).",
+      "node_requirement": "Node.js and npx are required to run the tunnel. Install Node.js from https://nodejs.org/, then open a new terminal and run: npm install -g localtunnel",
+      "security_warning": "You do not have authentication enabled. The tunnel exposes your library to the public internet. Strongly recommended: set a Username and Password on the Users tab before starting the tunnel. If you already have credentials configured, the tunnel will use API key authentication automatically.",
+      "status_running": "Tunnel is active",
+      "status_stopped": "Tunnel is stopped",
+      "active": "Active",
+      "start_tunnel": "Start Tunnel",
+      "stop_tunnel": "Stop Tunnel",
+      "your_tunnel_url": "YOUR TUNNEL URL",
+      "copy_hint": "Click to select all, then copy. Open this URL in the DeoVR browser.",
+      "url_builder_heading": "Tunnel Configuration",
+      "subdomain_label": "Custom subdomain (optional)",
+      "subdomain_helper": "Request a named URL like \"my-vr-library\" instead of a random string. e.g. https://my-vr-library.loca.lt",
+      "local_host_label": "Local host (optional)",
+      "local_host_helper": "Proxy to a specific network interface (default: localhost). Use 0.0.0.0 to bind all interfaces.",
+      "preview_label": "Preview URL",
+      "reminder_note": "The first time you open the tunnel URL in a browser, localtunnel may show a warning page asking you to enter the displayed IP. This only happens once per device per week. DeoVR's built-in video player automatically bypasses this page.",
+      "usage_heading": "How to use",
+      "usage_step1_heading": "1. Copy the tunnel URL",
+      "usage_step1_desc": "Once the tunnel is running, copy the HTTPS URL shown above.",
+      "usage_step2_heading": "2. Open in DeoVR browser",
+      "usage_step2_desc": "Open the DeoVR app on your headset, navigate to the Internet Browser, and enter the tunnel URL. If you see a warning page, enter the displayed IP to continue. DeoVR will detect the /deovr JSON feed and enter VR Selection Scene mode.",
+      "usage_step3_heading": "3. Play media",
+      "usage_step3_desc": "All thumbnails, previews, and streams will load securely over HTTPS. Screenshots render natively in the grid. When done, return here and click \"Stop Tunnel\"."
     },
     "general": {
       "auth": {

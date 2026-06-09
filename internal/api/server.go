@@ -257,13 +257,19 @@ func Initialize() (*Server, error) {
 	r.Mount("/stashtag", server.getStashTagRoutes())
 	r.Mount("/megaface", server.getMegaFaceRoutes())
 
-	// DeoVR routes
+	// DeoVR routes — grouped under /deovr prefix so tunnel sub-paths
+	// are resolved before the catch-all /* UI handler.
 	vr := vrRoutes{
 		routes:     routes{txnManager: repo.TxnManager},
 		repository: &repo,
 		config:     cfg,
 	}
-	r.Get("/deovr", vr.deovrHandler)
+	r.Route("/deovr", func(r chi.Router) {
+		r.Get("/", vr.deovrHandler)
+		r.Post("/tunnel/start", vr.tunnelStartHandler)
+		r.Post("/tunnel/stop", vr.tunnelStopHandler)
+		r.Get("/tunnel/status", vr.tunnelStatusHandler)
+	})
 
 	// Debug endpoints for profiling and metrics
 	// Enable via STASH_DEBUG=1 environment variable or debug config

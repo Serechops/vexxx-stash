@@ -34,6 +34,30 @@ func authenticateHandler() func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			c := config.GetInstance()
 
+			// When the DeoVR tunnel is active, the user has explicitly opted
+			// in to public access via the Settings UI.  Skip all external-access
+			// tripwire checks for every request while the tunnel runs, since
+			// media streams and thumbnails are fetched through the tunnel on
+			// non-/deovr paths by the DeoVR player.
+			deovrTunnel.mu.Lock()
+			tunnelRunning := deovrTunnel.running
+			deovrTunnel.mu.Unlock()
+
+			if tunnelRunning {
+				// Still authenticate if possible, but skip tripwire.
+				userID, err := manager.GetInstance().SessionStore.Authenticate(w, r)
+				if err == nil {
+					ctx := session.SetCurrentUserID(r.Context(), userID)
+					next.ServeHTTP(w, r.WithContext(ctx))
+					return
+				}
+				// Allow unauthenticated access through the tunnel — users
+				// deliberately started it.
+				ctx := session.SetCurrentUserID(r.Context(), "")
+				next.ServeHTTP(w, r.WithContext(ctx))
+				return
+			}
+
 			// error if external access tripwire activated
 			if accessErr := session.CheckExternalAccessTripwire(c); accessErr != nil {
 				http.Error(w, tripwireActivatedErrMsg, http.StatusForbidden)

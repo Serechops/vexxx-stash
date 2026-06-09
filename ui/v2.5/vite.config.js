@@ -3,6 +3,10 @@ import react from "@vitejs/plugin-react";
 import legacy from "@vitejs/plugin-legacy";
 import tsconfigPaths from "vite-tsconfig-paths";
 import viteCompression from "vite-plugin-compression";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const nolegacy = process.env.VITE_APP_NOLEGACY === "true";
 const sourcemap = process.env.VITE_APP_SOURCEMAPS === "true";
@@ -30,6 +34,11 @@ export default defineConfig(() => {
 
   return {
     base: "",
+    resolve: {
+      alias: {
+        src: path.resolve(__dirname, "src"),
+      },
+    },
     build: {
       outDir: "build",
       sourcemap: sourcemap,

@@ -143,11 +143,6 @@ export const SettingsDeoVRTunnelPanel: React.FC = () => {
         </Alert>
       )}
 
-      {/* Node.js requirement notice */}
-      <Alert severity="info" sx={{ mb: 2 }}>
-        <FormattedMessage id="config.deovr_tunnel.node_requirement" />
-      </Alert>
-
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
           {error}

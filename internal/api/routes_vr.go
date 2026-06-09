@@ -1,18 +1,17 @@
 package api
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os/exec"
 	"path"
 	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/stashapp/stash/internal/manager/config"
+	"github.com/stashapp/stash/pkg/localtunnel"
 	"github.com/stashapp/stash/pkg/models"
 	"github.com/stashapp/stash/pkg/txn"
 )
@@ -284,8 +283,17 @@ func (rs vrRoutes) deovrHandler(w http.ResponseWriter, r *http.Request) {
 				})
 			}
 
+			// DeoVR requires HTTP Range requests for seeking, which only the
+			// direct stream endpoint (/stream) supports via http.ServeFile.
+			// The format-specific endpoints (.mp4, .mkv, .webm) trigger live
+			// ffmpeg transcoding which streams sequentially — no Range support,
+			// extreme CPU usage, and DeoVR kills the slow connection.
+			//
+			// Always use the direct stream path.  DeoVR infers the container
+			// type from the encoding metadata we provide (codec name, etc.).
+			streamSuffix := ""
 			thumbURL := buildDeoVRURL(deovrBaseURL, fmt.Sprintf("/scene/%d/screenshot.jpg", scene.ID), apiKey)
-			streamURL := buildDeoVRURL(deovrBaseURL, fmt.Sprintf("/scene/%d/stream", scene.ID), apiKey)
+			streamURL := buildDeoVRURL(deovrBaseURL, fmt.Sprintf("/scene/%d/stream%s", scene.ID, streamSuffix), apiKey)
 
 			var videoPreviewURL string
 			if scene.HasPreview {
@@ -691,10 +699,10 @@ func applyDeoVRTagOverrides(tagNames map[string]bool, screenType string, stereoM
 
 // ─── Tunnel Manager ──────────────────────────────────────────────────────────
 
-// tunnelState tracks a running localtunnel process.
+// tunnelState tracks a running localtunnel tunnel.
 type tunnelState struct {
 	mu      sync.Mutex
-	cmd     *exec.Cmd
+	tunnel  *localtunnel.Tunnel
 	cancel  context.CancelFunc
 	url     string
 	running bool
@@ -716,103 +724,47 @@ func (rs vrRoutes) tunnelStartHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Verify npx/localtunnel is available before starting.
-	if _, err := exec.LookPath("npx"); err != nil {
+	port := rs.config.GetPort()
+	ctx, cancel := context.WithCancel(context.Background())
+
+	opts := localtunnel.Options{
+		LocalPort: port,
+	}
+	if subdomain := r.URL.Query().Get("subdomain"); subdomain != "" {
+		opts.Subdomain = subdomain
+	}
+	if localHost := r.URL.Query().Get("local_host"); localHost != "" {
+		opts.LocalHost = localHost
+	}
+
+	tunnel, err := localtunnel.Start(ctx, opts)
+	if err != nil {
+		cancel()
 		writeJSON(w, map[string]interface{}{
 			"status": "error",
-			"error":  "Node.js/npx not found. Install Node.js from https://nodejs.org/, then run: npm install -g localtunnel",
+			"error":  err.Error(),
 		})
 		return
 	}
 
-	// Use background context so the process outlives this HTTP request.
-	ctx, cancel := context.WithCancel(context.Background())
-	port := rs.config.GetPort()
-
-	// Build localtunnel args from query params
-	args := []string{"localtunnel", "--port", strconv.Itoa(port)}
-	if subdomain := r.URL.Query().Get("subdomain"); subdomain != "" {
-		args = append(args, "--subdomain", subdomain)
-	}
-	if localHost := r.URL.Query().Get("local_host"); localHost != "" {
-		args = append(args, "--local-host", localHost)
-	}
-	cmd := exec.CommandContext(ctx, "npx", args...)
-
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		cancel()
-		http.Error(w, fmt.Sprintf("failed to create stdout pipe: %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		cancel()
-		http.Error(w, fmt.Sprintf("failed to create stderr pipe: %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	if err := cmd.Start(); err != nil {
-		cancel()
-		http.Error(w, fmt.Sprintf("failed to start localtunnel: %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	deovrTunnel.cmd = cmd
+	deovrTunnel.tunnel = tunnel
 	deovrTunnel.cancel = cancel
 	deovrTunnel.running = true
-	deovrTunnel.url = ""
+	deovrTunnel.url = tunnel.URL()
 	deovrTunnel.err = ""
 
-	// Parse stdout in background to capture the tunnel URL
+	// Watch for tunnel closure in background
 	go func() {
-		scanner := bufio.NewScanner(stdout)
-		for scanner.Scan() {
-			line := scanner.Text()
-			// localtunnel prints: "your url is: https://xxxx.loca.lt"
-			if strings.Contains(line, "your url is:") {
-				parts := strings.Split(line, "https://")
-				if len(parts) > 1 {
-					url := "https://" + strings.TrimSpace(parts[len(parts)-1])
-					deovrTunnel.mu.Lock()
-					deovrTunnel.url = url
-					deovrTunnel.mu.Unlock()
-				}
-			}
-		}
-	}()
-
-	// Capture stderr for error diagnostics
-	go func() {
-		stderrScanner := bufio.NewScanner(stderr)
-		var errBuf strings.Builder
-		for stderrScanner.Scan() {
-			line := stderrScanner.Text()
-			errBuf.WriteString(line)
-			errBuf.WriteString("\n")
-		}
-		if errBuf.Len() > 0 {
-			deovrTunnel.mu.Lock()
-			deovrTunnel.err = errBuf.String()
-			deovrTunnel.mu.Unlock()
-		}
-	}()
-
-	// Wait for process exit in background and update state
-	go func() {
-		err := cmd.Wait()
+		<-tunnel.Done()
 		deovrTunnel.mu.Lock()
 		deovrTunnel.running = false
-		if err != nil && deovrTunnel.err == "" {
-			deovrTunnel.err = err.Error()
-		}
 		deovrTunnel.mu.Unlock()
 	}()
 
 	writeJSON(w, map[string]interface{}{
 		"status": "starting",
 		"port":   port,
+		"url":    tunnel.URL(),
 	})
 }
 
@@ -827,10 +779,13 @@ func (rs vrRoutes) tunnelStopHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if deovrTunnel.tunnel != nil {
+		_ = deovrTunnel.tunnel.Close()
+	}
 	if deovrTunnel.cancel != nil {
 		deovrTunnel.cancel()
 	}
-	deovrTunnel.cmd = nil
+	deovrTunnel.tunnel = nil
 	deovrTunnel.cancel = nil
 	deovrTunnel.running = false
 	deovrTunnel.url = ""

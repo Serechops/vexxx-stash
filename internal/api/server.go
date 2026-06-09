@@ -150,6 +150,7 @@ func Initialize() (*Server, error) {
 	r.Use(visitedPluginHandler)
 
 	r.Use(middleware.Recoverer)
+	r.Use(middleware.GetHead)
 
 	if cfg.GetLogAccess() {
 		httpLogger := httplog.NewLogger("Stash", httplog.Options{
@@ -158,7 +159,7 @@ func Initialize() (*Server, error) {
 		r.Use(httplog.RequestLogger(httpLogger))
 	}
 	r.Use(SecurityHeadersMiddleware)
-	r.Use(middleware.Compress(4))
+	r.Use(mediaAwareCompress(4))
 	r.Use(middleware.StripSlashes)
 	r.Use(BaseURLMiddleware)
 
@@ -772,6 +773,45 @@ func SecurityHeadersMiddleware(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	}
 	return http.HandlerFunc(fn)
+}
+
+// mediaAwareCompress wraps chi's middleware.Compress but bypasses gzip for
+// video/audio streaming routes.  DeoVR (and most video players) rely on
+// HTTP Range requests with byte-accurate Content-Range headers.  Gzip
+// compression re-encodes the response body, which makes Content-Range
+// offsets meaningless and corrupts the byte stream the player expects —
+// causing "Unsupported Format" errors.
+func mediaAwareCompress(level int) func(http.Handler) http.Handler {
+	compressor := middleware.Compress(level)
+
+	return func(next http.Handler) http.Handler {
+		compressed := compressor(next) // pre-build the compressed handler
+
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			p := r.URL.Path
+
+			// Skip compression for all scene streaming and media endpoints.
+			// These serve large binary content via http.ServeFile which
+			// already handles Range requests correctly — gzip would break them.
+			if strings.HasPrefix(p, "/scene/") &&
+				(strings.Contains(p, "/stream") ||
+					strings.Contains(p, "/preview") ||
+					strings.Contains(p, "/funscript") ||
+					strings.Contains(p, "/interactive_csv")) {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			// Also skip if the client is requesting a specific byte range —
+			// this catches any Range request regardless of path.
+			if r.Header.Get("Range") != "" {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			compressed.ServeHTTP(w, r)
+		})
+	}
 }
 
 type contextKey struct {

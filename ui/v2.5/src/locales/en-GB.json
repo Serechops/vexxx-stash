@@ -315,8 +315,7 @@
     },
     "deovr_tunnel": {
       "heading": "DeoVR HTTPS Tunnel",
-      "description": "Expose Stash over a secure HTTPS tunnel so DeoVR can load screenshots and stream media without SSL certificate errors. Uses localtunnel (npx).",
-      "node_requirement": "Node.js and npx are required to run the tunnel. Install Node.js from https://nodejs.org/, then open a new terminal and run: npm install -g localtunnel",
+      "description": "Expose Stash over a secure HTTPS tunnel so DeoVR can load screenshots and stream media without SSL certificate errors.",
       "security_warning": "You do not have authentication enabled. The tunnel exposes your library to the public internet. Strongly recommended: set a Username and Password on the Users tab before starting the tunnel. If you already have credentials configured, the tunnel will use API key authentication automatically.",
       "status_running": "Tunnel is active",
       "status_stopped": "Tunnel is stopped",

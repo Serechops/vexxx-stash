@@ -41,7 +41,7 @@ export const SidebarStateContext = React.createContext<IContext | null>(null);
 // Always-visible vertical filter panel. Lives in normal document flow,
 // side-by-side with the content grid in a flex row.
 
-export const InlineFilterPanel: React.FC<PropsWithChildren> =
+export const InlineFilterPanel: React.FC<PropsWithChildren<{}>> =
   ({ children }) => (
     <Box
       sx={{

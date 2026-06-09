@@ -225,7 +225,7 @@ export const SceneMarkerCard = PatchComponent(
       <GridCard
         className={`scene-marker-card ${zoomIndex()}`}
         url={NavUtils.makeSceneMarkerUrl(props.marker)}
-        title={markerTitle(props.marker)}
+        title={markerTitle({ ...props.marker, primary_tag: props.marker.primary_tag ?? null })}
         width={props.cardWidth}
         linkClassName="scene-marker-card-link"
         thumbnailSectionClassName="video-section"

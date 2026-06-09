@@ -15,7 +15,7 @@ import NavUtils from "src/utils/navigation";
 import { markerTitle } from "src/core/markers";
 
 function wallItemTitle(sceneMarker: GQL.SceneMarkerDataFragment) {
-  const newTitle = markerTitle(sceneMarker);
+  const newTitle = markerTitle({ ...sceneMarker, primary_tag: sceneMarker.primary_tag ?? null });
   const seconds = TextUtils.formatTimestampRange(
     sceneMarker.seconds,
     sceneMarker.end_seconds ?? undefined

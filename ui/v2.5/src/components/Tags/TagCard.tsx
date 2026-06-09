@@ -143,12 +143,13 @@ const TagCardDetails: React.FC<IProps> = PatchComponent(
     function maybeRenderDescription() {
       if (tag.description) {
         return (
-          <TruncatedText
-            className="tag-description"
-            text={tag.description}
-            lineCount={3}
-            sx={{ mb: 0.5 }}
-          />
+          <Box sx={{ mb: 0.5 }}>
+            <TruncatedText
+              className="tag-description"
+              text={tag.description}
+              lineCount={3}
+            />
+          </Box>
         );
       }
     }

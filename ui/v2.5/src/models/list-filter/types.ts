@@ -221,4 +221,6 @@ export type CriterionType =
   | "custom_fields"
   | "folder"
   | "parent_folder"
-  | "vr_mode";
+  | "vr_mode"
+  | "has_segments"
+  | "title_duplicated";

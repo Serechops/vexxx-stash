@@ -185,7 +185,7 @@ export const WallItem = <T extends WallItemType>({
         return objectTitle(scene);
       case "sceneMarker":
         const sceneMarker = data as GQL.SceneMarkerDataFragment;
-        const newTitle = markerTitle(sceneMarker);
+        const newTitle = markerTitle({ ...sceneMarker, primary_tag: sceneMarker.primary_tag ?? null });
         const seconds = TextUtils.formatTimestampRange(
           sceneMarker.seconds,
           sceneMarker.end_seconds ?? undefined

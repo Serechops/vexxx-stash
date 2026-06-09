@@ -45,7 +45,7 @@ export const LanguageSelector: React.FC<ILanguageSelectorProps> = ({
   }, [intl, value]);
 
   const selectedValue = useMemo(
-    () => options.find((option) => option.value === value) ?? null,
+    () => options.find((option) => option.value === value) ?? undefined,
     [options, value]
   );
 

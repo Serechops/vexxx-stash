@@ -77,7 +77,7 @@ const StudioDetails: React.FC<IStudioDetailsProps> = ({
             <FormattedMessage id={labelId ?? id} />:
           </strong>
         </Box>
-        <TruncatedText style={{ width: '58.33%' }} text={text} />
+        <Box sx={{ width: "58.33%" }}><TruncatedText text={text} /></Box>
       </Box>
     );
   }

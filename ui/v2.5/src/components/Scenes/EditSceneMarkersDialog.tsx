@@ -60,7 +60,7 @@ export const EditSceneMarkersDialog: React.FC<IListOperationProps> = (
       // sceneMarker data fragment doesn't have primary_tag_id, so handle separately
       updateState.primary_tag_id = getAggregateState(
         updateState.primary_tag_id,
-        scenemarker.primary_tag.id,
+        scenemarker.primary_tag?.id,
         first
       );
 

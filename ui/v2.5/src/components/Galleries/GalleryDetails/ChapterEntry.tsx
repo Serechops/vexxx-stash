@@ -27,7 +27,7 @@ export const ChapterEntries: React.FC<IChapterEntries> = ({
           >
             <div className="flex flex-wrap">
               {chapter.title}
-              {chapter.title.length > 0 ? " - #" : "#"}
+              {(chapter.title?.length ?? 0) > 0 ? " - #" : "#"}
               {chapter.image_index}
             </div>
           </Button>

@@ -100,7 +100,7 @@ export function useStashTagStore() {
   useEffect(() => {
     const { jobID } = loadData(); // read directly to avoid stale closure
     if (!jobID) return;
-    verifyJob({ variables: { id: jobID }, fetchPolicy: "network-only" })
+    verifyJob({ variables: { input: { id: jobID } }, fetchPolicy: "network-only" })
       .then(({ data: vd }) => {
         const job = vd?.findJob;
         if (!job) {
@@ -218,7 +218,7 @@ export function useStashTagStore() {
   const stopJob = useCallback(async () => {
     if (!data.jobID) return;
     try {
-      await stopJobMutation({ variables: { job_id: parseInt(data.jobID, 10) } });
+      await stopJobMutation({ variables: { job_id: data.jobID } });
     } catch {
       /* ignore */
     }

@@ -65,7 +65,7 @@ export const GalleryPage: React.FC<IProps> = ({ gallery, add }) => {
   const intl = useIntl();
   const { configuration } = useConfigurationContext();
   const { showStudioText } = configuration?.ui ?? {};
-  const showLightbox = useGalleryLightbox(gallery.id, gallery.chapters);
+  const showLightbox = useGalleryLightbox(gallery.id, gallery.chapters.map((c) => ({ ...c, title: c.title ?? "" })));
 
 
   const [activeTabKey, setActiveTabKey] = useState("gallery-details-panel");

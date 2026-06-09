@@ -35,18 +35,18 @@ import { compareScenesForSort } from "./utils";
 const getDurationIcon = (matchPercentage: number) => {
   if (matchPercentage > 65)
     return (
-      <Icon sx={{ ml: "0.25em", mr: "10px", width: "var(--fa-fw-width, 1.25em)" }} color="success" icon={faCheckCircle} />
+      <Icon style={{ marginLeft: "0.25em", marginRight: "10px", width: "var(--fa-fw-width, 1.25em)" }} color="success" icon={faCheckCircle} />
     );
   if (matchPercentage > 35)
     return (
       <Icon
-        sx={{ ml: "0.25em", mr: "10px", width: "var(--fa-fw-width, 1.25em)" }}
+        style={{ marginLeft: "0.25em", marginRight: "10px", width: "var(--fa-fw-width, 1.25em)" }}
         color="warning"
         icon={faTriangleExclamation}
       />
     );
 
-  return <Icon sx={{ ml: "0.25em", mr: "10px", width: "var(--fa-fw-width, 1.25em)" }} color="error" icon={faXmark} />;
+  return <Icon style={{ marginLeft: "0.25em", marginRight: "10px", width: "var(--fa-fw-width, 1.25em)" }} color="error" icon={faXmark} />;
 };
 
 const getDurationStatus = (
@@ -171,11 +171,11 @@ const getFingerprintStatus = (
       <Box>
         {phashMatches.length > 0 && (
           <Typography fontWeight="bold" component="div">
-            <SuccessIcon sx={{ ml: "0.25em", mr: "10px", width: "var(--fa-fw-width, 1.25em)" }} />
+            <Box component="span" sx={{ ml: "0.25em", mr: "10px", width: "var(--fa-fw-width, 1.25em)", display: "inline-block" }}><SuccessIcon /></Box>
+            <Box component="span" sx={{ display: "inline-block", textDecoration: "underline dotted" }}>
             <HoverPopover
               placement="bottom"
               content={phashList}
-              sx={{ display: "inline-block", textDecoration: "underline dotted" }}
             >
               {phashMatches.length > 1 ? (
                 <FormattedMessage
@@ -193,6 +193,7 @@ const getFingerprintStatus = (
                 />
               )}
             </HoverPopover>
+            </Box>
           </Typography>
         )}
         {checksumMatch && (
@@ -559,7 +560,7 @@ const StashSearchResult: React.FC<IStashSearchResultProps> = ({
     const url = scene.urls?.length ? scene.urls[0] : null;
 
     const sceneTitleEl = url ? (
-      <ExternalLink sx={{ color: "text.primary", fontWeight: 500 }} href={url}>
+      <ExternalLink style={{ color: "inherit", fontWeight: 500 }} href={url}>
         <TruncatedText text={scene.title} />
       </ExternalLink>
     ) : (

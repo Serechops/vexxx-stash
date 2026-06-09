@@ -125,8 +125,9 @@ export const FileBrowserQuickTagAI: React.FC<FileBrowserQuickTagAIProps> = ({
   const [clearJobResult] = GQL.useStashTagClearJobResultMutation();
   const [stopJob] = GQL.useStopJobMutation();
   const [bulkUpdateScenes] = GQL.useBulkSceneUpdateMutation();
-  const [fetchResult, { data: resultData, reset: resetResultData }] =
+  const [fetchResult, { data: resultData }] =
     GQL.useStashTagJobResultLazyQuery();
+  const [resultVisible, setResultVisible] = useState(true);
   const [verifyJob] = GQL.useFindJobLazyQuery();
   const { data: subData } = GQL.useJobsSubscribeSubscription();
 
@@ -174,11 +175,12 @@ export const FileBrowserQuickTagAI: React.FC<FileBrowserQuickTagAIProps> = ({
   useEffect(() => {
     if (!jobID) return;
     // Check if the job still exists on the server
-    verifyJob({ variables: { id: jobID }, fetchPolicy: "network-only" })
+    verifyJob({ variables: { input: { id: jobID } }, fetchPolicy: "network-only" })
       .then(({ data }) => {
         const job = data?.findJob;
         if (!job) {
           // Job is gone (server restarted or ID is stale) — also check for result
+          setResultVisible(true);
           fetchResult({ variables: { jobID }, fetchPolicy: "network-only" });
           // Don't verify — leave jobVerified=false so isRunning stays false;
           // result fetch will populate the report if it still exists.
@@ -193,11 +195,13 @@ export const FileBrowserQuickTagAI: React.FC<FileBrowserQuickTagAIProps> = ({
           job.status === GQL.JobStatus.Failed ||
           job.status === GQL.JobStatus.Cancelled
         ) {
+          setResultVisible(true);
           fetchResult({ variables: { jobID }, fetchPolicy: "network-only" });
         }
       })
       .catch(() => {
         // On error, fall back to just fetching the result
+        setResultVisible(true);
         fetchResult({ variables: { jobID }, fetchPolicy: "network-only" });
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -216,12 +220,13 @@ export const FileBrowserQuickTagAI: React.FC<FileBrowserQuickTagAIProps> = ({
       update.job.status === GQL.JobStatus.Failed ||
       update.job.status === GQL.JobStatus.Cancelled
     ) {
+      setResultVisible(true);
       fetchResult({ variables: { jobID }, fetchPolicy: "network-only" });
     }
   }, [subData, jobID, fetchResult]);
 
   // ── Derived state ─────────────────────────────────────────────────────────
-  const result = resultData?.stashTagJobResult ?? null;
+  const result = resultVisible ? (resultData?.stashTagJobResult ?? null) : null;
 
   // ── Fetch current scene tags when a result is available ──────────────────
   // Used to detect tags already applied to each scene.
@@ -303,7 +308,6 @@ export const FileBrowserQuickTagAI: React.FC<FileBrowserQuickTagAIProps> = ({
       setJobVerified(true);              // we just created it — no need to verify
       setJobProgress(null);
       setSubmittedCount(sceneRows.length);
-      autoQueuedJobRef.current = undefined;
     } catch (err) {
       console.error("StashTag submit failed:", err);
     }
@@ -313,7 +317,7 @@ export const FileBrowserQuickTagAI: React.FC<FileBrowserQuickTagAIProps> = ({
   const stopAnalysis = useCallback(async () => {
     if (!jobID) return;
     try {
-      await stopJob({ variables: { job_id: parseInt(jobID, 10) } });
+      await stopJob({ variables: { job_id: jobID } });
     } catch {
       /* ignore */
     }
@@ -335,8 +339,8 @@ export const FileBrowserQuickTagAI: React.FC<FileBrowserQuickTagAIProps> = ({
     setJobVerified(false);
     setSubmittedCount(0);
     setLocallyApplied(new Map());
-    resetResultData();
-  }, [jobID, clearJobResult, resetResultData]);
+    setResultVisible(false);
+  }, [jobID, clearJobResult]);
 
   // ── Queue all above-threshold tags ────────────────────────────────────────
   const aboveThresholdCount = useMemo(() => {

@@ -124,12 +124,12 @@ export const PrimaryTags: React.FC<IPrimaryTags> = ({
                       wordBreak: 'break-word',
                     }}
                   >
-                    {markerTitle(marker) || <Typography variant="body2" color="text.disabled" component="span"><em>No Title</em></Typography>}
+                    {markerTitle({ ...marker, primary_tag: marker.primary_tag ?? null }) || <Typography variant="body2" color="text.disabled" component="span"><em>No Title</em></Typography>}
                   </Button>
                 </TableCell>
                 <TableCell sx={{ whiteSpace: 'nowrap' }}>
                   <Chip
-                    label={marker.primary_tag.name}
+                    label={marker.primary_tag?.name ?? ""}
                     size="small"
                     sx={{ fontWeight: 'bold' }}
                   />

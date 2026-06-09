@@ -1143,7 +1143,7 @@ const SceneLoader: React.FC<RouteComponentProps<ISceneParams>> = ({
         );
       });
     } else if (sceneQueue.sceneIDs && sceneQueue.sceneIDs.length > 0) {
-      queryFindScenesByID(sceneQueue.sceneIDs.map(String)).then((result) => {
+      queryFindScenesByID(sceneQueue.sceneIDs.map(Number)).then((result) => {
         const { scenes, count } = result.data.findScenes;
         setQueueScenes(scenes as QueuedScene[]);
         setQueueTotal(count);

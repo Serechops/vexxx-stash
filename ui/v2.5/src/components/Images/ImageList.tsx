@@ -246,7 +246,7 @@ const ImageListImages: React.FC<IImageListImages> = ({
     lightboxState,
     filter.sortBy === "path" &&
       filter.sortDirection === GQL.SortDirectionEnum.Asc
-      ? chapters
+      ? chapters.map((c) => ({ ...c, title: c.title ?? "" }))
       : []
   );
 
@@ -639,6 +639,7 @@ export const ImageList: React.FC<IImageList> = PatchComponent(
     const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
     const [isExportAll, setIsExportAll] = useState(false);
     const [slideshowRunning, setSlideshowRunning] = useState<boolean>(false);
+    const { modal, showModal, closeModal } = useModal();
 
     async function onExport() {
       setIsExportAll(false);
@@ -784,28 +785,31 @@ export const ImageList: React.FC<IImageList> = PatchComponent(
     }
 
     return (
-      <ItemListContext
-        filterMode={GQL.FilterMode.Images}
-        useResult={useFindImages}
-        useMetadataInfo={useFindImagesMetadata}
-        getItems={getItems}
-        getCount={getCount}
-        alterQuery={alterQuery}
-        filterHook={filterHook}
-        view={view}
-        selectable
-      >
-        <ImageListContent
-          view={view}
+      <>
+        {modal}
+        <ItemListContext
+          filterMode={GQL.FilterMode.Images}
+          useResult={useFindImages}
+          useMetadataInfo={useFindImagesMetadata}
+          getItems={getItems}
+          getCount={getCount}
+          alterQuery={alterQuery}
           filterHook={filterHook}
-          otherOperations={otherOperations}
-          addKeybinds={addKeybinds}
-          renderContent={renderContent}
-          renderEditDialog={renderEditDialog}
-          renderDeleteDialog={renderDeleteDialog}
-          renderMetadataByline={renderMetadataByline}
-        />
-      </ItemListContext>
+          view={view}
+          selectable
+        >
+          <ImageListContent
+            view={view}
+            filterHook={filterHook}
+            otherOperations={otherOperations}
+            addKeybinds={addKeybinds}
+            renderContent={renderContent}
+            renderEditDialog={renderEditDialog}
+            renderDeleteDialog={renderDeleteDialog}
+            renderMetadataByline={renderMetadataByline}
+          />
+        </ItemListContext>
+      </>
     );
   }
 );

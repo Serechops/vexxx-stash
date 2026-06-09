@@ -58,7 +58,7 @@ export const PerformerRecommendationRow: React.FC<PerformerRecommendationRowProp
     React.useEffect(() => {
         if (allRecommendations.length > 0 && onShownIds) {
             const ids = allRecommendations.map(r =>
-                r.stash_db_id ? `stashdb:${r.stash_db_id}` : `local:${r.id}`
+                r.stash_db_performer ? `stashdb:${r.id}` : `local:${r.id}`
             );
             onShownIds(ids);
         }
@@ -159,7 +159,7 @@ export const PerformerRecommendationRow: React.FC<PerformerRecommendationRowProp
                         // Badge Styling (Copied from RecommendationCarousel)
                         const scorePct = Math.round(r.score * 100);
                         const badgeColor = scorePct > 80 ? "success.main" : scorePct > 50 ? "warning.main" : "info.main";
-                        const entityKey = r.stash_db_id ? `stashdb:${r.stash_db_id}` : `local:${r.id}`;
+                        const entityKey = r.stash_db_performer ? `stashdb:${r.id}` : `local:${r.id}`;
 
                         const isLiked = liked.has(r.id);
                         return (

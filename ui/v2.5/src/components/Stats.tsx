@@ -432,7 +432,7 @@ const HighlightsSection: React.FC = () => {
               <YAxis type="category" dataKey="label" tick={{ fill: AXIS_COLOR, fontSize: 11 }} tickLine={false} width={110} />
               <RechartsTooltip content={<WatchTimeTooltip />} />
               <Bar dataKey="size" radius={[0, 3, 3, 0]}
-                label={{ position: "right", fill: AXIS_COLOR, fontSize: 10, formatter: (v: number) => fmtHours(v) }}>
+                label={{ position: "right", fill: AXIS_COLOR, fontSize: 10, formatter: (v: unknown) => fmtHours(Number(v)) }}>
                 {a.top_studios_by_watch_time.map((_e, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
               </Bar>
             </BarChart>
@@ -454,7 +454,7 @@ const HighlightsSection: React.FC = () => {
               <YAxis type="category" dataKey="label" tick={{ fill: AXIS_COLOR, fontSize: 11 }} tickLine={false} width={110} />
               <RechartsTooltip content={<WatchTimeTooltip />} />
               <Bar dataKey="size" radius={[0, 3, 3, 0]}
-                label={{ position: "right", fill: AXIS_COLOR, fontSize: 10, formatter: (v: number) => fmtHours(v) }}>
+                label={{ position: "right", fill: AXIS_COLOR, fontSize: 10, formatter: (v: unknown) => fmtHours(Number(v)) }}>
                 {a.top_performers_by_watch_time.map((_e, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
               </Bar>
             </BarChart>

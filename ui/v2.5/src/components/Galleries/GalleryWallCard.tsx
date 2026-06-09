@@ -41,7 +41,7 @@ const GalleryWallCard: React.FC<IProps> = ({ gallery, zoomIndex = 0, justified }
   const [aspectRatio, setAspectRatio] = React.useState<number>(
     coverOrientation === "landscape" ? 1.5 : 0.67
   );
-  const showLightbox = useGalleryLightbox(gallery.id, gallery.chapters);
+  const showLightbox = useGalleryLightbox(gallery.id, gallery.chapters.map((c) => ({ ...c, title: c.title ?? "" })));
 
   const cover = gallery?.paths.cover;
 

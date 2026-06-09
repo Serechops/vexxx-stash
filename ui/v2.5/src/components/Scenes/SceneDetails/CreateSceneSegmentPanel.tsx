@@ -223,7 +223,7 @@ export const CreateSceneSegmentPanel: React.FC<IProps> = ({
                         fullWidth
                     />
                     <Grid container spacing={1} alignItems="flex-end">
-                        <Grid size={{ xs: true }}>
+                        <Grid size="grow">
                             <TextField
                                 label="Start Point (MM:SS)"
                                 value={startPointStr}
@@ -252,7 +252,7 @@ export const CreateSceneSegmentPanel: React.FC<IProps> = ({
                                 </Tooltip>
                             </Grid>
                         )}
-                        <Grid size={{ xs: true }}>
+                        <Grid size="grow">
                             <TextField
                                 label="End Point (MM:SS)"
                                 value={endPointStr}

@@ -174,7 +174,7 @@ export const InteractiveProvider: React.FC = ({ children }) => {
     interactive
       .configure({
         connectionKey: handyKey ?? "",
-        offset: scriptOffset,
+        scriptOffset,
         useStashHostedFunscript,
         appKey: handyAppKey ?? "",
       })

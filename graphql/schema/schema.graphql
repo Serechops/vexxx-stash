@@ -481,6 +481,7 @@ type Mutation {
   configureGeneral(input: ConfigGeneralInput!): ConfigGeneralResult!
   configureInterface(input: ConfigInterfaceInput!): ConfigInterfaceResult!
   configureDLNA(input: ConfigDLNAInput!): ConfigDLNAResult!
+  configureDeoVR(input: ConfigDeoVRInput!): ConfigDeoVRResult!
   configureScraping(input: ConfigScrapingInput!): ConfigScrapingResult!
   configureRenamer(input: ConfigRenamerInput!): ConfigRenamerResult!
   configureDefaults(

@@ -131,6 +131,11 @@ fragment ConfigDLNAData on ConfigDLNAResult {
   videoSortOrder
 }
 
+fragment ConfigDeoVRData on ConfigDeoVRResult {
+  allowedPerformerIDs
+  allowedStudioIDs
+}
+
 fragment ConfigScrapingData on ConfigScrapingResult {
   scraperUserAgent
   scraperCertCheck
@@ -237,6 +242,9 @@ fragment ConfigData on ConfigResult {
   }
   dlna {
     ...ConfigDLNAData
+  }
+  deovr {
+    ...ConfigDeoVRData
   }
   scraping {
     ...ConfigScrapingData

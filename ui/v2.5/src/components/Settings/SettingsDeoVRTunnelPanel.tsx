@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Box,
@@ -15,6 +15,19 @@ import { LoadingIndicator } from "../Shared/LoadingIndicator";
 import { SettingSection } from "./SettingSection";
 import { Setting } from "./Inputs";
 import { useSettings } from "./context";
+import {
+  FilterSelectComponent,
+  Option as SelectOption,
+  toOption,
+} from "../Shared/FilterSelect";
+import {
+  queryFindPerformersForSelect,
+  queryFindPerformersByIDForSelect,
+  queryFindStudiosForSelect,
+  queryFindStudiosByIDForSelect,
+} from "src/core/StashService";
+import { ListFilterModel } from "src/models/list-filter/filter";
+import * as GQL from "src/core/generated-graphql";
 import {
   faCopy,
   faExclamationTriangle,
@@ -62,7 +75,82 @@ async function stopTunnel(): Promise<TunnelStatus> {
 
 export const SettingsDeoVRTunnelPanel: React.FC = () => {
   const intl = useIntl();
-  const { general } = useSettings();
+  const { general, deovr, saveDeoVR } = useSettings();
+
+  // ── Performer multi-select helpers ────────────────────────────────────
+  const performerType = useMemo(
+    () => ({
+      loadOptions: async (input: string) => {
+        const filter = new ListFilterModel(GQL.FilterMode.Performers);
+        filter.currentPage = 1;
+        filter.itemsPerPage = 100;
+        filter.sortBy = "name";
+        filter.sortDirection = GQL.SortDirectionEnum.Asc;
+        filter.searchTerm = input;
+        const query = await queryFindPerformersForSelect(filter);
+        return query.data.findPerformers.performers.map(toOption);
+      },
+      getOptionLabel: (opt: SelectOption<any>) => opt.object?.name ?? opt.value,
+    }),
+    []
+  );
+
+  const [performerOptions, setPerformerOptions] = useState<SelectOption<any>[]>([]);
+
+  // Load initial performer selections by ID
+  useEffect(() => {
+    if (!deovr?.allowedPerformerIDs?.length) return;
+    queryFindPerformersByIDForSelect(deovr.allowedPerformerIDs).then(
+      (result) => {
+        setPerformerOptions(
+          result.data.findPerformers.performers.map(toOption)
+        );
+      }
+    );
+  }, [deovr?.allowedPerformerIDs]);
+
+  const onPerformerSelect = useCallback(
+    (items: any[]) => {
+      saveDeoVR({ allowedPerformerIDs: items.map((p) => p.id) });
+    },
+    [saveDeoVR]
+  );
+
+  // ── Studio multi-select helpers ──────────────────────────────────────
+  const studioType = useMemo(
+    () => ({
+      loadOptions: async (input: string) => {
+        const filter = new ListFilterModel(GQL.FilterMode.Studios);
+        filter.currentPage = 1;
+        filter.itemsPerPage = 100;
+        filter.sortBy = "name";
+        filter.sortDirection = GQL.SortDirectionEnum.Asc;
+        filter.searchTerm = input;
+        const query = await queryFindStudiosForSelect(filter);
+        return query.data.findStudios.studios.map(toOption);
+      },
+      getOptionLabel: (opt: SelectOption<any>) => opt.object?.name ?? opt.value,
+    }),
+    []
+  );
+
+  const [studioOptions, setStudioOptions] = useState<SelectOption<any>[]>([]);
+
+  useEffect(() => {
+    if (!deovr?.allowedStudioIDs?.length) return;
+    queryFindStudiosByIDForSelect(deovr.allowedStudioIDs).then((result) => {
+      setStudioOptions(
+        result.data.findStudios.studios.map(toOption)
+      );
+    });
+  }, [deovr?.allowedStudioIDs]);
+
+  const onStudioSelect = useCallback(
+    (items: any[]) => {
+      saveDeoVR({ allowedStudioIDs: items.map((s) => s.id) });
+    },
+    [saveDeoVR]
+  );
   const [status, setStatus] = useState<TunnelStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -358,6 +446,49 @@ export const SettingsDeoVRTunnelPanel: React.FC = () => {
           <FormattedMessage id="actions.refresh" />
         </Button>
       </Box>
+
+      {/* Display options — always visible */}
+      <SettingSection headingID="config.deovr_tunnel.display_options_heading">
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          <FormattedMessage id="config.deovr_tunnel.display_options_desc" />
+        </Typography>
+
+        {/*
+          Performer multi-select.
+          Default behaviour: onSelect is called with the full performer objects.
+          We extract IDs and push them into the config.
+        */}
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
+            <FormattedMessage id="performers" />
+          </Typography>
+          <FilterSelectComponent
+            isMulti
+            values={performerOptions.map((o) => o.object)}
+            onSelect={onPerformerSelect}
+            loadOptions={performerType.loadOptions}
+            getOptionLabel={performerType.getOptionLabel}
+            placeholder={intl.formatMessage({ id: "config.deovr_tunnel.performer_placeholder" })}
+          />
+        </Box>
+
+        {/*
+          Studio multi-select.
+        */}
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
+            <FormattedMessage id="studios" />
+          </Typography>
+          <FilterSelectComponent
+            isMulti
+            values={studioOptions.map((o) => o.object)}
+            onSelect={onStudioSelect}
+            loadOptions={studioType.loadOptions}
+            getOptionLabel={studioType.getOptionLabel}
+            placeholder={intl.formatMessage({ id: "config.deovr_tunnel.studio_placeholder" })}
+          />
+        </Box>
+      </SettingSection>
 
       {/* Usage guidance */}
       {status?.url && (

@@ -230,6 +230,7 @@ func makeConfigResult() *ConfigResult {
 		General:   makeConfigGeneralResult(),
 		Interface: makeConfigInterfaceResult(),
 		Dlna:      makeConfigDLNAResult(),
+		Deovr:     makeConfigDeoVRResult(),
 		Scraping:  makeConfigScrapingResult(),
 		Renamer:   makeConfigRenamerResult(),
 		Defaults:  makeConfigDefaultsResult(),
@@ -391,6 +392,15 @@ func makeConfigDLNAResult() *ConfigDLNAResult {
 		WhitelistedIPs: config.GetDLNADefaultIPWhitelist(),
 		Interfaces:     config.GetDLNAInterfaces(),
 		VideoSortOrder: config.GetVideoSortOrder(),
+	}
+}
+
+func makeConfigDeoVRResult() *ConfigDeoVRResult {
+	c := config.GetInstance()
+
+	return &ConfigDeoVRResult{
+		AllowedPerformerIDs: c.GetDeoVRAllowedPerformerIDs(),
+		AllowedStudioIDs:    c.GetDeoVRAllowedStudioIDs(),
 	}
 }
 

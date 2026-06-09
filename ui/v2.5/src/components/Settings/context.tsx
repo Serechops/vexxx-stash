@@ -11,6 +11,7 @@ import {
   useConfiguration,
   useConfigureDefaults,
   useConfigureDLNA,
+  useConfigureDeoVR,
   useConfigureGeneral,
   useConfigureInterface,
   useConfigurePlugin,
@@ -32,6 +33,7 @@ export interface ISettingsContextState {
   defaults: GQL.ConfigDefaultSettingsInput;
   scraping: GQL.ConfigScrapingInput;
   dlna: GQL.ConfigDlnaInput;
+  deovr: GQL.ConfigDeoVrInput;
   ui: IUIConfig;
   plugins: PluginConfigs;
 
@@ -45,6 +47,7 @@ export interface ISettingsContextState {
   saveDefaults: (input: Partial<GQL.ConfigDefaultSettingsInput>) => void;
   saveScraping: (input: Partial<GQL.ConfigScrapingInput>) => void;
   saveDLNA: (input: Partial<GQL.ConfigDlnaInput>) => void;
+  saveDeoVR: (input: Partial<GQL.ConfigDeoVrInput>) => void;
   saveUI: (input: Partial<IUIConfig>) => void;
   savePluginSettings: (pluginID: string, input: {}) => void;
   setAdvancedMode: (value: boolean) => void;
@@ -62,6 +65,7 @@ const emptyState: ISettingsContextState = {
   defaults: {},
   scraping: {},
   dlna: {},
+  deovr: {},
   ui: {},
   plugins: {},
 
@@ -74,6 +78,7 @@ const emptyState: ISettingsContextState = {
   saveDefaults: noop,
   saveScraping: noop,
   saveDLNA: noop,
+  saveDeoVR: noop,
   saveUI: noop,
   savePluginSettings: noop,
   setAdvancedMode: noop,
@@ -134,6 +139,10 @@ export const SettingsContext: React.FC = ({ children }) => {
   const [pendingDLNA, setPendingDLNA] = useState<GQL.ConfigDlnaInput>();
   const [updateDLNAConfig] = useConfigureDLNA();
 
+  const [deovr, setDeoVR] = useState<GQL.ConfigDeoVrInput>({});
+  const [pendingDeoVR, setPendingDeoVR] = useState<GQL.ConfigDeoVrInput>();
+  const [updateDeoVRConfig] = useConfigureDeoVR();
+
   const [ui, setUI] = useState<IUIConfig>({});
   const [pendingUI, setPendingUI] = useState<{}>();
   const [updateUIConfig] = useConfigureUI();
@@ -162,6 +171,7 @@ export const SettingsContext: React.FC = ({ children }) => {
     setDefaults({ ...withoutTypename(data.configuration.defaults) });
     setScraping({ ...withoutTypename(data.configuration.scraping) });
     setDLNA({ ...withoutTypename(data.configuration.dlna) });
+    setDeoVR({ ...withoutTypename(data.configuration.deovr) });
     setUI(data.configuration.ui);
     setPlugins(data.configuration.plugins);
   }, [data, error]);
@@ -423,6 +433,52 @@ export const SettingsContext: React.FC = ({ children }) => {
     });
   }
 
+  // saves the DeoVR config if no further changes are made after a half second
+  const saveDeoVRConfig = useDebounce(async (input: GQL.ConfigDeoVrInput) => {
+    try {
+      setUpdateSuccess(undefined);
+      await updateDeoVRConfig({
+        variables: {
+          input,
+        },
+      });
+
+      setPendingDeoVR(undefined);
+      onSuccess();
+    } catch (e) {
+      onError(e);
+    }
+  }, 500);
+
+  useEffect(() => {
+    if (!pendingDeoVR) {
+      return;
+    }
+
+    saveDeoVRConfig(pendingDeoVR);
+  }, [pendingDeoVR, saveDeoVRConfig]);
+
+  function saveDeoVR(input: Partial<GQL.ConfigDeoVrInput>) {
+    if (!deovr) {
+      return;
+    }
+
+    setDeoVR({
+      ...deovr,
+      ...input,
+    });
+
+    setPendingDeoVR((current) => {
+      if (!current) {
+        return input;
+      }
+      return {
+        ...current,
+        ...input,
+      };
+    });
+  }
+
   type UIConfigInput = GQL.Scalars["Map"]["input"];
 
   // saves the configuration if no further changes are made after a half second
@@ -602,6 +658,7 @@ export const SettingsContext: React.FC = ({ children }) => {
         defaults,
         scraping,
         dlna,
+        deovr,
         ui,
         plugins,
         advancedMode: ui.advancedMode ?? false,
@@ -610,6 +667,7 @@ export const SettingsContext: React.FC = ({ children }) => {
         saveDefaults,
         saveScraping,
         saveDLNA,
+        saveDeoVR,
         saveUI,
         refetch,
         savePluginSettings,

@@ -543,6 +543,20 @@ type ConfigDLNAResult {
   videoSortOrder: String!
 }
 
+input ConfigDeoVRInput {
+  "List of performer IDs to include in DeoVR JSON. Empty means show all"
+  allowedPerformerIDs: [String!]
+  "List of studio IDs to include in DeoVR JSON. Empty means show all"
+  allowedStudioIDs: [String!]
+}
+
+type ConfigDeoVRResult {
+  "List of performer IDs to include in DeoVR JSON. Empty means show all"
+  allowedPerformerIDs: [String!]!
+  "List of studio IDs to include in DeoVR JSON. Empty means show all"
+  allowedStudioIDs: [String!]!
+}
+
 input ConfigScrapingInput {
   "Scraper user agent string"
   scraperUserAgent: String
@@ -594,6 +608,7 @@ type ConfigResult {
   general: ConfigGeneralResult!
   interface: ConfigInterfaceResult!
   dlna: ConfigDLNAResult!
+  deovr: ConfigDeoVRResult!
   scraping: ConfigScrapingResult!
   renamer: ConfigRenamerResult!
   defaults: ConfigDefaultSettingsResult!

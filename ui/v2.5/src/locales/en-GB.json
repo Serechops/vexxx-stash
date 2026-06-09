@@ -337,7 +337,11 @@
       "usage_step2_heading": "2. Open in DeoVR browser",
       "usage_step2_desc": "Open the DeoVR app on your headset, navigate to the Internet Browser, and enter the tunnel URL. If you see a warning page, enter the displayed IP to continue. DeoVR will detect the /deovr JSON feed and enter VR Selection Scene mode.",
       "usage_step3_heading": "3. Play media",
-      "usage_step3_desc": "All thumbnails, previews, and streams will load securely over HTTPS. Screenshots render natively in the grid. When done, return here and click \"Stop Tunnel\"."
+      "usage_step3_desc": "All thumbnails, previews, and streams will load securely over HTTPS. Screenshots render natively in the grid. When done, return here and click \"Stop Tunnel\".",
+      "display_options_heading": "DeoVR Display Options",
+      "display_options_desc": "Choose which metadata fields are included in the DeoVR JSON output. Changes take effect immediately and do not require a restart.",
+      "performer_placeholder": "Search performers\u2026",
+      "studio_placeholder": "Search studios\u2026"
     },
     "general": {
       "auth": {

@@ -28,6 +28,12 @@ mutation ConfigureDLNA($input: ConfigDLNAInput!) {
   }
 }
 
+mutation ConfigureDeoVR($input: ConfigDeoVRInput!) {
+  configureDeoVR(input: $input) {
+    ...ConfigDeoVRData
+  }
+}
+
 mutation ConfigureScraping($input: ConfigScrapingInput!) {
   configureScraping(input: $input) {
     ...ConfigScrapingData

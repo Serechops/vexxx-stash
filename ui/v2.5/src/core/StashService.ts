@@ -2780,6 +2780,11 @@ export const useConfigureDLNA = () =>
     update: updateConfiguration,
   });
 
+export const useConfigureDeoVR = () =>
+  GQL.useConfigureDeoVrMutation({
+    update: updateConfiguration,
+  });
+
 export const useConfigurePlugin = () =>
   GQL.useConfigurePluginMutation({
     update: updateConfiguration,

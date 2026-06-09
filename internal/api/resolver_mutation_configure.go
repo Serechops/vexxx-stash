@@ -574,6 +574,23 @@ func (r *mutationResolver) ConfigureDlna(ctx context.Context, input ConfigDLNAIn
 	return makeConfigDLNAResult(), nil
 }
 
+func (r *mutationResolver) ConfigureDeoVr(ctx context.Context, input ConfigDeoVRInput) (*ConfigDeoVRResult, error) {
+	c := config.GetInstance()
+
+	if input.AllowedPerformerIDs != nil {
+		c.SetInterface(config.DeoVRAllowedPerformerIDs, input.AllowedPerformerIDs)
+	}
+	if input.AllowedStudioIDs != nil {
+		c.SetInterface(config.DeoVRAllowedStudioIDs, input.AllowedStudioIDs)
+	}
+
+	if err := c.Write(); err != nil {
+		return makeConfigDeoVRResult(), err
+	}
+
+	return makeConfigDeoVRResult(), nil
+}
+
 func (r *mutationResolver) ConfigureScraping(ctx context.Context, input ConfigScrapingInput) (*ConfigScrapingResult, error) {
 	c := config.GetInstance()
 

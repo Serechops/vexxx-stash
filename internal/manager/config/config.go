@@ -254,6 +254,10 @@ const (
 	DLNAPort        = "dlna.port"
 	DLNAPortDefault = 1338
 
+	// DeoVR display options
+	DeoVRAllowedPerformerIDs = "deovr.allowed_performer_ids"
+	DeoVRAllowedStudioIDs    = "deovr.allowed_studio_ids"
+
 	// Logging options
 	LogFile               = "logfile"
 	LogOut                = "logout"
@@ -1753,6 +1757,18 @@ func (i *Config) GetDLNAPort() int {
 // GetDLNAPortAsString returns the port to run the DLNA server on as a string.
 func (i *Config) GetDLNAPortAsString() string {
 	return ":" + strconv.Itoa(i.GetDLNAPort())
+}
+
+// GetDeoVRAllowedPerformerIDs returns the list of performer IDs allowed in DeoVR JSON.
+// Empty list means all performers are shown.
+func (i *Config) GetDeoVRAllowedPerformerIDs() []string {
+	return i.getStringSlice(DeoVRAllowedPerformerIDs)
+}
+
+// GetDeoVRAllowedStudioIDs returns the list of studio IDs allowed in DeoVR JSON.
+// Empty list means all studios are shown.
+func (i *Config) GetDeoVRAllowedStudioIDs() []string {
+	return i.getStringSlice(DeoVRAllowedStudioIDs)
 }
 
 // GetDLNAActivityTrackingEnabled returns true if DLNA activity tracking is enabled.

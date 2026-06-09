@@ -245,12 +245,17 @@ func (rs vrRoutes) deovrHandler(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 
-			// Fetch performers
+			// Fetch performers, filtered by allowed IDs if configured
+			allowedPerformerIDs := rs.config.GetDeoVRAllowedPerformerIDs()
+			allowedPerformerSet := makeSet(allowedPerformerIDs)
 			performers, err := rs.repository.Performer.FindBySceneID(ctx, scene.ID)
 			var deovrActors []deovrActor
 			if err == nil && len(performers) > 0 {
 				deovrActors = make([]deovrActor, 0, len(performers))
 				for _, p := range performers {
+					if len(allowedPerformerSet) > 0 && !allowedPerformerSet[strconv.Itoa(p.ID)] {
+						continue
+					}
 					deovrActors = append(deovrActors, deovrActor{
 						ID:   p.ID,
 						Name: p.Name,
@@ -258,23 +263,14 @@ func (rs vrRoutes) deovrHandler(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 
-			// Build categories from tags (already fetched above)
+			// Build categories from studio (tags categories removed)
 			var deovrCategories []deovrCategory
-			if len(tags) > 0 {
-				deovrCategories = make([]deovrCategory, 0, len(tags))
-				for _, t := range tags {
-					deovrCategories = append(deovrCategories, deovrCategory{
-						Tag: deovrCategoryTag{
-							ID:   t.ID,
-							Name: t.Name,
-						},
-					})
-				}
-			}
 
-			// Optionally fetch studio and add it to categories
+			// Optionally fetch studio and add it to categories, filtered by allowed IDs
+			allowedStudioIDs := rs.config.GetDeoVRAllowedStudioIDs()
+			allowedStudioSet := makeSet(allowedStudioIDs)
 			studio, err := rs.repository.Studio.FindBySceneID(ctx, scene.ID)
-			if err == nil && studio != nil {
+			if err == nil && studio != nil && (len(allowedStudioSet) == 0 || allowedStudioSet[strconv.Itoa(studio.ID)]) {
 				deovrCategories = append(deovrCategories, deovrCategory{
 					Tag: deovrCategoryTag{
 						ID:   studio.ID,
@@ -520,17 +516,24 @@ func (rs vrRoutes) deovrHandler(w http.ResponseWriter, r *http.Request) {
 					vr:    is3d,
 				})
 
-				// Build per-performer sections
+				// Build per-performer sections, filtered by allowed IDs
+				allowedPerformerIDs := rs.config.GetDeoVRAllowedPerformerIDs()
+				allowedPerformerSet := makeSet(allowedPerformerIDs)
 				performers, perfErr := rs.repository.Performer.FindBySceneID(ctx, scene.ID)
 				if perfErr == nil {
 					for _, p := range performers {
+						if len(allowedPerformerSet) > 0 && !allowedPerformerSet[strconv.Itoa(p.ID)] {
+							continue
+						}
 						performerSections[p.Name] = append(performerSections[p.Name], entry)
 					}
 				}
 
-				// Build per-studio sections
+				// Build per-studio sections, filtered by allowed IDs
+				allowedStudioIDs := rs.config.GetDeoVRAllowedStudioIDs()
+				allowedStudioSet := makeSet(allowedStudioIDs)
 				studio, studioErr := rs.repository.Studio.FindBySceneID(ctx, scene.ID)
-				if studioErr == nil && studio != nil {
+				if studioErr == nil && studio != nil && (len(allowedStudioSet) == 0 || allowedStudioSet[strconv.Itoa(studio.ID)]) {
 					studioSections[studio.Name] = append(studioSections[studio.Name], entry)
 				}
 			}
@@ -695,6 +698,15 @@ func applyDeoVRTagOverrides(tagNames map[string]bool, screenType string, stereoM
 	}
 
 	return screenType, stereoMode, is3d
+}
+
+// makeSet converts a string slice to a set (map[string]bool) for O(1) lookups.
+func makeSet(slice []string) map[string]bool {
+	set := make(map[string]bool, len(slice))
+	for _, v := range slice {
+		set[v] = true
+	}
+	return set
 }
 
 // ─── Tunnel Manager ──────────────────────────────────────────────────────────

@@ -46,6 +46,8 @@ var (
 	updateTime = time.Date(2002, 01, 01, 0, 0, 0, 0, time.UTC)
 )
 
+func strPtr(s string) *string { return &s }
+
 func createFullGallery(id int) models.Gallery {
 	return models.Gallery{
 		ID: id,
@@ -243,14 +245,14 @@ var getGalleryChaptersJSONScenarios = []galleryChaptersTestScenario{
 var validChapters = []*models.GalleryChapter{
 	{
 		ID:         validChapterID1,
-		Title:      chapterTitle1,
+		Title:      strPtr(chapterTitle1),
 		ImageIndex: chapterImageIndex1,
 		CreatedAt:  createTime,
 		UpdatedAt:  updateTime,
 	},
 	{
 		ID:         validChapterID2,
-		Title:      chapterTitle2,
+		Title:      strPtr(chapterTitle2),
 		ImageIndex: chapterImageIndex2,
 		CreatedAt:  createTime,
 		UpdatedAt:  updateTime,

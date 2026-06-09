@@ -83,6 +83,7 @@ var (
 )
 
 func intPtr(i int) *int { return &i }
+func strPtr(s string) *string { return &s }
 
 func createFullScene(id int) models.Scene {
 	return models.Scene{
@@ -514,7 +515,7 @@ var getSceneMarkersJSONScenarios = []sceneMarkersTestScenario{
 var validMarkers = []*models.SceneMarker{
 	{
 		ID:           validMarkerID1,
-		Title:        markerTitle1,
+		Title:        strPtr(markerTitle1),
 		PrimaryTagID: intPtr(validTagID1),
 		Seconds:      markerSeconds1,
 		CreatedAt:    createTime,
@@ -522,7 +523,7 @@ var validMarkers = []*models.SceneMarker{
 	},
 	{
 		ID:           validMarkerID2,
-		Title:        markerTitle2,
+		Title:        strPtr(markerTitle2),
 		PrimaryTagID: intPtr(validTagID2),
 		Seconds:      markerSeconds2,
 		CreatedAt:    createTime,

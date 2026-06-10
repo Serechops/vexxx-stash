@@ -1,8 +1,9 @@
 import React, { useState } from "react";
-import { FormattedMessage, useIntl } from "react-intl";
+import { useIntl } from "react-intl";
 import { useConfigureUI } from "src/core/StashService";
 import { LoadingIndicator } from "../Shared/LoadingIndicator";
-import { Box, Button } from "@mui/material";
+import { Box, IconButton, Tooltip } from "@mui/material";
+import { Settings } from "lucide-react";
 import { FrontPageConfig } from "./FrontPageConfig";
 import { HeroBanner } from "./HeroBanner";
 import { useToast } from "src/hooks/Toast";
@@ -105,22 +106,30 @@ const FrontPage: React.FC = PatchComponent("FrontPage", () => {
         }}
       >
         <ContinueWatchingRow />
-        {frontPageContent?.map((content, i) => (
+{frontPageContent?.map((content, i) => (
           <Control key={i} content={content} />
         ))}
 
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "flex-end",
-            mb: 2,
-            mr: 2,
-          }}
-        >
-          <Button variant="outlined" onClick={() => setIsEditing(true)}>
-            <FormattedMessage id={"actions.customise"} />
-          </Button>
-        </Box>
+        {/* Floating customise button */}
+        <Tooltip title="Customise front page" placement="left">
+          <IconButton
+            onClick={() => setIsEditing(true)}
+            sx={{
+              position: "fixed",
+              bottom: 24,
+              right: 24,
+              zIndex: 50,
+              bgcolor: "rgba(0,0,0,0.5)",
+              border: "1px solid rgba(255,255,255,0.15)",
+              backdropFilter: "blur(8px)",
+              color: "grey.400",
+              "&:hover": { bgcolor: "rgba(0,0,0,0.75)", color: "white" },
+              transition: "all 0.2s",
+            }}
+          >
+            <Settings size={20} />
+          </IconButton>
+        </Tooltip>
 
         <Box
           component="footer"

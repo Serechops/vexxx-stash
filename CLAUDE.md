@@ -12,8 +12,9 @@ This repo has 1500+ files. Use `cik` for all code exploration — it cuts contex
 | Approximate / partial name | `cik def <name> --fuzzy` |
 | What calls a function | `cik refs <name> --callers` |
 | All usages across repo | `cik refs <name>` |
-| Read a file > ~100 lines | `cik skel <file>`, then `Read` only needed bodies |
-| Read a file < ~50 lines | `Read` directly |
+| Read any source file | `cik read <file>` (auto-skels at 60+ lines) |
+| Read specific lines from a skeleton | `cik read <file> --lines N-M` |
+| Force full content | `cik read <file> --full` |
 | Understand a package's public API | `cik exports <path>` |
 | Repo structure / orientation | `cik map` |
 | Store architectural fact for future sessions | `cik learn "<fact>"` |
@@ -21,9 +22,9 @@ This repo has 1500+ files. Use `cik` for all code exploration — it cuts contex
 
 ### When NOT to use cik
 
-- Editing a file (Edit/Write need exact bytes in context — `Read` the target first)
-- Short files < 50 lines (skel overhead not worth it)
+- **Editing a file** — `Edit`/`Write` need exact bytes in context. Use `Read` (not `cik read`) on the target file immediately before editing.
 - Mutating state (git, mkdir, etc.)
+- Short files < 50 lines (skel overhead not worth it)
 
 ### Workflow pattern for any non-trivial task
 

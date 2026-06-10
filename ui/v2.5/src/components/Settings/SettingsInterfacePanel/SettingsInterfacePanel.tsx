@@ -395,8 +395,9 @@ export const SettingsInterfacePanel: React.FC = PatchComponent(
           />
           <SelectSetting
             id="scene-card-theme"
-            headingID="Scene Card Design"
-            value={(interfaceLocalForage?.data as any)?.sceneCardTheme || "flip"}
+            headingID="config.ui.scene_list.options.scene_card_design"
+            subHeadingID="config.ui.scene_list.options.scene_card_design_desc"
+            value={(interfaceLocalForage?.data as any)?.sceneCardTheme || "overlay"}
             onChange={(v) =>
               setInterfaceLocalForage((prev) => ({
                 ...prev,
@@ -407,6 +408,7 @@ export const SettingsInterfacePanel: React.FC = PatchComponent(
             <option value="overlay">Default (Overlay)</option>
             <option value="flip">Legacy (Flip)</option>
             <option value="stashdb">Modern (StashDB)</option>
+            <option value="cinema">Cinema</option>
           </SelectSetting>
         </SettingSection>
 

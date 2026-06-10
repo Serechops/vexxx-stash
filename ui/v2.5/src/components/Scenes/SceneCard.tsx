@@ -16,6 +16,7 @@ import { RatingBanner } from "../Shared/RatingBanner";
 import { FormattedMessage } from "react-intl";
 import { StashDBCard } from "./StashDBCard";
 import { OverlayCard } from "./OverlayCard";
+import { CinemaCard } from "./CinemaCard";
 import { useInterfaceLocalForage } from "src/hooks/LocalForage";
 import InventoryIcon from "@mui/icons-material/Inventory";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
@@ -695,6 +696,10 @@ export const SceneCard = PatchComponent(
 
     if (theme === "stashdb") {
       return <StashDBCard {...props} />;
+    }
+
+    if (theme === "cinema") {
+      return <CinemaCard {...props} />;
     }
 
     return <OverlayCard {...props} />;

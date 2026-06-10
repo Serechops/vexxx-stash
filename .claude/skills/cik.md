@@ -35,14 +35,23 @@ cik refs    <name>            # all files that reference the name
 cik refs    <name> --callers  # callers only (excludes defining files)
 ```
 
-### 4. Read a large file cheaply — skeleton view
+### 4. Read any file — smart reader (preferred over raw `Read`)
 ```
-cik skel <file>
+cik read <file>              # auto: skeleton if large + supported, else raw
+cik read <file> --lines N-M  # read lines N to M (1-indexed, inclusive)
+cik read <file> --full       # force full content (bypass skeleton)
 ```
-Keeps imports, signatures, types, doc comments. Elides function bodies,
-replacing them with `… N lines (start-end)` markers. A 2,000-line file
-becomes ~200-400 lines. Then use `Read` with `offset`/`limit` to fetch
-only the body lines you actually need.
+For supported languages (TS, JS, Python, Go, Rust, CSS, …), `cik read`
+auto-switches to skeleton mode when the file exceeds 60 lines. A 2,000-line
+file becomes ~200-400 lines. Use `--lines N-M` to fetch specific bodies once
+you know which lines you need from the skeleton.
+
+**Use `cik read` instead of `Read` for all source files.** `Read` directly
+only when you are about to `Edit` the file (Edit needs exact bytes in context).
+
+```
+cik skel <file>   # explicit skeleton only (prefer `cik read`)
+```
 
 ### 5. List public API
 ```
@@ -79,8 +88,10 @@ Injected at session start alongside the repo map.
 | Understand repo structure | `cik map` |
 | "Where is `processPayment` defined?" | `cik def processPayment` |
 | "What calls `validateToken`?" | `cik refs validateToken --callers` |
-| Read a 1,000-line file for one function | `cik skel file.ts`, then `Read file.ts offset=N limit=M` |
-| Read a 50-line file | `Read` directly — `cik skel` adds no value |
+| Read any source file (default choice) | `cik read <file>` |
+| Read specific lines after seeing skeleton | `cik read <file> --lines N-M` |
+| Force full content of a large file | `cik read <file> --full` |
+| Edit a file (needs exact bytes) | `Read` then `Edit` — do NOT use `cik read` before editing |
 | Search by approximate name | `cik def partial --fuzzy` |
 | First session in repo | `cik index && cik map` |
 | Remember an architectural fact | `cik learn "fact" --file src/auth.ts` |

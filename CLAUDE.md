@@ -1,41 +1,51 @@
-# Stash — Claude Working Instructions
-
-## Code Exploration: Use `cik` First
-
-This repo has 1500+ files. Use `cik` for all code exploration — it cuts context 60–90% vs raw Read/Grep.
-
-### Decision rules
-
-| Goal | Tool |
-|---|---|
-| Find where symbol is defined | `cik def <name>` |
-| Approximate / partial name | `cik def <name> --fuzzy` |
-| What calls a function | `cik refs <name> --callers` |
-| All usages across repo | `cik refs <name>` |
-| Read any source file | `cik read <file>` (auto-skels at 60+ lines) |
-| Read specific lines from a skeleton | `cik read <file> --lines N-M` |
-| Force full content | `cik read <file> --full` |
-| Understand a package's public API | `cik exports <path>` |
-| Repo structure / orientation | `cik map` |
-| Store architectural fact for future sessions | `cik learn "<fact>"` |
-| Recall prior session facts | `cik recall` |
-
-### When NOT to use cik
-
-- **Editing a file** — `Edit`/`Write` need exact bytes in context. Use `Read` (not `cik read`) on the target file immediately before editing.
-- Mutating state (git, mkdir, etc.)
-- Short files < 50 lines (skel overhead not worth it)
-
-### Workflow pattern for any non-trivial task
-
-1. `cik def` / `cik refs` to locate relevant symbols (~10 tokens each)
-2. `cik skel` on large files to get signatures
-3. `Read` with `offset`/`limit` only on the specific body sections needed
-4. Edit/Write as normal
+# Stash (Vexxx Fork) — Claude Instructions
 
 ## Stack
 
-- Backend: Go (`pkg/`, `internal/`)
-- Frontend: TypeScript/React (`ui/v2.5/src/`)
-- DB layer: SQLite (`pkg/sqlite/`)
-- GraphQL API (`internal/api/`)
+| Layer | Location | Tech |
+|---|---|---|
+| Backend | `pkg/`, `internal/` | Go |
+| Frontend | `ui/v2.5/src/` | TypeScript + React |
+| Database | `pkg/sqlite/` | SQLite |
+| API | `internal/api/` | GraphQL (gqlgen) |
+
+## Dev Commands
+
+```bash
+# Start both backend + frontend (preferred)
+cd ui/v2.5 && pnpm run dev
+
+# Frontend only (Vite on :3000)
+cd ui/v2.5 && pnpm run start
+
+# Type check
+cd ui/v2.5 && pnpm run check
+
+# Lint + format check
+cd ui/v2.5 && pnpm run validate
+
+# Go tests
+go test ./...
+
+# Go build
+make stash
+```
+
+## Frontend Conventions
+
+**MUI vs Tailwind** — both are in use. Rule:
+- MUI `Box`/`Typography`/`IconButton` etc. for structural layout that needs theme tokens (`theme.palette`, `sx` prop)
+- Tailwind classes for custom components that own their full visual style (e.g. `HeroBanner`, `CinemaCard`)
+- Don't mix both styling systems within a single component
+
+**PatchComponent** — wraps top-level page and card components to allow plugin patching. Use it for any new page or card component. Don't use inside utility/shared components.
+
+**UI preferences (non-GQL state)** — stored via `useInterfaceLocalForage`. Fields not in the GQL schema are accessed as `(data as any)?.yourKey` with `@ts-ignore` where needed. This is consistent with the existing pattern — don't fight it.
+
+**Settings UI** — use `SelectSetting` / `BooleanSetting` from `src/components/Settings/Inputs.tsx`. Always pass `headingID` pointing to a valid key in `src/locales/en-GB.json` — raw strings silently fail.
+
+**Scene card themes** — selectable via `sceneCardTheme` in localForage (`"overlay"` | `"flip"` | `"stashdb"` | `"cinema"`). New card variants: add component, import in `SceneCard.tsx`, add `if (theme === "yourkey")` case, add `<option>` in `SettingsInterfacePanel.tsx`, add locale key.
+
+## This Is a Fork
+
+Custom components and features are added alongside upstream code. Prefer extending over modifying upstream files where possible so merging upstream changes stays tractable.

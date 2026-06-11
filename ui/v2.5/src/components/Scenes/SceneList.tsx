@@ -63,7 +63,7 @@ import { SidebarFolderFilter } from "../List/Filters/FolderFilter";
 import { useFilteredSidebarKeybinds } from "../List/Filters/FilterSidebar";
 import { PatchComponent, PatchContainerComponent } from "src/patch";
 import { Pagination, PaginationIndex } from "../List/Pagination";
-import { Box, Button, ButtonGroup, Paper } from "@mui/material";
+import { Box, Button, ButtonGroup } from "@mui/material";
 import { useZoomKeybinds } from "../List/ZoomSlider";
 import { SearchTermInput } from "../List/ListFilter";
 import { SavedFilterDropdown } from "../List/SavedFilterList";
@@ -648,7 +648,6 @@ export const FilteredSceneList = (props: IFilteredScenes) => {
                   background: "linear-gradient(to bottom, transparent, #09090b 20%, #09090b)",
                   pt: { xs: 4, md: 8 },
                   pb: 4,
-                  px: { xs: 2, md: 6 },
                   minHeight: "100vh",
                   width: "100vw",
                   marginLeft: "calc(50% - 50vw)",
@@ -659,12 +658,6 @@ export const FilteredSceneList = (props: IFilteredScenes) => {
                 : {}
             }
           >
-            <Paper
-              elevation={0}
-              sx={{
-                bgcolor: "transparent",
-              }}
-            >
             {/* Sticky Header Control Bar */}
             <Box
               sx={{
@@ -764,7 +757,6 @@ export const FilteredSceneList = (props: IFilteredScenes) => {
                 )}
               </Box>
             </Box>
-            </Paper>
           </Box>
         </SidebarStateContext.Provider>
       </div>

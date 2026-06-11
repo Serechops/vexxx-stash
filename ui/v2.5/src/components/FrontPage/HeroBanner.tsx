@@ -26,7 +26,7 @@ export const HeroBanner: React.FC = () => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const [isMuted, setIsMuted] = useState(true);
     const [currentIndex, setCurrentIndex] = useState(0);
-    const [videoProgress, setVideoProgress] = useState(0);
+
     const { configuration } = useConfigurationContext();
 
     const filter = useMemo(() => {
@@ -48,7 +48,6 @@ export const HeroBanner: React.FC = () => {
         if (videoRef.current && scene) {
             videoRef.current.load();
             videoRef.current.play().catch(() => {});
-            setVideoProgress(0);
         }
     }, [scene]);
 
@@ -61,13 +60,6 @@ export const HeroBanner: React.FC = () => {
 
     const handleVideoEnded = () => {
         setCurrentIndex((prev) => (prev + 1) % scenes.length);
-    };
-
-    const handleTimeUpdate = () => {
-        const v = videoRef.current;
-        if (v && v.duration) {
-            setVideoProgress((v.currentTime / v.duration) * 100);
-        }
     };
 
     const uiConfig = configuration?.ui as IUIConfig | undefined;
@@ -97,7 +89,6 @@ export const HeroBanner: React.FC = () => {
                         muted={isMuted}
                         playsInline
                         onEnded={handleVideoEnded}
-                        onTimeUpdate={handleTimeUpdate}
                     />
                 ) : (
                     <img
@@ -174,13 +165,6 @@ export const HeroBanner: React.FC = () => {
                 </button>
             </div>
 
-            {/* Video progress bar */}
-            <div className="absolute bottom-32 left-0 right-0 h-0.5 bg-white/20 z-20">
-                <div
-                    className="h-full bg-white/70"
-                    style={{ width: `${videoProgress}%`, transition: "width 0.25s linear" }}
-                />
-            </div>
         </div>
     );
 };

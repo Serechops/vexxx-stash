@@ -730,8 +730,9 @@ func (rs vrRoutes) tunnelStartHandler(w http.ResponseWriter, r *http.Request) {
 
 	if deovrTunnel.running {
 		writeJSON(w, map[string]interface{}{
-			"status": "already_running",
-			"url":    deovrTunnel.url,
+			"running": true,
+			"url":     deovrTunnel.url,
+			"error":   nil,
 		})
 		return
 	}
@@ -753,8 +754,9 @@ func (rs vrRoutes) tunnelStartHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		cancel()
 		writeJSON(w, map[string]interface{}{
-			"status": "error",
-			"error":  err.Error(),
+			"running": false,
+			"url":     nil,
+			"error":   err.Error(),
 		})
 		return
 	}
@@ -774,9 +776,9 @@ func (rs vrRoutes) tunnelStartHandler(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	writeJSON(w, map[string]interface{}{
-		"status": "starting",
-		"port":   port,
-		"url":    tunnel.URL(),
+		"running": true,
+		"url":     tunnel.URL(),
+		"error":   nil,
 	})
 }
 
@@ -786,7 +788,9 @@ func (rs vrRoutes) tunnelStopHandler(w http.ResponseWriter, r *http.Request) {
 
 	if !deovrTunnel.running {
 		writeJSON(w, map[string]interface{}{
-			"status": "not_running",
+			"running": false,
+			"url":     nil,
+			"error":   nil,
 		})
 		return
 	}
@@ -803,7 +807,9 @@ func (rs vrRoutes) tunnelStopHandler(w http.ResponseWriter, r *http.Request) {
 	deovrTunnel.url = ""
 
 	writeJSON(w, map[string]interface{}{
-		"status": "stopped",
+		"running": false,
+		"url":     nil,
+		"error":   nil,
 	})
 }
 

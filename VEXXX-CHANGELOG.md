@@ -1,6 +1,14 @@
 # VEXXX Changelog
 
-Commits since 9d8adbdb21def80cd28dd585ec0347561c73e6df (exclusive) up to HEAD
+---
+
+## v1.3 — 2026-06-11
+
+**Highlights:** Recycle Bin, VR Theatre + DeoVR tunnel, AI Recommendations, File Browser, Smart Playlists, Analytics Dashboard, Multi-User Auth, Auto-Identify pipeline, Handy API v3 rewrite, Real-time file watcher, stash-diag CLI, memory leak fixes, Clean task speedups, backend hardening.
+
+---
+
+Commits since 7bfc63c9edda13c858d9bfcf1068c49b13593750 (v1.2) up to HEAD
 
 ### fix: apply upstream memory leak fixes and resolve generate parallelism explosion
 
@@ -257,7 +265,11 @@ Frontend:
 
 ---
 
-Commits since 3b2f512b85be85f0d4a18c2507950438834563ca (exclusive) up to 9d8adbdb21def80cd28dd585ec0347561c73e6df
+---
+
+## v1.2
+
+Commits since 3b2f512b85be85f0d4a18c2507950438834563ca (exclusive) up to 7bfc63c9edda13c858d9bfcf1068c49b13593750 (v1.2)
 
 ### feat: port upstream Phase 10 quick-win PRs (#6713, #6483)
 

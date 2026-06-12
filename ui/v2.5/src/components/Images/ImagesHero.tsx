@@ -127,7 +127,7 @@ export const ImagesHero: React.FC = () => {
                                         sx={{
                                             position: "absolute",
                                             inset: 0,
-                                            bgcolor: "rgba(0,0,0,0.68)",
+                                            bgcolor: "rgba(0,0,0,0.3)",
                                             opacity: isActive ? 0 : 1,
                                             transition: "opacity 0.5s ease",
                                             pointerEvents: "none",
@@ -146,7 +146,7 @@ export const ImagesHero: React.FC = () => {
                     position: "absolute",
                     top: 0, left: 0, right: 0,
                     height: "40%",
-                    background: "linear-gradient(to bottom, #080808 0%, rgba(8,8,8,0.75) 55%, transparent 100%)",
+                    background: "linear-gradient(to bottom, rgba(8,8,8,0.85) 0%, rgba(8,8,8,0.3) 55%, transparent 100%)",
                     zIndex: 10,
                     pointerEvents: "none",
                 }}
@@ -157,7 +157,7 @@ export const ImagesHero: React.FC = () => {
                     position: "absolute",
                     bottom: 0, left: 0, right: 0,
                     height: "65%",
-                    background: "linear-gradient(to top, #080808 30%, rgba(8,8,8,0.65) 65%, transparent 100%)",
+                    background: "linear-gradient(to top, rgba(8,8,8,0.85) 20%, rgba(8,8,8,0.4) 55%, transparent 100%)",
                     zIndex: 10,
                     pointerEvents: "none",
                 }}
@@ -168,7 +168,7 @@ export const ImagesHero: React.FC = () => {
                     position: "absolute",
                     top: 0, bottom: 0, left: 0,
                     width: "10%",
-                    background: "linear-gradient(to right, #080808, transparent)",
+                    background: "linear-gradient(to right, rgba(8,8,8,0.3), transparent)",
                     zIndex: 10,
                     pointerEvents: "none",
                 }}
@@ -178,7 +178,7 @@ export const ImagesHero: React.FC = () => {
                     position: "absolute",
                     top: 0, bottom: 0, right: 0,
                     width: "10%",
-                    background: "linear-gradient(to left, #080808, transparent)",
+                    background: "linear-gradient(to left, rgba(8,8,8,0.7), transparent)",
                     zIndex: 10,
                     pointerEvents: "none",
                 }}

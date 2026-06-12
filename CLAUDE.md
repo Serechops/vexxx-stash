@@ -49,3 +49,7 @@ make stash
 ## This Is a Fork
 
 Custom components and features are added alongside upstream code. Prefer extending over modifying upstream files where possible so merging upstream changes stays tractable.
+
+## Context Management
+
+After each discrete task completes, proactively suggest `/compact` if the conversation is getting long. Be aggressive: suggest it after any task that involved reading multiple files, a build/test cycle, or more than ~10 tool calls. Don't wait until context is already bloated — suggest early and often. When switching to a completely different area of the codebase, suggest `/clear` instead.

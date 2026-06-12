@@ -42,6 +42,10 @@ func (t *GenerateSpriteTask) Start(ctx context.Context) error {
 	}
 	generator.Overwrite = t.Overwrite
 
+	if t.Scene.VRMode != nil {
+		generator.VRMode = string(*t.Scene.VRMode)
+	}
+
 	if t.Scene.StartPoint != nil && t.Scene.EndPoint != nil && *t.Scene.EndPoint > *t.Scene.StartPoint {
 		generator.StartOffset = *t.Scene.StartPoint
 		generator.Duration = *t.Scene.EndPoint - *t.Scene.StartPoint

@@ -32,6 +32,8 @@ type SpriteGenerator struct {
 	StartOffset float64
 	Duration    float64
 
+	VRMode string
+
 	g *generate.Generator
 }
 
@@ -116,7 +118,7 @@ func (g *SpriteGenerator) generateSpriteImage(ctx context.Context) error {
 
 		for i := 0; i < g.Info.ChunkCount; i++ {
 			time := g.StartOffset + (float64(i) * stepSize)
-			img, err := g.g.SpriteScreenshot(ctx, g.Info.VideoFile.Path, time)
+			img, err := g.g.SpriteScreenshot(ctx, g.Info.VideoFile.Path, time, g.VRMode)
 			if err != nil {
 				return fmt.Errorf("sprite screenshot at index %d: %w", i, err)
 			}
@@ -133,7 +135,7 @@ func (g *SpriteGenerator) generateSpriteImage(ctx context.Context) error {
 				return errors.New("invalid frame number conversion")
 			}
 
-			img, err := g.g.SpriteScreenshotSlow(ctx, g.Info.VideoFile.Path, int(frame))
+			img, err := g.g.SpriteScreenshotSlow(ctx, g.Info.VideoFile.Path, int(frame), g.VRMode)
 			if err != nil {
 				return fmt.Errorf("sprite screenshot (slow) at index %d: %w", i, err)
 			}

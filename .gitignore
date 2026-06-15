@@ -51,11 +51,6 @@ ui/login/locales/*
 .idea/**/dbnavigator.xml
 
 ####
-# cik (Context Is Key) — symbol index + DB, not needed in repo
-####
-.cik/
-
-####
 # Random
 ####
 

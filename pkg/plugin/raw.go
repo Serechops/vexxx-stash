@@ -1,7 +1,6 @@
 package plugin
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,7 +9,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"time"
 
 	stashExec "github.com/stashapp/stash/pkg/exec"
 	"github.com/stashapp/stash/pkg/logger"
@@ -53,9 +51,7 @@ func (t *rawPluginTask) Start() error {
 		if err != nil {
 			logger.Warnf("%s", err)
 		} else {
-			taskCtx, cancel := context.WithTimeout(t.ctx, 30*time.Second)
-			defer cancel()
-			cmd = p.Command(taskCtx, command[1:])
+			cmd = p.Command(t.ctx, command[1:])
 
 			envVariable, _ := filepath.Abs(filepath.Dir(filepath.Dir(t.plugin.path)))
 			python.AppendPythonPath(cmd, envVariable)

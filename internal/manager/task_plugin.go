@@ -18,7 +18,7 @@ func (s *Manager) RunPluginTask(
 ) int {
 	j := job.MakeJobExec(func(jobCtx context.Context, progress *job.Progress) error {
 		pluginProgress := make(chan float64)
-		task, err := s.PluginCache.CreateTask(ctx, pluginID, taskName, args, pluginProgress)
+		task, err := s.PluginCache.CreateTask(jobCtx, pluginID, taskName, args, pluginProgress)
 		if err != nil {
 			return fmt.Errorf("Error creating plugin task: %w", err)
 		}

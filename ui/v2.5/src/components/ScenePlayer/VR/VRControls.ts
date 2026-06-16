@@ -65,6 +65,7 @@ const RATE_STEPS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 export class VRControlPanel {
   readonly object: THREE.Group;
   private mesh: THREE.Mesh;
+  private material: THREE.MeshBasicMaterial;
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
   private texture: THREE.CanvasTexture;
@@ -75,6 +76,11 @@ export class VRControlPanel {
   private heatmap: HTMLImageElement | null = null;
 
   private last: IDrawInput | null = null;
+  // Dirty-check: the canvas is only redrawn + re-uploaded when its visible
+  // content changes (state signature / hover / heatmap), not every frame —
+  // this keeps the per-frame GPU texture-upload cost near zero while idle.
+  private dirty = true;
+  private sig = "";
 
   onAction?: (a: VRControlAction) => void;
 
@@ -93,14 +99,14 @@ export class VRControlPanel {
     this.texture.generateMipmaps = false;
 
     const geometry = new THREE.PlaneGeometry(PANEL_WIDTH_M, PANEL_HEIGHT_M);
-    const material = new THREE.MeshBasicMaterial({
+    this.material = new THREE.MeshBasicMaterial({
       map: this.texture,
       transparent: true,
       depthTest: false,
       depthWrite: false,
       side: THREE.DoubleSide,
     });
-    this.mesh = new THREE.Mesh(geometry, material);
+    this.mesh = new THREE.Mesh(geometry, this.material);
     this.mesh.renderOrder = 10;
     this.mesh.name = "vr-control-panel";
 
@@ -116,6 +122,11 @@ export class VRControlPanel {
   /** Physical width of the panel, metres (for preview clamping). */
   get widthMeters(): number {
     return PANEL_WIDTH_M;
+  }
+
+  /** Physical height of the panel, metres (for stacking the info panels). */
+  get heightMeters(): number {
+    return PANEL_HEIGHT_M;
   }
 
   /** Fraction (0..1) of the scrubber currently hovered, or null. */
@@ -136,11 +147,17 @@ export class VRControlPanel {
     return new THREE.Vector3(localX, localY, 0.03);
   }
 
+  /** Fade + cull: opacity drives the material; below threshold we hide it. */
+  setRenderState(opacity: number) {
+    this.material.opacity = opacity;
+    this.mesh.visible = opacity > 0.02;
+  }
+
   /** Load the funscript heatmap (CSS `url("data:…")`) for the scrubber bg. */
   setHeatmap(cssUrl: string | null) {
     if (!cssUrl) {
       this.heatmap = null;
-      this.redraw();
+      this.dirty = true;
       return;
     }
     // generateFunscriptWaveform returns `url("data:image/svg+xml,…")`.
@@ -149,18 +166,44 @@ export class VRControlPanel {
     const img = new Image();
     img.onload = () => {
       this.heatmap = img;
-      this.redraw();
+      this.dirty = true;
     };
     img.src = src;
   }
 
   update(input: IDrawInput) {
     this.last = input;
+    const sig = this.signature(input);
+    if (!this.dirty && sig === this.sig) return;
+    this.sig = sig;
+    this.dirty = false;
     this.draw(input);
   }
 
-  private redraw() {
-    if (this.last) this.draw(this.last);
+  /** A compact fingerprint of everything that affects the rendered panel. */
+  private signature(input: IDrawInput): string {
+    const { state, projection, markers, chapterTitle, caption, locked } = input;
+    return [
+      state.paused ? 1 : 0,
+      state.muted ? 1 : 0,
+      state.captionsOn ? 1 : 0,
+      state.waiting ? 1 : 0,
+      locked ? 1 : 0,
+      projection.swapEyes ? 1 : 0,
+      Math.round(state.currentTime * 10),
+      Math.round(state.duration * 10),
+      Math.round(state.bufferedAhead * 2),
+      state.volume.toFixed(2),
+      state.playbackRate,
+      fovLabel(projection),
+      stereoLabel(projection),
+      markers.length,
+      chapterTitle ?? "",
+      caption ?? "",
+      this.hoveredId ?? "",
+      this.hoverFraction == null ? "" : this.hoverFraction.toFixed(3),
+      this.heatmap ? 1 : 0,
+    ].join("|");
   }
 
   // --- hit testing ----------------------------------------------------------
@@ -185,7 +228,8 @@ export class VRControlPanel {
       const { x } = this.uvToCanvas(uv);
       fraction = Math.min(1, Math.max(0, (x - region.x) / region.w));
     }
-    // Cheap state update only; the manager redraws the panel every frame.
+    // Cheap state update; the change is picked up by the next update()'s
+    // signature check, which triggers a redraw only when hover actually moves.
     this.hoveredId = id;
     this.hoverFraction = fraction;
   }

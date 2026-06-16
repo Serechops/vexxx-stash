@@ -1,19 +1,30 @@
 /**
  * VRControllerInput — Quest Touch controller handling.
  *
- * Builds a laser pointer per controller, raycasts against the control panel for
- * hover/select, and reads gamepad axes for thumbstick scrubbing. The grip
- * (squeeze) button either grabs-and-drags the control panel (when it's
- * unpinned and being pointed at) or recenters the view.
+ * Builds a laser pointer per controller, raycasts against any number of control
+ * panels for hover/select (reporting *which* panel was hit so the session
+ * manager can route the interaction), and reads gamepad axes for thumbstick
+ * scrubbing. The grip (squeeze) button either grabs-and-drags the panel group
+ * (when it's unpinned-into-drag-mode and being pointed at) or recenters.
+ *
+ * It also surfaces a per-frame "activity" signal (any deliberate controller
+ * movement, thumbstick deflection or button press) so the manager can auto-hide
+ * the UI after a period of inactivity and reveal it again on the next input.
  *
  * All resolved interactions are surfaced through callbacks; this class owns no
  * playback state.
  */
 import * as THREE from "three";
 
+/** A raycast hit on one of the registered panels. */
+export interface IPanelHit {
+  object: THREE.Object3D;
+  uv: THREE.Vector2;
+}
+
 export interface IControllerInputCallbacks {
-  onHover: (uv: THREE.Vector2 | null) => void;
-  onSelect: (uv: THREE.Vector2) => void;
+  onHover: (hit: IPanelHit | null) => void;
+  onSelect: (hit: IPanelHit) => void;
   /** Thumbstick nudge, in (signed) seconds. */
   onScrub: (deltaSeconds: number) => void;
   onRecenter: () => void;
@@ -30,13 +41,19 @@ const SCRUB_SECONDS = 10;
 const DRAG_MIN = 0.6;
 const DRAG_MAX = 6;
 const DRAG_STEP = 0.04;
+// Activity thresholds: deliberate movement past these (per frame) counts as
+// "user is interacting" and wakes / keeps-awake the auto-hiding UI. Tuned above
+// resting-hand jitter so the UI can still settle and hide when held still.
+const WAKE_POS = 0.012; // metres moved between frames
+const WAKE_ANGLE = 0.035; // radians rotated between frames (~2°)
+const WAKE_STICK = 0.2; // thumbstick magnitude
 
 export class VRControllerInput {
   private controllers: THREE.Group[] = [];
   private lasers: THREE.Line[] = [];
   private raycaster = new THREE.Raycaster();
   private rotMatrix = new THREE.Matrix4();
-  private target: THREE.Object3D | null = null;
+  private targets: THREE.Object3D[] = [];
   private session: XRSession | null = null;
   private disposers: Array<() => void> = [];
 
@@ -49,8 +66,15 @@ export class VRControllerInput {
   private draggingController: THREE.Group | null = null;
   private grabDistance = 2.4;
 
+  // Activity tracking for auto-hide.
+  private activity = false;
+  private prevPos: THREE.Vector3[] = [];
+  private prevQuat: THREE.Quaternion[] = [];
+  private havePrev = false;
+
   private tmpV1 = new THREE.Vector3();
   private tmpV2 = new THREE.Vector3();
+  private tmpQuat = new THREE.Quaternion();
   private camPos = new THREE.Vector3();
 
   constructor(
@@ -78,10 +102,14 @@ export class VRControllerInput {
       controller.add(laser);
 
       const onSelectStart = () => {
-        const uv = this.intersect(controller);
-        if (uv) this.cb.onSelect(uv);
+        this.activity = true;
+        const hit = this.intersect(controller);
+        if (hit) this.cb.onSelect(hit);
       };
-      const onSqueezeStart = () => this.beginGrabOrRecenter(controller);
+      const onSqueezeStart = () => {
+        this.activity = true;
+        this.beginGrabOrRecenter(controller);
+      };
       const onSqueezeEnd = () => this.endGrab(controller);
       controller.addEventListener("selectstart", onSelectStart);
       controller.addEventListener("squeezestart", onSqueezeStart);
@@ -95,6 +123,8 @@ export class VRControllerInput {
       scene.add(controller);
       this.controllers.push(controller);
       this.lasers.push(laser);
+      this.prevPos.push(new THREE.Vector3());
+      this.prevQuat.push(new THREE.Quaternion());
     }
   }
 
@@ -102,19 +132,27 @@ export class VRControllerInput {
     this.session = session;
   }
 
-  setTarget(target: THREE.Object3D | null) {
-    this.target = target;
+  /** The set of panel meshes to raycast against (hover/select). */
+  setTargets(targets: THREE.Object3D[]) {
+    this.targets = targets;
   }
 
   /**
    * Mark an object as grip-draggable. When enabled, squeezing while pointing at
-   * the panel grabs it; otherwise squeeze recenters. Disabling cancels any
+   * a panel grabs it; otherwise squeeze recenters. Disabling cancels any
    * in-progress drag.
    */
   setDraggable(object: THREE.Object3D | null, enabled: boolean) {
     this.draggable = object;
     this.dragEnabled = enabled;
     if (!enabled) this.draggingController = null;
+  }
+
+  /** Returns (and clears) whether deliberate input happened since last call. */
+  consumeActivity(): boolean {
+    const a = this.activity;
+    this.activity = false;
+    return a;
   }
 
   private beginGrabOrRecenter(controller: THREE.Group) {
@@ -136,8 +174,7 @@ export class VRControllerInput {
     if (this.draggingController === controller) this.draggingController = null;
   }
 
-  private intersect(controller: THREE.Group): THREE.Vector2 | null {
-    if (!this.target) return null;
+  private setupRay(controller: THREE.Group) {
     controller.updateMatrixWorld(true);
     this.rotMatrix.identity().extractRotation(controller.matrixWorld);
     this.raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
@@ -145,39 +182,54 @@ export class VRControllerInput {
       .set(0, 0, -1)
       .applyMatrix4(this.rotMatrix)
       .normalize();
-    const hits = this.raycaster.intersectObject(this.target, false);
-    if (!hits.length) return null;
-    return hits[0].uv ?? null;
+  }
+
+  /** Nearest panel hit for a controller (skips hidden panels), or null. */
+  private raycastNearest(
+    controller: THREE.Group
+  ): { object: THREE.Object3D; uv: THREE.Vector2; distance: number } | null {
+    this.setupRay(controller);
+    let best: {
+      object: THREE.Object3D;
+      uv: THREE.Vector2;
+      distance: number;
+    } | null = null;
+    for (const t of this.targets) {
+      // Raycaster.intersectObject ignores `.visible`; gate it ourselves so a
+      // hidden (auto-hidden) panel isn't interactable.
+      if (!t.visible) continue;
+      const hits = this.raycaster.intersectObject(t, false);
+      if (
+        hits.length &&
+        hits[0].uv &&
+        (!best || hits[0].distance < best.distance)
+      ) {
+        best = { object: t, uv: hits[0].uv, distance: hits[0].distance };
+      }
+    }
+    return best;
+  }
+
+  private intersect(controller: THREE.Group): IPanelHit | null {
+    const hit = this.raycastNearest(controller);
+    return hit ? { object: hit.object, uv: hit.uv } : null;
   }
 
   update() {
-    // Hover: first controller pointing at the panel wins. Also lengthen the
-    // laser to the hit point for nicer feedback.
-    let hoverUv: THREE.Vector2 | null = null;
+    // Hover: first controller pointing at a panel wins. Also lengthen each
+    // laser to its hit point for nicer feedback.
+    let hover: IPanelHit | null = null;
     for (let i = 0; i < this.controllers.length; i++) {
-      const controller = this.controllers[i];
-      if (!this.target) {
-        this.lasers[i].scale.z = LASER_LENGTH;
-        continue;
-      }
-      controller.updateMatrixWorld(true);
-      this.rotMatrix.identity().extractRotation(controller.matrixWorld);
-      this.raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
-      this.raycaster.ray.direction
-        .set(0, 0, -1)
-        .applyMatrix4(this.rotMatrix)
-        .normalize();
-      const hits = this.raycaster.intersectObject(this.target, false);
-      if (hits.length) {
-        this.lasers[i].scale.z = hits[0].distance;
-        if (!hoverUv && hits[0].uv) hoverUv = hits[0].uv;
-      } else {
-        this.lasers[i].scale.z = LASER_LENGTH;
-      }
+      const hit = this.raycastNearest(this.controllers[i]);
+      this.lasers[i].scale.z = hit ? hit.distance : LASER_LENGTH;
+      if (hit && !hover) hover = { object: hit.object, uv: hit.uv };
     }
-    this.cb.onHover(hoverUv);
+    this.cb.onHover(hover);
 
-    // While grabbing the panel, the thumbstick push/pulls it instead of
+    this.detectMovement();
+    this.detectStick();
+
+    // While grabbing a panel, the thumbstick push/pulls it instead of
     // scrubbing; the panel rides the controller ray and faces the viewer.
     if (this.draggingController && this.draggable) {
       this.updateDrag();
@@ -185,6 +237,43 @@ export class VRControllerInput {
     }
 
     this.updateScrub();
+  }
+
+  /** Flag activity when a controller is deliberately moved/rotated. */
+  private detectMovement() {
+    let moved = false;
+    for (let i = 0; i < this.controllers.length; i++) {
+      const c = this.controllers[i];
+      c.getWorldPosition(this.tmpV1);
+      c.getWorldQuaternion(this.tmpQuat);
+      if (this.havePrev) {
+        if (
+          this.tmpV1.distanceTo(this.prevPos[i]) > WAKE_POS ||
+          this.tmpQuat.angleTo(this.prevQuat[i]) > WAKE_ANGLE
+        ) {
+          moved = true;
+        }
+      }
+      this.prevPos[i].copy(this.tmpV1);
+      this.prevQuat[i].copy(this.tmpQuat);
+    }
+    this.havePrev = true;
+    if (moved) this.activity = true;
+  }
+
+  /** Flag activity on any meaningful thumbstick deflection. */
+  private detectStick() {
+    if (!this.session) return;
+    for (const src of this.session.inputSources) {
+      const gp = src.gamepad;
+      if (!gp) continue;
+      for (const ax of gp.axes) {
+        if (Math.abs(ax) > WAKE_STICK) {
+          this.activity = true;
+          return;
+        }
+      }
+    }
   }
 
   private updateDrag() {
@@ -264,6 +353,7 @@ export class VRControllerInput {
     }
     this.lasers = [];
     this.controllers = [];
+    this.targets = [];
     this.draggable = null;
     this.draggingController = null;
   }

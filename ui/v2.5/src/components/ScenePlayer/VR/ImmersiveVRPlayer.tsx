@@ -18,6 +18,7 @@ import { languageMap } from "src/utils/caption";
 import { generateFunscriptWaveform } from "src/utils/funscriptWaveform";
 import { XRSessionManager } from "./xrSession";
 import { VRThumbnails } from "./vttThumbnails";
+import { IVRSceneInfo } from "./VRInfoPanels";
 import { useVRPlayback } from "./useVRPlayback";
 import {
   IProjectionSettings,
@@ -112,6 +113,27 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
   );
   const markersRef = useRef(markers);
   markersRef.current = markers;
+
+  // Static, per-scene info for the performers + scene-info panels. Keyed on
+  // scene.id (like `sources`) so cache-driven scene identity changes don't
+  // rebuild it; it's only read once when the manager is created.
+  const info = useMemo<IVRSceneInfo>(
+    () => ({
+      title: scene.title ?? "",
+      performers: scene.performers.map((p) => ({
+        name: p.name,
+        imageUrl: p.image_path ?? null,
+      })),
+      tags: scene.tags.map((t) => t.name),
+      markers: [...scene.scene_markers]
+        .sort((a, b) => a.seconds - b.seconds)
+        .map((m) => ({ title: markerTitle(m), seconds: m.seconds })),
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [scene.id]
+  );
+  const infoRef = useRef(info);
+  infoRef.current = info;
 
   const getChapterTitle = useCallback((): string | null => {
     const v = videoRef.current;
@@ -331,6 +353,7 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
       video: videoEl,
       container: containerRef.current,
       projection: projectionRef.current,
+      info: infoRef.current,
       getState,
       getMarkers: () => markersRef.current,
       getChapterTitle,

@@ -12,6 +12,11 @@
  * video) is a planned follow-up — it needs on-device tuning and gracefully sits
  * behind this same manager interface.
  *
+ * The floating UI (control bar + performers + scene-info panels) lives in one
+ * group that is pinned in front of the viewer by default, grip-draggable, and
+ * auto-hides after a few seconds of no input. Drawing is dirty-checked and the
+ * UI fades as a unit so per-frame GPU work stays minimal.
+ *
  * Playback state is *pulled* each frame via `getState()` and all interactions
  * are *pushed* out via `onAction`, so the React layer remains the only owner of
  * the <video> element and projection state.
@@ -25,13 +30,30 @@ import {
   uvTransformForEye,
 } from "./projection";
 import { VRControlPanel } from "./VRControls";
-import { VRControllerInput } from "./VRControllerInput";
+import { VRControllerInput, IPanelHit } from "./VRControllerInput";
+import {
+  VRCanvasPanel,
+  VRPerformersPanel,
+  VRSceneInfoPanel,
+  IVRSceneInfo,
+} from "./VRInfoPanels";
 import { VRControlAction, IVRMarker, IVRPlaybackState } from "./types";
 import type { IThumbnailCrop } from "./vttThumbnails";
 
 const DOME_RADIUS = 500;
 const PANEL_DISTANCE = 2.4;
 const PANEL_DROP = 0.45; // metres below eye level
+const PANEL_TILT = 0.18; // radians the UI group leans back toward the eyes
+
+// Auto-hide: fade the whole UI out after this much input-free time, and back in
+// on the next deliberate input. Applies even when the panel is pinned.
+const AUTO_HIDE_MS = 4000;
+const FADE_LERP = 0.18;
+const POSITION_LERP = 0.18;
+
+// Info-panel layout (above the control bar).
+const UI_ABOVE_GAP = 0.04; // metres between controls top and info panels bottom
+const PANEL_GAP_M = 0.06; // metres between side-by-side info panels
 
 // Floating scrubber-hover thumbnail preview.
 const THUMB_W_M = 0.6;
@@ -43,6 +65,8 @@ export interface IXRSessionManagerOptions {
   video: HTMLVideoElement;
   container: HTMLElement;
   projection: IProjectionSettings;
+  /** Static, per-scene info for the performers + scene-info panels. */
+  info: IVRSceneInfo;
   getState: () => IVRPlaybackState;
   getMarkers: () => IVRMarker[];
   getChapterTitle: () => string | null;
@@ -51,6 +75,13 @@ export interface IXRSessionManagerOptions {
   getThumbnail?: (time: number) => IThumbnailCrop | null;
   onAction: (a: VRControlAction) => void;
   onEnd: () => void;
+}
+
+/** A panel the controller can hover/select, routed by its hit-target mesh. */
+interface IHittable {
+  target: THREE.Object3D;
+  hover: (uv: THREE.Vector2 | null) => void;
+  select: (uv: THREE.Vector2) => VRControlAction | null;
 }
 
 export class XRSessionManager {
@@ -68,10 +99,23 @@ export class XRSessionManager {
   private opts: IXRSessionManagerOptions;
   private onSessionEnd = () => this.handleEnd();
   private tmpVec = new THREE.Vector3();
+  private tmpTarget = new THREE.Vector3();
   private tmpEuler = new THREE.Euler(0, 0, 0, "YXZ");
 
-  // Panel is "pinned" (world-anchored + grip-draggable) vs head-following.
-  private panelLocked = false;
+  // Auxiliary info panels (created only when the scene has content for them).
+  private performersPanel: VRPerformersPanel | null = null;
+  private sceneInfoPanel: VRSceneInfoPanel | null = null;
+  private hittables: IHittable[] = [];
+
+  // Panel is "pinned" (world-anchored + grip-draggable) by default, since a
+  // head-following panel is jarring on entry. Toggle via the Pin button.
+  private panelLocked = true;
+
+  // Auto-hide fade state.
+  private uiOpacity = 1;
+  private lastActivity = 0;
+  private placed = false;
+  private hovering = false;
 
   // Scrubber-hover thumbnail preview (floats above the panel scrubber).
   private thumbPreview: THREE.Mesh;
@@ -79,6 +123,7 @@ export class XRSessionManager {
   private thumbCtx: CanvasRenderingContext2D | null;
   private thumbTexture: THREE.CanvasTexture;
   private getThumb: ((time: number) => IThumbnailCrop | null) | null;
+  private lastThumbKey: string | null = null;
 
   constructor(opts: IXRSessionManagerOptions) {
     this.opts = opts;
@@ -115,17 +160,50 @@ export class XRSessionManager {
     this.panel.onAction = (a) => this.opts.onAction(a);
     this.uiGroup.add(this.panel.object);
 
+    // Build the info panels, keeping only the ones with content, and lay them
+    // out centred above the control bar.
+    const present: VRCanvasPanel[] = [];
+    const performers = new VRPerformersPanel(opts.info.performers);
+    if (performers.hasContent) {
+      this.performersPanel = performers;
+      present.push(performers);
+    } else {
+      performers.dispose();
+    }
+    const sceneInfo = new VRSceneInfoPanel(opts.info);
+    if (sceneInfo.hasContent) {
+      this.sceneInfoPanel = sceneInfo;
+      present.push(sceneInfo);
+    } else {
+      sceneInfo.dispose();
+    }
+    this.layoutInfoPanels(present);
+
     this.input = new VRControllerInput(this.renderer, this.scene, {
-      onHover: (uv) => this.panel.setHovered(uv),
-      onSelect: (uv) => {
-        const action = this.panel.activate(uv);
-        if (action) this.opts.onAction(action);
-      },
+      onHover: (hit) => this.routeHover(hit),
+      onSelect: (hit) => this.routeSelect(hit),
       onScrub: (seconds) =>
         this.opts.onAction({ type: "seekRelative", seconds }),
       onRecenter: () => this.recenter(),
     });
-    this.input.setTarget(this.panel.hitTarget);
+
+    // Assemble the hit-routing table (control bar + present info panels).
+    this.hittables = [
+      {
+        target: this.panel.hitTarget,
+        hover: (uv) => this.panel.setHovered(uv),
+        select: (uv) => this.panel.activate(uv),
+      },
+      ...present.map((p) => ({
+        target: p.hitTarget,
+        hover: (uv: THREE.Vector2 | null) => p.setHovered(uv),
+        select: (uv: THREE.Vector2) => p.activate(uv),
+      })),
+    ];
+    this.input.setTargets(this.hittables.map((h) => h.target));
+    // Pinned by default → grip grabs/drags the UI group (squeeze elsewhere
+    // still recenters).
+    this.input.setDraggable(this.uiGroup, true);
 
     // Thumbnail preview quad (child of the UI group so it rides the panel).
     this.getThumb = opts.getThumbnail ?? null;
@@ -195,6 +273,41 @@ export class XRSessionManager {
 
   end() {
     this.session?.end().catch(() => undefined);
+  }
+
+  // --- hit routing ----------------------------------------------------------
+
+  private routeHover(hit: IPanelHit | null) {
+    this.hovering = !!hit;
+    for (const h of this.hittables) {
+      h.hover(hit && hit.object === h.target ? hit.uv : null);
+    }
+  }
+
+  private routeSelect(hit: IPanelHit) {
+    const h = this.hittables.find((x) => x.target === hit.object);
+    if (!h) return;
+    const action = h.select(hit.uv);
+    if (action) this.opts.onAction(action);
+  }
+
+  /** Place the info panels centred in a row just above the control bar. */
+  private layoutInfoPanels(panels: VRCanvasPanel[]) {
+    if (!panels.length) return;
+    const totalW =
+      panels.reduce((s, p) => s + p.widthMeters, 0) +
+      PANEL_GAP_M * (panels.length - 1);
+    const bottomY = this.panel.heightMeters / 2 + UI_ABOVE_GAP;
+    let x = -totalW / 2;
+    for (const p of panels) {
+      p.object.position.set(
+        x + p.widthMeters / 2,
+        bottomY + p.heightMeters / 2,
+        0
+      );
+      this.uiGroup.add(p.object);
+      x += p.widthMeters + PANEL_GAP_M;
+    }
   }
 
   // --- dome construction ----------------------------------------------------
@@ -276,7 +389,7 @@ export class XRSessionManager {
 
   // --- render loop ----------------------------------------------------------
 
-  private render = () => {
+  private render = (time: number) => {
     // Ensure the XR sub-cameras see their stereo eye layers.
     const xrCam = this.renderer.xr.getCamera() as THREE.ArrayCamera;
     if (xrCam.cameras && xrCam.cameras.length >= 2) {
@@ -284,24 +397,66 @@ export class XRSessionManager {
       xrCam.cameras[1].layers.enable(2);
     }
 
-    // Head-follow the panel only when it isn't pinned in place.
-    if (!this.panelLocked) this.positionUi(xrCam);
+    // Snap the UI in front of the viewer once on entry (default pinned); after
+    // that, hold position when pinned, or head-follow when unpinned. Wait for a
+    // valid viewer pose first — on the very first frame(s) the headset pose may
+    // not be acquired yet (camera at the origin) and we'd pin it off to a side.
+    if (!this.placed) {
+      this.tmpVec.setFromMatrixPosition(xrCam.matrixWorld);
+      if (this.tmpVec.lengthSq() > 0.01) {
+        this.placeUiInstant(xrCam);
+        this.placed = true;
+        this.lastActivity = time;
+      }
+    } else if (!this.panelLocked) {
+      this.positionUi(xrCam);
+    }
+
+    // Drive controllers (hover/scrub/drag) and gather this-frame activity.
+    this.input.update();
+    if (this.input.consumeActivity() || this.hovering) {
+      this.lastActivity = time;
+    }
+
+    // Auto-hide: fade the whole UI group toward visible/hidden.
+    const idle = time - this.lastActivity > AUTO_HIDE_MS;
+    this.uiOpacity += ((idle ? 0 : 1) - this.uiOpacity) * FADE_LERP;
+    const op = this.uiOpacity;
+    this.panel.setRenderState(op);
+    this.performersPanel?.setRenderState(op);
+    this.sceneInfoPanel?.setRenderState(op);
 
     const state = this.opts.getState();
-    this.panel.update({
-      state,
-      projection: this.projection,
-      markers: this.opts.getMarkers(),
-      chapterTitle: this.opts.getChapterTitle(),
-      caption: this.opts.getCaption(),
-      locked: this.panelLocked,
-    });
+    if (op > 0.02) {
+      this.panel.update({
+        state,
+        projection: this.projection,
+        markers: this.opts.getMarkers(),
+        chapterTitle: this.opts.getChapterTitle(),
+        caption: this.opts.getCaption(),
+        locked: this.panelLocked,
+      });
+      this.performersPanel?.update();
+      this.sceneInfoPanel?.update();
+    }
 
-    this.input.update();
-    this.updateThumbnailPreview(state.duration);
+    this.updateThumbnailPreview(state.duration, op);
 
     this.renderer.render(this.scene, this.camera);
   };
+
+  /** Snap the UI group directly in front of the viewer (yaw-only). */
+  private placeUiInstant(cam: THREE.Camera) {
+    this.tmpVec.setFromMatrixPosition(cam.matrixWorld);
+    this.tmpEuler.setFromQuaternion(cam.quaternion, "YXZ");
+    const yaw = this.tmpEuler.y;
+    this.uiGroup.position.set(
+      this.tmpVec.x - Math.sin(yaw) * PANEL_DISTANCE,
+      this.tmpVec.y - PANEL_DROP,
+      this.tmpVec.z - Math.cos(yaw) * PANEL_DISTANCE
+    );
+    this.uiGroup.rotation.set(PANEL_TILT, yaw, 0);
+  }
 
   /** Keep the control panel comfortably in front of the user (yaw-only). */
   private positionUi(cam: THREE.Camera) {
@@ -309,27 +464,28 @@ export class XRSessionManager {
     this.tmpEuler.setFromQuaternion(cam.quaternion, "YXZ");
     const yaw = this.tmpEuler.y;
 
-    const target = new THREE.Vector3(
+    this.tmpTarget.set(
       this.tmpVec.x - Math.sin(yaw) * PANEL_DISTANCE,
       this.tmpVec.y - PANEL_DROP,
       this.tmpVec.z - Math.cos(yaw) * PANEL_DISTANCE
     );
-    this.uiGroup.position.lerp(target, 0.18);
+    this.uiGroup.position.lerp(this.tmpTarget, POSITION_LERP);
 
     // Smoothly turn the panel to face the user.
     const current = this.uiGroup.rotation.y;
     let delta = yaw - current;
     while (delta > Math.PI) delta -= Math.PI * 2;
     while (delta < -Math.PI) delta += Math.PI * 2;
-    this.uiGroup.rotation.y = current + delta * 0.18;
+    this.uiGroup.rotation.y = current + delta * POSITION_LERP;
     // Tilt slightly up toward the eyes since the panel sits below eye level.
-    this.uiGroup.rotation.x = 0.18;
+    this.uiGroup.rotation.x = PANEL_TILT;
   }
 
   /** Float a VTT thumbnail above the scrubber while it's being hovered. */
-  private updateThumbnailPreview(duration: number) {
+  private updateThumbnailPreview(duration: number, uiOpacity: number) {
     const frac = this.panel.scrubberHoverFraction;
     if (
+      uiOpacity < 0.5 ||
       frac == null ||
       !this.getThumb ||
       !this.thumbCtx ||
@@ -345,28 +501,35 @@ export class XRSessionManager {
       return;
     }
 
-    this.thumbCtx.clearRect(0, 0, THUMB_CANVAS_W, THUMB_CANVAS_H);
-    try {
-      this.thumbCtx.drawImage(
-        crop.image,
-        crop.sx,
-        crop.sy,
-        crop.sw,
-        crop.sh,
-        0,
-        0,
-        THUMB_CANVAS_W,
-        THUMB_CANVAS_H
-      );
-    } catch {
-      // tainted/incomplete image — skip this frame
-      this.thumbPreview.visible = false;
-      return;
+    // Only redraw the preview canvas when the sprite crop actually changes —
+    // holding still over one region costs no texture upload.
+    const img = crop.image as HTMLImageElement;
+    const key = `${img.src ?? ""}#${crop.sx},${crop.sy},${crop.sw},${crop.sh}`;
+    if (key !== this.lastThumbKey) {
+      this.thumbCtx.clearRect(0, 0, THUMB_CANVAS_W, THUMB_CANVAS_H);
+      try {
+        this.thumbCtx.drawImage(
+          crop.image,
+          crop.sx,
+          crop.sy,
+          crop.sw,
+          crop.sh,
+          0,
+          0,
+          THUMB_CANVAS_W,
+          THUMB_CANVAS_H
+        );
+      } catch {
+        // tainted/incomplete image — skip this frame
+        this.thumbPreview.visible = false;
+        return;
+      }
+      this.thumbCtx.strokeStyle = "rgba(255,255,255,0.6)";
+      this.thumbCtx.lineWidth = 4;
+      this.thumbCtx.strokeRect(0, 0, THUMB_CANVAS_W, THUMB_CANVAS_H);
+      this.thumbTexture.needsUpdate = true;
+      this.lastThumbKey = key;
     }
-    this.thumbCtx.strokeStyle = "rgba(255,255,255,0.6)";
-    this.thumbCtx.lineWidth = 4;
-    this.thumbCtx.strokeRect(0, 0, THUMB_CANVAS_W, THUMB_CANVAS_H);
-    this.thumbTexture.needsUpdate = true;
 
     // Position above the scrubber at the hovered fraction, clamped to the panel.
     const anchor = this.panel.scrubberAnchorLocal(frac);
@@ -377,6 +540,7 @@ export class XRSessionManager {
       anchor.y + THUMB_H_M / 2 + 0.06,
       anchor.z + 0.02
     );
+    (this.thumbPreview.material as THREE.MeshBasicMaterial).opacity = uiOpacity;
     this.thumbPreview.visible = true;
   }
 
@@ -389,6 +553,8 @@ export class XRSessionManager {
     this.session?.removeEventListener("end", this.onSessionEnd);
     this.input.dispose();
     this.panel.dispose();
+    this.performersPanel?.dispose();
+    this.sceneInfoPanel?.dispose();
     this.thumbTexture.dispose();
     (this.thumbPreview.material as THREE.Material).dispose();
     this.thumbPreview.geometry.dispose();

@@ -38,6 +38,7 @@ import {
   getAbLoopPlugin,
   getPlayerPosition,
 } from "src/components/ScenePlayer/util";
+import EnterVRButton from "src/components/ScenePlayer/VR/EnterVRButton";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
@@ -1415,6 +1416,7 @@ const SceneLoader: React.FC<RouteComponentProps<ISceneParams>> = ({
             onNext={() => queueNext(true)}
             onPrevious={() => queuePrevious(true)}
           />
+        <EnterVRButton scene={scene} />
       </Box>
     </Box>
   );

@@ -1,0 +1,30 @@
+/* Immersive VR launch button. Positioning is handled via MUI `sx`; this file
+   only carries the attention pulse for VR-tagged scenes. */
+
+.vr-enter-button {
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+
+  &.is-vr {
+    border-color: rgba(96, 165, 250, 0.7);
+    box-shadow: 0 0 0 0 rgba(96, 165, 250, 0.55);
+    animation: vr-enter-pulse 2.4s ease-out infinite;
+  }
+
+  &.is-vr:hover {
+    animation: none;
+  }
+}
+
+@keyframes vr-enter-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(96, 165, 250, 0.55);
+  }
+
+  70% {
+    box-shadow: 0 0 0 10px rgba(96, 165, 250, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(96, 165, 250, 0);
+  }
+}

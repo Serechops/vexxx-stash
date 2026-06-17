@@ -35,9 +35,10 @@ import {
   VRCanvasPanel,
   VRPerformersPanel,
   VRSceneInfoPanel,
+  VRHandyPanel,
   IVRSceneInfo,
 } from "./VRInfoPanels";
-import { VRControlAction, IVRMarker, IVRPlaybackState } from "./types";
+import { VRControlAction, IVRMarker, IVRPlaybackState, IVRHandyState } from "./types";
 import type { IThumbnailCrop } from "./vttThumbnails";
 
 const DOME_RADIUS = 500;
@@ -98,10 +99,14 @@ export interface IXRSessionManagerOptions {
   projection: IProjectionSettings;
   /** Static, per-scene info for the performers + scene-info panels. */
   info: IVRSceneInfo;
+  /** Whether the current scene has interactive (Handy) funscript data. */
+  interactive: boolean;
   getState: () => IVRPlaybackState;
   getMarkers: () => IVRMarker[];
   getChapterTitle: () => string | null;
   getCaption: () => string | null;
+  /** Handy connection state, for the VR Handy panel status bar. */
+  getHandyState?: () => IVRHandyState;
   /** Sprite crop for a scrubber-hover preview, or null when unavailable. */
   getThumbnail?: (time: number) => IThumbnailCrop | null;
   onAction: (a: VRControlAction) => void;
@@ -136,6 +141,7 @@ export class XRSessionManager {
   // Auxiliary info panels (created only when the scene has content for them).
   private performersPanel: VRPerformersPanel | null = null;
   private sceneInfoPanel: VRSceneInfoPanel | null = null;
+  private handyPanel: VRHandyPanel | null = null;
   private hittables: IHittable[] = [];
   // Reused per-frame draw payload (avoids allocating an object every frame).
   private drawInput: IDrawInput;
@@ -220,12 +226,36 @@ export class XRSessionManager {
     }
     this.layoutInfoPanels(present);
 
+    // Handy (interactive) panel — sits below the control bar as a control
+    // extension row. Only created when the scene has interactive funscript data.
+    if (opts.interactive) {
+      const handy = new VRHandyPanel();
+      this.handyPanel = handy;
+      this.uiGroup.add(handy.object);
+      // Place it centred beneath the control bar.
+      this.layoutHandyPanel(handy);
+      // Register as a hittable so the laser targets it.
+      this.hittables.push({
+        target: handy.hitTarget,
+        hover: (uv: THREE.Vector2 | null) => handy.setHovered(uv),
+        select: (uv: THREE.Vector2) => handy.activate(uv),
+      });
+    }
+
     this.input = new VRControllerInput(this.renderer, this.scene, {
       onHover: (hit) => this.routeHover(hit),
       onSelect: (hit) => this.routeSelect(hit),
       onScrub: (seconds) =>
         this.opts.onAction({ type: "seekRelative", seconds }),
       onRecenter: () => this.recenter(),
+      onClap: () => {
+        // Clap gesture: show the UI panels immediately.  This is the primary
+        // way users bring the controls back up during playback — unlike hand
+        // movement (which is constant during VR playback), a deliberate two-
+        // hand-together gesture is unambiguous.
+        this.lastActivity = performance.now();
+        this.uiOpacity = 1;
+      },
     });
 
     // Assemble the hit-routing table (control bar + present info panels).
@@ -272,6 +302,18 @@ export class XRSessionManager {
     this.uiGroup.add(this.thumbPreview);
 
     this.buildDome();
+  }
+
+  /**
+   * Place the Handy panel centred below the main control bar.
+   * Its top edge sits just below the bottom of the bar, and it tilts
+   * slightly toward the viewer so it remains readable.
+   */
+  private layoutHandyPanel(panel: VRHandyPanel) {
+    const barBottom = this.panel.heightMeters / 2;
+    const gapM = 0.04;
+    panel.object.position.set(0, -(barBottom + gapM + panel.heightMeters / 2), 0.02);
+    panel.object.rotation.set(0, 0, 0);
   }
 
   /** Attach an already-requested immersive session and start rendering. */
@@ -491,6 +533,7 @@ export class XRSessionManager {
     this.panel.setRenderState(op);
     this.performersPanel?.setRenderState(op);
     this.sceneInfoPanel?.setRenderState(op);
+    this.handyPanel?.setRenderState(op);
 
     const state = this.opts.getState();
     if (op > 0.02) {
@@ -503,6 +546,12 @@ export class XRSessionManager {
       this.panel.update(d);
       this.performersPanel?.update();
       this.sceneInfoPanel?.update();
+      // Push the latest Handy connection state to the VR panel each frame.
+      if (this.handyPanel && this.opts.getHandyState) {
+        this.handyPanel.setHandyState(this.opts.getHandyState());
+        this.handyPanel.update();
+      }
+      this.handyPanel?.update();
     }
 
     this.updateThumbnailPreview(state.duration, op);
@@ -597,6 +646,7 @@ export class XRSessionManager {
     this.panel.dispose();
     this.performersPanel?.dispose();
     this.sceneInfoPanel?.dispose();
+    this.handyPanel?.dispose();
     this.thumbTexture.dispose();
     (this.thumbPreview.material as THREE.Material).dispose();
     this.thumbPreview.geometry.dispose();

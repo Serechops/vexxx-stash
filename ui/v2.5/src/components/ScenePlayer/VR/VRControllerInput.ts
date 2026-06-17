@@ -28,6 +28,12 @@ export interface IControllerInputCallbacks {
   /** Thumbstick nudge, in (signed) seconds. */
   onScrub: (deltaSeconds: number) => void;
   onRecenter: () => void;
+  /**
+   * Clap gesture detected: both controllers are within CLAP_DISTANCE of each
+   * other (i.e. the user brought their hands together), which should show
+   * the UI panels.  Fires once per clap.
+   */
+  onClap: () => void;
 }
 
 const LASER_LENGTH = 5;
@@ -41,11 +47,17 @@ const SCRUB_SECONDS = 10;
 const DRAG_MIN = 0.6;
 const DRAG_MAX = 6;
 const DRAG_STEP = 0.04;
-// Activity thresholds: deliberate movement past these (per frame) counts as
-// "user is interacting" and wakes / keeps-awake the auto-hiding UI. Tuned above
-// resting-hand jitter so the UI can still settle and hide when held still.
-const WAKE_POS = 0.012; // metres moved between frames
-const WAKE_ANGLE = 0.035; // radians rotated between frames (~2°)
+// Clap gesture: both controller grip positions must be within this distance
+// (metres) of each other. On Quest controllers the resting "arms down" pose
+// is ~0.5–0.7 m apart; hands brought together for a clap are ~0.15–0.25 m.
+const CLAP_DISTANCE = 0.32;
+// Activity thresholds: deliberate input past these counts as "user is
+// interacting" and wakes / keeps-awake the auto-hiding UI.
+// NOTE: only buttons, thumbsticks, and the squeeze trigger wake the UI.
+// Controller *movement* alone does NOT — that would make the panels pop
+// back up during playback every time the user shifts their hands (which
+// happens constantly in VR).  The user must either press a button, touch
+// the thumbstick, squeeze (grab), or clap both hands together.
 const WAKE_STICK = 0.2; // thumbstick magnitude
 
 export class VRControllerInput {
@@ -62,6 +74,13 @@ export class VRControllerInput {
   // Edge-trigger state for thumbstick scrubbing.
   private scrubArmed = true;
 
+  // Clap detection: count how many frames both controllers are within
+  // CLAP_DISTANCE. Only fires the callback once per sustained clap (when
+  // frames-clapped transitions from < threshold to ≥ threshold).
+  private clapFrameCount = 0;
+  private clapFired = false;
+  private readonly CLAP_FRAMES_MIN = 3; // frames both hands must be close
+  private tmpPositions: THREE.Vector3[] = [new THREE.Vector3(), new THREE.Vector3()];
   // Grip-drag state (moving the control panel around).
   private draggable: THREE.Object3D | null = null;
   private dragEnabled = false;
@@ -70,9 +89,6 @@ export class VRControllerInput {
 
   // Activity tracking for auto-hide.
   private activity = false;
-  private prevPos: THREE.Vector3[] = [];
-  private prevQuat: THREE.Quaternion[] = [];
-  private havePrev = false;
 
   private tmpV1 = new THREE.Vector3();
   private tmpV2 = new THREE.Vector3();
@@ -125,8 +141,6 @@ export class VRControllerInput {
       scene.add(controller);
       this.controllers.push(controller);
       this.lasers.push(laser);
-      this.prevPos.push(new THREE.Vector3());
-      this.prevQuat.push(new THREE.Quaternion());
     }
   }
 
@@ -230,7 +244,7 @@ export class VRControllerInput {
     }
     this.cb.onHover(hover);
 
-    this.detectMovement();
+    this.detectClap();
     this.detectStick();
 
     // While grabbing a panel, the thumbstick push/pulls it instead of
@@ -243,29 +257,30 @@ export class VRControllerInput {
     this.updateScrub();
   }
 
-  /** Flag activity when a controller is deliberately moved/rotated. */
-  private detectMovement() {
-    let moved = false;
-    for (let i = 0; i < this.controllers.length; i++) {
-      const c = this.controllers[i];
-      c.getWorldPosition(this.tmpV1);
-      c.getWorldQuaternion(this.tmpQuat);
-      if (this.havePrev) {
-        if (
-          this.tmpV1.distanceTo(this.prevPos[i]) > WAKE_POS ||
-          this.tmpQuat.angleTo(this.prevQuat[i]) > WAKE_ANGLE
-        ) {
-          moved = true;
-        }
-      }
-      this.prevPos[i].copy(this.tmpV1);
-      this.prevQuat[i].copy(this.tmpQuat);
+  /** Detect clap gesture (both controllers near each other). */
+  private detectClap() {
+    // Get world positions of both controllers
+    for (let i = 0; i < this.controllers.length && i < 2; i++) {
+      this.controllers[i].getWorldPosition(this.tmpPositions[i]);
     }
-    this.havePrev = true;
-    if (moved) this.activity = true;
+    if (this.controllers.length >= 2) {
+      const dist = this.tmpPositions[0].distanceTo(this.tmpPositions[1]);
+      if (dist < CLAP_DISTANCE) {
+        this.clapFrameCount++;
+        // Fire once when we've held the clap long enough
+        if (this.clapFrameCount >= this.CLAP_FRAMES_MIN && !this.clapFired) {
+          this.clapFired = true;
+          this.activity = true;
+          this.cb.onClap();
+        }
+      } else {
+        this.clapFrameCount = 0;
+        this.clapFired = false;
+      }
+    }
   }
 
-  /** Flag activity on any meaningful thumbstick deflection. */
+  /** Flag activity on any meaningful thumbstick deflection or button press. */
   private detectStick() {
     if (!this.session) return;
     for (const src of this.session.inputSources) {

@@ -12,7 +12,7 @@
  */
 import * as THREE from "three";
 import TextUtils from "src/utils/text";
-import { VRControlAction } from "./types";
+import { VRControlAction, IVRHandyState } from "./types";
 
 export interface IVRPerformer {
   name: string;
@@ -63,6 +63,8 @@ export abstract class VRCanvasPanel {
 
   protected regions: IPanelRegion[] = [];
   protected hoveredId: string | null = null;
+  /** Last hover UV in canvas-pixel space (for slider fraction computation). */
+  protected hoverUV: { x: number; y: number } | null = null;
   protected scrollMeta = new Map<string, IScrollMeta>();
 
   private images = new Map<string, HTMLImageElement>();
@@ -126,10 +128,19 @@ export abstract class VRCanvasPanel {
 
   setHovered(uv: THREE.Vector2 | null) {
     const id = uv ? this.regionAt(uv)?.id ?? null : null;
+    const px = uv ? { x: uv.x * this.cw, y: (1 - uv.y) * this.ch } : null;
     if (id !== this.hoveredId) {
       this.hoveredId = id;
       this.dirty = true;
     }
+    // On a slider region (not a button/toggle) the UV changes constantly as
+    // the user moves the laser — mark dirty to update visual feedback.
+    if (px && this.hoverUV && this.hoveredId?.startsWith("hamp") ||
+        this.hoveredId?.startsWith("hdsp") ||
+        this.hoveredId?.startsWith("hvp")) {
+      this.dirty = true;
+    }
+    this.hoverUV = px;
   }
 
   activate(uv: THREE.Vector2): VRControlAction | null {
@@ -615,6 +626,416 @@ export class VRSceneInfoPanel extends VRCanvasPanel {
     ctx.font = "500 20px sans-serif";
     ctx.fillStyle = "rgba(255,255,255,0.85)";
     ctx.fillText(this.fitText(m.title || "Chapter", w - 32), x + 16, y + 72);
+  }
+}
+
+/** VRHandyPanel — interactive device (Handy) controls in VR.
+ *
+ * Rendered as a canvas-drawn panel matching the look of the existing info
+ * panels.  Provides buttons and sliders for HAMP (stroking), HDSP (position),
+ * HVP (vibration), and preset patterns.  State is owned by the panel and
+ * communicated to the React layer via [VRControlAction]. */
+export class VRHandyPanel extends VRCanvasPanel {
+  /** Handy connection state, set from the render loop each frame. */
+  private handyState: IVRHandyState = {
+    status: "missing",
+    label: "",
+    configured: false,
+  };
+
+  // HAMP
+  private hampActive = false;
+  private hampVelocity = 50;
+  private hampStrokeMin = 0;
+  private hampStrokeMax = 100;
+
+  // HDSP
+  private hdspPosition = 50;
+  private hdspVelocity = 50;
+
+  // HVP
+  private hvpActive = false;
+  private hvpAmplitude = 50;
+  private hvpFrequency = 100;
+
+  // Active pattern
+  private activePattern: string | null = null;
+
+  // Scroll offset for the patterns grid (in pages)
+  private patternPage = 0;
+
+  constructor() {
+    super(1.28, 880, 520);
+  }
+
+  get hasContent(): boolean {
+    return true; // Always show if scene has interactive data
+  }
+
+  /** Push latest handy connection state into the panel. */
+  setHandyState(st: IVRHandyState) {
+    if (
+      st.status !== this.handyState.status ||
+      st.label !== this.handyState.label ||
+      st.configured !== this.handyState.configured
+    ) {
+      this.handyState = st;
+      this.markDirty();
+    }
+  }
+
+  /** Reset all internal state (called on scene change / disconnect). */
+  reset() {
+    this.hampActive = false;
+    this.hvpActive = false;
+    this.activePattern = null;
+    this.patternPage = 0;
+    this.markDirty();
+  }
+
+  protected handleSelect(region: IPanelRegion): VRControlAction | null {
+    switch (region.id) {
+      // ── HAMP ──
+      case "hampToggle":
+        this.hampActive = !this.hampActive;
+        this.markDirty();
+        return { type: this.hampActive ? "handyHampStart" : "handyHampStop" };
+      case "hampVelocity": {
+        const frac = this.fracAt(region);
+        this.hampVelocity = Math.round(frac * 100);
+        this.markDirty();
+        return { type: "handyHampVelocity", value: this.hampVelocity };
+      }
+      case "hampStroke": {
+        const frac = this.fracAt(region);
+        const val = Math.round(frac * 100);
+        // The stroke is a single slider; the stored range is min/max.
+        // We map the fraction into a symmetric-ish zone: 0 → [0,100], 0.5 → [25,75], 1 → [40,60]
+        const center = 50 - frac * 30;
+        const halfSpan = 10 + frac * 40;
+        this.hampStrokeMin = Math.max(0, Math.round(center - halfSpan));
+        this.hampStrokeMax = Math.min(100, Math.round(center + halfSpan));
+        this.markDirty();
+        return {
+          type: "handyHampStroke",
+          min: this.hampStrokeMin / 100,
+          max: this.hampStrokeMax / 100,
+        };
+      }
+      // ── HDSP ──
+      case "hdspPosition": {
+        this.hdspPosition = Math.round(this.fracAt(region) * 100);
+        this.markDirty();
+        return {
+          type: "handyHdspPosition",
+          position: this.hdspPosition,
+          velocity: this.hdspVelocity,
+        };
+      }
+      case "hdspVelocity": {
+        this.hdspVelocity = Math.round(this.fracAt(region) * 100);
+        this.markDirty();
+        return {
+          type: "handyHdspPosition",
+          position: this.hdspPosition,
+          velocity: this.hdspVelocity,
+        };
+      }
+      // ── HVP ──
+      case "hvpToggle":
+        this.hvpActive = !this.hvpActive;
+        this.markDirty();
+        return { type: this.hvpActive ? "handyHvpStart" : "handyHvpStop" };
+      case "hvpAmplitude": {
+        this.hvpAmplitude = Math.round(this.fracAt(region) * 100);
+        this.markDirty();
+        return { type: "handyHvpAmplitude", value: this.hvpAmplitude };
+      }
+      case "hvpFrequency": {
+        this.hvpFrequency = Math.round(this.fracAt(region) * 1000);
+        this.markDirty();
+        return { type: "handyHvpFrequency", value: this.hvpFrequency };
+      }
+      // ── Patterns ──
+      case "patternPageLeft":
+        this.patternPage = Math.max(0, this.patternPage - 1);
+        this.markDirty();
+        return null;
+      case "patternPageRight":
+        this.patternPage = Math.min(2, this.patternPage + 1);
+        this.markDirty();
+        return null;
+      // ── Connection ──
+      case "handyConnect":
+        return { type: "handyConnect" };
+      case "handySync":
+        return { type: "handySync" };
+      default:
+        if (region.id.startsWith("pattern:")) {
+          const pid = region.id.slice(8);
+          if (pid === this.activePattern) {
+            this.activePattern = null;
+            this.markDirty();
+            return { type: "handyPatternStop" };
+          }
+          this.activePattern = pid;
+          this.markDirty();
+          return { type: "handyPatternStart", patternId: pid };
+        }
+        return null;
+    }
+  }
+
+  /** Fraction (0..1) along a region's width from the stored hover UV. */
+  private fracAt(region: IPanelRegion): number {
+    if (this.hoverUV && region.w > 0) {
+      const fx = this.hoverUV.x;
+      return Math.min(1, Math.max(0, (fx - region.x) / region.w));
+    }
+    return 0.5;
+  }
+
+  protected draw() {
+    const { ctx } = this;
+    this.panelBackground();
+
+    // ── Handy connection status bar ──────────────────────────────────────
+    const hs = this.handyState;
+    const statusColors: Record<string, string> = {
+      ready: "rgba(76,175,80,0.85)",
+      connecting: "rgba(255,193,7,0.85)",
+      syncing: "rgba(255,193,7,0.85)",
+      uploading: "rgba(33,150,243,0.85)",
+      error: "rgba(244,67,54,0.85)",
+      missing: "rgba(255,255,255,0.25)",
+      disconnected: "rgba(255,255,255,0.25)",
+    };
+    const statusColor = statusColors[hs.status] ?? "rgba(255,255,255,0.25)";
+
+    // Status bar background
+    this.roundRect(20, 14, this.cw - 40, 44, 12);
+    ctx.fillStyle = "rgba(255,255,255,0.06)";
+    ctx.fill();
+
+    // Status dot
+    ctx.beginPath();
+    ctx.arc(38, 36, 7, 0, Math.PI * 2);
+    ctx.fillStyle = statusColor;
+    ctx.fill();
+    if (hs.status === "ready") {
+      ctx.beginPath();
+      ctx.arc(38, 36, 7, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(76,175,80,0.3)";
+      ctx.fill();
+    }
+
+    // Label
+    ctx.font = "500 20px sans-serif";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "rgba(255,255,255,0.85)";
+    const label = hs.label || "Handy";
+    ctx.fillText(this.fitText(label, 220), 56, 36);
+
+    if (hs.configured && hs.status === "ready") {
+      // Show "Sync" button
+      this.drawToggle(470, 14, 80, 44, false, "", "Sync", "handySync");
+    } else if (hs.configured && (hs.status === "error" || hs.status === "disconnected" || hs.status === "missing")) {
+      // Show "Connect" button
+      this.drawToggle(470, 14, 120, 44, false, "", "Connect", "handyConnect");
+    } else if (hs.configured && (hs.status === "connecting" || hs.status === "syncing")) {
+      // Show activity indicator
+      ctx.font = "500 18px sans-serif";
+      ctx.fillStyle = "rgba(255,255,255,0.55)";
+      ctx.textAlign = "right";
+      ctx.fillText("Connecting…", this.cw - 28, 36);
+    } else if (!hs.configured) {
+      // Show hint
+      ctx.font = "500 18px sans-serif";
+      ctx.fillStyle = "rgba(255,255,255,0.45)";
+      ctx.textAlign = "right";
+      ctx.fillText("Configure in Settings", this.cw - 28, 36);
+    }
+
+    let y = 70;
+    const section = (title: string) => {
+      y += 10;
+      this.sectionLabel(title, 24, (y += 34));
+      y += 10;
+    };
+
+    // ── HAMP ──
+    section("STROKING (HAMP)");
+    this.drawToggle(
+      24, (y += 4), 160, 46,
+      this.hampActive, "Active", "Start",
+      "hampToggle"
+    );
+    this.drawSlider(
+      200, y - 10, this.cw - 224, 34,
+      this.hampVelocity / 100, `${this.hampVelocity}%`,
+      "hampVelocity"
+    );
+    y += 52;
+    this.drawSlider(
+      24, y, this.cw - 48, 34,
+      (this.hampStrokeMin + this.hampStrokeMax) / 200,
+      `Stroke ${this.hampStrokeMin}%–${this.hampStrokeMax}%`,
+      "hampStroke"
+    );
+    y += 58;
+
+    // ── HDSP ──
+    section("POSITION (HDSP)");
+    this.drawSlider(
+      24, (y += 4), this.cw - 48, 34,
+      this.hdspPosition / 100, `${this.hdspPosition}%`,
+      "hdspPosition"
+    );
+    y += 48;
+    this.drawSlider(
+      24, y, this.cw - 48, 34,
+      this.hdspVelocity / 100, `Speed ${this.hdspVelocity}%`,
+      "hdspVelocity"
+    );
+    y += 58;
+
+    // ── HVP ──
+    section("VIBRATION (HVP)");
+    this.drawToggle(
+      24, (y += 4), 160, 46,
+      this.hvpActive, "Active", "Start",
+      "hvpToggle"
+    );
+    this.drawSlider(
+      200, y - 10, this.cw - 224, 34,
+      this.hvpAmplitude / 100, `${this.hvpAmplitude}%`,
+      "hvpAmplitude"
+    );
+    y += 52;
+    this.drawSlider(
+      24, y, this.cw - 48, 34,
+      this.hvpFrequency / 1000, `${this.hvpFrequency} Hz`,
+      "hvpFrequency"
+    );
+    y += 58;
+
+    // ── Patterns ──
+    section("PATTERNS");
+    const pats = [
+      { id: "slow_wave", label: "Slow Wave", desc: "Deep, slow" },
+      { id: "steady", label: "Steady", desc: "Medium pace" },
+      { id: "fast_pulse", label: "Fast Pulse", desc: "Mixed strokes" },
+      { id: "tease", label: "Tease", desc: "Slow build" },
+      { id: "upper_zone", label: "Upper Zone", desc: "Tip focused" },
+      { id: "ripple", label: "Ripple", desc: "Oscillating" },
+    ];
+    const perPage = 3;
+    const page = this.patternPage;
+    const visible = pats.slice(page * perPage, (page + 1) * perPage);
+    const colW = (this.cw - 24 - 12) / 2;
+    const pH = 68;
+    const pY = y + 8;
+
+    // Page controls
+    if (pats.length > perPage) {
+      // Left arrow
+      this.regions.push({ id: "patternPageLeft", x: 10, y: y - 6, w: 36, h: 36 });
+      ctx.fillStyle = page > 0 ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.2)";
+      ctx.font = "700 28px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("‹", 28, y + 12);
+      // Right arrow
+      this.regions.push({ id: "patternPageRight", x: this.cw - 46, y: y - 6, w: 36, h: 36 });
+      ctx.fillText("›", this.cw - 28, y + 12);
+    }
+
+    visible.forEach((p, i) => {
+      const px = 24 + (i % 2) * (colW + 12);
+      const py = pY + Math.floor(i / 2) * (pH + 10);
+      const active = p.id === this.activePattern;
+      this.drawPatternCard(px, py, colW, pH, p.label, p.desc, active, `pattern:${p.id}`);
+    });
+  }
+
+  private drawToggle(
+    x: number, y: number, w: number, h: number,
+    active: boolean, activeLabel: string, inactiveLabel: string,
+    id: string
+  ) {
+    const { ctx } = this;
+    this.roundRect(x, y, w, h, 14);
+    ctx.fillStyle = active
+      ? "rgba(76,175,80,0.85)"
+      : this.hoveredId === id
+        ? "rgba(255,255,255,0.22)"
+        : "rgba(255,255,255,0.10)";
+    ctx.fill();
+    ctx.font = "600 22px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = active ? "#fff" : "rgba(255,255,255,0.92)";
+    ctx.fillText(active ? activeLabel : inactiveLabel, x + w / 2, y + h / 2 + 1);
+    this.regions.push({ id, x, y, w, h });
+  }
+
+  private drawSlider(
+    x: number, y: number, w: number, h: number,
+    frac: number, label: string, id: string
+  ) {
+    const { ctx } = this;
+    const trackH = 6;
+    const ty = y + h / 2 - trackH / 2;
+    // Track
+    this.roundRect(x, ty, w, trackH, trackH / 2);
+    ctx.fillStyle = "rgba(255,255,255,0.15)";
+    ctx.fill();
+    // Fill
+    const fw = Math.max(2, Math.min(w, frac * w));
+    this.roundRect(x, ty, fw, trackH, trackH / 2);
+    ctx.fillStyle = "rgba(96,165,250,0.85)";
+    ctx.fill();
+    // Knob
+    ctx.beginPath();
+    ctx.arc(x + fw, y + h / 2, 10, 0, Math.PI * 2);
+    ctx.fillStyle = "#fff";
+    ctx.fill();
+    // Label
+    ctx.font = "500 20px sans-serif";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "rgba(255,255,255,0.85)";
+    ctx.fillText(label, x + 4, y + h / 2 - 16);
+    this.regions.push({ id, x, y, w, h });
+  }
+
+  private drawPatternCard(
+    x: number, y: number, w: number, h: number,
+    label: string, desc: string, active: boolean, id: string
+  ) {
+    const { ctx } = this;
+    this.roundRect(x, y, w, h, 12);
+    ctx.fillStyle = active
+      ? "rgba(76,175,80,0.2)"
+      : this.hoveredId === id
+        ? "rgba(255,255,255,0.14)"
+        : "rgba(255,255,255,0.06)";
+    ctx.fill();
+    if (active) {
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "rgba(76,175,80,0.7)";
+      ctx.stroke();
+    }
+    ctx.font = "600 22px sans-serif";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+    ctx.fillStyle = "rgba(255,255,255,0.92)";
+    ctx.fillText(label, x + 12, y + 32);
+    ctx.font = "400 16px sans-serif";
+    ctx.fillStyle = "rgba(255,255,255,0.5)";
+    ctx.fillText(desc, x + 12, y + 56);
+    this.regions.push({ id, x, y, w, h });
   }
 }
 

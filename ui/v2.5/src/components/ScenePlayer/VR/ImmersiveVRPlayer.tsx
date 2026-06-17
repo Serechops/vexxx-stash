@@ -7,6 +7,7 @@
  */
 import React, {
   useCallback,
+  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -21,13 +22,19 @@ import { VRThumbnails } from "./vttThumbnails";
 import { IVRSceneInfo } from "./VRInfoPanels";
 import { useVRPlayback } from "./useVRPlayback";
 import {
+  InteractiveContext,
+  ConnectionState,
+} from "src/hooks/Interactive/context";
+import { HandyAPIv3 } from "src/hooks/Interactive/handy-api-v3";
+import type { IInteractiveClient } from "src/hooks/Interactive/utils";
+import {
   IProjectionSettings,
   clampZoom,
   cycleFov,
   cycleStereo,
   projectionForVrMode,
 } from "./projection";
-import { VRControlAction, IVRMarker, IVRPlaybackState } from "./types";
+import { VRControlAction, IVRMarker, IVRPlaybackState, IVRHandyState } from "./types";
 
 interface IMarkerLike {
   title?: string | null;
@@ -73,6 +80,8 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
   const videoRef = useRef<HTMLVideoElement>(null);
   const managerRef = useRef<XRSessionManager | null>(null);
   const thumbnailsRef = useRef<VRThumbnails | null>(null);
+  const interactiveCtx = useContext(InteractiveContext);
+  const handyRef = useRef<IInteractiveClient>(interactiveCtx.interactive);
 
   const [projection, setProjection] = useState<IProjectionSettings>(() =>
     projectionForVrMode(scene.vr_mode)
@@ -134,6 +143,10 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
   );
   const infoRef = useRef(info);
   infoRef.current = info;
+
+  // Keep the Handy client ref current so the XR action handler (which lives
+  // in a ref to avoid re-creating the session) always has the latest client.
+  handyRef.current = interactiveCtx.interactive;
 
   // No array copy — walk markers backwards. Called every render frame.
   const getChapterTitle = useCallback((): string | null => {
@@ -292,6 +305,51 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
         case "exit":
           managerRef.current?.end();
           break;
+        // ── Handy interactive device ──
+        case "handyToggle":
+          handyRef.current.emergencyStop?.();
+          break;
+        case "handyHampStart":
+          handyRef.current.hampStart?.();
+          break;
+        case "handyHampStop":
+          handyRef.current.hampStop?.();
+          break;
+        case "handyHampVelocity":
+          handyRef.current.setHampVelocity?.(a.value);
+          break;
+        case "handyHampStroke":
+          handyRef.current.setHampStroke?.(a.min, a.max);
+          break;
+        case "handyHdspPosition":
+          handyRef.current.setMode?.(HandyAPIv3.MODE.HDSP);
+          handyRef.current.hdspSetPosition?.(a.position, a.velocity);
+          break;
+        case "handyHvpStart":
+          handyRef.current.hvpStart?.();
+          break;
+        case "handyHvpStop":
+          handyRef.current.hvpStop?.();
+          break;
+        case "handyHvpAmplitude":
+          handyRef.current.setHvpState?.(a.value / 100, 0, 0);
+          break;
+        case "handyHvpFrequency":
+          handyRef.current.setHvpState?.(0, a.value, 0);
+          break;
+        case "handyPatternStart": {
+          // Switch to HDSP mode and let the pattern loop run
+          handyRef.current.setMode?.(HandyAPIv3.MODE.HDSP);
+          // Individual patterns are handled by the panel/React layer;
+          // the VR panel just sends position commands.
+          break;
+        }
+        case "handyPatternStop":
+          handyRef.current.emergencyStop?.();
+          break;
+        case "handyEmergencyStop":
+          handyRef.current.emergencyStop?.();
+          break;
       }
     },
     [seekToMarker, toggleCaptions, onNext, onPrevious]
@@ -367,6 +425,7 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
       container: containerRef.current,
       projection: projectionRef.current,
       info: infoRef.current,
+      interactive: scene.interactive,
       getState,
       getMarkers: () => markersRef.current,
       getChapterTitle,

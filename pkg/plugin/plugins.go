@@ -414,6 +414,7 @@ func (c Cache) executePostHooks(ctx context.Context, hookType hook.TriggerEnum, 
 				input:        pluginInput,
 				gqlHandler:   c.gqlHandler,
 				serverConfig: c.config,
+				ctx:          ctx,
 			}
 
 			task := pt.createTask()

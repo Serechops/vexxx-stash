@@ -58,4 +58,29 @@ export type VRControlAction =
   | { type: "toggleCaptions" }
   | { type: "next" }
   | { type: "previous" }
-  | { type: "exit" };
+  | { type: "exit" }
+  // ── Handy interactive device ───────────────────────────────────────────
+  | { type: "handyToggle" }
+  | { type: "handyHampVelocity"; value: number }
+  | { type: "handyHampStroke"; min: number; max: number }
+  | { type: "handyHampStart" }
+  | { type: "handyHampStop" }
+  | { type: "handyHdspPosition"; position: number; velocity: number }
+  | { type: "handyHvpStart" }
+  | { type: "handyHvpStop" }
+  | { type: "handyHvpAmplitude"; value: number }
+  | { type: "handyHvpFrequency"; value: number }
+  | { type: "handyPatternStart"; patternId: string }
+  | { type: "handyPatternStop" }
+  | { type: "handyEmergencyStop" }
+  | { type: "handyConnect" }
+  | { type: "handySync" };
+
+/** Handy device connection state, pulled each frame alongside playback. */
+export interface IVRHandyState {
+  status: "missing" | "disconnected" | "connecting" | "syncing" | "uploading" | "ready" | "error";
+  /** Human-readable label, e.g. "Ready" or "Error: ..." */
+  label: string;
+  /** Whether the connection key is configured in settings. */
+  configured: boolean;
+}

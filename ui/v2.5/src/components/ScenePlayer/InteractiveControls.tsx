@@ -23,9 +23,11 @@ interface IProps {
   show: boolean;
   /** When false, fade the trigger/inline controls out (mirrors player inactivity). HandyControlModal stays visible. */
   visible?: boolean;
+  /** Path to .funscript JSON for live position preview in the modal. */
+  funscriptPath?: string;
 }
 
-export const InteractiveControls: React.FC<IProps> = ({ client, show, visible = true }) => {
+export const InteractiveControls: React.FC<IProps> = ({ client, show, visible = true, funscriptPath }) => {
   const intl = useIntl();
   const [expanded, setExpanded] = useState(false);
   const [hampMode, setHampMode] = useState(false);
@@ -125,6 +127,7 @@ export const InteractiveControls: React.FC<IProps> = ({ client, show, visible = 
           open={showDirectControls}
           onClose={() => setShowDirectControls(false)}
           client={client}
+          funscriptPath={funscriptPath}
         />
       </Box>
     );
@@ -259,6 +262,7 @@ export const InteractiveControls: React.FC<IProps> = ({ client, show, visible = 
         open={showDirectControls}
         onClose={() => setShowDirectControls(false)}
         client={client}
+        funscriptPath={funscriptPath}
       />
     </Box>
   );

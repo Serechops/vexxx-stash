@@ -28,6 +28,12 @@ import Mousetrap from "mousetrap";
 import MousetrapPause from "mousetrap-pause";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { MainNavbar } from "./components/MainNavbar";
+
+// ── Intl: suppress missing-translation errors (English-only; fallbacks are fine) ─
+const onIntlError: IntlProvider["props"]["onError"] = (err) => {
+  if ((err as { code?: string }).code === "MISSING_TRANSLATION") return;
+  console.error(err);
+};
 import { PageNotFound } from "./components/PageNotFound";
 import { GlobalSearch } from "./components/GlobalSearch/GlobalSearch";
 import * as GQL from "./core/generated-graphql";
@@ -358,6 +364,7 @@ export const App: React.FC = () => {
         locale={intlLanguage}
         messages={messages}
         formats={intlFormats}
+        onError={onIntlError}
       >
         <MainContainer>{content}</MainContainer>
       </IntlProvider>
@@ -388,6 +395,7 @@ export const App: React.FC = () => {
         locale={intlLanguage}
         messages={messages}
         formats={intlFormats}
+        onError={onIntlError}
       >
         <ThemeProvider theme={theme} defaultMode="dark" noSsr>
           <CssBaseline />

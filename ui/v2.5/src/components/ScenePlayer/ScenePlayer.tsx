@@ -1407,6 +1407,7 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
                   client={interactiveClient}
                   show={scene.interactive && !getPlayer()?.paused()}
                   visible={userActive}
+                  funscriptPath={scene.paths.funscript ?? undefined}
                 />
               )}
               {import.meta.env.DEV &&
@@ -1415,6 +1416,7 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
                     client={interactiveClient}
                     show={false}
                     visible={userActive}
+                    funscriptPath={scene.paths.funscript ?? undefined}
                   />
                 )}
             </>,

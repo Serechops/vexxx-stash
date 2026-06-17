@@ -1399,7 +1399,12 @@
     "pattern_upper_zone": "Upper Zone",
     "pattern_upper_zone_desc": "Fast strokes in upper range",
     "pattern_ripple": "Ripple",
-    "pattern_ripple_desc": "Ultra-short mid-range pulses"
+    "pattern_ripple_desc": "Ultra-short mid-range pulses",
+    "toggle_visualizer": "Toggle position visualiser",
+    "visualizer_label": "Device Position",
+    "preview_mode": "Preview",
+    "preview_start": "Preview motion on visualiser",
+    "preview_stop": "Stop preview"
   },
   "hasChapters": "Chapters",
   "hasMarkers": "Markers",

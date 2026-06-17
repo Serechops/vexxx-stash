@@ -124,6 +124,8 @@ export class PatternRunner {
   private stepIndex = 0;
   private currentSteps: PatternStep[] = [];
   private currentPatternId: string | null = null;
+  /** Called on each step with the position being sent. */
+  onStep?: (pos: number, vel: number) => void;
 
   constructor(client: IInteractiveClient) {
     this.client = client;
@@ -171,6 +173,7 @@ export class PatternRunner {
       }
     }
     this.client.hdspSetPosition?.(step.pos, step.vel).catch(() => {});
+    this.onStep?.(step.pos, step.vel);
     this.timerId = window.setTimeout(this.tick, step.holdMs);
   };
 }

@@ -15,6 +15,7 @@ import {
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { HandyAPIv3 } from "src/hooks/Interactive/handy-api-v3";
+import { PatternRunner } from "src/hooks/Interactive/patterns";
 import { IInteractiveClient } from "src/hooks/Interactive/utils";
 
 interface PatternStep {
@@ -151,24 +152,17 @@ export const HandyControlModal: React.FC<IProps> = ({
   const [hvpFrequency, setHvpFrequency] = useState(100);
 
   // Pattern state
-  const patternTimerRef = useRef<number | null>(null);
-  const patternRunningRef = useRef(false);
+  const patternRunnerRef = useRef<PatternRunner>(new PatternRunner(client));
   const [activePattern, setActivePattern] = useState<string | null>(null);
 
   useEffect(() => {
     return () => {
-      if (patternTimerRef.current !== null) {
-        clearTimeout(patternTimerRef.current);
-      }
+      patternRunnerRef.current.stop();
     };
   }, []);
 
   const handleEmergencyStop = useCallback(async () => {
-    patternRunningRef.current = false;
-    if (patternTimerRef.current !== null) {
-      clearTimeout(patternTimerRef.current);
-      patternTimerRef.current = null;
-    }
+    patternRunnerRef.current.stop();
     setActivePattern(null);
     try {
       await client.emergencyStop?.();
@@ -180,11 +174,7 @@ export const HandyControlModal: React.FC<IProps> = ({
   }, [client]);
 
   const handleClose = useCallback(async () => {
-    patternRunningRef.current = false;
-    if (patternTimerRef.current !== null) {
-      clearTimeout(patternTimerRef.current);
-      patternTimerRef.current = null;
-    }
+    patternRunnerRef.current.stop();
     setActivePattern(null);
     if (hampActive) {
       try {
@@ -208,56 +198,16 @@ export const HandyControlModal: React.FC<IProps> = ({
   // ── Patterns ─────────────────────────────────────────────────────────────
 
   const clearPattern = useCallback(() => {
-    patternRunningRef.current = false;
-    if (patternTimerRef.current !== null) {
-      clearTimeout(patternTimerRef.current);
-      patternTimerRef.current = null;
-    }
+    patternRunnerRef.current.stop();
     setActivePattern(null);
   }, []);
 
   const startPattern = useCallback(
     async (patternId: string) => {
-      // Stop any running pattern
-      patternRunningRef.current = false;
-      if (patternTimerRef.current !== null) {
-        clearTimeout(patternTimerRef.current);
-        patternTimerRef.current = null;
-      }
-
-      const pattern = HDSP_PATTERNS.find((p) => p.id === patternId);
-      if (!pattern) return;
-
       setActivePattern(patternId);
-
-      // Device must be in HDSP mode to accept position commands.
-      // Silently ignore failures — the device may already be in HDSP mode.
-      try {
-        await client.setMode?.(HandyAPIv3.MODE.HDSP);
-      } catch {
-        // best-effort
-      }
-
-      patternRunningRef.current = true;
-
-      let stepIndex = 0;
-      let currentSteps = pattern.getSteps();
-
-      const tick = () => {
-        if (!patternRunningRef.current) return;
-        // Regenerate steps at loop boundary for natural variation each cycle
-        if (stepIndex >= currentSteps.length) {
-          stepIndex = 0;
-          currentSteps = pattern.getSteps();
-        }
-        const step = currentSteps[stepIndex++];
-        client.hdspSetPosition?.(step.pos, step.vel).catch(() => {});
-        patternTimerRef.current = window.setTimeout(tick, step.holdMs);
-      };
-
-      tick();
+      patternRunnerRef.current.start(patternId);
     },
-    [client]
+    []
   );
 
   // ── HAMP ────────────────────────────────────────────────────────────────

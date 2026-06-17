@@ -26,6 +26,7 @@ import {
   ConnectionState,
 } from "src/hooks/Interactive/context";
 import { HandyAPIv3 } from "src/hooks/Interactive/handy-api-v3";
+import { PatternRunner } from "src/hooks/Interactive/patterns";
 import type { IInteractiveClient } from "src/hooks/Interactive/utils";
 import {
   IProjectionSettings,
@@ -82,6 +83,7 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
   const thumbnailsRef = useRef<VRThumbnails | null>(null);
   const interactiveCtx = useContext(InteractiveContext);
   const handyRef = useRef<IInteractiveClient>(interactiveCtx.interactive);
+  const patternRunnerRef = useRef<PatternRunner>(new PatternRunner(interactiveCtx.interactive));
 
   const [projection, setProjection] = useState<IProjectionSettings>(() =>
     projectionForVrMode(scene.vr_mode)
@@ -338,16 +340,16 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
           handyRef.current.setHvpState?.(0, a.value, 0);
           break;
         case "handyPatternStart": {
-          // Switch to HDSP mode and let the pattern loop run
-          handyRef.current.setMode?.(HandyAPIv3.MODE.HDSP);
-          // Individual patterns are handled by the panel/React layer;
-          // the VR panel just sends position commands.
+          // Start the stepping loop — sends HDSP position commands on a timer
+          patternRunnerRef.current.start(a.patternId);
           break;
         }
         case "handyPatternStop":
+          patternRunnerRef.current.stop();
           handyRef.current.emergencyStop?.();
           break;
         case "handyEmergencyStop":
+          patternRunnerRef.current.stop();
           handyRef.current.emergencyStop?.();
           break;
       }

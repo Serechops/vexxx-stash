@@ -202,7 +202,19 @@ export class HandyAPIv3 {
     };
     if (body !== undefined) opts.body = JSON.stringify(body);
 
-    if (!this._isOnline && path !== "/mode2" && path !== "/hsp/setup") {
+    // Real-time control paths (HDSP, HVP, emergency, mode): never queue.
+    // If the device is temporarily unreachable (e.g. Quest WiFi power-save
+    // causing a heartbeat miss), queuing these and replaying them in a burst
+    // later makes the device seem unresponsive for the gap.  Fire-and-forget:
+    // if they fail, the next command will retry naturally.
+    const isRealtime = path.startsWith("/hdsp/") ||
+      path.startsWith("/hvp/") ||
+      path === "/mode2" ||
+      path === "/hsp/setup" ||
+      path === "/stop" ||
+      path === "/emergencyStop";
+
+    if (!this._isOnline && !isRealtime) {
       return new Promise((resolve, reject) => {
         this._queue.push({ path, opts, resolve, reject });
       });

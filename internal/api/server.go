@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"net"
 	"net/http"
 	"os"
 	"path"
@@ -15,6 +16,7 @@ import (
 	"runtime/debug"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	gqlHandler "github.com/99designs/gqlgen/graphql/handler"
@@ -42,6 +44,7 @@ import (
 	"github.com/stashapp/stash/pkg/plugin"
 	"github.com/stashapp/stash/pkg/stashface"
 	"github.com/stashapp/stash/pkg/stashtag"
+	"github.com/stashapp/stash/pkg/tlscert"
 	"github.com/stashapp/stash/pkg/utils"
 	"github.com/stashapp/stash/ui"
 )
@@ -63,6 +66,13 @@ type Server struct {
 	stashFaceController *stashface.Controller
 	stashTagController  *stashtag.Controller
 	megaFaceController  *megaface.Controller
+
+	// Auto local-HTTPS: a second listener on its own port serving an
+	// auto-generated self-signed cert (for WebXR on the LAN without a tunnel).
+	httpsMu     sync.Mutex
+	httpsServer *http.Server
+	httpsPort   int
+	httpsErr    string
 }
 
 // TODO - os.DirFS doesn't implement ReadDir, so re-implement it here
@@ -267,9 +277,15 @@ func Initialize() (*Server, error) {
 	}
 	r.Route("/deovr", func(r chi.Router) {
 		r.Get("/", vr.deovrHandler)
-		r.Post("/tunnel/start", vr.tunnelStartHandler)
-		r.Post("/tunnel/stop", vr.tunnelStopHandler)
-		r.Get("/tunnel/status", vr.tunnelStatusHandler)
+	})
+
+	// Local HTTPS control — auto self-signed cert on a second port so WebXR
+	// works on the LAN without an external tunnel.
+	r.Route("/tls", func(r chi.Router) {
+		r.Get("/status", server.tlsStatusHandler)
+		r.Post("/enable", server.tlsEnableHandler)
+		r.Post("/disable", server.tlsDisableHandler)
+		r.Get("/ca.crt", server.tlsCACertHandler)
 	})
 
 	// Debug endpoints for profiling and metrics
@@ -413,6 +429,12 @@ func (s *Server) Start() error {
 	logger.Infof("stash is listening on " + s.Addr)
 	logger.Infof("stash is running at " + s.displayAddress)
 
+	if cfg := config.GetInstance(); cfg.GetTLSAutoEnabled() {
+		if err := s.enableHTTPS(cfg.GetTLSAutoPort()); err != nil {
+			logger.Errorf("could not start local HTTPS listener: %v", err)
+		}
+	}
+
 	if s.TLSConfig != nil {
 		return s.ListenAndServeTLS("", "")
 	} else {
@@ -422,12 +444,209 @@ func (s *Server) Start() error {
 
 // Shutdown gracefully shuts down the server without interrupting any active connections.
 func (s *Server) Shutdown() {
+	s.disableHTTPS()
+
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	err := s.Server.Shutdown(ctx)
 	if err != nil {
 		logger.Errorf("Error shutting down http server: %v", err)
 	}
+}
+
+// ── Local HTTPS (second listener) ─────────────────────────────────────────────
+
+// enableHTTPS starts (or restarts on a new port) the auto local-HTTPS listener,
+// generating/renewing the self-signed cert as needed. It shares the main
+// router, so the same app is served over HTTPS on a separate port.
+func (s *Server) enableHTTPS(port int) error {
+	s.httpsMu.Lock()
+	defer s.httpsMu.Unlock()
+
+	if s.httpsServer != nil {
+		if s.httpsPort == port {
+			return nil // already running on the requested port
+		}
+		s.shutdownHTTPSLocked()
+	}
+
+	cfg := config.GetInstance()
+	serverCert, _, err := tlscert.EnsureCert(cfg.GetConfigPath())
+	if err != nil {
+		s.httpsErr = err.Error()
+		return err
+	}
+
+	addr := cfg.GetHost() + ":" + strconv.Itoa(port)
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		s.httpsErr = err.Error()
+		return err
+	}
+
+	hs := &http.Server{
+		Addr:      addr,
+		Handler:   s.Handler,
+		TLSConfig: &tls.Config{Certificates: []tls.Certificate{serverCert}},
+		// disable http/2 for the same hijack reasons as the main server
+		TLSNextProto: make(map[string]func(*http.Server, *tls.Conn, http.Handler)),
+	}
+
+	s.httpsServer = hs
+	s.httpsPort = port
+	s.httpsErr = ""
+
+	go func() {
+		err := hs.ServeTLS(ln, "", "")
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			logger.Errorf("local HTTPS listener error: %v", err)
+			s.httpsMu.Lock()
+			if s.httpsServer == hs {
+				s.httpsServer = nil
+				s.httpsErr = err.Error()
+			}
+			s.httpsMu.Unlock()
+		}
+	}()
+
+	for _, u := range s.httpsURLs() {
+		logger.Infof("local HTTPS available at %s", u)
+	}
+	return nil
+}
+
+func (s *Server) disableHTTPS() {
+	s.httpsMu.Lock()
+	defer s.httpsMu.Unlock()
+	s.shutdownHTTPSLocked()
+}
+
+// shutdownHTTPSLocked stops the HTTPS listener. Callers must hold httpsMu.
+func (s *Server) shutdownHTTPSLocked() {
+	hs := s.httpsServer
+	s.httpsServer = nil
+	if hs == nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := hs.Shutdown(ctx); err != nil {
+		logger.Errorf("Error shutting down local HTTPS server: %v", err)
+	}
+}
+
+// httpsURLs returns the https://<ip>:<port> URLs the headset can use, one per
+// non-loopback LAN address.
+func (s *Server) httpsURLs() []string {
+	port := strconv.Itoa(s.httpsPort)
+	var urls []string
+	addrs, _ := net.InterfaceAddrs()
+	for _, a := range addrs {
+		var ip net.IP
+		switch v := a.(type) {
+		case *net.IPNet:
+			ip = v.IP
+		case *net.IPAddr:
+			ip = v.IP
+		}
+		if ip == nil || ip.IsLoopback() || ip.IsLinkLocalUnicast() {
+			continue
+		}
+		host := ip.String()
+		if ip.To4() == nil {
+			host = "[" + host + "]" // bracket IPv6
+		}
+		urls = append(urls, "https://"+host+":"+port+"/")
+	}
+	return urls
+}
+
+func (s *Server) tlsStatus() map[string]interface{} {
+	s.httpsMu.Lock()
+	running := s.httpsServer != nil
+	port := s.httpsPort
+	errMsg := s.httpsErr
+	urls := []string{}
+	if running {
+		urls = s.httpsURLs()
+	}
+	s.httpsMu.Unlock()
+
+	cfg := config.GetInstance()
+	if port == 0 {
+		port = cfg.GetTLSAutoPort()
+	}
+	return map[string]interface{}{
+		"enabled": cfg.GetTLSAutoEnabled(),
+		"running": running,
+		"port":    port,
+		"urls":    urls,
+		"error":   nullableString(errMsg),
+	}
+}
+
+func nullableString(s string) interface{} {
+	if s == "" {
+		return nil
+	}
+	return s
+}
+
+func (s *Server) tlsStatusHandler(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, s.tlsStatus())
+}
+
+func (s *Server) tlsEnableHandler(w http.ResponseWriter, r *http.Request) {
+	cfg := config.GetInstance()
+	port := cfg.GetTLSAutoPort()
+	if p := r.URL.Query().Get("port"); p != "" {
+		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 && parsed <= 65535 {
+			port = parsed
+		} else {
+			http.Error(w, "invalid port", http.StatusBadRequest)
+			return
+		}
+	}
+
+	if err := s.enableHTTPS(port); err != nil {
+		writeJSON(w, s.tlsStatus())
+		return
+	}
+
+	cfg.SetTLSAutoEnabled(true)
+	cfg.SetTLSAutoPort(port)
+	if err := cfg.Write(); err != nil {
+		logger.Errorf("error saving local HTTPS config: %v", err)
+	}
+
+	writeJSON(w, s.tlsStatus())
+}
+
+func (s *Server) tlsDisableHandler(w http.ResponseWriter, r *http.Request) {
+	s.disableHTTPS()
+
+	cfg := config.GetInstance()
+	cfg.SetTLSAutoEnabled(false)
+	if err := cfg.Write(); err != nil {
+		logger.Errorf("error saving local HTTPS config: %v", err)
+	}
+
+	writeJSON(w, s.tlsStatus())
+}
+
+// tlsCACertHandler serves the CA certificate (never the key) for installing on
+// client devices such as the Quest.
+func (s *Server) tlsCACertHandler(w http.ResponseWriter, r *http.Request) {
+	cfg := config.GetInstance()
+	caPath := tlscert.PathsIn(cfg.GetConfigPath()).CACert
+	data, err := os.ReadFile(caPath)
+	if err != nil {
+		http.Error(w, "certificate not generated yet — enable Local HTTPS first", http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Content-Type", "application/x-x509-ca-cert")
+	w.Header().Set("Content-Disposition", `attachment; filename="stash-https-ca.crt"`)
+	utils.ServeStaticContent(w, r, data)
 }
 
 func (s *Server) getPerformerRoutes() chi.Router {

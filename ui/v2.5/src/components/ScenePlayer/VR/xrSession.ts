@@ -29,7 +29,7 @@ import {
   isStereo,
   uvTransformForEye,
 } from "./projection";
-import { VRControlPanel } from "./VRControls";
+import { VRControlPanel, IDrawInput } from "./VRControls";
 import { VRControllerInput, IPanelHit } from "./VRControllerInput";
 import {
   VRCanvasPanel,
@@ -45,21 +45,52 @@ const PANEL_DISTANCE = 2.4;
 const PANEL_DROP = 0.45; // metres below eye level
 const PANEL_TILT = 0.18; // radians the UI group leans back toward the eyes
 
-// Auto-hide: fade the whole UI out after this much input-free time, and back in
-// on the next deliberate input. Applies even when the panel is pinned.
+// Auto-hide: fade the whole UI out after this much hand/controller-input-free
+// time, and back in on the next deliberate input.
 const AUTO_HIDE_MS = 4000;
 const FADE_LERP = 0.18;
-const POSITION_LERP = 0.18;
 
-// Info-panel layout (above the control bar).
-const UI_ABOVE_GAP = 0.04; // metres between controls top and info panels bottom
-const PANEL_GAP_M = 0.06; // metres between side-by-side info panels
+// Info-panel layout: angled side "monitors" flanking the control bar, like a
+// triple-display workstation (controls = centre screen).
+const SIDE_GAP = 0.08; // metres between the control bar edge and a side panel
+const SIDE_YAW = Math.PI / 6; // toe-in angle (~30°) so the sides face the viewer
 
 // Floating scrubber-hover thumbnail preview.
 const THUMB_W_M = 0.6;
 const THUMB_H_M = (THUMB_W_M * 9) / 16;
 const THUMB_CANVAS_W = 320;
 const THUMB_CANVAS_H = 180;
+
+/**
+ * Debug bisection flags for the on-device flicker hunt, read from the URL
+ * (`?vrDebug=solid,mono`) or localStorage `vrDebug`. All default off, so the
+ * normal render path is unchanged. Flags:
+ *   solid      — dome uses a flat colour, not the video texture (isolates the
+ *                VideoTexture / per-frame upload as the flicker source)
+ *   mono       — force a single mono dome mesh (isolates the stereo eye-layer
+ *                assignment)
+ *   noaa       — disable renderer MSAA (antialias)
+ *   nofov      — disable fixed-foveated rendering
+ *   hideui     — keep the whole UI hidden (isolates panel rendering)
+ *   noautohide — keep the UI permanently visible (isolates the auto-hide fade)
+ */
+function readVrDebug(): Set<string> {
+  const out = new Set<string>();
+  try {
+    const url = new URLSearchParams(window.location.search).get("vrDebug");
+    const ls = window.localStorage.getItem("vrDebug");
+    for (const raw of [url, ls]) {
+      if (!raw) continue;
+      for (const part of raw.split(",")) {
+        const t = part.trim().toLowerCase();
+        if (t) out.add(t);
+      }
+    }
+  } catch {
+    /* SSR / blocked storage — ignore */
+  }
+  return out;
+}
 
 export interface IXRSessionManagerOptions {
   video: HTMLVideoElement;
@@ -97,25 +128,23 @@ export class XRSessionManager {
   private projection: IProjectionSettings;
   private domeMeshes: THREE.Mesh[] = [];
   private opts: IXRSessionManagerOptions;
+  private debug: Set<string>;
   private onSessionEnd = () => this.handleEnd();
   private tmpVec = new THREE.Vector3();
-  private tmpTarget = new THREE.Vector3();
   private tmpEuler = new THREE.Euler(0, 0, 0, "YXZ");
 
   // Auxiliary info panels (created only when the scene has content for them).
   private performersPanel: VRPerformersPanel | null = null;
   private sceneInfoPanel: VRSceneInfoPanel | null = null;
   private hittables: IHittable[] = [];
+  // Reused per-frame draw payload (avoids allocating an object every frame).
+  private drawInput: IDrawInput;
 
-  // Panel is "pinned" (world-anchored + grip-draggable) by default, since a
-  // head-following panel is jarring on entry. Toggle via the Pin button.
-  private panelLocked = true;
-
-  // Auto-hide fade state.
+  // Auto-hide fade state. The UI is world-anchored (never head-follows) and is
+  // moved only by grabbing it; it just fades out after a spell of no input.
   private uiOpacity = 1;
   private lastActivity = 0;
   private placed = false;
-  private hovering = false;
 
   // Scrubber-hover thumbnail preview (floats above the panel scrubber).
   private thumbPreview: THREE.Mesh;
@@ -128,9 +157,14 @@ export class XRSessionManager {
   constructor(opts: IXRSessionManagerOptions) {
     this.opts = opts;
     this.projection = opts.projection;
+    this.debug = readVrDebug();
+    if (this.debug.size) {
+      // eslint-disable-next-line no-console
+      console.info("[VR debug] flags:", [...this.debug].join(", "));
+    }
 
     this.renderer = new THREE.WebGLRenderer({
-      antialias: true,
+      antialias: !this.debug.has("noaa"),
       alpha: false,
     });
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -159,6 +193,13 @@ export class XRSessionManager {
     this.panel = new VRControlPanel();
     this.panel.onAction = (a) => this.opts.onAction(a);
     this.uiGroup.add(this.panel.object);
+    this.drawInput = {
+      state: opts.getState(),
+      projection: this.projection,
+      markers: opts.getMarkers(),
+      chapterTitle: null,
+      caption: null,
+    };
 
     // Build the info panels, keeping only the ones with content, and lay them
     // out centred above the control bar.
@@ -226,6 +267,7 @@ export class XRSessionManager {
       })
     );
     this.thumbPreview.renderOrder = 12;
+    this.thumbPreview.frustumCulled = false;
     this.thumbPreview.visible = false;
     this.uiGroup.add(this.thumbPreview);
 
@@ -239,7 +281,7 @@ export class XRSessionManager {
     await this.renderer.xr.setSession(session);
     this.input.setSession(session);
     try {
-      this.renderer.xr.setFoveation(0.5);
+      this.renderer.xr.setFoveation(this.debug.has("nofov") ? 0 : 0.5);
     } catch {
       /* not supported — ignore */
     }
@@ -262,15 +304,6 @@ export class XRSessionManager {
     this.videoGroup.rotation.y = this.tmpEuler.y;
   }
 
-  /**
-   * Toggle the control panel between head-following and pinned. When pinned the
-   * panel stays where it is and can be grabbed/moved with the grip button.
-   */
-  toggleLock() {
-    this.panelLocked = !this.panelLocked;
-    this.input.setDraggable(this.uiGroup, this.panelLocked);
-  }
-
   end() {
     this.session?.end().catch(() => undefined);
   }
@@ -278,7 +311,6 @@ export class XRSessionManager {
   // --- hit routing ----------------------------------------------------------
 
   private routeHover(hit: IPanelHit | null) {
-    this.hovering = !!hit;
     for (const h of this.hittables) {
       h.hover(hit && hit.object === h.target ? hit.uv : null);
     }
@@ -291,23 +323,32 @@ export class XRSessionManager {
     if (action) this.opts.onAction(action);
   }
 
-  /** Place the info panels centred in a row just above the control bar. */
+  /**
+   * Arrange the info panels as angled side displays flanking the control bar —
+   * a triple-monitor workstation: the first panel sits to the left, the second
+   * to the right, each hinged just beyond the bar's edge and toed-in (rotated
+   * about its vertical axis) to face the viewer. Centres align with the control
+   * bar (a level row of screens).
+   */
   private layoutInfoPanels(panels: VRCanvasPanel[]) {
     if (!panels.length) return;
-    const totalW =
-      panels.reduce((s, p) => s + p.widthMeters, 0) +
-      PANEL_GAP_M * (panels.length - 1);
-    const bottomY = this.panel.heightMeters / 2 + UI_ABOVE_GAP;
-    let x = -totalW / 2;
-    for (const p of panels) {
+    const halfBar = this.panel.widthMeters / 2;
+    const cos = Math.cos(SIDE_YAW);
+    const sin = Math.sin(SIDE_YAW);
+    panels.forEach((p, i) => {
+      const side = i === 0 ? -1 : 1; // 0 → left, 1 → right
+      const halfPanel = p.widthMeters / 2;
+      // Hinge at the bar's outer edge, then walk to the panel centre along its
+      // toed-in width axis so inner edges sit beside the bar and outer edges
+      // wrap toward the viewer.
       p.object.position.set(
-        x + p.widthMeters / 2,
-        bottomY + p.heightMeters / 2,
-        0
+        side * (halfBar + SIDE_GAP + halfPanel * cos),
+        0,
+        halfPanel * sin
       );
+      p.object.rotation.set(0, -side * SIDE_YAW, 0);
       this.uiGroup.add(p.object);
-      x += p.widthMeters + PANEL_GAP_M;
-    }
+    });
   }
 
   // --- dome construction ----------------------------------------------------
@@ -327,7 +368,7 @@ export class XRSessionManager {
 
     if (p.fov === "flat") {
       this.domeMeshes.push(this.makeFlatScreen(p.zoom));
-    } else if (isStereo(p)) {
+    } else if (isStereo(p) && !this.debug.has("mono")) {
       this.domeMeshes.push(this.makeDomeMesh(uvTransformForEye(p, "left"), 1));
       this.domeMeshes.push(this.makeDomeMesh(uvTransformForEye(p, "right"), 2));
     } else {
@@ -357,10 +398,15 @@ export class XRSessionManager {
     geometry.scale(-1, 1, 1);
     this.applyUv(geometry, uv);
 
-    const material = new THREE.MeshBasicMaterial({ map: this.videoTexture });
+    const material = this.debug.has("solid")
+      ? new THREE.MeshBasicMaterial({ color: 0x224466 })
+      : new THREE.MeshBasicMaterial({ map: this.videoTexture });
     const mesh = new THREE.Mesh(geometry, material);
     mesh.rotation.y = -Math.PI / 2;
     mesh.layers.set(layer);
+    // Never frustum-cull: the viewer is inside this dome, so a marginal
+    // bounding-sphere test must never blank the whole video as the head turns.
+    mesh.frustumCulled = false;
     return mesh;
   }
 
@@ -368,10 +414,13 @@ export class XRSessionManager {
     const w = 4 * zoom;
     const h = 2.25 * zoom; // 16:9
     const geometry = new THREE.PlaneGeometry(w, h);
-    const material = new THREE.MeshBasicMaterial({ map: this.videoTexture });
+    const material = this.debug.has("solid")
+      ? new THREE.MeshBasicMaterial({ color: 0x224466 })
+      : new THREE.MeshBasicMaterial({ map: this.videoTexture });
     const mesh = new THREE.Mesh(geometry, material);
     mesh.position.set(0, 1.4, -3.2);
     mesh.layers.set(0);
+    mesh.frustumCulled = false;
     return mesh;
   }
 
@@ -390,6 +439,15 @@ export class XRSessionManager {
   // --- render loop ----------------------------------------------------------
 
   private render = (time: number) => {
+    // CRITICAL: force the video texture to upload the latest decoded video
+    // frame to the GPU every XR render cycle.  Without this, Three.js's
+    // internal VideoTexture update timer can desync from the XR compositor's
+    // frame pacing (especially on Quest's mobile GPU), causing intermittent
+    // black frames when the compositor samples a stale/uninitialized texture.
+    // This is a well-known cause of the "black flicker every few seconds"
+    // issue with stereo WebXR video playback.
+    this.videoTexture.needsUpdate = true;
+
     // Ensure the XR sub-cameras see their stereo eye layers.
     const xrCam = this.renderer.xr.getCamera() as THREE.ArrayCamera;
     if (xrCam.cameras && xrCam.cameras.length >= 2) {
@@ -397,10 +455,11 @@ export class XRSessionManager {
       xrCam.cameras[1].layers.enable(2);
     }
 
-    // Snap the UI in front of the viewer once on entry (default pinned); after
-    // that, hold position when pinned, or head-follow when unpinned. Wait for a
-    // valid viewer pose first — on the very first frame(s) the headset pose may
-    // not be acquired yet (camera at the origin) and we'd pin it off to a side.
+    // Snap the UI in front of the viewer once on entry, then leave it world-
+    // anchored — it never head-follows; the user repositions it by grabbing it
+    // with the grip. Wait for a valid viewer pose first — on the very first
+    // frame(s) the headset pose may not be acquired yet (camera at the origin)
+    // and we'd place it off to a side.
     if (!this.placed) {
       this.tmpVec.setFromMatrixPosition(xrCam.matrixWorld);
       if (this.tmpVec.lengthSq() > 0.01) {
@@ -408,19 +467,26 @@ export class XRSessionManager {
         this.placed = true;
         this.lastActivity = time;
       }
-    } else if (!this.panelLocked) {
-      this.positionUi(xrCam);
     }
 
     // Drive controllers (hover/scrub/drag) and gather this-frame activity.
+    // Auto-hide is driven purely by hand/controller activity (movement, stick,
+    // buttons) — never by head direction or where the laser happens to point.
     this.input.update();
-    if (this.input.consumeActivity() || this.hovering) {
+    if (this.input.consumeActivity()) {
       this.lastActivity = time;
     }
 
-    // Auto-hide: fade the whole UI group toward visible/hidden.
-    const idle = time - this.lastActivity > AUTO_HIDE_MS;
-    this.uiOpacity += ((idle ? 0 : 1) - this.uiOpacity) * FADE_LERP;
+    // Auto-hide: fade the whole UI group toward visible/hidden. Debug flags can
+    // pin it fully hidden or fully shown to isolate UI rendering vs the dome.
+    if (this.debug.has("hideui")) {
+      this.uiOpacity = 0;
+    } else if (this.debug.has("noautohide")) {
+      this.uiOpacity = 1;
+    } else {
+      const idle = time - this.lastActivity > AUTO_HIDE_MS;
+      this.uiOpacity += ((idle ? 0 : 1) - this.uiOpacity) * FADE_LERP;
+    }
     const op = this.uiOpacity;
     this.panel.setRenderState(op);
     this.performersPanel?.setRenderState(op);
@@ -428,14 +494,13 @@ export class XRSessionManager {
 
     const state = this.opts.getState();
     if (op > 0.02) {
-      this.panel.update({
-        state,
-        projection: this.projection,
-        markers: this.opts.getMarkers(),
-        chapterTitle: this.opts.getChapterTitle(),
-        caption: this.opts.getCaption(),
-        locked: this.panelLocked,
-      });
+      const d = this.drawInput;
+      d.state = state;
+      d.projection = this.projection;
+      d.markers = this.opts.getMarkers();
+      d.chapterTitle = this.opts.getChapterTitle();
+      d.caption = this.opts.getCaption();
+      this.panel.update(d);
       this.performersPanel?.update();
       this.sceneInfoPanel?.update();
     }
@@ -456,29 +521,6 @@ export class XRSessionManager {
       this.tmpVec.z - Math.cos(yaw) * PANEL_DISTANCE
     );
     this.uiGroup.rotation.set(PANEL_TILT, yaw, 0);
-  }
-
-  /** Keep the control panel comfortably in front of the user (yaw-only). */
-  private positionUi(cam: THREE.Camera) {
-    this.tmpVec.setFromMatrixPosition(cam.matrixWorld);
-    this.tmpEuler.setFromQuaternion(cam.quaternion, "YXZ");
-    const yaw = this.tmpEuler.y;
-
-    this.tmpTarget.set(
-      this.tmpVec.x - Math.sin(yaw) * PANEL_DISTANCE,
-      this.tmpVec.y - PANEL_DROP,
-      this.tmpVec.z - Math.cos(yaw) * PANEL_DISTANCE
-    );
-    this.uiGroup.position.lerp(this.tmpTarget, POSITION_LERP);
-
-    // Smoothly turn the panel to face the user.
-    const current = this.uiGroup.rotation.y;
-    let delta = yaw - current;
-    while (delta > Math.PI) delta -= Math.PI * 2;
-    while (delta < -Math.PI) delta += Math.PI * 2;
-    this.uiGroup.rotation.y = current + delta * POSITION_LERP;
-    // Tilt slightly up toward the eyes since the panel sits below eye level.
-    this.uiGroup.rotation.x = PANEL_TILT;
   }
 
   /** Float a VTT thumbnail above the scrubber while it's being hovered. */

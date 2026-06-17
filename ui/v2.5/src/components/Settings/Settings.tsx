@@ -32,7 +32,7 @@ import { SettingsLibraryPanel } from "./SettingsLibraryPanel";
 import { SettingsSecurityPanel } from "./SettingsSecurityPanel";
 import { SettingsUsersPanel } from "./SettingsUsersPanel";
 import { SettingsRecycleBinPanel } from "./SettingsRecycleBinPanel";
-import { SettingsDeoVRTunnelPanel } from "./SettingsDeoVRTunnelPanel";
+import { SettingsLocalHTTPSPanel } from "./SettingsLocalHTTPSPanel";
 import Changelog from "../Changelog/Changelog";
 
 // ─── Crossfading screenshot background ───────────────────────────────────────
@@ -43,7 +43,8 @@ const SettingsBackground: React.FC = () => {
 
   const uiConfig = configuration?.ui as IUIConfig | undefined;
   const sfwMode =
-    configuration?.interface?.sfwContentMode && (uiConfig?.sfwBlurImages ?? true);
+    configuration?.interface?.sfwContentMode &&
+    (uiConfig?.sfwBlurImages ?? true);
 
   // Scenes for screenshots (priority)
   const sceneFilter = useMemo(() => {
@@ -130,7 +131,9 @@ const SettingsBackground: React.FC = () => {
         }}
       />
       {/* Dark overlay */}
-      <Box sx={{ position: "absolute", inset: 0, bgcolor: "rgba(3,3,10,0.20)" }} />
+      <Box
+        sx={{ position: "absolute", inset: 0, bgcolor: "rgba(3,3,10,0.20)" }}
+      />
       {/* Scanline texture */}
       <Box
         sx={{
@@ -181,7 +184,8 @@ const NavItem: React.FC<{
             width: 2,
             height: "60%",
             bgcolor: "primary.main",
-            boxShadow: (theme) => `0 0 8px ${alpha(theme.palette.primary.main, 0.7)}`,
+            boxShadow: (theme) =>
+              `0 0 8px ${alpha(theme.palette.primary.main, 0.7)}`,
           }}
         />
       )}
@@ -218,7 +222,7 @@ const validTabs = [
   "changelog",
   "about",
   "recycle-bin",
-  "deovr-tunnel",
+  "local-https",
 ] as const;
 type TabKey = (typeof validTabs)[number];
 
@@ -237,22 +241,38 @@ const SettingTabs: React.FC<{ tab: TabKey }> = ({ tab }) => {
 
   const renderContent = () => {
     switch (tab) {
-      case "library":           return <SettingsLibraryPanel />;
-      case "interface":         return <SettingsInterfacePanel />;
-      case "security":          return <SettingsSecurityPanel />;
-      case "users":             return <SettingsUsersPanel />;
-      case "tasks":             return <SettingsTasksPanel />;
-      case "services":          return <SettingsServicesPanel />;
-      case "tools":             return <SettingsToolsPanel />;
-      case "metadata-providers":return <SettingsScrapingPanel />;
-      case "system":            return <SettingsConfigurationPanel />;
-      case "plugins":           return <SettingsPluginsPanel />;
-      case "logs":              return <SettingsLogsPanel />;
-      case "changelog":         return <Changelog />;
-      case "about":             return <SettingsAboutPanel />;
-      case "recycle-bin":       return <SettingsRecycleBinPanel />;
-      case "deovr-tunnel":      return <SettingsDeoVRTunnelPanel />;
-      default:                  return null;
+      case "library":
+        return <SettingsLibraryPanel />;
+      case "interface":
+        return <SettingsInterfacePanel />;
+      case "security":
+        return <SettingsSecurityPanel />;
+      case "users":
+        return <SettingsUsersPanel />;
+      case "tasks":
+        return <SettingsTasksPanel />;
+      case "services":
+        return <SettingsServicesPanel />;
+      case "tools":
+        return <SettingsToolsPanel />;
+      case "metadata-providers":
+        return <SettingsScrapingPanel />;
+      case "system":
+        return <SettingsConfigurationPanel />;
+      case "plugins":
+        return <SettingsPluginsPanel />;
+      case "logs":
+        return <SettingsLogsPanel />;
+      case "changelog":
+        return <Changelog />;
+      case "about":
+        return <SettingsAboutPanel />;
+      case "recycle-bin":
+        return <SettingsRecycleBinPanel />;
+      case "local-https":
+        return <SettingsLocalHTTPSPanel />;
+      default:
+        return null;
     }
   };
 
@@ -318,17 +338,26 @@ const SettingTabs: React.FC<{ tab: TabKey }> = ({ tab }) => {
               Settings
             </Typography>
             {/* Decorative separator */}
-            <Box sx={{ mt: 1.75, display: "flex", alignItems: "center", gap: 1 }}>
+            <Box
+              sx={{ mt: 1.75, display: "flex", alignItems: "center", gap: 1 }}
+            >
               <Box
                 sx={{
                   height: "1px",
                   width: 20,
                   bgcolor: "primary.main",
                   opacity: 0.7,
-                  boxShadow: (theme) => `0 0 6px ${alpha(theme.palette.primary.main, 0.6)}`,
+                  boxShadow: (theme) =>
+                    `0 0 6px ${alpha(theme.palette.primary.main, 0.6)}`,
                 }}
               />
-              <Box sx={{ height: "1px", flex: 1, bgcolor: "rgba(255,255,255,0.07)" }} />
+              <Box
+                sx={{
+                  height: "1px",
+                  flex: 1,
+                  bgcolor: "rgba(255,255,255,0.07)",
+                }}
+              />
             </Box>
           </Box>
 
@@ -340,30 +369,107 @@ const SettingTabs: React.FC<{ tab: TabKey }> = ({ tab }) => {
               overflowX: "hidden",
               py: 0.5,
               "&::-webkit-scrollbar": { width: "3px" },
-              "&::-webkit-scrollbar-thumb": { bgcolor: "rgba(255,255,255,0.1)", borderRadius: "2px" },
+              "&::-webkit-scrollbar-thumb": {
+                bgcolor: "rgba(255,255,255,0.1)",
+                borderRadius: "2px",
+              },
             }}
           >
-            <NavItem label={<FormattedMessage id="config.categories.tasks" />} to="/settings?tab=tasks" active={tab === "tasks"} />
-            <NavItem label={<FormattedMessage id="library" />} to="/settings?tab=library" active={tab === "library"} />
-            <NavItem label={<FormattedMessage id="config.categories.interface" />} to="/settings?tab=interface" active={tab === "interface"} />
-            <NavItem label={<FormattedMessage id="config.categories.security" />} to="/settings?tab=security" active={tab === "security"} />
+            <NavItem
+              label={<FormattedMessage id="config.categories.tasks" />}
+              to="/settings?tab=tasks"
+              active={tab === "tasks"}
+            />
+            <NavItem
+              label={<FormattedMessage id="library" />}
+              to="/settings?tab=library"
+              active={tab === "library"}
+            />
+            <NavItem
+              label={<FormattedMessage id="config.categories.interface" />}
+              to="/settings?tab=interface"
+              active={tab === "interface"}
+            />
+            <NavItem
+              label={<FormattedMessage id="config.categories.security" />}
+              to="/settings?tab=security"
+              active={tab === "security"}
+            />
             {canManageUsers && (
-              <NavItem label={<FormattedMessage id="config.categories.users" defaultMessage="Users" />} to="/settings?tab=users" active={tab === "users"} />
+              <NavItem
+                label={
+                  <FormattedMessage
+                    id="config.categories.users"
+                    defaultMessage="Users"
+                  />
+                }
+                to="/settings?tab=users"
+                active={tab === "users"}
+              />
             )}
-            <NavItem label={<FormattedMessage id="config.categories.metadata_providers" />} to="/settings?tab=metadata-providers" active={tab === "metadata-providers"} />
-            <NavItem label={<FormattedMessage id="config.categories.services" />} to="/settings?tab=services" active={tab === "services"} />
-            <NavItem label={<FormattedMessage id="config.categories.system" />} to="/settings?tab=system" active={tab === "system"} />
-            <NavItem label={<FormattedMessage id="config.categories.plugins" />} to="/settings?tab=plugins" active={tab === "plugins"} />
-            <NavItem label={<FormattedMessage id="config.categories.logs" />} to="/settings?tab=logs" active={tab === "logs"} />
-            <NavItem label={<FormattedMessage id="config.categories.tools" />} to="/settings?tab=tools" active={tab === "tools"} />
+            <NavItem
+              label={
+                <FormattedMessage id="config.categories.metadata_providers" />
+              }
+              to="/settings?tab=metadata-providers"
+              active={tab === "metadata-providers"}
+            />
+            <NavItem
+              label={<FormattedMessage id="config.categories.services" />}
+              to="/settings?tab=services"
+              active={tab === "services"}
+            />
+            <NavItem
+              label={<FormattedMessage id="config.categories.system" />}
+              to="/settings?tab=system"
+              active={tab === "system"}
+            />
+            <NavItem
+              label={<FormattedMessage id="config.categories.plugins" />}
+              to="/settings?tab=plugins"
+              active={tab === "plugins"}
+            />
+            <NavItem
+              label={<FormattedMessage id="config.categories.logs" />}
+              to="/settings?tab=logs"
+              active={tab === "logs"}
+            />
+            <NavItem
+              label={<FormattedMessage id="config.categories.tools" />}
+              to="/settings?tab=tools"
+              active={tab === "tools"}
+            />
 
             {/* Lower group divider */}
-            <Box sx={{ mx: 2.5, my: 1, height: "1px", bgcolor: "rgba(255,255,255,0.06)" }} />
+            <Box
+              sx={{
+                mx: 2.5,
+                my: 1,
+                height: "1px",
+                bgcolor: "rgba(255,255,255,0.06)",
+              }}
+            />
 
-            <NavItem label={<FormattedMessage id="config.categories.changelog" />} to="/settings?tab=changelog" active={tab === "changelog"} />
-            <NavItem label={<FormattedMessage id="config.categories.about" />} to="/settings?tab=about" active={tab === "about"} />
-            <NavItem label={<FormattedMessage id="config.categories.recycle_bin" />} to="/settings?tab=recycle-bin" active={tab === "recycle-bin"} />
-            <NavItem label={<FormattedMessage id="config.categories.deovr-tunnel" />} to="/settings?tab=deovr-tunnel" active={tab === "deovr-tunnel"} />
+            <NavItem
+              label={<FormattedMessage id="config.categories.changelog" />}
+              to="/settings?tab=changelog"
+              active={tab === "changelog"}
+            />
+            <NavItem
+              label={<FormattedMessage id="config.categories.about" />}
+              to="/settings?tab=about"
+              active={tab === "about"}
+            />
+            <NavItem
+              label={<FormattedMessage id="config.categories.recycle_bin" />}
+              to="/settings?tab=recycle-bin"
+              active={tab === "recycle-bin"}
+            />
+            <NavItem
+              label={<FormattedMessage id="config.categories.local-https" />}
+              to="/settings?tab=local-https"
+              active={tab === "local-https"}
+            />
           </Box>
 
           {/* Advanced mode toggle */}
@@ -387,7 +493,13 @@ const SettingTabs: React.FC<{ tab: TabKey }> = ({ tab }) => {
                 />
               }
               label={
-                <Typography sx={{ fontSize: "0.775rem", color: "rgba(255,255,255,0.45)", letterSpacing: "0.02em" }}>
+                <Typography
+                  sx={{
+                    fontSize: "0.775rem",
+                    color: "rgba(255,255,255,0.45)",
+                    letterSpacing: "0.02em",
+                  }}
+                >
                   <FormattedMessage id="config.advanced_mode" />
                 </Typography>
               }
@@ -408,10 +520,30 @@ const SettingTabs: React.FC<{ tab: TabKey }> = ({ tab }) => {
         >
           {/* Corner brackets — desktop only */}
           {[
-            { top: 10, left: 10, borderTop: "1px solid", borderLeft: "1px solid" },
-            { top: 10, right: 10, borderTop: "1px solid", borderRight: "1px solid" },
-            { bottom: 10, left: 10, borderBottom: "1px solid", borderLeft: "1px solid" },
-            { bottom: 10, right: 10, borderBottom: "1px solid", borderRight: "1px solid" },
+            {
+              top: 10,
+              left: 10,
+              borderTop: "1px solid",
+              borderLeft: "1px solid",
+            },
+            {
+              top: 10,
+              right: 10,
+              borderTop: "1px solid",
+              borderRight: "1px solid",
+            },
+            {
+              bottom: 10,
+              left: 10,
+              borderBottom: "1px solid",
+              borderLeft: "1px solid",
+            },
+            {
+              bottom: 10,
+              right: 10,
+              borderBottom: "1px solid",
+              borderRight: "1px solid",
+            },
           ].map((corner, i) => (
             <Box
               key={i}

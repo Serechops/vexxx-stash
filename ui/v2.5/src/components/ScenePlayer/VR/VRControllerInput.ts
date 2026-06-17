@@ -54,6 +54,8 @@ export class VRControllerInput {
   private raycaster = new THREE.Raycaster();
   private rotMatrix = new THREE.Matrix4();
   private targets: THREE.Object3D[] = [];
+  // Reused intersection buffer so per-frame raycasts allocate no arrays.
+  private rayResults: THREE.Intersection[] = [];
   private session: XRSession | null = null;
   private disposers: Array<() => void> = [];
 
@@ -194,11 +196,13 @@ export class VRControllerInput {
       uv: THREE.Vector2;
       distance: number;
     } | null = null;
+    const hits = this.rayResults;
     for (const t of this.targets) {
       // Raycaster.intersectObject ignores `.visible`; gate it ourselves so a
       // hidden (auto-hidden) panel isn't interactable.
       if (!t.visible) continue;
-      const hits = this.raycaster.intersectObject(t, false);
+      hits.length = 0;
+      this.raycaster.intersectObject(t, false, hits);
       if (
         hits.length &&
         hits[0].uv &&

@@ -52,8 +52,6 @@ export type VRControlAction =
   | { type: "toggleSwapEyes" }
   | { type: "setZoom"; value: number }
   | { type: "recenter" }
-  /** Toggle the panel between head-following and pinned/draggable. */
-  | { type: "toggleLock" }
   | { type: "nextMarker" }
   | { type: "prevMarker" }
   | { type: "seekSeconds"; seconds: number }

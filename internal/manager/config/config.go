@@ -242,6 +242,13 @@ const (
 	sslCertPath = "ssl_cert_path"
 	sslKeyPath  = "ssl_key_path"
 
+	// Local HTTPS: auto-generated self-signed cert served on a second port,
+	// so WebXR (which requires a secure context) works on the LAN without an
+	// external tunnel.
+	tlsAutoEnabled     = "tls_auto_enabled"
+	tlsAutoPort        = "tls_auto_port"
+	tlsAutoPortDefault = 9443
+
 	// DLNA options
 	DLNAServerName         = "dlna.server_name"
 	DLNADefaultEnabled     = "dlna.default_enabled"
@@ -402,6 +409,29 @@ func (i *Config) InitTLS() {
 
 func (i *Config) GetTLSFiles() (certFile, keyFile string) {
 	return i.certFile, i.keyFile
+}
+
+// GetTLSAutoEnabled reports whether the auto-generated local-HTTPS listener
+// should run on a second port.
+func (i *Config) GetTLSAutoEnabled() bool {
+	return i.getBool(tlsAutoEnabled)
+}
+
+func (i *Config) SetTLSAutoEnabled(v bool) {
+	i.SetBool(tlsAutoEnabled, v)
+}
+
+// GetTLSAutoPort returns the port for the auto local-HTTPS listener.
+func (i *Config) GetTLSAutoPort() int {
+	ret := i.getInt(tlsAutoPort)
+	if ret == 0 {
+		ret = tlsAutoPortDefault
+	}
+	return ret
+}
+
+func (i *Config) SetTLSAutoPort(port int) {
+	i.SetInterface(tlsAutoPort, port)
 }
 
 func (i *Config) HasTLSConfig() bool {

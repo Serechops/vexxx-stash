@@ -49,15 +49,13 @@ interface IRowItem {
   kind?: "button" | "volume";
 }
 
-interface IDrawInput {
+export interface IDrawInput {
   state: IVRPlaybackState;
   projection: IProjectionSettings;
   markers: IVRMarker[];
   chapterTitle: string | null;
   /** Active caption cue text, when captions are on. */
   caption: string | null;
-  /** Whether the panel is pinned (highlights the Pin button). */
-  locked: boolean;
 }
 
 const RATE_STEPS = [0.5, 0.75, 1, 1.25, 1.5, 2];
@@ -77,10 +75,31 @@ export class VRControlPanel {
 
   private last: IDrawInput | null = null;
   // Dirty-check: the canvas is only redrawn + re-uploaded when its visible
-  // content changes (state signature / hover / heatmap), not every frame —
-  // this keeps the per-frame GPU texture-upload cost near zero while idle.
+  // content changes, not every frame. The comparison is allocation-free (it
+  // compares against the stored primitives in `prev`) so the render loop —
+  // which runs on the main thread feeding the XR compositor — produces no
+  // per-frame garbage that would trigger GC stalls (seen as black flicker).
   private dirty = true;
-  private sig = "";
+  private prev = {
+    paused: false,
+    muted: false,
+    captions: false,
+    waiting: false,
+    swap: false,
+    t: -1,
+    dur: -1,
+    buf: -1,
+    vol: -1,
+    rate: -1,
+    mlen: -1,
+    heat: false,
+    fov: "",
+    stereo: "",
+    chap: null as string | null,
+    cap: null as string | null,
+    hov: null as string | null,
+    hf: -1,
+  };
 
   onAction?: (a: VRControlAction) => void;
 
@@ -108,6 +127,7 @@ export class VRControlPanel {
     });
     this.mesh = new THREE.Mesh(geometry, this.material);
     this.mesh.renderOrder = 10;
+    this.mesh.frustumCulled = false;
     this.mesh.name = "vr-control-panel";
 
     this.object = new THREE.Group();
@@ -173,37 +193,71 @@ export class VRControlPanel {
 
   update(input: IDrawInput) {
     this.last = input;
-    const sig = this.signature(input);
-    if (!this.dirty && sig === this.sig) return;
-    this.sig = sig;
+    const changed = this.stateChanged(input);
+    if (!this.dirty && !changed) return;
     this.dirty = false;
     this.draw(input);
   }
 
-  /** A compact fingerprint of everything that affects the rendered panel. */
-  private signature(input: IDrawInput): string {
-    const { state, projection, markers, chapterTitle, caption, locked } = input;
-    return [
-      state.paused ? 1 : 0,
-      state.muted ? 1 : 0,
-      state.captionsOn ? 1 : 0,
-      state.waiting ? 1 : 0,
-      locked ? 1 : 0,
-      projection.swapEyes ? 1 : 0,
-      Math.round(state.currentTime * 10),
-      Math.round(state.duration * 10),
-      Math.round(state.bufferedAhead * 2),
-      state.volume.toFixed(2),
-      state.playbackRate,
-      fovLabel(projection),
-      stereoLabel(projection),
-      markers.length,
-      chapterTitle ?? "",
-      caption ?? "",
-      this.hoveredId ?? "",
-      this.hoverFraction == null ? "" : this.hoverFraction.toFixed(3),
-      this.heatmap ? 1 : 0,
-    ].join("|");
+  /**
+   * Whether anything affecting the rendered panel changed since the last draw,
+   * updating the stored fingerprint as a side effect. Allocation-free. Time is
+   * quantised to 4 Hz so the moving playhead/progress only forces ~4 redraws a
+   * second instead of one per frame.
+   */
+  private stateChanged(input: IDrawInput): boolean {
+    const { state: s, projection: p, markers, chapterTitle, caption } = input;
+    const t = Math.round(s.currentTime * 4);
+    const dur = Math.round(s.duration * 10);
+    const buf = Math.round(s.bufferedAhead * 2);
+    const vol = Math.round(s.volume * 100);
+    const fov = fovLabel(p);
+    const stereo = stereoLabel(p);
+    const hf =
+      this.hoverFraction == null ? -1 : Math.round(this.hoverFraction * 1000);
+    const heat = this.heatmap != null;
+    const pr = this.prev;
+    if (
+      pr.paused === s.paused &&
+      pr.muted === s.muted &&
+      pr.captions === s.captionsOn &&
+      pr.waiting === s.waiting &&
+      pr.swap === p.swapEyes &&
+      pr.t === t &&
+      pr.dur === dur &&
+      pr.buf === buf &&
+      pr.vol === vol &&
+      pr.rate === s.playbackRate &&
+      pr.mlen === markers.length &&
+      pr.heat === heat &&
+      pr.fov === fov &&
+      pr.stereo === stereo &&
+      pr.chap === chapterTitle &&
+      pr.cap === caption &&
+      pr.hov === this.hoveredId &&
+      pr.hf === hf
+    ) {
+      return false;
+    }
+    pr.paused = s.paused;
+    pr.muted = s.muted;
+    pr.captions = s.captionsOn;
+    pr.waiting = s.waiting;
+    pr.swap = p.swapEyes;
+    pr.t = t;
+    pr.dur = dur;
+    pr.buf = buf;
+    pr.vol = vol;
+    pr.rate = s.playbackRate;
+    pr.mlen = markers.length;
+    pr.heat = heat;
+    pr.fov = fov;
+    pr.stereo = stereo;
+    pr.chap = chapterTitle;
+    pr.cap = caption;
+    pr.hov = this.hoveredId;
+    pr.hf = hf;
+    return true;
   }
 
   // --- hit testing ----------------------------------------------------------
@@ -277,8 +331,6 @@ export class VRControlPanel {
         return { type: "toggleSwapEyes" };
       case "recenter":
         return { type: "recenter" };
-      case "lock":
-        return { type: "toggleLock" };
       case "captions":
         return { type: "toggleCaptions" };
       case "prevMarker":
@@ -295,7 +347,7 @@ export class VRControlPanel {
   // --- drawing --------------------------------------------------------------
 
   private draw(input: IDrawInput) {
-    const { state, projection, markers, chapterTitle, caption, locked } = input;
+    const { state, projection, markers, chapterTitle, caption } = input;
     const { ctx } = this;
     this.regions = [];
 
@@ -375,14 +427,13 @@ export class VRControlPanel {
       state
     );
 
-    // Row 2 — projection / view, pin, captions, exit.
+    // Row 2 — projection / view, captions, exit.
     this.layoutRow(
       [
         { id: "fov", w: 104, label: fovLabel(projection) },
         { id: "stereo", w: 116, label: stereoLabel(projection) },
         { id: "swap", w: 104, label: "Swap", active: projection.swapEyes },
         { id: "recenter", w: 150, label: "Recenter" },
-        { id: "lock", w: 120, label: "Pin", active: locked },
         { id: "captions", w: 84, label: "CC", active: state.captionsOn },
         { id: "exit", w: 110, label: "Exit", variant: "danger" },
       ],
@@ -445,29 +496,38 @@ export class VRControlPanel {
     }
 
     if (dur > 0) {
-      // Buffered
-      const bw = Math.min(1, (cur + state.bufferedAhead) / dur) * w;
-      this.roundRect(x, y, bw, h, r);
-      ctx.fillStyle = "rgba(255,255,255,0.18)";
-      ctx.fill();
+      const progressX = x + Math.min(1, cur / dur) * w;
 
-      // Progress
-      const pw = Math.min(1, cur / dur) * w;
-      this.roundRect(x, y, pw, h, r);
-      ctx.fillStyle = "rgba(96,165,250,0.95)";
-      ctx.fill();
-
-      // Marker ticks
-      for (const m of markers) {
-        const mx = x + Math.min(1, m.seconds / dur) * w;
-        ctx.fillStyle = m.color ?? "rgba(250,204,21,0.95)";
-        ctx.fillRect(mx - 2, y - 6, 4, h + 12);
+      if (markers.length > 0) {
+        // Chapter segments: each marker colours a band of the timeline (so you
+        // can see *where* each marker sits), replacing the old vertical ticks.
+        // The whole bar is drawn dim; the played portion is redrawn vivid, so
+        // progress reads out without a separate fill on top.
+        ctx.save();
+        this.roundRect(x, y, w, h, r);
+        ctx.clip();
+        this.drawMarkerSegments(x, y, w, h, dur, markers, 0.35, 58, 50);
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x, y, Math.max(0, progressX - x), h);
+        ctx.clip();
+        this.drawMarkerSegments(x, y, w, h, dur, markers, 0.95, 72, 58);
+        ctx.restore();
+        ctx.restore();
+      } else {
+        // No chapters → classic buffered + progress fill.
+        const bw = Math.min(1, (cur + state.bufferedAhead) / dur) * w;
+        this.roundRect(x, y, bw, h, r);
+        ctx.fillStyle = "rgba(255,255,255,0.18)";
+        ctx.fill();
+        this.roundRect(x, y, progressX - x, h, r);
+        ctx.fillStyle = "rgba(96,165,250,0.95)";
+        ctx.fill();
       }
 
       // Playhead
-      const px = x + pw;
       ctx.beginPath();
-      ctx.arc(px, y + h / 2, h * 0.62, 0, Math.PI * 2);
+      ctx.arc(progressX, y + h / 2, h * 0.62, 0, Math.PI * 2);
       ctx.fillStyle = "#ffffff";
       ctx.fill();
     }
@@ -486,6 +546,35 @@ export class VRControlPanel {
     }
 
     this.regions.push({ id: "scrubber", x, y: y - 8, w, h: h + 16 });
+  }
+
+  /**
+   * Fill each marker's span on the track with a distinct hue (golden-angle
+   * stepped for good separation). A segment runs from its marker to its
+   * `endSeconds`, or to the next marker, or to the end of the video.
+   */
+  private drawMarkerSegments(
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    dur: number,
+    markers: IVRMarker[],
+    alpha: number,
+    sat: number,
+    light: number
+  ) {
+    const { ctx } = this;
+    for (let i = 0; i < markers.length; i++) {
+      const next = i + 1 < markers.length ? markers[i + 1].seconds : dur;
+      const start = Math.max(0, Math.min(dur, markers[i].seconds));
+      const end = Math.max(start, Math.min(dur, markers[i].endSeconds ?? next));
+      const sx = x + (start / dur) * w;
+      const ex = x + (end / dur) * w;
+      const hue = Math.round((i * 137.508) % 360);
+      ctx.fillStyle = `hsla(${hue}, ${sat}%, ${light}%, ${alpha})`;
+      ctx.fillRect(sx, y, Math.max(1, ex - sx), h);
+    }
   }
 
   private drawVolume(region: IHitRegion, state: IVRPlaybackState) {

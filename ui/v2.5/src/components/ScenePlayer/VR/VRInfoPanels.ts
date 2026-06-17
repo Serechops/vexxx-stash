@@ -100,6 +100,7 @@ export abstract class VRCanvasPanel {
       this.material
     );
     this.mesh.renderOrder = 10;
+    this.mesh.frustumCulled = false;
 
     this.object = new THREE.Group();
     this.object.add(this.mesh);

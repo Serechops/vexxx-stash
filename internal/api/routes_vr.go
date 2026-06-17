@@ -8,10 +8,8 @@ import (
 	"path"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/stashapp/stash/internal/manager/config"
-	"github.com/stashapp/stash/pkg/localtunnel"
 	"github.com/stashapp/stash/pkg/models"
 	"github.com/stashapp/stash/pkg/txn"
 )
@@ -707,119 +705,4 @@ func makeSet(slice []string) map[string]bool {
 		set[v] = true
 	}
 	return set
-}
-
-// ─── Tunnel Manager ──────────────────────────────────────────────────────────
-
-// tunnelState tracks a running localtunnel tunnel.
-type tunnelState struct {
-	mu      sync.Mutex
-	tunnel  *localtunnel.Tunnel
-	cancel  context.CancelFunc
-	url     string
-	running bool
-	err     string
-}
-
-var deovrTunnel tunnelState
-
-// tunnelHandler manages the lifecycle of a localtunnel HTTPS tunnel for DeoVR.
-func (rs vrRoutes) tunnelStartHandler(w http.ResponseWriter, r *http.Request) {
-	deovrTunnel.mu.Lock()
-	defer deovrTunnel.mu.Unlock()
-
-	if deovrTunnel.running {
-		writeJSON(w, map[string]interface{}{
-			"running": true,
-			"url":     deovrTunnel.url,
-			"error":   nil,
-		})
-		return
-	}
-
-	port := rs.config.GetPort()
-	ctx, cancel := context.WithCancel(context.Background())
-
-	opts := localtunnel.Options{
-		LocalPort: port,
-	}
-	if subdomain := r.URL.Query().Get("subdomain"); subdomain != "" {
-		opts.Subdomain = subdomain
-	}
-	if localHost := r.URL.Query().Get("local_host"); localHost != "" {
-		opts.LocalHost = localHost
-	}
-
-	tunnel, err := localtunnel.Start(ctx, opts)
-	if err != nil {
-		cancel()
-		writeJSON(w, map[string]interface{}{
-			"running": false,
-			"url":     nil,
-			"error":   err.Error(),
-		})
-		return
-	}
-
-	deovrTunnel.tunnel = tunnel
-	deovrTunnel.cancel = cancel
-	deovrTunnel.running = true
-	deovrTunnel.url = tunnel.URL()
-	deovrTunnel.err = ""
-
-	// Watch for tunnel closure in background
-	go func() {
-		<-tunnel.Done()
-		deovrTunnel.mu.Lock()
-		deovrTunnel.running = false
-		deovrTunnel.mu.Unlock()
-	}()
-
-	writeJSON(w, map[string]interface{}{
-		"running": true,
-		"url":     tunnel.URL(),
-		"error":   nil,
-	})
-}
-
-func (rs vrRoutes) tunnelStopHandler(w http.ResponseWriter, r *http.Request) {
-	deovrTunnel.mu.Lock()
-	defer deovrTunnel.mu.Unlock()
-
-	if !deovrTunnel.running {
-		writeJSON(w, map[string]interface{}{
-			"running": false,
-			"url":     nil,
-			"error":   nil,
-		})
-		return
-	}
-
-	if deovrTunnel.tunnel != nil {
-		_ = deovrTunnel.tunnel.Close()
-	}
-	if deovrTunnel.cancel != nil {
-		deovrTunnel.cancel()
-	}
-	deovrTunnel.tunnel = nil
-	deovrTunnel.cancel = nil
-	deovrTunnel.running = false
-	deovrTunnel.url = ""
-
-	writeJSON(w, map[string]interface{}{
-		"running": false,
-		"url":     nil,
-		"error":   nil,
-	})
-}
-
-func (rs vrRoutes) tunnelStatusHandler(w http.ResponseWriter, r *http.Request) {
-	deovrTunnel.mu.Lock()
-	defer deovrTunnel.mu.Unlock()
-
-	writeJSON(w, map[string]interface{}{
-		"running": deovrTunnel.running,
-		"url":     deovrTunnel.url,
-		"error":   deovrTunnel.err,
-	})
 }

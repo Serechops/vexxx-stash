@@ -135,30 +135,47 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
   const infoRef = useRef(info);
   infoRef.current = info;
 
+  // No array copy — walk markers backwards. Called every render frame.
   const getChapterTitle = useCallback((): string | null => {
     const v = videoRef.current;
     if (!v) return null;
     const t = v.currentTime;
-    const active = [...markersRef.current]
-      .reverse()
-      .find((m) => t >= m.seconds);
-    return active ? active.title : null;
+    const m = markersRef.current;
+    for (let i = m.length - 1; i >= 0; i--) {
+      if (t >= m[i].seconds) return m[i].title;
+    }
+    return null;
   }, []);
 
+  // Reused state object — getState is polled every render frame, so mutating a
+  // single object instead of allocating a fresh one keeps the XR loop free of
+  // per-frame garbage (a cause of GC-stall black flicker). The manager consumes
+  // the values synchronously each frame, so reuse is safe.
+  const stateRef = useRef<IVRPlaybackState>({
+    paused: true,
+    currentTime: 0,
+    duration: 0,
+    volume: 1,
+    muted: false,
+    playbackRate: 1,
+    bufferedAhead: 0,
+    waiting: false,
+    captionsOn: false,
+  });
   const getState = useCallback((): IVRPlaybackState => {
+    const st = stateRef.current;
     const v = videoRef.current;
     if (!v) {
-      return {
-        paused: true,
-        currentTime: 0,
-        duration: 0,
-        volume: 1,
-        muted: false,
-        playbackRate: 1,
-        bufferedAhead: 0,
-        waiting: false,
-        captionsOn: captionsOnRef.current,
-      };
+      st.paused = true;
+      st.currentTime = 0;
+      st.duration = 0;
+      st.volume = 1;
+      st.muted = false;
+      st.playbackRate = 1;
+      st.bufferedAhead = 0;
+      st.waiting = false;
+      st.captionsOn = captionsOnRef.current;
+      return st;
     }
     let bufferedAhead = 0;
     for (let i = 0; i < v.buffered.length; i++) {
@@ -170,17 +187,16 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
         break;
       }
     }
-    return {
-      paused: v.paused,
-      currentTime: v.currentTime,
-      duration: v.duration,
-      volume: v.volume,
-      muted: v.muted,
-      playbackRate: v.playbackRate,
-      bufferedAhead,
-      waiting: v.readyState < 3 && !v.paused,
-      captionsOn: captionsOnRef.current,
-    };
+    st.paused = v.paused;
+    st.currentTime = v.currentTime;
+    st.duration = v.duration;
+    st.volume = v.volume;
+    st.muted = v.muted;
+    st.playbackRate = v.playbackRate;
+    st.bufferedAhead = bufferedAhead;
+    st.waiting = v.readyState < 3 && !v.paused;
+    st.captionsOn = captionsOnRef.current;
+    return st;
   }, []);
 
   const seekToMarker = useCallback((direction: 1 | -1) => {
@@ -257,9 +273,6 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
           break;
         case "recenter":
           managerRef.current?.recenter();
-          break;
-        case "toggleLock":
-          managerRef.current?.toggleLock();
           break;
         case "nextMarker":
           seekToMarker(1);

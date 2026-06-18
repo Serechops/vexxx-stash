@@ -25,6 +25,10 @@ export interface IPanelHit {
 export interface IControllerInputCallbacks {
   onHover: (hit: IPanelHit | null) => void;
   onSelect: (hit: IPanelHit) => void;
+  /** Trigger held and dragged across a panel (drag-to-scroll carousels). */
+  onSelectMove: (hit: IPanelHit) => void;
+  /** Trigger released; hit is the panel under the ray at release, or null. */
+  onSelectEnd: (hit: IPanelHit | null) => void;
   /** Thumbstick nudge, in (signed) seconds. */
   onScrub: (deltaSeconds: number) => void;
   onRecenter: () => void;
@@ -73,6 +77,12 @@ export class VRControllerInput {
 
   // Edge-trigger state for thumbstick scrubbing.
   private scrubArmed = true;
+
+  // Trigger-press tracking for drag-to-scroll + tap-to-select on panels. While
+  // the trigger is held, drag moves are streamed to the pressed panel; the panel
+  // resolves tap-vs-drag itself on release.
+  private pressController: THREE.Group | null = null;
+  private pressObject: THREE.Object3D | null = null;
 
   // Clap detection: count how many frames both controllers are within
   // CLAP_DISTANCE. Only fires the callback once per sustained clap (when
@@ -125,7 +135,19 @@ export class VRControllerInput {
       const onSelectStart = () => {
         this.activity = true;
         const hit = this.intersect(controller);
-        if (hit) this.cb.onSelect(hit);
+        if (hit) {
+          this.pressController = controller;
+          this.pressObject = hit.object;
+          this.cb.onSelect(hit);
+        }
+      };
+      const onSelectEnd = () => {
+        if (this.pressController !== controller) return;
+        const obj = this.pressObject;
+        const uv = obj ? this.uvOnObject(controller, obj) : null;
+        this.cb.onSelectEnd(obj && uv ? { object: obj, uv } : null);
+        this.pressController = null;
+        this.pressObject = null;
       };
       const onSqueezeStart = () => {
         this.activity = true;
@@ -133,10 +155,12 @@ export class VRControllerInput {
       };
       const onSqueezeEnd = () => this.endGrab(controller);
       controller.addEventListener("selectstart", onSelectStart);
+      controller.addEventListener("selectend", onSelectEnd);
       controller.addEventListener("squeezestart", onSqueezeStart);
       controller.addEventListener("squeezeend", onSqueezeEnd);
       this.disposers.push(() => {
         controller.removeEventListener("selectstart", onSelectStart);
+        controller.removeEventListener("selectend", onSelectEnd);
         controller.removeEventListener("squeezestart", onSqueezeStart);
         controller.removeEventListener("squeezeend", onSqueezeEnd);
       });
@@ -246,6 +270,19 @@ export class VRControllerInput {
     return hit ? { object: hit.object, uv: hit.uv } : null;
   }
 
+  /** UV of the ray hit on a specific object, or null if the ray misses it. */
+  private uvOnObject(
+    controller: THREE.Group,
+    object: THREE.Object3D
+  ): THREE.Vector2 | null {
+    if (!object.visible) return null;
+    this.setupRay(controller);
+    const hits = this.rayResults;
+    hits.length = 0;
+    this.raycaster.intersectObject(object, false, hits);
+    return hits.length && hits[0].uv ? hits[0].uv : null;
+  }
+
   update() {
     // Hover: first controller pointing at a panel wins. Also lengthen each
     // laser to its hit point for nicer feedback.
@@ -257,6 +294,13 @@ export class VRControllerInput {
     }
     this.hoveringPanel = hover !== null;
     this.cb.onHover(hover);
+
+    // While the trigger is held on a panel, stream drag moves to it (carousels
+    // use this for drag-to-scroll; tap-vs-drag is resolved on release).
+    if (this.pressController && this.pressObject) {
+      const uv = this.uvOnObject(this.pressController, this.pressObject);
+      if (uv) this.cb.onSelectMove({ object: this.pressObject, uv });
+    }
 
     this.detectClap();
     this.detectStick();
@@ -389,5 +433,7 @@ export class VRControllerInput {
     this.targets = [];
     this.draggable = null;
     this.draggingController = null;
+    this.pressController = null;
+    this.pressObject = null;
   }
 }

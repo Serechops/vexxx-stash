@@ -142,6 +142,22 @@ export abstract class VRCanvasPanel {
     return this.handleSelect(region);
   }
 
+  /**
+   * Trigger held and dragged across the panel (UV space). Default no-op; panels
+   * with drag-scrollable content (e.g. the Scenes carousel) override this.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  pointerMove(_uv: THREE.Vector2): void {}
+
+  /**
+   * Trigger released over the panel. Default null; panels that defer selection
+   * to release (tap, not drag) override this to return the tapped action.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  pointerUp(_uv: THREE.Vector2): VRControlAction | null {
+    return null;
+  }
+
   /** Redraw only when something visible changed (cheap when idle). */
   update() {
     if (!this.dirty) return;
@@ -744,10 +760,11 @@ export class VRSceneInfoPanel extends VRCanvasPanel {
 export class VRInfoPanel extends VRCanvasPanel {
   private perfScroll = 0;
   private tagScroll = 0;
-  private markerScroll = 0;
 
   constructor(private info: IVRSceneInfo) {
-    super(1.28, 880, 700);  // was 620; +80px for the tab header
+    // Right-side peripheral panel; same dimensions as the Scenes panel for
+    // symmetry, and the same height in metres as the main control bar.
+    super(1.1, 820, 736);
   }
 
   protected handleSelect(region: IPanelRegion): VRControlAction | null {
@@ -768,20 +785,7 @@ export class VRInfoPanel extends VRCanvasPanel {
         this.tagScroll = this.scrollBy("tag", 1, this.tagScroll);
         this.markDirty();
         return null;
-      case "mkScrollL":
-        this.markerScroll = this.scrollBy("mk", -1, this.markerScroll);
-        this.markDirty();
-        return null;
-      case "mkScrollR":
-        this.markerScroll = this.scrollBy("mk", 1, this.markerScroll);
-        this.markDirty();
-        return null;
-      case "browseTab:scenes":
-        return { type: "browseSetTab", tab: "scenes" };
       default:
-        if (region.id.startsWith("mk:") && region.data != null) {
-          return { type: "seekSeconds", seconds: region.data };
-        }
         return null;
     }
   }
@@ -789,50 +793,50 @@ export class VRInfoPanel extends VRCanvasPanel {
   protected draw() {
     const { ctx } = this;
     this.panelBackground();
-    this.drawTabHeader("info");
 
     // ── Title ──────────────────────────────────────────────────────────────
-    ctx.font = "700 32px sans-serif";
+    ctx.font = "700 30px sans-serif";
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
     ctx.fillStyle = "rgba(255,255,255,0.95)";
     ctx.fillText(
       this.fitText(this.info.title || "Untitled scene", this.cw - 48),
       24,
-      132
+      52
     );
 
     // ── Performers ─────────────────────────────────────────────────────────
-    // Large portrait cards (260 px tall) with full names overlaid.
-    this.sectionLabel("Performers", 24, 172);
-    const perfH = 260;
-    const cardW = Math.round(perfH * 0.72); // ~187 px, portrait aspect
+    // Tall portrait cards with full names overlaid. Chapters are intentionally
+    // omitted here — they live on the main control bar's chapter strip.
+    this.sectionLabel("Performers", 24, 100);
+    const perfY = 116;
+    const perfH = 420;
+    const cardW = Math.round(perfH * 0.72); // ~302 px, portrait aspect
     const perfWidths = this.info.performers.map(() => cardW);
     if (this.info.performers.length === 0) {
       ctx.font = "500 22px sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillStyle = "rgba(255,255,255,0.4)";
-      ctx.fillText("No performers", this.cw / 2, 180 + perfH / 2);
+      ctx.fillText("No performers", this.cw / 2, perfY + perfH / 2);
     } else {
       this.hStrip({
         prefix: "perf",
         x0: 20,
         x1: this.cw - 20,
-        y: 180,
+        y: perfY,
         h: perfH,
         scrollX: this.perfScroll,
         widths: perfWidths,
         gap: 16,
-        drawItem: (i, x, w) => this.drawPerfCard(i, x, 180, w, perfH),
+        drawItem: (i, x, w) => this.drawPerfCard(i, x, perfY, w, perfH),
       });
     }
 
     // ── Tags ───────────────────────────────────────────────────────────────
-    // perfBottom = 180 + 260 = 440; sectionLabel baseline at 440+34=474
-    this.sectionLabel("Tags", 24, 474);
-    const tagY = 488;
-    const tagH = 50;
+    this.sectionLabel("Tags", 24, 574);
+    const tagY = 590;
+    const tagH = 52;
     ctx.font = "500 22px sans-serif";
     const tagWidths = this.info.tags.map((t) =>
       Math.min(260, ctx.measureText(t).width + 32)
@@ -841,7 +845,7 @@ export class VRInfoPanel extends VRCanvasPanel {
       ctx.textAlign = "left";
       ctx.textBaseline = "alphabetic";
       ctx.fillStyle = "rgba(255,255,255,0.35)";
-      ctx.fillText("No tags", 24, tagY + 32);
+      ctx.fillText("No tags", 24, tagY + 34);
     } else {
       this.hStrip({
         prefix: "tag",
@@ -853,38 +857,6 @@ export class VRInfoPanel extends VRCanvasPanel {
         widths: tagWidths,
         gap: 12,
         drawItem: (i, x, w) => this.drawTagChip(i, x, tagY, w, tagH),
-      });
-    }
-
-    // ── Chapters ───────────────────────────────────────────────────────────
-    // tagBottom = 488 + 50 = 538; sectionLabel baseline at 538+34=572
-    this.sectionLabel("Chapters", 24, 572);
-    const mkY = 584;
-    const mkH = 90;
-    ctx.font = "600 22px sans-serif";
-    const markerWidths = this.info.markers.map((m) =>
-      Math.min(300, Math.max(150, ctx.measureText(m.title).width + 40))
-    );
-    if (this.info.markers.length === 0) {
-      ctx.textAlign = "left";
-      ctx.textBaseline = "alphabetic";
-      ctx.fillStyle = "rgba(255,255,255,0.35)";
-      ctx.fillText("No chapters", 24, mkY + 50);
-    } else {
-      this.hStrip({
-        prefix: "mk",
-        x0: 20,
-        x1: this.cw - 20,
-        y: mkY,
-        h: mkH,
-        scrollX: this.markerScroll,
-        widths: markerWidths,
-        gap: 12,
-        drawItem: (i, x, w) => this.drawMarkerCard(i, x, mkY, w, mkH),
-        regionId: (i) => ({
-          id: `mk:${i}`,
-          data: this.info.markers[i].seconds,
-        }),
       });
     }
   }
@@ -952,35 +924,6 @@ export class VRInfoPanel extends VRCanvasPanel {
     );
   }
 
-  private drawMarkerCard(i: number, x: number, y: number, w: number, h: number) {
-    const { ctx } = this;
-    const m = this.info.markers[i];
-    const hovered = this.hoveredId === `mk:${i}`;
-    this.roundRect(x, y, w, h, 14);
-    const mg = ctx.createLinearGradient(x, y, x, y + h);
-    if (hovered) {
-      mg.addColorStop(0, "rgba(96,165,250,0.22)");
-      mg.addColorStop(1, "rgba(96,165,250,0.10)");
-    } else {
-      mg.addColorStop(0, "rgba(255,255,255,0.10)");
-      mg.addColorStop(1, "rgba(255,255,255,0.04)");
-    }
-    ctx.fillStyle = mg;
-    ctx.fill();
-    ctx.lineWidth = 1;
-    ctx.strokeStyle = hovered ? "rgba(96,165,250,0.40)" : "rgba(255,255,255,0.12)";
-    ctx.stroke();
-
-    ctx.textAlign = "left";
-    ctx.textBaseline = "alphabetic";
-    ctx.font = "700 26px monospace";
-    ctx.fillStyle = ACCENT;
-    ctx.fillText(TextUtils.secondsToTimestamp(m.seconds), x + 16, y + 40);
-
-    ctx.font = "500 20px sans-serif";
-    ctx.fillStyle = "rgba(255,255,255,0.85)";
-    ctx.fillText(this.fitText(m.title || "Chapter", w - 32), x + 16, y + 72);
-  }
 }
 
 /** VRHandyPanel — compact connection-status panel on the left side in VR. */

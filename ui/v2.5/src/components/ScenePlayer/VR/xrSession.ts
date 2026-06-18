@@ -42,9 +42,13 @@ const DOME_RADIUS = 500;
 const PANEL_DISTANCE = 2.4;
 const PANEL_DROP = 0.45; // metres below eye level
 const PANEL_TILT = 0.18; // radians the UI group leans back toward the eyes
-// Metres the angled side panels (Handy / Info) are pushed toward the viewer so
+// Metres the angled side panels (Scenes / Info) are pushed toward the viewer so
 // their inward rotation doesn't sink the inner edge behind the main bar plane.
 const SIDE_PANEL_FORWARD = 0.5;
+// Local X-tilt (radians) of the Handy panel, which sits below the main bar and
+// is angled up toward the viewer. Negative tilts the top edge forward so a
+// below-eye-level panel faces up at the viewer. Tuned on-device (Quest 3).
+const HANDY_TILT = -0.4;
 
 // Auto-hide: fade the whole UI out after this much hand/controller-input-free
 // time, and back in on the next deliberate input.
@@ -116,6 +120,10 @@ interface IHittable {
   target: THREE.Object3D;
   hover: (uv: THREE.Vector2 | null) => void;
   select: (uv: THREE.Vector2) => VRControlAction | null;
+  /** Trigger held + dragged across the panel (drag-to-scroll). */
+  move?: (uv: THREE.Vector2) => void;
+  /** Trigger released over the panel (tap-to-select). */
+  up?: (uv: THREE.Vector2) => VRControlAction | null;
 }
 
 export class XRSessionManager {
@@ -144,7 +152,6 @@ export class XRSessionManager {
   // VR scenes side panel with scene cards, toggled via Browse.
   private scenesPanel: VRScenesPanel | null = null;
   private browseOpen = false;
-  private browseTab: "info" | "scenes" = "scenes";
   private currentScenes: IVRSceneEntry[] = [];
   private previewVideo: HTMLVideoElement | null = null;
   private previewSceneId: string | null = null;
@@ -225,18 +232,19 @@ export class XRSessionManager {
     this.layoutHandyPanel(handy);
     handy.setRenderState(0);
 
-    // Info panel — RIGHT Browse slot.
+    // Info panel — RIGHT peripheral slot (performers + tags).
     const infoPane = new VRInfoPanel(opts.info);
     this.infoPanel = infoPane;
     this.uiGroup.add(infoPane.object);
-    this.layoutBrowsePanel(infoPane);
+    this.layoutSidePanel(infoPane, "right");
     infoPane.setRenderState(0);
 
-    // Scenes panel — RIGHT Browse slot (same position as Info; only one visible at a time).
+    // Scenes panel — LEFT peripheral slot (vertical carousel). Both peripheral
+    // panels show together when Browse is open, flanking the main bar.
     const scenesPane = new VRScenesPanel();
     this.scenesPanel = scenesPane;
     this.uiGroup.add(scenesPane.object);
-    this.layoutBrowsePanel(scenesPane);
+    this.layoutSidePanel(scenesPane, "left");
     scenesPane.setRenderState(0);
 
     // Preview video for scenes hover — one element, reassigned on hover change.
@@ -247,6 +255,8 @@ export class XRSessionManager {
     this.input = new VRControllerInput(this.renderer, this.scene, {
       onHover: (hit) => this.routeHover(hit),
       onSelect: (hit) => this.routeSelect(hit),
+      onSelectMove: (hit) => this.routeSelectMove(hit),
+      onSelectEnd: (hit) => this.routeSelectEnd(hit),
       onScrub: (seconds) =>
         this.opts.onAction({ type: "seekRelative", seconds }),
       onRecenter: () => this.recenter(),
@@ -274,6 +284,8 @@ export class XRSessionManager {
         target: hp.hitTarget,
         hover: (uv: THREE.Vector2 | null) => hp.setHovered(uv),
         select: (uv: THREE.Vector2) => hp.activate(uv),
+        move: (uv: THREE.Vector2) => hp.pointerMove(uv),
+        up: (uv: THREE.Vector2) => hp.pointerUp(uv),
       });
     }
     this.rebuildBrowseHittables();
@@ -309,44 +321,54 @@ export class XRSessionManager {
     this.buildDome();
   }
 
+  /** Handy panel: centred below the main bar, tilted up toward the viewer. */
   private layoutHandyPanel(panel: VRHandyPanel) {
-    const barLeft = this.panel.widthMeters / 2;
+    const barHalfH = this.panel.heightMeters / 2;
     const gapM = 0.06;
     panel.object.position.set(
-      -(barLeft + gapM + panel.widthMeters / 2),
       0,
-      SIDE_PANEL_FORWARD
+      -(barHalfH + gapM + panel.heightMeters / 2),
+      SIDE_PANEL_FORWARD * 0.5
     );
-    // Positive Y rotation: left-side panel faces right (toward viewer).
-    panel.object.rotation.set(0, Math.PI / 4.5, 0);
+    // Tilt the top edge back so a below-eye-level panel faces up at the viewer.
+    panel.object.rotation.set(HANDY_TILT, 0, 0);
   }
 
-  /** Place a Browse panel (Info or Scenes) on the right side, angled ~40° inward. */
-  private layoutBrowsePanel(panel: VRInfoPanel | VRScenesPanel) {
-    const barRight = this.panel.widthMeters / 2;
-    const gapM = 0.06;
-    // Anchor at the half-width of the wider Scenes panel so both are centred at the same X.
-    const anchorHalfW = 0.9;
-    panel.object.position.set(
-      barRight + gapM + anchorHalfW,
-      0,
-      SIDE_PANEL_FORWARD
-    );
-    panel.object.rotation.set(0, -Math.PI / 4.5, 0);
+  /**
+   * Place a peripheral panel beside the bar, angled ~40° inward. Both side
+   * panels share dimensions, so left/right are mirror images for symmetry.
+   */
+  private layoutSidePanel(
+    panel: VRInfoPanel | VRScenesPanel,
+    side: "left" | "right"
+  ) {
+    const sign = side === "left" ? -1 : 1;
+    const angle = Math.PI / 4.5; // inward yaw (~40°)
+    const barHalf = this.panel.widthMeters / 2;
+    const gapM = 0.02;
+    // Inward rotation foreshortens the panel's X footprint, so offset by the
+    // *projected* half-width — this lets the inner edge sit nearly touching the
+    // bar rather than floating out at the full half-width.
+    const x = barHalf + gapM + (panel.widthMeters / 2) * Math.cos(angle);
+    panel.object.position.set(sign * x, 0, SIDE_PANEL_FORWARD);
+    // Left panel faces right (+Y), right panel faces left (−Y) — both inward.
+    panel.object.rotation.set(0, -sign * angle, 0);
   }
 
   private rebuildBrowseHittables() {
-    // Slots: [0] bar, [1] handy panel — Browse panel is always index 2 when present.
+    // Slots: [0] bar, [1] handy panel. When Browse is open, both peripheral
+    // panels (Scenes left, Info right) are added and interactable together.
     this.hittables = this.hittables.slice(0, 2);
     if (this.browseOpen) {
-      const activePanel =
-        this.browseTab === "info" ? this.infoPanel : this.scenesPanel;
-      if (activePanel) {
-        const ap = activePanel;
+      for (const panel of [this.scenesPanel, this.infoPanel]) {
+        if (!panel) continue;
+        const ap = panel;
         this.hittables.push({
           target: ap.hitTarget,
           hover: (uv: THREE.Vector2 | null) => ap.setHovered(uv),
           select: (uv: THREE.Vector2) => ap.activate(uv),
+          move: (uv: THREE.Vector2) => ap.pointerMove(uv),
+          up: (uv: THREE.Vector2) => ap.pointerUp(uv),
         });
       }
     }
@@ -394,7 +416,7 @@ export class XRSessionManager {
       h.hover(hit && hit.object === h.target ? hit.uv : null);
     }
     // Manage preview video for the scenes panel hover.
-    if (this.scenesPanel && this.browseOpen && this.browseTab === "scenes") {
+    if (this.scenesPanel && this.browseOpen) {
       const hoveredId = this.scenesPanel.hoveredSceneId;
       if (hoveredId !== this.previewSceneId) {
         this.previewSceneId = hoveredId;
@@ -422,8 +444,24 @@ export class XRSessionManager {
     const h = this.hittables.find((x) => x.target === hit.object);
     if (!h) return;
     const action = h.select(hit.uv);
-    if (!action) return;
+    if (action) this.dispatchAction(action);
+  }
 
+  /** Trigger held + dragged: forward to the pressed panel for drag-scrolling. */
+  private routeSelectMove(hit: IPanelHit) {
+    const h = this.hittables.find((x) => x.target === hit.object);
+    h?.move?.(hit.uv);
+  }
+
+  /** Trigger released: a tap on a panel may resolve to an action (navigate). */
+  private routeSelectEnd(hit: IPanelHit | null) {
+    if (!hit) return;
+    const h = this.hittables.find((x) => x.target === hit.object);
+    const action = h?.up?.(hit.uv);
+    if (action) this.dispatchAction(action);
+  }
+
+  private dispatchAction(action: VRControlAction) {
     if (action.type === "handyPanelToggle") {
       this.handyPanelOpen = !this.handyPanelOpen;
       this.lastActivity = performance.now();
@@ -435,12 +473,6 @@ export class XRSessionManager {
         this.currentScenes = this.opts.getScenes();
         this.scenesPanel?.setScenes(this.currentScenes);
       }
-      this.rebuildBrowseHittables();
-      this.lastActivity = performance.now();
-      return;
-    }
-    if (action.type === "browseSetTab") {
-      this.browseTab = action.tab;
       this.rebuildBrowseHittables();
       this.lastActivity = performance.now();
       return;
@@ -686,14 +718,11 @@ export class XRSessionManager {
     // Show laser rays only when the UI is visible — no point beaming through
     // an invisible panel, and it avoids visual clutter during immersive play.
     this.input.setRaysVisible(op > 0.05);
-    // Side panels only render (and are only interactable) while open.
+    // Side panels only render (and are only interactable) while open. Browse
+    // shows both peripheral panels together (Scenes left, Info right).
     this.handyPanel?.setRenderState(this.handyPanelOpen ? op : 0);
-    this.infoPanel?.setRenderState(
-      this.browseOpen && this.browseTab === "info" ? op : 0
-    );
-    this.scenesPanel?.setRenderState(
-      this.browseOpen && this.browseTab === "scenes" ? op : 0
-    );
+    this.infoPanel?.setRenderState(this.browseOpen ? op : 0);
+    this.scenesPanel?.setRenderState(this.browseOpen ? op : 0);
 
     const state = this.opts.getState();
     if (op > 0.02) {
@@ -721,11 +750,8 @@ export class XRSessionManager {
         this.handyPanel.update();
       }
       if (this.browseOpen) {
-        if (this.browseTab === "info") {
-          this.infoPanel?.update();
-        } else {
-          this.scenesPanel?.update();
-        }
+        this.infoPanel?.update();
+        this.scenesPanel?.update();
       }
     }
 

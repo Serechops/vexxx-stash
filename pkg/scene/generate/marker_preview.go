@@ -62,11 +62,12 @@ type sceneMarkerOptions struct {
 func (g Generator) markerPreviewVideo(input string, options sceneMarkerOptions) generateFn {
 	return func(lockCtx *fsutil.LockContext, tmpFn string) error {
 		var videoFilter ffmpeg.VideoFilter
-		if options.VRMode == "LR180" {
+		switch options.VRMode {
+		case "LR180":
 			videoFilter = videoFilter.Append("v360=input=hequirect:output=flat:in_stereo=sbs:out_stereo=2d:d_fov=120:w=1280:h=720")
-		} else if options.VRMode == "TB360" {
+		case "TB360":
 			videoFilter = videoFilter.Append("v360=input=equirect:output=flat:in_stereo=tb:out_stereo=2d:d_fov=120:w=1280:h=720")
-		} else if options.VRMode == "MONO360" {
+		case "MONO360":
 			videoFilter = videoFilter.Append("v360=input=equirect:output=flat:in_stereo=2d:out_stereo=2d:d_fov=120:w=1280:h=720")
 		}
 		videoFilter = videoFilter.ScaleWidth(markerPreviewWidth)
@@ -134,11 +135,12 @@ func (g Generator) SceneMarkerWebp(ctx context.Context, input string, hash strin
 func (g Generator) sceneMarkerWebp(input string, options sceneMarkerOptions) generateFn {
 	return func(lockCtx *fsutil.LockContext, tmpFn string) error {
 		var videoFilter ffmpeg.VideoFilter
-		if options.VRMode == "LR180" {
+		switch options.VRMode {
+		case "LR180":
 			videoFilter = videoFilter.Append("v360=input=hequirect:output=flat:in_stereo=sbs:out_stereo=2d:d_fov=120:w=1280:h=720")
-		} else if options.VRMode == "TB360" {
+		case "TB360":
 			videoFilter = videoFilter.Append("v360=input=equirect:output=flat:in_stereo=tb:out_stereo=2d:d_fov=120:w=1280:h=720")
-		} else if options.VRMode == "MONO360" {
+		case "MONO360":
 			videoFilter = videoFilter.Append("v360=input=equirect:output=flat:in_stereo=2d:out_stereo=2d:d_fov=120:w=1280:h=720")
 		}
 		videoFilter = videoFilter.ScaleWidth(markerPreviewWidth)

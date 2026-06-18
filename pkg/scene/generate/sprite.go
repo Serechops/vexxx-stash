@@ -19,12 +19,20 @@ import (
 )
 
 const (
-	spriteScreenshotWidth = 160
+	spriteScreenshotWidth   = 160
+	vrSpriteScreenshotWidth = 320 // VR footage is projected then cropped; 2× gives legible thumbnails
 
 	spriteRows   = 9
 	spriteCols   = 9
 	spriteChunks = spriteRows * spriteCols
 )
+
+func spriteWidth(vrMode string) int {
+	if vrMode != "" {
+		return vrSpriteScreenshotWidth
+	}
+	return spriteScreenshotWidth
+}
 
 func (g Generator) SpriteScreenshot(ctx context.Context, input string, seconds float64, vrMode string) (image.Image, error) {
 	lockCtx := g.LockManager.ReadLock(ctx, input)
@@ -33,7 +41,7 @@ func (g Generator) SpriteScreenshot(ctx context.Context, input string, seconds f
 	ssOptions := transcoder.ScreenshotOptions{
 		OutputPath: "-",
 		OutputType: transcoder.ScreenshotOutputTypeBMP,
-		Width:      spriteScreenshotWidth,
+		Width:      spriteWidth(vrMode),
 		VRMode:     vrMode,
 	}
 
@@ -49,7 +57,7 @@ func (g Generator) SpriteScreenshotSlow(ctx context.Context, input string, frame
 	ssOptions := transcoder.ScreenshotOptions{
 		OutputPath: "-",
 		OutputType: transcoder.ScreenshotOutputTypeBMP,
-		Width:      spriteScreenshotWidth,
+		Width:      spriteWidth(vrMode),
 		VRMode:     vrMode,
 	}
 

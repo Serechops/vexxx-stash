@@ -32,7 +32,7 @@ import {
 } from "./projection";
 import { VRControlPanel, IDrawInput } from "./VRControls";
 import { VRControllerInput, IPanelHit } from "./VRControllerInput";
-import { VRHandyPanel, IVRSceneInfo } from "./VRInfoPanels";
+import { VRHandyPanel, VRInfoPanel, IVRSceneInfo } from "./VRInfoPanels";
 import { VRControlAction, IVRMarker, IVRPlaybackState, IVRHandyState } from "./types";
 import type { IThumbnailCrop } from "./vttThumbnails";
 
@@ -130,6 +130,9 @@ export class XRSessionManager {
   // Collapsible Handy (interactive device) sub-panel, toggled from the bar.
   private handyPanel: VRHandyPanel | null = null;
   private handyPanelOpen = false;
+  // Scene-info side panel (performers, tags, chapters), toggled via 'i' button.
+  private infoPanel: VRInfoPanel | null = null;
+  private infoPanelOpen = false;
   private hittables: IHittable[] = [];
   // Reused per-frame draw payload (avoids allocating an object every frame).
   private drawInput: IDrawInput;
@@ -187,10 +190,7 @@ export class XRSessionManager {
     // The control bar is now the single consolidated UI surface: it carries the
     // performers carousel and the tag/chapter strips that used to be separate
     // side "monitor" panels.
-    this.panel = new VRControlPanel({
-      performers: opts.info.performers,
-      tags: opts.info.tags,
-    });
+    this.panel = new VRControlPanel();
     this.uiGroup.add(this.panel.object);
     this.drawInput = {
       state: opts.getState(),
@@ -199,17 +199,25 @@ export class XRSessionManager {
       chapterTitle: null,
       caption: null,
       handyOpen: false,
+      infoOpen: false,
     };
 
-    // Handy (interactive) panel — a collapsible sub-panel below the control bar,
-    // opened/closed by the Handy toggle in the bar. Always created so the device
-    // can be connected from the immersive view even for scenes without funscript
-    // data; hidden (and non-interactable) until opened.
+    // Handy (interactive) panel — a collapsible sub-panel, opened/closed by the
+    // Handy toggle in the bar. Always created so the device can be connected from
+    // the immersive view even for scenes without funscript data.
     const handy = new VRHandyPanel();
     this.handyPanel = handy;
     this.uiGroup.add(handy.object);
     this.layoutHandyPanel(handy);
     handy.setRenderState(0);
+
+    // Scene-info panel (performers + tags + chapters) — toggled via the 'i'
+    // button, placed to the LEFT of the main bar and angled toward the viewer.
+    const infoPane = new VRInfoPanel(opts.info);
+    this.infoPanel = infoPane;
+    this.uiGroup.add(infoPane.object);
+    this.layoutInfoPanel(infoPane);
+    infoPane.setRenderState(0);
 
     this.input = new VRControllerInput(this.renderer, this.scene, {
       onHover: (hit) => this.routeHover(hit),
@@ -241,6 +249,14 @@ export class XRSessionManager {
         target: hp.hitTarget,
         hover: (uv: THREE.Vector2 | null) => hp.setHovered(uv),
         select: (uv: THREE.Vector2) => hp.activate(uv),
+      });
+    }
+    if (this.infoPanel) {
+      const ip = this.infoPanel;
+      this.hittables.push({
+        target: ip.hitTarget,
+        hover: (uv: THREE.Vector2 | null) => ip.setHovered(uv),
+        select: (uv: THREE.Vector2) => ip.activate(uv),
       });
     }
     this.input.setTargets(this.hittables.map((h) => h.target));
@@ -277,15 +293,28 @@ export class XRSessionManager {
   }
 
   /**
-   * Place the Handy panel centred below the main control bar.
-   * Its top edge sits just below the bottom of the bar, and it tilts
-   * slightly toward the viewer so it remains readable.
+   * Place the Handy panel to the right of the main control bar, vertically
+   * centred, and angled ~40° inward so it faces the viewer rather than being
+   * a flat wall at the side.
    */
   private layoutHandyPanel(panel: VRHandyPanel) {
-    const barBottom = this.panel.heightMeters / 2;
-    const gapM = 0.04;
-    panel.object.position.set(0, -(barBottom + gapM + panel.heightMeters / 2), 0.02);
-    panel.object.rotation.set(0, 0, 0);
+    const barRight = this.panel.widthMeters / 2;
+    const gapM = 0.06;
+    panel.object.position.set(barRight + gapM + panel.widthMeters / 2, 0, 0.02);
+    // Negative Y rotation turns the right-side panel to face left (toward viewer).
+    panel.object.rotation.set(0, -Math.PI / 4.5, 0);
+  }
+
+  /**
+   * Place the Info panel to the left of the main control bar, vertically
+   * centred, and angled ~40° inward so it faces the viewer.
+   */
+  private layoutInfoPanel(panel: VRInfoPanel) {
+    const barLeft = this.panel.widthMeters / 2;
+    const gapM = 0.06;
+    panel.object.position.set(-(barLeft + gapM + panel.widthMeters / 2), 0, 0.02);
+    // Positive Y rotation turns the left-side panel to face right (toward viewer).
+    panel.object.rotation.set(0, Math.PI / 4.5, 0);
   }
 
   /** Attach an already-requested immersive session and start rendering. */
@@ -339,6 +368,11 @@ export class XRSessionManager {
     // so it's handled here rather than forwarded to the React action handler.
     if (action.type === "handyPanelToggle") {
       this.handyPanelOpen = !this.handyPanelOpen;
+      this.lastActivity = performance.now();
+      return;
+    }
+    if (action.type === "infoPanelToggle") {
+      this.infoPanelOpen = !this.infoPanelOpen;
       this.lastActivity = performance.now();
       return;
     }
@@ -470,6 +504,12 @@ export class XRSessionManager {
     if (this.input.consumeActivity()) {
       this.lastActivity = time;
     }
+    // A controller actively pointing at a panel counts as interaction: keep the
+    // UI visible for as long as the user is aiming at it (without requiring a
+    // press), so they have time to read and target elements.
+    if (this.input.isHoveringPanel) {
+      this.lastActivity = time;
+    }
 
     // Auto-hide: fade the whole UI group toward visible/hidden. Debug flags can
     // pin it fully hidden or fully shown to isolate UI rendering vs the dome.
@@ -483,8 +523,12 @@ export class XRSessionManager {
     }
     const op = this.uiOpacity;
     this.panel.setRenderState(op);
-    // The Handy sub-panel only renders (and is only interactable) while open.
+    // Show laser rays only when the UI is visible — no point beaming through
+    // an invisible panel, and it avoids visual clutter during immersive play.
+    this.input.setRaysVisible(op > 0.05);
+    // Side panels only render (and are only interactable) while open.
     this.handyPanel?.setRenderState(this.handyPanelOpen ? op : 0);
+    this.infoPanel?.setRenderState(this.infoPanelOpen ? op : 0);
 
     const state = this.opts.getState();
     if (op > 0.02) {
@@ -495,6 +539,7 @@ export class XRSessionManager {
       d.chapterTitle = this.opts.getChapterTitle();
       d.caption = this.opts.getCaption();
       d.handyOpen = this.handyPanelOpen;
+      d.infoOpen = this.infoPanelOpen;
       this.panel.sync(d);
       // Push the latest Handy connection state to the VR panel each frame.
       if (this.handyPanelOpen && this.handyPanel) {
@@ -502,6 +547,10 @@ export class XRSessionManager {
           this.handyPanel.setHandyState(this.opts.getHandyState());
         }
         this.handyPanel.update();
+      }
+      // Drive dirty-checked redraws for the info panel (performer images loading).
+      if (this.infoPanelOpen && this.infoPanel) {
+        this.infoPanel.update();
       }
     }
 
@@ -655,6 +704,7 @@ export class XRSessionManager {
     this.input.dispose();
     this.panel.dispose();
     this.handyPanel?.dispose();
+    this.infoPanel?.dispose();
     this.thumbTexture.dispose();
     (this.thumbPreview.material as THREE.Material).dispose();
     this.thumbPreview.geometry.dispose();

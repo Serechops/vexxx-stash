@@ -629,6 +629,237 @@ export class VRSceneInfoPanel extends VRCanvasPanel {
   }
 }
 
+/**
+ * VRInfoPanel — combined scene-info side panel, toggled via the 'i' button in
+ * the main control bar.  Shows: scene title, full-size performer portraits with
+ * names, a scrollable tag row, and clickable chapter/marker timestamps.
+ * Placed to the left of the main control bar, angled toward the viewer.
+ */
+export class VRInfoPanel extends VRCanvasPanel {
+  private perfScroll = 0;
+  private tagScroll = 0;
+  private markerScroll = 0;
+
+  constructor(private info: IVRSceneInfo) {
+    // 880 × 620 canvas → 1.28 m wide × ~0.90 m tall
+    super(1.28, 880, 620);
+  }
+
+  protected handleSelect(region: IPanelRegion): VRControlAction | null {
+    switch (region.id) {
+      case "perfScrollL":
+        this.perfScroll = this.scrollBy("perf", -1, this.perfScroll);
+        this.markDirty();
+        return null;
+      case "perfScrollR":
+        this.perfScroll = this.scrollBy("perf", 1, this.perfScroll);
+        this.markDirty();
+        return null;
+      case "tagScrollL":
+        this.tagScroll = this.scrollBy("tag", -1, this.tagScroll);
+        this.markDirty();
+        return null;
+      case "tagScrollR":
+        this.tagScroll = this.scrollBy("tag", 1, this.tagScroll);
+        this.markDirty();
+        return null;
+      case "mkScrollL":
+        this.markerScroll = this.scrollBy("mk", -1, this.markerScroll);
+        this.markDirty();
+        return null;
+      case "mkScrollR":
+        this.markerScroll = this.scrollBy("mk", 1, this.markerScroll);
+        this.markDirty();
+        return null;
+      default:
+        if (region.id.startsWith("mk:") && region.data != null) {
+          return { type: "seekSeconds", seconds: region.data };
+        }
+        return null;
+    }
+  }
+
+  protected draw() {
+    const { ctx } = this;
+    this.panelBackground();
+
+    // ── Title ──────────────────────────────────────────────────────────────
+    ctx.font = "700 32px sans-serif";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+    ctx.fillStyle = "rgba(255,255,255,0.95)";
+    ctx.fillText(
+      this.fitText(this.info.title || "Untitled scene", this.cw - 48),
+      24,
+      48
+    );
+
+    // ── Performers ─────────────────────────────────────────────────────────
+    // Large portrait cards (260 px tall) with full names overlaid.
+    this.sectionLabel("Performers", 24, 88);
+    const perfH = 260;
+    const cardW = Math.round(perfH * 0.72); // ~187 px, portrait aspect
+    const perfWidths = this.info.performers.map(() => cardW);
+    if (this.info.performers.length === 0) {
+      ctx.font = "500 22px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "rgba(255,255,255,0.4)";
+      ctx.fillText("No performers", this.cw / 2, 96 + perfH / 2);
+    } else {
+      this.hStrip({
+        prefix: "perf",
+        x0: 20,
+        x1: this.cw - 20,
+        y: 96,
+        h: perfH,
+        scrollX: this.perfScroll,
+        widths: perfWidths,
+        gap: 16,
+        drawItem: (i, x, w) => this.drawPerfCard(i, x, 96, w, perfH),
+      });
+    }
+
+    // ── Tags ───────────────────────────────────────────────────────────────
+    // perfBottom = 96 + 260 = 356; sectionLabel baseline at 356+34=390
+    this.sectionLabel("Tags", 24, 390);
+    const tagY = 404;
+    const tagH = 50;
+    ctx.font = "500 22px sans-serif";
+    const tagWidths = this.info.tags.map((t) =>
+      Math.min(260, ctx.measureText(t).width + 32)
+    );
+    if (this.info.tags.length === 0) {
+      ctx.textAlign = "left";
+      ctx.textBaseline = "alphabetic";
+      ctx.fillStyle = "rgba(255,255,255,0.35)";
+      ctx.fillText("No tags", 24, tagY + 32);
+    } else {
+      this.hStrip({
+        prefix: "tag",
+        x0: 20,
+        x1: this.cw - 20,
+        y: tagY,
+        h: tagH,
+        scrollX: this.tagScroll,
+        widths: tagWidths,
+        gap: 12,
+        drawItem: (i, x, w) => this.drawTagChip(i, x, tagY, w, tagH),
+      });
+    }
+
+    // ── Chapters ───────────────────────────────────────────────────────────
+    // tagBottom = 404 + 50 = 454; sectionLabel baseline at 454+34=488
+    this.sectionLabel("Chapters", 24, 488);
+    const mkY = 500;
+    const mkH = 90;
+    ctx.font = "600 22px sans-serif";
+    const markerWidths = this.info.markers.map((m) =>
+      Math.min(300, Math.max(150, ctx.measureText(m.title).width + 40))
+    );
+    if (this.info.markers.length === 0) {
+      ctx.textAlign = "left";
+      ctx.textBaseline = "alphabetic";
+      ctx.fillStyle = "rgba(255,255,255,0.35)";
+      ctx.fillText("No chapters", 24, mkY + 50);
+    } else {
+      this.hStrip({
+        prefix: "mk",
+        x0: 20,
+        x1: this.cw - 20,
+        y: mkY,
+        h: mkH,
+        scrollX: this.markerScroll,
+        widths: markerWidths,
+        gap: 12,
+        drawItem: (i, x, w) => this.drawMarkerCard(i, x, mkY, w, mkH),
+        regionId: (i) => ({
+          id: `mk:${i}`,
+          data: this.info.markers[i].seconds,
+        }),
+      });
+    }
+  }
+
+  private drawPerfCard(i: number, x: number, y: number, w: number, h: number) {
+    const { ctx } = this;
+    const p = this.info.performers[i];
+    const img = this.image(p.imageUrl);
+    const radius = 16;
+
+    if (img) {
+      this.drawImageCover(img, x, y, w, h, radius);
+    } else {
+      this.roundRect(x, y, w, h, radius);
+      ctx.fillStyle = "rgba(255,255,255,0.08)";
+      ctx.fill();
+      ctx.font = "700 48px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "rgba(255,255,255,0.5)";
+      ctx.fillText(initials(p.name), x + w / 2, y + h / 2 - 10);
+    }
+
+    // Name plate: gradient scrim at the bottom + full name text.
+    ctx.save();
+    this.roundRect(x, y, w, h, radius);
+    ctx.clip();
+    const grad = ctx.createLinearGradient(0, y + h - 72, 0, y + h);
+    grad.addColorStop(0, "rgba(0,0,0,0)");
+    grad.addColorStop(1, "rgba(0,0,0,0.88)");
+    ctx.fillStyle = grad;
+    ctx.fillRect(x, y + h - 72, w, 72);
+    ctx.font = "600 24px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "alphabetic";
+    ctx.fillStyle = "rgba(255,255,255,0.95)";
+    ctx.fillText(this.fitText(p.name, w - 16), x + w / 2, y + h - 20);
+    ctx.restore();
+
+    this.roundRect(x, y, w, h, radius);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "rgba(255,255,255,0.14)";
+    ctx.stroke();
+  }
+
+  private drawTagChip(i: number, x: number, y: number, w: number, h: number) {
+    const { ctx } = this;
+    this.roundRect(x, y, w, h, h / 2);
+    ctx.fillStyle = "rgba(255,255,255,0.10)";
+    ctx.fill();
+    ctx.font = "500 22px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "rgba(255,255,255,0.9)";
+    ctx.fillText(
+      this.fitText(this.info.tags[i], w - 24),
+      x + w / 2,
+      y + h / 2 + 1
+    );
+  }
+
+  private drawMarkerCard(i: number, x: number, y: number, w: number, h: number) {
+    const { ctx } = this;
+    const m = this.info.markers[i];
+    const hovered = this.hoveredId === `mk:${i}`;
+    this.roundRect(x, y, w, h, 14);
+    ctx.fillStyle = hovered
+      ? "rgba(255,255,255,0.2)"
+      : "rgba(255,255,255,0.08)";
+    ctx.fill();
+
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+    ctx.font = "700 26px monospace";
+    ctx.fillStyle = ACCENT;
+    ctx.fillText(TextUtils.secondsToTimestamp(m.seconds), x + 16, y + 40);
+
+    ctx.font = "500 20px sans-serif";
+    ctx.fillStyle = "rgba(255,255,255,0.85)";
+    ctx.fillText(this.fitText(m.title || "Chapter", w - 32), x + 16, y + 72);
+  }
+}
+
 /** VRHandyPanel — interactive device (Handy) controls in VR.
  *
  * Rendered as a canvas-drawn panel matching the look of the existing info

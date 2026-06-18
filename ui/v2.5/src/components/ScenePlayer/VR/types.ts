@@ -61,6 +61,8 @@ export type VRControlAction =
   | { type: "exit" }
   /** Toggle the collapsible Handy sub-panel open/closed (handled in-manager). */
   | { type: "handyPanelToggle" }
+  /** Toggle the scene-info side panel open/closed (handled in-manager). */
+  | { type: "infoPanelToggle" }
   // ── Handy interactive device ───────────────────────────────────────────
   | { type: "handyToggle" }
   | { type: "handyHampVelocity"; value: number }

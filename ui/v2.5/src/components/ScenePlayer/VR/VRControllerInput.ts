@@ -90,6 +90,9 @@ export class VRControllerInput {
   // Activity tracking for auto-hide.
   private activity = false;
 
+  // Whether any controller is currently pointing at a registered panel.
+  private hoveringPanel = false;
+
   private tmpV1 = new THREE.Vector3();
   private tmpV2 = new THREE.Vector3();
   private tmpQuat = new THREE.Quaternion();
@@ -171,6 +174,16 @@ export class VRControllerInput {
     return a;
   }
 
+  /** True while any controller ray is actively pointing at a registered panel. */
+  get isHoveringPanel(): boolean {
+    return this.hoveringPanel;
+  }
+
+  /** Show or hide all controller laser rays (e.g. suppress when UI is hidden). */
+  setRaysVisible(visible: boolean) {
+    for (const laser of this.lasers) laser.visible = visible;
+  }
+
   private beginGrabOrRecenter(controller: THREE.Group) {
     if (this.dragEnabled && this.draggable && this.intersect(controller)) {
       this.draggingController = controller;
@@ -242,6 +255,7 @@ export class VRControllerInput {
       this.lasers[i].scale.z = hit ? hit.distance : LASER_LENGTH;
       if (hit && !hover) hover = { object: hit.object, uv: hit.uv };
     }
+    this.hoveringPanel = hover !== null;
     this.cb.onHover(hover);
 
     this.detectClap();

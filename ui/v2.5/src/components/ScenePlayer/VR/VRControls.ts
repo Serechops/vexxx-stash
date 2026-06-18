@@ -24,39 +24,38 @@ import * as THREE from "three";
 import TextUtils from "src/utils/text";
 import { IProjectionSettings, fovLabel, stereoLabel } from "./projection";
 import { VRControlAction, IVRMarker, IVRPlaybackState } from "./types";
-import { VRCanvasPanel, IPanelRegion, IVRPerformer } from "./VRInfoPanels";
+import { VRCanvasPanel, IPanelRegion } from "./VRInfoPanels";
 
 const CANVAS_W = 1280;
-const CANVAS_H = 560;
+// Performers + tags moved to the side info panel; canvas is shorter now.
+const CANVAS_H = 420;
 /** Physical width of the panel plane, metres (height derived from aspect). */
 const PANEL_WIDTH_M = 2.6;
 
 const PAD = 36;
 
 // Vertical bands (canvas px), top → bottom. Layout order:
-//   title/caption · scrubber · time · chapters · transport · view · cast · tags
+//   title/caption · heatmap · scrubber · time · chapters · transport · view
 const TITLE_Y = 34; // baseline of the caption / chapter-title line
 
-const SCRUB_Y = 54;
+// Funscript heatmap strip sits in the 16-px gap between the title and scrubber.
+const HEAT_Y = 38; // top of the heatmap strip
+const HEAT_H = 14; // strip height
+
+const SCRUB_Y = 56;
 const SCRUB_H = 40;
 const SCRUB_X = PAD;
 const SCRUB_W = CANVAS_W - PAD * 2;
-const TIME_Y = SCRUB_Y + SCRUB_H + 26; // time-readout baseline
+const TIME_Y = SCRUB_Y + SCRUB_H + 24; // time-readout baseline
 
 // Chapters / timestamp row sits directly under the progress bar.
-const CHAP_Y = 132;
+const CHAP_Y = 136;
 const CHAP_H = 74;
 
-const ROW1_Y = 224;
-const ROW2_Y = 310;
+const ROW1_Y = 228;
+const ROW2_Y = 314;
 const BTN_H = 72;
 const GAP = 16;
-
-// Performers + tags are grouped together at the bottom.
-const PERF_Y = 398;
-const PERF_H = 80;
-const TAG_Y = 490;
-const TAG_H = 48;
 
 // Left gutter for a section label; strips start just to the right of it.
 const STRIP_LABEL_X = 24;
@@ -83,24 +82,16 @@ export interface IDrawInput {
   caption: string | null;
   /** Whether the collapsible Handy sub-panel is currently open. */
   handyOpen?: boolean;
-}
-
-export interface IVRControlPanelOptions {
-  performers: IVRPerformer[];
-  tags: string[];
+  /** Whether the scene-info side panel is currently open. */
+  infoOpen?: boolean;
 }
 
 const RATE_STEPS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
 export class VRControlPanel extends VRCanvasPanel {
-  private readonly performers: IVRPerformer[];
-  private readonly tags: string[];
-
   private hoverFraction: number | null = null;
   private heatmap: HTMLImageElement | null = null;
 
-  private perfScroll = 0;
-  private tagScroll = 0;
   private chapScroll = 0;
 
   // White/dark-tinted cache of the Handy modal icon (/handy.png).
@@ -125,6 +116,7 @@ export class VRControlPanel extends VRCanvasPanel {
     mlen: -1,
     heat: false,
     handyOpen: false,
+    infoOpen: false,
     fov: "",
     stereo: "",
     chap: null as string | null,
@@ -133,10 +125,8 @@ export class VRControlPanel extends VRCanvasPanel {
     hf: -1,
   };
 
-  constructor(opts: IVRControlPanelOptions) {
+  constructor() {
     super(PANEL_WIDTH_M, CANVAS_W, CANVAS_H);
-    this.performers = opts.performers;
-    this.tags = opts.tags;
     this.mesh.name = "vr-control-panel";
   }
 
@@ -210,6 +200,7 @@ export class VRControlPanel extends VRCanvasPanel {
     const fov = fovLabel(p);
     const stereo = stereoLabel(p);
     const handyOpen = !!input.handyOpen;
+    const infoOpen = !!input.infoOpen;
     const hf =
       this.hoverFraction == null ? -1 : Math.round(this.hoverFraction * 1000);
     const heat = this.heatmap != null;
@@ -228,6 +219,7 @@ export class VRControlPanel extends VRCanvasPanel {
       pr.mlen === markers.length &&
       pr.heat === heat &&
       pr.handyOpen === handyOpen &&
+      pr.infoOpen === infoOpen &&
       pr.fov === fov &&
       pr.stereo === stereo &&
       pr.chap === chapterTitle &&
@@ -250,6 +242,7 @@ export class VRControlPanel extends VRCanvasPanel {
     pr.mlen = markers.length;
     pr.heat = heat;
     pr.handyOpen = handyOpen;
+    pr.infoOpen = infoOpen;
     pr.fov = fov;
     pr.stereo = stereo;
     pr.chap = chapterTitle;
@@ -329,24 +322,10 @@ export class VRControlPanel extends VRCanvasPanel {
         return { type: "nextMarker" };
       case "handy":
         return { type: "handyPanelToggle" };
+      case "info":
+        return { type: "infoPanelToggle" };
       case "exit":
         return { type: "exit" };
-      case "perfScrollL":
-        this.perfScroll = this.scrollBy("perf", -1, this.perfScroll);
-        this.markDirty();
-        return null;
-      case "perfScrollR":
-        this.perfScroll = this.scrollBy("perf", 1, this.perfScroll);
-        this.markDirty();
-        return null;
-      case "tagScrollL":
-        this.tagScroll = this.scrollBy("tag", -1, this.tagScroll);
-        this.markDirty();
-        return null;
-      case "tagScrollR":
-        this.tagScroll = this.scrollBy("tag", 1, this.tagScroll);
-        this.markDirty();
-        return null;
       case "chapScrollL":
         this.chapScroll = this.scrollBy("chap", -1, this.chapScroll);
         this.markDirty();
@@ -390,6 +369,16 @@ export class VRControlPanel extends VRCanvasPanel {
       ctx.fillStyle = "rgba(255,255,255,0.85)";
       const topText = state.waiting ? "Buffering…" : chapterTitle ?? "";
       if (topText) ctx.fillText(topText, PAD, TITLE_Y);
+    }
+
+    // Funscript heatmap strip just above the scrubber, so the heatmap and the
+    // chapter-segment colouring inside the scrubber are both fully visible.
+    if (this.heatmap) {
+      ctx.save();
+      this.roundRect(SCRUB_X, HEAT_Y, SCRUB_W, HEAT_H, HEAT_H / 2);
+      ctx.clip();
+      ctx.drawImage(this.heatmap, SCRUB_X, HEAT_Y, SCRUB_W, HEAT_H);
+      ctx.restore();
     }
 
     this.drawScrubber(
@@ -451,12 +440,9 @@ export class VRControlPanel extends VRCanvasPanel {
       label: "icon:handy",
       active: !!input.handyOpen,
     });
+    row2.push({ id: "info", w: 84, label: "Info", active: !!input.infoOpen });
     row2.push({ id: "exit", w: 110, label: "Exit", variant: "danger" });
     this.layoutRow(row2, ROW2_Y, state);
-
-    // Performers + tags strips, grouped together at the bottom.
-    this.drawPerformers();
-    this.drawTags();
 
     this.texture.needsUpdate = true;
   }
@@ -483,7 +469,7 @@ export class VRControlPanel extends VRCanvasPanel {
     }
   }
 
-  // --- performers / tags / chapters strips ----------------------------------
+  // --- chapters strip -------------------------------------------------------
 
   private drawStripLabel(text: string, bandY: number, bandH: number) {
     const { ctx } = this;
@@ -501,104 +487,6 @@ export class VRControlPanel extends VRCanvasPanel {
     ctx.textBaseline = "middle";
     ctx.fillStyle = "rgba(255,255,255,0.35)";
     ctx.fillText(text, STRIP_X0, bandY + bandH / 2);
-  }
-
-  private drawPerformers() {
-    this.drawStripLabel("Cast", PERF_Y, PERF_H);
-    if (this.performers.length === 0) {
-      this.emptyStrip("No performers", PERF_Y, PERF_H);
-      return;
-    }
-    const cardW = Math.round(PERF_H * 0.72); // portrait aspect
-    const widths = this.performers.map(() => cardW);
-    this.hStrip({
-      prefix: "perf",
-      x0: STRIP_X0,
-      x1: STRIP_X1,
-      y: PERF_Y,
-      h: PERF_H,
-      scrollX: this.perfScroll,
-      widths,
-      gap: 14,
-      drawItem: (i, x, w) => this.drawPerfCard(i, x, PERF_Y, w, PERF_H),
-    });
-  }
-
-  private drawPerfCard(i: number, x: number, y: number, w: number, h: number) {
-    const { ctx } = this;
-    const p = this.performers[i];
-    const img = this.image(p.imageUrl);
-    const radius = 12;
-
-    if (img) {
-      this.drawImageCover(img, x, y, w, h, radius);
-    } else {
-      this.roundRect(x, y, w, h, radius);
-      ctx.fillStyle = "rgba(255,255,255,0.08)";
-      ctx.fill();
-      ctx.font = "700 30px sans-serif";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillStyle = "rgba(255,255,255,0.5)";
-      ctx.fillText(initials(p.name), x + w / 2, y + h / 2 - 8);
-    }
-
-    // Name plate (gradient → readable over any portrait).
-    ctx.save();
-    this.roundRect(x, y, w, h, radius);
-    ctx.clip();
-    const grad = ctx.createLinearGradient(0, y + h - 40, 0, y + h);
-    grad.addColorStop(0, "rgba(0,0,0,0)");
-    grad.addColorStop(1, "rgba(0,0,0,0.85)");
-    ctx.fillStyle = grad;
-    ctx.fillRect(x, y + h - 40, w, 40);
-    ctx.font = "600 16px sans-serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "alphabetic";
-    ctx.fillStyle = "rgba(255,255,255,0.95)";
-    ctx.fillText(this.fitText(p.name, w - 10), x + w / 2, y + h - 12);
-    ctx.restore();
-
-    this.roundRect(x, y, w, h, radius);
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = "rgba(255,255,255,0.14)";
-    ctx.stroke();
-  }
-
-  private drawTags() {
-    const { ctx } = this;
-    this.drawStripLabel("Tags", TAG_Y, TAG_H);
-    if (this.tags.length === 0) {
-      this.emptyStrip("No tags", TAG_Y, TAG_H);
-      return;
-    }
-    ctx.font = "500 22px sans-serif";
-    const widths = this.tags.map((t) =>
-      Math.min(240, ctx.measureText(t).width + 30)
-    );
-    this.hStrip({
-      prefix: "tag",
-      x0: STRIP_X0,
-      x1: STRIP_X1,
-      y: TAG_Y,
-      h: TAG_H,
-      scrollX: this.tagScroll,
-      widths,
-      gap: 12,
-      drawItem: (i, x, w) => this.drawTagChip(i, x, TAG_Y, w, TAG_H),
-    });
-  }
-
-  private drawTagChip(i: number, x: number, y: number, w: number, h: number) {
-    const { ctx } = this;
-    this.roundRect(x, y, w, h, h / 2);
-    ctx.fillStyle = "rgba(255,255,255,0.10)";
-    ctx.fill();
-    ctx.font = "500 22px sans-serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillStyle = "rgba(255,255,255,0.9)";
-    ctx.fillText(this.fitText(this.tags[i], w - 22), x + w / 2, y + h / 2 + 1);
   }
 
   private drawChapters(markers: IVRMarker[]) {
@@ -673,17 +561,6 @@ export class VRControlPanel extends VRCanvasPanel {
     this.roundRect(x, y, w, h, r);
     ctx.fillStyle = "rgba(255,255,255,0.12)";
     ctx.fill();
-
-    // Funscript heatmap (clipped to the rounded track)
-    if (this.heatmap) {
-      ctx.save();
-      this.roundRect(x, y, w, h, r);
-      ctx.clip();
-      ctx.globalAlpha = 0.5;
-      ctx.drawImage(this.heatmap, x, y, w, h);
-      ctx.globalAlpha = 1;
-      ctx.restore();
-    }
 
     if (dur > 0) {
       const progressX = x + Math.min(1, cur / dur) * w;
@@ -951,9 +828,4 @@ export class VRControlPanel extends VRCanvasPanel {
         break;
     }
   }
-}
-
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).slice(0, 2);
-  return parts.map((p) => p[0]?.toUpperCase() ?? "").join("") || "?";
 }

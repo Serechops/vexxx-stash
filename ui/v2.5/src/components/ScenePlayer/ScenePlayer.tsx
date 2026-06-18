@@ -278,6 +278,11 @@ function vrModeToVRType(mode: GQL.VrMode | null | undefined): VRType | null {
       return VRType.TB360;
     case GQL.VrMode.Mono360:
       return VRType.Mono360;
+    case GQL.VrMode.Fisheye190:
+      // The 2D VideoJS player has no fisheye projection; fall back to 180° LR,
+      // the least-wrong option (the two fisheye circles are packed side-by-side).
+      // Proper 190° un-distortion is only available in the immersive WebXR player.
+      return VRType.LR180;
     default:
       return null;
   }

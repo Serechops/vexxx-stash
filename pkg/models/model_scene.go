@@ -14,14 +14,15 @@ import (
 type VRMode string
 
 const (
-	VRModeLR180   VRMode = "LR180"
-	VRModeTB360   VRMode = "TB360"
-	VRModeMono360 VRMode = "MONO360"
+	VRModeLR180      VRMode = "LR180"
+	VRModeTB360      VRMode = "TB360"
+	VRModeMono360    VRMode = "MONO360"
+	VRModeFisheye190 VRMode = "FISHEYE190" // dual-fisheye SBS, 190° equidistant lenses
 )
 
 func (e VRMode) IsValid() bool {
 	switch e {
-	case VRModeLR180, VRModeTB360, VRModeMono360:
+	case VRModeLR180, VRModeTB360, VRModeMono360, VRModeFisheye190:
 		return true
 	}
 	return false

@@ -48,6 +48,7 @@ enum VRMode {
   LR180
   TB360
   MONO360
+  FISHEYE190
 }
 
 type Scene {

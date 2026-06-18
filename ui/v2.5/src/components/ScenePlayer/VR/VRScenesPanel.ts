@@ -117,9 +117,9 @@ export class VRScenesPanel extends VRCanvasPanel {
     const scene = this.scenes[i];
     const hovered = this.hoveredId === `scene:${scene.id}`;
 
-    // Card outline
+    // Card outline — glass base
     this.roundRect(x, CARD_Y, CARD_W, CARD_H, 12);
-    ctx.fillStyle = "rgba(255,255,255,0.04)";
+    ctx.fillStyle = "rgba(255,255,255,0.07)";
     ctx.fill();
 
     // Thumbnail: preview video when hovered + loaded, else static screenshot.
@@ -149,7 +149,7 @@ export class VRScenesPanel extends VRCanvasPanel {
         this.drawImageCover(img, x, CARD_Y, CARD_W, CARD_H, 12);
       } else {
         this.roundRect(x, CARD_Y, CARD_W, CARD_H, 12);
-        ctx.fillStyle = "rgba(255,255,255,0.05)";
+        ctx.fillStyle = "rgba(255,255,255,0.07)";
         ctx.fill();
       }
     }
@@ -172,7 +172,7 @@ export class VRScenesPanel extends VRCanvasPanel {
     if (hovered) {
       this.roundRect(x, CARD_Y, CARD_W, CARD_H, 12);
       ctx.lineWidth = 2;
-      ctx.strokeStyle = "rgba(255,255,255,0.55)";
+      ctx.strokeStyle = "rgba(96,165,250,0.70)";
       ctx.stroke();
     }
 

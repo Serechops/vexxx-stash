@@ -196,6 +196,8 @@ func (g Generator) previewVideoChunk(lockCtx *fsutil.LockContext, fn string, opt
 		videoFilter = videoFilter.Append("v360=input=equirect:output=flat:in_stereo=tb:out_stereo=2d:d_fov=120:w=1280:h=720")
 	} else if vrMode == "MONO360" {
 		videoFilter = videoFilter.Append("v360=input=equirect:output=flat:in_stereo=2d:out_stereo=2d:d_fov=120:w=1280:h=720")
+	} else if vrMode == "FISHEYE190" {
+		videoFilter = videoFilter.Append("v360=input=fisheye:ih_fov=190:iv_fov=190:in_stereo=sbs:out_stereo=2d:output=flat:d_fov=120:w=1280:h=720")
 	}
 	videoFilter = videoFilter.ScaleWidth(scenePreviewWidth)
 

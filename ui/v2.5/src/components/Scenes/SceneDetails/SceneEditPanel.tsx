@@ -929,6 +929,7 @@ export const SceneEditPanel: React.FC<IProps> = ({
                   <MenuItem value="LR180">180° LR</MenuItem>
                   <MenuItem value="TB360">360° TB</MenuItem>
                   <MenuItem value="MONO360">360° Mono</MenuItem>
+                  <MenuItem value="FISHEYE190">190° Fisheye (SBS)</MenuItem>
                 </Select>
               </FormControl>
             )}

@@ -26,6 +26,7 @@ import * as THREE from "three";
 import {
   IProjectionSettings,
   IUVTransform,
+  FISHEYE190_MAX_THETA,
   horizontalCoverage,
   isStereo,
   uvTransformForEye,
@@ -462,7 +463,17 @@ export class XRSessionManager {
     this.clearDome();
     const p = this.projection;
 
-    if (p.fov === "flat") {
+    if (p.fov === "fisheye190") {
+      // Dual-fisheye SBS: a forward dome per eye, sampling its own circle via a
+      // shader that un-distorts the equidistant projection. Additive path —
+      // leaves the equirect/flat logic below untouched.
+      if (isStereo(p) && !this.debug.has("mono")) {
+        this.domeMeshes.push(this.makeFisheyeMesh("left", 1));
+        this.domeMeshes.push(this.makeFisheyeMesh("right", 2));
+      } else {
+        this.domeMeshes.push(this.makeFisheyeMesh("left", 0));
+      }
+    } else if (p.fov === "flat") {
       this.domeMeshes.push(this.makeFlatScreen(p.zoom));
     } else if (isStereo(p) && !this.debug.has("mono")) {
       this.domeMeshes.push(this.makeDomeMesh(uvTransformForEye(p, "left"), 1));
@@ -502,6 +513,87 @@ export class XRSessionManager {
     mesh.layers.set(layer);
     // Never frustum-cull: the viewer is inside this dome, so a marginal
     // bounding-sphere test must never blank the whole video as the head turns.
+    mesh.frustumCulled = false;
+    return mesh;
+  }
+
+  /**
+   * One eye of a dual-fisheye SBS source. A forward hemisphere dome is sampled
+   * by a fragment shader that maps each view direction back into the encoded
+   * 190° equidistant circle (r = θ / θmax), reading from this eye's half of the
+   * frame. This is the one projection that can't be a linear UV transform, so it
+   * lives in its own additive code path rather than touching `makeDomeMesh`.
+   */
+  private makeFisheyeMesh(eye: "left" | "right", layer: number): THREE.Mesh {
+    // Forward hemisphere centred on -Z (content space). Baking the orientation
+    // into the geometry means the shader can derive the view direction straight
+    // from `position`, and BackSide handles inside-out viewing without the
+    // texture-mirroring scale(-1,1,1) trick the equirect path relies on.
+    const geometry = new THREE.SphereGeometry(
+      DOME_RADIUS,
+      64,
+      40,
+      Math.PI / 2,
+      Math.PI
+    );
+    geometry.rotateY(Math.PI / 2); // centre the hemisphere on -Z (forward)
+
+    // This eye's half of the SBS frame. The encoded circle fills its half-frame
+    // square: in UV the radius is 0.25 horizontally (half of a half-width) but
+    // 0.5 vertically, because the full frame is 2:1 — getting these unequal is
+    // what keeps the image from being squashed.
+    const uv = uvTransformForEye(this.projection, eye);
+    const isOff = this.projection.stereo === "off";
+    const centerU = isOff ? 0.25 : uv.offsetX + 0.25;
+    const center = new THREE.Vector2(centerU, 0.5);
+    const radius = new THREE.Vector2(0.25, 0.5);
+
+    const material = this.debug.has("solid")
+      ? new THREE.MeshBasicMaterial({ color: 0x224466, side: THREE.BackSide })
+      : new THREE.ShaderMaterial({
+          side: THREE.BackSide,
+          uniforms: {
+            uTex: { value: this.videoTexture },
+            uCenter: { value: center },
+            uRadius: { value: radius },
+            uMaxTheta: { value: FISHEYE190_MAX_THETA },
+            uZoom: { value: this.projection.zoom || 1 },
+          },
+          vertexShader: `
+            varying vec3 vDir;
+            void main() {
+              vDir = normalize(position);
+              gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+          `,
+          fragmentShader: `
+            precision highp float;
+            uniform sampler2D uTex;
+            uniform vec2 uCenter;
+            uniform vec2 uRadius;
+            uniform float uMaxTheta;
+            uniform float uZoom;
+            varying vec3 vDir;
+            void main() {
+              vec3 d = normalize(vDir);
+              // Optical axis is -Z; angle from it gives the equidistant radius.
+              float theta = acos(clamp(-d.z, -1.0, 1.0));
+              float r = (theta / uMaxTheta) / uZoom;
+              if (r > 1.0) {
+                gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+                return;
+              }
+              float phi = atan(d.y, d.x);
+              // NOTE: vertical sign may need flipping on-device depending on the
+              // source's circle orientation; negate uRadius.y if it's upside down.
+              vec2 uv = uCenter + r * uRadius * vec2(cos(phi), sin(phi));
+              gl_FragColor = texture2D(uTex, uv);
+            }
+          `,
+        });
+
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.layers.set(layer);
     mesh.frustumCulled = false;
     return mesh;
   }

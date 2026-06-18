@@ -74,6 +74,8 @@ func ScreenshotTime(input string, t float64, options ScreenshotOptions) ffmpeg.A
 		vf = vf.Append("v360=input=equirect:output=flat:in_stereo=tb:out_stereo=2d:d_fov=120:w=1280:h=720")
 	} else if options.VRMode == "MONO360" {
 		vf = vf.Append("v360=input=equirect:output=flat:in_stereo=2d:out_stereo=2d:d_fov=120:w=1280:h=720")
+	} else if options.VRMode == "FISHEYE190" {
+		vf = vf.Append("v360=input=fisheye:ih_fov=190:iv_fov=190:in_stereo=sbs:out_stereo=2d:output=flat:d_fov=120:w=1280:h=720")
 	}
 
 	if options.Width > 0 {
@@ -114,6 +116,8 @@ func ScreenshotFrame(input string, frame int, options ScreenshotOptions) ffmpeg.
 		vf = vf.Append("v360=input=equirect:output=flat:in_stereo=tb:out_stereo=2d:d_fov=120:w=1280:h=720")
 	} else if options.VRMode == "MONO360" {
 		vf = vf.Append("v360=input=equirect:output=flat:in_stereo=2d:out_stereo=2d:d_fov=120:w=1280:h=720")
+	} else if options.VRMode == "FISHEYE190" {
+		vf = vf.Append("v360=input=fisheye:ih_fov=190:iv_fov=190:in_stereo=sbs:out_stereo=2d:output=flat:d_fov=120:w=1280:h=720")
 	}
 
 	if options.Width > 0 {

@@ -12,7 +12,14 @@
 import * as GQL from "src/core/generated-graphql";
 
 /** How much of the sphere the video covers. */
-export type FovMode = "flat" | "180" | "360";
+export type FovMode = "flat" | "180" | "360" | "fisheye190";
+
+/**
+ * Half-angle (radians) of a 190° fisheye lens: the maximum θ from the optical
+ * axis that maps to the edge of the encoded circle. 190° / 2 = 95°. Used by the
+ * fisheye dome shader to scale the equidistant radius (r = θ / FISHEYE190_MAX_THETA).
+ */
+export const FISHEYE190_MAX_THETA = (95 * Math.PI) / 180;
 
 /** Stereo packing of the source video. */
 export type StereoMode = "off" | "sbs" | "tb"; // sbs = side-by-side (L|R), tb = top|bottom
@@ -51,6 +58,9 @@ export function projectionForVrMode(
       return { fov: "360", stereo: "tb", swapEyes: false, zoom: 1 };
     case GQL.VrMode.Mono360:
       return { fov: "360", stereo: "off", swapEyes: false, zoom: 1 };
+    case GQL.VrMode.Fisheye190:
+      // Dual-fisheye side-by-side: two circular 190° images, one per eye.
+      return { fov: "fisheye190", stereo: "sbs", swapEyes: false, zoom: 1 };
     default:
       // No stored VR mode: assume the common 180° SBS layout, which the user
       // can correct in-headset via the projection controls.
@@ -118,7 +128,7 @@ export function isStereo(s: IProjectionSettings): boolean {
 
 // --- UI cycle helpers (wired to the panel's projection buttons) -------------
 
-const FOV_ORDER: FovMode[] = ["180", "360", "flat"];
+const FOV_ORDER: FovMode[] = ["180", "360", "fisheye190", "flat"];
 const STEREO_ORDER: StereoMode[] = ["off", "sbs", "tb"];
 
 export function cycleFov(s: IProjectionSettings): IProjectionSettings {
@@ -143,6 +153,8 @@ export function fovLabel(s: IProjectionSettings): string {
       return "180°";
     case "360":
       return "360°";
+    case "fisheye190":
+      return "190° FE";
   }
 }
 

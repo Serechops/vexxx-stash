@@ -13,12 +13,17 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { Box, Button, Typography } from "@mui/material";
+import { Box, Button, CircularProgress, Typography } from "@mui/material";
 import { useHistory } from "react-router-dom";
 import * as GQL from "src/core/generated-graphql";
 import { getClient } from "src/core/StashService";
 import { languageMap } from "src/utils/caption";
 import { generateFunscriptWaveform } from "src/utils/funscriptWaveform";
+import { Icon } from "src/components/Shared/Icon";
+import {
+  faVrCardboard,
+  faExclamationTriangle,
+} from "@fortawesome/free-solid-svg-icons";
 import { XRSessionManager } from "./xrSession";
 import { VRThumbnails } from "./vttThumbnails";
 import { IVRSceneInfo } from "./VRInfoPanels";
@@ -113,6 +118,7 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
   );
   const [videoEl, setVideoEl] = useState<HTMLVideoElement | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isInitializing, setIsInitializing] = useState(true);
 
   const projectionRef = useRef(projection);
   projectionRef.current = projection;
@@ -542,9 +548,14 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
     });
     managerRef.current = manager;
 
-    manager.init(session).catch((e) => {
-      if (!disposed) setError(`Failed to start VR session: ${e?.message ?? e}`);
-    });
+    manager.init(session)
+      .then(() => { if (!disposed) setIsInitializing(false); })
+      .catch((e) => {
+        if (!disposed) {
+          setError(`Failed to start VR session: ${e?.message ?? e}`);
+          setIsInitializing(false);
+        }
+      });
 
     return () => {
       disposed = true;
@@ -620,7 +631,8 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        bgcolor: "rgba(0,0,0,0.92)",
+        bgcolor: error ? "rgba(40,0,0,0.95)" : "rgba(0,0,0,0.92)",
+        transition: "background-color 0.4s ease",
         zIndex: 30,
         gap: 2,
         textAlign: "center",
@@ -648,21 +660,46 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
         ))}
       </video>
 
-      <Typography variant="h6" sx={{ color: "white", zIndex: 31 }}>
-        {error ? "VR Player" : "Immersive VR active"}
-      </Typography>
-      <Typography variant="body2" sx={{ color: "grey.400", zIndex: 31 }}>
-        {error ??
-          "Put on your headset to watch. Remove it or press Exit to return."}
-      </Typography>
+      {isInitializing && !error ? (
+        <>
+          <CircularProgress size={40} sx={{ color: "primary.main", zIndex: 31 }} />
+          <Typography variant="h6" sx={{ color: "white", zIndex: 31 }}>
+            Starting VR session…
+          </Typography>
+          <Typography variant="body2" sx={{ color: "grey.500", zIndex: 31 }}>
+            Initializing headset display
+          </Typography>
+        </>
+      ) : error ? (
+        <>
+          <Box sx={{ fontSize: "2.5rem", color: "error.main", zIndex: 31, lineHeight: 1 }}>
+            <Icon icon={faExclamationTriangle} />
+          </Box>
+          <Typography variant="h6" sx={{ color: "error.light", zIndex: 31 }}>
+            VR Error
+          </Typography>
+          <Typography variant="body2" sx={{ color: "grey.400", zIndex: 31, maxWidth: 360 }}>
+            {error}
+          </Typography>
+        </>
+      ) : (
+        <>
+          <Box sx={{ fontSize: "2.5rem", color: "primary.main", zIndex: 31, lineHeight: 1 }}>
+            <Icon icon={faVrCardboard} />
+          </Box>
+          <Typography variant="h6" sx={{ color: "white", zIndex: 31 }}>
+            Immersive VR active
+          </Typography>
+          <Typography variant="body2" sx={{ color: "grey.400", zIndex: 31 }}>
+            Put on your headset to watch. Remove it or press Exit to return.
+          </Typography>
+        </>
+      )}
+
       <Button
-        variant="outlined"
-        color="inherit"
-        sx={{
-          color: "white",
-          borderColor: "rgba(255,255,255,0.4)",
-          zIndex: 31,
-        }}
+        variant={error ? "contained" : isInitializing ? "outlined" : "contained"}
+        color={error ? "error" : "primary"}
+        sx={{ zIndex: 31, mt: 1 }}
         onClick={() => {
           if (managerRef.current) managerRef.current.end();
           else onExit();

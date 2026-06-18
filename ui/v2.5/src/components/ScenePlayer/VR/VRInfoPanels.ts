@@ -210,11 +210,39 @@ export abstract class VRCanvasPanel {
   protected panelBackground() {
     const { ctx } = this;
     ctx.clearRect(0, 0, this.cw, this.ch);
+
+    // Base gradient — lighter at top gives the illusion of depth/glass thickness
     this.roundRect(0, 0, this.cw, this.ch, 24);
-    ctx.fillStyle = "rgba(12,12,14,0.86)";
+    const base = ctx.createLinearGradient(0, 0, 0, this.ch);
+    base.addColorStop(0, "rgba(26,26,36,0.95)");
+    base.addColorStop(0.45, "rgba(14,14,20,0.93)");
+    base.addColorStop(1, "rgba(7,7,11,0.91)");
+    ctx.fillStyle = base;
     ctx.fill();
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = "rgba(255,255,255,0.10)";
+
+    // Inner radial glow from top-centre — simulates light refracting through glass
+    this.roundRect(0, 0, this.cw, this.ch, 24);
+    const glow = ctx.createRadialGradient(
+      this.cw / 2, 0, 0,
+      this.cw / 2, 0, this.cw * 0.55
+    );
+    glow.addColorStop(0, "rgba(255,255,255,0.055)");
+    glow.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = glow;
+    ctx.fill();
+
+    // Dim outer border
+    this.roundRect(0, 0, this.cw, this.ch, 24);
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = "rgba(255,255,255,0.09)";
+    ctx.stroke();
+
+    // Top-edge rim — the signature glass highlight, simulates a lit upper edge
+    ctx.beginPath();
+    ctx.moveTo(25, 1);
+    ctx.lineTo(this.cw - 25, 1);
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = "rgba(255,255,255,0.30)";
     ctx.stroke();
   }
 
@@ -223,7 +251,7 @@ export abstract class VRCanvasPanel {
     ctx.font = "700 20px sans-serif";
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
-    ctx.fillStyle = "rgba(255,255,255,0.5)";
+    ctx.fillStyle = "rgba(255,255,255,0.60)";
     ctx.fillText(text.toUpperCase(), x, y);
   }
 
@@ -244,17 +272,37 @@ export abstract class VRCanvasPanel {
     let x = PAD;
     for (const tab of tabs) {
       const isActive = tab.id === active;
+      const hov = this.hoveredId === `browseTab:${tab.id}`;
       this.roundRect(x, PAD, tabW, TAB_H, 12);
-      ctx.fillStyle = isActive
-        ? "rgba(96,165,250,0.85)"
-        : this.hoveredId === `browseTab:${tab.id}`
-          ? "rgba(255,255,255,0.18)"
-          : "rgba(255,255,255,0.08)";
+      if (isActive) {
+        const tg = ctx.createLinearGradient(x, PAD, x, PAD + TAB_H);
+        tg.addColorStop(0, "rgba(130,190,255,0.92)");
+        tg.addColorStop(1, "rgba(70,130,230,0.80)");
+        ctx.fillStyle = tg;
+      } else {
+        ctx.fillStyle = hov ? "rgba(255,255,255,0.16)" : "rgba(255,255,255,0.07)";
+      }
       ctx.fill();
+      // Border
+      this.roundRect(x, PAD, tabW, TAB_H, 12);
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = isActive
+        ? "rgba(160,210,255,0.30)"
+        : "rgba(255,255,255,0.10)";
+      ctx.stroke();
+      // Glass rim on active tab
+      if (isActive) {
+        ctx.beginPath();
+        ctx.moveTo(x + 13, PAD + 1);
+        ctx.lineTo(x + tabW - 13, PAD + 1);
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = "rgba(255,255,255,0.45)";
+        ctx.stroke();
+      }
       ctx.font = "600 24px sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillStyle = isActive ? "#0b1020" : "rgba(255,255,255,0.9)";
+      ctx.fillStyle = isActive ? "#091428" : "rgba(255,255,255,0.9)";
       ctx.fillText(tab.label, x + tabW / 2, PAD + TAB_H / 2 + 1);
       if (!isActive) {
         this.regions.push({
@@ -394,15 +442,22 @@ export abstract class VRCanvasPanel {
     ctx.beginPath();
     ctx.arc(cx, cy, 24, 0, Math.PI * 2);
     ctx.fillStyle = hovered
-      ? "rgba(255,255,255,0.28)"
-      : "rgba(255,255,255,0.12)";
+      ? "rgba(255,255,255,0.20)"
+      : "rgba(255,255,255,0.09)";
     ctx.fill();
+    if (hovered) {
+      ctx.beginPath();
+      ctx.arc(cx, cy, 24, 0, Math.PI * 2);
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = "rgba(255,255,255,0.32)";
+      ctx.stroke();
+    }
     ctx.font = "700 34px sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillStyle = enabled
       ? "rgba(255,255,255,0.95)"
-      : "rgba(255,255,255,0.35)";
+      : "rgba(255,255,255,0.30)";
     ctx.fillText(glyph, cx, cy + 1);
   }
 
@@ -505,8 +560,8 @@ export class VRPerformersPanel extends VRCanvasPanel {
     ctx.restore();
 
     this.roundRect(x, y, w, h, radius);
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = "rgba(255,255,255,0.14)";
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = "rgba(255,255,255,0.22)";
     ctx.stroke();
   }
 }
@@ -630,8 +685,14 @@ export class VRSceneInfoPanel extends VRCanvasPanel {
   private drawTag(i: number, x: number, y: number, w: number, h: number) {
     const { ctx } = this;
     this.roundRect(x, y, w, h, h / 2);
-    ctx.fillStyle = "rgba(255,255,255,0.10)";
+    const cg = ctx.createLinearGradient(x, y, x, y + h);
+    cg.addColorStop(0, "rgba(255,255,255,0.14)");
+    cg.addColorStop(1, "rgba(255,255,255,0.06)");
+    ctx.fillStyle = cg;
     ctx.fill();
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = "rgba(255,255,255,0.18)";
+    ctx.stroke();
     ctx.font = "500 22px sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -648,10 +709,19 @@ export class VRSceneInfoPanel extends VRCanvasPanel {
     const m = this.info.markers[i];
     const hovered = this.hoveredId === `mk:${i}`;
     this.roundRect(x, y, w, h, 14);
-    ctx.fillStyle = hovered
-      ? "rgba(255,255,255,0.2)"
-      : "rgba(255,255,255,0.08)";
+    const mg = ctx.createLinearGradient(x, y, x, y + h);
+    if (hovered) {
+      mg.addColorStop(0, "rgba(96,165,250,0.22)");
+      mg.addColorStop(1, "rgba(96,165,250,0.10)");
+    } else {
+      mg.addColorStop(0, "rgba(255,255,255,0.10)");
+      mg.addColorStop(1, "rgba(255,255,255,0.04)");
+    }
+    ctx.fillStyle = mg;
     ctx.fill();
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = hovered ? "rgba(96,165,250,0.40)" : "rgba(255,255,255,0.12)";
+    ctx.stroke();
 
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
@@ -855,16 +925,22 @@ export class VRInfoPanel extends VRCanvasPanel {
     ctx.restore();
 
     this.roundRect(x, y, w, h, radius);
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = "rgba(255,255,255,0.14)";
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = "rgba(255,255,255,0.22)";
     ctx.stroke();
   }
 
   private drawTagChip(i: number, x: number, y: number, w: number, h: number) {
     const { ctx } = this;
     this.roundRect(x, y, w, h, h / 2);
-    ctx.fillStyle = "rgba(255,255,255,0.10)";
+    const cg = ctx.createLinearGradient(x, y, x, y + h);
+    cg.addColorStop(0, "rgba(255,255,255,0.14)");
+    cg.addColorStop(1, "rgba(255,255,255,0.06)");
+    ctx.fillStyle = cg;
     ctx.fill();
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = "rgba(255,255,255,0.18)";
+    ctx.stroke();
     ctx.font = "500 22px sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -881,10 +957,19 @@ export class VRInfoPanel extends VRCanvasPanel {
     const m = this.info.markers[i];
     const hovered = this.hoveredId === `mk:${i}`;
     this.roundRect(x, y, w, h, 14);
-    ctx.fillStyle = hovered
-      ? "rgba(255,255,255,0.2)"
-      : "rgba(255,255,255,0.08)";
+    const mg = ctx.createLinearGradient(x, y, x, y + h);
+    if (hovered) {
+      mg.addColorStop(0, "rgba(96,165,250,0.22)");
+      mg.addColorStop(1, "rgba(96,165,250,0.10)");
+    } else {
+      mg.addColorStop(0, "rgba(255,255,255,0.10)");
+      mg.addColorStop(1, "rgba(255,255,255,0.04)");
+    }
+    ctx.fillStyle = mg;
     ctx.fill();
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = hovered ? "rgba(96,165,250,0.40)" : "rgba(255,255,255,0.12)";
+    ctx.stroke();
 
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
@@ -953,10 +1038,16 @@ export class VRHandyPanel extends VRCanvasPanel {
     };
     const statusColor = statusColors[hs.status] ?? "rgba(255,255,255,0.25)";
 
-    // Status row background
+    // Status row — glass card
     this.roundRect(20, 20, this.cw - 40, 52, 14);
-    ctx.fillStyle = "rgba(255,255,255,0.06)";
+    const srg = ctx.createLinearGradient(20, 20, 20, 72);
+    srg.addColorStop(0, "rgba(255,255,255,0.10)");
+    srg.addColorStop(1, "rgba(255,255,255,0.04)");
+    ctx.fillStyle = srg;
     ctx.fill();
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = "rgba(255,255,255,0.13)";
+    ctx.stroke();
 
     // Status dot
     ctx.beginPath();
@@ -1007,10 +1098,26 @@ export class VRHandyPanel extends VRCanvasPanel {
     const { ctx } = this;
     const hovered = this.hoveredId === id;
     this.roundRect(x, y, w, h, 12);
-    ctx.fillStyle = hovered
-      ? "rgba(255,255,255,0.25)"
-      : "rgba(255,255,255,0.12)";
+    const bg = ctx.createLinearGradient(x, y, x, y + h);
+    if (hovered) {
+      bg.addColorStop(0, "rgba(255,255,255,0.24)");
+      bg.addColorStop(1, "rgba(255,255,255,0.12)");
+    } else {
+      bg.addColorStop(0, "rgba(255,255,255,0.14)");
+      bg.addColorStop(1, "rgba(255,255,255,0.06)");
+    }
+    ctx.fillStyle = bg;
     ctx.fill();
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = hovered ? "rgba(255,255,255,0.32)" : "rgba(255,255,255,0.16)";
+    ctx.stroke();
+    // Glass rim
+    ctx.beginPath();
+    ctx.moveTo(x + 13, y + 1);
+    ctx.lineTo(x + w - 13, y + 1);
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = "rgba(255,255,255,0.30)";
+    ctx.stroke();
     ctx.font = "600 22px sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";

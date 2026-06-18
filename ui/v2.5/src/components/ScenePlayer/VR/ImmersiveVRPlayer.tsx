@@ -14,18 +14,20 @@ import React, {
   useState,
 } from "react";
 import { Box, Button, Typography } from "@mui/material";
+import { useHistory } from "react-router-dom";
 import * as GQL from "src/core/generated-graphql";
+import { getClient } from "src/core/StashService";
 import { languageMap } from "src/utils/caption";
 import { generateFunscriptWaveform } from "src/utils/funscriptWaveform";
 import { XRSessionManager } from "./xrSession";
 import { VRThumbnails } from "./vttThumbnails";
 import { IVRSceneInfo } from "./VRInfoPanels";
 import { useVRPlayback } from "./useVRPlayback";
+import { IVRSceneEntry } from "./VRScenesPanel";
 import {
   InteractiveContext,
   ConnectionState,
 } from "src/hooks/Interactive/context";
-import { HandyAPIv3 } from "src/hooks/Interactive/handy-api-v3";
 import { PatternRunner } from "src/hooks/Interactive/patterns";
 import type { IInteractiveClient } from "src/hooks/Interactive/utils";
 import {
@@ -101,6 +103,7 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
   const videoRef = useRef<HTMLVideoElement>(null);
   const managerRef = useRef<XRSessionManager | null>(null);
   const thumbnailsRef = useRef<VRThumbnails | null>(null);
+  const history = useHistory();
   const interactiveCtx = useContext(InteractiveContext);
   const handyRef = useRef<IInteractiveClient>(interactiveCtx.interactive);
   const patternRunnerRef = useRef<PatternRunner>(new PatternRunner(interactiveCtx.interactive));
@@ -206,6 +209,11 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
     return { status, label, configured };
   }, []);
 
+  const getFunscriptLoaded = useCallback((): boolean => {
+    return !!(scene.interactive && scene.paths.funscript);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scene.interactive, scene.paths.funscript]);
+
   // No array copy — walk markers backwards. Called every render frame.
   const getChapterTitle = useCallback((): string | null => {
     const v = videoRef.current;
@@ -295,6 +303,61 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
     if (!on) activeCueRef.current = null;
   }, []);
 
+  // ── VR Scenes panel data ───────────────────────────────────────────────
+  // Exclude the current scene from the list so the user sees other VR content.
+  const scenesRef = useRef<IVRSceneEntry[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    getClient()
+      .query<GQL.FindScenesQuery>({
+        query: GQL.FindScenesDocument,
+        variables: {
+          scene_filter: {
+            vr_mode: {
+              value: [
+                GQL.VrMode.Lr180,
+                GQL.VrMode.Mono360,
+                GQL.VrMode.Tb360,
+              ],
+              modifier: GQL.CriterionModifier.Includes,
+            },
+          },
+        },
+      })
+      .then((result) => {
+        if (cancelled) return;
+        scenesRef.current = result.data.findScenes.scenes
+          .filter((s) => s.id !== scene.id)
+          .slice(0, 50)
+          .map((s) => ({
+            id: s.id,
+            title: s.title ?? `Scene ${s.id}`,
+            thumbnailUrl: s.paths.screenshot ?? null,
+            streamUrl: s.paths.stream ?? null,
+            studioName: s.studio?.name ?? null,
+            performers: s.performers.map((p) => p.name),
+          }));
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scene.id]);
+
+  const getScenes = useCallback((): IVRSceneEntry[] => {
+    return scenesRef.current;
+  }, []);
+
+  // Handle navigation from VR scenes panel — exit VR then navigate.
+  const handleNavigateToScene = useCallback(
+    (sceneId: string) => {
+      managerRef.current?.end();
+      history.push(`/scenes/${sceneId}`);
+    },
+    [history]
+  );
+
   // Central action handler — the single place that mutates video / projection.
   const handleAction = useCallback(
     (a: VRControlAction) => {
@@ -363,6 +426,11 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
         case "exit":
           managerRef.current?.end();
           break;
+        // ── VR scenes panel ──
+        case "navigateToScene":
+          handleNavigateToScene(a.sceneId);
+          break;
+        // scenesPanelToggle is handled in-manager (see routeSelect).
         // ── Handy interactive device ──
         case "handyConnect":
           ctxRef.current.initialise().catch(() => undefined);
@@ -372,34 +440,6 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
           break;
         case "handyToggle":
           handyRef.current.emergencyStop?.();
-          break;
-        case "handyHampStart":
-          handyRef.current.hampStart?.();
-          break;
-        case "handyHampStop":
-          handyRef.current.hampStop?.();
-          break;
-        case "handyHampVelocity":
-          handyRef.current.setHampVelocity?.(a.value);
-          break;
-        case "handyHampStroke":
-          handyRef.current.setHampStroke?.(a.min, a.max);
-          break;
-        case "handyHdspPosition":
-          handyRef.current.setMode?.(HandyAPIv3.MODE.HDSP);
-          handyRef.current.hdspSetPosition?.(a.position, a.velocity);
-          break;
-        case "handyHvpStart":
-          handyRef.current.hvpStart?.();
-          break;
-        case "handyHvpStop":
-          handyRef.current.hvpStop?.();
-          break;
-        case "handyHvpAmplitude":
-          handyRef.current.setHvpState?.(a.value / 100, 0, 0);
-          break;
-        case "handyHvpFrequency":
-          handyRef.current.setHvpState?.(0, a.value, 0);
           break;
         case "handyPatternStart": {
           // Start the stepping loop — sends HDSP position commands on a timer
@@ -416,7 +456,7 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
           break;
       }
     },
-    [seekToMarker, toggleCaptions, onNext, onPrevious]
+    [seekToMarker, toggleCaptions, onNext, onPrevious, handleNavigateToScene]
   );
   const actionRef = useRef(handleAction);
   actionRef.current = handleAction;
@@ -494,6 +534,8 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
       getChapterTitle,
       getCaption: () => (captionsOnRef.current ? activeCueRef.current : null),
       getHandyState: () => buildHandyState(),
+      getFunscriptLoaded: () => getFunscriptLoaded(),
+      getScenes: () => getScenes(),
       getThumbnail: (time) => thumbnailsRef.current?.getAt(time) ?? null,
       onAction: (a) => actionRef.current(a),
       onEnd: () => onExitRef.current(),
@@ -509,7 +551,7 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
       manager.dispose();
       managerRef.current = null;
     };
-  }, [videoEl, session, getState, getChapterTitle, buildHandyState]);
+  }, [videoEl, session, getState, getChapterTitle, buildHandyState, getFunscriptLoaded, getScenes]);
 
   // Push projection changes to the dome renderer.
   useEffect(() => {

@@ -27,37 +27,36 @@ import { VRControlAction, IVRMarker, IVRPlaybackState } from "./types";
 import { VRCanvasPanel, IPanelRegion } from "./VRInfoPanels";
 
 const CANVAS_W = 1280;
-// Performers + tags moved to the side info panel; canvas is shorter now.
-const CANVAS_H = 420;
+const CANVAS_H = 486;
 /** Physical width of the panel plane, metres (height derived from aspect). */
 const PANEL_WIDTH_M = 2.6;
 
 const PAD = 36;
 
-// Vertical bands (canvas px), top → bottom. Layout order:
-//   title/caption · heatmap · scrubber · time · chapters · transport · view
-const TITLE_Y = 34; // baseline of the caption / chapter-title line
+const TITLE_Y = 34;
 
-// Funscript heatmap strip sits in the 16-px gap between the title and scrubber.
-const HEAT_Y = 38; // top of the heatmap strip
-const HEAT_H = 14; // strip height
+const HEAT_Y = 38;
+const HEAT_H = 14;
 
 const SCRUB_Y = 56;
 const SCRUB_H = 40;
 const SCRUB_X = PAD;
 const SCRUB_W = CANVAS_W - PAD * 2;
-const TIME_Y = SCRUB_Y + SCRUB_H + 24; // time-readout baseline
+const TIME_Y = SCRUB_Y + SCRUB_H + 24;
 
-// Chapters / timestamp row sits directly under the progress bar.
 const CHAP_Y = 136;
 const CHAP_H = 74;
 
-const ROW1_Y = 228;
-const ROW2_Y = 314;
+// Pattern strip — directly below chapters.
+const PAT_Y = 224;
+const PAT_H = 72;
+
+// Button rows shift down to accommodate the pattern strip.
+const ROW1_Y = 312;
+const ROW2_Y = 400;
 const BTN_H = 72;
 const GAP = 16;
 
-// Left gutter for a section label; strips start just to the right of it.
 const STRIP_LABEL_X = 24;
 const STRIP_X0 = 116;
 const STRIP_X1 = CANVAS_W - 20;
@@ -69,7 +68,7 @@ interface IRowItem {
   w: number;
   label?: string;
   active?: boolean;
-  variant?: "default" | "danger";
+  variant?: "default" | "danger" | "green";
   kind?: "button" | "volume";
 }
 
@@ -78,12 +77,13 @@ export interface IDrawInput {
   projection: IProjectionSettings;
   markers: IVRMarker[];
   chapterTitle: string | null;
-  /** Active caption cue text, when captions are on. */
   caption: string | null;
-  /** Whether the collapsible Handy sub-panel is currently open. */
+  /** Whether the compact Handy side panel is open. */
   handyOpen?: boolean;
-  /** Whether the scene-info side panel is currently open. */
-  infoOpen?: boolean;
+  /** Whether the Browse side panel (Info | Scenes) is open. */
+  browseOpen?: boolean;
+  /** Handy connection status for icon tint + pattern strip visibility. */
+  handy?: { connected: boolean; funscriptLoaded: boolean };
 }
 
 const RATE_STEPS = [0.5, 0.75, 1, 1.25, 1.5, 2];
@@ -97,6 +97,7 @@ export class VRControlPanel extends VRCanvasPanel {
   // White/dark-tinted cache of the Handy modal icon (/handy.png).
   private handyTint: HTMLCanvasElement | null = null;
   private handyTintActive = false;
+  private patternActive: string | null = null;
 
   private last: IDrawInput | null = null;
   // Raised by scroll changes / late image loads (base markDirty override). The
@@ -116,7 +117,10 @@ export class VRControlPanel extends VRCanvasPanel {
     mlen: -1,
     heat: false,
     handyOpen: false,
-    infoOpen: false,
+    browseOpen: false,
+    handyConnected: false,
+    handyFsl: false,
+    patternActive: null as string | null,
     fov: "",
     stereo: "",
     chap: null as string | null,
@@ -200,7 +204,9 @@ export class VRControlPanel extends VRCanvasPanel {
     const fov = fovLabel(p);
     const stereo = stereoLabel(p);
     const handyOpen = !!input.handyOpen;
-    const infoOpen = !!input.infoOpen;
+    const browseOpen = !!input.browseOpen;
+    const handyConnected = !!input.handy?.connected;
+    const handyFsl = !!input.handy?.funscriptLoaded;
     const hf =
       this.hoverFraction == null ? -1 : Math.round(this.hoverFraction * 1000);
     const heat = this.heatmap != null;
@@ -219,7 +225,10 @@ export class VRControlPanel extends VRCanvasPanel {
       pr.mlen === markers.length &&
       pr.heat === heat &&
       pr.handyOpen === handyOpen &&
-      pr.infoOpen === infoOpen &&
+      pr.browseOpen === browseOpen &&
+      pr.handyConnected === handyConnected &&
+      pr.handyFsl === handyFsl &&
+      pr.patternActive === this.patternActive &&
       pr.fov === fov &&
       pr.stereo === stereo &&
       pr.chap === chapterTitle &&
@@ -242,7 +251,10 @@ export class VRControlPanel extends VRCanvasPanel {
     pr.mlen = markers.length;
     pr.heat = heat;
     pr.handyOpen = handyOpen;
-    pr.infoOpen = infoOpen;
+    pr.browseOpen = browseOpen;
+    pr.handyConnected = handyConnected;
+    pr.handyFsl = handyFsl;
+    pr.patternActive = this.patternActive;
     pr.fov = fov;
     pr.stereo = stereo;
     pr.chap = chapterTitle;
@@ -322,8 +334,8 @@ export class VRControlPanel extends VRCanvasPanel {
         return { type: "nextMarker" };
       case "handy":
         return { type: "handyPanelToggle" };
-      case "info":
-        return { type: "infoPanelToggle" };
+      case "browse":
+        return { type: "browsePanelToggle" };
       case "exit":
         return { type: "exit" };
       case "chapScrollL":
@@ -337,6 +349,17 @@ export class VRControlPanel extends VRCanvasPanel {
       default:
         if (region.id.startsWith("chap:") && region.data != null) {
           return { type: "seekSeconds", seconds: region.data };
+        }
+        if (region.id.startsWith("pat:")) {
+          const pid = region.id.slice(4);
+          if (pid === this.patternActive) {
+            this.patternActive = null;
+            this.markDirty();
+            return { type: "handyPatternStop" };
+          }
+          this.patternActive = pid;
+          this.markDirty();
+          return { type: "handyPatternStart", patternId: pid };
         }
         return null;
     }
@@ -404,6 +427,8 @@ export class VRControlPanel extends VRCanvasPanel {
     // Chapters / timestamp row — directly beneath the progress bar.
     this.drawChapters(markers);
 
+    this.drawPatterns(input);
+
     // Row 1 — transport, chapter nav, mute + volume, rate.
     this.layoutRow(
       [
@@ -424,7 +449,7 @@ export class VRControlPanel extends VRCanvasPanel {
       state
     );
 
-    // Row 2 — projection / view, captions, Handy toggle, exit.
+    // Row 2 — projection / view, captions, Handy toggle, Browse, exit.
     const row2: IRowItem[] = [
       { id: "fov", w: 104, label: fovLabel(projection) },
       { id: "stereo", w: 116, label: stereoLabel(projection) },
@@ -432,15 +457,15 @@ export class VRControlPanel extends VRCanvasPanel {
       { id: "recenter", w: 150, label: "Recenter" },
       { id: "captions", w: 84, label: "CC", active: state.captionsOn },
     ];
-    // Handy toggle is always shown so the device can be connected from VR even
-    // for scenes without funscript data.
+    const handyGreen = !!(input.handy?.connected && input.handy?.funscriptLoaded);
     row2.push({
       id: "handy",
       w: 84,
       label: "icon:handy",
-      active: !!input.handyOpen,
+      active: handyGreen,
+      variant: handyGreen ? "green" : "default",
     });
-    row2.push({ id: "info", w: 84, label: "Info", active: !!input.infoOpen });
+    row2.push({ id: "browse", w: 100, label: "Browse", active: !!input.browseOpen });
     row2.push({ id: "exit", w: 110, label: "Exit", variant: "danger" });
     this.layoutRow(row2, ROW2_Y, state);
 
@@ -540,6 +565,60 @@ export class VRControlPanel extends VRCanvasPanel {
     ctx.font = "500 18px sans-serif";
     ctx.fillStyle = "rgba(255,255,255,0.85)";
     ctx.fillText(this.fitText(m.title || "Chapter", w - 28), x + 14, y + 62);
+  }
+
+  // --- pattern strip --------------------------------------------------------
+
+  private drawPatterns(input: IDrawInput) {
+    const { ctx } = this;
+    const connected = !!input.handy?.connected;
+    this.drawStripLabel("Patterns", PAT_Y, PAT_H);
+    if (!connected) {
+      this.emptyStrip("Connect Handy to use patterns", PAT_Y, PAT_H);
+      return;
+    }
+    const pats = [
+      { id: "slow_wave", label: "Slow Wave" },
+      { id: "steady", label: "Steady" },
+      { id: "fast_pulse", label: "Fast Pulse" },
+      { id: "tease", label: "Tease" },
+      { id: "upper_zone", label: "Upper Zone" },
+      { id: "ripple", label: "Ripple" },
+    ];
+    ctx.font = "500 20px sans-serif";
+    const widths = pats.map((p) =>
+      Math.min(250, Math.max(110, ctx.measureText(p.label).width + 36))
+    );
+    this.hStrip({
+      prefix: "pat",
+      x0: STRIP_X0,
+      x1: STRIP_X1,
+      y: PAT_Y,
+      h: PAT_H,
+      scrollX: 0,
+      widths,
+      gap: 10,
+      drawItem: (i, x, w) => this.drawPatChip(pats[i], x, w),
+      regionId: (i) => ({ id: `pat:${pats[i].id}` }),
+    });
+  }
+
+  private drawPatChip(pat: { id: string; label: string }, x: number, w: number) {
+    const { ctx } = this;
+    const active = this.patternActive === pat.id;
+    const hovered = this.hoveredId === `pat:${pat.id}`;
+    this.roundRect(x, PAT_Y + 4, w, PAT_H - 8, 12);
+    ctx.fillStyle = active
+      ? "rgba(96,165,250,0.85)"
+      : hovered
+        ? "rgba(255,255,255,0.18)"
+        : "rgba(255,255,255,0.08)";
+    ctx.fill();
+    ctx.font = "500 20px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = active ? "#0b1020" : "rgba(255,255,255,0.9)";
+    ctx.fillText(pat.label, x + w / 2, PAT_Y + PAT_H / 2 + 1);
   }
 
   // --- scrubber + transport widgets -----------------------------------------
@@ -673,7 +752,7 @@ export class VRControlPanel extends VRCanvasPanel {
     region: IPanelRegion,
     label: string,
     active: boolean,
-    variant: "default" | "danger" = "default"
+    variant: "default" | "danger" | "green" = "default"
   ) {
     const { ctx } = this;
     const { x, y, w, h } = region;
@@ -681,7 +760,10 @@ export class VRControlPanel extends VRCanvasPanel {
 
     this.roundRect(x, y, w, h, 14);
     if (active) {
-      ctx.fillStyle = "rgba(96,165,250,0.92)";
+      ctx.fillStyle =
+        variant === "green"
+          ? "rgba(76,175,80,0.92)"
+          : "rgba(96,165,250,0.92)";
     } else if (hovered) {
       ctx.fillStyle = "rgba(255,255,255,0.22)";
     } else {

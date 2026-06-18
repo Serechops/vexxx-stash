@@ -6,6 +6,13 @@
 
 const HANDY_BASE_URL = "https://www.handyfeeling.com/api/handy-rest/v3";
 
+// Default Handy application key (identifies this app to the Handy API). Not a
+// secret — it only identifies the application, never a user's device. Baked in
+// as a fallback so users only need to enter their personal Connection Key; a
+// per-install key set in Settings still overrides it.
+export const DEFAULT_HANDY_APP_KEY =
+  "TURGTFUwdFRUakpZTmtSSE5UQlhSazVGV0ZaVE1rWlRXVEUjWHFKUURxNFBjX1lpQ2NfN3Q0bG9fWnN0a0hSZEVubmZvb3Q1MEEtV0g4WQ";
+
 // ── Response types we consume ───────────────────────────────────────────────
 
 export interface HandyConnectedResponse {
@@ -79,7 +86,7 @@ export class HandyAPIv3 {
   private _estimatedLatency: number;
 
   constructor(appKey?: string) {
-    this._appKey = appKey ?? "";
+    this._appKey = appKey || DEFAULT_HANDY_APP_KEY;
     this._connectionKey = null;
     this._bearerToken = null;
     this._tokenExpiresAt = 0;
@@ -146,7 +153,7 @@ export class HandyAPIv3 {
   }
 
   setAppKey(key: string): void {
-    this._appKey = key;
+    this._appKey = key || DEFAULT_HANDY_APP_KEY;
   }
 
   get connectionKey(): string | null {

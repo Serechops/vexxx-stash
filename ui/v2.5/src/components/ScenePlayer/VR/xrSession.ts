@@ -12,10 +12,11 @@
  * video) is a planned follow-up — it needs on-device tuning and gracefully sits
  * behind this same manager interface.
  *
- * The floating UI (control bar + performers + scene-info panels) lives in one
- * group that is pinned in front of the viewer by default, grip-draggable, and
- * auto-hides after a few seconds of no input. Drawing is dirty-checked and the
- * UI fades as a unit so per-frame GPU work stays minimal.
+ * The floating UI is one consolidated control panel (transport + performers
+ * carousel + tag/chapter strips) plus a collapsible Handy sub-panel, living in
+ * one group that is pinned in front of the viewer by default, grip-draggable,
+ * and auto-hides after a few seconds of no input. Drawing is dirty-checked and
+ * the UI fades as a unit so per-frame GPU work stays minimal.
  *
  * Playback state is *pulled* each frame via `getState()` and all interactions
  * are *pushed* out via `onAction`, so the React layer remains the only owner of
@@ -31,13 +32,7 @@ import {
 } from "./projection";
 import { VRControlPanel, IDrawInput } from "./VRControls";
 import { VRControllerInput, IPanelHit } from "./VRControllerInput";
-import {
-  VRCanvasPanel,
-  VRPerformersPanel,
-  VRSceneInfoPanel,
-  VRHandyPanel,
-  IVRSceneInfo,
-} from "./VRInfoPanels";
+import { VRHandyPanel, IVRSceneInfo } from "./VRInfoPanels";
 import { VRControlAction, IVRMarker, IVRPlaybackState, IVRHandyState } from "./types";
 import type { IThumbnailCrop } from "./vttThumbnails";
 
@@ -51,16 +46,12 @@ const PANEL_TILT = 0.18; // radians the UI group leans back toward the eyes
 const AUTO_HIDE_MS = 4000;
 const FADE_LERP = 0.18;
 
-// Info-panel layout: angled side "monitors" flanking the control bar, like a
-// triple-display workstation (controls = centre screen).
-const SIDE_GAP = 0.08; // metres between the control bar edge and a side panel
-const SIDE_YAW = Math.PI / 6; // toe-in angle (~30°) so the sides face the viewer
-
-// Floating scrubber-hover thumbnail preview.
-const THUMB_W_M = 0.6;
+// Floating scrubber-hover thumbnail preview (enlarged for legibility, with a
+// marker-name caption overlaid when the hovered position falls inside a marker).
+const THUMB_W_M = 0.9;
 const THUMB_H_M = (THUMB_W_M * 9) / 16;
-const THUMB_CANVAS_W = 320;
-const THUMB_CANVAS_H = 180;
+const THUMB_CANVAS_W = 480;
+const THUMB_CANVAS_H = 270;
 
 /**
  * Debug bisection flags for the on-device flicker hunt, read from the URL
@@ -99,8 +90,6 @@ export interface IXRSessionManagerOptions {
   projection: IProjectionSettings;
   /** Static, per-scene info for the performers + scene-info panels. */
   info: IVRSceneInfo;
-  /** Whether the current scene has interactive (Handy) funscript data. */
-  interactive: boolean;
   getState: () => IVRPlaybackState;
   getMarkers: () => IVRMarker[];
   getChapterTitle: () => string | null;
@@ -138,10 +127,9 @@ export class XRSessionManager {
   private tmpVec = new THREE.Vector3();
   private tmpEuler = new THREE.Euler(0, 0, 0, "YXZ");
 
-  // Auxiliary info panels (created only when the scene has content for them).
-  private performersPanel: VRPerformersPanel | null = null;
-  private sceneInfoPanel: VRSceneInfoPanel | null = null;
+  // Collapsible Handy (interactive device) sub-panel, toggled from the bar.
   private handyPanel: VRHandyPanel | null = null;
+  private handyPanelOpen = false;
   private hittables: IHittable[] = [];
   // Reused per-frame draw payload (avoids allocating an object every frame).
   private drawInput: IDrawInput;
@@ -196,8 +184,13 @@ export class XRSessionManager {
     this.videoTexture.magFilter = THREE.LinearFilter;
     this.videoTexture.generateMipmaps = false;
 
-    this.panel = new VRControlPanel();
-    this.panel.onAction = (a) => this.opts.onAction(a);
+    // The control bar is now the single consolidated UI surface: it carries the
+    // performers carousel and the tag/chapter strips that used to be separate
+    // side "monitor" panels.
+    this.panel = new VRControlPanel({
+      performers: opts.info.performers,
+      tags: opts.info.tags,
+    });
     this.uiGroup.add(this.panel.object);
     this.drawInput = {
       state: opts.getState(),
@@ -205,42 +198,18 @@ export class XRSessionManager {
       markers: opts.getMarkers(),
       chapterTitle: null,
       caption: null,
+      handyOpen: false,
     };
 
-    // Build the info panels, keeping only the ones with content, and lay them
-    // out centred above the control bar.
-    const present: VRCanvasPanel[] = [];
-    const performers = new VRPerformersPanel(opts.info.performers);
-    if (performers.hasContent) {
-      this.performersPanel = performers;
-      present.push(performers);
-    } else {
-      performers.dispose();
-    }
-    const sceneInfo = new VRSceneInfoPanel(opts.info);
-    if (sceneInfo.hasContent) {
-      this.sceneInfoPanel = sceneInfo;
-      present.push(sceneInfo);
-    } else {
-      sceneInfo.dispose();
-    }
-    this.layoutInfoPanels(present);
-
-    // Handy (interactive) panel — sits below the control bar as a control
-    // extension row. Only created when the scene has interactive funscript data.
-    if (opts.interactive) {
-      const handy = new VRHandyPanel();
-      this.handyPanel = handy;
-      this.uiGroup.add(handy.object);
-      // Place it centred beneath the control bar.
-      this.layoutHandyPanel(handy);
-      // Register as a hittable so the laser targets it.
-      this.hittables.push({
-        target: handy.hitTarget,
-        hover: (uv: THREE.Vector2 | null) => handy.setHovered(uv),
-        select: (uv: THREE.Vector2) => handy.activate(uv),
-      });
-    }
+    // Handy (interactive) panel — a collapsible sub-panel below the control bar,
+    // opened/closed by the Handy toggle in the bar. Always created so the device
+    // can be connected from the immersive view even for scenes without funscript
+    // data; hidden (and non-interactable) until opened.
+    const handy = new VRHandyPanel();
+    this.handyPanel = handy;
+    this.uiGroup.add(handy.object);
+    this.layoutHandyPanel(handy);
+    handy.setRenderState(0);
 
     this.input = new VRControllerInput(this.renderer, this.scene, {
       onHover: (hit) => this.routeHover(hit),
@@ -258,19 +227,22 @@ export class XRSessionManager {
       },
     });
 
-    // Assemble the hit-routing table (control bar + present info panels).
+    // Hit-routing table: the control bar plus the (visibility-gated) Handy panel.
     this.hittables = [
       {
         target: this.panel.hitTarget,
         hover: (uv) => this.panel.setHovered(uv),
         select: (uv) => this.panel.activate(uv),
       },
-      ...present.map((p) => ({
-        target: p.hitTarget,
-        hover: (uv: THREE.Vector2 | null) => p.setHovered(uv),
-        select: (uv: THREE.Vector2) => p.activate(uv),
-      })),
     ];
+    if (this.handyPanel) {
+      const hp = this.handyPanel;
+      this.hittables.push({
+        target: hp.hitTarget,
+        hover: (uv: THREE.Vector2 | null) => hp.setHovered(uv),
+        select: (uv: THREE.Vector2) => hp.activate(uv),
+      });
+    }
     this.input.setTargets(this.hittables.map((h) => h.target));
     // Pinned by default → grip grabs/drags the UI group (squeeze elsewhere
     // still recenters).
@@ -362,35 +334,15 @@ export class XRSessionManager {
     const h = this.hittables.find((x) => x.target === hit.object);
     if (!h) return;
     const action = h.select(hit.uv);
-    if (action) this.opts.onAction(action);
-  }
-
-  /**
-   * Arrange the info panels as angled side displays flanking the control bar —
-   * a triple-monitor workstation: the first panel sits to the left, the second
-   * to the right, each hinged just beyond the bar's edge and toed-in (rotated
-   * about its vertical axis) to face the viewer. Centres align with the control
-   * bar (a level row of screens).
-   */
-  private layoutInfoPanels(panels: VRCanvasPanel[]) {
-    if (!panels.length) return;
-    const halfBar = this.panel.widthMeters / 2;
-    const cos = Math.cos(SIDE_YAW);
-    const sin = Math.sin(SIDE_YAW);
-    panels.forEach((p, i) => {
-      const side = i === 0 ? -1 : 1; // 0 → left, 1 → right
-      const halfPanel = p.widthMeters / 2;
-      // Hinge at the bar's outer edge, then walk to the panel centre along its
-      // toed-in width axis so inner edges sit beside the bar and outer edges
-      // wrap toward the viewer.
-      p.object.position.set(
-        side * (halfBar + SIDE_GAP + halfPanel * cos),
-        0,
-        halfPanel * sin
-      );
-      p.object.rotation.set(0, -side * SIDE_YAW, 0);
-      this.uiGroup.add(p.object);
-    });
+    if (!action) return;
+    // The Handy toggle is owned by the manager (it shows/hides the sub-panel),
+    // so it's handled here rather than forwarded to the React action handler.
+    if (action.type === "handyPanelToggle") {
+      this.handyPanelOpen = !this.handyPanelOpen;
+      this.lastActivity = performance.now();
+      return;
+    }
+    this.opts.onAction(action);
   }
 
   // --- dome construction ----------------------------------------------------
@@ -531,9 +483,8 @@ export class XRSessionManager {
     }
     const op = this.uiOpacity;
     this.panel.setRenderState(op);
-    this.performersPanel?.setRenderState(op);
-    this.sceneInfoPanel?.setRenderState(op);
-    this.handyPanel?.setRenderState(op);
+    // The Handy sub-panel only renders (and is only interactable) while open.
+    this.handyPanel?.setRenderState(this.handyPanelOpen ? op : 0);
 
     const state = this.opts.getState();
     if (op > 0.02) {
@@ -543,15 +494,15 @@ export class XRSessionManager {
       d.markers = this.opts.getMarkers();
       d.chapterTitle = this.opts.getChapterTitle();
       d.caption = this.opts.getCaption();
-      this.panel.update(d);
-      this.performersPanel?.update();
-      this.sceneInfoPanel?.update();
+      d.handyOpen = this.handyPanelOpen;
+      this.panel.sync(d);
       // Push the latest Handy connection state to the VR panel each frame.
-      if (this.handyPanel && this.opts.getHandyState) {
-        this.handyPanel.setHandyState(this.opts.getHandyState());
+      if (this.handyPanelOpen && this.handyPanel) {
+        if (this.opts.getHandyState) {
+          this.handyPanel.setHandyState(this.opts.getHandyState());
+        }
         this.handyPanel.update();
       }
-      this.handyPanel?.update();
     }
 
     this.updateThumbnailPreview(state.duration, op);
@@ -572,13 +523,61 @@ export class XRSessionManager {
     this.uiGroup.rotation.set(PANEL_TILT, yaw, 0);
   }
 
-  /** Float a VTT thumbnail above the scrubber while it's being hovered. */
+  /** Title of the marker/chapter whose span contains `time`, or null. */
+  private markerTitleAt(time: number): string | null {
+    const markers = this.opts.getMarkers();
+    for (let i = markers.length - 1; i >= 0; i--) {
+      if (time >= markers[i].seconds) {
+        const end = markers[i].endSeconds;
+        if (end != null && time > end) return null;
+        return markers[i].title || null;
+      }
+    }
+    return null;
+  }
+
+  /** Draw a bottom-anchored marker-name caption onto the preview canvas. */
+  private drawThumbCaption(title: string) {
+    const ctx = this.thumbCtx;
+    if (!ctx) return;
+    const barH = 46;
+    const grad = ctx.createLinearGradient(
+      0,
+      THUMB_CANVAS_H - barH,
+      0,
+      THUMB_CANVAS_H
+    );
+    grad.addColorStop(0, "rgba(0,0,0,0)");
+    grad.addColorStop(1, "rgba(0,0,0,0.88)");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, THUMB_CANVAS_H - barH, THUMB_CANVAS_W, barH);
+
+    ctx.font = "600 24px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "alphabetic";
+    ctx.fillStyle = "rgba(255,255,255,0.96)";
+    let label = title;
+    const maxW = THUMB_CANVAS_W - 28;
+    if (ctx.measureText(label).width > maxW) {
+      while (label.length > 1 && ctx.measureText(`${label}…`).width > maxW) {
+        label = label.slice(0, -1);
+      }
+      label = `${label}…`;
+    }
+    ctx.fillText(label, THUMB_CANVAS_W / 2, THUMB_CANVAS_H - 14);
+  }
+
+  /**
+   * Float a preview above the scrubber while it's being hovered: the VTT
+   * thumbnail when available, plus the name of the marker the hovered position
+   * sits within. When there's no thumbnail but the position is inside a marker,
+   * a name-only plate is shown so hovering still previews the marker.
+   */
   private updateThumbnailPreview(duration: number, uiOpacity: number) {
     const frac = this.panel.scrubberHoverFraction;
     if (
       uiOpacity < 0.5 ||
       frac == null ||
-      !this.getThumb ||
       !this.thumbCtx ||
       !duration ||
       !isFinite(duration)
@@ -586,38 +585,49 @@ export class XRSessionManager {
       this.thumbPreview.visible = false;
       return;
     }
-    const crop = this.getThumb(frac * duration);
-    if (!crop) {
+    const time = frac * duration;
+    const title = this.markerTitleAt(time);
+    const crop = this.getThumb ? this.getThumb(time) : null;
+    if (!crop && !title) {
       this.thumbPreview.visible = false;
       return;
     }
 
-    // Only redraw the preview canvas when the sprite crop actually changes —
-    // holding still over one region costs no texture upload.
-    const img = crop.image as HTMLImageElement;
-    const key = `${img.src ?? ""}#${crop.sx},${crop.sy},${crop.sw},${crop.sh}`;
+    // Only redraw the preview canvas when the sprite crop or marker name
+    // actually changes — holding still costs no texture upload.
+    const img = crop ? (crop.image as HTMLImageElement) : null;
+    const key = crop
+      ? `${img?.src ?? ""}#${crop.sx},${crop.sy},${crop.sw},${crop.sh}#${title ?? ""}`
+      : `nothumb#${title ?? ""}`;
     if (key !== this.lastThumbKey) {
       this.thumbCtx.clearRect(0, 0, THUMB_CANVAS_W, THUMB_CANVAS_H);
-      try {
-        this.thumbCtx.drawImage(
-          crop.image,
-          crop.sx,
-          crop.sy,
-          crop.sw,
-          crop.sh,
-          0,
-          0,
-          THUMB_CANVAS_W,
-          THUMB_CANVAS_H
-        );
-      } catch {
-        // tainted/incomplete image — skip this frame
-        this.thumbPreview.visible = false;
-        return;
+      if (crop) {
+        try {
+          this.thumbCtx.drawImage(
+            crop.image,
+            crop.sx,
+            crop.sy,
+            crop.sw,
+            crop.sh,
+            0,
+            0,
+            THUMB_CANVAS_W,
+            THUMB_CANVAS_H
+          );
+        } catch {
+          // tainted/incomplete image — skip this frame
+          this.thumbPreview.visible = false;
+          return;
+        }
+      } else {
+        // No thumbnail — solid plate behind the marker name.
+        this.thumbCtx.fillStyle = "rgba(12,16,32,0.92)";
+        this.thumbCtx.fillRect(0, 0, THUMB_CANVAS_W, THUMB_CANVAS_H);
       }
       this.thumbCtx.strokeStyle = "rgba(255,255,255,0.6)";
       this.thumbCtx.lineWidth = 4;
       this.thumbCtx.strokeRect(0, 0, THUMB_CANVAS_W, THUMB_CANVAS_H);
+      if (title) this.drawThumbCaption(title);
       this.thumbTexture.needsUpdate = true;
       this.lastThumbKey = key;
     }
@@ -644,8 +654,6 @@ export class XRSessionManager {
     this.session?.removeEventListener("end", this.onSessionEnd);
     this.input.dispose();
     this.panel.dispose();
-    this.performersPanel?.dispose();
-    this.sceneInfoPanel?.dispose();
     this.handyPanel?.dispose();
     this.thumbTexture.dispose();
     (this.thumbPreview.material as THREE.Material).dispose();

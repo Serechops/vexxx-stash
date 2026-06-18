@@ -1,44 +1,69 @@
 /**
- * VRControlPanel — the floating DeoVR/HereSphere-style control bar.
+ * VRControlPanel — the floating DeoVR/HereSphere-style control bar, now the
+ * single consolidated UI surface for the immersive player.
  *
  * Rendered as a 2D canvas mapped onto a flat plane (a `CanvasTexture`), which
  * keeps hit-testing trivial (raycaster `.uv` → canvas pixel) and needs no extra
  * in-VR UI dependency. The panel is updated each frame from a pulled
- * [IVRPlaybackState] snapshot and emits [VRControlAction]s through `onAction`.
+ * [IVRPlaybackState] snapshot and emits [VRControlAction]s through `activate`.
  *
- * Controls are laid out in two centred rows (transport + view/settings) so
- * they never overlap. The scrubber exposes the current hover position so the
- * session manager can float a VTT thumbnail preview above it.
+ * Top-to-bottom the panel stacks: the caption/chapter line, the **scrubber**,
+ * the time readout, a compact **chapters** strip (directly under the bar), two
+ * centred button rows (transport + view/settings, the latter holding the Handy
+ * toggle), and the **performers carousel** + **tags** strip grouped at the
+ * bottom. The performers/tags/chapters strips reuse the proven scrollable-strip
+ * + image machinery in [VRCanvasPanel] (the same recipe the old side "monitor"
+ * panels used), so the three former panels collapse into one.
+ *
+ * Redraw is dirty-checked against a quantised state fingerprint (so the moving
+ * playhead only forces ~4 redraws/sec) plus a content-dirty flag raised by
+ * scroll/late-image-load, keeping the XR render loop free of per-frame garbage
+ * (a cause of GC-stall black flicker).
  */
 import * as THREE from "three";
 import TextUtils from "src/utils/text";
 import { IProjectionSettings, fovLabel, stereoLabel } from "./projection";
 import { VRControlAction, IVRMarker, IVRPlaybackState } from "./types";
+import { VRCanvasPanel, IPanelRegion, IVRPerformer } from "./VRInfoPanels";
 
 const CANVAS_W = 1280;
-const CANVAS_H = 420;
-/** Physical size of the panel plane, metres. */
+const CANVAS_H = 560;
+/** Physical width of the panel plane, metres (height derived from aspect). */
 const PANEL_WIDTH_M = 2.6;
-const PANEL_HEIGHT_M = (CANVAS_H / CANVAS_W) * PANEL_WIDTH_M;
 
 const PAD = 36;
-const SCRUB_Y = 96;
-const SCRUB_H = 44;
+
+// Vertical bands (canvas px), top → bottom. Layout order:
+//   title/caption · scrubber · time · chapters · transport · view · cast · tags
+const TITLE_Y = 34; // baseline of the caption / chapter-title line
+
+const SCRUB_Y = 54;
+const SCRUB_H = 40;
 const SCRUB_X = PAD;
 const SCRUB_W = CANVAS_W - PAD * 2;
+const TIME_Y = SCRUB_Y + SCRUB_H + 26; // time-readout baseline
 
-const ROW1_Y = 196;
-const ROW2_Y = 296;
-const BTN_H = 76;
+// Chapters / timestamp row sits directly under the progress bar.
+const CHAP_Y = 132;
+const CHAP_H = 74;
+
+const ROW1_Y = 224;
+const ROW2_Y = 310;
+const BTN_H = 72;
 const GAP = 16;
 
-interface IHitRegion {
-  id: string;
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
+// Performers + tags are grouped together at the bottom.
+const PERF_Y = 398;
+const PERF_H = 80;
+const TAG_Y = 490;
+const TAG_H = 48;
+
+// Left gutter for a section label; strips start just to the right of it.
+const STRIP_LABEL_X = 24;
+const STRIP_X0 = 116;
+const STRIP_X1 = CANVAS_W - 20;
+
+const ACCENT = "rgba(96,165,250,0.95)";
 
 interface IRowItem {
   id: string;
@@ -56,30 +81,36 @@ export interface IDrawInput {
   chapterTitle: string | null;
   /** Active caption cue text, when captions are on. */
   caption: string | null;
+  /** Whether the collapsible Handy sub-panel is currently open. */
+  handyOpen?: boolean;
+}
+
+export interface IVRControlPanelOptions {
+  performers: IVRPerformer[];
+  tags: string[];
 }
 
 const RATE_STEPS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
-export class VRControlPanel {
-  readonly object: THREE.Group;
-  private mesh: THREE.Mesh;
-  private material: THREE.MeshBasicMaterial;
-  private canvas: HTMLCanvasElement;
-  private ctx: CanvasRenderingContext2D;
-  private texture: THREE.CanvasTexture;
+export class VRControlPanel extends VRCanvasPanel {
+  private readonly performers: IVRPerformer[];
+  private readonly tags: string[];
 
-  private regions: IHitRegion[] = [];
-  private hoveredId: string | null = null;
   private hoverFraction: number | null = null;
   private heatmap: HTMLImageElement | null = null;
 
+  private perfScroll = 0;
+  private tagScroll = 0;
+  private chapScroll = 0;
+
+  // White/dark-tinted cache of the Handy modal icon (/handy.png).
+  private handyTint: HTMLCanvasElement | null = null;
+  private handyTintActive = false;
+
   private last: IDrawInput | null = null;
-  // Dirty-check: the canvas is only redrawn + re-uploaded when its visible
-  // content changes, not every frame. The comparison is allocation-free (it
-  // compares against the stored primitives in `prev`) so the render loop —
-  // which runs on the main thread feeding the XR compositor — produces no
-  // per-frame garbage that would trigger GC stalls (seen as black flicker).
-  private dirty = true;
+  // Raised by scroll changes / late image loads (base markDirty override). The
+  // state fingerprint below covers everything that changes from playback.
+  private contentDirty = true;
   private prev = {
     paused: false,
     muted: false,
@@ -93,6 +124,7 @@ export class VRControlPanel {
     rate: -1,
     mlen: -1,
     heat: false,
+    handyOpen: false,
     fov: "",
     stereo: "",
     chap: null as string | null,
@@ -101,52 +133,11 @@ export class VRControlPanel {
     hf: -1,
   };
 
-  onAction?: (a: VRControlAction) => void;
-
-  constructor() {
-    this.canvas = document.createElement("canvas");
-    this.canvas.width = CANVAS_W;
-    this.canvas.height = CANVAS_H;
-    const ctx = this.canvas.getContext("2d");
-    if (!ctx) throw new Error("VRControlPanel: 2D canvas context unavailable");
-    this.ctx = ctx;
-
-    this.texture = new THREE.CanvasTexture(this.canvas);
-    this.texture.colorSpace = THREE.SRGBColorSpace;
-    this.texture.minFilter = THREE.LinearFilter;
-    this.texture.magFilter = THREE.LinearFilter;
-    this.texture.generateMipmaps = false;
-
-    const geometry = new THREE.PlaneGeometry(PANEL_WIDTH_M, PANEL_HEIGHT_M);
-    this.material = new THREE.MeshBasicMaterial({
-      map: this.texture,
-      transparent: true,
-      depthTest: false,
-      depthWrite: false,
-      side: THREE.DoubleSide,
-    });
-    this.mesh = new THREE.Mesh(geometry, this.material);
-    this.mesh.renderOrder = 10;
-    this.mesh.frustumCulled = false;
+  constructor(opts: IVRControlPanelOptions) {
+    super(PANEL_WIDTH_M, CANVAS_W, CANVAS_H);
+    this.performers = opts.performers;
+    this.tags = opts.tags;
     this.mesh.name = "vr-control-panel";
-
-    this.object = new THREE.Group();
-    this.object.add(this.mesh);
-  }
-
-  /** The raycast target (the panel plane). */
-  get hitTarget(): THREE.Object3D {
-    return this.mesh;
-  }
-
-  /** Physical width of the panel, metres (for preview clamping). */
-  get widthMeters(): number {
-    return PANEL_WIDTH_M;
-  }
-
-  /** Physical height of the panel, metres (for stacking the info panels). */
-  get heightMeters(): number {
-    return PANEL_HEIGHT_M;
   }
 
   /** Fraction (0..1) of the scrubber currently hovered, or null. */
@@ -162,22 +153,16 @@ export class VRControlPanel {
     const f = Math.min(1, Math.max(0, fraction));
     const cx = SCRUB_X + f * SCRUB_W;
     const cy = SCRUB_Y;
-    const localX = (cx / CANVAS_W - 0.5) * PANEL_WIDTH_M;
-    const localY = (0.5 - cy / CANVAS_H) * PANEL_HEIGHT_M;
+    const localX = (cx / CANVAS_W - 0.5) * this.wM;
+    const localY = (0.5 - cy / CANVAS_H) * this.hM;
     return new THREE.Vector3(localX, localY, 0.03);
-  }
-
-  /** Fade + cull: opacity drives the material; below threshold we hide it. */
-  setRenderState(opacity: number) {
-    this.material.opacity = opacity;
-    this.mesh.visible = opacity > 0.02;
   }
 
   /** Load the funscript heatmap (CSS `url("data:…")`) for the scrubber bg. */
   setHeatmap(cssUrl: string | null) {
     if (!cssUrl) {
       this.heatmap = null;
-      this.dirty = true;
+      this.markDirty();
       return;
     }
     // generateFunscriptWaveform returns `url("data:image/svg+xml,…")`.
@@ -186,17 +171,28 @@ export class VRControlPanel {
     const img = new Image();
     img.onload = () => {
       this.heatmap = img;
-      this.dirty = true;
+      this.markDirty();
     };
     img.src = src;
   }
 
-  update(input: IDrawInput) {
+  /** Late image loads / scroll changes force a redraw on the next sync(). */
+  protected markDirty() {
+    super.markDirty();
+    this.contentDirty = true;
+  }
+
+  /**
+   * Per-frame entry: store the snapshot and redraw only when the quantised
+   * fingerprint or the content-dirty flag changed. Replaces the base no-arg
+   * update() (which is left unused) so playback time can drive the redraw.
+   */
+  sync(input: IDrawInput) {
     this.last = input;
     const changed = this.stateChanged(input);
-    if (!this.dirty && !changed) return;
-    this.dirty = false;
-    this.draw(input);
+    if (!this.contentDirty && !changed) return;
+    this.contentDirty = false;
+    this.draw();
   }
 
   /**
@@ -213,6 +209,7 @@ export class VRControlPanel {
     const vol = Math.round(s.volume * 100);
     const fov = fovLabel(p);
     const stereo = stereoLabel(p);
+    const handyOpen = !!input.handyOpen;
     const hf =
       this.hoverFraction == null ? -1 : Math.round(this.hoverFraction * 1000);
     const heat = this.heatmap != null;
@@ -230,6 +227,7 @@ export class VRControlPanel {
       pr.rate === s.playbackRate &&
       pr.mlen === markers.length &&
       pr.heat === heat &&
+      pr.handyOpen === handyOpen &&
       pr.fov === fov &&
       pr.stereo === stereo &&
       pr.chap === chapterTitle &&
@@ -251,6 +249,7 @@ export class VRControlPanel {
     pr.rate = s.playbackRate;
     pr.mlen = markers.length;
     pr.heat = heat;
+    pr.handyOpen = handyOpen;
     pr.fov = fov;
     pr.stereo = stereo;
     pr.chap = chapterTitle;
@@ -262,29 +261,17 @@ export class VRControlPanel {
 
   // --- hit testing ----------------------------------------------------------
 
-  private uvToCanvas(uv: THREE.Vector2): { x: number; y: number } {
-    return { x: uv.x * CANVAS_W, y: (1 - uv.y) * CANVAS_H };
-  }
-
-  private regionAt(uv: THREE.Vector2): IHitRegion | null {
-    const { x, y } = this.uvToCanvas(uv);
-    for (const r of this.regions) {
-      if (x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h) return r;
-    }
-    return null;
-  }
-
   setHovered(uv: THREE.Vector2 | null) {
     const region = uv ? this.regionAt(uv) : null;
-    const id = region?.id ?? null;
+    this.hoveredId = region?.id ?? null;
+    this.hoverUV = uv ? { x: uv.x * this.cw, y: (1 - uv.y) * this.ch } : null;
     let fraction: number | null = null;
     if (region && region.id === "scrubber" && uv) {
-      const { x } = this.uvToCanvas(uv);
+      const x = uv.x * this.cw;
       fraction = Math.min(1, Math.max(0, (x - region.x) / region.w));
     }
-    // Cheap state update; the change is picked up by the next update()'s
-    // signature check, which triggers a redraw only when hover actually moves.
-    this.hoveredId = id;
+    // The change is picked up by the next sync()'s fingerprint check (hov / hf),
+    // which triggers a redraw only when hover actually moves.
     this.hoverFraction = fraction;
   }
 
@@ -292,17 +279,20 @@ export class VRControlPanel {
   activate(uv: THREE.Vector2): VRControlAction | null {
     const region = this.regionAt(uv);
     if (!region) return null;
-    const { x } = this.uvToCanvas(uv);
+    const x = uv.x * this.cw;
+    if (region.id === "scrubber") {
+      const fraction = Math.min(1, Math.max(0, (x - region.x) / region.w));
+      return { type: "seekFraction", fraction };
+    }
+    if (region.id === "volume") {
+      const value = Math.min(1, Math.max(0, (x - region.x) / region.w));
+      return { type: "setVolume", value };
+    }
+    return this.handleSelect(region);
+  }
 
+  protected handleSelect(region: IPanelRegion): VRControlAction | null {
     switch (region.id) {
-      case "scrubber": {
-        const fraction = Math.min(1, Math.max(0, (x - region.x) / region.w));
-        return { type: "seekFraction", fraction };
-      }
-      case "volume": {
-        const value = Math.min(1, Math.max(0, (x - region.x) / region.w));
-        return { type: "setVolume", value };
-      }
       case "playpause":
         return { type: "playpause" };
       case "back10":
@@ -337,46 +327,69 @@ export class VRControlPanel {
         return { type: "prevMarker" };
       case "nextMarker":
         return { type: "nextMarker" };
+      case "handy":
+        return { type: "handyPanelToggle" };
       case "exit":
         return { type: "exit" };
+      case "perfScrollL":
+        this.perfScroll = this.scrollBy("perf", -1, this.perfScroll);
+        this.markDirty();
+        return null;
+      case "perfScrollR":
+        this.perfScroll = this.scrollBy("perf", 1, this.perfScroll);
+        this.markDirty();
+        return null;
+      case "tagScrollL":
+        this.tagScroll = this.scrollBy("tag", -1, this.tagScroll);
+        this.markDirty();
+        return null;
+      case "tagScrollR":
+        this.tagScroll = this.scrollBy("tag", 1, this.tagScroll);
+        this.markDirty();
+        return null;
+      case "chapScrollL":
+        this.chapScroll = this.scrollBy("chap", -1, this.chapScroll);
+        this.markDirty();
+        return null;
+      case "chapScrollR":
+        this.chapScroll = this.scrollBy("chap", 1, this.chapScroll);
+        this.markDirty();
+        return null;
       default:
+        if (region.id.startsWith("chap:") && region.data != null) {
+          return { type: "seekSeconds", seconds: region.data };
+        }
         return null;
     }
   }
 
   // --- drawing --------------------------------------------------------------
 
-  private draw(input: IDrawInput) {
+  protected draw() {
+    const input = this.last;
+    if (!input) return;
     const { state, projection, markers, chapterTitle, caption } = input;
     const { ctx } = this;
     this.regions = [];
 
-    ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
-
-    // Panel background
-    this.roundRect(0, 0, CANVAS_W, CANVAS_H, 28);
-    ctx.fillStyle = "rgba(12,12,14,0.86)";
-    ctx.fill();
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = "rgba(255,255,255,0.10)";
-    ctx.stroke();
+    this.panelBackground();
 
     const dur = state.duration && isFinite(state.duration) ? state.duration : 0;
     const cur = Math.min(state.currentTime, dur || state.currentTime);
 
-    // Top line: caption cue (centred) takes priority, else chapter / status.
+    // Caption cue (centred) takes priority, else chapter / status line (top).
     ctx.textBaseline = "alphabetic";
     if (caption) {
       ctx.font = "600 26px sans-serif";
       ctx.textAlign = "center";
       ctx.fillStyle = "rgba(255,255,255,0.95)";
-      ctx.fillText(caption, CANVAS_W / 2, SCRUB_Y - 20, CANVAS_W - PAD * 2);
+      ctx.fillText(caption, CANVAS_W / 2, TITLE_Y, CANVAS_W - PAD * 2);
     } else {
       ctx.font = "600 22px sans-serif";
       ctx.textAlign = "left";
       ctx.fillStyle = "rgba(255,255,255,0.85)";
       const topText = state.waiting ? "Buffering…" : chapterTitle ?? "";
-      if (topText) ctx.fillText(topText, PAD, SCRUB_Y - 20);
+      if (topText) ctx.fillText(topText, PAD, TITLE_Y);
     }
 
     this.drawScrubber(
@@ -390,22 +403,17 @@ export class VRControlPanel {
       markers
     );
 
-    // Time labels
+    // Time labels (just under the scrubber).
     ctx.font = "500 24px monospace";
     ctx.fillStyle = "rgba(255,255,255,0.92)";
     ctx.textAlign = "left";
-    ctx.fillText(
-      TextUtils.secondsToTimestamp(cur),
-      PAD,
-      SCRUB_Y + SCRUB_H + 30
-    );
+    ctx.fillText(TextUtils.secondsToTimestamp(cur), PAD, TIME_Y);
     ctx.textAlign = "right";
     ctx.fillStyle = "rgba(255,255,255,0.55)";
-    ctx.fillText(
-      TextUtils.secondsToTimestamp(dur),
-      CANVAS_W - PAD,
-      SCRUB_Y + SCRUB_H + 30
-    );
+    ctx.fillText(TextUtils.secondsToTimestamp(dur), CANVAS_W - PAD, TIME_Y);
+
+    // Chapters / timestamp row — directly beneath the progress bar.
+    this.drawChapters(markers);
 
     // Row 1 — transport, chapter nav, mute + volume, rate.
     this.layoutRow(
@@ -427,19 +435,28 @@ export class VRControlPanel {
       state
     );
 
-    // Row 2 — projection / view, captions, exit.
-    this.layoutRow(
-      [
-        { id: "fov", w: 104, label: fovLabel(projection) },
-        { id: "stereo", w: 116, label: stereoLabel(projection) },
-        { id: "swap", w: 104, label: "Swap", active: projection.swapEyes },
-        { id: "recenter", w: 150, label: "Recenter" },
-        { id: "captions", w: 84, label: "CC", active: state.captionsOn },
-        { id: "exit", w: 110, label: "Exit", variant: "danger" },
-      ],
-      ROW2_Y,
-      state
-    );
+    // Row 2 — projection / view, captions, Handy toggle, exit.
+    const row2: IRowItem[] = [
+      { id: "fov", w: 104, label: fovLabel(projection) },
+      { id: "stereo", w: 116, label: stereoLabel(projection) },
+      { id: "swap", w: 104, label: "Swap", active: projection.swapEyes },
+      { id: "recenter", w: 150, label: "Recenter" },
+      { id: "captions", w: 84, label: "CC", active: state.captionsOn },
+    ];
+    // Handy toggle is always shown so the device can be connected from VR even
+    // for scenes without funscript data.
+    row2.push({
+      id: "handy",
+      w: 84,
+      label: "icon:handy",
+      active: !!input.handyOpen,
+    });
+    row2.push({ id: "exit", w: 110, label: "Exit", variant: "danger" });
+    this.layoutRow(row2, ROW2_Y, state);
+
+    // Performers + tags strips, grouped together at the bottom.
+    this.drawPerformers();
+    this.drawTags();
 
     this.texture.needsUpdate = true;
   }
@@ -450,7 +467,7 @@ export class VRControlPanel {
       items.reduce((s, it) => s + it.w, 0) + GAP * (items.length - 1);
     let x = Math.round((CANVAS_W - total) / 2);
     for (const it of items) {
-      const region: IHitRegion = { id: it.id, x, y, w: it.w, h: BTN_H };
+      const region: IPanelRegion = { id: it.id, x, y, w: it.w, h: BTN_H };
       if (it.kind === "volume") {
         this.drawVolume(region, state);
         this.regions.push(region);
@@ -465,6 +482,179 @@ export class VRControlPanel {
       x += it.w + GAP;
     }
   }
+
+  // --- performers / tags / chapters strips ----------------------------------
+
+  private drawStripLabel(text: string, bandY: number, bandH: number) {
+    const { ctx } = this;
+    ctx.font = "700 18px sans-serif";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "rgba(255,255,255,0.5)";
+    ctx.fillText(text.toUpperCase(), STRIP_LABEL_X, bandY + bandH / 2);
+  }
+
+  private emptyStrip(text: string, bandY: number, bandH: number) {
+    const { ctx } = this;
+    ctx.font = "500 20px sans-serif";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "rgba(255,255,255,0.35)";
+    ctx.fillText(text, STRIP_X0, bandY + bandH / 2);
+  }
+
+  private drawPerformers() {
+    this.drawStripLabel("Cast", PERF_Y, PERF_H);
+    if (this.performers.length === 0) {
+      this.emptyStrip("No performers", PERF_Y, PERF_H);
+      return;
+    }
+    const cardW = Math.round(PERF_H * 0.72); // portrait aspect
+    const widths = this.performers.map(() => cardW);
+    this.hStrip({
+      prefix: "perf",
+      x0: STRIP_X0,
+      x1: STRIP_X1,
+      y: PERF_Y,
+      h: PERF_H,
+      scrollX: this.perfScroll,
+      widths,
+      gap: 14,
+      drawItem: (i, x, w) => this.drawPerfCard(i, x, PERF_Y, w, PERF_H),
+    });
+  }
+
+  private drawPerfCard(i: number, x: number, y: number, w: number, h: number) {
+    const { ctx } = this;
+    const p = this.performers[i];
+    const img = this.image(p.imageUrl);
+    const radius = 12;
+
+    if (img) {
+      this.drawImageCover(img, x, y, w, h, radius);
+    } else {
+      this.roundRect(x, y, w, h, radius);
+      ctx.fillStyle = "rgba(255,255,255,0.08)";
+      ctx.fill();
+      ctx.font = "700 30px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "rgba(255,255,255,0.5)";
+      ctx.fillText(initials(p.name), x + w / 2, y + h / 2 - 8);
+    }
+
+    // Name plate (gradient → readable over any portrait).
+    ctx.save();
+    this.roundRect(x, y, w, h, radius);
+    ctx.clip();
+    const grad = ctx.createLinearGradient(0, y + h - 40, 0, y + h);
+    grad.addColorStop(0, "rgba(0,0,0,0)");
+    grad.addColorStop(1, "rgba(0,0,0,0.85)");
+    ctx.fillStyle = grad;
+    ctx.fillRect(x, y + h - 40, w, 40);
+    ctx.font = "600 16px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "alphabetic";
+    ctx.fillStyle = "rgba(255,255,255,0.95)";
+    ctx.fillText(this.fitText(p.name, w - 10), x + w / 2, y + h - 12);
+    ctx.restore();
+
+    this.roundRect(x, y, w, h, radius);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "rgba(255,255,255,0.14)";
+    ctx.stroke();
+  }
+
+  private drawTags() {
+    const { ctx } = this;
+    this.drawStripLabel("Tags", TAG_Y, TAG_H);
+    if (this.tags.length === 0) {
+      this.emptyStrip("No tags", TAG_Y, TAG_H);
+      return;
+    }
+    ctx.font = "500 22px sans-serif";
+    const widths = this.tags.map((t) =>
+      Math.min(240, ctx.measureText(t).width + 30)
+    );
+    this.hStrip({
+      prefix: "tag",
+      x0: STRIP_X0,
+      x1: STRIP_X1,
+      y: TAG_Y,
+      h: TAG_H,
+      scrollX: this.tagScroll,
+      widths,
+      gap: 12,
+      drawItem: (i, x, w) => this.drawTagChip(i, x, TAG_Y, w, TAG_H),
+    });
+  }
+
+  private drawTagChip(i: number, x: number, y: number, w: number, h: number) {
+    const { ctx } = this;
+    this.roundRect(x, y, w, h, h / 2);
+    ctx.fillStyle = "rgba(255,255,255,0.10)";
+    ctx.fill();
+    ctx.font = "500 22px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "rgba(255,255,255,0.9)";
+    ctx.fillText(this.fitText(this.tags[i], w - 22), x + w / 2, y + h / 2 + 1);
+  }
+
+  private drawChapters(markers: IVRMarker[]) {
+    const { ctx } = this;
+    this.drawStripLabel("Chapters", CHAP_Y, CHAP_H);
+    if (markers.length === 0) {
+      this.emptyStrip("No chapters", CHAP_Y, CHAP_H);
+      return;
+    }
+    ctx.font = "500 18px sans-serif";
+    const widths = markers.map((m) =>
+      Math.min(300, Math.max(150, ctx.measureText(m.title || "Chapter").width + 40))
+    );
+    this.hStrip({
+      prefix: "chap",
+      x0: STRIP_X0,
+      x1: STRIP_X1,
+      y: CHAP_Y,
+      h: CHAP_H,
+      scrollX: this.chapScroll,
+      widths,
+      gap: 12,
+      drawItem: (i, x, w) => this.drawChapCard(markers, i, x, CHAP_Y, w, CHAP_H),
+      regionId: (i) => ({ id: `chap:${i}`, data: markers[i].seconds }),
+    });
+  }
+
+  private drawChapCard(
+    markers: IVRMarker[],
+    i: number,
+    x: number,
+    y: number,
+    w: number,
+    h: number
+  ) {
+    const { ctx } = this;
+    const m = markers[i];
+    const hovered = this.hoveredId === `chap:${i}`;
+    this.roundRect(x, y, w, h, 12);
+    ctx.fillStyle = hovered
+      ? "rgba(255,255,255,0.2)"
+      : "rgba(255,255,255,0.08)";
+    ctx.fill();
+
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+    ctx.font = "700 24px monospace";
+    ctx.fillStyle = ACCENT;
+    ctx.fillText(TextUtils.secondsToTimestamp(m.seconds), x + 14, y + 34);
+
+    ctx.font = "500 18px sans-serif";
+    ctx.fillStyle = "rgba(255,255,255,0.85)";
+    ctx.fillText(this.fitText(m.title || "Chapter", w - 28), x + 14, y + 62);
+  }
+
+  // --- scrubber + transport widgets -----------------------------------------
 
   private drawScrubber(
     x: number,
@@ -500,9 +690,9 @@ export class VRControlPanel {
 
       if (markers.length > 0) {
         // Chapter segments: each marker colours a band of the timeline (so you
-        // can see *where* each marker sits), replacing the old vertical ticks.
-        // The whole bar is drawn dim; the played portion is redrawn vivid, so
-        // progress reads out without a separate fill on top.
+        // can see *where* each marker sits). The whole bar is drawn dim; the
+        // played portion is redrawn vivid, so progress reads out without a
+        // separate fill on top.
         ctx.save();
         this.roundRect(x, y, w, h, r);
         ctx.clip();
@@ -577,7 +767,7 @@ export class VRControlPanel {
     }
   }
 
-  private drawVolume(region: IHitRegion, state: IVRPlaybackState) {
+  private drawVolume(region: IPanelRegion, state: IVRPlaybackState) {
     const { ctx } = this;
     const { x, y, w, h } = region;
     const track = h * 0.18;
@@ -603,7 +793,7 @@ export class VRControlPanel {
   }
 
   private drawButton(
-    region: IHitRegion,
+    region: IPanelRegion,
     label: string,
     active: boolean,
     variant: "default" | "danger" = "default"
@@ -630,7 +820,9 @@ export class VRControlPanel {
     const cx = x + w / 2;
     const cy = y + h / 2;
     if (label.startsWith("icon:")) {
-      this.drawIcon(label.slice(5), cx, cy, active);
+      const name = label.slice(5);
+      if (name === "handy") this.drawHandyIcon(cx, cy, active);
+      else this.drawIcon(name, cx, cy, active);
     } else {
       ctx.font = "600 26px sans-serif";
       ctx.textAlign = "center";
@@ -645,6 +837,46 @@ export class VRControlPanel {
     }
 
     this.regions.push(region);
+  }
+
+  /** The Handy modal icon (/handy.png), tinted to match button state. */
+  private getHandyIcon(active: boolean): HTMLCanvasElement | null {
+    const img = this.image("/handy.png");
+    if (!img) return null;
+    if (!this.handyTint || this.handyTintActive !== active) {
+      const c = document.createElement("canvas");
+      c.width = img.naturalWidth;
+      c.height = img.naturalHeight;
+      const cx = c.getContext("2d");
+      if (!cx) return null;
+      cx.drawImage(img, 0, 0);
+      // Replace the icon's opaque pixels with the tint, preserving its alpha.
+      cx.globalCompositeOperation = "source-in";
+      cx.fillStyle = active ? "#0b1020" : "rgba(255,255,255,0.92)";
+      cx.fillRect(0, 0, c.width, c.height);
+      this.handyTint = c;
+      this.handyTintActive = active;
+    }
+    return this.handyTint;
+  }
+
+  private drawHandyIcon(cx: number, cy: number, active: boolean) {
+    const { ctx } = this;
+    const icon = this.getHandyIcon(active);
+    if (icon && icon.width > 0) {
+      const max = 34;
+      const scale = Math.min(max / icon.width, max / icon.height);
+      const w = icon.width * scale;
+      const h = icon.height * scale;
+      ctx.drawImage(icon, cx - w / 2, cy - h / 2, w, h);
+    } else {
+      // Fallback glyph until the image loads.
+      ctx.font = "600 22px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = active ? "#0b1020" : "rgba(255,255,255,0.92)";
+      ctx.fillText("H", cx, cy + 1);
+    }
   }
 
   private drawIcon(name: string, cx: number, cy: number, active: boolean) {
@@ -719,22 +951,9 @@ export class VRControlPanel {
         break;
     }
   }
+}
 
-  private roundRect(x: number, y: number, w: number, h: number, r: number) {
-    const { ctx } = this;
-    const rr = Math.min(r, w / 2, h / 2);
-    ctx.beginPath();
-    ctx.moveTo(x + rr, y);
-    ctx.arcTo(x + w, y, x + w, y + h, rr);
-    ctx.arcTo(x + w, y + h, x, y + h, rr);
-    ctx.arcTo(x, y + h, x, y, rr);
-    ctx.arcTo(x, y, x + w, y, rr);
-    ctx.closePath();
-  }
-
-  dispose() {
-    this.texture.dispose();
-    (this.mesh.material as THREE.Material).dispose();
-    this.mesh.geometry.dispose();
-  }
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).slice(0, 2);
+  return parts.map((p) => p[0]?.toUpperCase() ?? "").join("") || "?";
 }

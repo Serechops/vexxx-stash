@@ -26,7 +26,7 @@ export interface IVRSceneInfo {
   markers: { title: string; seconds: number }[];
 }
 
-interface IPanelRegion {
+export interface IPanelRegion {
   id: string;
   x: number;
   y: number;
@@ -167,7 +167,7 @@ export abstract class VRCanvasPanel {
 
   // --- hit testing ----------------------------------------------------------
 
-  private regionAt(uv: THREE.Vector2): IPanelRegion | null {
+  protected regionAt(uv: THREE.Vector2): IPanelRegion | null {
     const x = uv.x * this.cw;
     const y = (1 - uv.y) * this.ch;
     for (const r of this.regions) {
@@ -708,7 +708,6 @@ export class VRHandyPanel extends VRCanvasPanel {
       }
       case "hampStroke": {
         const frac = this.fracAt(region);
-        const val = Math.round(frac * 100);
         // The stroke is a single slider; the stored range is min/max.
         // We map the fraction into a symmetric-ish zone: 0 → [0,100], 0.5 → [25,75], 1 → [40,60]
         const center = 50 - frac * 30;

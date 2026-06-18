@@ -52,6 +52,26 @@ function markerTitle(m: IMarkerLike): string {
   return ret;
 }
 
+/** Map the React-side connection enum onto the VR Handy panel's status. */
+function handyStatusFor(s: ConnectionState): IVRHandyState["status"] {
+  switch (s) {
+    case ConnectionState.Ready:
+      return "ready";
+    case ConnectionState.Connecting:
+      return "connecting";
+    case ConnectionState.Syncing:
+      return "syncing";
+    case ConnectionState.Uploading:
+      return "uploading";
+    case ConnectionState.Error:
+      return "error";
+    case ConnectionState.Disconnected:
+      return "disconnected";
+    default:
+      return "missing";
+  }
+}
+
 /** Build the ordered list of candidate sources: direct stream first. */
 function candidateSources(scene: GQL.SceneDataFragment): string[] {
   const out: string[] = [];
@@ -149,6 +169,42 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
   // Keep the Handy client ref current so the XR action handler (which lives
   // in a ref to avoid re-creating the session) always has the latest client.
   handyRef.current = interactiveCtx.interactive;
+  // The whole interactive context, kept current for the VR Handy panel's
+  // status read-out and its Connect/Sync actions.
+  const ctxRef = useRef(interactiveCtx);
+  ctxRef.current = interactiveCtx;
+
+  // Build the Handy connection snapshot the VR panel renders each frame. Stable
+  // identity (reads through ctxRef), so it never re-creates the XR session.
+  const buildHandyState = useCallback((): IVRHandyState => {
+    const ctx = ctxRef.current;
+    const status = handyStatusFor(ctx.state);
+    const configured = !!ctx.interactive.handyKey;
+    let label: string;
+    switch (status) {
+      case "ready":
+        label = "Ready";
+        break;
+      case "connecting":
+        label = "Connecting…";
+        break;
+      case "syncing":
+        label = "Syncing…";
+        break;
+      case "uploading":
+        label = "Uploading…";
+        break;
+      case "error":
+        label = ctx.error ? `Error: ${ctx.error}` : "Error";
+        break;
+      case "disconnected":
+        label = "Disconnected";
+        break;
+      default:
+        label = configured ? "Disconnected" : "Handy";
+    }
+    return { status, label, configured };
+  }, []);
 
   // No array copy — walk markers backwards. Called every render frame.
   const getChapterTitle = useCallback((): string | null => {
@@ -308,6 +364,12 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
           managerRef.current?.end();
           break;
         // ── Handy interactive device ──
+        case "handyConnect":
+          ctxRef.current.initialise().catch(() => undefined);
+          break;
+        case "handySync":
+          ctxRef.current.sync().catch(() => undefined);
+          break;
         case "handyToggle":
           handyRef.current.emergencyStop?.();
           break;
@@ -427,11 +489,11 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
       container: containerRef.current,
       projection: projectionRef.current,
       info: infoRef.current,
-      interactive: scene.interactive,
       getState,
       getMarkers: () => markersRef.current,
       getChapterTitle,
       getCaption: () => (captionsOnRef.current ? activeCueRef.current : null),
+      getHandyState: () => buildHandyState(),
       getThumbnail: (time) => thumbnailsRef.current?.getAt(time) ?? null,
       onAction: (a) => actionRef.current(a),
       onEnd: () => onExitRef.current(),
@@ -447,7 +509,7 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
       manager.dispose();
       managerRef.current = null;
     };
-  }, [videoEl, session, getState, getChapterTitle]);
+  }, [videoEl, session, getState, getChapterTitle, buildHandyState]);
 
   // Push projection changes to the dome renderer.
   useEffect(() => {

@@ -105,12 +105,13 @@ export class Interactive {
   }
 
   async connect(): Promise<void> {
-    if (this._appKey) {
-      try {
-        await this._api.issueToken();
-      } catch {
-        // proceed with Connection Key-only auth
-      }
+    // The API client always carries an app key (a per-install one from Settings,
+    // else the baked-in default), so always try to upgrade to a bearer token;
+    // fall back to Connection Key-only auth if issuance fails.
+    try {
+      await this._api.issueToken();
+    } catch {
+      // proceed with Connection Key-only auth
     }
     const res = await this._api.isConnected();
     if (!res?.connected) {

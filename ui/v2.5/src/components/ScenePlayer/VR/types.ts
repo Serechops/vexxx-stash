@@ -59,21 +59,16 @@ export type VRControlAction =
   | { type: "next" }
   | { type: "previous" }
   | { type: "exit" }
-  /** Toggle the collapsible Handy sub-panel open/closed (handled in-manager). */
+  /** Toggle the collapsible compact Handy panel (left side, handled in-manager). */
   | { type: "handyPanelToggle" }
-  /** Toggle the scene-info side panel open/closed (handled in-manager). */
-  | { type: "infoPanelToggle" }
+  /** Toggle the Browse side panel (Info + Scenes tabs, handled in-manager). */
+  | { type: "browsePanelToggle" }
+  /** Switch the active Browse tab (handled in-manager). */
+  | { type: "browseSetTab"; tab: "info" | "scenes" }
+  /** Navigate to a different scene from the VR scenes panel. */
+  | { type: "navigateToScene"; sceneId: string }
   // ── Handy interactive device ───────────────────────────────────────────
   | { type: "handyToggle" }
-  | { type: "handyHampVelocity"; value: number }
-  | { type: "handyHampStroke"; min: number; max: number }
-  | { type: "handyHampStart" }
-  | { type: "handyHampStop" }
-  | { type: "handyHdspPosition"; position: number; velocity: number }
-  | { type: "handyHvpStart" }
-  | { type: "handyHvpStop" }
-  | { type: "handyHvpAmplitude"; value: number }
-  | { type: "handyHvpFrequency"; value: number }
   | { type: "handyPatternStart"; patternId: string }
   | { type: "handyPatternStop" }
   | { type: "handyEmergencyStop" }

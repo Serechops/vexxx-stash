@@ -131,14 +131,7 @@ export abstract class VRCanvasPanel {
     const px = uv ? { x: uv.x * this.cw, y: (1 - uv.y) * this.ch } : null;
     if (id !== this.hoveredId) {
       this.hoveredId = id;
-      this.dirty = true;
-    }
-    // On a slider region (not a button/toggle) the UV changes constantly as
-    // the user moves the laser — mark dirty to update visual feedback.
-    if (px && this.hoverUV && this.hoveredId?.startsWith("hamp") ||
-        this.hoveredId?.startsWith("hdsp") ||
-        this.hoveredId?.startsWith("hvp")) {
-      this.dirty = true;
+      this.markDirty();
     }
     this.hoverUV = px;
   }

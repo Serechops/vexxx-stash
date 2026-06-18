@@ -121,11 +121,6 @@ export class VRScenesPanel extends VRCanvasPanel {
     this.roundRect(x, CARD_Y, CARD_W, CARD_H, 12);
     ctx.fillStyle = "rgba(255,255,255,0.04)";
     ctx.fill();
-    if (hovered) {
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = "rgba(255,255,255,0.55)";
-      ctx.stroke();
-    }
 
     // Thumbnail: preview video when hovered + loaded, else static screenshot.
     const videoEl = hovered ? this.previewVideo : null;
@@ -172,6 +167,14 @@ export class VRScenesPanel extends VRCanvasPanel {
     ctx.fillStyle = grad;
     ctx.fillRect(x, overlayY, CARD_W, overlayH);
     ctx.restore();
+
+    // Hover border stroke (drawn after overlays so it's visible).
+    if (hovered) {
+      this.roundRect(x, CARD_Y, CARD_W, CARD_H, 12);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "rgba(255,255,255,0.55)";
+      ctx.stroke();
+    }
 
     // Title + studio inside the overlay.
     const textX = x + 10;

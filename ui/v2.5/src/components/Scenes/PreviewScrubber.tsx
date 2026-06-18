@@ -74,6 +74,8 @@ export const PreviewScrubber: React.FC<IScenePreviewProps> = ({
       backgroundImage: `url(${sprite.url})`,
       width: `${sprite.w}px`,
       height: `${sprite.h}px`,
+      maxWidth: "100%",
+      maxHeight: "100%",
       transform: `scale(${scale})`,
     });
   }, [sprite]);

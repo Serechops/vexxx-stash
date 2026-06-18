@@ -39,6 +39,7 @@ import {
 
 import * as GQL from "src/core/generated-graphql";
 import { ScenePlayerScrubber } from "./ScenePlayerScrubber";
+import { VRScenePlayerScrubber } from "./VRScenePlayerScrubber";
 import { useConfigurationContext } from "src/hooks/Config";
 import {
   ConnectionState,
@@ -1428,7 +1429,17 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
             getPlayer()?.paused()) && <SceneInteractiveStatus />}
 
 
-        {file && showScrubber && (
+        {file && showScrubber && scene.vr_mode ? (
+          <VRScenePlayerScrubber
+            file={file}
+            scene={scene}
+            time={time}
+            start={scene.start_point ?? 0}
+            end={scene.end_point ?? file.duration}
+            onSeek={onScrubberSeek}
+            onScroll={onScrubberScroll}
+          />
+        ) : file && showScrubber ? (
           <ScenePlayerScrubber
             file={file}
             scene={scene}
@@ -1438,7 +1449,7 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
             onSeek={onScrubberSeek}
             onScroll={onScrubberScroll}
           />
-        )}
+        ) : null}
 
         {/* Keyboard shortcut help dialog (toggled by ?) */}
         <Dialog

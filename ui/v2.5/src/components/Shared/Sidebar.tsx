@@ -50,7 +50,28 @@ export const InlineFilterPanel: React.FC<PropsWithChildren<{}>> =
         alignSelf: "stretch",
       }}
     >
-      <Box sx={{ position: "sticky", top: 112, p: { xs: 1, md: 1.5 }, maxHeight: "calc(100vh - 130px)", overflowY: "auto", overflowX: "hidden" }}>
+      <Box
+        sx={{
+          position: "sticky",
+          top: 112,
+          p: { xs: 1, md: 1.5 },
+          maxHeight: "calc(100vh - 130px)",
+          overflowY: "auto",
+          overflowX: "hidden",
+          borderRadius: "8px",
+          border: "1px solid",
+          borderColor: "divider",
+          bgcolor: "rgba(255,255,255,0.02)",
+          scrollbarWidth: "thin",
+          scrollbarColor: "rgba(255,255,255,0.12) transparent",
+          "&::-webkit-scrollbar": { width: "4px" },
+          "&::-webkit-scrollbar-track": { background: "transparent" },
+          "&::-webkit-scrollbar-thumb": {
+            background: "rgba(255,255,255,0.12)",
+            borderRadius: "2px",
+          },
+        }}
+      >
         {children}
       </Box>
     </Box>
@@ -107,34 +128,60 @@ export const SidebarSection: React.FC<
         "&:before": { display: "none" },
         borderBottom: "1px solid",
         borderColor: "divider",
+        "&:last-child": { borderBottom: "none" },
       }}
     >
       <AccordionSummary
-        expandIcon={<ExpandMoreIcon fontSize="small" />}
+        expandIcon={null}
         sx={{
           px: 0.5,
-          minHeight: 40,
+          minHeight: 36,
+          flexDirection: "column",
+          alignItems: "stretch",
           "& .MuiAccordionSummary-content": {
-            my: 0.5,
-            alignItems: "center",
-            gap: 1,
+            my: 0,
+            flexDirection: "column",
+            gap: 0,
+          },
+          "&:hover": {
+            bgcolor: "action.hover",
+            borderRadius: "4px",
           },
         }}
       >
-        <Typography
-          variant="overline"
-          sx={{
-            lineHeight: 1.2,
-            color: "text.secondary",
-            fontSize: "0.7rem",
-            fontWeight: 600,
-          }}
-        >
-          {text}
-        </Typography>
-        {outsideCollapse}
+        {/* Header row: label + chevron */}
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", minHeight: 36, px: 0.5 }}>
+          <Typography
+            variant="overline"
+            sx={{
+              lineHeight: 1,
+              color: "text.secondary",
+              fontSize: "0.68rem",
+              fontWeight: 700,
+              letterSpacing: "0.07em",
+              textTransform: "uppercase",
+            }}
+          >
+            {text}
+          </Typography>
+          <ExpandMoreIcon
+            fontSize="small"
+            sx={{
+              color: "text.disabled",
+              flexShrink: 0,
+              transition: "transform 0.2s",
+              transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
+            }}
+          />
+        </Box>
+        {/* Selected items shown inside the summary — stop clicks from toggling the accordion */}
+        {outsideCollapse && (
+          <Box onClick={(e) => e.stopPropagation()} sx={{ px: 0.5, pb: 0.5 }}>
+            {outsideCollapse}
+          </Box>
+        )}
       </AccordionSummary>
-      <AccordionDetails sx={{ px: 1, pt: 1, pb: 0.5 }}>
+      <AccordionDetails sx={{ px: 1, pt: 0.5, pb: 1 }}>
         {children}
       </AccordionDetails>
     </Accordion>

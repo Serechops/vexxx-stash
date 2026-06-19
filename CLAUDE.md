@@ -50,6 +50,10 @@ make stash
 
 Custom components and features are added alongside upstream code. Prefer extending over modifying upstream files where possible so merging upstream changes stays tractable.
 
+## Git
+
+When the user asks for a commit message, **only output the message text** — do not stage files or run `git commit`. Leave all git operations (add, commit, push, branch, etc.) to the user.
+
 ## Context Management
 
 After each discrete task completes, proactively suggest `/compact` if the conversation is getting long. Be aggressive: suggest it after any task that involved reading multiple files, a build/test cycle, or more than ~10 tool calls. Don't wait until context is already bloated — suggest early and often. When switching to a completely different area of the codebase, suggest `/clear` instead.

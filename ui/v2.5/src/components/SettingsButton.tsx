@@ -18,9 +18,12 @@ export const SettingsButton: React.FC = () => {
 
   const [queue, setQueue] = useState<JobFragment[]>([]);
 
+  // jobStatus (the Apollo result object) is a new reference on every render in
+  // Apollo 3.x, so using it as a dependency would reset the queue each render,
+  // wiping subscription updates. jobStatus.data is stable between fetches.
   useEffect(() => {
     setQueue(jobStatus.data?.jobQueue ?? []);
-  }, [jobStatus]);
+  }, [jobStatus.data]);
 
   useEffect(() => {
     if (!jobsSubscribe.data) {
@@ -31,19 +34,12 @@ export const SettingsButton: React.FC = () => {
 
     function updateJob() {
       setQueue((q) =>
-        q.map((j) => {
-          if (j.id === event.job.id) {
-            return event.job;
-          }
-
-          return j;
-        })
+        q.map((j) => (j.id === event.job.id ? event.job : j))
       );
     }
 
     switch (event.type) {
       case GQL.JobStatusUpdateType.Add:
-        // add to the end of the queue
         setQueue((q) => q.concat([event.job]));
         break;
       case GQL.JobStatusUpdateType.Remove:
@@ -55,6 +51,11 @@ export const SettingsButton: React.FC = () => {
     }
   }, [jobsSubscribe.data]);
 
+  const isSpinning = queue.some(
+    (j) =>
+      j.status === GQL.JobStatus.Running || j.status === GQL.JobStatus.Ready
+  );
+
   return (
     <IconButton
       className="minimal"
@@ -62,7 +63,7 @@ export const SettingsButton: React.FC = () => {
       title={intl.formatMessage({ id: "settings" })}
       color="inherit"
     >
-      <FontAwesomeIcon icon={faCog} spin={queue.length > 0} />
+      <FontAwesomeIcon icon={faCog} spin={isSpinning} />
     </IconButton>
   );
 };

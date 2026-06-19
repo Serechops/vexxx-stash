@@ -203,6 +203,7 @@ const SceneMarkerCardImage = PatchComponent(
           video={props.marker.stream ?? undefined}
           soundActive={configuration?.interface?.soundOnPreview ?? false}
           isPortrait={isPortrait()}
+          playOnHover
         />
         {maybeRenderSceneSpecsOverlay()}
       </>

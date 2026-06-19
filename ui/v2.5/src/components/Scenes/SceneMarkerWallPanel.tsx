@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import Box from "@mui/material/Box";
 import * as GQL from "src/core/generated-graphql";
 import Gallery, {
   GalleryI,
@@ -85,6 +86,7 @@ export const MarkerWallItem: React.FC<
         height,
       }}
     >
+      <div style={{ position: "relative", width, height, overflow: "hidden" }}>
       <ImagePreview
         loading="lazy"
         loop={video}
@@ -103,19 +105,41 @@ export const MarkerWallItem: React.FC<
           props.photo.onError?.(props.photo);
         }}
       />
-      <div className="lineargradient">
-        <footer className="wall-item-footer">
-          <Link to={props.photo.link} onClick={(e) => e.stopPropagation()}>
-            {title && (
+      <div
+        style={{
+          position: "absolute",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          background: "linear-gradient(transparent, rgba(0,0,0,0.75))",
+          padding: "4px 6px 5px",
+          pointerEvents: "none",
+        }}
+      >
+        <Link
+          to={props.photo.link}
+          onClick={(e) => e.stopPropagation()}
+          style={{ pointerEvents: "auto" }}
+        >
+          {title && (
+            <Box sx={{ fontSize: "0.72rem", lineHeight: 1.2 }}>
               <TruncatedText
                 text={title}
                 lineCount={1}
                 className="wall-item-title"
               />
-            )}
-            <TruncatedText text={tagNames.join(", ")} />
-          </Link>
-        </footer>
+            </Box>
+          )}
+          {tagNames.length > 0 && (
+            <Box sx={{ fontSize: "0.65rem", lineHeight: 1.2, opacity: 0.8 }}>
+              <TruncatedText
+                text={tagNames.join(", ")}
+                lineCount={1}
+              />
+            </Box>
+          )}
+        </Link>
+      </div>
       </div>
     </div>
   );

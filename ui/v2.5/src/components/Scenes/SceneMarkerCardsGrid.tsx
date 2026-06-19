@@ -26,7 +26,7 @@ export const SceneMarkerCardsGrid: React.FC<ISceneMarkerCardsGrid> = ({
 
   return (
     <div className="flex flex-wrap justify-center" ref={componentRef}>
-      {markers.map((marker, index) => (
+      {containerWidth > 0 && markers.map((marker, index) => (
         <SceneMarkerCard
           key={marker.id}
           cardWidth={cardWidth}

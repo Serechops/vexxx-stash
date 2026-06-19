@@ -1,20 +1,15 @@
-import { useMemo } from "react";
-import { Button, ButtonGroup, Box, Typography } from "@mui/material";
+import React, { useMemo, useState } from "react";
+import { Box, Checkbox as MuiCheckbox } from "@mui/material";
 import * as GQL from "src/core/generated-graphql";
-import { TagLink } from "../Shared/TagLink";
-import { HoverPopover } from "../Shared/HoverPopover";
 import NavUtils from "src/utils/navigation";
 import TextUtils from "src/utils/text";
 import { useConfigurationContext } from "src/hooks/Config";
-import { GridCard } from "../Shared/GridCard/GridCard";
-import LocalOfferIcon from "@mui/icons-material/LocalOffer";
 import { markerTitle } from "src/core/markers";
 import { Link } from "react-router-dom";
 import { objectTitle } from "src/core/files";
 import { PatchComponent } from "src/patch";
-import { PerformerPopoverButton } from "../Shared/PerformerPopoverButton";
-import { ScenePreview } from "./SceneCard";
-import { TruncatedText } from "../Shared/TruncatedText";
+import { HoverVideoPreview } from "./HoverVideoPreview";
+import cx from "classnames";
 
 interface ISceneMarkerCardProps {
   marker: GQL.SceneMarkerDataFragment;
@@ -28,216 +23,308 @@ interface ISceneMarkerCardProps {
   onSelectedChanged?: (selected: boolean, shiftKey: boolean) => void;
 }
 
-const SceneMarkerCardPopovers = PatchComponent(
-  "SceneMarkerCard.Popovers",
-  (props: ISceneMarkerCardProps) => {
-    function maybeRenderPerformerPopoverButton() {
-      if (props.marker.scene.performers.length <= 0) return;
-
-      return (
-        <PerformerPopoverButton
-          performers={props.marker.scene.performers}
-          linkType="scene_marker"
-        />
-      );
-    }
-
-    function renderTagPopoverButton() {
-      const popoverContent: React.ReactElement[] = [];
-
-      if (props.marker.primary_tag) {
-        popoverContent.push(
-          <TagLink
-            key={props.marker.primary_tag.id}
-            tag={props.marker.primary_tag}
-            linkType="scene_marker"
-          />
-        );
-      }
-
-      props.marker.tags.map((tag) =>
-        popoverContent.push(
-          <TagLink key={tag.id} tag={tag} linkType="scene_marker" />
-        )
-      );
-
-      return (
-        <HoverPopover
-          className="tag-count"
-          placement="bottom"
-          content={popoverContent}
-        >
-          <Button className="minimal" variant="text" size="small">
-            <LocalOfferIcon fontSize="small" />
-            <span>{popoverContent.length}</span>
-          </Button>
-        </HoverPopover>
-      );
-    }
-
-    function renderPopoverButtonGroup() {
-      if (!props.compact) {
-        return (
-          <>
-            <Box component="hr" sx={{ my: 1, borderColor: "rgba(255, 255, 255, 0.05)" }} />
-            <ButtonGroup
-              sx={{
-                display: "flex",
-                flexWrap: "wrap",
-                justifyContent: "center",
-                mb: "10px",
-                "& .MuiButton-root": {
-                  pb: "3px",
-                  pt: "3px",
-                },
-                "& .fa-icon": {
-                  mr: "7px",
-                }
-              }}
-            >
-              {maybeRenderPerformerPopoverButton()}
-              {renderTagPopoverButton()}
-            </ButtonGroup>
-          </>
-        );
-      }
-    }
-
-    return <>{renderPopoverButtonGroup()}</>;
-  }
-);
-
-const SceneMarkerCardDetails = PatchComponent(
-  "SceneMarkerCard.Details",
-  (props: ISceneMarkerCardProps) => {
-    return (
-      <Box
-        className="scene-marker-card__details"
-        sx={{
-          mb: "1rem"
-        }}
-      >
-        <Box
-          component="span"
-          className="scene-marker-card__time"
-          sx={{
-            color: "text.secondary",
-            fontSize: "0.875rem",
-            display: "block",
-            mb: 0.5
-          }}
-        >
-          {TextUtils.formatTimestampRange(
-            props.marker.seconds,
-            props.marker.end_seconds ?? undefined
-          )}
-        </Box>
-        <TruncatedText
-          className="scene-marker-card__scene"
-          lineCount={3}
-          text={
-            <Link to={NavUtils.makeSceneMarkersSceneUrl(props.marker.scene)}>
-              {objectTitle(props.marker.scene)}
-            </Link>
-          }
-        />
-      </Box>
-    );
-  }
-);
-
-const SceneMarkerCardImage = PatchComponent(
-  "SceneMarkerCard.Image",
-  (props: ISceneMarkerCardProps) => {
-    const { configuration } = useConfigurationContext();
-
-    const file = useMemo(
-      () =>
-        props.marker.scene.files.length > 0
-          ? props.marker.scene.files[0]
-          : undefined,
-      [props.marker.scene]
-    );
-
-    function isPortrait() {
-      const width = file?.width ? file.width : 0;
-      const height = file?.height ? file.height : 0;
-      return height > width;
-    }
-
-    function maybeRenderSceneSpecsOverlay() {
-      return (
-        <Box
-          className="scene-specs-overlay"
-          sx={{
-            bottom: "0.5rem",
-            color: "#fff",
-            display: "block",
-            fontWeight: 400,
-            letterSpacing: "-0.03rem",
-            position: "absolute",
-            right: "0.5rem",
-            textShadow: "0 0 3px #000",
-            fontSize: "0.75rem",
-            backgroundColor: "rgba(0, 0, 0, 0.6)",
-            px: 0.5,
-            borderRadius: "2px",
-            zIndex: 5
-          }}
-        >
-          {props.marker.end_seconds && (
-            <Box component="span" className="overlay-duration">
-              {TextUtils.secondsToTimestamp(
-                props.marker.end_seconds - props.marker.seconds
-              )}
-            </Box>
-          )}
-        </Box>
-      );
-    }
-
-    return (
-      <>
-        <ScenePreview
-          image={props.marker.screenshot ?? undefined}
-          video={props.marker.stream ?? undefined}
-          soundActive={configuration?.interface?.soundOnPreview ?? false}
-          isPortrait={isPortrait()}
-          playOnHover
-        />
-        {maybeRenderSceneSpecsOverlay()}
-      </>
-    );
-  }
-);
-
 export const SceneMarkerCard = PatchComponent(
   "SceneMarkerCard",
   (props: ISceneMarkerCardProps) => {
-    function zoomIndex() {
-      if (!props.compact && props.zoomIndex !== undefined) {
-        return `zoom-${props.zoomIndex}`;
-      }
+    const { marker } = props;
+    const { configuration } = useConfigurationContext();
+    const [isHovered, setIsHovered] = useState(false);
 
-      return "";
+    const file = useMemo(
+      () => (marker.scene.files.length > 0 ? marker.scene.files[0] : undefined),
+      [marker.scene]
+    );
+
+    const isPortrait = useMemo(() => {
+      const w = file?.width ?? 0;
+      const h = file?.height ?? 0;
+      return h > w;
+    }, [file]);
+
+    const title = markerTitle({ ...marker, primary_tag: marker.primary_tag ?? null });
+    const timestamp = TextUtils.formatTimestampRange(
+      marker.seconds,
+      marker.end_seconds ?? undefined
+    );
+    const duration = marker.end_seconds
+      ? TextUtils.secondsToTimestamp(marker.end_seconds - marker.seconds)
+      : null;
+
+    const allTags = [
+      ...(marker.primary_tag ? [marker.primary_tag] : []),
+      ...marker.tags,
+    ];
+
+    function onSelectChange(e: React.MouseEvent) {
+      e.stopPropagation();
+      props.onSelectedChanged?.(!props.selected, e.shiftKey);
     }
 
+    const handleCardClick = (e: React.MouseEvent) => {
+      if (props.selecting) {
+        onSelectChange(e);
+        e.preventDefault();
+      }
+    };
+
     return (
-      <GridCard
-        className={`scene-marker-card ${zoomIndex()}`}
-        url={NavUtils.makeSceneMarkerUrl(props.marker)}
-        title={markerTitle({ ...props.marker, primary_tag: props.marker.primary_tag ?? null })}
-        width={props.cardWidth}
-        linkClassName="scene-marker-card-link"
-        thumbnailSectionClassName="video-section"
-        resumeTime={props.marker.seconds}
-        image={<SceneMarkerCardImage {...props} />}
-        details={<SceneMarkerCardDetails {...props} />}
-        popovers={<SceneMarkerCardPopovers {...props} />}
-        selected={props.selected}
-        selecting={props.selecting}
-        onSelectedChanged={props.onSelectedChanged}
-      />
+      <Box
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        onClick={handleCardClick}
+        sx={{
+          position: "relative",
+          borderRadius: "8px",
+          overflow: "hidden",
+          backgroundColor: "#000",
+          transition: "all 0.3s ease",
+          height: "100%",
+          width: props.cardWidth ? props.cardWidth : "100%",
+          "&:hover": {
+            transform: "scale(1.02)",
+            boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
+            zIndex: 20,
+            "& .marker-overlay-content": {
+              background:
+                "linear-gradient(to top, rgba(0,0,0,0.95) 20%, rgba(0,0,0,0.7) 60%, transparent 100%)",
+            },
+          },
+          "&.selected": {
+            boxShadow: (theme: any) => `0 0 0 3px ${theme.palette.primary.main}`,
+          },
+        }}
+        className={cx("scene-marker-card", { selected: props.selected })}
+      >
+        <Link
+          to={props.selecting ? "#" : NavUtils.makeSceneMarkerUrl(marker)}
+          style={{ textDecoration: "none", color: "inherit" }}
+          onClick={(e) => props.selecting && e.preventDefault()}
+        >
+          {/* Media */}
+          <Box
+            sx={{
+              position: "relative",
+              width: "100%",
+              aspectRatio: "16/9",
+              "& .scene-card-preview-image": {
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                transition: "opacity 0.3s",
+                "&.hidden": { opacity: 0 },
+              },
+              "& .scene-card-preview-video": {
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                "&.hidden": { display: "none" },
+              },
+            }}
+          >
+            <HoverVideoPreview
+              image={marker.screenshot ?? undefined}
+              video={marker.stream ?? undefined}
+              isHovered={isHovered}
+              soundActive={configuration?.interface?.soundOnPreview ?? false}
+              isPortrait={isPortrait}
+            />
+            {duration && (
+              <Box
+                sx={{
+                  position: "absolute",
+                  bottom: "0.5rem",
+                  right: "0.5rem",
+                  fontSize: "0.75rem",
+                  fontWeight: 400,
+                  color: "#fff",
+                  backgroundColor: "rgba(0,0,0,0.6)",
+                  px: 0.5,
+                  borderRadius: "2px",
+                  zIndex: 5,
+                  letterSpacing: "-0.03rem",
+                  textShadow: "0 0 3px #000",
+                }}
+              >
+                {duration}
+              </Box>
+            )}
+          </Box>
+
+          {/* Gradient overlay */}
+          <Box
+            className="marker-overlay-content"
+            sx={{
+              position: "absolute",
+              bottom: 0,
+              left: 0,
+              right: 0,
+              background:
+                "linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.4) 70%, transparent 100%)",
+              padding: "12px",
+              color: "#fff",
+              transition: "background 0.3s ease",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "flex-end",
+            }}
+          >
+            {/* Marker title + timestamp */}
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "flex-start",
+                mb: "2px",
+              }}
+            >
+              <Box
+                sx={{
+                  fontSize: "1rem",
+                  fontWeight: 700,
+                  textShadow: "0 2px 4px rgba(0,0,0,0.8)",
+                  lineHeight: 1.2,
+                  display: "-webkit-box",
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: "vertical",
+                  overflow: "hidden",
+                  mr: "8px",
+                }}
+              >
+                {title || timestamp}
+              </Box>
+              {title && (
+                <Box
+                  sx={{
+                    fontSize: "0.8rem",
+                    color: "rgba(255,255,255,0.7)",
+                    whiteSpace: "nowrap",
+                    flexShrink: 0,
+                  }}
+                >
+                  {timestamp}
+                </Box>
+              )}
+            </Box>
+
+            {/* Scene link */}
+            <Box
+              sx={{
+                fontSize: "0.8rem",
+                color: "rgba(255,255,255,0.7)",
+                mb: "4px",
+                display: "-webkit-box",
+                WebkitLineClamp: 1,
+                WebkitBoxOrient: "vertical",
+                overflow: "hidden",
+              }}
+              onClick={(e: React.MouseEvent) => e.stopPropagation()}
+            >
+              <Link
+                to={NavUtils.makeSceneMarkersSceneUrl(marker.scene)}
+                style={{ color: "rgba(255,255,255,0.7)", textDecoration: "none" }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {objectTitle(marker.scene)}
+              </Link>
+            </Box>
+
+            {/* Slide-up on hover: performers + tags */}
+            <Box
+              className={cx("marker-slide-content", { visible: isHovered })}
+              sx={{
+                maxHeight: 0,
+                overflow: "hidden",
+                opacity: 0,
+                transition: "all 0.3s ease-in-out",
+                "&.visible": {
+                  maxHeight: "100px",
+                  opacity: 1,
+                  mt: "6px",
+                },
+              }}
+            >
+              {marker.scene.performers.length > 0 && (
+                <Box sx={{ display: "flex", flexWrap: "wrap", gap: "4px", mb: "4px" }}>
+                  {marker.scene.performers.slice(0, 4).map((p) => (
+                    <Box
+                      component="span"
+                      key={p.id}
+                      sx={{
+                        background: "rgba(255,255,255,0.2)",
+                        backdropFilter: "blur(4px)",
+                        padding: "2px 8px 2px 4px",
+                        borderRadius: "12px",
+                        fontSize: "0.75rem",
+                        fontWeight: 600,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                        "& img": {
+                          width: "16px",
+                          height: "16px",
+                          borderRadius: "50%",
+                          objectFit: "cover",
+                        },
+                      }}
+                    >
+                      {p.image_path && <img src={p.image_path} alt="" />}
+                      {p.name}
+                    </Box>
+                  ))}
+                </Box>
+              )}
+              {allTags.length > 0 && (
+                <Box sx={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                  {allTags.slice(0, 5).map((t) => (
+                    <Box
+                      component="span"
+                      key={t.id}
+                      sx={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.6)" }}
+                    >
+                      #{t.name}
+                    </Box>
+                  ))}
+                </Box>
+              )}
+            </Box>
+          </Box>
+        </Link>
+
+        {/* Selection checkbox */}
+        {props.onSelectedChanged && (
+          <Box
+            sx={{
+              position: "absolute",
+              top: "0.5rem",
+              left: "0.5rem",
+              zIndex: 30,
+              opacity: props.selecting || props.selected ? 1 : 0,
+              transition: "opacity 0.2s ease",
+              ".scene-marker-card:hover &": { opacity: 1 },
+            }}
+          >
+            <MuiCheckbox
+              className="card-check mousetrap"
+              checked={props.selected ?? false}
+              onChange={() => props.onSelectedChanged!(!props.selected, false)}
+              onClick={(e: React.MouseEvent<HTMLButtonElement>) => e.stopPropagation()}
+              size="small"
+              sx={{
+                color: "grey.400",
+                bgcolor: "rgba(24,24,27,0.8)",
+                backdropFilter: "blur(4px)",
+                borderRadius: 1,
+                p: 0.5,
+                "&.Mui-checked": { color: "primary.main" },
+                "&:hover": { bgcolor: "rgba(24,24,27,0.95)" },
+              }}
+            />
+          </Box>
+        )}
+      </Box>
     );
   }
 );

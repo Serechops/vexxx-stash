@@ -120,6 +120,12 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
 
+  // Live scene state — starts as the prop scene and is replaced on in-VR
+  // scene switches without touching the XR session or rebuilding the dome.
+  const [liveScene, setLiveScene] = useState<GQL.SceneDataFragment>(scene);
+  const liveSceneRef = useRef<GQL.SceneDataFragment>(scene);
+  liveSceneRef.current = liveScene;
+
   const projectionRef = useRef(projection);
   projectionRef.current = projection;
 
@@ -134,22 +140,23 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
   // won't pause". This mirrors ScenePlayer.tsx's `scene.id === sceneId.current`
   // guard.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const sources = useMemo(() => candidateSources(scene), [scene.id]);
+  const sources = useMemo(() => candidateSources(liveScene), [liveScene.id]);
   const loadedSrcRef = useRef<string | null>(null);
 
   // Wire interactive sync + activity tracking to the live video element.
-  useVRPlayback({ scene, video: videoEl });
+  useVRPlayback({ scene: liveScene, video: videoEl });
 
   const markers = useMemo<IVRMarker[]>(
     () =>
-      [...scene.scene_markers]
+      [...liveScene.scene_markers]
         .sort((a, b) => a.seconds - b.seconds)
         .map((m) => ({
           title: markerTitle(m),
           seconds: m.seconds,
           endSeconds: m.end_seconds ?? null,
         })),
-    [scene.scene_markers]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [liveScene.id]
   );
   const markersRef = useRef(markers);
   markersRef.current = markers;
@@ -159,18 +166,18 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
   // rebuild it; it's only read once when the manager is created.
   const info = useMemo<IVRSceneInfo>(
     () => ({
-      title: scene.title ?? "",
-      performers: scene.performers.map((p) => ({
+      title: liveScene.title ?? "",
+      performers: liveScene.performers.map((p) => ({
         name: p.name,
         imageUrl: p.image_path ?? null,
       })),
-      tags: scene.tags.map((t) => t.name),
-      markers: [...scene.scene_markers]
+      tags: liveScene.tags.map((t) => t.name),
+      markers: [...liveScene.scene_markers]
         .sort((a, b) => a.seconds - b.seconds)
         .map((m) => ({ title: markerTitle(m), seconds: m.seconds })),
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [scene.id]
+    [liveScene.id]
   );
   const infoRef = useRef(info);
   infoRef.current = info;
@@ -216,9 +223,8 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
   }, []);
 
   const getFunscriptLoaded = useCallback((): boolean => {
-    return !!(scene.interactive && scene.paths.funscript);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scene.interactive, scene.paths.funscript]);
+    return !!(liveSceneRef.current.interactive && liveSceneRef.current.paths.funscript);
+  }, []);
 
   // No array copy — walk markers backwards. Called every render frame.
   const getChapterTitle = useCallback((): string | null => {
@@ -310,7 +316,7 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
   }, []);
 
   // ── VR Scenes panel data ───────────────────────────────────────────────
-  // Exclude the current scene from the list so the user sees other VR content.
+  // Exclude the currently-playing scene from the browser list.
   const scenesRef = useRef<IVRSceneEntry[]>([]);
   useEffect(() => {
     let cancelled = false;
@@ -333,7 +339,7 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
       .then((result) => {
         if (cancelled) return;
         scenesRef.current = result.data.findScenes.scenes
-          .filter((s) => s.id !== scene.id)
+          .filter((s) => s.id !== liveSceneRef.current.id)
           .slice(0, 50)
           .map((s) => ({
             id: s.id,
@@ -362,6 +368,74 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
       history.push(`/scenes/${sceneId}`);
     },
     [history]
+  );
+
+  // Switch to a different scene inside the active XR session: swap the video
+  // source, update the info panel and scenes list, but never touch the session.
+  const handleSwitchScene = useCallback(
+    (sceneId: string) => {
+      getClient()
+        .query<GQL.FindSceneQuery>({
+          query: GQL.FindSceneDocument,
+          variables: { id: sceneId },
+        })
+        .then((result) => {
+          const next = result.data?.findScene;
+          if (!next) return;
+
+          const v = videoRef.current;
+          if (v) {
+            v.pause();
+            const nextSrc = next.paths.stream ?? next.sceneStreams[0]?.url;
+            if (nextSrc) {
+              loadedSrcRef.current = nextSrc;
+              sourceIdx.current = 0;
+              v.src = nextSrc;
+              v.load();
+              v.play().catch(() => undefined);
+            }
+          }
+
+          const nextInfo: IVRSceneInfo = {
+            title: next.title ?? "",
+            performers: next.performers.map((p) => ({
+              name: p.name,
+              imageUrl: p.image_path ?? null,
+            })),
+            tags: next.tags.map((t) => t.name),
+            markers: [...next.scene_markers]
+              .sort((a, b) => a.seconds - b.seconds)
+              .map((m) => ({ title: markerTitle(m), seconds: m.seconds })),
+          };
+          managerRef.current?.updateSceneInfo(nextInfo);
+          managerRef.current?.updateCurrentSceneId(next.id);
+          // Close the Browse panels so the user lands back in the immersive view.
+          managerRef.current?.closeBrowse();
+
+          // Update the scenes browser: remove the new scene, add the old one back.
+          const prev = liveSceneRef.current;
+          const nextScenesList = [
+            {
+              id: prev.id,
+              title: prev.title ?? `Scene ${prev.id}`,
+              thumbnailUrl: prev.paths.screenshot ?? null,
+              streamUrl: prev.paths.stream ?? null,
+              studioName: prev.studio?.name ?? null,
+              performers: prev.performers.map((p) => p.name),
+            },
+            ...scenesRef.current.filter((s) => s.id !== next.id),
+          ];
+          scenesRef.current = nextScenesList;
+          // Push the refreshed list to the manager so it doesn't show a stale
+          // cache — the manager only reads getScenes() on first Browse open.
+          managerRef.current?.updateScenes(nextScenesList);
+
+          // Update live scene state — this re-keys sources/markers/info memos.
+          setLiveScene(next as GQL.SceneDataFragment);
+        })
+        .catch(() => undefined);
+    },
+    []
   );
 
   // Central action handler — the single place that mutates video / projection.
@@ -433,6 +507,9 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
           managerRef.current?.end();
           break;
         // ── VR scenes panel ──
+        case "switchScene":
+          handleSwitchScene(a.sceneId);
+          break;
         case "navigateToScene":
           handleNavigateToScene(a.sceneId);
           break;
@@ -462,7 +539,7 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
           break;
       }
     },
-    [seekToMarker, toggleCaptions, onNext, onPrevious, handleNavigateToScene]
+    [seekToMarker, toggleCaptions, onNext, onPrevious, handleNavigateToScene, handleSwitchScene]
   );
   const actionRef = useRef(handleAction);
   actionRef.current = handleAction;
@@ -549,7 +626,12 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
     managerRef.current = manager;
 
     manager.init(session)
-      .then(() => { if (!disposed) setIsInitializing(false); })
+      .then(() => {
+        if (!disposed) {
+          setIsInitializing(false);
+          manager.updateCurrentSceneId(liveSceneRef.current.id);
+        }
+      })
       .catch((e) => {
         if (!disposed) {
           setError(`Failed to start VR session: ${e?.message ?? e}`);
@@ -572,29 +654,29 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
   // Load VTT thumbnails for the scrubber-hover preview (read via the manager's
   // getThumbnail closure each frame, so no manager re-creation is needed).
   useEffect(() => {
-    if (!scene.paths.vtt) {
+    if (!liveScene.paths.vtt) {
       thumbnailsRef.current = null;
       return;
     }
     const t = new VRThumbnails();
     thumbnailsRef.current = t;
-    t.load(scene.paths.vtt).catch(() => undefined);
+    t.load(liveScene.paths.vtt).catch(() => undefined);
     return () => {
       t.dispose();
       if (thumbnailsRef.current === t) thumbnailsRef.current = null;
     };
-  }, [scene.paths.vtt]);
+  }, [liveScene.paths.vtt]);
 
   // Generate the funscript heatmap strip for the scrubber.
   useEffect(() => {
     const manager = managerRef.current;
     if (!manager) return;
-    if (!scene.interactive || !scene.paths.funscript) {
+    if (!liveScene.interactive || !liveScene.paths.funscript) {
       manager.setHeatmap(null);
       return;
     }
     let cancelled = false;
-    fetch(scene.paths.funscript)
+    fetch(liveScene.paths.funscript)
       .then((r) => r.json())
       .then((data) => {
         if (cancelled) return;
@@ -607,20 +689,20 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [scene.interactive, scene.paths.funscript, videoEl]);
+  }, [liveScene.interactive, liveScene.paths.funscript, videoEl]);
 
   const captionTracks = useMemo(() => {
-    if (!scene.captions) return [];
-    return scene.captions.map((c) => {
+    if (!liveScene.captions) return [];
+    return liveScene.captions.map((c) => {
       const lang = c.language_code;
       const label = `${languageMap.get(lang) ?? lang} (${c.caption_type})`;
       return {
-        src: `${scene.paths.caption}?lang=${lang}&type=${c.caption_type}`,
+        src: `${liveScene.paths.caption}?lang=${lang}&type=${c.caption_type}`,
         lang,
         label,
       };
     });
-  }, [scene.captions, scene.paths.caption]);
+  }, [liveScene.captions, liveScene.paths.caption]);
 
   return (
     <Box
@@ -646,7 +728,7 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
         crossOrigin="anonymous"
         playsInline
         preload="auto"
-        poster={scene.paths.screenshot ?? undefined}
+        poster={liveScene.paths.screenshot ?? undefined}
         style={{ display: "none" }}
       >
         {captionTracks.map((t) => (

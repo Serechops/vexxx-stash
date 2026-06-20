@@ -67,6 +67,8 @@ export type VRControlAction =
   | { type: "browseSetTab"; tab: "info" | "scenes" }
   /** Navigate to a different scene from the VR scenes panel. */
   | { type: "navigateToScene"; sceneId: string }
+  /** Switch to a different scene while staying in the active XR session. */
+  | { type: "switchScene"; sceneId: string }
   // ── Handy interactive device ───────────────────────────────────────────
   | { type: "handyToggle" }
   | { type: "handyPatternStart"; patternId: string }

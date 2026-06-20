@@ -394,6 +394,42 @@ export class XRSessionManager {
     this.buildDome();
   }
 
+  /** Update the info panel with new scene metadata after an in-VR scene switch. */
+  updateSceneInfo(info: IVRSceneInfo) {
+    if (this.infoPanel) {
+      // Remove the old object from the scene BEFORE disposing its GPU resources,
+      // otherwise the disposed mesh lingers in uiGroup for one frame and causes
+      // the "flicker between old and new scene info" visual glitch.
+      this.uiGroup.remove(this.infoPanel.object);
+      this.infoPanel.dispose();
+      const newPane = new VRInfoPanel(info);
+      this.uiGroup.add(newPane.object);
+      this.layoutSidePanel(newPane, "right");
+      newPane.setRenderState(this.browseOpen ? this.uiOpacity : 0);
+      this.infoPanel = newPane;
+      this.rebuildBrowseHittables();
+    }
+  }
+
+  /** Refresh the scenes browser list (called after in-VR scene switch). */
+  updateScenes(scenes: IVRSceneEntry[]) {
+    this.currentScenes = scenes;
+    this.scenesPanel?.setScenes(scenes);
+  }
+
+  /** Close the Browse side panels (called after an in-VR scene switch). */
+  closeBrowse() {
+    if (this.browseOpen) {
+      this.browseOpen = false;
+      this.rebuildBrowseHittables();
+    }
+  }
+
+  /** Tell the scenes panel which scene is currently playing (for the Now Playing badge). */
+  updateCurrentSceneId(id: string) {
+    this.scenesPanel?.setCurrentSceneId(id);
+  }
+
   setHeatmap(cssUrl: string | null) {
     this.panel.setHeatmap(cssUrl);
   }

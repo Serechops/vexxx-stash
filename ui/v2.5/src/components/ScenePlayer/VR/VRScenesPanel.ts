@@ -44,6 +44,7 @@ export class VRScenesPanel extends VRCanvasPanel {
   private scroll = 0; // vertical scroll offset, px
   private maxScroll = 0;
   private previewVideo: HTMLVideoElement | null = null;
+  private currentSceneId: string | null = null;
 
   // Drag/tap resolution state for the current trigger press.
   private pressY: number | null = null;
@@ -72,6 +73,14 @@ export class VRScenesPanel extends VRCanvasPanel {
     this.scenes = scenes;
     this.scroll = 0;
     this.markDirty();
+  }
+
+  /** Mark which scene is currently playing so its card gets the Now Playing badge. */
+  setCurrentSceneId(id: string | null) {
+    if (id !== this.currentSceneId) {
+      this.currentSceneId = id;
+      this.markDirty();
+    }
   }
 
   /** Provide the preview video element; pass null to revert to screenshot. */
@@ -114,7 +123,7 @@ export class VRScenesPanel extends VRCanvasPanel {
     const region = this.regionAt(uv);
     if (region && region.id === downId && region.id.startsWith("scene:")) {
       return {
-        type: "navigateToScene",
+        type: "switchScene",
         sceneId: region.id.slice("scene:".length),
       };
     }
@@ -188,6 +197,7 @@ export class VRScenesPanel extends VRCanvasPanel {
     const { ctx } = this;
     const scene = this.scenes[i];
     const hovered = this.hoveredId === `scene:${scene.id}`;
+    const isPlaying = this.currentSceneId === scene.id;
 
     // Card base — glass placeholder behind the thumbnail.
     this.roundRect(x, y, CARD_W, CARD_H, 12);
@@ -240,12 +250,30 @@ export class VRScenesPanel extends VRCanvasPanel {
     ctx.fillRect(x, overlayY, CARD_W, overlayH);
     ctx.restore();
 
-    // Hover border (drawn after overlays so it stays visible).
-    if (hovered) {
+    // Card border: gold for now-playing, blue for hover.
+    if (isPlaying || hovered) {
       this.roundRect(x, y, CARD_W, CARD_H, 12);
       ctx.lineWidth = 2;
-      ctx.strokeStyle = "rgba(96,165,250,0.70)";
+      ctx.strokeStyle = isPlaying
+        ? "rgba(250,200,80,0.85)"
+        : "rgba(96,165,250,0.70)";
       ctx.stroke();
+    }
+
+    // "Now Playing" badge — top-left pill.
+    if (isPlaying) {
+      const badgeX = x + 10;
+      const badgeY = y + 10;
+      const badgeW = 108;
+      const badgeH = 28;
+      this.roundRect(badgeX, badgeY, badgeW, badgeH, badgeH / 2);
+      ctx.fillStyle = "rgba(250,200,80,0.90)";
+      ctx.fill();
+      ctx.font = "700 16px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "rgba(30,20,0,0.95)";
+      ctx.fillText("NOW PLAYING", badgeX + badgeW / 2, badgeY + badgeH / 2 + 1);
     }
 
     // Title + studio inside the overlay.

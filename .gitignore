@@ -71,3 +71,4 @@ dist
 stash-go.sqlite
 stash-go.sqlite-shm
 stash-go.sqlite-wal
+docs/# Meta Design Graphic Rendering Pipeline.md

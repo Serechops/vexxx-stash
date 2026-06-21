@@ -26,6 +26,7 @@ import * as THREE from "three";
 import {
   IProjectionSettings,
   IUVTransform,
+  StereoMode,
   FISHEYE190_MAX_THETA,
   horizontalCoverage,
   isStereo,
@@ -82,6 +83,11 @@ const THUMB_CANVAS_H = 270;
  *   nofov      — disable fixed-foveated rendering
  *   hideui     — keep the whole UI hidden (isolates panel rendering)
  *   noautohide — keep the UI permanently visible (isolates the auto-hide fade)
+ *   nomedialayer — force the shader-dome texture path instead of the WebXR
+ *                media layer (A/B the compositor-sampled video on-device)
+ *   opaque     — build the renderer opaque (alpha off, opaque black clear), i.e.
+ *                the pre-media-layer behaviour. Use with `nomedialayer` to fully
+ *                restore the original render path for regression A/B.
  */
 function readVrDebug(): Set<string> {
   const out = new Set<string>();
@@ -99,6 +105,18 @@ function readVrDebug(): Set<string> {
     /* SSR / blocked storage — ignore */
   }
   return out;
+}
+
+/** Map our stereo-packing mode to the WebXR composition-layer layout. */
+function layoutForStereo(stereo: StereoMode): XRLayerLayout {
+  switch (stereo) {
+    case "sbs":
+      return "stereo-left-right";
+    case "tb":
+      return "stereo-top-bottom";
+    default:
+      return "mono";
+  }
 }
 
 export interface IXRSessionManagerOptions {
@@ -152,6 +170,16 @@ export class XRSessionManager {
   private session: XRSession | null = null;
   private projection: IProjectionSettings;
   private domeMeshes: THREE.Mesh[] = [];
+  // WebXR Media Layers — the default, compositor-sampled video path ("max
+  // quality": the headset compositor samples the video directly, ~halving GPU
+  // vs the eye-buffer dome). Used for flat/180/360; the shader dome above is
+  // retained only for fisheye190 (no composition-layer type can un-distort dual
+  // fisheye). null on devices without the Layers API → we keep the dome path.
+  private mediaBinding: XRMediaBinding | null = null;
+  private mediaLayer: XRQuadLayer | XREquirectLayer | null = null;
+  private usingMediaLayer = false;
+  // Recenter yaw applied to the video, preserved across media-layer rebuilds.
+  private videoYaw = 0;
   private opts: IXRSessionManagerOptions;
   private debug: Set<string>;
   private onSessionEnd = () => this.handleEnd();
@@ -210,12 +238,20 @@ export class XRSessionManager {
       console.info("[VR debug] flags:", [...this.debug].join(", "));
     }
 
+    // Transparent context so three's XR projection layer (UI + controllers) can
+    // be alpha-composited ON TOP of the WebXR media video layer. The clear ALPHA
+    // is set per-frame-path in syncRenderStateLayers: 0 only while the media
+    // layer is actually compositing beneath, else opaque black — a transparent
+    // buffer makes the Quest compositor show black tiles in disoccluded regions
+    // when it reprojects a late frame, so we keep the dome/lobby paths opaque.
+    // The `opaque` debug flag forces the pre-media-layer renderer for A/B.
+    const transparent = !this.debug.has("opaque");
     this.renderer = new THREE.WebGLRenderer({
       antialias: !this.debug.has("noaa"),
-      alpha: false,
+      alpha: transparent,
     });
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-    this.renderer.setClearColor(0x000000, 1);
+    this.renderer.setClearColor(0x000000, transparent ? 0 : 1);
     this.renderer.xr.enabled = true;
     this.renderer.xr.setReferenceSpaceType("local-floor");
     this.renderer.domElement.style.display = "none";
@@ -471,12 +507,15 @@ export class XRSessionManager {
     } catch {
       /* not supported — ignore */
     }
+    // The session, reference space and three's projection layer all exist now,
+    // so pick the video path: WebXR media layer (default) or the shader dome.
+    this.rebuildVideoProjection();
     this.renderer.setAnimationLoop(this.render);
   }
 
   setProjection(projection: IProjectionSettings) {
     this.projection = projection;
-    this.buildDome();
+    this.rebuildVideoProjection();
   }
 
   /** Update the info panel with new scene metadata after an in-VR scene switch. */
@@ -541,6 +580,9 @@ export class XRSessionManager {
       // Restore the video screen meshes for the just-launched scene.
       for (const m of this.domeMeshes) m.visible = true;
     }
+    // Drop/restore the media video layer from the compositor render state so the
+    // home wall isn't backed by the (now paused) scene video while in the lobby.
+    this.syncRenderStateLayers();
     this.rebuildBrowseHittables();
     this.lastActivity = performance.now();
   }
@@ -681,7 +723,18 @@ export class XRSessionManager {
   recenter() {
     const cam = this.renderer.xr.getCamera();
     this.tmpEuler.setFromQuaternion(cam.quaternion, "YXZ");
-    this.videoGroup.rotation.y = this.tmpEuler.y;
+    this.videoYaw = this.tmpEuler.y;
+    // Shader-dome path: rotate the mesh group.
+    this.videoGroup.rotation.y = this.videoYaw;
+    // Media-layer path: rotate the equirect layer's transform (the flat quad is
+    // a fixed screen in front of the viewer and isn't recentred).
+    if (
+      this.usingMediaLayer &&
+      this.mediaLayer &&
+      this.projection.fov !== "flat"
+    ) {
+      (this.mediaLayer as XREquirectLayer).transform = this.equirectTransform();
+    }
   }
 
   end() {
@@ -791,6 +844,197 @@ export class XRSessionManager {
       return;
     }
     this.opts.onAction(action);
+  }
+
+  // --- video projection (media layer vs shader dome) ------------------------
+
+  /** Is the WebXR Media Binding usable in this build/runtime? */
+  private mediaLayersAvailable(): boolean {
+    return (
+      !this.debug.has("nomedialayer") &&
+      typeof XRMediaBinding !== "undefined" &&
+      typeof XRRigidTransform !== "undefined"
+    );
+  }
+
+  /**
+   * Is three driving the session through the WebXR Layers API (an
+   * `XRProjectionLayer`)? Only then can we add a media layer beneath it; on
+   * legacy `XRWebGLLayer` devices we must leave the render state to three and
+   * fall back to the shader-dome path.
+   */
+  private layersApiActive(): boolean {
+    const bl = this.renderer.xr.getBaseLayer();
+    return (
+      typeof XRProjectionLayer !== "undefined" && bl instanceof XRProjectionLayer
+    );
+  }
+
+  /** Whether this projection should use the compositor media-layer path. */
+  private wantsMediaLayer(p: IProjectionSettings): boolean {
+    // Dual-fisheye can't be expressed as a composition layer — keep the shader
+    // dome for it. Everything else (flat / 180 / 360, mono or stereo) goes
+    // through the media layer when the runtime supports it.
+    return (
+      p.fov !== "fisheye190" &&
+      this.mediaLayersAvailable() &&
+      this.layersApiActive()
+    );
+  }
+
+  /** Rigid transform encoding the current recenter yaw for the equirect layer. */
+  private equirectTransform(): XRRigidTransform {
+    const q = new THREE.Quaternion().setFromEuler(
+      new THREE.Euler(0, this.videoYaw, 0, "YXZ")
+    );
+    return new XRRigidTransform(
+      { x: 0, y: 0, z: 0 },
+      { x: q.x, y: q.y, z: q.z, w: q.w }
+    );
+  }
+
+  /**
+   * Choose and (re)build the active video path. Media layer is the default;
+   * fisheye190 (and Layers-less devices) fall back to the shader dome. Called
+   * on session entry and whenever the projection settings change in-headset.
+   */
+  private rebuildVideoProjection() {
+    let mediaOk = false;
+    if (this.session && this.wantsMediaLayer(this.projection)) {
+      try {
+        this.buildMediaLayer();
+        mediaOk = !!this.mediaLayer;
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error("[VR] media layer build failed — falling back to dome", err);
+        this.destroyMediaLayer();
+      }
+    }
+    if (mediaOk) {
+      // Media layer is live → drop the eye-buffer dome meshes entirely.
+      this.clearDome();
+      this.usingMediaLayer = true;
+    } else {
+      // Fisheye, Layers-less runtime, or a build failure → shader dome. Built
+      // ONLY once we know the media path won't be used, so we never end up with
+      // neither path (which renders as a black void).
+      this.destroyMediaLayer();
+      this.usingMediaLayer = false;
+      this.buildDome();
+    }
+    // Diagnostic (visible over chrome://inspect) — which video path won and why.
+    // Gated behind any vrDebug flag so production stays quiet.
+    if (this.debug.size) {
+      // eslint-disable-next-line no-console
+      console.info(
+        `[VR] video path = ${this.usingMediaLayer ? "MEDIA-LAYER" : "shader-dome"} ` +
+          `(fov=${this.projection.fov}, stereo=${this.projection.stereo}, ` +
+          `swap=${this.projection.swapEyes}, layersApi=${this.layersApiActive()}, ` +
+          `mediaBinding=${typeof XRMediaBinding !== "undefined"})`
+      );
+    }
+    this.syncRenderStateLayers();
+  }
+
+  /**
+   * Create the compositor video layer for the current projection: an equirect
+   * layer for 180/360 (with the stereo layout + swap handled natively by the
+   * compositor) or a quad layer for flat content. The viewer's per-frame video
+   * upload is skipped while this path is active — the compositor samples the
+   * <video> directly.
+   *
+   * NOTE: forward-facing calibration and the SBS/TB→eye and vertical mapping are
+   * the parts most likely to need on-device tuning on Quest 3 (mirrors the
+   * fisheye shader's similar note); the equirect default centres on -Z (forward).
+   */
+  private buildMediaLayer() {
+    const session = this.session;
+    if (!session) return;
+    const refSpace = this.renderer.xr.getReferenceSpace();
+    if (!refSpace) {
+      // eslint-disable-next-line no-console
+      console.warn("[VR] media layer: no reference space yet — using dome");
+      return;
+    }
+    if (!this.mediaBinding) this.mediaBinding = new XRMediaBinding(session);
+    this.destroyMediaLayer();
+
+    const p = this.projection;
+    if (this.debug.size) {
+      const v = this.opts.video;
+      // eslint-disable-next-line no-console
+      console.info(
+        `[VR] creating media layer: ${p.fov}/${p.stereo} ` +
+          `video[ready=${v.readyState}, paused=${v.paused}, ` +
+          `${v.videoWidth}x${v.videoHeight}, src=${v.currentSrc ? "yes" : "NONE"}]`
+      );
+    }
+    if (p.fov === "flat") {
+      // Flat screen floating in front of the viewer. Dimensions in metres match
+      // the old curved cinema mesh (4 × 2.25 ≈ 16:9); tune on-device if the
+      // runtime treats width/height as half-extents.
+      this.mediaLayer = this.mediaBinding.createQuadLayer(this.opts.video, {
+        space: refSpace,
+        layout: "mono",
+        transform: new XRRigidTransform({ x: 0, y: 1.4, z: -3.2 }),
+        width: 4 * p.zoom,
+        height: 2.25 * p.zoom,
+      });
+    } else {
+      this.mediaLayer = this.mediaBinding.createEquirectLayer(this.opts.video, {
+        space: refSpace,
+        layout: layoutForStereo(p.stereo),
+        invertStereo: p.swapEyes,
+        radius: 0, // 0 = infinite sphere (standard for immersive video)
+        centralHorizontalAngle: p.fov === "360" ? 2 * Math.PI : Math.PI,
+        upperVerticalAngle: Math.PI / 2,
+        lowerVerticalAngle: -Math.PI / 2,
+        transform: this.equirectTransform(),
+      });
+    }
+  }
+
+  /** Destroy the current media layer (if any) and forget it. */
+  private destroyMediaLayer() {
+    if (this.mediaLayer) {
+      try {
+        (this.mediaLayer as { destroy?: () => void }).destroy?.();
+      } catch {
+        /* layer already gone with the session — ignore */
+      }
+      this.mediaLayer = null;
+    }
+  }
+
+  /**
+   * Push the current layer stack to the session: the media video layer at the
+   * bottom (compositor-sampled) with three's projection layer (UI + controllers)
+   * on top, or just the projection layer when the video is on the shader dome /
+   * hidden in the lobby. No-op on legacy XRWebGLLayer devices (three owns the
+   * base layer there).
+   */
+  private syncRenderStateLayers() {
+    const session = this.session;
+    if (!session) return;
+    const showVideoLayer =
+      this.usingMediaLayer && !!this.mediaLayer && !this.lobbyMode;
+    // Clear the projection layer transparent ONLY while the media layer is
+    // compositing beneath it; otherwise opaque black, so the dome / fisheye /
+    // lobby paths don't expose a transparent buffer (which the compositor fills
+    // with black tiles when it reprojects a dropped frame). `opaque` flag pins it.
+    if (!this.debug.has("opaque")) {
+      this.renderer.setClearColor(0x000000, showVideoLayer ? 0 : 1);
+    }
+    const threeLayer = this.renderer.xr.getBaseLayer();
+    if (
+      typeof XRProjectionLayer === "undefined" ||
+      !(threeLayer instanceof XRProjectionLayer)
+    ) {
+      return;
+    }
+    session.updateRenderState({
+      layers: showVideoLayer ? [this.mediaLayer!, threeLayer] : [threeLayer],
+    });
   }
 
   // --- dome construction ----------------------------------------------------
@@ -1014,7 +1258,11 @@ export class XRSessionManager {
     // redundant uploads of a 24–30 fps source onto 72–120 Hz frames. It made
     // micro-stutter WORSE: bursty uploads at the video cadence desync the Quest
     // compositor's frame pacing. Steady per-frame uploads are intentional.
-    if (this.opts.video.readyState >= 2) {
+    //
+    // Only needed for the shader-dome path (fisheye / Layers-less fallback):
+    // when the media layer is active the compositor samples the <video> itself,
+    // so uploading the VideoTexture every frame would be wasted GPU work.
+    if (this.domeMeshes.length > 0 && this.opts.video.readyState >= 2) {
       this.videoTexture.needsUpdate = true;
     }
 
@@ -1320,6 +1568,8 @@ export class XRSessionManager {
     (this.thumbPreview.material as THREE.Material).dispose();
     this.thumbPreview.geometry.dispose();
     this.clearDome();
+    this.destroyMediaLayer();
+    this.mediaBinding = null;
     this.videoTexture.dispose();
     this.renderer.domElement.remove();
     this.renderer.dispose();

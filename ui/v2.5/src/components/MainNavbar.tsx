@@ -37,6 +37,7 @@ import {
 } from "@mui/material";
 import { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import { Link, NavLink, useLocation, useHistory } from "react-router-dom";
+import EnterVRHomeButton from "src/components/ScenePlayer/VR/EnterVRHomeButton";
 import Mousetrap from "mousetrap";
 
 import SessionUtils from "src/utils/session";
@@ -482,6 +483,7 @@ export const MainNavbar: React.FC = () => {
   function renderUtilityButtons() {
     return (
       <>
+        <EnterVRHomeButton />
         {renderHardwareAccelerationChip()}
         <Tooltip title={intl.formatMessage({ id: "Support Me" })}>
           <IconButton

@@ -69,6 +69,10 @@ export type VRControlAction =
   | { type: "navigateToScene"; sceneId: string }
   /** Switch to a different scene while staying in the active XR session. */
   | { type: "switchScene"; sceneId: string }
+  /** Return to the immersive Home/lobby wall (pause playback, show the gallery). */
+  | { type: "goHome" }
+  /** Filter the immersive Home grid by a studio/performer, or clear (id omitted). */
+  | { type: "setHomeFilter"; kind: "studio" | "performer" | null; id?: string }
   // ── Handy interactive device ───────────────────────────────────────────
   | { type: "handyToggle" }
   | { type: "handyPatternStart"; patternId: string }
@@ -79,7 +83,14 @@ export type VRControlAction =
 
 /** Handy device connection state, pulled each frame alongside playback. */
 export interface IVRHandyState {
-  status: "missing" | "disconnected" | "connecting" | "syncing" | "uploading" | "ready" | "error";
+  status:
+    | "missing"
+    | "disconnected"
+    | "connecting"
+    | "syncing"
+    | "uploading"
+    | "ready"
+    | "error";
   /** Human-readable label, e.g. "Ready" or "Error: ..." */
   label: string;
   /** Whether the connection key is configured in settings. */

@@ -19,6 +19,15 @@ export interface IVRSceneEntry {
   streamUrl: string | null;
   studioName: string | null;
   performers: string[];
+  // Extended fields for the immersive Home wall (optional so the carousel and
+  // existing call sites keep working unchanged).
+  /** Short preview clip URL (paths.preview) — used for hover + slideshow. */
+  previewUrl?: string | null;
+  /** VR projection mode string (scene.vr_mode), for slideshow correction. */
+  vrMode?: string | null;
+  studioId?: string | null;
+  studioLogoUrl?: string | null;
+  performerDetails?: { id: string; name: string; imageUrl: string | null }[];
 }
 
 // Same dimensions as the Info panel for symmetry; the height matches the main

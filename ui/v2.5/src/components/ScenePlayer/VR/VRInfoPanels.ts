@@ -44,6 +44,52 @@ interface IScrollMeta {
 const ACCENT = "rgba(96,165,250,0.95)";
 
 /**
+ * Build a concave cylinder-segment geometry for a curved panel. The surface
+ * bends toward the viewer at its edges (centre of curvature at local +z = R), so
+ * positioning the panel so its centre sits R metres from the eye makes every
+ * point equidistant. UVs span 0..1 across the arc and bottom→top, matching
+ * PlaneGeometry — so raycast `uv` and `regionAt()` work identically to a flat
+ * panel.
+ */
+function buildCurvedPanelGeometry(
+  wM: number,
+  hM: number,
+  radius: number
+): THREE.BufferGeometry {
+  const segsX = 48;
+  const thetaMax = wM / 2 / radius; // half horizontal arc angle
+  const positions: number[] = [];
+  const uvs: number[] = [];
+  const indices: number[] = [];
+  for (let iy = 0; iy <= 1; iy++) {
+    const y = (iy - 0.5) * hM;
+    for (let ix = 0; ix <= segsX; ix++) {
+      const u = ix / segsX;
+      const theta = (u - 0.5) * 2 * thetaMax;
+      positions.push(
+        radius * Math.sin(theta),
+        y,
+        radius - radius * Math.cos(theta)
+      );
+      uvs.push(u, iy);
+    }
+  }
+  const cols = segsX + 1;
+  for (let ix = 0; ix < segsX; ix++) {
+    const a = ix;
+    const b = ix + 1;
+    const c = cols + ix;
+    const d = cols + ix + 1;
+    indices.push(a, c, b, b, c, d);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setIndex(indices);
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geo.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+  return geo;
+}
+
+/**
  * Shared canvas-panel plumbing: texture/mesh, dirty-checked redraw, hit
  * regions, image loading + caching, fade opacity, and a reusable
  * horizontally-scrollable strip with ‹ › buttons.
@@ -71,7 +117,7 @@ export abstract class VRCanvasPanel {
   private failed = new Set<string>();
   private dirty = true;
 
-  constructor(widthM: number, canvasW: number, canvasH: number) {
+  constructor(widthM: number, canvasW: number, canvasH: number, radius = 0) {
     this.wM = widthM;
     this.cw = canvasW;
     this.ch = canvasH;
@@ -98,7 +144,9 @@ export abstract class VRCanvasPanel {
       side: THREE.DoubleSide,
     });
     this.mesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(this.wM, this.hM),
+      radius > 0
+        ? buildCurvedPanelGeometry(this.wM, this.hM, radius)
+        : new THREE.PlaneGeometry(this.wM, this.hM),
       this.material
     );
     this.mesh.renderOrder = 10;
@@ -161,10 +209,12 @@ export abstract class VRCanvasPanel {
   /** Redraw only when something visible changed (cheap when idle). */
   update() {
     if (!this.dirty) return;
+    // Clear *before* draw so a panel can re-mark itself dirty during draw()
+    // (page-slide animation, or a playing hover-preview) to drive the next frame.
+    this.dirty = false;
     this.regions = [];
     this.draw();
     this.texture.needsUpdate = true;
-    this.dirty = false;
   }
 
   protected markDirty() {
@@ -239,8 +289,12 @@ export abstract class VRCanvasPanel {
     // Inner radial glow from top-centre — simulates light refracting through glass
     this.roundRect(0, 0, this.cw, this.ch, 24);
     const glow = ctx.createRadialGradient(
-      this.cw / 2, 0, 0,
-      this.cw / 2, 0, this.cw * 0.55
+      this.cw / 2,
+      0,
+      0,
+      this.cw / 2,
+      0,
+      this.cw * 0.55
     );
     glow.addColorStop(0, "rgba(255,255,255,0.055)");
     glow.addColorStop(1, "rgba(255,255,255,0)");
@@ -296,7 +350,9 @@ export abstract class VRCanvasPanel {
         tg.addColorStop(1, "rgba(70,130,230,0.80)");
         ctx.fillStyle = tg;
       } else {
-        ctx.fillStyle = hov ? "rgba(255,255,255,0.16)" : "rgba(255,255,255,0.07)";
+        ctx.fillStyle = hov
+          ? "rgba(255,255,255,0.16)"
+          : "rgba(255,255,255,0.07)";
       }
       ctx.fill();
       // Border
@@ -736,7 +792,9 @@ export class VRSceneInfoPanel extends VRCanvasPanel {
     ctx.fillStyle = mg;
     ctx.fill();
     ctx.lineWidth = 1;
-    ctx.strokeStyle = hovered ? "rgba(96,165,250,0.40)" : "rgba(255,255,255,0.12)";
+    ctx.strokeStyle = hovered
+      ? "rgba(96,165,250,0.40)"
+      : "rgba(255,255,255,0.12)";
     ctx.stroke();
 
     ctx.textAlign = "left";
@@ -923,7 +981,6 @@ export class VRInfoPanel extends VRCanvasPanel {
       y + h / 2 + 1
     );
   }
-
 }
 
 /** VRHandyPanel — compact connection-status panel on the left side in VR. */
@@ -1052,7 +1109,9 @@ export class VRHandyPanel extends VRCanvasPanel {
     ctx.fillStyle = bg;
     ctx.fill();
     ctx.lineWidth = 1;
-    ctx.strokeStyle = hovered ? "rgba(255,255,255,0.32)" : "rgba(255,255,255,0.16)";
+    ctx.strokeStyle = hovered
+      ? "rgba(255,255,255,0.32)"
+      : "rgba(255,255,255,0.16)";
     ctx.stroke();
     // Glass rim
     ctx.beginPath();

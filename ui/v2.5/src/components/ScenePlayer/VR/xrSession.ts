@@ -35,7 +35,14 @@ import { VRControlPanel, IDrawInput } from "./VRControls";
 import { VRControllerInput, IPanelHit } from "./VRControllerInput";
 import { VRHandyPanel, VRInfoPanel, IVRSceneInfo } from "./VRInfoPanels";
 import { VRScenesPanel, IVRSceneEntry } from "./VRScenesPanel";
-import { VRControlAction, IVRMarker, IVRPlaybackState, IVRHandyState } from "./types";
+import { VRHomePanel } from "./VRHomePanel";
+import { VRLobbyBackdrop } from "./VRLobbyBackdrop";
+import {
+  VRControlAction,
+  IVRMarker,
+  IVRPlaybackState,
+  IVRHandyState,
+} from "./types";
 import type { IThumbnailCrop } from "./vttThumbnails";
 
 const DOME_RADIUS = 500;
@@ -109,6 +116,10 @@ export interface IXRSessionManagerOptions {
   getFunscriptLoaded?: () => boolean;
   /** VR scene entries for the VR Scenes side panel. */
   getScenes?: () => IVRSceneEntry[];
+  /** VR scene entries for the immersive Home wall (lobby mode). */
+  getHomeScenes?: () => IVRSceneEntry[];
+  /** Start the session in lobby/Home mode (no scene loaded yet). */
+  lobby?: boolean;
   /** Sprite crop for a scrubber-hover preview, or null when unavailable. */
   getThumbnail?: (time: number) => IThumbnailCrop | null;
   onAction: (a: VRControlAction) => void;
@@ -156,6 +167,14 @@ export class XRSessionManager {
   private previewVideo: HTMLVideoElement | null = null;
   private previewSceneId: string | null = null;
   private hittables: IHittable[] = [];
+  private baseHittables: IHittable[] = [];
+  // Immersive Home wall (with merged filter rail) + ambient backdrop (Option 2).
+  private homePanel: VRHomePanel | null = null;
+  private backdrop: VRLobbyBackdrop | null = null;
+  private lobbyMode = false;
+  private homeScenes: IVRSceneEntry[] = [];
+  private homeFilter: { kind: "studio" | "performer"; id: string } | null =
+    null;
   // Reused per-frame draw payload (avoids allocating an object every frame).
   private drawInput: IDrawInput;
 
@@ -247,9 +266,27 @@ export class XRSessionManager {
     this.layoutSidePanel(scenesPane, "left");
     scenesPane.setRenderState(0);
 
+    // Home wall — large curved central gallery for lobby mode (Option 2).
+    const home = new VRHomePanel();
+    this.homePanel = home;
+    this.uiGroup.add(home.object);
+    this.layoutHomePanel(home);
+    home.setRenderState(0);
+
+    this.lobbyMode = !!opts.lobby;
+
+    // Slideshow backdrop — additive environment (never touches the main dome).
+    this.backdrop = new VRLobbyBackdrop();
+    this.scene.add(this.backdrop.object);
+    this.backdrop.setVisible(this.lobbyMode);
+
+    // Seed Home data (scenes + derived studios/performers + backdrop playlist).
+    this.updateHomeScenes(opts.getHomeScenes ? opts.getHomeScenes() : []);
+
     // Preview video for scenes hover — one element, reassigned on hover change.
     this.previewVideo = document.createElement("video");
     this.previewVideo.muted = true;
+    this.previewVideo.loop = true;
     this.previewVideo.playsInline = true;
 
     this.input = new VRControllerInput(this.renderer, this.scene, {
@@ -270,8 +307,9 @@ export class XRSessionManager {
       },
     });
 
-    // Hittables: bar + handy always; active Browse panel added by rebuildBrowseHittables.
-    this.hittables = [
+    // Base hittables: bar + handy always present. The active Browse panels (or,
+    // in lobby mode, the Home wall) are layered on top by rebuildBrowseHittables.
+    this.baseHittables = [
       {
         target: this.panel.hitTarget,
         hover: (uv) => this.panel.setHovered(uv),
@@ -280,7 +318,7 @@ export class XRSessionManager {
     ];
     if (this.handyPanel) {
       const hp = this.handyPanel;
-      this.hittables.push({
+      this.baseHittables.push({
         target: hp.hitTarget,
         hover: (uv: THREE.Vector2 | null) => hp.setHovered(uv),
         select: (uv: THREE.Vector2) => hp.activate(uv),
@@ -355,10 +393,44 @@ export class XRSessionManager {
     panel.object.rotation.set(0, -sign * angle, 0);
   }
 
+  /** Place the Home wall centred in front of the viewer, near eye level. */
+  private layoutHomePanel(panel: VRHomePanel) {
+    // uiGroup is dropped PANEL_DROP below eye level for the control bar; raise the
+    // wall back up toward eye height and push it a touch further than the bar so
+    // the large surface sits comfortably in the central field of view.
+    panel.object.position.set(0, PANEL_DROP + 0.1, -0.25);
+  }
+
+  /**
+   * The lobby environment is now provided by [VRLobbyBackdrop] — a video
+   * slideshow dome with gradient sky shell and floor grid. The old static
+   * `buildLobbyEnv()` and `makeGradientTexture()` were removed; VRLobbyBackdrop
+   * owns those in a self-contained class.
+   */
+
   private rebuildBrowseHittables() {
-    // Slots: [0] bar, [1] handy panel. When Browse is open, both peripheral
-    // panels (Scenes left, Info right) are added and interactable together.
-    this.hittables = this.hittables.slice(0, 2);
+    // Lobby mode: only the Home wall is interactable (the hidden bar/side panels
+    // must leave the raycast target set — three.js raycasts invisible meshes too).
+    if (this.lobbyMode) {
+      // The Home wall is the only interactable surface (it now hosts the filter
+      // rail too). The hidden bar/side panels must leave the raycast target set.
+      const home = this.homePanel;
+      this.hittables = home
+        ? [
+            {
+              target: home.hitTarget,
+              hover: (uv: THREE.Vector2 | null) => home.setHovered(uv),
+              select: (uv: THREE.Vector2) => home.activate(uv),
+              move: (uv: THREE.Vector2) => home.pointerMove(uv),
+              up: (uv: THREE.Vector2) => home.pointerUp(uv),
+            },
+          ]
+        : [];
+      this.input.setTargets(this.hittables.map((h) => h.target));
+      return;
+    }
+    // Playback: bar + handy always; both peripheral Browse panels when open.
+    this.hittables = [...this.baseHittables];
     if (this.browseOpen) {
       for (const panel of [this.scenesPanel, this.infoPanel]) {
         if (!panel) continue;
@@ -428,10 +500,116 @@ export class XRSessionManager {
   /** Tell the scenes panel which scene is currently playing (for the Now Playing badge). */
   updateCurrentSceneId(id: string) {
     this.scenesPanel?.setCurrentSceneId(id);
+    this.homePanel?.setCurrentSceneId(id);
+  }
+
+  /**
+   * Toggle the immersive Home/lobby wall. Lobby mode shows the Home gallery +
+   * gradient environment and hides the playback bar; leaving it reveals the
+   * dome + bar for the just-launched scene.
+   */
+  setLobbyMode(on: boolean) {
+    if (this.lobbyMode === on) return;
+    this.lobbyMode = on;
+    if (on) {
+      this.browseOpen = false;
+      this.handyPanelOpen = false;
+    }
+    // Reset the shared hover-preview <video> across the mode change.
+    this.previewSceneId = null;
+    if (this.previewVideo) this.previewVideo.pause();
+    this.backdrop?.setVisible(on);
+    if (on) this.thumbPreview.visible = false;
+    this.rebuildBrowseHittables();
+    this.lastActivity = performance.now();
+  }
+
+  /**
+   * Refresh the Home wall's scene list (called once the VR library query resolves).
+   * Also seeds the filter panel (derived studios/performers) and the backdrop
+   * preview slideshow.
+   */
+  updateHomeScenes(scenes: IVRSceneEntry[]) {
+    this.homeScenes = scenes;
+    this.homePanel?.setScenes(scenes);
+
+    // Derive studios + performers for the filter panel from the full VR library.
+    const studioMap = new Map<
+      string,
+      { id: string; name: string; imageUrl: string | null; count: number }
+    >();
+    const performerMap = new Map<
+      string,
+      { id: string; name: string; imageUrl: string | null; count: number }
+    >();
+    for (const s of scenes) {
+      if (s.studioId && s.studioName) {
+        const existing = studioMap.get(s.studioId);
+        if (existing) existing.count++;
+        else
+          studioMap.set(s.studioId, {
+            id: s.studioId,
+            name: s.studioName,
+            imageUrl: s.studioLogoUrl ?? null,
+            count: 1,
+          });
+      }
+      if (s.performerDetails) {
+        for (const p of s.performerDetails) {
+          const existing = performerMap.get(p.id);
+          if (existing) existing.count++;
+          else
+            performerMap.set(p.id, {
+              id: p.id,
+              name: p.name,
+              imageUrl: p.imageUrl,
+              count: 1,
+            });
+        }
+      } else {
+        // Fallback: performerDetails not available — skip performer filter.
+      }
+    }
+    this.homePanel?.setFilterData(
+      [...studioMap.values()].sort((a, b) => b.count - a.count),
+      [...performerMap.values()].sort((a, b) => b.count - a.count)
+    );
   }
 
   setHeatmap(cssUrl: string | null) {
     this.panel.setHeatmap(cssUrl);
+  }
+
+  /** Apply a home-filter and re-seed the wall with matching scenes. */
+  private applyHomeFilter(
+    filter: { kind: "studio" | "performer"; id: string } | null
+  ) {
+    this.homeFilter = filter;
+    this.homePanel?.setActiveFilter(filter?.id ?? null);
+    const all = this.homeScenes;
+    let filtered: IVRSceneEntry[];
+    if (!filter) {
+      filtered = all;
+    } else if (filter.kind === "studio") {
+      filtered = all.filter((s) => s.studioId === filter.id);
+    } else {
+      filtered = all.filter((s) =>
+        s.performerDetails?.some((p) => p.id === filter.id)
+      );
+    }
+    this.homePanel?.setScenes(filtered);
+    // Reflect the filter in the header label.
+    let label: string | null = null;
+    if (filter) {
+      const entry =
+        filter.kind === "studio"
+          ? all.find((s) => s.studioId === filter.id)
+          : all.find((s) =>
+              s.performerDetails?.some((p) => p.id === filter.id)
+            );
+      label = entry?.studioName ?? entry?.performers?.[0] ?? null;
+    }
+    this.homePanel?.setFilterLabel(label);
   }
 
   /** Re-orient the video so the current gaze direction becomes its centre. */
@@ -451,29 +629,45 @@ export class XRSessionManager {
     for (const h of this.hittables) {
       h.hover(hit && hit.object === h.target ? hit.uv : null);
     }
-    // Manage preview video for the scenes panel hover.
-    if (this.scenesPanel && this.browseOpen) {
-      const hoveredId = this.scenesPanel.hoveredSceneId;
-      if (hoveredId !== this.previewSceneId) {
-        this.previewSceneId = hoveredId;
-        if (this.previewVideo) {
-          if (hoveredId) {
-            const entry = this.currentScenes.find((s) => s.id === hoveredId);
-            if (entry?.streamUrl) {
-              this.previewVideo.src = entry.streamUrl;
-              this.previewVideo.play().catch(() => undefined);
-              this.scenesPanel.setPreviewVideo(this.previewVideo);
-            } else {
-              this.previewVideo.pause();
-              this.scenesPanel.setPreviewVideo(null);
-            }
-          } else {
-            this.previewVideo.pause();
-            this.scenesPanel.setPreviewVideo(null);
-          }
-        }
+    // Drive the hover-preview video for whichever scene-card surface is active.
+    if (this.lobbyMode) {
+      this.updateHoverPreview(this.homePanel, this.homeScenes, true);
+    } else {
+      this.updateHoverPreview(
+        this.scenesPanel,
+        this.currentScenes,
+        this.browseOpen
+      );
+    }
+  }
+
+  /** Lazily (re)point the shared preview <video> at the hovered card's stream. */
+  private updateHoverPreview(
+    panel: {
+      hoveredSceneId: string | null;
+      setPreviewVideo: (v: HTMLVideoElement | null) => void;
+    } | null,
+    scenes: IVRSceneEntry[],
+    active: boolean
+  ) {
+    if (!panel || !active || !this.previewVideo) return;
+    const hoveredId = panel.hoveredSceneId;
+    if (hoveredId === this.previewSceneId) return;
+    this.previewSceneId = hoveredId;
+    if (hoveredId) {
+      const entry = scenes.find((s) => s.id === hoveredId);
+      // For the Home wall (lobby), use the short preview clip when available
+      // (previewUrl) rather than the full stream — faster to load on hover.
+      const previewSrc = entry?.previewUrl || entry?.streamUrl;
+      if (previewSrc) {
+        this.previewVideo.src = previewSrc;
+        this.previewVideo.play().catch(() => undefined);
+        panel.setPreviewVideo(this.previewVideo);
+        return;
       }
     }
+    this.previewVideo.pause();
+    panel.setPreviewVideo(null);
   }
 
   private routeSelect(hit: IPanelHit) {
@@ -505,11 +699,22 @@ export class XRSessionManager {
     }
     if (action.type === "browsePanelToggle") {
       this.browseOpen = !this.browseOpen;
-      if (this.browseOpen && this.currentScenes.length === 0 && this.opts.getScenes) {
+      if (
+        this.browseOpen &&
+        this.currentScenes.length === 0 &&
+        this.opts.getScenes
+      ) {
         this.currentScenes = this.opts.getScenes();
         this.scenesPanel?.setScenes(this.currentScenes);
       }
       this.rebuildBrowseHittables();
+      this.lastActivity = performance.now();
+      return;
+    }
+    if (action.type === "setHomeFilter") {
+      this.applyHomeFilter(
+        action.kind ? { kind: action.kind, id: action.id! } : null
+      );
       this.lastActivity = performance.now();
       return;
     }
@@ -741,7 +946,11 @@ export class XRSessionManager {
 
     // Auto-hide: fade the whole UI group toward visible/hidden. Debug flags can
     // pin it fully hidden or fully shown to isolate UI rendering vs the dome.
-    if (this.debug.has("hideui")) {
+    const lobby = this.lobbyMode;
+    if (lobby) {
+      // The Home wall is always visible (no auto-hide) while in the lobby.
+      this.uiOpacity = 1;
+    } else if (this.debug.has("hideui")) {
       this.uiOpacity = 0;
     } else if (this.debug.has("noautohide")) {
       this.uiOpacity = 1;
@@ -750,48 +959,69 @@ export class XRSessionManager {
       this.uiOpacity += ((idle ? 0 : 1) - this.uiOpacity) * FADE_LERP;
     }
     const op = this.uiOpacity;
-    this.panel.setRenderState(op);
-    // Show laser rays only when the UI is visible — no point beaming through
-    // an invisible panel, and it avoids visual clutter during immersive play.
-    this.input.setRaysVisible(op > 0.05);
-    // Side panels only render (and are only interactable) while open. Browse
-    // shows both peripheral panels together (Scenes left, Info right).
-    this.handyPanel?.setRenderState(this.handyPanelOpen ? op : 0);
-    this.infoPanel?.setRenderState(this.browseOpen ? op : 0);
-    this.scenesPanel?.setRenderState(this.browseOpen ? op : 0);
+
+    if (lobby) {
+      // Lobby: show Home wall + filter panel; playback bar stay hidden.
+      this.panel.setRenderState(0);
+      this.handyPanel?.setRenderState(0);
+      this.infoPanel?.setRenderState(0);
+      this.scenesPanel?.setRenderState(0);
+      this.homePanel?.setRenderState(op);
+      this.input.setRaysVisible(true);
+    } else {
+      this.panel.setRenderState(op);
+      // Show laser rays only when the UI is visible — no point beaming through
+      // an invisible panel, and it avoids visual clutter during immersive play.
+      this.input.setRaysVisible(op > 0.05);
+      // Side panels only render (and are only interactable) while open. Browse
+      // shows both peripheral panels together (Scenes left, Info right).
+      // Filter panel is lobby-only — hidden during playback.
+      this.handyPanel?.setRenderState(this.handyPanelOpen ? op : 0);
+      this.infoPanel?.setRenderState(this.browseOpen ? op : 0);
+      this.scenesPanel?.setRenderState(this.browseOpen ? op : 0);
+      this.homePanel?.setRenderState(0);
+    }
 
     const state = this.opts.getState();
     if (op > 0.02) {
-      const d = this.drawInput;
-      d.state = state;
-      d.projection = this.projection;
-      d.markers = this.opts.getMarkers();
-      d.chapterTitle = this.opts.getChapterTitle();
-      d.caption = this.opts.getCaption();
-      d.handyOpen = this.handyPanelOpen;
-      d.browseOpen = this.browseOpen;
-      if (this.opts.getHandyState) {
-        const hs = this.opts.getHandyState();
-        d.handy = {
-          connected: hs.status === "ready",
-          funscriptLoaded: !!(this.opts.getFunscriptLoaded && this.opts.getFunscriptLoaded()),
-        };
-      }
-      this.panel.sync(d);
-      // Push the latest Handy connection state to the VR panel each frame.
-      if (this.handyPanelOpen && this.handyPanel) {
+      if (lobby) {
+        this.homePanel?.update();
+        // Drive the ambient backdrop (slow starfield drift) each lobby frame.
+        this.backdrop?.update();
+      } else {
+        const d = this.drawInput;
+        d.state = state;
+        d.projection = this.projection;
+        d.markers = this.opts.getMarkers();
+        d.chapterTitle = this.opts.getChapterTitle();
+        d.caption = this.opts.getCaption();
+        d.handyOpen = this.handyPanelOpen;
+        d.browseOpen = this.browseOpen;
         if (this.opts.getHandyState) {
-          this.handyPanel.setHandyState(this.opts.getHandyState());
+          const hs = this.opts.getHandyState();
+          d.handy = {
+            connected: hs.status === "ready",
+            funscriptLoaded: !!(
+              this.opts.getFunscriptLoaded && this.opts.getFunscriptLoaded()
+            ),
+          };
         }
-        this.handyPanel.update();
-      }
-      if (this.browseOpen) {
-        this.infoPanel?.update();
-        this.scenesPanel?.update();
+        this.panel.sync(d);
+        // Push the latest Handy connection state to the VR panel each frame.
+        if (this.handyPanelOpen && this.handyPanel) {
+          if (this.opts.getHandyState) {
+            this.handyPanel.setHandyState(this.opts.getHandyState());
+          }
+          this.handyPanel.update();
+        }
+        if (this.browseOpen) {
+          this.infoPanel?.update();
+          this.scenesPanel?.update();
+        }
       }
     }
 
-    this.updateThumbnailPreview(state.duration, op);
+    if (!lobby) this.updateThumbnailPreview(state.duration, op);
 
     this.renderer.render(this.scene, this.camera);
   };
@@ -887,7 +1117,9 @@ export class XRSessionManager {
     // actually changes — holding still costs no texture upload.
     const img = crop ? (crop.image as HTMLImageElement) : null;
     const key = crop
-      ? `${img?.src ?? ""}#${crop.sx},${crop.sy},${crop.sw},${crop.sh}#${title ?? ""}`
+      ? `${img?.src ?? ""}#${crop.sx},${crop.sy},${crop.sw},${crop.sh}#${
+          title ?? ""
+        }`
       : `nothumb#${title ?? ""}`;
     if (key !== this.lastThumbKey) {
       this.thumbCtx.clearRect(0, 0, THUMB_CANVAS_W, THUMB_CANVAS_H);
@@ -947,6 +1179,9 @@ export class XRSessionManager {
     this.handyPanel?.dispose();
     this.infoPanel?.dispose();
     this.scenesPanel?.dispose();
+    this.homePanel?.dispose();
+    this.backdrop?.dispose();
+
     if (this.previewVideo) {
       this.previewVideo.pause();
       this.previewVideo.src = "";

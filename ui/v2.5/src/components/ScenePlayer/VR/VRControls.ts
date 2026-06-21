@@ -334,6 +334,8 @@ export class VRControlPanel extends VRCanvasPanel {
         return { type: "nextMarker" };
       case "handy":
         return { type: "handyPanelToggle" };
+      case "home":
+        return { type: "goHome" };
       case "browse":
         return { type: "browsePanelToggle" };
       case "exit":
@@ -465,6 +467,7 @@ export class VRControlPanel extends VRCanvasPanel {
       active: handyGreen,
       variant: handyGreen ? "green" : "default",
     });
+    row2.push({ id: "home", w: 100, label: "Home" });
     row2.push({ id: "browse", w: 100, label: "Browse", active: !!input.browseOpen });
     row2.push({ id: "exit", w: 110, label: "Exit", variant: "danger" });
     this.layoutRow(row2, ROW2_Y, state);

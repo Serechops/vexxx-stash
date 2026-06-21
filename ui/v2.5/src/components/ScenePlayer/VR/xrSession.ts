@@ -37,6 +37,7 @@ import { VRHandyPanel, VRInfoPanel, IVRSceneInfo } from "./VRInfoPanels";
 import { VRScenesPanel, IVRSceneEntry } from "./VRScenesPanel";
 import { VRHomePanel } from "./VRHomePanel";
 import { VRLobbyBackdrop } from "./VRLobbyBackdrop";
+import { VRTheatreEnv } from "./VRTheatreEnv";
 import {
   VRControlAction,
   IVRMarker,
@@ -171,10 +172,13 @@ export class XRSessionManager {
   // Immersive Home wall (with merged filter rail) + ambient backdrop (Option 2).
   private homePanel: VRHomePanel | null = null;
   private backdrop: VRLobbyBackdrop | null = null;
+  // Cinema room shown when a flat (non-VR) scene is playing.
+  private theatreEnv: VRTheatreEnv | null = null;
   private lobbyMode = false;
   private homeScenes: IVRSceneEntry[] = [];
   private homeFilter: { kind: "studio" | "performer"; id: string } | null =
     null;
+  private mediaFilter: "all" | "vr" | "flat" = "all";
   // Reused per-frame draw payload (avoids allocating an object every frame).
   private drawInput: IDrawInput;
 
@@ -279,6 +283,11 @@ export class XRSessionManager {
     this.backdrop = new VRLobbyBackdrop();
     this.scene.add(this.backdrop.object);
     this.backdrop.setVisible(this.lobbyMode);
+
+    // Cinema room for flat (2D) scene playback — added to videoGroup so it
+    // co-rotates with the flat screen when the user recenters.
+    this.theatreEnv = new VRTheatreEnv();
+    this.videoGroup.add(this.theatreEnv.object);
 
     // Seed Home data (scenes + derived studios/performers + backdrop playlist).
     this.updateHomeScenes(opts.getHomeScenes ? opts.getHomeScenes() : []);
@@ -464,6 +473,9 @@ export class XRSessionManager {
   setProjection(projection: IProjectionSettings) {
     this.projection = projection;
     this.buildDome();
+    const isFlat = projection.fov === "flat";
+    this.theatreEnv?.setVisible(isFlat && !this.lobbyMode);
+    if (isFlat) this.theatreEnv?.setZoom(projection.zoom);
   }
 
   /** Update the info panel with new scene metadata after an in-VR scene switch. */
@@ -519,7 +531,14 @@ export class XRSessionManager {
     this.previewSceneId = null;
     if (this.previewVideo) this.previewVideo.pause();
     this.backdrop?.setVisible(on);
-    if (on) this.thumbPreview.visible = false;
+    if (on) {
+      this.thumbPreview.visible = false;
+      this.theatreEnv?.setVisible(false);
+    } else {
+      // Restore theatre visibility based on current projection.
+      const isFlat = this.projection.fov === "flat";
+      this.theatreEnv?.setVisible(isFlat);
+    }
     this.rebuildBrowseHittables();
     this.lastActivity = performance.now();
   }
@@ -531,7 +550,6 @@ export class XRSessionManager {
    */
   updateHomeScenes(scenes: IVRSceneEntry[]) {
     this.homeScenes = scenes;
-    this.homePanel?.setScenes(scenes);
 
     // Derive studios + performers for the filter panel from the full VR library.
     const studioMap = new Map<
@@ -574,33 +592,24 @@ export class XRSessionManager {
       [...studioMap.values()].sort((a, b) => b.count - a.count),
       [...performerMap.values()].sort((a, b) => b.count - a.count)
     );
+    // Apply media-type + studio/performer filters to the freshly loaded list.
+    this.applyMediaAndHomeFilter();
   }
 
   setHeatmap(cssUrl: string | null) {
     this.panel.setHeatmap(cssUrl);
   }
 
-  /** Apply a home-filter and re-seed the wall with matching scenes. */
+  /** Apply a home-filter (studio/performer) and re-seed the wall. */
   private applyHomeFilter(
     filter: { kind: "studio" | "performer"; id: string } | null
   ) {
     this.homeFilter = filter;
     this.homePanel?.setActiveFilter(filter?.id ?? null);
-    const all = this.homeScenes;
-    let filtered: IVRSceneEntry[];
-    if (!filter) {
-      filtered = all;
-    } else if (filter.kind === "studio") {
-      filtered = all.filter((s) => s.studioId === filter.id);
-    } else {
-      filtered = all.filter((s) =>
-        s.performerDetails?.some((p) => p.id === filter.id)
-      );
-    }
-    this.homePanel?.setScenes(filtered);
-    // Reflect the filter in the header label.
+    // Update the header label.
     let label: string | null = null;
     if (filter) {
+      const all = this.homeScenes;
       const entry =
         filter.kind === "studio"
           ? all.find((s) => s.studioId === filter.id)
@@ -610,6 +619,32 @@ export class XRSessionManager {
       label = entry?.studioName ?? entry?.performers?.[0] ?? null;
     }
     this.homePanel?.setFilterLabel(label);
+    this.applyMediaAndHomeFilter();
+  }
+
+  /**
+   * Re-filter the full scene library by the current media-type toggle
+   * (all/vr/flat) and studio/performer filter, then push the result to the
+   * home panel. Called whenever either filter changes or new scenes arrive.
+   */
+  private applyMediaAndHomeFilter() {
+    let filtered = this.homeScenes;
+    if (this.mediaFilter === "vr") {
+      filtered = filtered.filter((s) => !!s.vrMode);
+    } else if (this.mediaFilter === "flat") {
+      filtered = filtered.filter((s) => !s.vrMode);
+    }
+    const f = this.homeFilter;
+    if (f) {
+      if (f.kind === "studio") {
+        filtered = filtered.filter((s) => s.studioId === f.id);
+      } else {
+        filtered = filtered.filter((s) =>
+          s.performerDetails?.some((p) => p.id === f.id)
+        );
+      }
+    }
+    this.homePanel?.setScenes(filtered);
   }
 
   /** Re-orient the video so the current gaze direction becomes its centre. */
@@ -715,6 +750,13 @@ export class XRSessionManager {
       this.applyHomeFilter(
         action.kind ? { kind: action.kind, id: action.id! } : null
       );
+      this.lastActivity = performance.now();
+      return;
+    }
+    if (action.type === "setMediaFilter") {
+      this.mediaFilter = action.filter;
+      this.homePanel?.setMediaFilter(action.filter);
+      this.applyMediaAndHomeFilter();
       this.lastActivity = performance.now();
       return;
     }
@@ -874,7 +916,35 @@ export class XRSessionManager {
   private makeFlatScreen(zoom: number): THREE.Mesh {
     const w = 4 * zoom;
     const h = 2.25 * zoom; // 16:9
-    const geometry = new THREE.PlaneGeometry(w, h);
+
+    // Gently curved cylindrical screen — concave toward viewer for a cinematic
+    // wrap feel without the flatness of a PlaneGeometry.
+    const R = 5.0; // cylinder radius; larger = flatter curve
+    const thetaHalf = Math.asin(Math.min((w / 2) / R, 1.0));
+    const N = 40; // horizontal segments
+    const pos: number[] = [];
+    const uvs: number[] = [];
+    const idx: number[] = [];
+    for (let j = 0; j <= 1; j++) {
+      const y = (j - 0.5) * h;
+      for (let i = 0; i <= N; i++) {
+        const theta = -thetaHalf + (i / N) * 2 * thetaHalf;
+        // Cylinder centre is at local +z (toward viewer); surface curves inward.
+        pos.push(R * Math.sin(theta), y, R * (1 - Math.cos(theta)));
+        uvs.push(i / N, j);
+      }
+    }
+    const cols = N + 1;
+    for (let i = 0; i < N; i++) {
+      const b = i, t = cols + i;
+      idx.push(b, b + 1, t + 1, b, t + 1, t);
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+    geometry.setIndex(idx);
+    geometry.computeVertexNormals();
+
     const material = this.debug.has("solid")
       ? new THREE.MeshBasicMaterial({ color: 0x224466 })
       : new THREE.MeshBasicMaterial({ map: this.videoTexture });
@@ -900,14 +970,14 @@ export class XRSessionManager {
   // --- render loop ----------------------------------------------------------
 
   private render = (time: number) => {
-    // CRITICAL: force the video texture to upload the latest decoded video
-    // frame to the GPU every XR render cycle.  Without this, Three.js's
-    // internal VideoTexture update timer can desync from the XR compositor's
-    // frame pacing (especially on Quest's mobile GPU), causing intermittent
-    // black frames when the compositor samples a stale/uninitialized texture.
-    // This is a well-known cause of the "black flicker every few seconds"
-    // issue with stereo WebXR video playback.
-    this.videoTexture.needsUpdate = true;
+    // Force the video texture to upload the latest decoded frame every XR
+    // render cycle to prevent desync with the XR compositor's frame pacing.
+    // Guard on readyState >= HAVE_CURRENT_DATA: if the decoder is mid-stall
+    // (segment boundary, buffer refill) skip the update so Three.js holds the
+    // last good GPU frame rather than uploading an empty buffer → black flash.
+    if (this.opts.video.readyState >= 2) {
+      this.videoTexture.needsUpdate = true;
+    }
 
     // Ensure the XR sub-cameras see their stereo eye layers.
     const xrCam = this.renderer.xr.getCamera() as THREE.ArrayCamera;
@@ -1181,6 +1251,7 @@ export class XRSessionManager {
     this.scenesPanel?.dispose();
     this.homePanel?.dispose();
     this.backdrop?.dispose();
+    this.theatreEnv?.dispose();
 
     if (this.previewVideo) {
       this.previewVideo.pause();

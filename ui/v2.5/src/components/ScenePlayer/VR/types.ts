@@ -73,6 +73,8 @@ export type VRControlAction =
   | { type: "goHome" }
   /** Filter the immersive Home grid by a studio/performer, or clear (id omitted). */
   | { type: "setHomeFilter"; kind: "studio" | "performer" | null; id?: string }
+  /** Switch the Home wall's media-type filter (all scenes / VR only / 2D only). */
+  | { type: "setMediaFilter"; filter: "all" | "vr" | "flat" }
   // ── Handy interactive device ───────────────────────────────────────────
   | { type: "handyToggle" }
   | { type: "handyPatternStart"; patternId: string }

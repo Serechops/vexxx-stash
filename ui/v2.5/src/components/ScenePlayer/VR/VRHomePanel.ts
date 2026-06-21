@@ -1,18 +1,16 @@
 /**
- * VRHomePanel — the immersive "Home" wall: one large *curved* surface shown when
- * the headset enters VR with no scene loaded (lobby mode). It merges two regions
- * onto a single polished surface:
+ * VRHomePanel — the immersive "Home" wall shown when the headset enters VR
+ * with no scene loaded (lobby mode). A single large curved surface that merges:
  *
- *   • a left **filter rail** — Studios / Performers tabs (derived from the loaded
- *     VR library) with an "All scenes" reset; tapping a tile filters the grid;
- *   • a right **scene grid** — a paginated 4×2 wall of caption-bar cards with
- *     hover preview, changed by the arrows *or* by dragging the grid (animated).
+ *  • left **filter rail** — media-type toggle (All / VR / 2D), Studios /
+ *    Performers tab, "All scenes" reset, and a 2-column portrait/logo tile grid;
+ *  • right **scene grid** — 4 × 3 paginated cards with hover preview, funscript
+ *    heatmap strips, and animated horizontal drag-pagination.
  *
- * Interaction uses the press+release-on-the-same-region tap model so a jittery
- * laser never mis-selects. The rail drag-scrolls vertically; the grid drag
- * paginates horizontally — disambiguated by which column the press started in.
- * Card taps emit `switchScene`; filter taps emit `setHomeFilter`; both are
- * applied by the session manager, which re-seeds this wall's scene list.
+ * Interaction: press+release-on-same-region tap model to avoid jitter; rail
+ * drag-scrolls vertically; grid drag-paginates horizontally (disambiguated by
+ * which column the press started in). All filter/media actions are emitted and
+ * handled by the session manager without a React round-trip.
  */
 import * as THREE from "three";
 import { VRControlAction } from "./types";
@@ -26,56 +24,94 @@ export interface IVRFilterEntry {
   count: number;
 }
 
+// ── Canvas / panel dimensions ─────────────────────────────────────────────────
 const CANVAS_W = 2200;
-const CANVAS_H = 1000;
+const CANVAS_H = 1300; // taller for the extra scene row
 const PANEL_WIDTH_M = 3.4;
-const PANEL_RADIUS = 2.65; // ≈ eye→wall distance, so the curve is equidistant
+const PANEL_RADIUS = 2.65;
 
+// ── Shared layout ─────────────────────────────────────────────────────────────
 const PAD = 40;
 const TITLE_Y = 58;
 const SUB_Y = 92;
-const CONTENT_Y0 = 132;
+const CONTENT_Y0 = 132; // top of all content rows
 
-// Left filter rail.
+// ── Filter rail (left 540 px) ─────────────────────────────────────────────────
 const RAIL_W = 540;
 const RAIL_PAD = 28;
-const RAIL_INNER = RAIL_W - RAIL_PAD * 2;
-const TAB_H = 50;
-const ALL_Y = CONTENT_Y0 + TAB_H + 12;
-const ALL_H = 38;
-const RAIL_VIEW_Y0 = ALL_Y + ALL_H + 14;
-const RAIL_VIEW_Y1 = 932;
-const RROW_H = 76;
-const RROW_GAP = 10;
+const RAIL_INNER = RAIL_W - RAIL_PAD * 2; // 484
 
-// Right scene grid.
+// Media-type toggle row ( [All] [VR] [2D] )
+const MEDIA_H = 46;
+const MEDIA_BTN_COUNT = 3;
+const MEDIA_BTN_GAP = 8;
+const MEDIA_BTN_W = Math.floor(
+  (RAIL_INNER - MEDIA_BTN_GAP * (MEDIA_BTN_COUNT - 1)) / MEDIA_BTN_COUNT
+); // 156
+
+// Studios / Performers tabs
+const TAB_Y = CONTENT_Y0 + MEDIA_H + 10; // 188
+const TAB_H = 50;
+
+// "All scenes" reset chip
+const ALL_Y = TAB_Y + TAB_H + 10; // 248
+const ALL_H = 38;
+
+// Scrollable filter tile grid
+const RAIL_VIEW_Y0 = ALL_Y + ALL_H + 12; // 298
+const RAIL_VIEW_Y1 = CANVAS_H - 68; // 1232
+
+// 2-column tile grid within the rail
+const TILE_COLS = 2;
+const TILE_GAP_X = 12;
+const TILE_GAP_Y = 12;
+const TILE_W = Math.floor(
+  (RAIL_INNER - TILE_GAP_X * (TILE_COLS - 1)) / TILE_COLS
+); // 236
+
+const STUDIO_IMG_H = Math.round((TILE_W * 9) / 16); // 133 — landscape logo
+const STUDIO_LABEL_H = 28;
+const STUDIO_TILE_H = STUDIO_IMG_H + STUDIO_LABEL_H; // 161
+const STUDIO_ROW_H = STUDIO_TILE_H + TILE_GAP_Y; // 173
+
+const PERF_IMG_H = Math.round((TILE_W * 3) / 2); // 354 — tall portrait
+const PERF_LABEL_H = 28;
+const PERF_TILE_H = PERF_IMG_H + PERF_LABEL_H; // 382
+const PERF_ROW_H = PERF_TILE_H + TILE_GAP_Y; // 394
+
+// ── Scene grid (right side) ───────────────────────────────────────────────────
 const GRID_X0 = RAIL_W + 28;
 const GRID_RIGHT = CANVAS_W - PAD;
-const GRID_W = GRID_RIGHT - GRID_X0;
+const GRID_W = GRID_RIGHT - GRID_X0; // 1592
 const COLS = 4;
-const ROWS = 2;
+const ROWS = 3;
 const PER_PAGE = COLS * ROWS;
 const GAP_X = 24;
-const GAP_Y = 26;
-const CARD_W = Math.floor((GRID_W - GAP_X * (COLS - 1)) / COLS);
-const THUMB_H = Math.round((CARD_W * 9) / 16);
+const GAP_Y = 20;
+const CARD_W = Math.floor((GRID_W - GAP_X * (COLS - 1)) / COLS); // 380
+const THUMB_H = Math.round((CARD_W * 9) / 16); // 214
 const CAP_H = 78;
-const CARD_H = THUMB_H + CAP_H;
+const CARD_H = THUMB_H + CAP_H; // 292
 const GRID_Y0 = CONTENT_Y0;
-const GRID_Y1 = 910;
-const GRID_BLOCK_H = ROWS * CARD_H + (ROWS - 1) * GAP_Y;
-const GRID_TOP = GRID_Y0 + Math.max(0, (GRID_Y1 - GRID_Y0 - GRID_BLOCK_H) / 2);
-const PAGER_Y = 952;
+const GRID_Y1 = CANVAS_H - 90; // 1210
+const GRID_BLOCK_H = ROWS * CARD_H + (ROWS - 1) * GAP_Y; // 916
+const GRID_TOP =
+  GRID_Y0 + Math.max(0, (GRID_Y1 - GRID_Y0 - GRID_BLOCK_H) / 2); // ≈213
+const PAGER_Y = CANVAS_H - 45; // 1255
 const PAGER_H = 44;
 
+// ── Interaction thresholds ────────────────────────────────────────────────────
 const DRAG_THRESHOLD = 10;
 const ANIM_MS = 300;
 const COMMIT_FRACTION = 0.28;
 
+// ── Colours ───────────────────────────────────────────────────────────────────
 const ACCENT = "rgba(96,165,250,";
 const GOLD = "rgba(250,200,80,";
+const ORANGE = "rgba(250,140,30,";
 
 type FilterTab = "studios" | "performers";
+type MediaFilter = "all" | "vr" | "flat";
 
 export class VRHomePanel extends VRCanvasPanel {
   private scenes: IVRSceneEntry[] = [];
@@ -83,22 +119,23 @@ export class VRHomePanel extends VRCanvasPanel {
   private previewVideo: HTMLVideoElement | null = null;
   private filterLabel: string | null = null;
 
-  // Filter rail state.
+  // Filter rail
   private studios: IVRFilterEntry[] = [];
   private performers: IVRFilterEntry[] = [];
   private filterTab: FilterTab = "studios";
   private activeFilterId: string | null = null;
+  private mediaFilter: MediaFilter = "all";
   private railScroll = 0;
   private railMaxScroll = 0;
 
-  // Grid page-slide state (offset: 0 settled, +1 next page, −1 prev page).
+  // Grid page-slide (0 = settled, +1 = next page animating, −1 = prev)
   private page = 0;
   private offset = 0;
   private animFrom = 0;
   private animTo = 0;
   private animStart = 0;
 
-  // Press / drag-vs-tap resolution.
+  // Press / drag-vs-tap resolution
   private downId: string | null = null;
   private pressActive = false;
   private dragging = false;
@@ -118,7 +155,6 @@ export class VRHomePanel extends VRCanvasPanel {
     return this.scenes.length > 0;
   }
 
-  /** Scene ID of the card currently under the ray/cursor, or null. */
   get hoveredSceneId(): string | null {
     if (this.hoveredId?.startsWith("scene:")) {
       return this.hoveredId.slice("scene:".length);
@@ -134,7 +170,6 @@ export class VRHomePanel extends VRCanvasPanel {
     this.markDirty();
   }
 
-  /** Studio / performer filter lists (derived from the library by the manager). */
   setFilterData(studios: IVRFilterEntry[], performers: IVRFilterEntry[]) {
     this.studios = studios;
     this.performers = performers;
@@ -148,7 +183,6 @@ export class VRHomePanel extends VRCanvasPanel {
     }
   }
 
-  /** Header label for the active studio/performer filter (null = none). */
   setFilterLabel(label: string | null) {
     if (label !== this.filterLabel) {
       this.filterLabel = label;
@@ -156,7 +190,6 @@ export class VRHomePanel extends VRCanvasPanel {
     }
   }
 
-  /** Highlight the scene last launched (shown when the user returns Home). */
   setCurrentSceneId(id: string | null) {
     if (id !== this.currentSceneId) {
       this.currentSceneId = id;
@@ -164,10 +197,16 @@ export class VRHomePanel extends VRCanvasPanel {
     }
   }
 
-  /** Provide the preview video element; pass null to revert to screenshot. */
   setPreviewVideo(video: HTMLVideoElement | null) {
     this.previewVideo = video;
     this.markDirty();
+  }
+
+  setMediaFilter(f: MediaFilter) {
+    if (f !== this.mediaFilter) {
+      this.mediaFilter = f;
+      this.markDirty();
+    }
   }
 
   private get pageCount(): number {
@@ -178,7 +217,7 @@ export class VRHomePanel extends VRCanvasPanel {
     return this.filterTab === "studios" ? this.studios : this.performers;
   }
 
-  // ── Drag / tap / pagination ───────────────────────────────────────────────
+  // ── Drag / tap / pagination ────────────────────────────────────────────────
 
   activate(uv: THREE.Vector2): VRControlAction | null {
     const px = uv.x * this.cw;
@@ -192,7 +231,7 @@ export class VRHomePanel extends VRCanvasPanel {
     this.railScrollBase = this.railScroll;
     this.pressActive = true;
     this.dragging = false;
-    this.animStart = 0; // a new press cancels any running slide
+    this.animStart = 0;
     return null;
   }
 
@@ -239,7 +278,6 @@ export class VRHomePanel extends VRCanvasPanel {
     return null;
   }
 
-  /** Settle a released grid drag to the nearest page (flip if dragged far). */
   private snap() {
     let to = 0;
     if (this.offset > COMMIT_FRACTION && this.page < this.pageCount - 1) to = 1;
@@ -266,16 +304,11 @@ export class VRHomePanel extends VRCanvasPanel {
     if (id.startsWith("scene:")) {
       return { type: "switchScene", sceneId: id.slice("scene:".length) };
     }
-    if (id === "pageR") {
-      this.startArrow(1);
-      return null;
-    }
-    if (id === "pageL") {
-      this.startArrow(-1);
-      return null;
-    }
+    if (id === "pageR") { this.startArrow(1); return null; }
+    if (id === "pageL") { this.startArrow(-1); return null; }
     if (id === "tab:studios" || id === "tab:performers") {
-      const next: FilterTab = id === "tab:studios" ? "studios" : "performers";
+      const next: FilterTab =
+        id === "tab:studios" ? "studios" : "performers";
       if (next !== this.filterTab) {
         this.filterTab = next;
         this.railScroll = 0;
@@ -298,10 +331,13 @@ export class VRHomePanel extends VRCanvasPanel {
         id: id.slice("filter:performer:".length),
       };
     }
+    if (id === "media:all") return { type: "setMediaFilter", filter: "all" };
+    if (id === "media:vr") return { type: "setMediaFilter", filter: "vr" };
+    if (id === "media:flat") return { type: "setMediaFilter", filter: "flat" };
     return null;
   }
 
-  // ── Drawing ───────────────────────────────────────────────────────────────
+  // ── Drawing ────────────────────────────────────────────────────────────────
 
   protected draw() {
     this.tickAnimation();
@@ -318,14 +354,13 @@ export class VRHomePanel extends VRCanvasPanel {
       ctx.textBaseline = "middle";
       ctx.fillStyle = "rgba(255,255,255,0.35)";
       ctx.fillText(
-        this.filterLabel ? "No scenes for this filter" : "No VR scenes found",
+        this.filterLabel ? "No scenes for this filter" : "No scenes found",
         GRID_X0 + GRID_W / 2,
         (GRID_Y0 + GRID_Y1) / 2
       );
       return;
     }
 
-    // Clip the grid so sliding pages never spill onto the rail or panel edge.
     ctx.save();
     ctx.beginPath();
     ctx.rect(GRID_X0, GRID_Y0, GRID_W, GRID_Y1 - GRID_Y0);
@@ -342,11 +377,10 @@ export class VRHomePanel extends VRCanvasPanel {
     this.drawPager();
   }
 
-  /** Advance the page-slide animation; keep the redraw loop alive until done. */
   private tickAnimation() {
     if (!this.animStart) return;
     const t = Math.min(1, (performance.now() - this.animStart) / ANIM_MS);
-    const e = 1 - Math.pow(1 - t, 3); // easeOutCubic
+    const e = 1 - Math.pow(1 - t, 3);
     this.offset = this.animFrom + (this.animTo - this.animFrom) * e;
     if (t >= 1) {
       if (this.animTo === 1)
@@ -372,9 +406,15 @@ export class VRHomePanel extends VRCanvasPanel {
 
     const count = this.scenes.length;
     const base = count === 1 ? "1 scene" : `${count} scenes`;
+    const mediaLabel =
+      this.mediaFilter === "vr"
+        ? "VR library"
+        : this.mediaFilter === "flat"
+        ? "2D library"
+        : "library";
     const sub = this.filterLabel
       ? `${this.filterLabel}  ·  ${base}`
-      : `${base} in your VR library`;
+      : `${base} in your ${mediaLabel}`;
     ctx.font = "500 19px sans-serif";
     ctx.fillStyle = this.filterLabel
       ? `${ACCENT}0.85)`
@@ -392,12 +432,71 @@ export class VRHomePanel extends VRCanvasPanel {
     ctx.stroke();
   }
 
-  // ── Filter rail ─────────────────────────────────────────────────────────
+  // ── Filter rail ─────────────────────────────────────────────────────────────
 
   private drawRail() {
-    const { ctx } = this;
+    this.drawMediaToggle();
+    this.drawFilterTabs();
+    this.drawAllChip();
 
-    // Tabs.
+    const { ctx } = this;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, RAIL_VIEW_Y0, RAIL_W, RAIL_VIEW_Y1 - RAIL_VIEW_Y0);
+    ctx.clip();
+    this.drawRailGrid();
+    ctx.restore();
+    this.drawRailScrollbar();
+  }
+
+  /** 3-button media-type row: [All] [VR] [2D] */
+  private drawMediaToggle() {
+    const { ctx } = this;
+    const options: Array<{ id: MediaFilter; label: string }> = [
+      { id: "all", label: "All" },
+      { id: "vr", label: "VR" },
+      { id: "flat", label: "2D" },
+    ];
+    let bx = RAIL_PAD;
+    for (const opt of options) {
+      const active = this.mediaFilter === opt.id;
+      const hovered = this.hoveredId === `media:${opt.id}`;
+      this.roundRect(bx, CONTENT_Y0, MEDIA_BTN_W, MEDIA_H, MEDIA_H / 2);
+      if (active) {
+        const g = ctx.createLinearGradient(
+          bx,
+          CONTENT_Y0,
+          bx,
+          CONTENT_Y0 + MEDIA_H
+        );
+        g.addColorStop(0, "rgba(96,165,250,0.90)");
+        g.addColorStop(1, "rgba(60,120,220,0.78)");
+        ctx.fillStyle = g;
+      } else {
+        ctx.fillStyle = hovered
+          ? "rgba(255,255,255,0.16)"
+          : "rgba(255,255,255,0.07)";
+      }
+      ctx.fill();
+      ctx.font = "700 19px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = active ? "#05111f" : "rgba(255,255,255,0.88)";
+      ctx.fillText(opt.label, bx + MEDIA_BTN_W / 2, CONTENT_Y0 + MEDIA_H / 2 + 1);
+      this.regions.push({
+        id: `media:${opt.id}`,
+        x: bx,
+        y: CONTENT_Y0,
+        w: MEDIA_BTN_W,
+        h: MEDIA_H,
+      });
+      bx += MEDIA_BTN_W + MEDIA_BTN_GAP;
+    }
+  }
+
+  /** Studios / Performers tabs */
+  private drawFilterTabs() {
+    const { ctx } = this;
     const tabs: Array<{ id: FilterTab; label: string }> = [
       { id: "studios", label: "Studios" },
       { id: "performers", label: "Performers" },
@@ -407,14 +506,9 @@ export class VRHomePanel extends VRCanvasPanel {
     for (const t of tabs) {
       const active = t.id === this.filterTab;
       const hovered = this.hoveredId === `tab:${t.id}`;
-      this.roundRect(tx, CONTENT_Y0, tabW, TAB_H, 12);
+      this.roundRect(tx, TAB_Y, tabW, TAB_H, 12);
       if (active) {
-        const g = ctx.createLinearGradient(
-          tx,
-          CONTENT_Y0,
-          tx,
-          CONTENT_Y0 + TAB_H
-        );
+        const g = ctx.createLinearGradient(tx, TAB_Y, tx, TAB_Y + TAB_H);
         g.addColorStop(0, "rgba(130,190,255,0.92)");
         g.addColorStop(1, "rgba(70,130,230,0.80)");
         ctx.fillStyle = g;
@@ -428,18 +522,15 @@ export class VRHomePanel extends VRCanvasPanel {
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillStyle = active ? "#091428" : "rgba(255,255,255,0.9)";
-      ctx.fillText(t.label, tx + tabW / 2, CONTENT_Y0 + TAB_H / 2 + 1);
-      this.regions.push({
-        id: `tab:${t.id}`,
-        x: tx,
-        y: CONTENT_Y0,
-        w: tabW,
-        h: TAB_H,
-      });
+      ctx.fillText(t.label, tx + tabW / 2, TAB_Y + TAB_H / 2 + 1);
+      this.regions.push({ id: `tab:${t.id}`, x: tx, y: TAB_Y, w: tabW, h: TAB_H });
       tx += tabW + 8;
     }
+  }
 
-    // "All scenes" reset chip.
+  /** "All scenes" reset chip */
+  private drawAllChip() {
+    const { ctx } = this;
     const allActive = this.activeFilterId === null;
     const allHover = this.hoveredId === "filterAll";
     this.roundRect(RAIL_PAD, ALL_Y, RAIL_INNER, ALL_H, ALL_H / 2);
@@ -465,21 +556,18 @@ export class VRHomePanel extends VRCanvasPanel {
       w: RAIL_INNER,
       h: ALL_H,
     });
-
-    // Scrollable list of studios / performers.
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(0, RAIL_VIEW_Y0, RAIL_W, RAIL_VIEW_Y1 - RAIL_VIEW_Y0);
-    ctx.clip();
-    this.drawRailRows();
-    ctx.restore();
-    this.drawRailScrollbar();
   }
 
-  private drawRailRows() {
+  /** 2-column portrait/logo tile grid for studios or performers. */
+  private drawRailGrid() {
     const { ctx } = this;
     const items = this.railItems;
     const kind = this.filterTab === "studios" ? "studio" : "performer";
+    const isStudio = kind === "studio";
+    const imgH = isStudio ? STUDIO_IMG_H : PERF_IMG_H;
+    const tileH = isStudio ? STUDIO_TILE_H : PERF_TILE_H;
+    const rowH = isStudio ? STUDIO_ROW_H : PERF_ROW_H;
+
     if (items.length === 0) {
       ctx.font = "500 18px sans-serif";
       ctx.textAlign = "center";
@@ -490,76 +578,106 @@ export class VRHomePanel extends VRCanvasPanel {
         RAIL_PAD + RAIL_INNER / 2,
         (RAIL_VIEW_Y0 + RAIL_VIEW_Y1) / 2
       );
+      this.railMaxScroll = 0;
       return;
     }
+
+    const nRows = Math.ceil(items.length / TILE_COLS);
+    const totalH = nRows * rowH - TILE_GAP_Y;
     this.railMaxScroll = Math.max(
       0,
-      items.length * (RROW_H + RROW_GAP) -
-        RROW_GAP -
-        (RAIL_VIEW_Y1 - RAIL_VIEW_Y0)
+      totalH - (RAIL_VIEW_Y1 - RAIL_VIEW_Y0)
     );
     this.railScroll = Math.min(
       this.railMaxScroll,
       Math.max(0, this.railScroll)
     );
 
-    const thumbH = 56;
-    const thumbW = kind === "studio" ? 100 : 42; // wide logo vs portrait
     for (let i = 0; i < items.length; i++) {
+      const row = Math.floor(i / TILE_COLS);
+      const col = i % TILE_COLS;
+      const tileX = RAIL_PAD + col * (TILE_W + TILE_GAP_X);
+      const tileY = RAIL_VIEW_Y0 - this.railScroll + row * rowH;
+
+      if (tileY + tileH < RAIL_VIEW_Y0 || tileY > RAIL_VIEW_Y1) continue;
+
       const it = items[i];
-      const y = RAIL_VIEW_Y0 - this.railScroll + i * (RROW_H + RROW_GAP);
-      if (y + RROW_H < RAIL_VIEW_Y0 || y > RAIL_VIEW_Y1) continue;
       const id = `filter:${kind}:${it.id}`;
       const active = this.activeFilterId === it.id;
       const hovered = this.hoveredId === id;
 
-      this.roundRect(RAIL_PAD, y, RAIL_INNER, RROW_H, 12);
+      // Tile background
+      this.roundRect(tileX, tileY, TILE_W, tileH, 12);
       ctx.fillStyle = active
-        ? `${ACCENT}0.20)`
+        ? `${ACCENT}0.22)`
         : hovered
-        ? "rgba(255,255,255,0.10)"
-        : "rgba(255,255,255,0.05)";
+        ? "rgba(255,255,255,0.12)"
+        : "rgba(255,255,255,0.06)";
       ctx.fill();
       if (active) {
-        this.roundRect(RAIL_PAD, y, RAIL_INNER, RROW_H, 12);
+        this.roundRect(tileX, tileY, TILE_W, tileH, 12);
         ctx.lineWidth = 2;
-        ctx.strokeStyle = `${ACCENT}0.8)`;
+        ctx.strokeStyle = `${ACCENT}0.85)`;
         ctx.stroke();
       }
 
-      const tx = RAIL_PAD + 14;
-      const ty = y + (RROW_H - thumbH) / 2;
+      // Image area (cover-cropped, clipped to rounded top corners)
       const img = this.image(it.imageUrl);
+      ctx.save();
+      this.roundRect(tileX, tileY, TILE_W, imgH, 12);
+      ctx.clip();
       if (img) {
-        this.drawImageCover(img, tx, ty, thumbW, thumbH, 8);
+        this.drawImageCover(img, tileX, tileY, TILE_W, imgH, 0);
       } else {
-        this.roundRect(tx, ty, thumbW, thumbH, 8);
-        ctx.fillStyle = "rgba(255,255,255,0.06)";
-        ctx.fill();
+        ctx.fillStyle = "rgba(255,255,255,0.05)";
+        ctx.fillRect(tileX, tileY, TILE_W, imgH);
+        // Initial-letter placeholder
+        ctx.font = `700 ${isStudio ? 36 : 52}px sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillStyle = "rgba(255,255,255,0.22)";
+        ctx.fillText(
+          it.name.charAt(0).toUpperCase(),
+          tileX + TILE_W / 2,
+          tileY + imgH / 2
+        );
       }
+      ctx.restore();
 
-      const nx = tx + thumbW + 16;
-      ctx.textAlign = "left";
-      ctx.textBaseline = "alphabetic";
-      ctx.font = "600 21px sans-serif";
-      ctx.fillStyle = "rgba(255,255,255,0.94)";
+      // Count badge (top-right of image area)
+      const countStr = `${it.count}`;
+      const bW = 28 + (it.count >= 10 ? 8 : 0) + (it.count >= 100 ? 6 : 0);
+      const bH = 20;
+      const bX = tileX + TILE_W - bW - 6;
+      const bY = tileY + 6;
+      this.roundRect(bX, bY, bW, bH, bH / 2);
+      ctx.fillStyle = "rgba(0,0,0,0.62)";
+      ctx.fill();
+      ctx.font = "700 12px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "rgba(255,255,255,0.88)";
+      ctx.fillText(countStr, bX + bW / 2, bY + bH / 2);
+
+      // Name label below image
+      ctx.font = "600 17px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = active
+        ? `${ACCENT}0.95)`
+        : "rgba(255,255,255,0.92)";
       ctx.fillText(
-        this.fitText(it.name, RAIL_PAD + RAIL_INNER - nx - 12),
-        nx,
-        y + 40
-      );
-      ctx.font = "400 15px sans-serif";
-      ctx.fillStyle = "rgba(255,255,255,0.5)";
-      ctx.fillText(
-        it.count === 1 ? "1 scene" : `${it.count} scenes`,
-        nx,
-        y + 62
+        this.fitText(it.name, TILE_W - 16),
+        tileX + TILE_W / 2,
+        tileY + imgH + STUDIO_LABEL_H / 2 + 2
       );
 
-      const ry = Math.max(y, RAIL_VIEW_Y0);
-      const rh = Math.min(y + RROW_H, RAIL_VIEW_Y1) - ry;
-      if (rh > 6)
-        this.regions.push({ id, x: RAIL_PAD, y: ry, w: RAIL_INNER, h: rh });
+      // Register hit region (clipped to viewport)
+      const ry = Math.max(tileY, RAIL_VIEW_Y0);
+      const rh = Math.min(tileY + tileH, RAIL_VIEW_Y1) - ry;
+      if (rh > 8) {
+        this.regions.push({ id, x: tileX, y: ry, w: TILE_W, h: rh });
+      }
     }
   }
 
@@ -573,12 +691,13 @@ export class VRHomePanel extends VRCanvasPanel {
     const total = viewH + this.railMaxScroll;
     const thumbH = Math.max(30, viewH * (viewH / total));
     const thumbY =
-      RAIL_VIEW_Y0 + (viewH - thumbH) * (this.railScroll / this.railMaxScroll);
+      RAIL_VIEW_Y0 +
+      (viewH - thumbH) * (this.railScroll / this.railMaxScroll);
     ctx.fillStyle = `${ACCENT}0.6)`;
     ctx.fillRect(trackX, thumbY, 3, thumbH);
   }
 
-  // ── Scene grid ────────────────────────────────────────────────────────────
+  // ── Scene grid ─────────────────────────────────────────────────────────────
 
   private drawPageCards(
     pageIndex: number,
@@ -596,7 +715,6 @@ export class VRHomePanel extends VRCanvasPanel {
     }
   }
 
-  /** Top-right "Exit VR" button — ends the session (the lobby has no bar). */
   private drawExitButton() {
     const { ctx } = this;
     const w = 132;
@@ -604,7 +722,6 @@ export class VRHomePanel extends VRCanvasPanel {
     const x = this.cw - PAD - w;
     const y = 26;
     const hovered = this.hoveredId === "exitVR";
-
     this.roundRect(x, y, w, h, h / 2);
     ctx.fillStyle = hovered ? "rgba(220,72,72,0.92)" : "rgba(200,60,60,0.22)";
     ctx.fill();
@@ -614,7 +731,6 @@ export class VRHomePanel extends VRCanvasPanel {
       ? "rgba(255,160,160,0.6)"
       : "rgba(220,90,90,0.55)";
     ctx.stroke();
-
     ctx.font = "600 19px sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -622,7 +738,6 @@ export class VRHomePanel extends VRCanvasPanel {
       ? "rgba(255,255,255,0.98)"
       : "rgba(255,190,190,0.95)";
     ctx.fillText("✕  Exit VR", x + w / 2, y + h / 2 + 1);
-
     this.regions.push({ id: "exitVR", x, y, w, h });
   }
 
@@ -641,22 +756,14 @@ export class VRHomePanel extends VRCanvasPanel {
     this.roundRect(x, y, CARD_W, CARD_H, R);
     ctx.clip();
 
-    // Thumbnail: preview video when hovered + ready, else screenshot.
+    // Thumbnail: preview video when hovered, else screenshot.
     const videoEl = hovered ? this.previewVideo : null;
     if (videoEl && videoEl.readyState >= 2) {
       const vr = videoEl.videoWidth / videoEl.videoHeight;
       const cr = CARD_W / THUMB_H;
-      let sx = 0;
-      let sy = 0;
-      let sw = videoEl.videoWidth;
-      let sh = videoEl.videoHeight;
-      if (vr > cr) {
-        sw = sh * cr;
-        sx = (videoEl.videoWidth - sw) / 2;
-      } else {
-        sh = sw / cr;
-        sy = (videoEl.videoHeight - sh) / 2;
-      }
+      let sx = 0, sy = 0, sw = videoEl.videoWidth, sh = videoEl.videoHeight;
+      if (vr > cr) { sw = sh * cr; sx = (videoEl.videoWidth - sw) / 2; }
+      else { sh = sw / cr; sy = (videoEl.videoHeight - sh) / 2; }
       ctx.drawImage(videoEl, sx, sy, sw, sh, x, y, CARD_W, THUMB_H);
     } else {
       const img = this.image(scene.thumbnailUrl);
@@ -668,10 +775,34 @@ export class VRHomePanel extends VRCanvasPanel {
       }
     }
 
+    // Funscript heatmap strip at the bottom of the thumbnail.
+    if (scene.hasFunscript && scene.heatmapUrl) {
+      const hmImg = this.image(scene.heatmapUrl);
+      if (hmImg) {
+        const hmH = 22;
+        ctx.save();
+        ctx.globalAlpha = 0.78;
+        ctx.drawImage(
+          hmImg,
+          0,
+          0,
+          hmImg.width,
+          hmImg.height,
+          x,
+          y + THUMB_H - hmH,
+          CARD_W,
+          hmH
+        );
+        ctx.restore();
+      }
+    }
+
+    // Caption bar
     ctx.fillStyle = "rgba(12,12,17,0.94)";
     ctx.fillRect(x, y + THUMB_H, CARD_W, CAP_H);
     ctx.restore();
 
+    // Title + studio text
     const textX = x + 16;
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
@@ -692,9 +823,9 @@ export class VRHomePanel extends VRCanvasPanel {
       );
     }
 
+    // "Now Playing" badge
     if (isPlaying) {
-      const bw = 104;
-      const bh = 26;
+      const bw = 104, bh = 26;
       this.roundRect(x + 10, y + 10, bw, bh, bh / 2);
       ctx.fillStyle = `${GOLD}0.92)`;
       ctx.fill();
@@ -705,6 +836,22 @@ export class VRHomePanel extends VRCanvasPanel {
       ctx.fillText("NOW PLAYING", x + 10 + bw / 2, y + 10 + bh / 2 + 1);
     }
 
+    // Funscript indicator badge (top-right of thumbnail)
+    if (scene.hasFunscript) {
+      const bw = 42, bh = 22;
+      const bx = x + CARD_W - bw - 10;
+      const by = y + 10;
+      this.roundRect(bx, by, bw, bh, bh / 2);
+      ctx.fillStyle = `${ORANGE}0.92)`;
+      ctx.fill();
+      ctx.font = "700 13px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "rgba(20,8,0,0.96)";
+      ctx.fillText("FS", bx + bw / 2, by + bh / 2 + 1);
+    }
+
+    // Hover / playing border
     if (isPlaying || hovered) {
       this.roundRect(x, y, CARD_W, CARD_H, R);
       ctx.lineWidth = 2.5;
@@ -713,14 +860,7 @@ export class VRHomePanel extends VRCanvasPanel {
     }
 
     if (interactive) {
-      this.regions.push({
-        id: `scene:${scene.id}`,
-        x,
-        y,
-        w: CARD_W,
-        h: CARD_H,
-      });
-      // While hovering a card with a preview, keep redrawing so the clip plays.
+      this.regions.push({ id: `scene:${scene.id}`, x, y, w: CARD_W, h: CARD_H });
       if (hovered && this.previewVideo) this.markDirty();
     }
   }
@@ -756,13 +896,7 @@ export class VRHomePanel extends VRCanvasPanel {
       ctx.textBaseline = "middle";
       ctx.fillText(id === "pageL" ? "‹" : "›", x + arrowW / 2, cy + 1);
       if (enabled) {
-        this.regions.push({
-          id,
-          x,
-          y: cy - PAGER_H / 2,
-          w: arrowW,
-          h: PAGER_H,
-        });
+        this.regions.push({ id, x, y: cy - PAGER_H / 2, w: arrowW, h: PAGER_H });
       }
     };
 

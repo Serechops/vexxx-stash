@@ -361,12 +361,8 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
             sort: "date",
             direction: GQL.SortDirectionEnum.Desc,
           },
-          scene_filter: {
-            vr_mode: {
-              value: [GQL.VrMode.Lr180, GQL.VrMode.Mono360, GQL.VrMode.Tb360],
-              modifier: GQL.CriterionModifier.Includes,
-            },
-          },
+          // No scene_filter — fetch all scenes so the Home wall can show
+          // flat and VR content together (toggled via the media-type filter).
         },
       })
       .then((result) => {
@@ -387,12 +383,14 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
             name: p.name,
             imageUrl: p.image_path ?? null,
           })),
+          hasFunscript: s.interactive && !!s.paths.funscript,
+          heatmapUrl: s.paths.interactive_heatmap ?? null,
         }));
-        // Home wall shows the whole VR library; the peripheral carousel excludes
-        // whatever scene is currently playing.
+        // Home wall shows all scenes; the peripheral Browse carousel shows only
+        // VR scenes (it's designed for dome playback, not flat content).
         homeScenesRef.current = all;
         scenesRef.current = all
-          .filter((s) => s.id !== liveSceneRef.current.id)
+          .filter((s) => !!s.vrMode && s.id !== liveSceneRef.current.id)
           .slice(0, 50);
         managerRef.current?.updateHomeScenes(all);
       })
@@ -460,6 +458,13 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
         managerRef.current?.updateCurrentSceneId(next.id);
         // Close the Browse panels so the user lands back in the immersive view.
         managerRef.current?.closeBrowse();
+
+        // Switch projection to match the new scene's media type.
+        if (next.vr_mode) {
+          setProjection(projectionForVrMode(next.vr_mode));
+        } else {
+          setProjection({ fov: "flat", stereo: "off", swapEyes: false, zoom: 1.2 });
+        }
 
         // Update the scenes browser: remove the new scene, add the old one back.
         const prev = liveSceneRef.current;

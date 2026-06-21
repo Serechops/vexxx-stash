@@ -28,6 +28,10 @@ export interface IVRSceneEntry {
   studioId?: string | null;
   studioLogoUrl?: string | null;
   performerDetails?: { id: string; name: string; imageUrl: string | null }[];
+  /** True when an interactive funscript file is attached to this scene. */
+  hasFunscript?: boolean;
+  /** URL to the pre-generated funscript heatmap image (paths.interactive_heatmap). */
+  heatmapUrl?: string | null;
 }
 
 // Same dimensions as the Info panel for symmetry; the height matches the main

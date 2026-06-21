@@ -32,6 +32,18 @@ export interface IVRSceneEntry {
   hasFunscript?: boolean;
   /** URL to the pre-generated funscript heatmap image (paths.interactive_heatmap). */
   heatmapUrl?: string | null;
+  /** Seconds into the scene where playback was last left (resume_time). */
+  resumeTime?: number | null;
+  /** Scene rating 0–100 (rating100). */
+  rating?: number | null;
+  /** Duration in seconds (files[0].duration). */
+  durationSecs?: number | null;
+  /** ISO date string from the scene `date` field, e.g. "2024-05-01". */
+  dateAdded?: string | null;
+  /** Video width in pixels. */
+  width?: number | null;
+  /** Video height in pixels. */
+  height?: number | null;
 }
 
 // Same dimensions as the Info panel for symmetry; the height matches the main

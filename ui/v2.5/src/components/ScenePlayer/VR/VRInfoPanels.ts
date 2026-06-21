@@ -391,6 +391,35 @@ export abstract class VRCanvasPanel {
   }
 
   /** Draw an image with object-fit: cover, clipped to a rounded rect. */
+  protected drawImageContain(
+    img: HTMLImageElement,
+    dx: number,
+    dy: number,
+    dw: number,
+    dh: number,
+    radius: number,
+    bg = "rgba(0,0,0,0.18)"
+  ) {
+    const { ctx } = this;
+    ctx.save();
+    this.roundRect(dx, dy, dw, dh, radius);
+    ctx.clip();
+    ctx.fillStyle = bg;
+    ctx.fillRect(dx, dy, dw, dh);
+    const ir = img.naturalWidth / img.naturalHeight;
+    const dr = dw / dh;
+    let iw: number, ih: number, ix: number, iy: number;
+    if (ir > dr) {
+      iw = dw; ih = dw / ir;
+      ix = dx; iy = dy + (dh - ih) / 2;
+    } else {
+      ih = dh; iw = dh * ir;
+      ix = dx + (dw - iw) / 2; iy = dy;
+    }
+    ctx.drawImage(img, ix, iy, iw, ih);
+    ctx.restore();
+  }
+
   protected drawImageCover(
     img: HTMLImageElement,
     dx: number,

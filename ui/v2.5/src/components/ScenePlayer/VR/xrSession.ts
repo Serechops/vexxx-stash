@@ -37,12 +37,12 @@ import { VRHandyPanel, VRInfoPanel, IVRSceneInfo } from "./VRInfoPanels";
 import { VRScenesPanel, IVRSceneEntry } from "./VRScenesPanel";
 import { VRHomePanel } from "./VRHomePanel";
 import { VRLobbyBackdrop } from "./VRLobbyBackdrop";
-import { VRTheatreEnv } from "./VRTheatreEnv";
 import {
   VRControlAction,
   IVRMarker,
   IVRPlaybackState,
   IVRHandyState,
+  IVRHomeSettings,
 } from "./types";
 import type { IThumbnailCrop } from "./vttThumbnails";
 
@@ -121,6 +121,8 @@ export interface IXRSessionManagerOptions {
   getHomeScenes?: () => IVRSceneEntry[];
   /** Start the session in lobby/Home mode (no scene loaded yet). */
   lobby?: boolean;
+  /** Initial immersive-Home preferences (gaze-launch / dwell / audio). */
+  homeSettings?: IVRHomeSettings;
   /** Sprite crop for a scrubber-hover preview, or null when unavailable. */
   getThumbnail?: (time: number) => IThumbnailCrop | null;
   onAction: (a: VRControlAction) => void;
@@ -173,12 +175,15 @@ export class XRSessionManager {
   private homePanel: VRHomePanel | null = null;
   private backdrop: VRLobbyBackdrop | null = null;
   // Cinema room shown when a flat (non-VR) scene is playing.
-  private theatreEnv: VRTheatreEnv | null = null;
   private lobbyMode = false;
   private homeScenes: IVRSceneEntry[] = [];
+  private filteredHomeScenes: IVRSceneEntry[] = [];
   private homeFilter: { kind: "studio" | "performer"; id: string } | null =
     null;
-  private mediaFilter: "all" | "vr" | "flat" = "all";
+  private mediaFilter: "all" | "vr" | "flat" | "funscript" = "all";
+  // Thumbstick lobby-nav edge-trigger arms.
+  private lobbyHArmed = true;
+  private lobbyVArmed = true;
   // Reused per-frame draw payload (avoids allocating an object every frame).
   private drawInput: IDrawInput;
 
@@ -276,6 +281,7 @@ export class XRSessionManager {
     this.uiGroup.add(home.object);
     this.layoutHomePanel(home);
     home.setRenderState(0);
+    if (opts.homeSettings) home.setSettings(opts.homeSettings);
 
     this.lobbyMode = !!opts.lobby;
 
@@ -284,10 +290,8 @@ export class XRSessionManager {
     this.scene.add(this.backdrop.object);
     this.backdrop.setVisible(this.lobbyMode);
 
-    // Cinema room for flat (2D) scene playback — added to videoGroup so it
-    // co-rotates with the flat screen when the user recenters.
-    this.theatreEnv = new VRTheatreEnv();
-    this.videoGroup.add(this.theatreEnv.object);
+    // Flat (2D) scenes play on a bare curved screen floating in darkness — no
+    // theatre dressing or glow frame (intentionally minimal for comfort).
 
     // Seed Home data (scenes + derived studios/performers + backdrop playlist).
     this.updateHomeScenes(opts.getHomeScenes ? opts.getHomeScenes() : []);
@@ -473,9 +477,6 @@ export class XRSessionManager {
   setProjection(projection: IProjectionSettings) {
     this.projection = projection;
     this.buildDome();
-    const isFlat = projection.fov === "flat";
-    this.theatreEnv?.setVisible(isFlat && !this.lobbyMode);
-    if (isFlat) this.theatreEnv?.setZoom(projection.zoom);
   }
 
   /** Update the info panel with new scene metadata after an in-VR scene switch. */
@@ -533,11 +534,12 @@ export class XRSessionManager {
     this.backdrop?.setVisible(on);
     if (on) {
       this.thumbPreview.visible = false;
-      this.theatreEnv?.setVisible(false);
+      // Hide the video screen (dome/flat-screen meshes) in lobby so it doesn't
+      // bleed through behind the home wall.
+      for (const m of this.domeMeshes) m.visible = false;
     } else {
-      // Restore theatre visibility based on current projection.
-      const isFlat = this.projection.fov === "flat";
-      this.theatreEnv?.setVisible(isFlat);
+      // Restore the video screen meshes for the just-launched scene.
+      for (const m of this.domeMeshes) m.visible = true;
     }
     this.rebuildBrowseHittables();
     this.lastActivity = performance.now();
@@ -592,12 +594,25 @@ export class XRSessionManager {
       [...studioMap.values()].sort((a, b) => b.count - a.count),
       [...performerMap.values()].sort((a, b) => b.count - a.count)
     );
+    const vrCount = scenes.filter((s) => !!s.vrMode).length;
+    const fsCount = scenes.filter((s) => !!s.hasFunscript).length;
+    this.homePanel?.setSceneCounts(
+      scenes.length,
+      vrCount,
+      scenes.length - vrCount,
+      fsCount
+    );
     // Apply media-type + studio/performer filters to the freshly loaded list.
     this.applyMediaAndHomeFilter();
   }
 
   setHeatmap(cssUrl: string | null) {
     this.panel.setHeatmap(cssUrl);
+  }
+
+  /** Push updated immersive-Home preferences to the Home wall. */
+  setHomeSettings(settings: IVRHomeSettings) {
+    this.homePanel?.setSettings(settings);
   }
 
   /** Apply a home-filter (studio/performer) and re-seed the wall. */
@@ -633,6 +648,8 @@ export class XRSessionManager {
       filtered = filtered.filter((s) => !!s.vrMode);
     } else if (this.mediaFilter === "flat") {
       filtered = filtered.filter((s) => !s.vrMode);
+    } else if (this.mediaFilter === "funscript") {
+      filtered = filtered.filter((s) => !!s.hasFunscript);
     }
     const f = this.homeFilter;
     if (f) {
@@ -644,7 +661,20 @@ export class XRSessionManager {
         );
       }
     }
+    this.filteredHomeScenes = filtered;
     this.homePanel?.setScenes(filtered);
+  }
+
+  /**
+   * Returns the ID of the scene that comes after `currentId` in the current
+   * filtered + sorted home list — used by ImmersiveVRPlayer for auto-advance.
+   */
+  getNextSceneId(currentId: string): string | null {
+    if (!currentId) return null;
+    const list = this.filteredHomeScenes;
+    const idx = list.findIndex((s) => s.id === currentId);
+    if (idx < 0 || idx >= list.length - 1) return null;
+    return list[idx + 1].id;
   }
 
   /** Re-orient the video so the current gaze direction becomes its centre. */
@@ -800,7 +830,11 @@ export class XRSessionManager {
       );
     }
 
-    for (const m of this.domeMeshes) this.videoGroup.add(m);
+    for (const m of this.domeMeshes) {
+      this.videoGroup.add(m);
+      // Stay hidden if we're in the lobby — setLobbyMode(false) will reveal them.
+      if (this.lobbyMode) m.visible = false;
+    }
   }
 
   private makeDomeMesh(uv: IUVTransform, layer: number): THREE.Mesh {
@@ -975,6 +1009,11 @@ export class XRSessionManager {
     // Guard on readyState >= HAVE_CURRENT_DATA: if the decoder is mid-stall
     // (segment boundary, buffer refill) skip the update so Three.js holds the
     // last good GPU frame rather than uploading an empty buffer → black flash.
+    //
+    // NB: a requestVideoFrameCallback-gated upload was tried here to skip
+    // redundant uploads of a 24–30 fps source onto 72–120 Hz frames. It made
+    // micro-stutter WORSE: bursty uploads at the video cadence desync the Quest
+    // compositor's frame pacing. Steady per-frame uploads are intentional.
     if (this.opts.video.readyState >= 2) {
       this.videoTexture.needsUpdate = true;
     }
@@ -1058,6 +1097,26 @@ export class XRSessionManager {
         this.homePanel?.update();
         // Drive the ambient backdrop (slow starfield drift) each lobby frame.
         this.backdrop?.update();
+
+        // Thumbstick navigation for the home wall grid and filter rail.
+        if (this.homePanel) {
+          const { h, v } = this.input.getLobbyAxes();
+          const NAV_FIRE = 0.65;
+          const NAV_REARM = 0.25;
+          if (Math.abs(h) < NAV_REARM) this.lobbyHArmed = true;
+          else if (Math.abs(h) > NAV_FIRE && this.lobbyHArmed) {
+            this.lobbyHArmed = false;
+            this.homePanel.nudgePage(h > 0 ? 1 : -1);
+          }
+          if (Math.abs(v) < NAV_REARM) this.lobbyVArmed = true;
+          else if (Math.abs(v) > NAV_FIRE && this.lobbyVArmed) {
+            this.lobbyVArmed = false;
+            this.homePanel.nudgeRail(v > 0 ? 1 : -1);
+          }
+          // Poll for gaze-dwell launch (fires when user gazes at a card for DWELL_MS).
+          const pa = this.homePanel.takePendingAction();
+          if (pa) this.dispatchAction(pa);
+        }
       } else {
         const d = this.drawInput;
         d.state = state;
@@ -1251,7 +1310,6 @@ export class XRSessionManager {
     this.scenesPanel?.dispose();
     this.homePanel?.dispose();
     this.backdrop?.dispose();
-    this.theatreEnv?.dispose();
 
     if (this.previewVideo) {
       this.previewVideo.pause();

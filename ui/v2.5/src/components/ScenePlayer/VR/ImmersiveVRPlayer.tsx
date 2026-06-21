@@ -47,7 +47,30 @@ import {
   IVRMarker,
   IVRPlaybackState,
   IVRHandyState,
+  IVRHomeSettings,
+  DEFAULT_VR_HOME_SETTINGS,
 } from "./types";
+
+const VR_SETTINGS_KEY = "vrHomeSettings";
+
+/** Load persisted immersive-Home preferences, falling back to defaults. */
+function loadVRHomeSettings(): IVRHomeSettings {
+  try {
+    const raw = window.localStorage.getItem(VR_SETTINGS_KEY);
+    if (raw) return { ...DEFAULT_VR_HOME_SETTINGS, ...JSON.parse(raw) };
+  } catch {
+    /* SSR / blocked storage / bad JSON — use defaults */
+  }
+  return { ...DEFAULT_VR_HOME_SETTINGS };
+}
+
+function saveVRHomeSettings(s: IVRHomeSettings) {
+  try {
+    window.localStorage.setItem(VR_SETTINGS_KEY, JSON.stringify(s));
+  } catch {
+    /* ignore */
+  }
+}
 
 interface IMarkerLike {
   title?: string | null;
@@ -161,6 +184,11 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
 
   const captionsOnRef = useRef(false);
   const activeCueRef = useRef<string | null>(null);
+
+  // Persisted immersive-Home preferences (gaze-launch / dwell / audio). Held in
+  // a ref so the stable action handler reads the latest without re-creating the
+  // XR session; mutated in-place and persisted on each change.
+  const settingsRef = useRef<IVRHomeSettings>(loadVRHomeSettings());
 
   const sourceIdx = useRef(0);
   // Key the source list on scene.id only. The `scene` object identity changes
@@ -385,6 +413,12 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
           })),
           hasFunscript: s.interactive && !!s.paths.funscript,
           heatmapUrl: s.paths.interactive_heatmap ?? null,
+          resumeTime: s.resume_time ?? null,
+          rating: s.rating100 ?? null,
+          durationSecs: s.files[0]?.duration ?? null,
+          dateAdded: s.date ?? null,
+          width: s.files[0]?.width ?? null,
+          height: s.files[0]?.height ?? null,
         }));
         // Home wall shows all scenes; the peripheral Browse carousel shows only
         // VR scenes (it's designed for dome playback, not flat content).
@@ -438,6 +472,7 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
             loadedSrcRef.current = nextSrc;
             sourceIdx.current = 0;
             v.src = nextSrc;
+            v.muted = !settingsRef.current.soundOnPlay;
             v.load();
             v.play().catch(() => undefined);
           }
@@ -593,6 +628,23 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
         case "goHome":
           handleGoHome();
           break;
+        // ── Immersive Home preferences (gear panel) ──
+        case "setVrSetting": {
+          const next = { ...settingsRef.current, [a.key]: a.value };
+          settingsRef.current = next;
+          saveVRHomeSettings(next);
+          managerRef.current?.setHomeSettings(next);
+          // Apply audio change live to whatever is currently playing.
+          if (a.key === "soundOnPlay" && v) v.muted = !a.value;
+          break;
+        }
+        case "setVrDwellMs": {
+          const next = { ...settingsRef.current, dwellMs: a.ms };
+          settingsRef.current = next;
+          saveVRHomeSettings(next);
+          managerRef.current?.setHomeSettings(next);
+          break;
+        }
         // scenesPanelToggle is handled in-manager (see routeSelect).
         // ── Handy interactive device ──
         case "handyConnect":
@@ -657,6 +709,7 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
     loadedSrcRef.current = sources[0];
     sourceIdx.current = 0;
     v.src = sources[0];
+    v.muted = !settingsRef.current.soundOnPlay;
 
     const onError = () => {
       if (sourceIdx.current < sources.length - 1) {
@@ -712,6 +765,7 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
       getScenes: () => getScenes(),
       getHomeScenes: () => getHomeScenes(),
       lobby: startedInLobbyRef.current,
+      homeSettings: settingsRef.current,
       getThumbnail: (time) => thumbnailsRef.current?.getAt(time) ?? null,
       onAction: (a) => actionRef.current(a),
       onEnd: () => onExitRef.current(),
@@ -797,6 +851,26 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
       cancelled = true;
     };
   }, [liveScene.interactive, liveScene.paths.funscript, videoEl]);
+
+  // Auto-advance: when a scene ends, switch to the next scene in the current
+  // filtered order after a short delay. The manager keeps the filtered list;
+  // lobby mode scenes (id="") return null so no advance fires from the home wall.
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const onEnded = () => {
+      if (timer) clearTimeout(timer);
+      const nextId = managerRef.current?.getNextSceneId(liveSceneRef.current.id);
+      if (!nextId) return;
+      timer = setTimeout(() => handleSwitchScene(nextId), 3000);
+    };
+    v.addEventListener("ended", onEnded);
+    return () => {
+      v.removeEventListener("ended", onEnded);
+      if (timer != null) clearTimeout(timer);
+    };
+  }, [videoEl, handleSwitchScene]);
 
   const captionTracks = useMemo(() => {
     if (!liveScene.captions) return [];

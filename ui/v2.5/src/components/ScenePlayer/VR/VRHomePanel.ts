@@ -13,7 +13,7 @@
  * handled by the session manager without a React round-trip.
  */
 import * as THREE from "three";
-import { VRControlAction } from "./types";
+import { VRControlAction, IVRHomeSettings } from "./types";
 import { VRCanvasPanel, IPanelRegion } from "./VRInfoPanels";
 import { IVRSceneEntry } from "./VRScenesPanel";
 
@@ -33,7 +33,8 @@ const PANEL_RADIUS = 2.65;
 // ── Shared layout ─────────────────────────────────────────────────────────────
 const PAD = 40;
 const TITLE_Y = 58;
-const SUB_Y = 92;
+const LOGO_CY = 50; // vertical centre of the enlarged header logo
+const SUB_Y = 110; // pushed down to clear the larger logo
 const CONTENT_Y0 = 132; // top of all content rows
 
 // ── Filter rail (left 540 px) ─────────────────────────────────────────────────
@@ -41,13 +42,13 @@ const RAIL_W = 540;
 const RAIL_PAD = 28;
 const RAIL_INNER = RAIL_W - RAIL_PAD * 2; // 484
 
-// Media-type toggle row ( [All] [VR] [2D] )
+// Media-type toggle row ( [All] [VR] [2D] [FS] )
 const MEDIA_H = 46;
-const MEDIA_BTN_COUNT = 3;
+const MEDIA_BTN_COUNT = 4;
 const MEDIA_BTN_GAP = 8;
 const MEDIA_BTN_W = Math.floor(
   (RAIL_INNER - MEDIA_BTN_GAP * (MEDIA_BTN_COUNT - 1)) / MEDIA_BTN_COUNT
-); // 156
+); // 115
 
 // Studios / Performers tabs
 const TAB_Y = CONTENT_Y0 + MEDIA_H + 10; // 188
@@ -57,8 +58,12 @@ const TAB_H = 50;
 const ALL_Y = TAB_Y + TAB_H + 10; // 248
 const ALL_H = 38;
 
-// Scrollable filter tile grid
-const RAIL_VIEW_Y0 = ALL_Y + ALL_H + 12; // 298
+// Sort chips (Recent / Rating / A–Z) sit between the All chip and the scrollable grid
+const SORT_Y = ALL_Y + ALL_H + 8; // 294
+const SORT_H = 34;
+
+// Scrollable filter tile grid (starts below sort chips)
+const RAIL_VIEW_Y0 = SORT_Y + SORT_H + 8; // 336
 const RAIL_VIEW_Y1 = CANVAS_H - 68; // 1232
 
 // 2-column tile grid within the rail
@@ -101,6 +106,10 @@ const PAGER_Y = CANVAS_H - 45; // 1255
 const PAGER_H = 44;
 
 // ── Interaction thresholds ────────────────────────────────────────────────────
+// Default gaze-dwell delay before auto-launch. User-overridable via the settings
+// gear (the live value lives in `this.dwellMs`); this is only the fallback.
+const DWELL_MS_DEFAULT = 2500;
+const DWELL_TIME_OPTIONS = [1500, 2500, 4000]; // selectable in the settings panel
 const DRAG_THRESHOLD = 10;
 const ANIM_MS = 300;
 const COMMIT_FRACTION = 0.28;
@@ -111,13 +120,16 @@ const GOLD = "rgba(250,200,80,";
 const ORANGE = "rgba(250,140,30,";
 
 type FilterTab = "studios" | "performers";
-type MediaFilter = "all" | "vr" | "flat";
+type MediaFilter = "all" | "vr" | "flat" | "funscript";
+type SortMode = "recent" | "rating" | "title";
 
 export class VRHomePanel extends VRCanvasPanel {
   private scenes: IVRSceneEntry[] = [];
+  private displayScenes: IVRSceneEntry[] = []; // sorted view of scenes
   private currentSceneId: string | null = null;
   private previewVideo: HTMLVideoElement | null = null;
   private filterLabel: string | null = null;
+  private sortMode: SortMode = "recent";
 
   // Filter rail
   private studios: IVRFilterEntry[] = [];
@@ -125,8 +137,25 @@ export class VRHomePanel extends VRCanvasPanel {
   private filterTab: FilterTab = "studios";
   private activeFilterId: string | null = null;
   private mediaFilter: MediaFilter = "all";
+  private sceneCounts = { all: 0, vr: 0, flat: 0, funscript: 0 };
   private railScroll = 0;
   private railMaxScroll = 0;
+
+  // Gaze-dwell launch: track which scene-card the user has been looking at and for how long.
+  private dwellId: string | null = null;
+  private dwellStart = 0;
+  private pendingAction: VRControlAction | null = null;
+
+  // User preferences (settings gear). Mirrored from React; the panel renders the
+  // toggle states and uses hoverLaunch / dwellMs to drive gaze-dwell behaviour.
+  private hoverLaunch = true;
+  private dwellMs = DWELL_MS_DEFAULT;
+  private soundOnPlay = true;
+  private settingsOpen = false;
+
+  // Thumbstick nav edge-trigger arms (reset when stick returns to centre).
+  private lobbyHArmed = true;
+  private lobbyVArmed = true;
 
   // Grid page-slide (0 = settled, +1 = next page animating, −1 = prev)
   private page = 0;
@@ -152,7 +181,7 @@ export class VRHomePanel extends VRCanvasPanel {
   }
 
   get hasContent(): boolean {
-    return this.scenes.length > 0;
+    return this.displayScenes.length > 0;
   }
 
   get hoveredSceneId(): string | null {
@@ -167,7 +196,111 @@ export class VRHomePanel extends VRCanvasPanel {
     this.page = 0;
     this.offset = 0;
     this.animStart = 0;
+    this.buildDisplayScenes();
     this.markDirty();
+  }
+
+  private buildDisplayScenes() {
+    const s = [...this.scenes];
+    if (this.sortMode === "rating") {
+      s.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
+    } else if (this.sortMode === "title") {
+      s.sort((a, b) => (a.title || "").localeCompare(b.title || ""));
+    } else {
+      // "recent": in-progress scenes (resumeTime > 30s) float to the top,
+      // remainder stays in original order (date desc from query).
+      const inProg = s.filter((x) => (x.resumeTime ?? 0) > 30);
+      const rest = s.filter((x) => !((x.resumeTime ?? 0) > 30));
+      this.displayScenes = [...inProg, ...rest];
+      return;
+    }
+    this.displayScenes = s;
+  }
+
+  setSortMode(mode: SortMode) {
+    if (mode === this.sortMode) return;
+    this.sortMode = mode;
+    this.page = 0;
+    this.offset = 0;
+    this.buildDisplayScenes();
+    this.markDirty();
+  }
+
+  takePendingAction(): VRControlAction | null {
+    const a = this.pendingAction;
+    this.pendingAction = null;
+    return a;
+  }
+
+  /** Sync user preferences (from React / persisted localStorage). */
+  setSettings(s: IVRHomeSettings) {
+    let changed = false;
+    if (s.hoverLaunch !== this.hoverLaunch) {
+      this.hoverLaunch = s.hoverLaunch;
+      changed = true;
+    }
+    if (s.dwellMs !== this.dwellMs) {
+      this.dwellMs = s.dwellMs;
+      changed = true;
+    }
+    if (s.soundOnPlay !== this.soundOnPlay) {
+      this.soundOnPlay = s.soundOnPlay;
+      changed = true;
+    }
+    if (changed) {
+      // Reset any in-flight gaze so a delay change takes effect cleanly.
+      this.dwellId = null;
+      this.dwellStart = 0;
+      this.markDirty();
+    }
+  }
+
+  /** Horizontal thumbstick: page the scene grid left or right. */
+  nudgePage(dir: 1 | -1) {
+    const NAV_REARM = 0.25;
+    if (dir > 0) {
+      if (!this.lobbyHArmed) return;
+      this.lobbyHArmed = false;
+    } else {
+      if (!this.lobbyHArmed) return;
+      this.lobbyHArmed = false;
+    }
+    this.startArrow(dir);
+  }
+
+  /** Vertical thumbstick: scroll the filter rail up or down. */
+  nudgeRail(dir: 1 | -1) {
+    if (dir > 0) {
+      if (!this.lobbyVArmed) return;
+      this.lobbyVArmed = false;
+    } else {
+      if (!this.lobbyVArmed) return;
+      this.lobbyVArmed = false;
+    }
+    const step = 140;
+    const next = Math.min(
+      this.railMaxScroll,
+      Math.max(0, this.railScroll + dir * step)
+    );
+    if (next !== this.railScroll) {
+      this.railScroll = next;
+      this.markDirty();
+    }
+  }
+
+  /** Rearm thumbstick axes when they return near centre. */
+  tickLobbyAxes(h: number, v: number) {
+    if (Math.abs(h) < 0.25) this.lobbyHArmed = true;
+    if (Math.abs(v) < 0.25) this.lobbyVArmed = true;
+  }
+
+  get hoveredPreviewUrl(): string | null {
+    const id = this.hoveredId;
+    if (!id?.startsWith("scene:")) return null;
+    const sceneId = id.slice("scene:".length);
+    return (
+      this.displayScenes.find((s) => s.id === sceneId)?.previewUrl ?? null
+    );
   }
 
   setFilterData(studios: IVRFilterEntry[], performers: IVRFilterEntry[]) {
@@ -209,8 +342,13 @@ export class VRHomePanel extends VRCanvasPanel {
     }
   }
 
+  setSceneCounts(all: number, vr: number, flat: number, funscript: number) {
+    this.sceneCounts = { all, vr, flat, funscript };
+    this.markDirty();
+  }
+
   private get pageCount(): number {
-    return Math.max(1, Math.ceil(this.scenes.length / PER_PAGE));
+    return Math.max(1, Math.ceil(this.displayScenes.length / PER_PAGE));
   }
 
   private get railItems(): IVRFilterEntry[] {
@@ -237,6 +375,8 @@ export class VRHomePanel extends VRCanvasPanel {
 
   pointerMove(uv: THREE.Vector2): void {
     if (!this.pressActive) return;
+    // While the settings modal is open the wall behind it is inert.
+    if (this.settingsOpen) return;
     if (this.pressZone === "grid") {
       const dx = uv.x * this.cw - this.pressX;
       if (Math.abs(dx) > DRAG_THRESHOLD) this.dragging = true;
@@ -300,6 +440,42 @@ export class VRHomePanel extends VRCanvasPanel {
 
   protected handleSelect(region: IPanelRegion): VRControlAction | null {
     const { id } = region;
+
+    // Settings gear + modal interactions (handled in-panel; settings changes
+    // are also emitted so React can persist them and apply audio side-effects).
+    if (id === "settings") {
+      this.settingsOpen = !this.settingsOpen;
+      this.markDirty();
+      return null;
+    }
+    if (id === "settingsClose") {
+      this.settingsOpen = false;
+      this.markDirty();
+      return null;
+    }
+    if (this.settingsOpen) {
+      if (id === "set:hoverLaunch") {
+        this.hoverLaunch = !this.hoverLaunch;
+        this.markDirty();
+        return { type: "setVrSetting", key: "hoverLaunch", value: this.hoverLaunch };
+      }
+      if (id === "set:soundOnPlay") {
+        this.soundOnPlay = !this.soundOnPlay;
+        this.markDirty();
+        return { type: "setVrSetting", key: "soundOnPlay", value: this.soundOnPlay };
+      }
+      if (id.startsWith("dwell:")) {
+        const ms = parseInt(id.slice("dwell:".length), 10);
+        if (!Number.isNaN(ms)) {
+          this.dwellMs = ms;
+          this.markDirty();
+          return { type: "setVrDwellMs", ms };
+        }
+        return null;
+      }
+      return null;
+    }
+
     if (id === "exitVR") return { type: "exit" };
     if (id.startsWith("scene:")) {
       return { type: "switchScene", sceneId: id.slice("scene:".length) };
@@ -334,7 +510,55 @@ export class VRHomePanel extends VRCanvasPanel {
     if (id === "media:all") return { type: "setMediaFilter", filter: "all" };
     if (id === "media:vr") return { type: "setMediaFilter", filter: "vr" };
     if (id === "media:flat") return { type: "setMediaFilter", filter: "flat" };
+    if (id === "media:funscript")
+      return { type: "setMediaFilter", filter: "funscript" };
+    if (id === "sort:recent") { this.setSortMode("recent"); return null; }
+    if (id === "sort:rating") { this.setSortMode("rating"); return null; }
+    if (id === "sort:title") { this.setSortMode("title"); return null; }
     return null;
+  }
+
+  // ── Dwell / update ────────────────────────────────────────────────────────
+
+  update() {
+    this.tickDwell();
+    super.update();
+  }
+
+  private tickDwell() {
+    // Disabled when the user turns off gaze-launch, or while the settings modal
+    // is open (the grid is non-interactive behind it).
+    if (!this.hoverLaunch || this.settingsOpen) {
+      this.dwellId = null;
+      this.dwellStart = 0;
+      return;
+    }
+    const id = this.hoveredId;
+    if (!id?.startsWith("scene:")) {
+      this.dwellId = null;
+      this.dwellStart = 0;
+      return;
+    }
+    if (id !== this.dwellId) {
+      this.dwellId = id;
+      this.dwellStart = performance.now();
+    }
+    const elapsed = performance.now() - this.dwellStart;
+    const frac = Math.min(1, elapsed / this.dwellMs);
+    if (frac >= 1 && !this.pendingAction) {
+      const sceneId = id.slice("scene:".length);
+      this.pendingAction = { type: "switchScene", sceneId };
+      this.dwellId = null;
+      this.dwellStart = 0;
+    }
+    if (frac > 0 && frac < 1) {
+      this.markDirty();
+    }
+  }
+
+  private getDwellFrac(sceneId: string): number {
+    if (this.dwellId !== `scene:${sceneId}`) return 0;
+    return Math.min(1, (performance.now() - this.dwellStart) / this.dwellMs);
   }
 
   // ── Drawing ────────────────────────────────────────────────────────────────
@@ -343,12 +567,25 @@ export class VRHomePanel extends VRCanvasPanel {
     this.tickAnimation();
     this.panelBackground();
     this.drawHeader();
+    this.drawSettingsButton();
     this.drawExitButton();
     this.drawDivider();
     this.drawRail();
+    this.drawGrid();
 
+    // Settings modal sits on top: it dims the wall and discards the underlying
+    // interactive regions so only its own controls are tappable. Tapping the
+    // dimmed area outside the modal (incl. the gear) closes it via the backdrop.
+    if (this.settingsOpen) {
+      this.regions = [];
+      this.drawSettingsOverlay();
+    }
+  }
+
+  /** Draw the scene grid (paginated cards) or an empty-state message. */
+  private drawGrid() {
     const { ctx } = this;
-    if (this.scenes.length === 0) {
+    if (this.displayScenes.length === 0) {
       ctx.font = "500 26px sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
@@ -395,14 +632,26 @@ export class VRHomePanel extends VRCanvasPanel {
 
   private drawHeader() {
     const { ctx } = this;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "alphabetic";
-    ctx.font = "800 40px sans-serif";
-    ctx.fillStyle = "rgba(255,255,255,0.96)";
-    ctx.fillText("VEXXX", this.cw / 2 - 62, TITLE_Y);
-    ctx.font = "300 40px sans-serif";
-    ctx.fillStyle = `${ACCENT}0.95)`;
-    ctx.fillText("Home", this.cw / 2 + 70, TITLE_Y);
+    const logo = this.image("/vexxx.png");
+    if (logo) {
+      // Contain-fit the logo into the header band, centred on LOGO_CY. Much
+      // larger than before — the brand should read clearly across the room.
+      const maxW = 640;
+      const maxH = 88;
+      const ir = logo.naturalWidth / logo.naturalHeight;
+      const lw = ir > maxW / maxH ? maxW : maxH * ir;
+      const lh = ir > maxW / maxH ? maxW / ir : maxH;
+      ctx.drawImage(logo, this.cw / 2 - lw / 2, LOGO_CY - lh / 2, lw, lh);
+    } else {
+      ctx.textAlign = "center";
+      ctx.textBaseline = "alphabetic";
+      ctx.font = "800 40px sans-serif";
+      ctx.fillStyle = "rgba(255,255,255,0.96)";
+      ctx.fillText("VEXXX", this.cw / 2 - 62, TITLE_Y);
+      ctx.font = "300 40px sans-serif";
+      ctx.fillStyle = `${ACCENT}0.95)`;
+      ctx.fillText("Home", this.cw / 2 + 70, TITLE_Y);
+    }
 
     const count = this.scenes.length;
     const base = count === 1 ? "1 scene" : `${count} scenes`;
@@ -411,6 +660,8 @@ export class VRHomePanel extends VRCanvasPanel {
         ? "VR library"
         : this.mediaFilter === "flat"
         ? "2D library"
+        : this.mediaFilter === "funscript"
+        ? "interactive library"
         : "library";
     const sub = this.filterLabel
       ? `${this.filterLabel}  ·  ${base}`
@@ -438,6 +689,7 @@ export class VRHomePanel extends VRCanvasPanel {
     this.drawMediaToggle();
     this.drawFilterTabs();
     this.drawAllChip();
+    this.drawSortChips();
 
     const { ctx } = this;
     ctx.save();
@@ -449,13 +701,20 @@ export class VRHomePanel extends VRCanvasPanel {
     this.drawRailScrollbar();
   }
 
-  /** 3-button media-type row: [All] [VR] [2D] */
+  /** 3-button media-type row: [All N] [VR N] [2D N] */
   private drawMediaToggle() {
     const { ctx } = this;
+    const counts: Record<MediaFilter, number> = {
+      all: this.sceneCounts.all,
+      vr: this.sceneCounts.vr,
+      flat: this.sceneCounts.flat,
+      funscript: this.sceneCounts.funscript,
+    };
     const options: Array<{ id: MediaFilter; label: string }> = [
       { id: "all", label: "All" },
       { id: "vr", label: "VR" },
       { id: "flat", label: "2D" },
+      { id: "funscript", label: "FS" },
     ];
     let bx = RAIL_PAD;
     for (const opt of options) {
@@ -478,11 +737,26 @@ export class VRHomePanel extends VRCanvasPanel {
           : "rgba(255,255,255,0.07)";
       }
       ctx.fill();
-      ctx.font = "700 19px sans-serif";
-      ctx.textAlign = "center";
+      // Bold label + lighter count, measured and centred as a single unit so
+      // the pair stays balanced in the narrow 4-button row.
+      const n = counts[opt.id];
+      const cy = CONTENT_Y0 + MEDIA_H / 2 + 1;
+      ctx.textAlign = "left";
       ctx.textBaseline = "middle";
+      ctx.font = "700 18px sans-serif";
+      const labelW = ctx.measureText(opt.label).width;
+      const countStr = n > 0 ? `${n}` : "";
+      ctx.font = "400 13px sans-serif";
+      const countW = countStr ? ctx.measureText(countStr).width + 6 : 0;
+      const tx = bx + MEDIA_BTN_W / 2 - (labelW + countW) / 2;
+      ctx.font = "700 18px sans-serif";
       ctx.fillStyle = active ? "#05111f" : "rgba(255,255,255,0.88)";
-      ctx.fillText(opt.label, bx + MEDIA_BTN_W / 2, CONTENT_Y0 + MEDIA_H / 2 + 1);
+      ctx.fillText(opt.label, tx, cy);
+      if (countStr) {
+        ctx.font = "400 13px sans-serif";
+        ctx.fillStyle = active ? "rgba(5,17,31,0.70)" : "rgba(255,255,255,0.50)";
+        ctx.fillText(countStr, tx + labelW + 6, cy);
+      }
       this.regions.push({
         id: `media:${opt.id}`,
         x: bx,
@@ -558,6 +832,48 @@ export class VRHomePanel extends VRCanvasPanel {
     });
   }
 
+  /** Sort-mode chips: Recent / Rating / A–Z */
+  private drawSortChips() {
+    const { ctx } = this;
+    const chips: Array<{ id: SortMode; label: string }> = [
+      { id: "recent", label: "Recent" },
+      { id: "rating", label: "Rating" },
+      { id: "title", label: "A–Z" },
+    ];
+    const chipW = Math.floor((RAIL_INNER - 5 * (chips.length - 1)) / chips.length);
+    let cx = RAIL_PAD;
+    for (const chip of chips) {
+      const active = this.sortMode === chip.id;
+      const hovered = this.hoveredId === `sort:${chip.id}`;
+      this.roundRect(cx, SORT_Y, chipW, SORT_H, SORT_H / 2);
+      ctx.fillStyle = active
+        ? `${ACCENT}0.18)`
+        : hovered
+        ? "rgba(255,255,255,0.12)"
+        : "rgba(255,255,255,0.05)";
+      ctx.fill();
+      if (active) {
+        this.roundRect(cx, SORT_Y, chipW, SORT_H, SORT_H / 2);
+        ctx.strokeStyle = `${ACCENT}0.65)`;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+      ctx.font = "500 15px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = active ? `${ACCENT}0.95)` : "rgba(255,255,255,0.70)";
+      ctx.fillText(chip.label, cx + chipW / 2, SORT_Y + SORT_H / 2 + 1);
+      this.regions.push({
+        id: `sort:${chip.id}`,
+        x: cx,
+        y: SORT_Y,
+        w: chipW,
+        h: SORT_H,
+      });
+      cx += chipW + 5;
+    }
+  }
+
   /** 2-column portrait/logo tile grid for studios or performers. */
   private drawRailGrid() {
     const { ctx } = this;
@@ -621,13 +937,18 @@ export class VRHomePanel extends VRCanvasPanel {
         ctx.stroke();
       }
 
-      // Image area (cover-cropped, clipped to rounded top corners)
+      // Image area — studios use contain (logos must not be cropped),
+      // performers use cover (portrait fills nicely).
       const img = this.image(it.imageUrl);
       ctx.save();
       this.roundRect(tileX, tileY, TILE_W, imgH, 12);
       ctx.clip();
       if (img) {
-        this.drawImageCover(img, tileX, tileY, TILE_W, imgH, 0);
+        if (isStudio) {
+          this.drawImageContain(img, tileX, tileY, TILE_W, imgH, 0, "rgba(255,255,255,0.04)");
+        } else {
+          this.drawImageCover(img, tileX, tileY, TILE_W, imgH, 0);
+        }
       } else {
         ctx.fillStyle = "rgba(255,255,255,0.05)";
         ctx.fillRect(tileX, tileY, TILE_W, imgH);
@@ -705,7 +1026,7 @@ export class VRHomePanel extends VRCanvasPanel {
     interactive: boolean
   ) {
     const start = pageIndex * PER_PAGE;
-    const items = this.scenes.slice(start, start + PER_PAGE);
+    const items = this.displayScenes.slice(start, start + PER_PAGE);
     for (let i = 0; i < items.length; i++) {
       const col = i % COLS;
       const row = Math.floor(i / COLS);
@@ -713,6 +1034,211 @@ export class VRHomePanel extends VRCanvasPanel {
       const y = GRID_TOP + row * (CARD_H + GAP_Y);
       this.drawCard(items[i], x, y, interactive);
     }
+  }
+
+  /**
+   * Settings gear — opens an in-place preferences modal (gaze-launch toggle +
+   * delay, audio on/off). Sits top-left where the old Shuffle button lived.
+   */
+  private drawSettingsButton() {
+    const { ctx } = this;
+    const w = 150;
+    const h = 44;
+    const x = PAD;
+    const y = 26;
+    const open = this.settingsOpen;
+    const hovered = this.hoveredId === "settings";
+    this.roundRect(x, y, w, h, h / 2);
+    ctx.fillStyle = open || hovered ? `${ACCENT}0.92)` : `${ACCENT}0.18)`;
+    ctx.fill();
+    this.roundRect(x, y, w, h, h / 2);
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = open || hovered ? `${ACCENT}0.7)` : `${ACCENT}0.5)`;
+    ctx.stroke();
+    ctx.font = "600 19px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = open || hovered ? "#06121f" : `${ACCENT}0.95)`;
+    ctx.fillText("⚙  Settings", x + w / 2, y + h / 2 + 1);
+    this.regions.push({ id: "settings", x, y, w, h });
+  }
+
+  /**
+   * Modal preferences panel drawn over the dimmed wall. Controls:
+   *  • Auto-launch on gaze (on/off) + the dwell delay (1.5 / 2.5 / 4 s)
+   *  • Play sound on launch (on/off)
+   * Control regions are pushed first so they win over the full-canvas backdrop
+   * region (pushed last) that closes the modal on an outside tap.
+   */
+  private drawSettingsOverlay() {
+    const { ctx } = this;
+
+    // Dim the whole wall behind the modal.
+    ctx.fillStyle = "rgba(4,6,12,0.72)";
+    ctx.fillRect(0, 0, this.cw, this.ch);
+
+    const mW = 760;
+    const mH = 520;
+    const mX = (this.cw - mW) / 2;
+    const mY = (this.ch - mH) / 2;
+
+    this.roundRect(mX, mY, mW, mH, 24);
+    const g = ctx.createLinearGradient(mX, mY, mX, mY + mH);
+    g.addColorStop(0, "rgba(30,32,44,0.98)");
+    g.addColorStop(1, "rgba(14,15,22,0.98)");
+    ctx.fillStyle = g;
+    ctx.fill();
+    this.roundRect(mX, mY, mW, mH, 24);
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = "rgba(255,255,255,0.12)";
+    ctx.stroke();
+
+    // Title
+    ctx.font = "700 30px sans-serif";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+    ctx.fillStyle = "rgba(255,255,255,0.95)";
+    ctx.fillText("Settings", mX + 36, mY + 56);
+
+    // Close (✕) button — top-right of the modal.
+    const clW = 44;
+    const clX = mX + mW - clW - 24;
+    const clY = mY + 22;
+    const clHover = this.hoveredId === "settingsClose";
+    this.roundRect(clX, clY, clW, clW, clW / 2);
+    ctx.fillStyle = clHover ? "rgba(220,72,72,0.92)" : "rgba(255,255,255,0.08)";
+    ctx.fill();
+    ctx.font = "600 22px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = clHover ? "#fff" : "rgba(255,255,255,0.8)";
+    ctx.fillText("✕", clX + clW / 2, clY + clW / 2 + 1);
+    this.regions.push({ id: "settingsClose", x: clX, y: clY, w: clW, h: clW });
+
+    const rowX = mX + 36;
+    const rowW = mW - 72;
+    let rowY = mY + 104;
+
+    // ── Row 1: Auto-launch on gaze toggle ───────────────────────────────────
+    this.drawSettingRow(
+      rowX,
+      rowY,
+      rowW,
+      "Auto-launch on gaze",
+      "Look at a card to start it automatically",
+      this.hoverLaunch,
+      "set:hoverLaunch"
+    );
+    rowY += 96;
+
+    // ── Dwell-delay chips (only meaningful when auto-launch is on) ───────────
+    ctx.font = "500 19px sans-serif";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = this.hoverLaunch
+      ? "rgba(255,255,255,0.72)"
+      : "rgba(255,255,255,0.32)";
+    ctx.fillText("Gaze delay", rowX, rowY + 22);
+
+    const chipW = 120;
+    const chipH = 44;
+    const chipGap = 12;
+    let chipX = rowX + rowW - (chipW * 3 + chipGap * 2);
+    for (const ms of DWELL_TIME_OPTIONS) {
+      const active = this.dwellMs === ms;
+      const hovered = this.hoveredId === `dwell:${ms}`;
+      const enabled = this.hoverLaunch;
+      this.roundRect(chipX, rowY, chipW, chipH, chipH / 2);
+      ctx.fillStyle = !enabled
+        ? "rgba(255,255,255,0.04)"
+        : active
+        ? `${ACCENT}0.85)`
+        : hovered
+        ? "rgba(255,255,255,0.16)"
+        : "rgba(255,255,255,0.07)";
+      ctx.fill();
+      ctx.font = "600 19px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = !enabled
+        ? "rgba(255,255,255,0.3)"
+        : active
+        ? "#06121f"
+        : "rgba(255,255,255,0.85)";
+      ctx.fillText(`${(ms / 1000).toFixed(ms % 1000 ? 1 : 0)}s`, chipX + chipW / 2, rowY + chipH / 2 + 1);
+      if (enabled) {
+        this.regions.push({ id: `dwell:${ms}`, x: chipX, y: rowY, w: chipW, h: chipH });
+      }
+      chipX += chipW + chipGap;
+    }
+    rowY += 88;
+
+    // Divider
+    ctx.strokeStyle = "rgba(255,255,255,0.08)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(rowX, rowY);
+    ctx.lineTo(rowX + rowW, rowY);
+    ctx.stroke();
+    rowY += 24;
+
+    // ── Row 2: Sound on launch toggle ───────────────────────────────────────
+    this.drawSettingRow(
+      rowX,
+      rowY,
+      rowW,
+      "Play sound on launch",
+      "Start scenes with audio (off = muted)",
+      this.soundOnPlay,
+      "set:soundOnPlay"
+    );
+
+    // Backdrop region (pushed LAST so the controls above win the hit test).
+    this.regions.push({ id: "settingsClose", x: 0, y: 0, w: this.cw, h: this.ch });
+  }
+
+  /** One labelled toggle row with a pill switch on the right. */
+  private drawSettingRow(
+    x: number,
+    y: number,
+    w: number,
+    label: string,
+    sub: string,
+    on: boolean,
+    id: string
+  ) {
+    const { ctx } = this;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+    ctx.font = "600 23px sans-serif";
+    ctx.fillStyle = "rgba(255,255,255,0.92)";
+    ctx.fillText(label, x, y + 24);
+    ctx.font = "400 17px sans-serif";
+    ctx.fillStyle = "rgba(255,255,255,0.45)";
+    ctx.fillText(sub, x, y + 50);
+
+    // Pill switch
+    const swW = 72;
+    const swH = 38;
+    const swX = x + w - swW;
+    const swY = y + 6;
+    const hovered = this.hoveredId === id;
+    this.roundRect(swX, swY, swW, swH, swH / 2);
+    ctx.fillStyle = on ? `${ACCENT}0.85)` : "rgba(255,255,255,0.14)";
+    ctx.fill();
+    if (hovered) {
+      this.roundRect(swX, swY, swW, swH, swH / 2);
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = "rgba(255,255,255,0.4)";
+      ctx.stroke();
+    }
+    const knobR = swH / 2 - 5;
+    const knobX = on ? swX + swW - knobR - 5 : swX + knobR + 5;
+    ctx.beginPath();
+    ctx.arc(knobX, swY + swH / 2, knobR, 0, Math.PI * 2);
+    ctx.fillStyle = "#fff";
+    ctx.fill();
+    this.regions.push({ id, x: swX, y: swY, w: swW, h: swH });
   }
 
   private drawExitButton() {
@@ -782,19 +1308,22 @@ export class VRHomePanel extends VRCanvasPanel {
         const hmH = 22;
         ctx.save();
         ctx.globalAlpha = 0.78;
-        ctx.drawImage(
-          hmImg,
-          0,
-          0,
-          hmImg.width,
-          hmImg.height,
-          x,
-          y + THUMB_H - hmH,
-          CARD_W,
-          hmH
-        );
+        ctx.drawImage(hmImg, 0, 0, hmImg.width, hmImg.height,
+          x, y + THUMB_H - hmH, CARD_W, hmH);
         ctx.restore();
       }
+    }
+
+    // Resume progress bar — thin accent line at the very bottom of the thumbnail
+    // showing how far the user got last time.
+    const rt = scene.resumeTime ?? 0;
+    const dur = scene.durationSecs ?? 0;
+    if (rt > 30 && dur > 0) {
+      const frac = Math.min(1, rt / dur);
+      ctx.fillStyle = "rgba(0,0,0,0.50)";
+      ctx.fillRect(x, y + THUMB_H - 4, CARD_W, 4);
+      ctx.fillStyle = `${ACCENT}0.95)`;
+      ctx.fillRect(x, y + THUMB_H - 4, CARD_W * frac, 4);
     }
 
     // Caption bar
@@ -840,7 +1369,7 @@ export class VRHomePanel extends VRCanvasPanel {
     if (scene.hasFunscript) {
       const bw = 42, bh = 22;
       const bx = x + CARD_W - bw - 10;
-      const by = y + 10;
+      const by = y + (isPlaying ? 44 : 10);
       this.roundRect(bx, by, bw, bh, bh / 2);
       ctx.fillStyle = `${ORANGE}0.92)`;
       ctx.fill();
@@ -849,6 +1378,81 @@ export class VRHomePanel extends VRCanvasPanel {
       ctx.textBaseline = "middle";
       ctx.fillStyle = "rgba(20,8,0,0.96)";
       ctx.fillText("FS", bx + bw / 2, by + bh / 2 + 1);
+    }
+
+    // Hover metadata pills — duration, resolution, rating — shown in lower-left
+    // of the thumbnail when the card is hovered.
+    if (hovered) {
+      const pills: string[] = [];
+      if (dur > 0) {
+        const totalMins = Math.round(dur / 60);
+        const h = Math.floor(totalMins / 60);
+        const m = totalMins % 60;
+        pills.push(h > 0 ? `${h}h ${m}m` : `${m}m`);
+      }
+      if (scene.height) {
+        const res =
+          scene.height >= 2160
+            ? "4K"
+            : scene.height >= 1440
+            ? "2K"
+            : scene.height >= 1080
+            ? "FHD"
+            : scene.height >= 720
+            ? "HD"
+            : `${scene.height}p`;
+        pills.push(res);
+      }
+      if (scene.rating) {
+        pills.push(`★ ${(scene.rating / 20).toFixed(1)}`);
+      }
+      if (pills.length > 0) {
+        ctx.font = "600 13px sans-serif";
+        let pillX = x + 10;
+        const pillY = y + THUMB_H - 32;
+        const pillH = 22;
+        for (const pill of pills) {
+          const pillW = ctx.measureText(pill).width + 14;
+          this.roundRect(pillX, pillY, pillW, pillH, pillH / 2);
+          ctx.fillStyle = "rgba(5,10,20,0.82)";
+          ctx.fill();
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillStyle = "rgba(255,255,255,0.95)";
+          ctx.fillText(pill, pillX + pillW / 2, pillY + pillH / 2 + 1);
+          pillX += pillW + 5;
+        }
+      }
+    }
+
+    // Gaze-dwell arc — radial fill countdown that fires auto-launch when full.
+    const dwellFrac = interactive ? this.getDwellFrac(scene.id) : 0;
+    if (dwellFrac > 0) {
+      const arcCx = x + CARD_W / 2;
+      const arcCy = y + THUMB_H / 2;
+      const arcR = 30;
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(arcCx, arcCy, arcR + 4, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(0,0,0,0.52)";
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(
+        arcCx,
+        arcCy,
+        arcR,
+        -Math.PI / 2,
+        -Math.PI / 2 + Math.PI * 2 * dwellFrac
+      );
+      ctx.lineWidth = 5;
+      ctx.strokeStyle = `${ACCENT}0.95)`;
+      ctx.stroke();
+      ctx.font = "700 24px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "rgba(255,255,255,0.92)";
+      ctx.fillText("▶", arcCx + 2, arcCy + 1);
+      ctx.restore();
     }
 
     // Hover / playing border

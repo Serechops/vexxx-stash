@@ -403,6 +403,23 @@ export class VRControllerInput {
     }
   }
 
+  /**
+   * Returns the dominant horizontal (x = axes[2]) and vertical (y = axes[3])
+   * thumbstick deflection across both controllers. Used in lobby mode for grid
+   * and rail navigation instead of the scrub edge-trigger.
+   */
+  getLobbyAxes(): { h: number; v: number } {
+    if (!this.session) return { h: 0, v: 0 };
+    let h = 0, v = 0, maxH = 0, maxV = 0;
+    for (const src of this.session.inputSources) {
+      const gp = src.gamepad;
+      if (!gp || gp.axes.length < 4) continue;
+      if (Math.abs(gp.axes[2]) > maxH) { maxH = Math.abs(gp.axes[2]); h = gp.axes[2]; }
+      if (Math.abs(gp.axes[3]) > maxV) { maxV = Math.abs(gp.axes[3]); v = gp.axes[3]; }
+    }
+    return { h, v };
+  }
+
   /** Largest-magnitude value of the given axis across both controllers. */
   private maxAxis(index: number): number {
     if (!this.session) return 0;

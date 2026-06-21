@@ -73,8 +73,12 @@ export type VRControlAction =
   | { type: "goHome" }
   /** Filter the immersive Home grid by a studio/performer, or clear (id omitted). */
   | { type: "setHomeFilter"; kind: "studio" | "performer" | null; id?: string }
-  /** Switch the Home wall's media-type filter (all scenes / VR only / 2D only). */
-  | { type: "setMediaFilter"; filter: "all" | "vr" | "flat" }
+  /** Switch the Home wall's media-type filter (all / VR / 2D / funscript). */
+  | { type: "setMediaFilter"; filter: "all" | "vr" | "flat" | "funscript" }
+  /** Toggle an immersive Home preference (persisted React-side). */
+  | { type: "setVrSetting"; key: "hoverLaunch" | "soundOnPlay"; value: boolean }
+  /** Set the gaze-dwell auto-launch delay in ms (persisted React-side). */
+  | { type: "setVrDwellMs"; ms: number }
   // ── Handy interactive device ───────────────────────────────────────────
   | { type: "handyToggle" }
   | { type: "handyPatternStart"; patternId: string }
@@ -82,6 +86,27 @@ export type VRControlAction =
   | { type: "handyEmergencyStop" }
   | { type: "handyConnect" }
   | { type: "handySync" };
+
+/**
+ * User-adjustable immersive-Home preferences (set in-headset via the gear panel,
+ * persisted React-side to localStorage). Pushed into [VRHomePanel] for rendering
+ * the toggle states and driving gaze-dwell timing.
+ */
+export interface IVRHomeSettings {
+  /** Gaze at a card for `dwellMs` to auto-launch it (false = tap only). */
+  hoverLaunch: boolean;
+  /** Gaze-dwell duration before auto-launch, in milliseconds. */
+  dwellMs: number;
+  /** Play scene audio when a scene launches (false = start muted). */
+  soundOnPlay: boolean;
+}
+
+/** Sensible defaults — dwell deliberately slower than the old 1.4 s. */
+export const DEFAULT_VR_HOME_SETTINGS: IVRHomeSettings = {
+  hoverLaunch: true,
+  dwellMs: 2500,
+  soundOnPlay: true,
+};
 
 /** Handy device connection state, pulled each frame alongside playback. */
 export interface IVRHandyState {

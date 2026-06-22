@@ -483,7 +483,6 @@ export const MainNavbar: React.FC = () => {
   function renderUtilityButtons() {
     return (
       <>
-        <EnterVRHomeButton />
         {renderHardwareAccelerationChip()}
         <Tooltip title={intl.formatMessage({ id: "Support Me" })}>
           <IconButton
@@ -653,11 +652,11 @@ export const MainNavbar: React.FC = () => {
             component={Link}
             to="/"
             onClick={handleDismiss}
-            sx={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              mr: 2, 
-              textDecoration: 'none', 
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              mr: 1,
+              textDecoration: 'none',
               height: '100%',
               transition: 'opacity 0.2s ease',
               '&:hover': {
@@ -672,6 +671,11 @@ export const MainNavbar: React.FC = () => {
             />
           </Box>
 
+          {/* VR entry — mobile only, pinned next to brand */}
+          <Box sx={{ display: { xs: 'flex', lg: 'none' }, alignItems: 'center', mr: 1 }}>
+            <EnterVRHomeButton />
+          </Box>
+
           {/* Desktop Menu */}
           <Box sx={{ display: { xs: 'none', lg: 'flex' }, flexGrow: 1 }}>
             {renderMenuItems(false)}
@@ -682,6 +686,10 @@ export const MainNavbar: React.FC = () => {
 
           {/* Right Side Buttons */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            {/* VR entry — desktop only; mobile renders it next to the brand above */}
+            <Box sx={{ display: { xs: 'none', lg: 'flex' }, alignItems: 'center' }}>
+              <EnterVRHomeButton />
+            </Box>
             {!!newPath && (
               <Box mr={1}>
                 <Button
@@ -786,6 +794,7 @@ export const MainNavbar: React.FC = () => {
                 <FormattedMessage id="new" defaultMessage="New" />
               </Button>
             )}
+            <EnterVRHomeButton prominent />
             <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
               {renderUtilityButtons()}
             </Box>

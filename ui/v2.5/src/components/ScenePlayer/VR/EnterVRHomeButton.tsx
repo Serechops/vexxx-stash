@@ -9,11 +9,12 @@
  *
  * The immersive overlay is portalled to <body> (position: fixed) so it escapes
  * the navbar's stacking context and covers the whole viewport.
+ *
+ * `prominent` renders a full-width labeled Button for the mobile drawer footer.
  */
 import React, { Suspense, useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom";
-import { IconButton, Tooltip } from "@mui/material";
-import Vrpano from "@mui/icons-material/Vrpano";
+import { IconButton, Tooltip, Button } from "@mui/material";
 
 const ImmersiveVRPlayer = React.lazy(() => import("./ImmersiveVRPlayer"));
 
@@ -21,7 +22,7 @@ const SESSION_INIT: XRSessionInit = {
   optionalFeatures: ["local-floor", "bounded-floor", "hand-tracking", "layers"],
 };
 
-export const EnterVRHomeButton: React.FC = () => {
+export const EnterVRHomeButton: React.FC<{ prominent?: boolean }> = ({ prominent }) => {
   const [supported, setSupported] = useState(false);
   const [session, setSession] = useState<XRSession | null>(null);
   const [launching, setLaunching] = useState(false);
@@ -68,6 +69,53 @@ export const EnterVRHomeButton: React.FC = () => {
 
   if (!supported) return null;
 
+  const portal = session
+    ? ReactDOM.createPortal(
+        <div style={{ position: "fixed", inset: 0, zIndex: 2000 }}>
+          <Suspense fallback={null}>
+            <ImmersiveVRPlayer
+              scene={null}
+              session={session}
+              onExit={handleExit}
+            />
+          </Suspense>
+        </div>,
+        document.body
+      )
+    : null;
+
+  const vrIcon = (
+    <img src="/vr.svg" alt="VR" style={{ width: 22, height: 18 }} />
+  );
+
+  if (prominent) {
+    return (
+      <>
+        <Button
+          variant="contained"
+          fullWidth
+          startIcon={vrIcon}
+          disabled={launching}
+          onClick={launch}
+          sx={{
+            background: "linear-gradient(135deg, #6366f1 0%, #9333ea 100%)",
+            borderRadius: 2,
+            py: 1.25,
+            fontWeight: 600,
+            mb: 1,
+            textTransform: "none",
+            "&:hover": {
+              background: "linear-gradient(135deg, #818cf8 0%, #a855f7 100%)",
+            },
+          }}
+        >
+          Enter VR Home
+        </Button>
+        {portal}
+      </>
+    );
+  }
+
   return (
     <>
       <Tooltip title="Enter VR — browse your library in the headset">
@@ -79,24 +127,11 @@ export const EnterVRHomeButton: React.FC = () => {
             size="small"
             sx={{ color: "inherit" }}
           >
-            <Vrpano fontSize="small" />
+            {vrIcon}
           </IconButton>
         </span>
       </Tooltip>
-
-      {session &&
-        ReactDOM.createPortal(
-          <div style={{ position: "fixed", inset: 0, zIndex: 2000 }}>
-            <Suspense fallback={null}>
-              <ImmersiveVRPlayer
-                scene={null}
-                session={session}
-                onExit={handleExit}
-              />
-            </Suspense>
-          </div>,
-          document.body
-        )}
+      {portal}
     </>
   );
 };

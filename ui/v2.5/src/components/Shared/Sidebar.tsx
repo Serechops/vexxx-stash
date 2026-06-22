@@ -21,7 +21,7 @@ import ScreenUtils from "src/utils/screen";
 
 export type SidebarSectionStates = Record<string, boolean>;
 
-const mobileSidebarQuery = "only screen and (max-width: 767px)";
+const mobileSidebarQuery = "only screen and (max-width: 1280px)";
 
 // show sidebar by default if not on mobile
 export function defaultShowSidebar() {
@@ -45,6 +45,7 @@ export const InlineFilterPanel: React.FC<PropsWithChildren<{}>> =
   ({ children }) => (
     <Box
       sx={{
+        display: { xs: "none", lg: "block" },
         width: 260,
         flexShrink: 0,
         alignSelf: "stretch",

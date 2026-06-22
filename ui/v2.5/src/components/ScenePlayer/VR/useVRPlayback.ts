@@ -18,6 +18,7 @@ import {
 } from "src/core/StashService";
 import { useConfigurationContext } from "src/hooks/Config";
 import * as GQL from "src/core/generated-graphql";
+import { vrLog } from "./vrLog";
 
 const INTERVAL_SECONDS = 1;
 const SEND_INTERVAL_SECONDS = 10;
@@ -152,13 +153,44 @@ export function useVRPlayback(params: {
     t.segmentEnd = scene.end_point ?? 0;
     t.saveActivity = async (resume, playDuration) => {
       if (!scene.id) return;
+      // Jitter probe: bracket the mutation so the profiler can see its cost
+      // window (network + Apollo cache write + the re-render it triggers) and
+      // line it up against a main-thread stall. Inert outside vrprofile=jitter.
+      vrLog.note("activity_send", { id: scene.id });
+      const t0 = performance.now();
       await sceneSaveActivity({
         variables: { id: scene.id, playDuration, resume_time: resume },
+        // Smooth-playback fix: the shared hook's `update()` runs cache.modify on
+        // the Scene's resume_time/play_duration fields, which invalidates the
+        // watched query feeding `scene` and re-renders the whole immersive tree
+        // on the XR main thread every 10s — measured as a 50–100ms frame-dropping
+        // longtask (plus a GC after-shock). The mutation returns only a Boolean,
+        // so the manual update is the sole cache effect; override it with a no-op
+        // to keep the activity save off the render-critical path. The server
+        // still records resume_time/play_duration; only the optimistic local
+        // cache update is skipped (refreshed on next fetch). Scoped to VR — the
+        // 2D player keeps the shared hook's optimistic behaviour.
+        update: () => {},
       });
+      vrLog.note("activity_done", { ms: +(performance.now() - t0).toFixed(1) });
     };
     t.incrementPlayCount = async () => {
       if (!scene.id) return;
-      await sceneIncrementPlayCount({ variables: { id: scene.id } });
+      vrLog.note("playcount_send", { id: scene.id });
+      await sceneIncrementPlayCount({
+        variables: { id: scene.id },
+        // Same render-loop hazard as saveActivity above: the shared hook's
+        // `update()` runs cache.modify on the Scene's play_count/last_played_at/
+        // play_history (plus updateStats), invalidating the watched query that
+        // feeds `scene` and re-rendering the whole immersive tree on the XR main
+        // thread. It fires once, ~15s in when the min-play-percent threshold is
+        // crossed — measured as an ~88ms longtask + ~286ms GC aftershock (dt=288
+        // frame stall). Override with a no-op so the increment stays off the
+        // render-critical path; the server still records the play (refreshed on
+        // next fetch). Scoped to VR — the 2D player keeps optimistic behaviour.
+        update: () => {},
+      });
+      vrLog.note("playcount_done", {});
     };
   }, [
     uiConfig?.trackActivity,

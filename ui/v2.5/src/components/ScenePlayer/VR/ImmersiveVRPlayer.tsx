@@ -50,6 +50,7 @@ import {
   IVRHomeSettings,
   DEFAULT_VR_HOME_SETTINGS,
 } from "./types";
+import { vrLog } from "./vrLog";
 
 const VR_SETTINGS_KEY = "vrHomeSettings";
 
@@ -454,27 +455,52 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
 
   // Switch to a different scene inside the active XR session: swap the video
   // source, update the info panel and scenes list, but never touch the session.
+  // Uses a generation counter to guard against stale query responses.
+  const switchSceneGen = useRef(0);
+  // Generation counter for the initial source-selection effect, which also
+  // performs the full drain+metadata-wait cycle. Prevents stale onMeta
+  // callbacks from racing handleSwitchScene.
+  const drainStaleSrcCounter = useRef(0);
   const handleSwitchScene = useCallback((sceneId: string) => {
+    const gen = ++switchSceneGen.current;
     getClient()
       .query<GQL.FindSceneQuery>({
         query: GQL.FindSceneDocument,
         variables: { id: sceneId },
       })
       .then((result) => {
+        if (gen !== switchSceneGen.current) return;
         const next = result.data?.findScene;
         if (!next) return;
 
         const v = videoRef.current;
         if (v) {
+          // Full video drain: pause, reset time to 0, clear src, then load.
+          // This prevents the browser from retaining the old video's position
+          // and seeking the new source to an out-of-range timestamp.
           v.pause();
+          v.currentTime = 0;
+          v.removeAttribute("src");
+          v.load();
+
           const nextSrc = next.paths.stream ?? next.sceneStreams[0]?.url;
           if (nextSrc) {
             loadedSrcRef.current = nextSrc;
             sourceIdx.current = 0;
-            v.src = nextSrc;
             v.muted = !settingsRef.current.soundOnPlay;
+
+            // Set the new source AFTER the old one is fully drained. Wait for
+            // metadata before attempting play.
+            const onMeta = () => {
+              v.removeEventListener("loadedmetadata", onMeta);
+              if (gen !== switchSceneGen.current) return;
+              v.currentTime = 0;
+              v.play().catch(() => undefined);
+            };
+            v.addEventListener("loadedmetadata", onMeta);
+            v.src = nextSrc;
+            vrLog.note("switchscene", { src: nextSrc, id: sceneId, gen });
             v.load();
-            v.play().catch(() => undefined);
           }
         }
 
@@ -489,6 +515,7 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
             .sort((a, b) => a.seconds - b.seconds)
             .map((m) => ({ title: markerTitle(m), seconds: m.seconds })),
         };
+        if (gen !== switchSceneGen.current) return;
         managerRef.current?.updateSceneInfo(nextInfo);
         managerRef.current?.updateCurrentSceneId(next.id);
         // Close the Browse panels so the user lands back in the immersive view.
@@ -528,6 +555,7 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
         // Leave the Home/lobby wall now that a scene is loaded.
         managerRef.current?.setLobbyMode(false);
 
+        if (gen !== switchSceneGen.current) return;
         // Update live scene state — this re-keys sources/markers/info memos.
         setLiveScene(next as GQL.SceneDataFragment);
       })
@@ -691,7 +719,22 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
   // Capture the element once mounted so dependent effects/hooks can run.
   useEffect(() => {
     setVideoEl(videoRef.current);
+    // Opt-in wireless telemetry (?vrlog=1) — inert unless configured.
+    vrLog.start(videoRef.current);
+    return () => vrLog.stop();
   }, []);
+
+  // Jitter probe: mark every React commit, and separately the Apollo-cache-
+  // driven `scene` prop identity change (the ~10s activity-save re-render), so
+  // the profiler can tie a main-thread stall to a re-render. Inert outside
+  // vrprofile=jitter (vrLog.note is a no-op unless telemetry is active).
+  useEffect(() => {
+    if (vrLog.profile === "jitter") vrLog.note("commit");
+  });
+  useEffect(() => {
+    if (vrLog.profile === "jitter")
+      vrLog.note("scene_prop_change", { id: scene?.id ?? "" });
+  }, [scene]);
 
   // Source selection with transcode fallback on error.
   useEffect(() => {
@@ -708,22 +751,57 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
     if (loadedSrcRef.current === sources[0]) return;
     loadedSrcRef.current = sources[0];
     sourceIdx.current = 0;
+    drainStaleSrcCounter.current++;
+    const drainGen = drainStaleSrcCounter.current;
+
+    // Drain the old source before loading the new one. This prevents the
+    // browser from retaining the previous video's currentTime and trying to
+    // seek the new source to an out-of-range position.
+    v.pause();
+    v.currentTime = 0;
+    v.removeAttribute("src");
+    v.load();
+
+    // Use loadedmetadata to confirm the new source is ready, reset currentTime,
+    // and start playback. This mirrors the handleSwitchScene pattern exactly.
+    const onMeta = () => {
+      v.removeEventListener("loadedmetadata", onMeta);
+      if (drainGen !== drainStaleSrcCounter.current) return;
+      v.currentTime = 0;
+      v.play().catch(() => undefined);
+    };
+    v.addEventListener("loadedmetadata", onMeta);
     v.src = sources[0];
+    vrLog.attach(v);
+    vrLog.note("srcset", { src: sources[0], count: sources.length });
     v.muted = !settingsRef.current.soundOnPlay;
 
     const onError = () => {
+      v.removeEventListener("error", onError);
+      if (drainGen !== drainStaleSrcCounter.current) return;
       if (sourceIdx.current < sources.length - 1) {
         sourceIdx.current += 1;
         loadedSrcRef.current = sources[sourceIdx.current];
+        // Drain + metadata-wait for the fallback source too.
+        v.pause();
+        v.currentTime = 0;
+        v.removeAttribute("src");
+        v.load();
+        const onFallbackMeta = () => {
+          v.removeEventListener("loadedmetadata", onFallbackMeta);
+          if (drainGen !== drainStaleSrcCounter.current) return;
+          v.currentTime = 0;
+          v.play().catch(() => undefined);
+        };
+        v.addEventListener("loadedmetadata", onFallbackMeta);
         v.src = sources[sourceIdx.current];
         v.load();
-        v.play().catch(() => undefined);
       } else {
         setError("Unable to play this scene in VR (codec unsupported).");
       }
     };
     v.addEventListener("error", onError);
-    v.play().catch(() => undefined);
+    v.load(); // kick off the network fetch
     return () => v.removeEventListener("error", onError);
   }, [sources]);
 

@@ -129,9 +129,44 @@ export class VRControlPanel extends VRCanvasPanel {
     hf: -1,
   };
 
+  // --- layered hover compositing --------------------------------------------
+  // The panel is expensive to rasterize (radial-gradient background, two strips,
+  // ~16 gradient buttons), and a hover state change used to force a full redraw
+  // of all of it on the XR render thread — a measured ~25ms stall that judders
+  // the video feed every time the ray crosses a button. Instead we cache the
+  // panel in its non-hovered state to `baseCanvas` (rebuilt only when real
+  // content changes — playhead/markers/play-state), and on a hover change we
+  // blit that base and patch only the single hovered element, restoring the
+  // background under it from `bgCanvas`. A hover redraw is then one drawImage +
+  // one button instead of the whole panel.
+  private baseCanvas: HTMLCanvasElement;
+  private baseCtx: CanvasRenderingContext2D;
+  private bgCanvas: HTMLCanvasElement;
+  private bgCtx: CanvasRenderingContext2D;
+  private bgBuilt = false;
+  private baseDirty = true;
+  private buildingBase = false;
+  // Fast-patch targets registered during a base build: hovered element id →
+  // its rect + a closure that redraws it in hovered state. `additive` closures
+  // composite themselves (no background restore); others get the background
+  // restored under their rect first so the brighter hover fill doesn't stack
+  // on the base's non-hover fill.
+  private hoverTargets = new Map<
+    string,
+    { rect: IPanelRegion; redraw: () => void; additive: boolean }
+  >();
+
   constructor() {
     super(PANEL_WIDTH_M, CANVAS_W, CANVAS_H);
     this.mesh.name = "vr-control-panel";
+    this.baseCanvas = document.createElement("canvas");
+    this.baseCanvas.width = CANVAS_W;
+    this.baseCanvas.height = CANVAS_H;
+    this.baseCtx = this.baseCanvas.getContext("2d")!;
+    this.bgCanvas = document.createElement("canvas");
+    this.bgCanvas.width = CANVAS_W;
+    this.bgCanvas.height = CANVAS_H;
+    this.bgCtx = this.bgCanvas.getContext("2d")!;
   }
 
   /** Fraction (0..1) of the scrubber currently hovered, or null. */
@@ -183,10 +218,19 @@ export class VRControlPanel extends VRCanvasPanel {
    */
   sync(input: IDrawInput) {
     this.last = input;
-    const changed = this.stateChanged(input);
-    if (!this.contentDirty && !changed) return;
+    // Content (non-hover) change forces a base-layer rebuild; a hover-only
+    // change just re-composites the cached base with the new hovered element.
+    const contentChanged = this.stateChanged(input);
+    const hf =
+      this.hoverFraction == null ? -1 : Math.round(this.hoverFraction * 1000);
+    const hoverChanged =
+      this.prev.hov !== this.hoveredId || this.prev.hf !== hf;
+    if (!this.contentDirty && !contentChanged && !hoverChanged) return;
+    if (this.contentDirty || contentChanged) this.baseDirty = true;
     this.contentDirty = false;
-    this.draw();
+    this.prev.hov = this.hoveredId;
+    this.prev.hf = hf;
+    this.composite();
   }
 
   /**
@@ -207,8 +251,6 @@ export class VRControlPanel extends VRCanvasPanel {
     const browseOpen = !!input.browseOpen;
     const handyConnected = !!input.handy?.connected;
     const handyFsl = !!input.handy?.funscriptLoaded;
-    const hf =
-      this.hoverFraction == null ? -1 : Math.round(this.hoverFraction * 1000);
     const heat = this.heatmap != null;
     const pr = this.prev;
     if (
@@ -232,9 +274,7 @@ export class VRControlPanel extends VRCanvasPanel {
       pr.fov === fov &&
       pr.stereo === stereo &&
       pr.chap === chapterTitle &&
-      pr.cap === caption &&
-      pr.hov === this.hoveredId &&
-      pr.hf === hf
+      pr.cap === caption
     ) {
       return false;
     }
@@ -259,8 +299,6 @@ export class VRControlPanel extends VRCanvasPanel {
     pr.stereo = stereo;
     pr.chap = chapterTitle;
     pr.cap = caption;
-    pr.hov = this.hoveredId;
-    pr.hf = hf;
     return true;
   }
 
@@ -367,6 +405,128 @@ export class VRControlPanel extends VRCanvasPanel {
     }
   }
 
+  // --- layered compositing --------------------------------------------------
+
+  /** Rasterize the static background (the radial-glow panel) into bgCanvas once;
+   * used to restore the area under a hovered element before repainting it. */
+  private ensureBgCanvas() {
+    if (this.bgBuilt) return;
+    const prev = this.ctx;
+    this.ctx = this.bgCtx;
+    this.bgCtx.clearRect(0, 0, this.cw, this.ch);
+    this.panelBackground();
+    this.ctx = prev;
+    this.bgBuilt = true;
+  }
+
+  /** Render the whole panel in its non-hovered state into baseCanvas and capture
+   * the fast-patch hover targets. Runs only when content changed, not on hover. */
+  private buildBase() {
+    this.ensureBgCanvas();
+    this.hoverTargets.clear();
+    const prevCtx = this.ctx;
+    const prevHover = this.hoveredId;
+    this.ctx = this.baseCtx;
+    this.hoveredId = null;
+    this.buildingBase = true;
+    this.baseCtx.clearRect(0, 0, this.cw, this.ch);
+    this.draw();
+    this.buildingBase = false;
+    this.hoveredId = prevHover;
+    this.ctx = prevCtx;
+    this.baseDirty = false;
+  }
+
+  /** Register a fast hover-patch target while building the base layer. */
+  private registerHover(
+    id: string,
+    rect: { x: number; y: number; w: number; h: number },
+    redraw: () => void,
+    additive = false
+  ) {
+    if (!this.buildingBase) return;
+    this.hoverTargets.set(id, {
+      rect: { id, x: rect.x, y: rect.y, w: rect.w, h: rect.h },
+      redraw,
+      additive,
+    });
+  }
+
+  /** Repaint a single hovered strip item (chapter card / pattern chip): clip to
+   * its slot, restore the background under it, then redraw it in hover state.
+   * Self-compositing, so it's registered as an additive hover target. */
+  private patchStripItem(
+    clip: { x: number; y: number; w: number; h: number },
+    drawItem: () => void
+  ) {
+    const { ctx } = this;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(clip.x, clip.y, clip.w, clip.h);
+    ctx.clip();
+    ctx.drawImage(this.bgCanvas, 0, 0);
+    drawItem();
+    ctx.restore();
+  }
+
+  /** Blit the cached base and patch in the single hovered element. Falls back to
+   * a full redraw for hover targets we don't fast-patch (strip chips, arrows). */
+  private composite() {
+    if (this.baseDirty) this.buildBase();
+    const { ctx } = this;
+    const id = this.hoveredId;
+    const target = id ? this.hoverTargets.get(id) : null;
+
+    if (id && !target) {
+      // Unregistered hover target (e.g. a scrollable strip chip): keep the old
+      // behaviour — a full render with hover on — and mark the base stale so the
+      // next frame rebuilds a clean non-hover snapshot.
+      ctx.clearRect(0, 0, this.cw, this.ch);
+      this.draw();
+      this.baseDirty = true;
+      this.texture.needsUpdate = true;
+      return;
+    }
+
+    ctx.clearRect(0, 0, this.cw, this.ch);
+    ctx.drawImage(this.baseCanvas, 0, 0);
+    if (target) {
+      ctx.save();
+      if (!target.additive) {
+        // Restore the background under the element (inflated slightly so the
+        // 1px border/rim isn't clipped) before repainting it in hover state.
+        const r = target.rect;
+        ctx.beginPath();
+        ctx.rect(r.x - 2, r.y - 2, r.w + 4, r.h + 4);
+        ctx.clip();
+        ctx.drawImage(this.bgCanvas, 0, 0);
+      }
+      // The hit-regions are owned by the base build; discard any pushed by a
+      // patch redraw (e.g. drawButton) so they don't accumulate across hovers.
+      const rlen = this.regions.length;
+      target.redraw();
+      this.regions.length = rlen;
+      ctx.restore();
+    }
+    this.texture.needsUpdate = true;
+  }
+
+  /** The scrubber's hover overlay (outline + position marker), drawn on top of
+   * the cached base. Extracted from drawScrubber so the base stays hover-free. */
+  private drawScrubberHover(x: number, y: number, w: number, h: number) {
+    const { ctx } = this;
+    const r = h / 2;
+    this.roundRect(x, y, w, h, r);
+    ctx.strokeStyle = "rgba(96,165,250,0.55)";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    if (this.hoverFraction != null) {
+      const hx = x + this.hoverFraction * w;
+      ctx.fillStyle = "rgba(255,255,255,0.85)";
+      ctx.fillRect(hx - 1.5, y - 8, 3, h + 16);
+    }
+  }
+
   // --- drawing --------------------------------------------------------------
 
   protected draw() {
@@ -415,6 +575,12 @@ export class VRControlPanel extends VRCanvasPanel {
       dur,
       state,
       markers
+    );
+    this.registerHover(
+      "scrubber",
+      { x: SCRUB_X, y: SCRUB_Y - 8, w: SCRUB_W, h: SCRUB_H + 16 },
+      () => this.drawScrubberHover(SCRUB_X, SCRUB_Y, SCRUB_W, SCRUB_H),
+      true
     );
 
     // Time labels (just under the scrubber).
@@ -471,8 +637,6 @@ export class VRControlPanel extends VRCanvasPanel {
     row2.push({ id: "browse", w: 100, label: "Browse", active: !!input.browseOpen });
     row2.push({ id: "exit", w: 110, label: "Exit", variant: "danger" });
     this.layoutRow(row2, ROW2_Y, state);
-
-    this.texture.needsUpdate = true;
   }
 
   /** Lay out a row of controls, centred horizontally, with even gaps. */
@@ -485,12 +649,14 @@ export class VRControlPanel extends VRCanvasPanel {
       if (it.kind === "volume") {
         this.drawVolume(region, state);
         this.regions.push(region);
+        this.registerHover(it.id, region, () => this.drawVolume(region, state));
       } else {
-        this.drawButton(
-          region,
-          it.label ?? "",
-          it.active ?? false,
-          it.variant ?? "default"
+        const label = it.label ?? "";
+        const active = it.active ?? false;
+        const variant = it.variant ?? "default";
+        this.drawButton(region, label, active, variant);
+        this.registerHover(it.id, region, () =>
+          this.drawButton(region, label, active, variant)
         );
       }
       x += it.w + GAP;
@@ -539,6 +705,15 @@ export class VRControlPanel extends VRCanvasPanel {
       gap: 12,
       drawItem: (i, x, w) => this.drawChapCard(markers, i, x, CHAP_Y, w, CHAP_H),
       regionId: (i) => ({ id: `chap:${i}`, data: markers[i].seconds }),
+      onItem: (i, ox, ow, clip) =>
+        this.registerHover(
+          `chap:${i}`,
+          clip,
+          () => this.patchStripItem(clip, () =>
+            this.drawChapCard(markers, i, ox, CHAP_Y, ow, CHAP_H)
+          ),
+          true
+        ),
     });
   }
 
@@ -612,6 +787,13 @@ export class VRControlPanel extends VRCanvasPanel {
       gap: 10,
       drawItem: (i, x, w) => this.drawPatChip(pats[i], x, w),
       regionId: (i) => ({ id: `pat:${pats[i].id}` }),
+      onItem: (i, ox, ow, clip) =>
+        this.registerHover(
+          `pat:${pats[i].id}`,
+          clip,
+          () => this.patchStripItem(clip, () => this.drawPatChip(pats[i], ox, ow)),
+          true
+        ),
     });
   }
 
@@ -714,19 +896,8 @@ export class VRControlPanel extends VRCanvasPanel {
       ctx.fill();
     }
 
-    // hover highlight + position marker
-    if (this.hoveredId === "scrubber") {
-      this.roundRect(x, y, w, h, r);
-      ctx.strokeStyle = "rgba(96,165,250,0.55)";
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-      if (this.hoverFraction != null) {
-        const hx = x + this.hoverFraction * w;
-        ctx.fillStyle = "rgba(255,255,255,0.85)";
-        ctx.fillRect(hx - 1.5, y - 8, 3, h + 16);
-      }
-    }
-
+    // The hover outline + position marker is composited on top of the cached
+    // base separately (drawScrubberHover) so the base layer stays hover-free.
     this.regions.push({ id: "scrubber", x, y: y - 8, w, h: h + 16 });
   }
 

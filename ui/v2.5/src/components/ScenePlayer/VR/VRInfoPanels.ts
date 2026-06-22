@@ -116,6 +116,12 @@ export abstract class VRCanvasPanel {
   private images = new Map<string, HTMLImageElement>();
   private failed = new Set<string>();
   private dirty = true;
+  // LRU eviction cap: image cache per panel. Beyond this, the least-recently-
+  // used entry is evicted on each new insert. Keeps memory bounded across long
+  // VR sessions that cycle through hundreds of scene cards / performer portraits.
+  private static readonly MAX_IMAGES_PER_PANEL = 150;
+  // Insertion-order array mirrors the image Map keys for LRU eviction.
+  private imageOrder: string[] = [];
 
   constructor(widthM: number, canvasW: number, canvasH: number, radius = 0) {
     this.wM = widthM;
@@ -221,6 +227,19 @@ export abstract class VRCanvasPanel {
     this.dirty = true;
   }
 
+  /**
+   * Force a first rasterize + GPU texture upload now, ahead of the panel ever
+   * becoming visible. Panels are hidden via `mesh.visible=false` until opened,
+   * so without this three.js defers the first draw() and the first texImage2D
+   * to the frame the menu opens — measured as a multi-hundred-ms hitch on a live
+   * XR frame. Called during session pre-warm while the loader hides the cost.
+   */
+  prewarm(renderer: THREE.WebGLRenderer): void {
+    this.dirty = true;
+    this.update();
+    renderer.initTexture(this.texture);
+  }
+
   protected abstract draw(): void;
   protected abstract handleSelect(region: IPanelRegion): VRControlAction | null;
 
@@ -247,17 +266,35 @@ export abstract class VRCanvasPanel {
   protected image(url: string | null): HTMLImageElement | null {
     if (!url || this.failed.has(url)) return null;
     let img = this.images.get(url);
-    if (!img) {
-      img = new Image();
-      img.crossOrigin = "anonymous";
-      img.onload = () => this.markDirty();
-      img.onerror = () => {
-        this.failed.add(url);
-        this.markDirty();
-      };
-      img.src = url;
-      this.images.set(url, img);
+    if (img) {
+      // Cache hit — promote to MRU in the eviction list.
+      const pos = this.imageOrder.indexOf(url);
+      if (pos >= 0 && pos < this.imageOrder.length - 1) {
+        this.imageOrder.splice(pos, 1);
+        this.imageOrder.push(url);
+      }
+      return img.complete && img.naturalWidth > 0 ? img : null;
     }
+    // Cache miss — evict the LRU entry if at capacity.
+    if (this.images.size >= VRCanvasPanel.MAX_IMAGES_PER_PANEL) {
+      const lru = this.imageOrder.shift();
+      if (lru) {
+        const old = this.images.get(lru);
+        if (old && old.parentNode) old.remove();
+        this.images.delete(lru);
+        this.failed.delete(lru);
+      }
+    }
+    img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => this.markDirty();
+    img.onerror = () => {
+      this.failed.add(url);
+      this.markDirty();
+    };
+    img.src = url;
+    this.images.set(url, img);
+    this.imageOrder.push(url);
     return img.complete && img.naturalWidth > 0 ? img : null;
   }
 
@@ -476,6 +513,15 @@ export abstract class VRCanvasPanel {
     gap: number;
     drawItem: (i: number, x: number, w: number) => void;
     regionId?: (i: number) => { id: string; data?: number } | null;
+    // Fired for each visible item with its unclipped position and the strip's
+    // clip rect, so callers can register a cheap single-item hover repaint
+    // (see VRControlPanel's layered compositing).
+    onItem?: (
+      i: number,
+      x: number,
+      w: number,
+      clip: { x: number; y: number; w: number; h: number }
+    ) => void;
   }) {
     const { ctx } = this;
     const { prefix, x0, x1, y, h, widths, gap } = opts;
@@ -517,6 +563,7 @@ export abstract class VRCanvasPanel {
               w: rw,
               h,
             });
+            opts.onItem?.(i, x, w, { x: rx, y, w: rw, h });
           }
         }
       }
@@ -567,6 +614,7 @@ export abstract class VRCanvasPanel {
     this.material.dispose();
     this.mesh.geometry.dispose();
     this.images.clear();
+    this.imageOrder.length = 0;
     this.failed.clear();
   }
 }

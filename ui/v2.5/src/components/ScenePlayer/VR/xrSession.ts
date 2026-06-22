@@ -46,8 +46,14 @@ import {
   IVRHomeSettings,
 } from "./types";
 import type { IThumbnailCrop } from "./vttThumbnails";
+import { vrLog } from "./vrLog";
 
 const DOME_RADIUS = 500;
+// Dome geometry segments — lowered from 64×40 to 48×32 (~40% fewer tris) to
+// reduce GPU fill-rate pressure on Quest 3, especially for the always-shader
+// fisheye190 path. 48×32 is visually indistinguishable at DOME_RADIUS=500.
+const DOME_SEG_W = 48;
+const DOME_SEG_H = 32;
 const PANEL_DISTANCE = 2.4;
 const PANEL_DROP = 0.45; // metres below eye level
 const PANEL_TILT = 0.18; // radians the UI group leans back toward the eyes
@@ -59,10 +65,26 @@ const SIDE_PANEL_FORWARD = 0.5;
 // below-eye-level panel faces up at the viewer. Tuned on-device (Quest 3).
 const HANDY_TILT = -0.4;
 
+// Performance auto-throttle thresholds (timings in ms):
+//   HITCH_MS       — any single frame longer than this counts as a hitch
+//   HITCH_WINDOW   — sliding window (ms) over which we count hitches
+//   ESCALATE_AT    — hitches within the window to escalate throttle
+//   DECAY_MS       — smooth frames needed before dropping one throttle level
+const THROTTLE_HITCH_MS = 33; // ~30fps boundary
+const THROTTLE_WINDOW_MS = 3000;
+const THROTTLE_ESCALATE_AT = 4;
+const THROTTLE_DECAY_MS = 10000;
+
 // Auto-hide: fade the whole UI out after this much hand/controller-input-free
 // time, and back in on the next deliberate input.
 const AUTO_HIDE_MS = 4000;
 const FADE_LERP = 0.18;
+
+// How long the controller ray must dwell on a scene card before its hover
+// preview <video> is loaded. Sweeping across cards faster than this loads
+// nothing, so the media pipeline isn't thrashed (each src swap is a main-thread
+// decode-pipeline reset — a measured interaction hitch).
+const HOVER_PREVIEW_DWELL_MS = 180;
 
 // Floating scrubber-hover thumbnail preview (enlarged for legibility, with a
 // marker-name caption overlaid when the hovered position falls inside a marker).
@@ -158,6 +180,73 @@ interface IHittable {
   up?: (uv: THREE.Vector2) => VRControlAction | null;
 }
 
+/**
+ * GPU timer-query helper (WebGL2 `EXT_disjoint_timer_query_webgl2`). Wraps the
+ * scene render to measure its GPU time, which is the decisive third leg of the
+ * jitter diagnosis: a dome frame that re-uploads a large video texture is
+ * GPU-bound (high gpuMs that scales with video resolution), whereas a
+ * compositor/decode hitch leaves gpuMs small. Results lag a few frames (async
+ * readback) and are drained by the caller. Fully inert when the extension is
+ * absent (older runtimes / WebGL1) — gpuMs is simply omitted from the log.
+ */
+class GpuTimer {
+  private gl: WebGL2RenderingContext;
+  private ext: {
+    TIME_ELAPSED_EXT: number;
+    GPU_DISJOINT_EXT: number;
+  } | null;
+  private active: WebGLQuery | null = null;
+  private inflight: WebGLQuery[] = [];
+  private pool: WebGLQuery[] = [];
+  /** Completed GPU times (ms); drained by the profiler each frame. */
+  results: number[] = [];
+
+  constructor(gl: WebGLRenderingContext | WebGL2RenderingContext) {
+    this.gl = gl as WebGL2RenderingContext;
+    this.ext =
+      typeof WebGL2RenderingContext !== "undefined" &&
+      gl instanceof WebGL2RenderingContext
+        ? gl.getExtension("EXT_disjoint_timer_query_webgl2")
+        : null;
+  }
+
+  get supported(): boolean {
+    return !!this.ext;
+  }
+
+  begin(): void {
+    if (!this.ext || this.active) return;
+    const q = this.pool.pop() ?? this.gl.createQuery();
+    if (!q) return;
+    this.gl.beginQuery(this.ext.TIME_ELAPSED_EXT, q);
+    this.active = q;
+  }
+
+  end(): void {
+    if (!this.ext || !this.active) return;
+    this.gl.endQuery(this.ext.TIME_ELAPSED_EXT);
+    this.inflight.push(this.active);
+    this.active = null;
+    this.poll();
+  }
+
+  private poll(): void {
+    if (!this.ext) return;
+    const gl = this.gl;
+    const disjoint = gl.getParameter(this.ext.GPU_DISJOINT_EXT);
+    while (this.inflight.length) {
+      const q = this.inflight[0];
+      if (!gl.getQueryParameter(q, gl.QUERY_RESULT_AVAILABLE)) break;
+      this.inflight.shift();
+      if (!disjoint) {
+        const ns = gl.getQueryParameter(q, gl.QUERY_RESULT) as number;
+        this.results.push(ns / 1e6);
+      }
+      this.pool.push(q);
+    }
+  }
+}
+
 export class XRSessionManager {
   private renderer: THREE.WebGLRenderer;
   private scene: THREE.Scene;
@@ -183,6 +272,24 @@ export class XRSessionManager {
   private opts: IXRSessionManagerOptions;
   private debug: Set<string>;
   private onSessionEnd = () => this.handleEnd();
+  // Promote to the media layer once the <video> has real dimensions. The layer
+  // constructors throw on a zero-size video, so on a cold session start (or a
+  // scene switch) we begin on the dome and switch over when metadata loads.
+  // Guarded by a generation counter to prevent stale callbacks from firing
+  // after dispose() or a scene switch that rebinds the video element.
+  private mediaGen = 0;
+  private onVideoReady = () => {
+    const gen = this.mediaGen;
+    if (
+      this.session &&
+      !this.usingMediaLayer &&
+      this.opts.video.videoWidth > 0 &&
+      this.wantsMediaLayer(this.projection) &&
+      gen === this.mediaGen
+    ) {
+      this.rebuildVideoProjection();
+    }
+  };
   private tmpVec = new THREE.Vector3();
   private tmpEuler = new THREE.Euler(0, 0, 0, "YXZ");
 
@@ -197,6 +304,11 @@ export class XRSessionManager {
   private currentScenes: IVRSceneEntry[] = [];
   private previewVideo: HTMLVideoElement | null = null;
   private previewSceneId: string | null = null;
+  // Hover-preview debounce: the card the ray is currently over and the timer
+  // that commits its <video> load only after the hover settles. Sweeping the
+  // ray across the wall must not thrash the media element (see updateHoverPreview).
+  private previewPendingId: string | null = null;
+  private previewHoverTimer: number | null = null;
   private hittables: IHittable[] = [];
   private baseHittables: IHittable[] = [];
   // Immersive Home wall (with merged filter rail) + ambient backdrop (Option 2).
@@ -220,6 +332,57 @@ export class XRSessionManager {
   private uiOpacity = 1;
   private lastActivity = 0;
   private placed = false;
+
+  // XR frame-time telemetry (only computed while vrLog is active). Distinguishes
+  // a render-side hitch (long JS frames here) from a compositor/cadence stutter
+  // (frames stay smooth here but the headset still judders).
+  private frameLast = 0;
+  private frameAccum = 0;
+  private frameCount = 0;
+  private frameMax = 0;
+  private frameLong = 0;
+  private frameReportAt = 0;
+
+  // ── Jitter profiler (active only when vrLog.profile === "jitter") ─────────
+  // Splits each frame's wall-time into render (our scene draw + texture upload)
+  // vs everything-else (compositor/decode/GC between callbacks), adds the GPU
+  // time of the render, and tracks decode-frame drops — so a playback hitch can
+  // be attributed to a concrete cause rather than guessed at. Inert otherwise.
+  private gpuTimer: GpuTimer | null = null;
+  private jFrameLast = 0;
+  private jReportAt = 0;
+  private jDt: number[] = [];
+  private jRender: number[] = [];
+  private jOutside: number[] = [];
+  private jGpu: number[] = [];
+  private jHitchN = 0;
+  private jUploadN = 0;
+  private jDropLast = -1;
+  private jDropSum = 0;
+  // Previous frame's phase split — the work that filled the interval ending at
+  // the current frame, so a hitch is attributed to what actually caused it.
+  private jPrev = { input: 0, ui: 0, render: 0, total: 0, upload: false };
+
+  /**
+   * Performance auto-throttle: tracks a rolling window of frame durations and
+   * downgrades visual quality when sustained hitches are detected. This keeps
+   * the experience playable on Quest 3 under load (fisheye190, 4K video, many
+   * UI panels open). Throttle levels:
+   *   0 = full quality (default)
+   *   1 = reduced — skip dome texture uploads every other frame
+   *   2 = minimum — force single-buffer canvas panels, skip backdrop
+   */
+  private throttleLevel = 0;
+  private throttleHitches = 0;
+  private throttleWindowStart = 0;
+  // Throttle timer: reduce level by 1 every THROTTLE_DECAY_MS of smooth frames.
+  private throttleDecayAccum = 0;
+
+  // Video frame dedup: skip redundant VideoTexture.needsUpdate when the decoded
+  // frame hasn't advanced, sparing the GPU upload pipeline. Tracks whether
+  // video.currentTime has increased since the last upload.
+  private lastUploadedFrame = -1;
+  private uploadSkipCount = 0;
 
   // Scrubber-hover thumbnail preview (floats above the panel scrubber).
   private thumbPreview: THREE.Mesh;
@@ -405,6 +568,11 @@ export class XRSessionManager {
     this.thumbPreview.visible = false;
     this.uiGroup.add(this.thumbPreview);
 
+    // Seed throttle timestamps so the first second of startup doesn't trigger
+    // false escalations from the initialisation burst (longtasks, dome build,
+    // video metadata load).
+    this.throttleWindowStart = performance.now();
+
     this.buildDome();
   }
 
@@ -502,6 +670,10 @@ export class XRSessionManager {
     session.addEventListener("end", this.onSessionEnd);
     await this.renderer.xr.setSession(session);
     this.input.setSession(session);
+    // Re-attempt the media layer once the video has dimensions / on scene switch.
+    this.opts.video.addEventListener("loadedmetadata", this.onVideoReady);
+    this.opts.video.addEventListener("loadeddata", this.onVideoReady);
+    this.opts.video.addEventListener("resize", this.onVideoReady);
     try {
       this.renderer.xr.setFoveation(this.debug.has("nofov") ? 0 : 0.5);
     } catch {
@@ -510,7 +682,53 @@ export class XRSessionManager {
     // The session, reference space and three's projection layer all exist now,
     // so pick the video path: WebXR media layer (default) or the shader dome.
     this.rebuildVideoProjection();
+    // Spin up the GPU timer-query only when the jitter profiler is active, so
+    // the normal render path never issues a single extra GL call.
+    if (vrLog.profile === "jitter") {
+      const gl = this.renderer.getContext();
+      this.gpuTimer = new GpuTimer(gl);
+      vrLog.note("jprofile", {
+        gpu: this.gpuTimer.supported,
+        webgl2:
+          typeof WebGL2RenderingContext !== "undefined" &&
+          gl instanceof WebGL2RenderingContext,
+      });
+    }
+    // Pre-warm the floating UI before the render loop starts, so opening the menu
+    // doesn't pay shader-compile + first-rasterize + first-upload on a live frame
+    // (was a ~650ms hitch on first open). Cost is hidden behind the session fade-in.
+    await this.prewarmUI();
     this.renderer.setAnimationLoop(this.render);
+  }
+
+  /**
+   * Eagerly compile every material's shader program and force the first draw +
+   * texture upload of each hidden Browse panel. Panels stay `mesh.visible=false`
+   * until opened, which otherwise defers all of that GPU work to the single XR
+   * frame the user opens the menu on. Run once during init while the loader is up.
+   */
+  private async prewarmUI(): Promise<void> {
+    // Side/Browse/Handy/Home panels: parameterless draw() — safe to rasterize +
+    // upload now. (The control bar is driven by sync(input) each frame and is
+    // visible from the start, so its first draw lands on an early hidden frame;
+    // its shader is still covered by compileAsync below.)
+    for (const p of [
+      this.infoPanel,
+      this.scenesPanel,
+      this.handyPanel,
+      this.homePanel,
+    ]) {
+      try {
+        p?.prewarm(this.renderer);
+      } catch {
+        /* a panel without seeded data — first render will draw it lazily */
+      }
+    }
+    try {
+      await this.renderer.compileAsync(this.scene, this.camera);
+    } catch {
+      /* compileAsync unsupported on this runtime — lazy compile on first render */
+    }
   }
 
   setProjection(projection: IProjectionSettings) {
@@ -530,6 +748,13 @@ export class XRSessionManager {
       this.uiGroup.add(newPane.object);
       this.layoutSidePanel(newPane, "right");
       newPane.setRenderState(this.browseOpen ? this.uiOpacity : 0);
+      // Rasterize + upload the new panel's texture now (its shader is already
+      // compiled from init), so re-opening Browse after a switch stays cheap.
+      try {
+        newPane.prewarm(this.renderer);
+      } catch {
+        /* not yet drawable — falls back to lazy first-render */
+      }
       this.infoPanel = newPane;
       this.rebuildBrowseHittables();
     }
@@ -569,6 +794,11 @@ export class XRSessionManager {
     }
     // Reset the shared hover-preview <video> across the mode change.
     this.previewSceneId = null;
+    this.previewPendingId = null;
+    if (this.previewHoverTimer !== null) {
+      window.clearTimeout(this.previewHoverTimer);
+      this.previewHoverTimer = null;
+    }
     if (this.previewVideo) this.previewVideo.pause();
     this.backdrop?.setVisible(on);
     if (on) {
@@ -770,22 +1000,47 @@ export class XRSessionManager {
   ) {
     if (!panel || !active || !this.previewVideo) return;
     const hoveredId = panel.hoveredSceneId;
-    if (hoveredId === this.previewSceneId) return;
-    this.previewSceneId = hoveredId;
-    if (hoveredId) {
-      const entry = scenes.find((s) => s.id === hoveredId);
+    // Already loaded (or already scheduled) for this card — nothing to do.
+    if (hoveredId === this.previewSceneId && this.previewPendingId === hoveredId)
+      return;
+    if (hoveredId === this.previewPendingId) return;
+
+    // Hover moved to a different target: cancel any load pending for the old one.
+    if (this.previewHoverTimer !== null) {
+      window.clearTimeout(this.previewHoverTimer);
+      this.previewHoverTimer = null;
+    }
+    this.previewPendingId = hoveredId;
+
+    if (!hoveredId) {
+      // Left every card — stop the preview at once (no load, so it's cheap).
+      this.previewSceneId = null;
+      this.previewVideo.pause();
+      panel.setPreviewVideo(null);
+      return;
+    }
+
+    // Defer the actual src swap until the hover holds on this card for a beat.
+    // Assigning `<video>.src` + play() tears down and re-inits the decode
+    // pipeline on the main thread — measured as an interaction hitch — so doing
+    // it for every card the ray sweeps across thrashes playback. Loading only
+    // once the hover settles eliminates the thrash while still previewing on dwell.
+    const targetId = hoveredId;
+    this.previewHoverTimer = window.setTimeout(() => {
+      this.previewHoverTimer = null;
+      // Hover moved on (or the panel changed) before the dwell elapsed — skip.
+      if (this.previewPendingId !== targetId || !this.previewVideo) return;
+      const entry = scenes.find((s) => s.id === targetId);
       // For the Home wall (lobby), use the short preview clip when available
       // (previewUrl) rather than the full stream — faster to load on hover.
       const previewSrc = entry?.previewUrl || entry?.streamUrl;
       if (previewSrc) {
+        this.previewSceneId = targetId;
         this.previewVideo.src = previewSrc;
         this.previewVideo.play().catch(() => undefined);
         panel.setPreviewVideo(this.previewVideo);
-        return;
       }
-    }
-    this.previewVideo.pause();
-    panel.setPreviewVideo(null);
+    }, HOVER_PREVIEW_DWELL_MS);
   }
 
   private routeSelect(hit: IPanelHit) {
@@ -899,6 +1154,9 @@ export class XRSessionManager {
    * on session entry and whenever the projection settings change in-headset.
    */
   private rebuildVideoProjection() {
+    // Bump the media generation so any pending onVideoReady callbacks from
+    // stale video metadata events are discarded.
+    this.mediaGen++;
     let mediaOk = false;
     if (this.session && this.wantsMediaLayer(this.projection)) {
       try {
@@ -907,6 +1165,10 @@ export class XRSessionManager {
       } catch (err) {
         // eslint-disable-next-line no-console
         console.error("[VR] media layer build failed — falling back to dome", err);
+        vrLog.note("medialayer_error", {
+          msg: String((err as Error)?.message ?? err),
+          fov: this.projection.fov,
+        });
         this.destroyMediaLayer();
       }
     }
@@ -922,6 +1184,14 @@ export class XRSessionManager {
       this.usingMediaLayer = false;
       this.buildDome();
     }
+    vrLog.note("path", {
+      path: this.usingMediaLayer ? "media" : "dome",
+      fov: this.projection.fov,
+      stereo: this.projection.stereo,
+      swap: this.projection.swapEyes,
+      layersApi: this.layersApiActive(),
+      mediaBinding: typeof XRMediaBinding !== "undefined",
+    });
     // Diagnostic (visible over chrome://inspect) — which video path won and why.
     // Gated behind any vrDebug flag so production stays quiet.
     if (this.debug.size) {
@@ -956,6 +1226,13 @@ export class XRSessionManager {
       console.warn("[VR] media layer: no reference space yet — using dome");
       return;
     }
+    const vid = this.opts.video;
+    if (!vid.videoWidth || !vid.videoHeight) {
+      // Layer constructors throw on a zero-size video. Defer — onVideoReady
+      // re-runs this once metadata loads; we stay on the dome until then.
+      vrLog.note("medialayer_defer", { vw: vid.videoWidth, vh: vid.videoHeight });
+      return;
+    }
     if (!this.mediaBinding) this.mediaBinding = new XRMediaBinding(session);
     this.destroyMediaLayer();
 
@@ -969,6 +1246,7 @@ export class XRSessionManager {
           `${v.videoWidth}x${v.videoHeight}, src=${v.currentSrc ? "yes" : "NONE"}]`
       );
     }
+    vrLog.note("build_medialayer", { fov: p.fov, stereo: p.stereo });
     if (p.fov === "flat") {
       // Flat screen floating in front of the viewer. Dimensions in metres match
       // the old curved cinema mesh (4 × 2.25 ≈ 16:9); tune on-device if the
@@ -1089,8 +1367,8 @@ export class XRSessionManager {
     const phiStart = is180 ? Math.PI / 2 : 0;
     const geometry = new THREE.SphereGeometry(
       DOME_RADIUS,
-      64,
-      40,
+      DOME_SEG_W,
+      DOME_SEG_H,
       phiStart,
       coverage
     );
@@ -1124,8 +1402,8 @@ export class XRSessionManager {
     // texture-mirroring scale(-1,1,1) trick the equirect path relies on.
     const geometry = new THREE.SphereGeometry(
       DOME_RADIUS,
-      64,
-      40,
+      DOME_SEG_W,
+      DOME_SEG_H,
       Math.PI / 2,
       Math.PI
     );
@@ -1248,23 +1526,115 @@ export class XRSessionManager {
   // --- render loop ----------------------------------------------------------
 
   private render = (time: number) => {
+    const jitter = vrLog.profile === "jitter";
+    let didUpload = false;
+    // XR frame-time telemetry (only when ?vrlog is active). A hitch here = a long
+    // JS/render frame (our code, GC, texture upload); if these stay smooth but
+    // the headset still judders, the stutter is compositor/cadence, not render.
+    if (vrLog.active) {
+      if (this.frameLast) {
+        const dt = time - this.frameLast;
+        this.frameAccum += dt;
+        this.frameCount++;
+        if (dt > this.frameMax) this.frameMax = dt;
+        if (dt > 25) {
+          this.frameLong++;
+          if (!jitter)
+            vrLog.note("hitch", {
+              dt: +dt.toFixed(1),
+              path: this.usingMediaLayer ? "media" : "dome",
+              fov: this.projection.fov,
+              lobby: this.lobbyMode,
+            });
+        }
+        if (time - this.frameReportAt > 1000) {
+          const span = time - this.frameReportAt;
+          if (!jitter)
+            vrLog.note("frames", {
+              fps: +((this.frameCount * 1000) / span).toFixed(1),
+              avg: +(this.frameAccum / this.frameCount).toFixed(1),
+              max: +this.frameMax.toFixed(1),
+              long: this.frameLong,
+              path: this.usingMediaLayer ? "media" : "dome",
+            });
+          this.frameAccum = 0;
+          this.frameCount = 0;
+          this.frameMax = 0;
+          this.frameLong = 0;
+          this.frameReportAt = time;
+        }
+      } else {
+        this.frameReportAt = time;
+      }
+      this.frameLast = time;
+    }
+
     // Force the video texture to upload the latest decoded frame every XR
     // render cycle to prevent desync with the XR compositor's frame pacing.
     // Guard on readyState >= HAVE_CURRENT_DATA: if the decoder is mid-stall
     // (segment boundary, buffer refill) skip the update so Three.js holds the
     // last good GPU frame rather than uploading an empty buffer → black flash.
     //
-    // NB: a requestVideoFrameCallback-gated upload was tried here to skip
-    // redundant uploads of a 24–30 fps source onto 72–120 Hz frames. It made
-    // micro-stutter WORSE: bursty uploads at the video cadence desync the Quest
-    // compositor's frame pacing. Steady per-frame uploads are intentional.
-    //
+    // Frame dedup: skip redundant uploads when the decoded frame hasn't
+    // advanced. video.currentTime is an approximation of which frame the
+    // decoder has — if it's the same as last upload the texture hasn't changed.
+    // This counteracts the intentional per-frame-update (needed to prevent
+    // Quest compositor desync) by at least skipping truly identical frames.
+    // At throttle≥1, skip stale uploads on stall to cut bus pressure.
     // Only needed for the shader-dome path (fisheye / Layers-less fallback):
-    // when the media layer is active the compositor samples the <video> itself,
-    // so uploading the VideoTexture every frame would be wasted GPU work.
+    // when the media layer is active the compositor samples the <video> itself.
     if (this.domeMeshes.length > 0 && this.opts.video.readyState >= 2) {
-      this.videoTexture.needsUpdate = true;
+      const ct = this.opts.video.currentTime;
+      const frameChanged = Math.abs(ct - this.lastUploadedFrame) > 0.01;
+      if (frameChanged || this.opts.video.paused) {
+        this.videoTexture.needsUpdate = true;
+        this.lastUploadedFrame = ct;
+        this.uploadSkipCount = 0;
+        didUpload = true;
+      } else if (this.throttleLevel < 1 || this.uploadSkipCount < 3) {
+        // Keep the "steady per-frame refire" alive at throttle 0 or for up
+        // to 3 consecutive identical frames (so a micro-stall recovers fast).
+        this.videoTexture.needsUpdate = true;
+        this.uploadSkipCount++;
+        didUpload = true;
+      }
+      // At throttle≥2 with a stalled frame: skip entirely.
     }
+
+    // Performance auto-throttle evaluation. Runs on every render frame and
+    // tracks a rolling window of hitches (frames > THROTTLE_HITCH_MS). When
+    // the count exceeds THROTTLE_ESCALATE_AT within the window, quality is
+    // dialled down a notch. Smooth frames gradually decay the level back.
+    const dt = this.frameLast ? time - this.frameLast : 0;
+    if (dt > THROTTLE_HITCH_MS) {
+      this.throttleHitches++;
+      if (time - this.throttleWindowStart > THROTTLE_WINDOW_MS) {
+        this.throttleHitches = 1;
+        this.throttleWindowStart = time;
+      }
+      if (this.throttleHitches >= THROTTLE_ESCALATE_AT && this.throttleLevel < 2) {
+        this.throttleLevel++;
+        this.throttleHitches = 0;
+        this.throttleWindowStart = time;
+        vrLog.note("throttle_escalate", { level: this.throttleLevel });
+      }
+    }
+    // Decay: after THROTTLE_DECAY_MS of no new hitches, drop one level.
+    if (this.throttleLevel > 0 && dt > 0 && dt <= THROTTLE_HITCH_MS) {
+      this.throttleDecayAccum += dt;
+      if (this.throttleDecayAccum >= THROTTLE_DECAY_MS) {
+        this.throttleLevel--;
+        this.throttleDecayAccum = 0;
+        this.throttleHitches = 0;
+        this.throttleWindowStart = time;
+        vrLog.note("throttle_decay", { level: this.throttleLevel });
+      }
+    } else if (dt > THROTTLE_HITCH_MS) {
+      this.throttleDecayAccum = 0;
+    }
+
+    // Apply throttle level: at ≥2, skip the backdrop update.
+    const skipBackdrop = this.throttleLevel >= 2;
 
     // Ensure the XR sub-cameras see their stereo eye layers.
     const xrCam = this.renderer.xr.getCamera() as THREE.ArrayCamera;
@@ -1290,7 +1660,9 @@ export class XRSessionManager {
     // Drive controllers (hover/scrub/drag) and gather this-frame activity.
     // Auto-hide is driven purely by hand/controller activity (movement, stick,
     // buttons) — never by head direction or where the laser happens to point.
+    const pIn0 = jitter ? performance.now() : 0;
     this.input.update();
+    const pInputMs = jitter ? performance.now() - pIn0 : 0;
     if (this.input.consumeActivity()) {
       this.lastActivity = time;
     }
@@ -1301,6 +1673,7 @@ export class XRSessionManager {
       this.lastActivity = time;
     }
 
+    const pUi0 = jitter ? performance.now() : 0;
     // Auto-hide: fade the whole UI group toward visible/hidden. Debug flags can
     // pin it fully hidden or fully shown to isolate UI rendering vs the dome.
     const lobby = this.lobbyMode;
@@ -1344,7 +1717,8 @@ export class XRSessionManager {
       if (lobby) {
         this.homePanel?.update();
         // Drive the ambient backdrop (slow starfield drift) each lobby frame.
-        this.backdrop?.update();
+        // At throttle level ≥2, skip the backdrop update to save GPU work.
+        if (!skipBackdrop) this.backdrop?.update();
 
         // Thumbstick navigation for the home wall grid and filter rail.
         if (this.homePanel) {
@@ -1400,8 +1774,137 @@ export class XRSessionManager {
 
     if (!lobby) this.updateThumbnailPreview(state.duration, op);
 
+    const pUiMs = jitter ? performance.now() - pUi0 : 0;
+    const pR0 = jitter ? performance.now() : 0;
+    if (jitter && this.gpuTimer) this.gpuTimer.begin();
     this.renderer.render(this.scene, this.camera);
+    if (jitter && this.gpuTimer) this.gpuTimer.end();
+
+    if (jitter) {
+      this.recordJitterFrame(
+        time,
+        pInputMs,
+        pUiMs,
+        performance.now() - pR0,
+        didUpload
+      );
+    }
   };
+
+  /**
+   * Jitter profiler: attribute each frame's wall-time to a concrete cause.
+   *
+   * `dt` is the interval between consecutive XR callbacks — the cadence the
+   * headset actually sees. The work that filled that interval is the PREVIOUS
+   * frame's callback (`jPrev`), so a hitch is charged to the render/UI/input
+   * that caused it; `outside = dt - prevWork` is the time spent between our
+   * callbacks (compositor submit, vsync wait, decode, GC). Combined with the
+   * GPU time of the render and the decode-drop delta, a hitch line is
+   * self-explanatory:
+   *   high `r` (+ high `gpu`, scales with `res`) → render/upload bound (dome)
+   *   high `out` with low `r`/`gpu` and `dd`>0   → decode-bound
+   *   high `out` with low everything             → compositor / thermal
+   */
+  private recordJitterFrame(
+    time: number,
+    inputMs: number,
+    uiMs: number,
+    renderMs: number,
+    didUpload: boolean
+  ) {
+    const dt = this.jFrameLast ? time - this.jFrameLast : 0;
+    this.jFrameLast = time;
+    if (this.jReportAt === 0) this.jReportAt = time;
+    const prev = this.jPrev;
+    const outside = dt > 0 ? Math.max(0, dt - prev.total) : 0;
+
+    // Decode-frame drops since the last frame (the decoder falling behind).
+    const q = (
+      this.opts.video as HTMLVideoElement & {
+        getVideoPlaybackQuality?: () => { droppedVideoFrames: number };
+      }
+    ).getVideoPlaybackQuality?.();
+    const dropped = q ? q.droppedVideoFrames : 0;
+    if (this.jDropLast < 0) this.jDropLast = dropped;
+    const ddrop = dropped - this.jDropLast;
+    this.jDropLast = dropped;
+
+    // Drain any GPU timer-query results that have become available.
+    if (this.gpuTimer && this.gpuTimer.results.length) {
+      for (const ms of this.gpuTimer.results) this.jGpu.push(ms);
+      this.gpuTimer.results.length = 0;
+    }
+
+    if (dt > 0) {
+      this.jDt.push(dt);
+      this.jRender.push(prev.render);
+      this.jOutside.push(outside);
+      if (didUpload) this.jUploadN++;
+      this.jDropSum += ddrop;
+      if (dt > 33) {
+        this.jHitchN++;
+        vrLog.note("jhitch", {
+          dt: +dt.toFixed(1),
+          r: +prev.render.toFixed(1),
+          ui: +prev.ui.toFixed(1),
+          in: +prev.input.toFixed(1),
+          out: +outside.toFixed(1),
+          up: prev.upload,
+          dd: ddrop,
+          rs: this.opts.video.readyState,
+          res: `${this.opts.video.videoWidth}x${this.opts.video.videoHeight}`,
+          fov: this.projection.fov,
+          path: this.usingMediaLayer ? "media" : "dome",
+        });
+      }
+    }
+    this.jPrev = {
+      input: inputMs,
+      ui: uiMs,
+      render: renderMs,
+      total: inputMs + uiMs + renderMs,
+      upload: didUpload,
+    };
+
+    if (time - this.jReportAt >= 1000 && this.jDt.length) {
+      const span = time - this.jReportAt;
+      const avg = (a: number[]) =>
+        +(a.reduce((x, y) => x + y, 0) / a.length).toFixed(1);
+      const pct = (a: number[], p: number) => {
+        const s = [...a].sort((x, y) => x - y);
+        return +(s[Math.min(s.length - 1, Math.floor(p * s.length))] ?? 0).toFixed(1);
+      };
+      const mx = (a: number[]) => +Math.max(...a).toFixed(1);
+      vrLog.note("jstat", {
+        path: this.usingMediaLayer ? "media" : "dome",
+        fov: this.projection.fov,
+        res: `${this.opts.video.videoWidth}x${this.opts.video.videoHeight}`,
+        fps: +((this.jDt.length * 1000) / span).toFixed(1),
+        n: this.jDt.length,
+        dt50: pct(this.jDt, 0.5),
+        dt95: pct(this.jDt, 0.95),
+        dtMax: mx(this.jDt),
+        r_avg: avg(this.jRender),
+        r95: pct(this.jRender, 0.95),
+        rMax: mx(this.jRender),
+        o_avg: avg(this.jOutside),
+        o95: pct(this.jOutside, 0.95),
+        gpu_avg: this.jGpu.length ? avg(this.jGpu) : null,
+        gpuMax: this.jGpu.length ? mx(this.jGpu) : null,
+        hitch: this.jHitchN,
+        up: this.jUploadN,
+        dd: this.jDropSum,
+      });
+      this.jDt.length = 0;
+      this.jRender.length = 0;
+      this.jOutside.length = 0;
+      this.jGpu.length = 0;
+      this.jHitchN = 0;
+      this.jUploadN = 0;
+      this.jDropSum = 0;
+      this.jReportAt = time;
+    }
+  }
 
   /** Snap the UI group directly in front of the viewer (yaw-only). */
   private placeUiInstant(cam: THREE.Camera) {
@@ -1549,8 +2052,13 @@ export class XRSessionManager {
   }
 
   dispose() {
+    // Bump mediaGen so any pending onVideoReady callbacks are discarded.
+    this.mediaGen++;
     this.renderer.setAnimationLoop(null);
     this.session?.removeEventListener("end", this.onSessionEnd);
+    this.opts.video.removeEventListener("loadedmetadata", this.onVideoReady);
+    this.opts.video.removeEventListener("loadeddata", this.onVideoReady);
+    this.opts.video.removeEventListener("resize", this.onVideoReady);
     this.input.dispose();
     this.panel.dispose();
     this.handyPanel?.dispose();
@@ -1559,6 +2067,10 @@ export class XRSessionManager {
     this.homePanel?.dispose();
     this.backdrop?.dispose();
 
+    if (this.previewHoverTimer !== null) {
+      window.clearTimeout(this.previewHoverTimer);
+      this.previewHoverTimer = null;
+    }
     if (this.previewVideo) {
       this.previewVideo.pause();
       this.previewVideo.src = "";
@@ -1569,6 +2081,7 @@ export class XRSessionManager {
     this.thumbPreview.geometry.dispose();
     this.clearDome();
     this.destroyMediaLayer();
+    this.gpuTimer = null;
     this.mediaBinding = null;
     this.videoTexture.dispose();
     this.renderer.domElement.remove();

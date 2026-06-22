@@ -85,7 +85,18 @@ export type VRControlAction =
   | { type: "handyPatternStop" }
   | { type: "handyEmergencyStop" }
   | { type: "handyConnect" }
-  | { type: "handySync" };
+  | { type: "handySync" }
+  /** Set the device stroke-zone envelope (min/max, each 0..1) from the VR panel. */
+  | { type: "setHandyStroke"; min: number; max: number };
+
+/**
+ * Confirmation state for an in-VR stroke-zone change, surfaced on the Handy
+ * panel so the user gets feedback that the server accepted the new range.
+ *  - `pending`   — request dispatched, awaiting the device/server response
+ *  - `confirmed` — server acknowledged the new range (brief flash, auto-clears)
+ *  - `error`     — the request failed; range may not have applied
+ */
+export type VRStrokeStatus = "idle" | "pending" | "confirmed" | "error";
 
 /**
  * User-adjustable immersive-Home preferences (set in-headset via the gear panel,

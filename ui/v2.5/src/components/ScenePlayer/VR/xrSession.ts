@@ -44,6 +44,7 @@ import {
   IVRPlaybackState,
   IVRHandyState,
   IVRHomeSettings,
+  VRStrokeStatus,
 } from "./types";
 import type { IThumbnailCrop } from "./vttThumbnails";
 import { vrLog } from "./vrLog";
@@ -942,6 +943,11 @@ export class XRSessionManager {
   /** Push updated immersive-Home preferences to the Home wall. */
   setHomeSettings(settings: IVRHomeSettings) {
     this.homePanel?.setSettings(settings);
+  }
+
+  /** Forward stroke-zone confirmation state to the Handy panel (React-driven). */
+  setHandyStrokeStatus(status: VRStrokeStatus) {
+    this.handyPanel?.setStrokeStatus(status);
   }
 
   /** Apply a home-filter (studio/performer) and re-seed the wall. */

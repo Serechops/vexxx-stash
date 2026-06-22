@@ -12,7 +12,7 @@
  */
 import * as THREE from "three";
 import TextUtils from "src/utils/text";
-import { VRControlAction, IVRHandyState } from "./types";
+import { VRControlAction, IVRHandyState, VRStrokeStatus } from "./types";
 
 export interface IVRPerformer {
   name: string;
@@ -42,6 +42,15 @@ interface IScrollMeta {
 }
 
 const ACCENT = "rgba(96,165,250,0.95)";
+
+/** Colour + label for the Handy stroke-zone confirmation chip (idle = none). */
+const STROKE_STATUS_VISUAL: Partial<
+  Record<VRStrokeStatus, { color: string; label: string }>
+> = {
+  pending: { color: "rgba(255,193,7,0.95)", label: "Saving…" },
+  confirmed: { color: "rgba(76,175,80,0.98)", label: "Range set" },
+  error: { color: "rgba(244,67,54,0.96)", label: "Failed" },
+};
 
 /**
  * Build a concave cylinder-segment geometry for a curved panel. The surface
@@ -1068,6 +1077,30 @@ export class VRHandyPanel extends VRCanvasPanel {
     configured: false,
   };
 
+  // Stroke-zone envelope, each 0..1. Defaults to the device's full range.
+  private strokeMin = 0;
+  private strokeMax = 1;
+  // Which handle the trigger is currently dragging (null = not dragging).
+  private dragging: "min" | "max" | null = null;
+
+  // Confirmation feedback for the last stroke-zone change. `pending` while the
+  // request is in flight, `confirmed` (a brief green flash) once the server
+  // acks, `error` if it failed. Driven from React via setStrokeStatus().
+  private strokeStatus: VRStrokeStatus = "idle";
+  private strokeStatusTimer: ReturnType<typeof setTimeout> | null = null;
+
+  // Slider track geometry in canvas pixels (computed from cw in draw()).
+  private get trackX() {
+    return 40;
+  }
+  private get trackW() {
+    return this.cw - 80;
+  }
+  private static readonly TRACK_Y = 176;
+  private static readonly HANDLE_R = 20;
+  /** Minimum gap between the two handles, so they never cross. */
+  private static readonly MIN_GAP = 0.05;
+
   constructor() {
     super(0.9, 640, 280);
     this.mesh.name = "vr-handy-panel";
@@ -1088,6 +1121,35 @@ export class VRHandyPanel extends VRCanvasPanel {
     }
   }
 
+  /**
+   * Update the stroke-zone confirmation indicator. Called from the React layer
+   * once the device command resolves (or rejects). A `confirmed` flash clears
+   * itself after a beat so it reads as an acknowledgement, not a steady state.
+   */
+  setStrokeStatus(status: VRStrokeStatus) {
+    if (this.strokeStatusTimer) {
+      clearTimeout(this.strokeStatusTimer);
+      this.strokeStatusTimer = null;
+    }
+    this.strokeStatus = status;
+    if (status === "confirmed") {
+      this.strokeStatusTimer = setTimeout(() => {
+        this.strokeStatus = "idle";
+        this.strokeStatusTimer = null;
+        this.markDirty();
+      }, 1600);
+    }
+    this.markDirty();
+  }
+
+  dispose() {
+    if (this.strokeStatusTimer) {
+      clearTimeout(this.strokeStatusTimer);
+      this.strokeStatusTimer = null;
+    }
+    super.dispose();
+  }
+
   protected handleSelect(region: IPanelRegion): VRControlAction | null {
     switch (region.id) {
       case "handyConnect":
@@ -1097,6 +1159,65 @@ export class VRHandyPanel extends VRCanvasPanel {
       default:
         return null;
     }
+  }
+
+  // ── Stroke-zone slider drag ───────────────────────────────────────────────
+  // Press grabs the nearest handle (or moves it to a tapped point); drag updates
+  // the visual live; release dispatches setHandyStroke once so the device isn't
+  // flooded with /slider/stroke writes mid-drag.
+
+  activate(uv: THREE.Vector2): VRControlAction | null {
+    const region = this.regionAt(uv);
+    if (region?.id === "strokeSlider") {
+      // A new adjustment supersedes any prior confirmation/error indicator.
+      if (this.strokeStatus !== "idle") this.setStrokeStatus("idle");
+      const v = this.valueFromUV(uv);
+      // Grab whichever handle is nearer the press point, then move it there.
+      this.dragging =
+        Math.abs(v - this.strokeMin) <= Math.abs(v - this.strokeMax)
+          ? "min"
+          : "max";
+      this.updateDrag(v);
+      return null;
+    }
+    this.dragging = null;
+    return region ? this.handleSelect(region) : null;
+  }
+
+  pointerMove(uv: THREE.Vector2): void {
+    if (!this.dragging) return;
+    this.updateDrag(this.valueFromUV(uv));
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  pointerUp(_uv: THREE.Vector2): VRControlAction | null {
+    if (!this.dragging) return null;
+    this.dragging = null;
+    // Show "saving" immediately on release; React flips this to confirmed/error
+    // when /slider/stroke resolves.
+    this.setStrokeStatus("pending");
+    return {
+      type: "setHandyStroke",
+      min: Math.round(this.strokeMin * 100) / 100,
+      max: Math.round(this.strokeMax * 100) / 100,
+    };
+  }
+
+  /** Canvas-x of a UV point → 0..1 fraction along the slider track. */
+  private valueFromUV(uv: THREE.Vector2): number {
+    const x = uv.x * this.cw;
+    const frac = (x - this.trackX) / this.trackW;
+    return Math.min(1, Math.max(0, frac));
+  }
+
+  private updateDrag(v: number) {
+    const gap = VRHandyPanel.MIN_GAP;
+    if (this.dragging === "min") {
+      this.strokeMin = Math.min(v, this.strokeMax - gap);
+    } else if (this.dragging === "max") {
+      this.strokeMax = Math.max(v, this.strokeMin + gap);
+    }
+    this.markDirty();
   }
 
   protected draw() {
@@ -1162,6 +1283,124 @@ export class VRHandyPanel extends VRCanvasPanel {
       ctx.fillStyle = "rgba(255,255,255,0.55)";
       ctx.fillText("Connecting…", this.cw - 28, 46);
     }
+
+    // Stroke-zone range slider — only meaningful once a device is paired.
+    if (hs.configured) this.drawStrokeSlider();
+  }
+
+  /** Draw the dual-handle stroke-zone slider (min..max envelope, 0..100%). */
+  private drawStrokeSlider() {
+    const { ctx } = this;
+    const tx = this.trackX;
+    const tw = this.trackW;
+    const ty = VRHandyPanel.TRACK_Y;
+    const r = VRHandyPanel.HANDLE_R;
+    const minX = tx + this.strokeMin * tw;
+    const maxX = tx + this.strokeMax * tw;
+
+    // Header: label + numeric readout. The readout tints to match the
+    // confirmation state so feedback is legible even from across the room.
+    const sv = STROKE_STATUS_VISUAL[this.strokeStatus];
+    ctx.font = "600 22px sans-serif";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "rgba(255,255,255,0.85)";
+    ctx.fillText("Stroke Zone", tx, ty - 46);
+    const readout = `${Math.round(this.strokeMin * 100)}% – ${Math.round(
+      this.strokeMax * 100
+    )}%`;
+    ctx.font = "600 22px sans-serif";
+    ctx.textAlign = "right";
+    ctx.fillStyle = sv ? sv.color : ACCENT;
+    ctx.fillText(readout, tx + tw, ty - 46);
+
+    // Status chip (Saving… / Range set / Failed) sits just left of the readout.
+    if (sv) {
+      const readoutW = ctx.measureText(readout).width;
+      this.drawStrokeStatusChip(tx + tw - readoutW - 16, ty - 46, sv);
+    }
+
+    // Track (inactive)
+    ctx.lineCap = "round";
+    ctx.lineWidth = 8;
+    ctx.strokeStyle = "rgba(255,255,255,0.14)";
+    ctx.beginPath();
+    ctx.moveTo(tx, ty);
+    ctx.lineTo(tx + tw, ty);
+    ctx.stroke();
+
+    // Active span between the two handles
+    ctx.strokeStyle = ACCENT;
+    ctx.beginPath();
+    ctx.moveTo(minX, ty);
+    ctx.lineTo(maxX, ty);
+    ctx.stroke();
+    ctx.lineCap = "butt";
+
+    // Handles
+    this.drawHandle(minX, ty, r, this.dragging === "min");
+    this.drawHandle(maxX, ty, r, this.dragging === "max");
+
+    // One wide hit region spanning the whole track (with vertical padding so
+    // the thin track is easy to grab); drag tracking takes over from there.
+    this.regions.push({
+      id: "strokeSlider",
+      x: tx - r,
+      y: ty - r - 14,
+      w: tw + r * 2,
+      h: r * 2 + 28,
+    });
+  }
+
+  /** Pill chip — coloured dot + word — right-aligned so it ends at `rightX`. */
+  private drawStrokeStatusChip(
+    rightX: number,
+    cy: number,
+    sv: { color: string; label: string }
+  ) {
+    const { ctx } = this;
+    ctx.font = "600 18px sans-serif";
+    const wordW = ctx.measureText(sv.label).width;
+    const padX = 12;
+    const dotR = 6;
+    const gap = 8;
+    const chipW = padX + dotR * 2 + gap + wordW + padX;
+    const chipH = 30;
+    const x = rightX - chipW;
+    const y = cy - chipH / 2;
+
+    this.roundRect(x, y, chipW, chipH, chipH / 2);
+    ctx.fillStyle = "rgba(0,0,0,0.28)";
+    ctx.fill();
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = sv.color;
+    ctx.stroke();
+
+    const dotX = x + padX + dotR;
+    ctx.beginPath();
+    ctx.arc(dotX, cy, dotR, 0, Math.PI * 2);
+    ctx.fillStyle = sv.color;
+    ctx.fill();
+
+    ctx.font = "600 18px sans-serif";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "rgba(255,255,255,0.92)";
+    ctx.fillText(sv.label, dotX + dotR + gap, cy + 1);
+  }
+
+  private drawHandle(cx: number, cy: number, r: number, active: boolean) {
+    const { ctx } = this;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    const g = ctx.createRadialGradient(cx, cy - r * 0.4, 2, cx, cy, r);
+    g.addColorStop(0, "rgba(255,255,255,0.98)");
+    g.addColorStop(1, active ? "rgba(191,219,254,0.95)" : "rgba(226,232,240,0.9)");
+    ctx.fillStyle = g;
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = active ? ACCENT : "rgba(96,165,250,0.5)";
+    ctx.stroke();
   }
 
   private drawActionBtn(

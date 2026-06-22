@@ -693,6 +693,23 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
         case "handyToggle":
           handyRef.current.emergencyStop?.();
           break;
+        case "setHandyStroke": {
+          // Apply the stroke-zone envelope to the device. /slider/stroke clamps
+          // both HAMP and funscript (HSSP) motion into this min..max range.
+          // Reflect the server's response back onto the VR panel so the user
+          // gets explicit confirmation (or an error) without leaving the scene.
+          const p = handyRef.current.setHampStroke?.(a.min, a.max);
+          if (p) {
+            p.then(
+              () => managerRef.current?.setHandyStrokeStatus("confirmed"),
+              () => managerRef.current?.setHandyStrokeStatus("error")
+            );
+          } else {
+            // Client doesn't support stroke control — clear the pending state.
+            managerRef.current?.setHandyStrokeStatus("error");
+          }
+          break;
+        }
         case "handyPatternStart": {
           // Start the stepping loop — sends HDSP position commands on a timer
           patternRunnerRef.current.start(a.patternId);

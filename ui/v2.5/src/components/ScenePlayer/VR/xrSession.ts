@@ -280,10 +280,24 @@ export class XRSessionManager {
   private mediaGen = 0;
   private onVideoReady = () => {
     const gen = this.mediaGen;
+    const v = this.opts.video;
+    // Switch-crash probe: the media→media switch is the path that hard-crashes
+    // the Quest compositor. Record the exact gating inputs — flushed now so the
+    // row survives a GPU-process kill — to prove whether this callback rebuilds
+    // the layer for the new stream or the `!usingMediaLayer` guard skips it.
+    vrLog.note("videoready", {
+      using: this.usingMediaLayer ? 1 : 0,
+      vw: v.videoWidth,
+      vh: v.videoHeight,
+      wants: this.wantsMediaLayer(this.projection) ? 1 : 0,
+      gen,
+      mediaGen: this.mediaGen,
+    });
+    vrLog.flushNow();
     if (
       this.session &&
       !this.usingMediaLayer &&
-      this.opts.video.videoWidth > 0 &&
+      v.videoWidth > 0 &&
       this.wantsMediaLayer(this.projection) &&
       gen === this.mediaGen
     ) {
@@ -359,6 +373,10 @@ export class XRSessionManager {
   private jUploadN = 0;
   private jDropLast = -1;
   private jDropSum = 0;
+  // Scene-switch leak probe: counts in-VR switches so a resource snapshot can be
+  // tied to "after the Nth switch". The crash repro is a hard OOM after 2–3
+  // switches, so we log GL-resource + JS-heap counts to prove which class climbs.
+  private jSwitchCount = 0;
   // Previous frame's phase split — the work that filled the interval ending at
   // the current frame, so a hitch is attributed to what actually caused it.
   private jPrev = { input: 0, ui: 0, render: 0, total: 0, upload: false };
@@ -736,6 +754,39 @@ export class XRSessionManager {
     this.rebuildVideoProjection();
   }
 
+  /**
+   * Release the live compositor video layer BEFORE the React layer drains and
+   * re-points the <video> element on an in-VR scene switch.
+   *
+   * A WebXR media layer samples the <video> directly, so tearing the element's
+   * source out from under a bound layer (`removeAttribute('src'); load()`) hard-
+   * crashes the Quest compositor — proven via vrlog: a media→media switch faults
+   * synchronously at the drain, with the stale layer still in renderState and no
+   * teardown logged (`buildMediaLayer` defers on the 0×0 video before reaching
+   * `destroyMediaLayer`, and `onVideoReady`'s `!usingMediaLayer` guard blocks the
+   * rebuild). Dropping to the shader dome here detaches the compositor; the new
+   * stream's `onVideoReady` then rebuilds a fresh media layer — the same path the
+   * known-good first scene load already takes.
+   *
+   * No-op on the dome path (the VideoTexture upload tolerates an emptied video).
+   */
+  prepareSourceSwap() {
+    if (!this.usingMediaLayer) return;
+    // Invalidate any in-flight onVideoReady from the outgoing stream.
+    this.mediaGen++;
+    this.destroyMediaLayer();
+    this.usingMediaLayer = false;
+    // Fall back to the dome so there's always an active video path (never a
+    // black void) while the new source loads; onVideoReady promotes it back to
+    // the media layer once metadata arrives.
+    this.buildDome();
+    // Push the video-less layer stack so the compositor stops referencing the
+    // <video> the React layer is about to drain.
+    this.syncRenderStateLayers();
+    vrLog.note("source_swap_prep", {});
+    vrLog.flushNow();
+  }
+
   /** Update the info panel with new scene metadata after an in-VR scene switch. */
   updateSceneInfo(info: IVRSceneInfo) {
     if (this.infoPanel) {
@@ -758,6 +809,12 @@ export class XRSessionManager {
       this.infoPanel = newPane;
       this.rebuildBrowseHittables();
     }
+    // Leak probe: this runs once per in-VR scene switch. Snapshot GL + heap
+    // counts right after the old panel/dome were disposed and the new ones
+    // built, so a monotonic climb across switches pinpoints the undisposed
+    // class before the OOM crash (repro: hard crash after 2–3 switches).
+    this.jSwitchCount++;
+    this.emitResourceSnapshot("switch");
   }
 
   /** Refresh the scenes browser list (called after in-VR scene switch). */
@@ -1192,6 +1249,7 @@ export class XRSessionManager {
       layersApi: this.layersApiActive(),
       mediaBinding: typeof XRMediaBinding !== "undefined",
     });
+    vrLog.flushNow();
     // Diagnostic (visible over chrome://inspect) — which video path won and why.
     // Gated behind any vrDebug flag so production stays quiet.
     if (this.debug.size) {
@@ -1231,9 +1289,21 @@ export class XRSessionManager {
       // Layer constructors throw on a zero-size video. Defer — onVideoReady
       // re-runs this once metadata loads; we stay on the dome until then.
       vrLog.note("medialayer_defer", { vw: vid.videoWidth, vh: vid.videoHeight });
+      vrLog.flushNow();
       return;
     }
     if (!this.mediaBinding) this.mediaBinding = new XRMediaBinding(session);
+    // Switch-crash probe: record whether a previous 8K layer is still live at
+    // the instant we destroy + recreate (the transient 2×surface that can OOM
+    // the Quest compositor). Flushed so it survives a hard GPU-process kill.
+    vrLog.note("medialayer_rebuild", {
+      hadLayer: this.mediaLayer ? 1 : 0,
+      vw: vid.videoWidth,
+      vh: vid.videoHeight,
+      fov: this.projection.fov,
+      stereo: this.projection.stereo,
+    });
+    vrLog.flushNow();
     this.destroyMediaLayer();
 
     const p = this.projection;
@@ -1247,6 +1317,7 @@ export class XRSessionManager {
       );
     }
     vrLog.note("build_medialayer", { fov: p.fov, stereo: p.stereo });
+    vrLog.flushNow();
     if (p.fov === "flat") {
       // Flat screen floating in front of the viewer. Dimensions in metres match
       // the old curved cinema mesh (4 × 2.25 ≈ 16:9); tune on-device if the
@@ -1275,6 +1346,10 @@ export class XRSessionManager {
   /** Destroy the current media layer (if any) and forget it. */
   private destroyMediaLayer() {
     if (this.mediaLayer) {
+      // Switch-crash probe: confirm destroy() actually fires (and doesn't throw)
+      // before a new 8K layer is allocated. Flushed for crash-survival.
+      vrLog.note("medialayer_destroy", {});
+      vrLog.flushNow();
       try {
         (this.mediaLayer as { destroy?: () => void }).destroy?.();
       } catch {
@@ -1313,6 +1388,53 @@ export class XRSessionManager {
     session.updateRenderState({
       layers: showVideoLayer ? [this.mediaLayer!, threeLayer] : [threeLayer],
     });
+  }
+
+  // --- resource leak probe --------------------------------------------------
+
+  /**
+   * Snapshot of everything that could grow unbounded across in-VR scene
+   * switches. `renderer.info` is three's own live GPU-resource accounting:
+   * geometries/textures/programs that climb monotonically across switches mean
+   * something isn't being disposed. `performance.memory` (Chromium/Quest
+   * browser) catches a JS-heap leak that wouldn't show in the GL counts —
+   * retained closures, Image objects, detached video pipelines. dome/scene
+   * graph sizes are included so a runaway mesh/child count is visible too.
+   */
+  private resourceSnapshot(): Record<string, number | null> {
+    const info = this.renderer.info;
+    const mem = (
+      performance as Performance & {
+        memory?: { usedJSHeapSize: number; jsHeapSizeLimit: number };
+      }
+    ).memory;
+    const mb = (b: number) => +(b / 1048576).toFixed(1);
+    return {
+      geo: info.memory.geometries,
+      tex: info.memory.textures,
+      prog: info.programs?.length ?? 0,
+      calls: info.render.calls,
+      domes: this.domeMeshes.length,
+      vkids: this.videoGroup.children.length,
+      ukids: this.uiGroup.children.length,
+      media: this.usingMediaLayer ? 1 : 0,
+      heap: mem ? mb(mem.usedJSHeapSize) : null,
+      heapLim: mem ? mb(mem.jsHeapSizeLimit) : null,
+    };
+  }
+
+  /**
+   * Emit a leak-probe snapshot and force it to disk immediately — the crash is a
+   * hard OOM, so the last snapshot before it must survive (the periodic flush
+   * timer may not fire in time).
+   */
+  private emitResourceSnapshot(tag: string) {
+    vrLog.note("leakprobe", {
+      tag,
+      sw: this.jSwitchCount,
+      ...this.resourceSnapshot(),
+    });
+    vrLog.flushNow();
   }
 
   // --- dome construction ----------------------------------------------------
@@ -1894,6 +2016,9 @@ export class XRSessionManager {
         hitch: this.jHitchN,
         up: this.jUploadN,
         dd: this.jDropSum,
+        // Per-second resource timeline — a steadily climbing geo/tex/prog/heap
+        // across the seconds leading up to the crash is the leak fingerprint.
+        ...this.resourceSnapshot(),
       });
       this.jDt.length = 0;
       this.jRender.length = 0;

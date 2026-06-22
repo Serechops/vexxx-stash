@@ -246,6 +246,12 @@ class VRLog {
     this.note("sample", { ...s, stuck, ddrop, src: shortSrc(v.currentSrc) });
   }
 
+  /** Force the current queue to the collector now — used around the scene-switch
+   * leak probe so the last snapshot survives a hard OOM crash. */
+  flushNow(): void {
+    this.flush();
+  }
+
   private flush(): void {
     if (!this.endpoint || this.queue.length === 0) return;
     const batch = this.queue;

@@ -475,6 +475,12 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
 
         const v = videoRef.current;
         if (v) {
+          // Detach the compositor from the <video> BEFORE draining it. A live
+          // WebXR media layer samples this element directly; draining its source
+          // out from under a bound layer hard-crashes the Quest compositor (see
+          // XRSessionManager.prepareSourceSwap). The new stream rebuilds a fresh
+          // layer via onVideoReady once its metadata loads.
+          managerRef.current?.prepareSourceSwap();
           // Full video drain: pause, reset time to 0, clear src, then load.
           // This prevents the browser from retaining the old video's position
           // and seeking the new source to an out-of-range timestamp.
@@ -567,6 +573,9 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
   const handleGoHome = useCallback(() => {
     const v = videoRef.current;
     if (v) {
+      // Release the live media layer before draining the <video> (same Quest
+      // compositor crash hazard as an in-VR scene switch).
+      managerRef.current?.prepareSourceSwap();
       v.pause();
       v.removeAttribute("src");
       v.load();
@@ -754,6 +763,9 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
     drainStaleSrcCounter.current++;
     const drainGen = drainStaleSrcCounter.current;
 
+    // Detach any live media layer before draining (Quest compositor crash
+    // hazard; no-op on the dome path / first load).
+    managerRef.current?.prepareSourceSwap();
     // Drain the old source before loading the new one. This prevents the
     // browser from retaining the previous video's currentTime and trying to
     // seek the new source to an out-of-range position.

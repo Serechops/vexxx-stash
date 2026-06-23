@@ -37,6 +37,7 @@ import { VRControllerInput, IPanelHit } from "./VRControllerInput";
 import { VRDeviceModels } from "./VRDeviceModels";
 import { VRHandyPanel, VRInfoPanel, IVRSceneInfo } from "./VRInfoPanels";
 import { VRScenesPanel, IVRSceneEntry } from "./VRScenesPanel";
+import { VRCarouselLibrary } from "./VRCarouselLibrary";
 import { VRHomePanel } from "./VRHomePanel";
 import { VRLobbyBackdrop } from "./VRLobbyBackdrop";
 import {
@@ -161,8 +162,6 @@ export interface IXRSessionManagerOptions {
   getHandyState?: () => IVRHandyState;
   /** Whether the current scene has a funscript (for the green Handy status icon). */
   getFunscriptLoaded?: () => boolean;
-  /** VR scene entries for the VR Scenes side panel. */
-  getScenes?: () => IVRSceneEntry[];
   /**
    * Server-backed data source for the immersive Home wall (lobby mode). The wall
    * pages / filters / sorts through this rather than holding the whole library
@@ -272,11 +271,13 @@ export class XRSessionManager {
   private domeMeshes: THREE.Mesh[] = [];
   // WebXR Media Layers — the default, compositor-sampled video path ("max
   // quality": the headset compositor samples the video directly, ~halving GPU
-  // vs the eye-buffer dome). Used for flat/180/360; the shader dome above is
-  // retained only for fisheye190 (no composition-layer type can un-distort dual
-  // fisheye). null on devices without the Layers API → we keep the dome path.
+  // vs the eye-buffer dome). Used for 180/360 (equirect); the shader dome is
+  // retained for fisheye190 (no composition-layer type can un-distort dual
+  // fisheye) and for flat (the compositor flat layer renders nothing on Quest
+  // here — see wantsMediaLayer). null on devices without the Layers API → we
+  // keep the dome path.
   private mediaBinding: XRMediaBinding | null = null;
-  private mediaLayer: XRQuadLayer | XREquirectLayer | null = null;
+  private mediaLayer: XREquirectLayer | null = null;
   private usingMediaLayer = false;
   // Recenter yaw applied to the video, preserved across media-layer rebuilds.
   private videoYaw = 0;
@@ -326,7 +327,10 @@ export class XRSessionManager {
   // VR scenes side panel with scene cards, toggled via Browse.
   private scenesPanel: VRScenesPanel | null = null;
   private browseOpen = false;
-  private currentScenes: IVRSceneEntry[] = [];
+  // Server-paged data source behind the Browse "Scenes" carousel (VR-only,
+  // newest first, excluding the now-playing scene). Replaces the old fixed-50
+  // in-memory list + client-side splice.
+  private carouselData = new VRCarouselLibrary();
   private previewVideo: HTMLVideoElement | null = null;
   private previewSceneId: string | null = null;
   // Hover-preview debounce: the card the ray is currently over and the timer
@@ -344,8 +348,10 @@ export class XRSessionManager {
   // Server-backed Home library (paged). The manager owns the live query state
   // (sort + media + studio/performer) and orchestrates page/count/rail fetches.
   private homeData: IVRHomeDataSource | null = null;
-  private homeFilter: { kind: "studio" | "performer"; id: string } | null =
-    null;
+  private homeFilter: {
+    kind: "studio" | "performer" | "tag";
+    id: string;
+  } | null = null;
   private mediaFilter: VRMediaFilter = "all";
   private sortMode: VRSortMode = "recent";
   // Cached rail lists, kept for resolving a tapped filter's display label.
@@ -507,6 +513,12 @@ export class XRSessionManager {
     this.uiGroup.add(scenesPane.object);
     this.layoutSidePanel(scenesPane, "left");
     scenesPane.setRenderState(0);
+    // Server-page the carousel: the panel pulls pages lazily through this
+    // requester as the user scrolls. The exclude (now-playing scene) + the
+    // initial page-0 load are kicked from updateCurrentSceneId.
+    scenesPane.setPageRequester((pageIndex) =>
+      this.fetchCarouselPage(pageIndex)
+    );
 
     // Home wall — large curved central gallery for lobby mode (Option 2).
     const home = new VRHomePanel();
@@ -844,10 +856,16 @@ export class XRSessionManager {
     this.emitResourceSnapshot("switch");
   }
 
-  /** Refresh the scenes browser list (called after in-VR scene switch). */
-  updateScenes(scenes: IVRSceneEntry[]) {
-    this.currentScenes = scenes;
-    this.scenesPanel?.setScenes(scenes);
+  /** Fetch a carousel page from the pager and append it (gen-guarded). */
+  private fetchCarouselPage(pageIndex: number) {
+    this.carouselData
+      .getPage(pageIndex)
+      .then((res) => {
+        // Drop stale results that resolve after the now-playing scene changed.
+        if (res.gen !== this.carouselData.gen) return;
+        this.scenesPanel?.appendPage(res.pageIndex, res.scenes, res.totalCount);
+      })
+      .catch(() => undefined);
   }
 
   /** Close the Browse side panels (called after an in-VR scene switch). */
@@ -862,6 +880,12 @@ export class XRSessionManager {
   updateCurrentSceneId(id: string) {
     this.scenesPanel?.setCurrentSceneId(id);
     this.homePanel?.setCurrentSceneId(id);
+    // Re-page the carousel to exclude the now-playing scene (server-side), so it
+    // never needs the old client-side splice. Only reset the panel when the
+    // exclude actually changed (resetLibrary clears + lazily re-kicks page 0).
+    const before = this.carouselData.gen;
+    this.carouselData.setExcludeId(id || null);
+    if (this.carouselData.gen !== before) this.scenesPanel?.resetLibrary();
   }
 
   /**
@@ -971,15 +995,24 @@ export class XRSessionManager {
     this.handyPanel?.setStrokeStatus(status);
   }
 
-  /** Apply a home-filter (studio/performer) and re-query the wall. */
+  /**
+   * Apply a home-filter (studio/performer/tag) and re-query the wall.
+   * `explicitLabel` is used for filters that can't be resolved from the cached
+   * rail lists (tags, or a performer/studio outside the top-N rail) — e.g. a
+   * drill-down tap on an info-panel chip, which passes the name directly.
+   */
   private applyHomeFilter(
-    filter: { kind: "studio" | "performer"; id: string } | null
+    filter: { kind: "studio" | "performer" | "tag"; id: string } | null,
+    explicitLabel?: string
   ) {
     this.homeFilter = filter;
-    this.homePanel?.setActiveFilter(filter?.id ?? null);
-    // Resolve the header label from the cached rail lists.
-    let label: string | null = null;
-    if (filter) {
+    // Only studio/performer filters highlight a rail tile; tags aren't in the rail.
+    this.homePanel?.setActiveFilter(
+      filter && filter.kind !== "tag" ? filter.id : null
+    );
+    // Prefer an explicit label; otherwise resolve from the cached rail lists.
+    let label: string | null = explicitLabel ?? null;
+    if (!label && filter && filter.kind !== "tag") {
       const list =
         filter.kind === "studio" ? this.railStudios : this.railPerformers;
       label = list.find((e) => e.id === filter.id)?.name ?? null;
@@ -1035,7 +1068,7 @@ export class XRSessionManager {
     } else {
       this.updateHoverPreview(
         this.scenesPanel,
-        this.currentScenes,
+        this.scenesPanel?.allLoadedScenes() ?? [],
         this.browseOpen
       );
     }
@@ -1127,22 +1160,21 @@ export class XRSessionManager {
     }
     if (action.type === "browsePanelToggle") {
       this.browseOpen = !this.browseOpen;
-      if (
-        this.browseOpen &&
-        this.currentScenes.length === 0 &&
-        this.opts.getScenes
-      ) {
-        this.currentScenes = this.opts.getScenes();
-        this.scenesPanel?.setScenes(this.currentScenes);
-      }
+      // The carousel self-loads page 0 lazily from its draw loop while Browse is
+      // open (no seeding needed — see VRScenesPanel.ensureLoaded).
       this.rebuildBrowseHittables();
       this.lastActivity = performance.now();
       return;
     }
     if (action.type === "setHomeFilter") {
       this.applyHomeFilter(
-        action.kind ? { kind: action.kind, id: action.id! } : null
+        action.kind ? { kind: action.kind, id: action.id! } : null,
+        action.label
       );
+      // Drill-down from an info-panel chip happens during playback: surface the
+      // now-filtered Home wall so the user actually sees the result. The rail's
+      // own filter taps come from lobby mode, where this is a no-op.
+      if (!this.lobbyMode) this.opts.onAction({ type: "goHome" });
       this.lastActivity = performance.now();
       return;
     }
@@ -1190,11 +1222,17 @@ export class XRSessionManager {
 
   /** Whether this projection should use the compositor media-layer path. */
   private wantsMediaLayer(p: IProjectionSettings): boolean {
-    // Dual-fisheye can't be expressed as a composition layer — keep the shader
-    // dome for it. Everything else (flat / 180 / 360, mono or stereo) goes
-    // through the media layer when the runtime supports it.
+    // Only the equirect projections (180 / 360, mono or stereo) use the media
+    // layer. Two projections stay on the shader dome:
+    //   • fisheye190 — dual-fisheye can't be expressed as a composition layer.
+    //   • flat       — the compositor flat layer (quad/cylinder) renders nothing
+    //                  on Quest here, and because the layer *constructs* OK we'd
+    //                  set usingMediaLayer and never fall back → black void. The
+    //                  dome's makeFlatScreen() draws the same curved cinema
+    //                  screen via the proven VideoTexture path instead.
     return (
       p.fov !== "fisheye190" &&
+      p.fov !== "flat" &&
       this.mediaLayersAvailable() &&
       this.layersApiActive()
     );
@@ -1280,9 +1318,9 @@ export class XRSessionManager {
   /**
    * Create the compositor video layer for the current projection: an equirect
    * layer for 180/360 (with the stereo layout + swap handled natively by the
-   * compositor) or a quad layer for flat content. The viewer's per-frame video
-   * upload is skipped while this path is active — the compositor samples the
-   * <video> directly.
+   * compositor). Flat and fisheye190 never reach here — wantsMediaLayer() keeps
+   * them on the shader dome. The viewer's per-frame video upload is skipped
+   * while this path is active — the compositor samples the <video> directly.
    *
    * NOTE: forward-facing calibration and the SBS/TB→eye and vertical mapping are
    * the parts most likely to need on-device tuning on Quest 3 (mirrors the
@@ -1336,29 +1374,19 @@ export class XRSessionManager {
     }
     vrLog.note("build_medialayer", { fov: p.fov, stereo: p.stereo });
     vrLog.flushNow();
-    if (p.fov === "flat") {
-      // Flat screen floating in front of the viewer. Dimensions in metres match
-      // the old curved cinema mesh (4 × 2.25 ≈ 16:9); tune on-device if the
-      // runtime treats width/height as half-extents.
-      this.mediaLayer = this.mediaBinding.createQuadLayer(this.opts.video, {
-        space: refSpace,
-        layout: "mono",
-        transform: new XRRigidTransform({ x: 0, y: 1.4, z: -3.2 }),
-        width: 4 * p.zoom,
-        height: 2.25 * p.zoom,
-      });
-    } else {
-      this.mediaLayer = this.mediaBinding.createEquirectLayer(this.opts.video, {
-        space: refSpace,
-        layout: layoutForStereo(p.stereo),
-        invertStereo: p.swapEyes,
-        radius: 0, // 0 = infinite sphere (standard for immersive video)
-        centralHorizontalAngle: p.fov === "360" ? 2 * Math.PI : Math.PI,
-        upperVerticalAngle: Math.PI / 2,
-        lowerVerticalAngle: -Math.PI / 2,
-        transform: this.equirectTransform(),
-      });
-    }
+    // Only 180 / 360 reach here — wantsMediaLayer() keeps flat and fisheye190 on
+    // the shader dome. The equirect layer handles the stereo layout + swap
+    // natively in the compositor; recenter yaw rides in via equirectTransform().
+    this.mediaLayer = this.mediaBinding.createEquirectLayer(this.opts.video, {
+      space: refSpace,
+      layout: layoutForStereo(p.stereo),
+      invertStereo: p.swapEyes,
+      radius: 0, // 0 = infinite sphere (standard for immersive video)
+      centralHorizontalAngle: p.fov === "360" ? 2 * Math.PI : Math.PI,
+      upperVerticalAngle: Math.PI / 2,
+      lowerVerticalAngle: -Math.PI / 2,
+      transform: this.equirectTransform(),
+    });
   }
 
   /** Destroy the current media layer (if any) and forget it. */
@@ -1806,6 +1834,8 @@ export class XRSessionManager {
     // buttons) — never by head direction or where the laser happens to point.
     const pIn0 = jitter ? performance.now() : 0;
     this.input.update();
+    // Pick up newly-loaded controller/hand meshes and give them the white rim.
+    this.deviceModels?.update();
     const pInputMs = jitter ? performance.now() - pIn0 : 0;
     if (this.input.consumeActivity()) {
       this.lastActivity = time;

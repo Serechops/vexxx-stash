@@ -106,6 +106,16 @@ export class VRControllerInput {
   // Whether any controller is currently pointing at a registered panel.
   private hoveringPanel = false;
 
+  // Per-slot connection state. three's getController(i) groups are created
+  // eagerly for both slots but only fire `connected` once a real input source
+  // (controller or hand) binds to that slot. Without this, a disconnected slot's
+  // laser would keep being drawn from its last/stale pose — a static ray from a
+  // controller that isn't there. We gate the ray + raycast on this.
+  private connected = [false, false];
+  // Tracks the global rays-visible state so a controller reconnecting mid-session
+  // restores its laser to whatever setRaysVisible last requested.
+  private raysVisible = true;
+
   private tmpV1 = new THREE.Vector3();
   private tmpV2 = new THREE.Vector3();
   private tmpQuat = new THREE.Quaternion();
@@ -185,16 +195,42 @@ export class VRControllerInput {
         this.beginGrabOrRecenter(controller);
       };
       const onSqueezeEnd = () => this.endGrab(controller);
+      // Connection lifecycle: only show/raycast a slot's ray while a real input
+      // source is bound to it. On disconnect, hide the laser, drop the stale
+      // filtered ray (so a reconnect re-seeds instead of snapping from old data),
+      // and abandon any press/drag that controller owned.
+      const onConnected = () => {
+        this.connected[i] = true;
+        if (this.lasers[i]) this.lasers[i].visible = this.raysVisible;
+      };
+      const onDisconnected = () => {
+        this.connected[i] = false;
+        this.rayInit[i] = false;
+        if (this.lasers[i]) this.lasers[i].visible = false;
+        if (this.pressController === controller) {
+          this.pressController = null;
+          this.pressObject = null;
+        }
+        if (this.draggingController === controller) {
+          this.draggingController = null;
+        }
+      };
       controller.addEventListener("selectstart", onSelectStart);
       controller.addEventListener("selectend", onSelectEnd);
       controller.addEventListener("squeezestart", onSqueezeStart);
       controller.addEventListener("squeezeend", onSqueezeEnd);
+      controller.addEventListener("connected", onConnected);
+      controller.addEventListener("disconnected", onDisconnected);
       this.disposers.push(() => {
         controller.removeEventListener("selectstart", onSelectStart);
         controller.removeEventListener("selectend", onSelectEnd);
         controller.removeEventListener("squeezestart", onSqueezeStart);
         controller.removeEventListener("squeezeend", onSqueezeEnd);
+        controller.removeEventListener("connected", onConnected);
+        controller.removeEventListener("disconnected", onDisconnected);
       });
+      // Slots start disconnected — the laser stays hidden until a source binds.
+      laser.visible = false;
 
       scene.add(controller);
       this.controllers.push(controller);
@@ -236,7 +272,11 @@ export class VRControllerInput {
 
   /** Show or hide all controller laser rays (e.g. suppress when UI is hidden). */
   setRaysVisible(visible: boolean) {
-    for (const laser of this.lasers) laser.visible = visible;
+    this.raysVisible = visible;
+    // Only connected slots get a visible ray; a disconnected slot stays hidden.
+    for (let i = 0; i < this.lasers.length; i++) {
+      this.lasers[i].visible = visible && this.connected[i];
+    }
   }
 
   private beginGrabOrRecenter(controller: THREE.Group) {
@@ -273,6 +313,8 @@ export class VRControllerInput {
     if (!(dt > 0) || dt > 0.1) dt = 1 / 72;
 
     for (let i = 0; i < this.controllers.length; i++) {
+      // Skip disconnected slots: no live source means no ray to draw or filter.
+      if (!this.connected[i]) continue;
       const c = this.controllers[i];
       c.updateMatrixWorld(true);
       this.rawOrigin.setFromMatrixPosition(c.matrixWorld);
@@ -374,6 +416,8 @@ export class VRControllerInput {
     // laser to its hit point for nicer feedback.
     let hover: IPanelHit | null = null;
     for (let i = 0; i < this.controllers.length; i++) {
+      // A disconnected slot has no ray — don't raycast or stretch its laser.
+      if (!this.connected[i]) continue;
       const hit = this.raycastNearest(this.controllers[i]);
       this.lasers[i].scale.z = hit ? hit.distance : LASER_LENGTH;
       if (hit && !hover) hover = { object: hit.object, uv: hit.uv };
@@ -403,6 +447,13 @@ export class VRControllerInput {
 
   /** Detect clap gesture (both controllers near each other). */
   private detectClap() {
+    // A clap needs both controllers tracked; a disconnected slot's stale world
+    // position could otherwise sit close to the live one and false-trigger.
+    if (!this.connected[0] || !this.connected[1]) {
+      this.clapFrameCount = 0;
+      this.clapFired = false;
+      return;
+    }
     // Get world positions of both controllers
     for (let i = 0; i < this.controllers.length && i < 2; i++) {
       this.controllers[i].getWorldPosition(this.tmpPositions[i]);

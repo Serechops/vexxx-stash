@@ -94,6 +94,12 @@ function buildSceneFilter(q: IVRHomeQuery): GQL.SceneFilterType {
       value: [q.filter.id],
       modifier: GQL.CriterionModifier.Includes,
     };
+  } else if (q.filter?.kind === "tag") {
+    f.tags = {
+      value: [q.filter.id],
+      modifier: GQL.CriterionModifier.Includes,
+      depth: 0,
+    };
   }
   return f;
 }

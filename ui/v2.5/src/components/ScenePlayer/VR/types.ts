@@ -73,8 +73,18 @@ export type VRControlAction =
   | { type: "switchScene"; sceneId: string }
   /** Return to the immersive Home/lobby wall (pause playback, show the gallery). */
   | { type: "goHome" }
-  /** Filter the immersive Home grid by a studio/performer, or clear (id omitted). */
-  | { type: "setHomeFilter"; kind: "studio" | "performer" | null; id?: string }
+  /**
+   * Filter the immersive Home grid by a studio/performer/tag, or clear (id
+   * omitted). `label` lets callers outside the rail (e.g. an info-panel chip
+   * drill-down) supply the display name directly when it can't be resolved from
+   * the cached rail lists.
+   */
+  | {
+      type: "setHomeFilter";
+      kind: "studio" | "performer" | "tag" | null;
+      id?: string;
+      label?: string;
+    }
   /** Switch the Home wall's media-type filter (all / VR / 2D / funscript). */
   | { type: "setMediaFilter"; filter: "all" | "vr" | "flat" | "funscript" }
   /** Change the Home grid sort order (handled in-manager → re-queries the pager). */
@@ -146,7 +156,7 @@ export interface IVRFilterEntry {
 export interface IVRHomeQuery {
   sort: VRSortMode;
   mediaFilter: VRMediaFilter;
-  filter: { kind: "studio" | "performer"; id: string } | null;
+  filter: { kind: "studio" | "performer" | "tag"; id: string } | null;
 }
 
 /** One page of grid scenes plus the total count for pager geometry. */

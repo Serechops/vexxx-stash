@@ -15,6 +15,8 @@ import TextUtils from "src/utils/text";
 import { VRControlAction, IVRHandyState, VRStrokeStatus } from "./types";
 
 export interface IVRPerformer {
+  /** Performer id — enables the drill-down filter from the info panel. */
+  id: string;
   name: string;
   imageUrl: string | null;
 }
@@ -22,7 +24,8 @@ export interface IVRPerformer {
 export interface IVRSceneInfo {
   title: string;
   performers: IVRPerformer[];
-  tags: string[];
+  /** Tags carry ids so a tap can drill down into the filtered Home wall. */
+  tags: { id: string; name: string }[];
   markers: { title: string; seconds: number }[];
 }
 
@@ -456,11 +459,15 @@ export abstract class VRCanvasPanel {
     const dr = dw / dh;
     let iw: number, ih: number, ix: number, iy: number;
     if (ir > dr) {
-      iw = dw; ih = dw / ir;
-      ix = dx; iy = dy + (dh - ih) / 2;
+      iw = dw;
+      ih = dw / ir;
+      ix = dx;
+      iy = dy + (dh - ih) / 2;
     } else {
-      ih = dh; iw = dh * ir;
-      ix = dx + (dw - iw) / 2; iy = dy;
+      ih = dh;
+      iw = dh * ir;
+      ix = dx + (dw - iw) / 2;
+      iy = dy;
     }
     ctx.drawImage(img, ix, iy, iw, ih);
     ctx.restore();
@@ -790,7 +797,7 @@ export class VRSceneInfoPanel extends VRCanvasPanel {
     const tagY = 100;
     ctx.font = "500 22px sans-serif";
     this.tagWidths = this.info.tags.map((t) =>
-      Math.min(260, ctx.measureText(t).width + 32)
+      Math.min(260, ctx.measureText(t.name).width + 32)
     );
     if (this.info.tags.length === 0) {
       ctx.fillStyle = "rgba(255,255,255,0.35)";
@@ -856,7 +863,7 @@ export class VRSceneInfoPanel extends VRCanvasPanel {
     ctx.textBaseline = "middle";
     ctx.fillStyle = "rgba(255,255,255,0.9)";
     ctx.fillText(
-      this.fitText(this.info.tags[i], w - 24),
+      this.fitText(this.info.tags[i].name, w - 24),
       x + w / 2,
       y + h / 2 + 1
     );
@@ -930,8 +937,22 @@ export class VRInfoPanel extends VRCanvasPanel {
         this.markDirty();
         return null;
       default:
-        return null;
+        break;
     }
+    // Drill-down: tapping a performer/tag filters the Home wall by it. The label
+    // is passed through so the wall header reads correctly without a rail lookup
+    // (performers may be outside the rail; tags aren't in the rail at all).
+    if (region.id.startsWith("perf:")) {
+      const id = region.id.slice("perf:".length);
+      const name = this.info.performers.find((p) => p.id === id)?.name;
+      return { type: "setHomeFilter", kind: "performer", id, label: name };
+    }
+    if (region.id.startsWith("tag:")) {
+      const id = region.id.slice("tag:".length);
+      const name = this.info.tags.find((t) => t.id === id)?.name;
+      return { type: "setHomeFilter", kind: "tag", id, label: name };
+    }
+    return null;
   }
 
   protected draw() {
@@ -974,6 +995,7 @@ export class VRInfoPanel extends VRCanvasPanel {
         widths: perfWidths,
         gap: 16,
         drawItem: (i, x, w) => this.drawPerfCard(i, x, perfY, w, perfH),
+        regionId: (i) => ({ id: `perf:${this.info.performers[i].id}` }),
       });
     }
 
@@ -983,7 +1005,7 @@ export class VRInfoPanel extends VRCanvasPanel {
     const tagH = 52;
     ctx.font = "500 22px sans-serif";
     const tagWidths = this.info.tags.map((t) =>
-      Math.min(260, ctx.measureText(t).width + 32)
+      Math.min(260, ctx.measureText(t.name).width + 32)
     );
     if (this.info.tags.length === 0) {
       ctx.textAlign = "left";
@@ -1001,6 +1023,7 @@ export class VRInfoPanel extends VRCanvasPanel {
         widths: tagWidths,
         gap: 12,
         drawItem: (i, x, w) => this.drawTagChip(i, x, tagY, w, tagH),
+        regionId: (i) => ({ id: `tag:${this.info.tags[i].id}` }),
       });
     }
   }
@@ -1062,7 +1085,7 @@ export class VRInfoPanel extends VRCanvasPanel {
     ctx.textBaseline = "middle";
     ctx.fillStyle = "rgba(255,255,255,0.9)";
     ctx.fillText(
-      this.fitText(this.info.tags[i], w - 24),
+      this.fitText(this.info.tags[i].name, w - 24),
       x + w / 2,
       y + h / 2 + 1
     );
@@ -1395,7 +1418,10 @@ export class VRHandyPanel extends VRCanvasPanel {
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
     const g = ctx.createRadialGradient(cx, cy - r * 0.4, 2, cx, cy, r);
     g.addColorStop(0, "rgba(255,255,255,0.98)");
-    g.addColorStop(1, active ? "rgba(191,219,254,0.95)" : "rgba(226,232,240,0.9)");
+    g.addColorStop(
+      1,
+      active ? "rgba(191,219,254,0.95)" : "rgba(226,232,240,0.9)"
+    );
     ctx.fillStyle = g;
     ctx.fill();
     ctx.lineWidth = 2;

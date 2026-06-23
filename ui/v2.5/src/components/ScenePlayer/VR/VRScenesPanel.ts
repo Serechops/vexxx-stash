@@ -65,7 +65,17 @@ const CARD_X = Math.round((CANVAS_W - CARD_W) / 2);
 const DRAG_THRESHOLD = 10;
 
 export class VRScenesPanel extends VRCanvasPanel {
+  // Server-paged: the panel grows the list by appending pages as the user
+  // scrolls toward the bottom, rather than holding a fixed capped slice. Pages
+  // are pulled through an injected requester (the session manager fetches them
+  // from VRCarouselLibrary and feeds them back via appendPage).
   private scenes: IVRSceneEntry[] = [];
+  private totalCount = 0;
+  private requestedPages = 0; // how many pages we've asked for (next index = this)
+  private loading = false; // a page request is in flight
+  private reachedEnd = false; // server returned an empty page → no more to load
+  private pageRequester: ((pageIndex: number) => void) | null = null;
+
   private scroll = 0; // vertical scroll offset, px
   private maxScroll = 0;
   private previewVideo: HTMLVideoElement | null = null;
@@ -94,10 +104,62 @@ export class VRScenesPanel extends VRCanvasPanel {
     return null;
   }
 
-  setScenes(scenes: IVRSceneEntry[]) {
-    this.scenes = scenes;
+  /** Every scene loaded so far — used by the manager's hover-preview lookup. */
+  allLoadedScenes(): IVRSceneEntry[] {
+    return this.scenes;
+  }
+
+  /** Inject the page fetcher (manager → VRCarouselLibrary). Loading is lazy. */
+  setPageRequester(fn: (pageIndex: number) => void) {
+    this.pageRequester = fn;
+  }
+
+  /**
+   * Reset the list back to empty (called when the now-playing scene changes, so
+   * the carousel re-pages excluding it). Page 0 is pulled lazily the next time
+   * the panel draws while Browse is open.
+   */
+  resetLibrary() {
+    this.scenes = [];
+    this.totalCount = 0;
+    this.requestedPages = 0;
+    this.loading = false;
+    this.reachedEnd = false;
     this.scroll = 0;
     this.markDirty();
+  }
+
+  /** Append a freshly-fetched page (manager pushes this after a gen check). */
+  appendPage(pageIndex: number, scenes: IVRSceneEntry[], totalCount: number) {
+    this.loading = false;
+    this.totalCount = totalCount;
+    if (scenes.length === 0) {
+      this.reachedEnd = true;
+    } else {
+      this.scenes = this.scenes.concat(scenes);
+      if (totalCount > 0 && this.scenes.length >= totalCount) {
+        this.reachedEnd = true;
+      }
+    }
+    this.markDirty();
+  }
+
+  /**
+   * Pull the next page when we have a requester, nothing is in flight, more
+   * remain, and the user has scrolled within ~1.5 cards of the bottom (or we
+   * haven't loaded anything yet). Cheap to call every draw — it self-gates.
+   */
+  private ensureLoaded() {
+    if (!this.pageRequester || this.loading || this.reachedEnd) return;
+    const noneYet = this.requestedPages === 0;
+    const more = this.totalCount === 0 || this.scenes.length < this.totalCount;
+    const nearBottom = this.scroll >= this.maxScroll - CARD_H * 1.5;
+    if (noneYet || (more && nearBottom)) {
+      this.loading = true;
+      const pageIndex = this.requestedPages;
+      this.requestedPages += 1;
+      this.pageRequester(pageIndex);
+    }
   }
 
   /** Mark which scene is currently playing so its card gets the Now Playing badge. */
@@ -167,12 +229,17 @@ export class VRScenesPanel extends VRCanvasPanel {
     this.panelBackground();
     this.sectionLabel("Scenes", 24, TITLE_Y);
 
+    // Drive lazy paging from the draw loop (runs while Browse is open).
+    this.ensureLoaded();
+
     if (this.scenes.length === 0) {
       ctx.font = "500 22px sans-serif";
       ctx.textAlign = "left";
       ctx.textBaseline = "middle";
       ctx.fillStyle = "rgba(255,255,255,0.35)";
-      ctx.fillText("No VR scenes found", 24, (VIEW_Y0 + VIEW_Y1) / 2);
+      // Distinguish "still loading page 0" from a genuinely empty result.
+      const msg = this.reachedEnd ? "No VR scenes found" : "Loading scenes…";
+      ctx.fillText(msg, 24, (VIEW_Y0 + VIEW_Y1) / 2);
       return;
     }
 

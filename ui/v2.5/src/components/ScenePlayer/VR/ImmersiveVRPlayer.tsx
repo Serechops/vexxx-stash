@@ -28,8 +28,7 @@ import { XRSessionManager } from "./xrSession";
 import { VRThumbnails } from "./vttThumbnails";
 import { IVRSceneInfo } from "./VRInfoPanels";
 import { useVRPlayback } from "./useVRPlayback";
-import { IVRSceneEntry } from "./VRScenesPanel";
-import { VRHomeLibrary, mapScene } from "./vrHomeLibrary";
+import { VRHomeLibrary } from "./vrHomeLibrary";
 import {
   InteractiveContext,
   ConnectionState,
@@ -231,10 +230,11 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
     () => ({
       title: liveScene.title ?? "",
       performers: liveScene.performers.map((p) => ({
+        id: p.id,
         name: p.name,
         imageUrl: p.image_path ?? null,
       })),
-      tags: liveScene.tags.map((t) => t.name),
+      tags: liveScene.tags.map((t) => ({ id: t.id, name: t.name })),
       markers: [...liveScene.scene_markers]
         .sort((a, b) => a.seconds - b.seconds)
         .map((m) => ({ title: markerTitle(m), seconds: m.seconds })),
@@ -381,45 +381,11 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
   }, []);
 
   // ── VR Scenes data ─────────────────────────────────────────────────────
-  // The peripheral Browse carousel shows a small, bounded VR-only list (it's
-  // built for dome playback, not flat content). The immersive Home wall no
-  // longer shares this list — it pages the whole library server-side via
-  // homeLibraryRef.
-  const scenesRef = useRef<IVRSceneEntry[]>([]);
-  useEffect(() => {
-    let cancelled = false;
-    getClient()
-      .query<GQL.FindScenesQuery>({
-        query: GQL.FindScenesDocument,
-        variables: {
-          filter: {
-            per_page: 50,
-            page: 1,
-            sort: "date",
-            direction: GQL.SortDirectionEnum.Desc,
-          },
-          scene_filter: {
-            vr_mode: { modifier: GQL.CriterionModifier.NotNull },
-          },
-        },
-      })
-      .then((result) => {
-        if (cancelled) return;
-        scenesRef.current = result.data.findScenes.scenes
-          .map(mapScene)
-          .filter((s) => s.id !== liveSceneRef.current.id);
-        managerRef.current?.updateScenes(scenesRef.current);
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scene?.id]);
-
-  const getScenes = useCallback((): IVRSceneEntry[] => {
-    return scenesRef.current;
-  }, []);
+  // The peripheral Browse carousel is fully server-paged inside the manager
+  // (VRCarouselLibrary): it pages VR-only scenes newest-first, excluding the
+  // now-playing scene, and grows as the user scrolls — no capped in-memory list
+  // or client-side splice here. The manager seeds + re-pages it from
+  // updateCurrentSceneId, so there's nothing to fetch React-side.
 
   // Handle navigation from VR scenes panel — exit VR then navigate.
   const handleNavigateToScene = useCallback(
@@ -490,10 +456,11 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
         const nextInfo: IVRSceneInfo = {
           title: next.title ?? "",
           performers: next.performers.map((p) => ({
+            id: p.id,
             name: p.name,
             imageUrl: p.image_path ?? null,
           })),
-          tags: next.tags.map((t) => t.name),
+          tags: next.tags.map((t) => ({ id: t.id, name: t.name })),
           markers: [...next.scene_markers]
             .sort((a, b) => a.seconds - b.seconds)
             .map((m) => ({ title: markerTitle(m), seconds: m.seconds })),
@@ -516,30 +483,9 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
           });
         }
 
-        // Update the scenes browser: remove the new scene, add the old one back.
-        const prev = liveSceneRef.current;
-        // Add the outgoing scene back into the carousel — unless it was the
-        // empty lobby scene (switching in from the Home wall).
-        const prevEntry: IVRSceneEntry[] = prev.id
-          ? [
-              {
-                id: prev.id,
-                title: prev.title ?? `Scene ${prev.id}`,
-                thumbnailUrl: prev.paths.screenshot ?? null,
-                streamUrl: prev.paths.stream ?? null,
-                studioName: prev.studio?.name ?? null,
-                performers: prev.performers.map((p) => p.name),
-              },
-            ]
-          : [];
-        const nextScenesList = [
-          ...prevEntry,
-          ...scenesRef.current.filter((s) => s.id !== next.id),
-        ];
-        scenesRef.current = nextScenesList;
-        // Push the refreshed list to the manager so it doesn't show a stale
-        // cache — the manager only reads getScenes() on first Browse open.
-        managerRef.current?.updateScenes(nextScenesList);
+        // The carousel re-pages itself server-side around the new now-playing
+        // scene — updateCurrentSceneId(next.id) above already triggered that, so
+        // no client-side list rebuild is needed here.
         // Leave the Home/lobby wall now that a scene is loaded.
         managerRef.current?.setLobbyMode(false);
 
@@ -851,7 +797,6 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
       getCaption: () => (captionsOnRef.current ? activeCueRef.current : null),
       getHandyState: () => buildHandyState(),
       getFunscriptLoaded: () => getFunscriptLoaded(),
-      getScenes: () => getScenes(),
       homeData: homeLibraryRef.current,
       lobby: startedInLobbyRef.current,
       homeSettings: settingsRef.current,
@@ -890,7 +835,6 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
     getChapterTitle,
     buildHandyState,
     getFunscriptLoaded,
-    getScenes,
   ]);
 
   // Push projection changes to the dome renderer.

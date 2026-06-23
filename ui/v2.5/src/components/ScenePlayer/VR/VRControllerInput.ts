@@ -90,7 +90,10 @@ export class VRControllerInput {
   private clapFrameCount = 0;
   private clapFired = false;
   private readonly CLAP_FRAMES_MIN = 3; // frames both hands must be close
-  private tmpPositions: THREE.Vector3[] = [new THREE.Vector3(), new THREE.Vector3()];
+  private tmpPositions: THREE.Vector3[] = [
+    new THREE.Vector3(),
+    new THREE.Vector3(),
+  ];
   // Grip-drag state (moving the control panel around).
   private draggable: THREE.Object3D | null = null;
   private dragEnabled = false;
@@ -107,6 +110,29 @@ export class VRControllerInput {
   private tmpV2 = new THREE.Vector3();
   private tmpQuat = new THREE.Quaternion();
   private camPos = new THREE.Vector3();
+
+  // ── Ray stabilisation ──────────────────────────────────────────────────────
+  // Quest controllers jitter a few tenths of a degree at rest, and pulling the
+  // trigger torques the controller — both kick the laser off the intended
+  // target right as the user clicks, turning a tap into a drag. A One-Euro
+  // adaptive low-pass steadies a held ray without lagging deliberate sweeps: the
+  // cutoff rises with angular speed, so fast intentional motion stays ~1:1 while
+  // a near-stationary ray is heavily smoothed. Tune on-device.
+  private readonly RAY_MIN_CUTOFF = 1.6; // Hz — lower = steadier when still
+  private readonly RAY_BETA = 0.05; // speed coupling — higher = snappier
+  private smoothDir: THREE.Vector3[] = [
+    new THREE.Vector3(),
+    new THREE.Vector3(),
+  ];
+  private smoothOrigin: THREE.Vector3[] = [
+    new THREE.Vector3(),
+    new THREE.Vector3(),
+  ];
+  private rayInit = [false, false];
+  private lastRayTime = 0;
+  private rawDir = new THREE.Vector3();
+  private rawOrigin = new THREE.Vector3();
+  private readonly FORWARD = new THREE.Vector3(0, 0, -1);
 
   constructor(
     private renderer: THREE.WebGLRenderer,
@@ -130,7 +156,12 @@ export class VRControllerInput {
       );
       laser.scale.z = LASER_LENGTH;
       laser.renderOrder = 11;
-      controller.add(laser);
+      // The laser is parented to the SCENE (not the controller) so it can be
+      // driven from the *filtered* ray each frame — the visible dot then lands
+      // exactly where the raycast hits, even though the filtered ray lags the
+      // raw controller pose slightly. (See refreshRays / the ray-stabilisation
+      // fields below.)
+      scene.add(laser);
 
       const onSelectStart = () => {
         this.activity = true;
@@ -227,7 +258,59 @@ export class VRControllerInput {
     if (this.draggingController === controller) this.draggingController = null;
   }
 
+  /**
+   * Recompute the filtered (One-Euro) pointing ray for each controller once per
+   * frame and drive the scene-parented laser from it. setupRay reads this cache
+   * so every raycast in the frame — and event-driven select/squeeze handlers
+   * that fire between frames — share one stable ray.
+   */
+  private refreshRays() {
+    const now = performance.now();
+    let dt = (now - this.lastRayTime) / 1000;
+    this.lastRayTime = now;
+    // First frame or a hitch → fall back to a nominal 72 Hz step so the filter
+    // alpha stays sane instead of snapping to the raw (jittery) pose.
+    if (!(dt > 0) || dt > 0.1) dt = 1 / 72;
+
+    for (let i = 0; i < this.controllers.length; i++) {
+      const c = this.controllers[i];
+      c.updateMatrixWorld(true);
+      this.rawOrigin.setFromMatrixPosition(c.matrixWorld);
+      this.rotMatrix.identity().extractRotation(c.matrixWorld);
+      this.rawDir.set(0, 0, -1).applyMatrix4(this.rotMatrix).normalize();
+
+      if (!this.rayInit[i]) {
+        this.smoothOrigin[i].copy(this.rawOrigin);
+        this.smoothDir[i].copy(this.rawDir);
+        this.rayInit[i] = true;
+      } else {
+        // One-Euro on the direction: cutoff grows with angular speed.
+        const angle = this.smoothDir[i].angleTo(this.rawDir); // radians
+        const cutoff = this.RAY_MIN_CUTOFF + this.RAY_BETA * (angle / dt);
+        const tau = 1 / (2 * Math.PI * cutoff);
+        const aDir = 1 / (1 + tau / dt);
+        this.smoothDir[i].lerp(this.rawDir, aDir).normalize();
+        // Translational jitter is far smaller; a light fixed low-pass on the
+        // origin avoids the ray's start point shimmering.
+        this.smoothOrigin[i].lerp(this.rawOrigin, 0.5);
+      }
+
+      const laser = this.lasers[i];
+      if (laser) {
+        laser.position.copy(this.smoothOrigin[i]);
+        laser.quaternion.setFromUnitVectors(this.FORWARD, this.smoothDir[i]);
+      }
+    }
+  }
+
   private setupRay(controller: THREE.Group) {
+    const i = this.controllers.indexOf(controller);
+    if (i >= 0 && this.rayInit[i]) {
+      this.raycaster.ray.origin.copy(this.smoothOrigin[i]);
+      this.raycaster.ray.direction.copy(this.smoothDir[i]);
+      return;
+    }
+    // Fallback before the first refreshRays(): raw controller pose.
     controller.updateMatrixWorld(true);
     this.rotMatrix.identity().extractRotation(controller.matrixWorld);
     this.raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
@@ -284,6 +367,9 @@ export class VRControllerInput {
   }
 
   update() {
+    // Stabilise both pointing rays for this frame before any raycast reads them.
+    this.refreshRays();
+
     // Hover: first controller pointing at a panel wins. Also lengthen each
     // laser to its hit point for nicer feedback.
     let hover: IPanelHit | null = null;
@@ -410,12 +496,21 @@ export class VRControllerInput {
    */
   getLobbyAxes(): { h: number; v: number } {
     if (!this.session) return { h: 0, v: 0 };
-    let h = 0, v = 0, maxH = 0, maxV = 0;
+    let h = 0,
+      v = 0,
+      maxH = 0,
+      maxV = 0;
     for (const src of this.session.inputSources) {
       const gp = src.gamepad;
       if (!gp || gp.axes.length < 4) continue;
-      if (Math.abs(gp.axes[2]) > maxH) { maxH = Math.abs(gp.axes[2]); h = gp.axes[2]; }
-      if (Math.abs(gp.axes[3]) > maxV) { maxV = Math.abs(gp.axes[3]); v = gp.axes[3]; }
+      if (Math.abs(gp.axes[2]) > maxH) {
+        maxH = Math.abs(gp.axes[2]);
+        h = gp.axes[2];
+      }
+      if (Math.abs(gp.axes[3]) > maxV) {
+        maxV = Math.abs(gp.axes[3]);
+        v = gp.axes[3];
+      }
     }
     return { h, v };
   }

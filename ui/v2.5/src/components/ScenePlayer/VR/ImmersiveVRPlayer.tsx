@@ -29,6 +29,7 @@ import { VRThumbnails } from "./vttThumbnails";
 import { IVRSceneInfo } from "./VRInfoPanels";
 import { useVRPlayback } from "./useVRPlayback";
 import { IVRSceneEntry } from "./VRScenesPanel";
+import { VRHomeLibrary, mapScene } from "./vrHomeLibrary";
 import {
   InteractiveContext,
   ConnectionState,
@@ -156,6 +157,9 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
   const videoRef = useRef<HTMLVideoElement>(null);
   const managerRef = useRef<XRSessionManager | null>(null);
   const thumbnailsRef = useRef<VRThumbnails | null>(null);
+  // Server-backed Home wall library — pages/filters/sorts the whole library on
+  // the server so the immersive Home wall scales past any in-memory cap.
+  const homeLibraryRef = useRef<VRHomeLibrary>(new VRHomeLibrary());
   const history = useHistory();
   const interactiveCtx = useContext(InteractiveContext);
   const handyRef = useRef<IInteractiveClient>(interactiveCtx.interactive);
@@ -376,9 +380,12 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
     if (!on) activeCueRef.current = null;
   }, []);
 
-  // ── VR Scenes data (peripheral carousel + immersive Home wall) ──────────
+  // ── VR Scenes data ─────────────────────────────────────────────────────
+  // The peripheral Browse carousel shows a small, bounded VR-only list (it's
+  // built for dome playback, not flat content). The immersive Home wall no
+  // longer shares this list — it pages the whole library server-side via
+  // homeLibraryRef.
   const scenesRef = useRef<IVRSceneEntry[]>([]);
-  const homeScenesRef = useRef<IVRSceneEntry[]>([]);
   useEffect(() => {
     let cancelled = false;
     getClient()
@@ -386,48 +393,22 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
         query: GQL.FindScenesDocument,
         variables: {
           filter: {
-            per_page: 200,
+            per_page: 50,
+            page: 1,
             sort: "date",
             direction: GQL.SortDirectionEnum.Desc,
           },
-          // No scene_filter — fetch all scenes so the Home wall can show
-          // flat and VR content together (toggled via the media-type filter).
+          scene_filter: {
+            vr_mode: { modifier: GQL.CriterionModifier.NotNull },
+          },
         },
       })
       .then((result) => {
         if (cancelled) return;
-        const all: IVRSceneEntry[] = result.data.findScenes.scenes.map((s) => ({
-          id: s.id,
-          title: s.title ?? `Scene ${s.id}`,
-          thumbnailUrl: s.paths.screenshot ?? null,
-          streamUrl: s.paths.stream ?? null,
-          studioName: s.studio?.name ?? null,
-          performers: s.performers.map((p) => p.name),
-          previewUrl: s.paths.preview ?? null,
-          vrMode: s.vr_mode ?? null,
-          studioId: s.studio?.id ?? null,
-          studioLogoUrl: s.studio?.image_path ?? null,
-          performerDetails: s.performers.map((p) => ({
-            id: p.id,
-            name: p.name,
-            imageUrl: p.image_path ?? null,
-          })),
-          hasFunscript: s.interactive && !!s.paths.funscript,
-          heatmapUrl: s.paths.interactive_heatmap ?? null,
-          resumeTime: s.resume_time ?? null,
-          rating: s.rating100 ?? null,
-          durationSecs: s.files[0]?.duration ?? null,
-          dateAdded: s.date ?? null,
-          width: s.files[0]?.width ?? null,
-          height: s.files[0]?.height ?? null,
-        }));
-        // Home wall shows all scenes; the peripheral Browse carousel shows only
-        // VR scenes (it's designed for dome playback, not flat content).
-        homeScenesRef.current = all;
-        scenesRef.current = all
-          .filter((s) => !!s.vrMode && s.id !== liveSceneRef.current.id)
-          .slice(0, 50);
-        managerRef.current?.updateHomeScenes(all);
+        scenesRef.current = result.data.findScenes.scenes
+          .map(mapScene)
+          .filter((s) => s.id !== liveSceneRef.current.id);
+        managerRef.current?.updateScenes(scenesRef.current);
       })
       .catch(() => undefined);
     return () => {
@@ -438,10 +419,6 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
 
   const getScenes = useCallback((): IVRSceneEntry[] => {
     return scenesRef.current;
-  }, []);
-
-  const getHomeScenes = useCallback((): IVRSceneEntry[] => {
-    return homeScenesRef.current;
   }, []);
 
   // Handle navigation from VR scenes panel — exit VR then navigate.
@@ -531,7 +508,12 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
         if (next.vr_mode) {
           setProjection(projectionForVrMode(next.vr_mode));
         } else {
-          setProjection({ fov: "flat", stereo: "off", swapEyes: false, zoom: 1.2 });
+          setProjection({
+            fov: "flat",
+            stereo: "off",
+            swapEyes: false,
+            zoom: 1.2,
+          });
         }
 
         // Update the scenes browser: remove the new scene, add the old one back.
@@ -870,7 +852,7 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
       getHandyState: () => buildHandyState(),
       getFunscriptLoaded: () => getFunscriptLoaded(),
       getScenes: () => getScenes(),
-      getHomeScenes: () => getHomeScenes(),
+      homeData: homeLibraryRef.current,
       lobby: startedInLobbyRef.current,
       homeSettings: settingsRef.current,
       getThumbnail: (time) => thumbnailsRef.current?.getAt(time) ?? null,
@@ -885,10 +867,8 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
         if (!disposed) {
           setIsInitializing(false);
           manager.updateCurrentSceneId(liveSceneRef.current.id);
-          // The library query may have resolved before the manager existed.
-          if (homeScenesRef.current.length) {
-            manager.updateHomeScenes(homeScenesRef.current);
-          }
+          // The Home wall sources its data from homeData (server-paged); the
+          // manager kicks that off itself, so nothing to seed here.
         }
       })
       .catch((e) => {
@@ -911,7 +891,6 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
     buildHandyState,
     getFunscriptLoaded,
     getScenes,
-    getHomeScenes,
   ]);
 
   // Push projection changes to the dome renderer.
@@ -968,9 +947,17 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
     let timer: ReturnType<typeof setTimeout> | null = null;
     const onEnded = () => {
       if (timer) clearTimeout(timer);
-      const nextId = managerRef.current?.getNextSceneId(liveSceneRef.current.id);
-      if (!nextId) return;
-      timer = setTimeout(() => handleSwitchScene(nextId), 3000);
+      // getNextSceneId is async now (the next scene may live on an unfetched
+      // server page); resolve it, then schedule the switch.
+      const endedId = liveSceneRef.current.id;
+      managerRef.current
+        ?.getNextSceneId(endedId)
+        .then((nextId) => {
+          // Bail if the scene changed out from under us while resolving.
+          if (!nextId || liveSceneRef.current.id !== endedId) return;
+          timer = setTimeout(() => handleSwitchScene(nextId), 3000);
+        })
+        .catch(() => undefined);
     };
     v.addEventListener("ended", onEnded);
     return () => {

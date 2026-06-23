@@ -34,6 +34,7 @@ import {
 } from "./projection";
 import { VRControlPanel, IDrawInput } from "./VRControls";
 import { VRControllerInput, IPanelHit } from "./VRControllerInput";
+import { VRDeviceModels } from "./VRDeviceModels";
 import { VRHandyPanel, VRInfoPanel, IVRSceneInfo } from "./VRInfoPanels";
 import { VRScenesPanel, IVRSceneEntry } from "./VRScenesPanel";
 import { VRHomePanel } from "./VRHomePanel";
@@ -45,6 +46,10 @@ import {
   IVRHandyState,
   IVRHomeSettings,
   VRStrokeStatus,
+  IVRHomeDataSource,
+  IVRFilterEntry,
+  VRMediaFilter,
+  VRSortMode,
 } from "./types";
 import type { IThumbnailCrop } from "./vttThumbnails";
 import { vrLog } from "./vrLog";
@@ -158,8 +163,12 @@ export interface IXRSessionManagerOptions {
   getFunscriptLoaded?: () => boolean;
   /** VR scene entries for the VR Scenes side panel. */
   getScenes?: () => IVRSceneEntry[];
-  /** VR scene entries for the immersive Home wall (lobby mode). */
-  getHomeScenes?: () => IVRSceneEntry[];
+  /**
+   * Server-backed data source for the immersive Home wall (lobby mode). The wall
+   * pages / filters / sorts through this rather than holding the whole library
+   * in memory, so it scales to libraries of any size.
+   */
+  homeData?: IVRHomeDataSource;
   /** Start the session in lobby/Home mode (no scene loaded yet). */
   lobby?: boolean;
   /** Initial immersive-Home preferences (gaze-launch / dwell / audio). */
@@ -257,6 +266,7 @@ export class XRSessionManager {
   private videoTexture: THREE.VideoTexture;
   private panel: VRControlPanel;
   private input: VRControllerInput;
+  private deviceModels: VRDeviceModels | null = null;
   private session: XRSession | null = null;
   private projection: IProjectionSettings;
   private domeMeshes: THREE.Mesh[] = [];
@@ -331,11 +341,16 @@ export class XRSessionManager {
   private backdrop: VRLobbyBackdrop | null = null;
   // Cinema room shown when a flat (non-VR) scene is playing.
   private lobbyMode = false;
-  private homeScenes: IVRSceneEntry[] = [];
-  private filteredHomeScenes: IVRSceneEntry[] = [];
+  // Server-backed Home library (paged). The manager owns the live query state
+  // (sort + media + studio/performer) and orchestrates page/count/rail fetches.
+  private homeData: IVRHomeDataSource | null = null;
   private homeFilter: { kind: "studio" | "performer"; id: string } | null =
     null;
-  private mediaFilter: "all" | "vr" | "flat" | "funscript" = "all";
+  private mediaFilter: VRMediaFilter = "all";
+  private sortMode: VRSortMode = "recent";
+  // Cached rail lists, kept for resolving a tapped filter's display label.
+  private railStudios: IVRFilterEntry[] = [];
+  private railPerformers: IVRFilterEntry[] = [];
   // Thumbstick lobby-nav edge-trigger arms.
   private lobbyHArmed = true;
   private lobbyVArmed = true;
@@ -511,8 +526,14 @@ export class XRSessionManager {
     // Flat (2D) scenes play on a bare curved screen floating in darkness — no
     // theatre dressing or glow frame (intentionally minimal for comfort).
 
-    // Seed Home data (scenes + derived studios/performers + backdrop playlist).
-    this.updateHomeScenes(opts.getHomeScenes ? opts.getHomeScenes() : []);
+    // Wire the server-backed Home library: inject the page requester, seed the
+    // initial query (so counts/pages start loading) and fetch the filter rail.
+    this.homeData = opts.homeData ?? null;
+    home.setPageRequester((pageIndex) => this.fetchHomePage(pageIndex));
+    if (this.homeData) {
+      this.applyHomeQuery();
+      this.loadHomeRail();
+    }
 
     // Preview video for scenes hover — one element, reassigned on hover change.
     this.previewVideo = document.createElement("video");
@@ -537,6 +558,11 @@ export class XRSessionManager {
         this.uiOpacity = 1;
       },
     });
+
+    // Visible Touch controllers + tracked-hand meshes. Purely cosmetic — pointing
+    // and select still flow through VRControllerInput's target-ray pipeline above
+    // (which Meta also drives for hands via the emulated ray + pinch button).
+    this.deviceModels = new VRDeviceModels(this.renderer, this.scene);
 
     // Base hittables: bar + handy always present. The active Browse panels (or,
     // in lobby mode, the Home wall) are layered on top by rebuildBrowseHittables.
@@ -875,65 +901,60 @@ export class XRSessionManager {
     this.lastActivity = performance.now();
   }
 
-  /**
-   * Refresh the Home wall's scene list (called once the VR library query resolves).
-   * Also seeds the filter panel (derived studios/performers) and the backdrop
-   * preview slideshow.
-   */
-  updateHomeScenes(scenes: IVRSceneEntry[]) {
-    this.homeScenes = scenes;
+  /** Fetch a Home grid page from the pager and push it to the wall (gen-guarded). */
+  private fetchHomePage(pageIndex: number) {
+    const ds = this.homeData;
+    if (!ds) return;
+    ds.getPage(pageIndex)
+      .then((res) => {
+        // Drop stale results that resolve after a query change.
+        if (res.gen !== ds.gen) return;
+        this.homePanel?.setPageData(res.pageIndex, res.scenes, res.totalCount);
+      })
+      .catch(() => undefined);
+  }
 
-    // Derive studios + performers for the filter panel from the full VR library.
-    const studioMap = new Map<
-      string,
-      { id: string; name: string; imageUrl: string | null; count: number }
-    >();
-    const performerMap = new Map<
-      string,
-      { id: string; name: string; imageUrl: string | null; count: number }
-    >();
-    for (const s of scenes) {
-      if (s.studioId && s.studioName) {
-        const existing = studioMap.get(s.studioId);
-        if (existing) existing.count++;
-        else
-          studioMap.set(s.studioId, {
-            id: s.studioId,
-            name: s.studioName,
-            imageUrl: s.studioLogoUrl ?? null,
-            count: 1,
-          });
-      }
-      if (s.performerDetails) {
-        for (const p of s.performerDetails) {
-          const existing = performerMap.get(p.id);
-          if (existing) existing.count++;
-          else
-            performerMap.set(p.id, {
-              id: p.id,
-              name: p.name,
-              imageUrl: p.imageUrl,
-              count: 1,
-            });
-        }
-      } else {
-        // Fallback: performerDetails not available — skip performer filter.
-      }
-    }
-    this.homePanel?.setFilterData(
-      [...studioMap.values()].sort((a, b) => b.count - a.count),
-      [...performerMap.values()].sort((a, b) => b.count - a.count)
-    );
-    const vrCount = scenes.filter((s) => !!s.vrMode).length;
-    const fsCount = scenes.filter((s) => !!s.hasFunscript).length;
-    this.homePanel?.setSceneCounts(
-      scenes.length,
-      vrCount,
-      scenes.length - vrCount,
-      fsCount
-    );
-    // Apply media-type + studio/performer filters to the freshly loaded list.
-    this.applyMediaAndHomeFilter();
+  /**
+   * Push the current sort + media + studio/performer query to the pager, reset
+   * the wall's page window, and refresh the media-type counts. The first page
+   * (and neighbours) are pulled lazily by the panel's own page-load loop.
+   */
+  private applyHomeQuery() {
+    const ds = this.homeData;
+    if (!ds) return;
+    ds.setQuery({
+      sort: this.sortMode,
+      mediaFilter: this.mediaFilter,
+      filter: this.homeFilter,
+    });
+    this.homePanel?.resetLibrary();
+    this.refreshHomeCounts();
+  }
+
+  /** Refresh the rail media-type counts under the active studio/performer filter. */
+  private refreshHomeCounts() {
+    const ds = this.homeData;
+    if (!ds) return;
+    const { gen } = ds;
+    ds.getCounts()
+      .then((c) => {
+        if (ds.gen !== gen) return;
+        this.homePanel?.setSceneCounts(c.all, c.vr, c.flat, c.funscript);
+      })
+      .catch(() => undefined);
+  }
+
+  /** Fetch the top studios + performers for the filter rail (once per session). */
+  private loadHomeRail() {
+    const ds = this.homeData;
+    if (!ds) return;
+    ds.getRail()
+      .then((rail) => {
+        this.railStudios = rail.studios;
+        this.railPerformers = rail.performers;
+        this.homePanel?.setFilterData(rail.studios, rail.performers);
+      })
+      .catch(() => undefined);
   }
 
   setHeatmap(cssUrl: string | null) {
@@ -950,66 +971,30 @@ export class XRSessionManager {
     this.handyPanel?.setStrokeStatus(status);
   }
 
-  /** Apply a home-filter (studio/performer) and re-seed the wall. */
+  /** Apply a home-filter (studio/performer) and re-query the wall. */
   private applyHomeFilter(
     filter: { kind: "studio" | "performer"; id: string } | null
   ) {
     this.homeFilter = filter;
     this.homePanel?.setActiveFilter(filter?.id ?? null);
-    // Update the header label.
+    // Resolve the header label from the cached rail lists.
     let label: string | null = null;
     if (filter) {
-      const all = this.homeScenes;
-      const entry =
-        filter.kind === "studio"
-          ? all.find((s) => s.studioId === filter.id)
-          : all.find((s) =>
-              s.performerDetails?.some((p) => p.id === filter.id)
-            );
-      label = entry?.studioName ?? entry?.performers?.[0] ?? null;
+      const list =
+        filter.kind === "studio" ? this.railStudios : this.railPerformers;
+      label = list.find((e) => e.id === filter.id)?.name ?? null;
     }
     this.homePanel?.setFilterLabel(label);
-    this.applyMediaAndHomeFilter();
-  }
-
-  /**
-   * Re-filter the full scene library by the current media-type toggle
-   * (all/vr/flat) and studio/performer filter, then push the result to the
-   * home panel. Called whenever either filter changes or new scenes arrive.
-   */
-  private applyMediaAndHomeFilter() {
-    let filtered = this.homeScenes;
-    if (this.mediaFilter === "vr") {
-      filtered = filtered.filter((s) => !!s.vrMode);
-    } else if (this.mediaFilter === "flat") {
-      filtered = filtered.filter((s) => !s.vrMode);
-    } else if (this.mediaFilter === "funscript") {
-      filtered = filtered.filter((s) => !!s.hasFunscript);
-    }
-    const f = this.homeFilter;
-    if (f) {
-      if (f.kind === "studio") {
-        filtered = filtered.filter((s) => s.studioId === f.id);
-      } else {
-        filtered = filtered.filter((s) =>
-          s.performerDetails?.some((p) => p.id === f.id)
-        );
-      }
-    }
-    this.filteredHomeScenes = filtered;
-    this.homePanel?.setScenes(filtered);
+    this.applyHomeQuery();
   }
 
   /**
    * Returns the ID of the scene that comes after `currentId` in the current
    * filtered + sorted home list — used by ImmersiveVRPlayer for auto-advance.
    */
-  getNextSceneId(currentId: string): string | null {
-    if (!currentId) return null;
-    const list = this.filteredHomeScenes;
-    const idx = list.findIndex((s) => s.id === currentId);
-    if (idx < 0 || idx >= list.length - 1) return null;
-    return list[idx + 1].id;
+  getNextSceneId(currentId: string): Promise<string | null> {
+    if (!currentId || !this.homeData) return Promise.resolve(null);
+    return this.homeData.getNextSceneId(currentId);
   }
 
   /** Re-orient the video so the current gaze direction becomes its centre. */
@@ -1042,7 +1027,11 @@ export class XRSessionManager {
     }
     // Drive the hover-preview video for whichever scene-card surface is active.
     if (this.lobbyMode) {
-      this.updateHoverPreview(this.homePanel, this.homeScenes, true);
+      this.updateHoverPreview(
+        this.homePanel,
+        this.homePanel?.allLoadedScenes() ?? [],
+        true
+      );
     } else {
       this.updateHoverPreview(
         this.scenesPanel,
@@ -1064,7 +1053,10 @@ export class XRSessionManager {
     if (!panel || !active || !this.previewVideo) return;
     const hoveredId = panel.hoveredSceneId;
     // Already loaded (or already scheduled) for this card — nothing to do.
-    if (hoveredId === this.previewSceneId && this.previewPendingId === hoveredId)
+    if (
+      hoveredId === this.previewSceneId &&
+      this.previewPendingId === hoveredId
+    )
       return;
     if (hoveredId === this.previewPendingId) return;
 
@@ -1157,7 +1149,14 @@ export class XRSessionManager {
     if (action.type === "setMediaFilter") {
       this.mediaFilter = action.filter;
       this.homePanel?.setMediaFilter(action.filter);
-      this.applyMediaAndHomeFilter();
+      this.applyHomeQuery();
+      this.lastActivity = performance.now();
+      return;
+    }
+    if (action.type === "setHomeSort") {
+      this.sortMode = action.sort;
+      // The panel already reset its page window; re-query under the new sort.
+      this.applyHomeQuery();
       this.lastActivity = performance.now();
       return;
     }
@@ -1184,7 +1183,8 @@ export class XRSessionManager {
   private layersApiActive(): boolean {
     const bl = this.renderer.xr.getBaseLayer();
     return (
-      typeof XRProjectionLayer !== "undefined" && bl instanceof XRProjectionLayer
+      typeof XRProjectionLayer !== "undefined" &&
+      bl instanceof XRProjectionLayer
     );
   }
 
@@ -1227,7 +1227,10 @@ export class XRSessionManager {
         mediaOk = !!this.mediaLayer;
       } catch (err) {
         // eslint-disable-next-line no-console
-        console.error("[VR] media layer build failed — falling back to dome", err);
+        console.error(
+          "[VR] media layer build failed — falling back to dome",
+          err
+        );
         vrLog.note("medialayer_error", {
           msg: String((err as Error)?.message ?? err),
           fov: this.projection.fov,
@@ -1261,9 +1264,13 @@ export class XRSessionManager {
     if (this.debug.size) {
       // eslint-disable-next-line no-console
       console.info(
-        `[VR] video path = ${this.usingMediaLayer ? "MEDIA-LAYER" : "shader-dome"} ` +
+        `[VR] video path = ${
+          this.usingMediaLayer ? "MEDIA-LAYER" : "shader-dome"
+        } ` +
           `(fov=${this.projection.fov}, stereo=${this.projection.stereo}, ` +
-          `swap=${this.projection.swapEyes}, layersApi=${this.layersApiActive()}, ` +
+          `swap=${
+            this.projection.swapEyes
+          }, layersApi=${this.layersApiActive()}, ` +
           `mediaBinding=${typeof XRMediaBinding !== "undefined"})`
       );
     }
@@ -1294,7 +1301,10 @@ export class XRSessionManager {
     if (!vid.videoWidth || !vid.videoHeight) {
       // Layer constructors throw on a zero-size video. Defer — onVideoReady
       // re-runs this once metadata loads; we stay on the dome until then.
-      vrLog.note("medialayer_defer", { vw: vid.videoWidth, vh: vid.videoHeight });
+      vrLog.note("medialayer_defer", {
+        vw: vid.videoWidth,
+        vh: vid.videoHeight,
+      });
       vrLog.flushNow();
       return;
     }
@@ -1319,7 +1329,9 @@ export class XRSessionManager {
       console.info(
         `[VR] creating media layer: ${p.fov}/${p.stereo} ` +
           `video[ready=${v.readyState}, paused=${v.paused}, ` +
-          `${v.videoWidth}x${v.videoHeight}, src=${v.currentSrc ? "yes" : "NONE"}]`
+          `${v.videoWidth}x${v.videoHeight}, src=${
+            v.currentSrc ? "yes" : "NONE"
+          }]`
       );
     }
     vrLog.note("build_medialayer", { fov: p.fov, stereo: p.stereo });
@@ -1604,7 +1616,7 @@ export class XRSessionManager {
     // Gently curved cylindrical screen — concave toward viewer for a cinematic
     // wrap feel without the flatness of a PlaneGeometry.
     const R = 5.0; // cylinder radius; larger = flatter curve
-    const thetaHalf = Math.asin(Math.min((w / 2) / R, 1.0));
+    const thetaHalf = Math.asin(Math.min(w / 2 / R, 1.0));
     const N = 40; // horizontal segments
     const pos: number[] = [];
     const uvs: number[] = [];
@@ -1620,7 +1632,8 @@ export class XRSessionManager {
     }
     const cols = N + 1;
     for (let i = 0; i < N; i++) {
-      const b = i, t = cols + i;
+      const b = i,
+        t = cols + i;
       idx.push(b, b + 1, t + 1, b, t + 1, t);
     }
     const geometry = new THREE.BufferGeometry();
@@ -1740,7 +1753,10 @@ export class XRSessionManager {
         this.throttleHitches = 1;
         this.throttleWindowStart = time;
       }
-      if (this.throttleHitches >= THROTTLE_ESCALATE_AT && this.throttleLevel < 2) {
+      if (
+        this.throttleHitches >= THROTTLE_ESCALATE_AT &&
+        this.throttleLevel < 2
+      ) {
         this.throttleLevel++;
         this.throttleHitches = 0;
         this.throttleWindowStart = time;
@@ -2000,7 +2016,9 @@ export class XRSessionManager {
         +(a.reduce((x, y) => x + y, 0) / a.length).toFixed(1);
       const pct = (a: number[], p: number) => {
         const s = [...a].sort((x, y) => x - y);
-        return +(s[Math.min(s.length - 1, Math.floor(p * s.length))] ?? 0).toFixed(1);
+        return +(
+          s[Math.min(s.length - 1, Math.floor(p * s.length))] ?? 0
+        ).toFixed(1);
       };
       const mx = (a: number[]) => +Math.max(...a).toFixed(1);
       vrLog.note("jstat", {
@@ -2191,6 +2209,7 @@ export class XRSessionManager {
     this.opts.video.removeEventListener("loadeddata", this.onVideoReady);
     this.opts.video.removeEventListener("resize", this.onVideoReady);
     this.input.dispose();
+    this.deviceModels?.dispose();
     this.panel.dispose();
     this.handyPanel?.dispose();
     this.infoPanel?.dispose();

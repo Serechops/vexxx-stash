@@ -5,6 +5,8 @@
  * they can be shared between the React layer, the session manager and the
  * canvas-drawn control panel without creating import cycles.
  */
+// Type-only import — erased at runtime, so no module cycle is created.
+import type { IVRSceneEntry } from "./VRScenesPanel";
 
 /** A snapshot of the underlying <video> element, pulled each render frame. */
 export interface IVRPlaybackState {
@@ -75,6 +77,8 @@ export type VRControlAction =
   | { type: "setHomeFilter"; kind: "studio" | "performer" | null; id?: string }
   /** Switch the Home wall's media-type filter (all / VR / 2D / funscript). */
   | { type: "setMediaFilter"; filter: "all" | "vr" | "flat" | "funscript" }
+  /** Change the Home grid sort order (handled in-manager → re-queries the pager). */
+  | { type: "setHomeSort"; sort: "recent" | "rating" | "title" }
   /** Toggle an immersive Home preference (persisted React-side). */
   | { type: "setVrSetting"; key: "hoverLaunch" | "soundOnPlay"; value: boolean }
   /** Set the gaze-dwell auto-launch delay in ms (persisted React-side). */
@@ -118,6 +122,78 @@ export const DEFAULT_VR_HOME_SETTINGS: IVRHomeSettings = {
   dwellMs: 2500,
   soundOnPlay: true,
 };
+
+// ── Immersive Home wall: server-backed library data source ──────────────────
+// The Home wall scales to libraries of any size by paging + filtering on the
+// server rather than loading the whole library into memory. These types are the
+// contract between the React-side pager ([VRHomeLibrary]) and the session
+// manager, which orchestrates page/rail/count requests for [VRHomePanel].
+
+/** Home media-type toggle. */
+export type VRMediaFilter = "all" | "vr" | "flat" | "funscript";
+/** Home grid sort order. */
+export type VRSortMode = "recent" | "rating" | "title";
+
+/** A studio/performer tile in the Home filter rail. */
+export interface IVRFilterEntry {
+  id: string;
+  name: string;
+  imageUrl: string | null;
+  count: number;
+}
+
+/** The current Home query: sort + media toggle + optional studio/performer. */
+export interface IVRHomeQuery {
+  sort: VRSortMode;
+  mediaFilter: VRMediaFilter;
+  filter: { kind: "studio" | "performer"; id: string } | null;
+}
+
+/** One page of grid scenes plus the total count for pager geometry. */
+export interface IVRHomePageResult {
+  /** Generation the page was fetched under — stale results (gen mismatch) are dropped. */
+  gen: number;
+  /** Absolute page index this result is for. */
+  pageIndex: number;
+  scenes: IVRSceneEntry[];
+  /** Total scenes matching the current query (drives the page count). */
+  totalCount: number;
+}
+
+/** Per-media-type counts for the rail toggle, under the active studio/performer filter. */
+export interface IVRHomeCounts {
+  all: number;
+  vr: number;
+  flat: number;
+  funscript: number;
+}
+
+/** Top studios + performers for the filter rail. */
+export interface IVRHomeRail {
+  studios: IVRFilterEntry[];
+  performers: IVRFilterEntry[];
+}
+
+/**
+ * The server-backed Home library, implemented React-side over Apollo and
+ * consumed by the session manager. All methods are query-state aware: callers
+ * set the query once via [setQuery] (which returns the new generation), then
+ * request pages / counts / rail under it.
+ */
+export interface IVRHomeDataSource {
+  /** Apply a new query; clears caches, returns the new generation counter. */
+  setQuery(q: IVRHomeQuery): number;
+  /** The current generation (bumped on each setQuery). */
+  readonly gen: number;
+  /** Fetch a grid page (4×3) under the current query. */
+  getPage(pageIndex: number): Promise<IVRHomePageResult>;
+  /** Media-type counts under the active studio/performer filter (ignores media toggle). */
+  getCounts(): Promise<IVRHomeCounts>;
+  /** Top studios + performers for the rail (independent of the current query). */
+  getRail(): Promise<IVRHomeRail>;
+  /** Resolve the scene id that follows `currentId` in the current order, for auto-advance. */
+  getNextSceneId(currentId: string): Promise<string | null>;
+}
 
 /** Handy device connection state, pulled each frame alongside playback. */
 export interface IVRHandyState {

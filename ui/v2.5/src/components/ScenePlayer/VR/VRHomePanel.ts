@@ -13,16 +13,17 @@
  * handled by the session manager without a React round-trip.
  */
 import * as THREE from "three";
-import { VRControlAction, IVRHomeSettings } from "./types";
+import {
+  VRControlAction,
+  IVRHomeSettings,
+  IVRFilterEntry,
+  VRMediaFilter,
+  VRSortMode,
+} from "./types";
 import { VRCanvasPanel, IPanelRegion } from "./VRInfoPanels";
 import { IVRSceneEntry } from "./VRScenesPanel";
 
-export interface IVRFilterEntry {
-  id: string;
-  name: string;
-  imageUrl: string | null;
-  count: number;
-}
+export type { IVRFilterEntry };
 
 // ── Canvas / panel dimensions ─────────────────────────────────────────────────
 const CANVAS_W = 2200;
@@ -100,8 +101,7 @@ const CARD_H = THUMB_H + CAP_H; // 292
 const GRID_Y0 = CONTENT_Y0;
 const GRID_Y1 = CANVAS_H - 90; // 1210
 const GRID_BLOCK_H = ROWS * CARD_H + (ROWS - 1) * GAP_Y; // 916
-const GRID_TOP =
-  GRID_Y0 + Math.max(0, (GRID_Y1 - GRID_Y0 - GRID_BLOCK_H) / 2); // ≈213
+const GRID_TOP = GRID_Y0 + Math.max(0, (GRID_Y1 - GRID_Y0 - GRID_BLOCK_H) / 2); // ≈213
 const PAGER_Y = CANVAS_H - 45; // 1255
 const PAGER_H = 44;
 
@@ -110,7 +110,18 @@ const PAGER_H = 44;
 // gear (the live value lives in `this.dwellMs`); this is only the fallback.
 const DWELL_MS_DEFAULT = 2500;
 const DWELL_TIME_OPTIONS = [1500, 2500, 4000]; // selectable in the settings panel
-const DRAG_THRESHOLD = 10;
+// Drag dead-zones (canvas px). The grid threshold is deliberately larger than
+// the rail's: a mis-fired horizontal drag *paginates* the grid, which is what
+// made selecting a card feel "too sensitive" — the trigger-pull kick would
+// shift the page out from under the tap. The rail only scrolls, so it can stay
+// twitchier.
+const GRID_DRAG_THRESHOLD = 24;
+const RAIL_DRAG_THRESHOLD = 12;
+// Settle window after a press: a trigger pull torques the controller, spiking
+// the ray sideways for the first few frames. During this window we re-baseline
+// the press point each frame instead of treating the spike as a drag, so a tap
+// stays a tap. Deliberate drags begin once the hand has settled (~90 ms).
+const SETTLE_MS = 90;
 const ANIM_MS = 300;
 const COMMIT_FRACTION = 0.28;
 
@@ -120,12 +131,19 @@ const GOLD = "rgba(250,200,80,";
 const ORANGE = "rgba(250,140,30,";
 
 type FilterTab = "studios" | "performers";
-type MediaFilter = "all" | "vr" | "flat" | "funscript";
-type SortMode = "recent" | "rating" | "title";
+type MediaFilter = VRMediaFilter;
+type SortMode = VRSortMode;
 
 export class VRHomePanel extends VRCanvasPanel {
-  private scenes: IVRSceneEntry[] = [];
-  private displayScenes: IVRSceneEntry[] = []; // sorted view of scenes
+  // Server-paged grid: only the current page (+ prefetched neighbours) are held
+  // in memory at once. `pageCache` maps an absolute page index → up to PER_PAGE
+  // card entries; `totalCount` (from the server) drives the page geometry.
+  private pageCache = new Map<number, IVRSceneEntry[]>();
+  private requestedPages = new Set<number>();
+  private loadedFlat: IVRSceneEntry[] = []; // flattened cached pages (hover-preview lookup)
+  private totalCount = 0;
+  private loaded = false; // first page/total has arrived (distinguishes loading vs empty)
+  private pageRequester: ((pageIndex: number) => void) | null = null;
   private currentSceneId: string | null = null;
   private previewVideo: HTMLVideoElement | null = null;
   private filterLabel: string | null = null;
@@ -172,6 +190,7 @@ export class VRHomePanel extends VRCanvasPanel {
   private pressInRailView = false;
   private pressX = 0;
   private pressY = 0;
+  private pressTime = 0;
   private gridOffsetBase = 0;
   private railScrollBase = 0;
 
@@ -181,7 +200,7 @@ export class VRHomePanel extends VRCanvasPanel {
   }
 
   get hasContent(): boolean {
-    return this.displayScenes.length > 0;
+    return this.totalCount > 0;
   }
 
   get hoveredSceneId(): string | null {
@@ -191,39 +210,65 @@ export class VRHomePanel extends VRCanvasPanel {
     return null;
   }
 
-  setScenes(scenes: IVRSceneEntry[]) {
-    this.scenes = scenes;
+  /** Injected by the manager: request a page of scenes from the server pager. */
+  setPageRequester(cb: (pageIndex: number) => void) {
+    this.pageRequester = cb;
+  }
+
+  /**
+   * Drop all cached pages and reset to page 0 — called when the query (sort /
+   * media / studio-performer filter) changes so the grid re-pages from scratch.
+   */
+  resetLibrary() {
+    this.pageCache.clear();
+    this.requestedPages.clear();
+    this.loadedFlat = [];
+    this.totalCount = 0;
+    this.loaded = false;
     this.page = 0;
     this.offset = 0;
     this.animStart = 0;
-    this.buildDisplayScenes();
     this.markDirty();
   }
 
-  private buildDisplayScenes() {
-    const s = [...this.scenes];
-    if (this.sortMode === "rating") {
-      s.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
-    } else if (this.sortMode === "title") {
-      s.sort((a, b) => (a.title || "").localeCompare(b.title || ""));
-    } else {
-      // "recent": in-progress scenes (resumeTime > 30s) float to the top,
-      // remainder stays in original order (date desc from query).
-      const inProg = s.filter((x) => (x.resumeTime ?? 0) > 30);
-      const rest = s.filter((x) => !((x.resumeTime ?? 0) > 30));
-      this.displayScenes = [...inProg, ...rest];
-      return;
+  /** Receive a fetched page from the manager's pager. */
+  setPageData(pageIndex: number, scenes: IVRSceneEntry[], totalCount: number) {
+    this.pageCache.set(pageIndex, scenes);
+    this.requestedPages.delete(pageIndex);
+    this.totalCount = totalCount;
+    this.loaded = true;
+    this.rebuildLoadedFlat();
+    this.markDirty();
+  }
+
+  /** Flattened view of all cached pages — for the manager's hover-preview lookup. */
+  allLoadedScenes(): IVRSceneEntry[] {
+    return this.loadedFlat;
+  }
+
+  private rebuildLoadedFlat() {
+    this.loadedFlat = [];
+    for (const pg of this.pageCache.values()) this.loadedFlat.push(...pg);
+  }
+
+  /** Request any of the visible pages (current ± 1) not already cached/in-flight. */
+  private ensurePagesLoaded() {
+    if (!this.pageRequester) return;
+    const last = this.pageCount - 1;
+    const want = [this.page, this.page - 1, this.page + 1];
+    for (const pg of want) {
+      if (pg < 0 || pg > last) continue;
+      if (this.pageCache.has(pg) || this.requestedPages.has(pg)) continue;
+      this.requestedPages.add(pg);
+      this.pageRequester(pg);
     }
-    this.displayScenes = s;
   }
 
   setSortMode(mode: SortMode) {
     if (mode === this.sortMode) return;
     this.sortMode = mode;
-    this.page = 0;
-    this.offset = 0;
-    this.buildDisplayScenes();
-    this.markDirty();
+    // Sorting is server-side now: reset the grid and let the manager re-query.
+    this.resetLibrary();
   }
 
   takePendingAction(): VRControlAction | null {
@@ -298,9 +343,11 @@ export class VRHomePanel extends VRCanvasPanel {
     const id = this.hoveredId;
     if (!id?.startsWith("scene:")) return null;
     const sceneId = id.slice("scene:".length);
-    return (
-      this.displayScenes.find((s) => s.id === sceneId)?.previewUrl ?? null
-    );
+    for (const pg of this.pageCache.values()) {
+      const found = pg.find((s) => s.id === sceneId);
+      if (found) return found.previewUrl ?? null;
+    }
+    return null;
   }
 
   setFilterData(studios: IVRFilterEntry[], performers: IVRFilterEntry[]) {
@@ -348,7 +395,7 @@ export class VRHomePanel extends VRCanvasPanel {
   }
 
   private get pageCount(): number {
-    return Math.max(1, Math.ceil(this.displayScenes.length / PER_PAGE));
+    return Math.max(1, Math.ceil(this.totalCount / PER_PAGE));
   }
 
   private get railItems(): IVRFilterEntry[] {
@@ -369,6 +416,7 @@ export class VRHomePanel extends VRCanvasPanel {
     this.railScrollBase = this.railScroll;
     this.pressActive = true;
     this.dragging = false;
+    this.pressTime = performance.now();
     this.animStart = 0;
     return null;
   }
@@ -377,9 +425,19 @@ export class VRHomePanel extends VRCanvasPanel {
     if (!this.pressActive) return;
     // While the settings modal is open the wall behind it is inert.
     if (this.settingsOpen) return;
+    // Settle window: absorb the trigger-pull kick by re-baselining the press
+    // point (and the drag bases) to wherever the ray has settled, so the spike
+    // never counts toward the drag delta. A drag can only begin afterwards.
+    if (!this.dragging && performance.now() - this.pressTime < SETTLE_MS) {
+      this.pressX = uv.x * this.cw;
+      this.pressY = (1 - uv.y) * this.ch;
+      this.gridOffsetBase = this.offset;
+      this.railScrollBase = this.railScroll;
+      return;
+    }
     if (this.pressZone === "grid") {
       const dx = uv.x * this.cw - this.pressX;
-      if (Math.abs(dx) > DRAG_THRESHOLD) this.dragging = true;
+      if (Math.abs(dx) > GRID_DRAG_THRESHOLD) this.dragging = true;
       if (!this.dragging) return;
       const lo = this.page > 0 ? -1 : 0;
       const hi = this.page < this.pageCount - 1 ? 1 : 0;
@@ -390,7 +448,7 @@ export class VRHomePanel extends VRCanvasPanel {
       }
     } else {
       const dy = (1 - uv.y) * this.ch - this.pressY;
-      if (Math.abs(dy) > DRAG_THRESHOLD) this.dragging = true;
+      if (Math.abs(dy) > RAIL_DRAG_THRESHOLD) this.dragging = true;
       if (!this.dragging || !this.pressInRailView) return;
       const next = Math.min(
         this.railMaxScroll,
@@ -457,12 +515,20 @@ export class VRHomePanel extends VRCanvasPanel {
       if (id === "set:hoverLaunch") {
         this.hoverLaunch = !this.hoverLaunch;
         this.markDirty();
-        return { type: "setVrSetting", key: "hoverLaunch", value: this.hoverLaunch };
+        return {
+          type: "setVrSetting",
+          key: "hoverLaunch",
+          value: this.hoverLaunch,
+        };
       }
       if (id === "set:soundOnPlay") {
         this.soundOnPlay = !this.soundOnPlay;
         this.markDirty();
-        return { type: "setVrSetting", key: "soundOnPlay", value: this.soundOnPlay };
+        return {
+          type: "setVrSetting",
+          key: "soundOnPlay",
+          value: this.soundOnPlay,
+        };
       }
       if (id.startsWith("dwell:")) {
         const ms = parseInt(id.slice("dwell:".length), 10);
@@ -480,11 +546,16 @@ export class VRHomePanel extends VRCanvasPanel {
     if (id.startsWith("scene:")) {
       return { type: "switchScene", sceneId: id.slice("scene:".length) };
     }
-    if (id === "pageR") { this.startArrow(1); return null; }
-    if (id === "pageL") { this.startArrow(-1); return null; }
+    if (id === "pageR") {
+      this.startArrow(1);
+      return null;
+    }
+    if (id === "pageL") {
+      this.startArrow(-1);
+      return null;
+    }
     if (id === "tab:studios" || id === "tab:performers") {
-      const next: FilterTab =
-        id === "tab:studios" ? "studios" : "performers";
+      const next: FilterTab = id === "tab:studios" ? "studios" : "performers";
       if (next !== this.filterTab) {
         this.filterTab = next;
         this.railScroll = 0;
@@ -512,15 +583,27 @@ export class VRHomePanel extends VRCanvasPanel {
     if (id === "media:flat") return { type: "setMediaFilter", filter: "flat" };
     if (id === "media:funscript")
       return { type: "setMediaFilter", filter: "funscript" };
-    if (id === "sort:recent") { this.setSortMode("recent"); return null; }
-    if (id === "sort:rating") { this.setSortMode("rating"); return null; }
-    if (id === "sort:title") { this.setSortMode("title"); return null; }
+    if (id === "sort:recent") {
+      this.setSortMode("recent");
+      return { type: "setHomeSort", sort: "recent" };
+    }
+    if (id === "sort:rating") {
+      this.setSortMode("rating");
+      return { type: "setHomeSort", sort: "rating" };
+    }
+    if (id === "sort:title") {
+      this.setSortMode("title");
+      return { type: "setHomeSort", sort: "title" };
+    }
     return null;
   }
 
   // ── Dwell / update ────────────────────────────────────────────────────────
 
   update() {
+    // Pull in any visible pages we don't have yet (deduped against in-flight
+    // requests + cache); cheap to call every frame.
+    this.ensurePagesLoaded();
     this.tickDwell();
     super.update();
   }
@@ -585,7 +668,9 @@ export class VRHomePanel extends VRCanvasPanel {
   /** Draw the scene grid (paginated cards) or an empty-state message. */
   private drawGrid() {
     const { ctx } = this;
-    if (this.displayScenes.length === 0) {
+    // Empty state only once we know the library is genuinely empty for this
+    // filter; before the first page arrives we fall through to skeleton cards.
+    if (this.loaded && this.totalCount === 0) {
       ctx.font = "500 26px sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
@@ -653,7 +738,7 @@ export class VRHomePanel extends VRCanvasPanel {
       ctx.fillText("Home", this.cw / 2 + 70, TITLE_Y);
     }
 
-    const count = this.scenes.length;
+    const count = this.totalCount;
     const base = count === 1 ? "1 scene" : `${count} scenes`;
     const mediaLabel =
       this.mediaFilter === "vr"
@@ -754,7 +839,9 @@ export class VRHomePanel extends VRCanvasPanel {
       ctx.fillText(opt.label, tx, cy);
       if (countStr) {
         ctx.font = "400 13px sans-serif";
-        ctx.fillStyle = active ? "rgba(5,17,31,0.70)" : "rgba(255,255,255,0.50)";
+        ctx.fillStyle = active
+          ? "rgba(5,17,31,0.70)"
+          : "rgba(255,255,255,0.50)";
         ctx.fillText(countStr, tx + labelW + 6, cy);
       }
       this.regions.push({
@@ -797,7 +884,13 @@ export class VRHomePanel extends VRCanvasPanel {
       ctx.textBaseline = "middle";
       ctx.fillStyle = active ? "#091428" : "rgba(255,255,255,0.9)";
       ctx.fillText(t.label, tx + tabW / 2, TAB_Y + TAB_H / 2 + 1);
-      this.regions.push({ id: `tab:${t.id}`, x: tx, y: TAB_Y, w: tabW, h: TAB_H });
+      this.regions.push({
+        id: `tab:${t.id}`,
+        x: tx,
+        y: TAB_Y,
+        w: tabW,
+        h: TAB_H,
+      });
       tx += tabW + 8;
     }
   }
@@ -840,7 +933,9 @@ export class VRHomePanel extends VRCanvasPanel {
       { id: "rating", label: "Rating" },
       { id: "title", label: "A–Z" },
     ];
-    const chipW = Math.floor((RAIL_INNER - 5 * (chips.length - 1)) / chips.length);
+    const chipW = Math.floor(
+      (RAIL_INNER - 5 * (chips.length - 1)) / chips.length
+    );
     let cx = RAIL_PAD;
     for (const chip of chips) {
       const active = this.sortMode === chip.id;
@@ -900,10 +995,7 @@ export class VRHomePanel extends VRCanvasPanel {
 
     const nRows = Math.ceil(items.length / TILE_COLS);
     const totalH = nRows * rowH - TILE_GAP_Y;
-    this.railMaxScroll = Math.max(
-      0,
-      totalH - (RAIL_VIEW_Y1 - RAIL_VIEW_Y0)
-    );
+    this.railMaxScroll = Math.max(0, totalH - (RAIL_VIEW_Y1 - RAIL_VIEW_Y0));
     this.railScroll = Math.min(
       this.railMaxScroll,
       Math.max(0, this.railScroll)
@@ -945,7 +1037,15 @@ export class VRHomePanel extends VRCanvasPanel {
       ctx.clip();
       if (img) {
         if (isStudio) {
-          this.drawImageContain(img, tileX, tileY, TILE_W, imgH, 0, "rgba(255,255,255,0.04)");
+          this.drawImageContain(
+            img,
+            tileX,
+            tileY,
+            TILE_W,
+            imgH,
+            0,
+            "rgba(255,255,255,0.04)"
+          );
         } else {
           this.drawImageCover(img, tileX, tileY, TILE_W, imgH, 0);
         }
@@ -984,9 +1084,7 @@ export class VRHomePanel extends VRCanvasPanel {
       ctx.font = "600 17px sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillStyle = active
-        ? `${ACCENT}0.95)`
-        : "rgba(255,255,255,0.92)";
+      ctx.fillStyle = active ? `${ACCENT}0.95)` : "rgba(255,255,255,0.92)";
       ctx.fillText(
         this.fitText(it.name, TILE_W - 16),
         tileX + TILE_W / 2,
@@ -1012,8 +1110,7 @@ export class VRHomePanel extends VRCanvasPanel {
     const total = viewH + this.railMaxScroll;
     const thumbH = Math.max(30, viewH * (viewH / total));
     const thumbY =
-      RAIL_VIEW_Y0 +
-      (viewH - thumbH) * (this.railScroll / this.railMaxScroll);
+      RAIL_VIEW_Y0 + (viewH - thumbH) * (this.railScroll / this.railMaxScroll);
     ctx.fillStyle = `${ACCENT}0.6)`;
     ctx.fillRect(trackX, thumbY, 3, thumbH);
   }
@@ -1025,8 +1122,26 @@ export class VRHomePanel extends VRCanvasPanel {
     xShift: number,
     interactive: boolean
   ) {
-    const start = pageIndex * PER_PAGE;
-    const items = this.displayScenes.slice(start, start + PER_PAGE);
+    const items = this.pageCache.get(pageIndex);
+    if (!items) {
+      // Page not fetched yet — draw placeholder skeletons (ensurePagesLoaded
+      // has already queued the request). How many slots this page holds is
+      // known from the total count.
+      const slots = Math.min(
+        PER_PAGE,
+        Math.max(0, this.totalCount - pageIndex * PER_PAGE)
+      );
+      // Before the total is known, fill a full page of skeletons.
+      const n = this.loaded ? slots : PER_PAGE;
+      for (let i = 0; i < n; i++) {
+        const col = i % COLS;
+        const row = Math.floor(i / COLS);
+        const x = GRID_X0 + col * (CARD_W + GAP_X) + xShift;
+        const y = GRID_TOP + row * (CARD_H + GAP_Y);
+        this.drawSkeletonCard(x, y);
+      }
+      return;
+    }
     for (let i = 0; i < items.length; i++) {
       const col = i % COLS;
       const row = Math.floor(i / COLS);
@@ -1034,6 +1149,20 @@ export class VRHomePanel extends VRCanvasPanel {
       const y = GRID_TOP + row * (CARD_H + GAP_Y);
       this.drawCard(items[i], x, y, interactive);
     }
+  }
+
+  /** Placeholder card shown while a page is still loading from the server. */
+  private drawSkeletonCard(x: number, y: number) {
+    const { ctx } = this;
+    this.roundRect(x, y, CARD_W, THUMB_H, 14);
+    ctx.fillStyle = "rgba(255,255,255,0.05)";
+    ctx.fill();
+    this.roundRect(x + 10, y + THUMB_H + 14, CARD_W * 0.62, 16, 6);
+    ctx.fillStyle = "rgba(255,255,255,0.06)";
+    ctx.fill();
+    this.roundRect(x + 10, y + THUMB_H + 40, CARD_W * 0.4, 13, 6);
+    ctx.fillStyle = "rgba(255,255,255,0.04)";
+    ctx.fill();
   }
 
   /**
@@ -1165,9 +1294,19 @@ export class VRHomePanel extends VRCanvasPanel {
         : active
         ? "#06121f"
         : "rgba(255,255,255,0.85)";
-      ctx.fillText(`${(ms / 1000).toFixed(ms % 1000 ? 1 : 0)}s`, chipX + chipW / 2, rowY + chipH / 2 + 1);
+      ctx.fillText(
+        `${(ms / 1000).toFixed(ms % 1000 ? 1 : 0)}s`,
+        chipX + chipW / 2,
+        rowY + chipH / 2 + 1
+      );
       if (enabled) {
-        this.regions.push({ id: `dwell:${ms}`, x: chipX, y: rowY, w: chipW, h: chipH });
+        this.regions.push({
+          id: `dwell:${ms}`,
+          x: chipX,
+          y: rowY,
+          w: chipW,
+          h: chipH,
+        });
       }
       chipX += chipW + chipGap;
     }
@@ -1194,7 +1333,13 @@ export class VRHomePanel extends VRCanvasPanel {
     );
 
     // Backdrop region (pushed LAST so the controls above win the hit test).
-    this.regions.push({ id: "settingsClose", x: 0, y: 0, w: this.cw, h: this.ch });
+    this.regions.push({
+      id: "settingsClose",
+      x: 0,
+      y: 0,
+      w: this.cw,
+      h: this.ch,
+    });
   }
 
   /** One labelled toggle row with a pill switch on the right. */
@@ -1287,9 +1432,17 @@ export class VRHomePanel extends VRCanvasPanel {
     if (videoEl && videoEl.readyState >= 2) {
       const vr = videoEl.videoWidth / videoEl.videoHeight;
       const cr = CARD_W / THUMB_H;
-      let sx = 0, sy = 0, sw = videoEl.videoWidth, sh = videoEl.videoHeight;
-      if (vr > cr) { sw = sh * cr; sx = (videoEl.videoWidth - sw) / 2; }
-      else { sh = sw / cr; sy = (videoEl.videoHeight - sh) / 2; }
+      let sx = 0,
+        sy = 0,
+        sw = videoEl.videoWidth,
+        sh = videoEl.videoHeight;
+      if (vr > cr) {
+        sw = sh * cr;
+        sx = (videoEl.videoWidth - sw) / 2;
+      } else {
+        sh = sw / cr;
+        sy = (videoEl.videoHeight - sh) / 2;
+      }
       ctx.drawImage(videoEl, sx, sy, sw, sh, x, y, CARD_W, THUMB_H);
     } else {
       const img = this.image(scene.thumbnailUrl);
@@ -1308,8 +1461,17 @@ export class VRHomePanel extends VRCanvasPanel {
         const hmH = 22;
         ctx.save();
         ctx.globalAlpha = 0.78;
-        ctx.drawImage(hmImg, 0, 0, hmImg.width, hmImg.height,
-          x, y + THUMB_H - hmH, CARD_W, hmH);
+        ctx.drawImage(
+          hmImg,
+          0,
+          0,
+          hmImg.width,
+          hmImg.height,
+          x,
+          y + THUMB_H - hmH,
+          CARD_W,
+          hmH
+        );
         ctx.restore();
       }
     }
@@ -1354,7 +1516,8 @@ export class VRHomePanel extends VRCanvasPanel {
 
     // "Now Playing" badge
     if (isPlaying) {
-      const bw = 104, bh = 26;
+      const bw = 104,
+        bh = 26;
       this.roundRect(x + 10, y + 10, bw, bh, bh / 2);
       ctx.fillStyle = `${GOLD}0.92)`;
       ctx.fill();
@@ -1367,7 +1530,8 @@ export class VRHomePanel extends VRCanvasPanel {
 
     // Funscript indicator badge (top-right of thumbnail)
     if (scene.hasFunscript) {
-      const bw = 42, bh = 22;
+      const bw = 42,
+        bh = 22;
       const bx = x + CARD_W - bw - 10;
       const by = y + (isPlaying ? 44 : 10);
       this.roundRect(bx, by, bw, bh, bh / 2);
@@ -1464,7 +1628,13 @@ export class VRHomePanel extends VRCanvasPanel {
     }
 
     if (interactive) {
-      this.regions.push({ id: `scene:${scene.id}`, x, y, w: CARD_W, h: CARD_H });
+      this.regions.push({
+        id: `scene:${scene.id}`,
+        x,
+        y,
+        w: CARD_W,
+        h: CARD_H,
+      });
       if (hovered && this.previewVideo) this.markDirty();
     }
   }
@@ -1500,7 +1670,13 @@ export class VRHomePanel extends VRCanvasPanel {
       ctx.textBaseline = "middle";
       ctx.fillText(id === "pageL" ? "‹" : "›", x + arrowW / 2, cy + 1);
       if (enabled) {
-        this.regions.push({ id, x, y: cy - PAGER_H / 2, w: arrowW, h: PAGER_H });
+        this.regions.push({
+          id,
+          x,
+          y: cy - PAGER_H / 2,
+          w: arrowW,
+          h: PAGER_H,
+        });
       }
     };
 

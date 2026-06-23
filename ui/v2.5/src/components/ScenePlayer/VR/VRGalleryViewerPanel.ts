@@ -44,6 +44,9 @@ const LB_MARGIN_X = 130; // side gutters double as prev/next hit zones
 const LB_Y0 = 120;
 const LB_Y1 = CANVAS_H - 70;
 
+// ── Slideshow ──────────────────────────────────────────────────────────────
+const SLIDESHOW_INTERVAL_MS = 4000; // ms between auto-advance
+const BTN_H = 44; // shared button height for Back + Slideshow pills
 // ── Interaction (mirrors VRHomePanel's grid tuning) ──────────────────────────
 const GRID_DRAG_THRESHOLD = 24;
 const SETTLE_MS = 90;
@@ -70,6 +73,12 @@ export class VRGalleryViewerPanel extends VRCanvasPanel {
 
   // Lightbox: absolute image index, or null when showing the grid.
   private lightboxIndex: number | null = null;
+
+  // Slideshow auto-advance mode (lightbox only).
+  private slideshowOn = false;
+  private slideshowTimer: ReturnType<typeof setTimeout> | null = null;
+  /** User must explicitly toggle slideshow — don't resume it after lightbox close. */
+  private slideshowEdgeTriggered = false;
 
   // Press / drag-vs-tap resolution (grid only).
   private downId: string | null = null;
@@ -108,6 +117,8 @@ export class VRGalleryViewerPanel extends VRCanvasPanel {
     this.offset = 0;
     this.animStart = 0;
     this.lightboxIndex = null;
+    this.stopSlideshow();
+    this.slideshowOn = false;
     this.markDirty();
   }
 
@@ -163,11 +174,14 @@ export class VRGalleryViewerPanel extends VRCanvasPanel {
   openLightbox(index: number) {
     if (index < 0 || index >= this.totalCount) return;
     this.lightboxIndex = index;
+    this.stopSlideshow();
     this.markDirty();
   }
 
   closeLightbox() {
     if (this.lightboxIndex === null) return;
+    this.stopSlideshow();
+    this.slideshowOn = false;
     // Keep the grid page roughly aligned with the image we were viewing.
     this.page = Math.min(
       this.pageCount - 1,
@@ -184,6 +198,46 @@ export class VRGalleryViewerPanel extends VRCanvasPanel {
     const next = this.lightboxIndex + dir;
     if (next < 0 || next >= this.totalCount) return;
     this.lightboxIndex = next;
+    this.stopSlideshow(); // user navigation stops slideshow
+    this.markDirty();
+  }
+
+  // ── Slideshow auto-advance ────────────────────────────────────────────────
+
+  private scheduleSlideshow() {
+    this.stopSlideshow();
+    if (!this.slideshowOn || this.lightboxIndex === null) return;
+    // Wrap around when reaching the last image.
+    if (this.lightboxIndex >= this.totalCount - 1) {
+      this.lightboxIndex = 0;
+    } else {
+      this.lightboxIndex++;
+    }
+    this.markDirty();
+    this.slideshowTimer = setTimeout(
+      () => this.scheduleSlideshow(),
+      SLIDESHOW_INTERVAL_MS
+    );
+  }
+
+  private stopSlideshow() {
+    if (this.slideshowTimer !== null) {
+      clearTimeout(this.slideshowTimer);
+      this.slideshowTimer = null;
+    }
+  }
+
+  private toggleSlideshow() {
+    this.slideshowOn = !this.slideshowOn;
+    if (this.slideshowOn) {
+      // Kick off the first interval immediately.
+      this.slideshowTimer = setTimeout(
+        () => this.scheduleSlideshow(),
+        SLIDESHOW_INTERVAL_MS
+      );
+    } else {
+      this.stopSlideshow();
+    }
     this.markDirty();
   }
 
@@ -296,6 +350,10 @@ export class VRGalleryViewerPanel extends VRCanvasPanel {
       this.lightboxNav(1);
       return { type: "galleryImageNav", dir: 1 };
     }
+    if (id === "lbSlideshow") {
+      this.toggleSlideshow();
+      return { type: "galleryImageSlideshowToggle" };
+    }
     if (id === "pageL") {
       this.startArrow(-1);
       return null;
@@ -351,26 +409,69 @@ export class VRGalleryViewerPanel extends VRCanvasPanel {
 
   private drawBackButton() {
     const { ctx } = this;
-    const w = 210;
-    const h = 44;
-    const x = PAD;
+    const h = BTN_H;
     const y = 26;
-    const hovered = this.hoveredId === "back";
-    this.roundRect(x, y, w, h, h / 2);
-    ctx.fillStyle = hovered ? `${ACCENT}0.92)` : `${ACCENT}0.18)`;
+    const btnGap = 8;
+
+    // ── Back button ──────────────────────────────────────────────────────
+    const bw = 210;
+    const bx = PAD;
+    const backHover = this.hoveredId === "back";
+    this.roundRect(bx, y, bw, h, h / 2);
+    ctx.fillStyle = backHover ? `${ACCENT}0.92)` : `${ACCENT}0.18)`;
     ctx.fill();
-    this.roundRect(x, y, w, h, h / 2);
+    this.roundRect(bx, y, bw, h, h / 2);
     ctx.lineWidth = 1.5;
-    ctx.strokeStyle = hovered ? `${ACCENT}0.7)` : `${ACCENT}0.5)`;
+    ctx.strokeStyle = backHover ? `${ACCENT}0.7)` : `${ACCENT}0.5)`;
     ctx.stroke();
     ctx.font = "600 19px sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillStyle = hovered ? "#06121f" : `${ACCENT}0.95)`;
-    const label =
+    ctx.fillStyle = backHover ? "#06121f" : `${ACCENT}0.95)`;
+    const backLabel =
       this.lightboxIndex !== null ? "‹  Back to grid" : "‹  All galleries";
-    ctx.fillText(label, x + w / 2, y + h / 2 + 1);
-    this.regions.push({ id: "back", x, y, w, h });
+    ctx.fillText(backLabel, bx + bw / 2, y + h / 2 + 1);
+    this.regions.push({ id: "back", x: bx, y, w: bw, h });
+
+    // ── Slideshow toggle (lightbox only) ──────────────────────────────────
+    if (this.lightboxIndex !== null) {
+      const sw = 190;
+      const sx = bx + bw + btnGap;
+      const ssHover = this.hoveredId === "lbSlideshow";
+      const ssLabel = this.slideshowOn ? "⏹  Stop slideshow" : "▶  Slideshow";
+
+      this.roundRect(sx, y, sw, h, h / 2);
+      ctx.fillStyle = ssHover
+        ? this.slideshowOn
+          ? "rgba(239,68,68,0.85)"
+          : `${ACCENT}0.92)`
+        : this.slideshowOn
+        ? "rgba(239,68,68,0.50)"
+        : `${ACCENT}0.18)`;
+      ctx.fill();
+      this.roundRect(sx, y, sw, h, h / 2);
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = ssHover
+        ? this.slideshowOn
+          ? "rgba(239,68,68,0.7)"
+          : `${ACCENT}0.7)`
+        : this.slideshowOn
+        ? "rgba(239,68,68,0.35)"
+        : `${ACCENT}0.5)`;
+      ctx.stroke();
+      ctx.font = "600 19px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = ssHover && this.slideshowOn
+        ? "rgba(255,255,255,0.98)"
+        : ssHover
+        ? "#06121f"
+        : this.slideshowOn
+        ? "rgba(255,255,255,0.98)"
+        : `${ACCENT}0.95)`;
+      ctx.fillText(ssLabel, sx + sw / 2, y + h / 2 + 1);
+      this.regions.push({ id: "lbSlideshow", x: sx, y, w: sw, h });
+    }
   }
 
   private drawHeader() {

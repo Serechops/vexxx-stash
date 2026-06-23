@@ -106,6 +106,8 @@ export type VRControlAction =
   | { type: "galleryImageNav"; dir: 1 | -1 }
   /** Close the lightbox and return to the gallery thumbnail grid. */
   | { type: "galleryImageClose" }
+  /** Toggle slideshow auto-advance on/off. */
+  | { type: "galleryImageSlideshowToggle" }
   // ── Handy interactive device ───────────────────────────────────────────
   | { type: "handyToggle" }
   | { type: "handyPatternStart"; patternId: string }

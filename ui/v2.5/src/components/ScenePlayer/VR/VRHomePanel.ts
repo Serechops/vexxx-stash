@@ -106,6 +106,14 @@ const GRID_TOP = GRID_Y0 + Math.max(0, (GRID_Y1 - GRID_Y0 - GRID_BLOCK_H) / 2); 
 const PAGER_Y = CANVAS_H - 45; // 1255
 const PAGER_H = 44;
 
+// Gallery justified-row layout — galleries are packed greedily by cover-aspect
+// ratio so each row fills GRID_W. The card height varies per row (cover area +
+// fixed caption bar). Separate from the scene fixed grid constants above.
+const GAL_TARGET_H = 210;   // target cover height before justification
+const GAL_GAP = 16;          // horizontal + vertical gap between cards
+const GAL_CAP_H = 78;       // caption bar height (matches CAP_H for consistency)
+const GAL_DEF_ASPECT = 16 / 9;
+
 // ── Interaction thresholds ────────────────────────────────────────────────────
 // Default gaze-dwell delay before auto-launch. User-overridable via the settings
 // gear (the live value lives in `this.dwellMs`); this is only the fallback.
@@ -1294,40 +1302,79 @@ export class VRHomePanel extends VRCanvasPanel {
     interactive: boolean
   ) {
     const items = this.galleryPageCache.get(pageIndex);
-    if (!items) {
-      const slots = Math.min(
-        PER_PAGE,
-        Math.max(0, this.galleryTotal - pageIndex * PER_PAGE)
-      );
-      const n = this.galleryLoaded ? slots : PER_PAGE;
-      for (let i = 0; i < n; i++) {
-        const col = i % COLS;
-        const row = Math.floor(i / COLS);
-        const x = GRID_X0 + col * (CARD_W + GAP_X) + xShift;
-        const y = GRID_TOP + row * (CARD_H + GAP_Y);
-        this.drawSkeletonCard(x, y);
+    const slots = Math.min(
+      PER_PAGE,
+      Math.max(0, this.galleryTotal - pageIndex * PER_PAGE)
+    );
+    const n = items ? items.length : this.galleryLoaded ? slots : PER_PAGE;
+
+    // Gather entries with aspect ratios for row-packing.
+    const entries: Array<{
+      entry: IVRGalleryEntry | undefined;
+      aspect: number;
+    }> = [];
+    for (let i = 0; i < n; i++) {
+      const entry = items?.[i];
+      let aspect = GAL_DEF_ASPECT;
+      if (entry) {
+        const img = this.image(entry.coverUrl);
+        if (img && img.naturalWidth > 0) {
+          aspect = Math.max(img.naturalWidth / img.naturalHeight, 0.25);
+        }
       }
-      return;
+      entries.push({ entry, aspect });
     }
-    for (let i = 0; i < items.length; i++) {
-      const col = i % COLS;
-      const row = Math.floor(i / COLS);
-      const x = GRID_X0 + col * (CARD_W + GAP_X) + xShift;
-      const y = GRID_TOP + row * (CARD_H + GAP_Y);
-      this.drawGalleryCard(items[i], x, y, interactive);
+
+    // Greedy row-packing: add cards until overflow, then justify.
+    let y = GRID_Y0;
+    for (let i = 0; i < entries.length; ) {
+      let totalAspect = entries[i].aspect;
+      let rowEnd = i + 1;
+      while (rowEnd < entries.length) {
+        const testAspect = totalAspect + entries[rowEnd].aspect;
+        const testW =
+          testAspect * GAL_TARGET_H + GAL_GAP * (rowEnd - i);
+        if (rowEnd - i === 1 || testW <= GRID_W) {
+          totalAspect = testAspect;
+          rowEnd++;
+        } else {
+          break;
+        }
+      }
+
+      const availW = GRID_W - GAL_GAP * (rowEnd - i - 1);
+      const coverH = Math.max(80, Math.min(400, availW / totalAspect));
+      const cardH = coverH + GAL_CAP_H;
+
+      let ix = GRID_X0 + xShift;
+      for (let j = i; j < rowEnd; j++) {
+        const item = entries[j];
+        const iw = item.aspect * coverH;
+        if (item.entry) {
+          this.drawGalleryCard(item.entry, ix, y, iw, coverH, interactive);
+        } else {
+          this.drawSkeletonCard(ix, y, iw, coverH);
+        }
+        ix += iw + GAL_GAP;
+      }
+
+      y += cardH + GAL_GAP;
+      i = rowEnd;
     }
   }
 
   /** Placeholder card shown while a page is still loading from the server. */
-  private drawSkeletonCard(x: number, y: number) {
+  private drawSkeletonCard(x: number, y: number, w?: number, coverH?: number) {
     const { ctx } = this;
-    this.roundRect(x, y, CARD_W, THUMB_H, 14);
+    const cw = w ?? CARD_W;
+    const ch = coverH ?? THUMB_H;
+    this.roundRect(x, y, cw, ch, 14);
     ctx.fillStyle = "rgba(255,255,255,0.05)";
     ctx.fill();
-    this.roundRect(x + 10, y + THUMB_H + 14, CARD_W * 0.62, 16, 6);
+    this.roundRect(x + 10, y + ch + 14, cw * 0.62, 16, 6);
     ctx.fillStyle = "rgba(255,255,255,0.06)";
     ctx.fill();
-    this.roundRect(x + 10, y + THUMB_H + 40, CARD_W * 0.4, 13, 6);
+    this.roundRect(x + 10, y + ch + 40, cw * 0.4, 13, 6);
     ctx.fillStyle = "rgba(255,255,255,0.04)";
     ctx.fill();
   }
@@ -1850,34 +1897,37 @@ export class VRHomePanel extends VRCanvasPanel {
     gallery: IVRGalleryEntry,
     x: number,
     y: number,
+    w: number,
+    coverH: number,
     interactive: boolean
   ) {
+    const cardH = coverH + GAL_CAP_H;
     const { ctx } = this;
     const hovered = interactive && this.hoveredId === `gallery:${gallery.id}`;
     const R = 14;
 
     ctx.save();
-    this.roundRect(x, y, CARD_W, CARD_H, R);
+    this.roundRect(x, y, w, cardH, R);
     ctx.clip();
 
     // Cover thumbnail.
     const img = this.image(gallery.coverUrl);
     if (img) {
-      this.drawImageCover(img, x, y, CARD_W, THUMB_H, 0);
+      this.drawImageCover(img, x, y, w, coverH, 0);
     } else {
       ctx.fillStyle = "rgba(255,255,255,0.06)";
-      ctx.fillRect(x, y, CARD_W, THUMB_H);
+      ctx.fillRect(x, y, w, coverH);
       // Folder glyph placeholder when there's no cover.
       ctx.font = "300 56px sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillStyle = "rgba(255,255,255,0.18)";
-      ctx.fillText("🖼", x + CARD_W / 2, y + THUMB_H / 2);
+      ctx.fillText("🖼", x + w / 2, y + coverH / 2);
     }
 
     // Caption bar.
     ctx.fillStyle = "rgba(12,12,17,0.94)";
-    ctx.fillRect(x, y + THUMB_H, CARD_W, CAP_H);
+    ctx.fillRect(x, y + coverH, w, GAL_CAP_H);
     ctx.restore();
 
     // Title + studio text.
@@ -1887,17 +1937,17 @@ export class VRHomePanel extends VRCanvasPanel {
     ctx.font = "600 21px sans-serif";
     ctx.fillStyle = "rgba(255,255,255,0.95)";
     ctx.fillText(
-      this.fitText(gallery.title || `Gallery ${gallery.id}`, CARD_W - 32),
+      this.fitText(gallery.title || `Gallery ${gallery.id}`, w - 32),
       textX,
-      y + THUMB_H + (gallery.studioName ? 33 : 49)
+      y + coverH + (gallery.studioName ? 33 : 49)
     );
     if (gallery.studioName) {
       ctx.font = "400 16px sans-serif";
       ctx.fillStyle = "rgba(255,255,255,0.55)";
       ctx.fillText(
-        this.fitText(gallery.studioName, CARD_W - 32),
+        this.fitText(gallery.studioName, w - 32),
         textX,
-        y + THUMB_H + 60
+        y + coverH + 60
       );
     }
 
@@ -1909,7 +1959,7 @@ export class VRHomePanel extends VRCanvasPanel {
       ctx.font = "700 14px sans-serif";
       const bw = ctx.measureText(label).width + 22;
       const bh = 26;
-      const bx = x + CARD_W - bw - 10;
+      const bx = x + w - bw - 10;
       const by = y + 10;
       this.roundRect(bx, by, bw, bh, bh / 2);
       ctx.fillStyle = "rgba(5,10,20,0.78)";
@@ -1927,7 +1977,7 @@ export class VRHomePanel extends VRCanvasPanel {
       const pw = ctx.measureText(label).width + 14;
       const ph = 22;
       const px = x + 10;
-      const py = y + THUMB_H - 32;
+      const py = y + coverH - 32;
       this.roundRect(px, py, pw, ph, ph / 2);
       ctx.fillStyle = "rgba(5,10,20,0.82)";
       ctx.fill();
@@ -1940,8 +1990,8 @@ export class VRHomePanel extends VRCanvasPanel {
     // Gaze-dwell arc — opens the gallery viewer when full.
     const dwellFrac = interactive ? this.getDwellFrac(gallery.id) : 0;
     if (dwellFrac > 0) {
-      const arcCx = x + CARD_W / 2;
-      const arcCy = y + THUMB_H / 2;
+      const arcCx = x + w / 2;
+      const arcCy = y + coverH / 2;
       const arcR = 30;
       ctx.save();
       ctx.beginPath();
@@ -1969,7 +2019,7 @@ export class VRHomePanel extends VRCanvasPanel {
 
     // Hover border.
     if (hovered) {
-      this.roundRect(x, y, CARD_W, CARD_H, R);
+      this.roundRect(x, y, w, cardH, R);
       ctx.lineWidth = 2.5;
       ctx.strokeStyle = `${ACCENT}0.75)`;
       ctx.stroke();
@@ -1980,8 +2030,8 @@ export class VRHomePanel extends VRCanvasPanel {
         id: `gallery:${gallery.id}`,
         x,
         y,
-        w: CARD_W,
-        h: CARD_H,
+        w,
+        h: cardH,
       });
     }
   }

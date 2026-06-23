@@ -29,6 +29,7 @@ import { VRThumbnails } from "./vttThumbnails";
 import { IVRSceneInfo } from "./VRInfoPanels";
 import { useVRPlayback } from "./useVRPlayback";
 import { VRHomeLibrary } from "./vrHomeLibrary";
+import { VRGalleryLibrary } from "./vrGalleryLibrary";
 import {
   InteractiveContext,
   ConnectionState,
@@ -159,6 +160,9 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
   // Server-backed Home wall library — pages/filters/sorts the whole library on
   // the server so the immersive Home wall scales past any in-memory cap.
   const homeLibraryRef = useRef<VRHomeLibrary>(new VRHomeLibrary());
+  // Server-backed Galleries library — pages galleries + an active gallery's
+  // images on the server, powering the Galleries content mode + XR gallery viewer.
+  const galleryLibraryRef = useRef<VRGalleryLibrary>(new VRGalleryLibrary());
   const history = useHistory();
   const interactiveCtx = useContext(InteractiveContext);
   const handyRef = useRef<IInteractiveClient>(interactiveCtx.interactive);
@@ -798,6 +802,7 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
       getHandyState: () => buildHandyState(),
       getFunscriptLoaded: () => getFunscriptLoaded(),
       homeData: homeLibraryRef.current,
+      galleryData: galleryLibraryRef.current,
       lobby: startedInLobbyRef.current,
       homeSettings: settingsRef.current,
       getThumbnail: (time) => thumbnailsRef.current?.getAt(time) ?? null,

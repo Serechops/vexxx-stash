@@ -35,10 +35,16 @@ import {
 import { VRControlPanel, IDrawInput } from "./VRControls";
 import { VRControllerInput, IPanelHit } from "./VRControllerInput";
 import { VRDeviceModels } from "./VRDeviceModels";
-import { VRHandyPanel, VRInfoPanel, IVRSceneInfo } from "./VRInfoPanels";
+import {
+  VRHandyPanel,
+  VRInfoPanel,
+  IVRSceneInfo,
+  VRCanvasPanel,
+} from "./VRInfoPanels";
 import { VRScenesPanel, IVRSceneEntry } from "./VRScenesPanel";
 import { VRCarouselLibrary } from "./VRCarouselLibrary";
 import { VRHomePanel } from "./VRHomePanel";
+import { VRGalleryViewerPanel } from "./VRGalleryViewerPanel";
 import { VRLobbyBackdrop } from "./VRLobbyBackdrop";
 import {
   VRControlAction,
@@ -48,6 +54,7 @@ import {
   IVRHomeSettings,
   VRStrokeStatus,
   IVRHomeDataSource,
+  IVRGalleryDataSource,
   IVRFilterEntry,
   VRMediaFilter,
   VRSortMode,
@@ -168,6 +175,11 @@ export interface IXRSessionManagerOptions {
    * in memory, so it scales to libraries of any size.
    */
   homeData?: IVRHomeDataSource;
+  /**
+   * Server-backed data source for the Galleries content mode + XR gallery viewer.
+   * Pages galleries and (on demand) an active gallery's images server-side.
+   */
+  galleryData?: IVRGalleryDataSource;
   /** Start the session in lobby/Home mode (no scene loaded yet). */
   lobby?: boolean;
   /** Initial immersive-Home preferences (gaze-launch / dwell / audio). */
@@ -343,6 +355,12 @@ export class XRSessionManager {
   // Immersive Home wall (with merged filter rail) + ambient backdrop (Option 2).
   private homePanel: VRHomePanel | null = null;
   private backdrop: VRLobbyBackdrop | null = null;
+  // XR gallery viewer (thumbnail grid + lightbox), shown over the Home wall when
+  // a gallery is opened from the Galleries content mode.
+  private galleryViewer: VRGalleryViewerPanel | null = null;
+  private galleryData: IVRGalleryDataSource | null = null;
+  // True while the gallery viewer is showing (Home wall hidden behind it).
+  private galleryOpen = false;
   // Cinema room shown when a flat (non-VR) scene is playing.
   private lobbyMode = false;
   // Server-backed Home library (paged). The manager owns the live query state
@@ -547,6 +565,21 @@ export class XRSessionManager {
       this.loadHomeRail();
     }
 
+    // Galleries content mode + XR gallery viewer. The Home wall pages galleries
+    // through this requester; the viewer pages an active gallery's images.
+    this.galleryData = opts.galleryData ?? null;
+    home.setGalleryPageRequester((pageIndex) =>
+      this.fetchGalleryPage(pageIndex)
+    );
+    const viewer = new VRGalleryViewerPanel();
+    this.galleryViewer = viewer;
+    this.uiGroup.add(viewer.object);
+    this.layoutHomePanel(viewer);
+    viewer.setRenderState(0);
+    viewer.setPageRequester((pageIndex) =>
+      this.fetchGalleryImagePage(pageIndex)
+    );
+
     // Preview video for scenes hover — one element, reassigned on hover change.
     this.previewVideo = document.createElement("video");
     this.previewVideo.muted = true;
@@ -667,8 +700,8 @@ export class XRSessionManager {
     panel.object.rotation.set(0, -sign * angle, 0);
   }
 
-  /** Place the Home wall centred in front of the viewer, near eye level. */
-  private layoutHomePanel(panel: VRHomePanel) {
+  /** Place the Home wall / gallery viewer centred in front of the viewer. */
+  private layoutHomePanel(panel: VRCanvasPanel) {
     // uiGroup is dropped PANEL_DROP below eye level for the control bar; raise the
     // wall back up toward eye height and push it a touch further than the bar so
     // the large surface sits comfortably in the central field of view.
@@ -687,16 +720,19 @@ export class XRSessionManager {
     // must leave the raycast target set — three.js raycasts invisible meshes too).
     if (this.lobbyMode) {
       // The Home wall is the only interactable surface (it now hosts the filter
-      // rail too). The hidden bar/side panels must leave the raycast target set.
-      const home = this.homePanel;
-      this.hittables = home
+      // rail too) — unless a gallery is open, in which case the gallery viewer
+      // takes over. The hidden bar/side panels must leave the raycast target set.
+      const active: VRCanvasPanel | null = this.galleryOpen
+        ? this.galleryViewer
+        : this.homePanel;
+      this.hittables = active
         ? [
             {
-              target: home.hitTarget,
-              hover: (uv: THREE.Vector2 | null) => home.setHovered(uv),
-              select: (uv: THREE.Vector2) => home.activate(uv),
-              move: (uv: THREE.Vector2) => home.pointerMove(uv),
-              up: (uv: THREE.Vector2) => home.pointerUp(uv),
+              target: active.hitTarget,
+              hover: (uv: THREE.Vector2 | null) => active.setHovered(uv),
+              select: (uv: THREE.Vector2) => active.activate(uv),
+              move: (uv: THREE.Vector2) => active.pointerMove(uv),
+              up: (uv: THREE.Vector2) => active.pointerUp(uv),
             },
           ]
         : [];
@@ -774,6 +810,7 @@ export class XRSessionManager {
       this.scenesPanel,
       this.handyPanel,
       this.homePanel,
+      this.galleryViewer,
     ]) {
       try {
         p?.prewarm(this.renderer);
@@ -936,6 +973,81 @@ export class XRSessionManager {
         this.homePanel?.setPageData(res.pageIndex, res.scenes, res.totalCount);
       })
       .catch(() => undefined);
+  }
+
+  // ── Galleries content mode + XR gallery viewer ──────────────────────────────
+
+  /** Fetch a Galleries grid page and push it to the Home wall (gen-guarded). */
+  private fetchGalleryPage(pageIndex: number) {
+    const ds = this.galleryData;
+    if (!ds) return;
+    ds.getGalleryPage(pageIndex)
+      .then((res) => {
+        if (res.gen !== ds.gen) return;
+        this.homePanel?.setGalleryPageData(
+          res.pageIndex,
+          res.galleries,
+          res.totalCount
+        );
+      })
+      .catch(() => undefined);
+  }
+
+  /**
+   * Push the current sort + studio/performer/tag filter to the gallery pager and
+   * reset the gallery grid. Galleries ignore the media toggle. The first page is
+   * pulled lazily by the wall's own page-load loop while in Galleries mode.
+   */
+  private applyGalleryQuery() {
+    const ds = this.galleryData;
+    if (!ds) return;
+    ds.setQuery({
+      sort: this.sortMode,
+      mediaFilter: this.mediaFilter,
+      filter: this.homeFilter,
+    });
+    this.homePanel?.resetGalleryLibrary();
+  }
+
+  /** Fetch a page of the active gallery's images and push it to the viewer. */
+  private fetchGalleryImagePage(pageIndex: number) {
+    const ds = this.galleryData;
+    if (!ds) return;
+    ds.getImagePage(pageIndex)
+      .then((res) => {
+        if (res.gen !== ds.gen) return;
+        this.galleryViewer?.setPageData(
+          res.pageIndex,
+          res.images,
+          res.totalCount
+        );
+      })
+      .catch(() => undefined);
+  }
+
+  /** Open the XR gallery viewer for a gallery: scope image paging + show it. */
+  private openGallery(galleryId: string, title?: string) {
+    const ds = this.galleryData;
+    const viewer = this.galleryViewer;
+    if (!ds || !viewer) return;
+    ds.setActiveGallery(galleryId);
+    // Seed the title + a provisional count; the real total arrives with page 0.
+    viewer.open(title ?? "Gallery", 0);
+    ds.getImageTotal()
+      .then((total) => viewer.open(title ?? "Gallery", total))
+      .catch(() => undefined);
+    this.galleryOpen = true;
+    this.rebuildBrowseHittables();
+    this.lastActivity = performance.now();
+  }
+
+  /** Close the gallery viewer and return to the Home wall. */
+  private closeGallery() {
+    if (!this.galleryOpen) return;
+    this.galleryOpen = false;
+    this.galleryData?.setActiveGallery(null);
+    this.rebuildBrowseHittables();
+    this.lastActivity = performance.now();
   }
 
   /**
@@ -1171,6 +1283,8 @@ export class XRSessionManager {
         action.kind ? { kind: action.kind, id: action.id! } : null,
         action.label
       );
+      // Galleries honour the same studio/performer/tag filter as scenes.
+      this.applyGalleryQuery();
       // Drill-down from an info-panel chip happens during playback: surface the
       // now-filtered Home wall so the user actually sees the result. The rail's
       // own filter taps come from lobby mode, where this is a no-op.
@@ -1187,8 +1301,34 @@ export class XRSessionManager {
     }
     if (action.type === "setHomeSort") {
       this.sortMode = action.sort;
-      // The panel already reset its page window; re-query under the new sort.
+      // The panel already reset its page window; re-query both grids under the
+      // new sort (galleries share the sort mode).
       this.applyHomeQuery();
+      this.applyGalleryQuery();
+      this.lastActivity = performance.now();
+      return;
+    }
+    if (action.type === "setContentMode") {
+      // The Home panel already flipped its own mode; seed the gallery query so
+      // its grid pages start loading when switching into Galleries mode.
+      if (action.mode === "galleries") this.applyGalleryQuery();
+      this.lastActivity = performance.now();
+      return;
+    }
+    if (action.type === "openGallery") {
+      this.openGallery(action.galleryId, action.title);
+      return;
+    }
+    if (action.type === "closeGallery") {
+      this.closeGallery();
+      return;
+    }
+    if (
+      action.type === "galleryImageOpen" ||
+      action.type === "galleryImageNav" ||
+      action.type === "galleryImageClose"
+    ) {
+      // Lightbox state is handled in-panel; nothing to do at the session level.
       this.lastActivity = performance.now();
       return;
     }
@@ -1865,12 +2005,14 @@ export class XRSessionManager {
     const op = this.uiOpacity;
 
     if (lobby) {
-      // Lobby: show Home wall + filter panel; playback bar stay hidden.
+      // Lobby: show the Home wall, or the gallery viewer when a gallery is open;
+      // playback bar + side panels stay hidden.
       this.panel.setRenderState(0);
       this.handyPanel?.setRenderState(0);
       this.infoPanel?.setRenderState(0);
       this.scenesPanel?.setRenderState(0);
-      this.homePanel?.setRenderState(op);
+      this.homePanel?.setRenderState(this.galleryOpen ? 0 : op);
+      this.galleryViewer?.setRenderState(this.galleryOpen ? op : 0);
       this.input.setRaysVisible(true);
     } else {
       this.panel.setRenderState(op);
@@ -1884,35 +2026,42 @@ export class XRSessionManager {
       this.infoPanel?.setRenderState(this.browseOpen ? op : 0);
       this.scenesPanel?.setRenderState(this.browseOpen ? op : 0);
       this.homePanel?.setRenderState(0);
+      this.galleryViewer?.setRenderState(0);
     }
 
     const state = this.opts.getState();
     if (op > 0.02) {
       if (lobby) {
-        this.homePanel?.update();
+        // Drive whichever wall is active (Home grid, or the gallery viewer when
+        // a gallery is open).
+        const activeWall = this.galleryOpen
+          ? this.galleryViewer
+          : this.homePanel;
+        activeWall?.update();
         // Drive the ambient backdrop (slow starfield drift) each lobby frame.
         // At throttle level ≥2, skip the backdrop update to save GPU work.
         if (!skipBackdrop) this.backdrop?.update();
 
-        // Thumbstick navigation for the home wall grid and filter rail.
-        if (this.homePanel) {
+        // Thumbstick navigation: horizontal paginates the active grid / steps the
+        // lightbox; vertical scrolls the Home filter rail (no-op in the viewer).
+        if (activeWall) {
           const { h, v } = this.input.getLobbyAxes();
           const NAV_FIRE = 0.65;
           const NAV_REARM = 0.25;
           if (Math.abs(h) < NAV_REARM) this.lobbyHArmed = true;
           else if (Math.abs(h) > NAV_FIRE && this.lobbyHArmed) {
             this.lobbyHArmed = false;
-            this.homePanel.nudgePage(h > 0 ? 1 : -1);
+            activeWall.nudgePage(h > 0 ? 1 : -1);
           }
           if (Math.abs(v) < NAV_REARM) this.lobbyVArmed = true;
           else if (Math.abs(v) > NAV_FIRE && this.lobbyVArmed) {
             this.lobbyVArmed = false;
-            this.homePanel.nudgeRail(v > 0 ? 1 : -1);
+            activeWall.nudgeRail(v > 0 ? 1 : -1);
           }
-          // Poll for gaze-dwell launch (fires when user gazes at a card for DWELL_MS).
-          const pa = this.homePanel.takePendingAction();
-          if (pa) this.dispatchAction(pa);
         }
+        // Poll for gaze-dwell launch (Home wall only — scene/gallery cards).
+        const pa = this.homePanel?.takePendingAction();
+        if (pa) this.dispatchAction(pa);
       } else {
         const d = this.drawInput;
         d.state = state;
@@ -2245,6 +2394,7 @@ export class XRSessionManager {
     this.infoPanel?.dispose();
     this.scenesPanel?.dispose();
     this.homePanel?.dispose();
+    this.galleryViewer?.dispose();
     this.backdrop?.dispose();
 
     if (this.previewHoverTimer !== null) {

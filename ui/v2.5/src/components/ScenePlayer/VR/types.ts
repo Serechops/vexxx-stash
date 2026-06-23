@@ -93,6 +93,19 @@ export type VRControlAction =
   | { type: "setVrSetting"; key: "hoverLaunch" | "soundOnPlay"; value: boolean }
   /** Set the gaze-dwell auto-launch delay in ms (persisted React-side). */
   | { type: "setVrDwellMs"; ms: number }
+  // ── Galleries (immersive Home content mode + XR gallery viewer) ─────────
+  /** Switch the Home wall between the Scenes grid and the Galleries grid. */
+  | { type: "setContentMode"; mode: "scenes" | "galleries" }
+  /** Open the XR gallery viewer for a gallery (thumbnail grid sub-view). */
+  | { type: "openGallery"; galleryId: string; title?: string }
+  /** Close the gallery viewer and return to the Home wall. */
+  | { type: "closeGallery" }
+  /** Open a single image full-size (lightbox) from the gallery grid. */
+  | { type: "galleryImageOpen"; index: number }
+  /** Step to the previous/next image while the lightbox is open. */
+  | { type: "galleryImageNav"; dir: 1 | -1 }
+  /** Close the lightbox and return to the gallery thumbnail grid. */
+  | { type: "galleryImageClose" }
   // ── Handy interactive device ───────────────────────────────────────────
   | { type: "handyToggle" }
   | { type: "handyPatternStart"; patternId: string }
@@ -203,6 +216,82 @@ export interface IVRHomeDataSource {
   getRail(): Promise<IVRHomeRail>;
   /** Resolve the scene id that follows `currentId` in the current order, for auto-advance. */
   getNextSceneId(currentId: string): Promise<string | null>;
+}
+
+// ── Galleries: server-backed library for the Home wall + XR gallery viewer ──
+// Mirrors the scene library: galleries are paged/sorted/filtered on the server
+// (so the wall scales to any library size), and an active gallery's images are
+// paged on demand for the thumbnail grid + lightbox.
+
+/** A gallery cover tile rendered in the Home wall's Galleries grid. */
+export interface IVRGalleryEntry {
+  id: string;
+  title: string;
+  /** Cover image URL (paths.cover), or null when the gallery has no cover. */
+  coverUrl: string | null;
+  /** Number of images in the gallery (drives the count badge). */
+  imageCount: number;
+  studioName: string | null;
+  studioLogoUrl?: string | null;
+  /** Gallery rating 0–100 (rating100). */
+  rating?: number | null;
+  /** ISO date string from the gallery `date` field. */
+  date?: string | null;
+  performers: string[];
+  performerDetails?: { id: string; name: string; imageUrl: string | null }[];
+  tags?: { id: string; name: string }[];
+}
+
+/** A single image within a gallery, rendered as a thumbnail / lightbox plane. */
+export interface IVRGalleryImageEntry {
+  id: string;
+  title: string;
+  /** Small thumbnail URL (paths.thumbnail) for the grid. */
+  thumbnailUrl: string | null;
+  /** Full-size image URL (paths.image) for the lightbox. */
+  imageUrl: string | null;
+  previewUrl?: string | null;
+  width?: number | null;
+  height?: number | null;
+}
+
+/** One page of gallery tiles plus the total count for pager geometry. */
+export interface IVRGalleryPageResult {
+  gen: number;
+  pageIndex: number;
+  galleries: IVRGalleryEntry[];
+  totalCount: number;
+}
+
+/** One page of a gallery's images plus the total count for pager geometry. */
+export interface IVRGalleryImagePageResult {
+  gen: number;
+  pageIndex: number;
+  images: IVRGalleryImageEntry[];
+  totalCount: number;
+}
+
+/**
+ * Server-backed gallery library. The Galleries grid reuses the Home query's
+ * sort + studio/performer/tag filter (media toggle is irrelevant to galleries),
+ * so `setQuery` takes the same [IVRHomeQuery]. Image paging is scoped to the
+ * gallery set via [setActiveGallery] and likewise generation-guarded.
+ */
+export interface IVRGalleryDataSource {
+  /** Apply a new gallery query (sort + studio/performer/tag); bumps + returns gen. */
+  setQuery(q: IVRHomeQuery): number;
+  /** Current generation (bumped on each setQuery / setActiveGallery). */
+  readonly gen: number;
+  /** Fetch a grid page of gallery tiles under the current query. */
+  getGalleryPage(pageIndex: number): Promise<IVRGalleryPageResult>;
+  /** Total galleries matching the current query. */
+  getGalleryTotal(): Promise<number>;
+  /** Scope subsequent image paging to a gallery; bumps the image generation. */
+  setActiveGallery(galleryId: string | null): number;
+  /** Fetch a grid page of the active gallery's images. */
+  getImagePage(pageIndex: number): Promise<IVRGalleryImagePageResult>;
+  /** Total images in the active gallery. */
+  getImageTotal(): Promise<number>;
 }
 
 /** Handy device connection state, pulled each frame alongside playback. */

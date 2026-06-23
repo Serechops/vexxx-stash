@@ -17,6 +17,7 @@ import {
   VRControlAction,
   IVRHomeSettings,
   IVRFilterEntry,
+  IVRGalleryEntry,
   VRMediaFilter,
   VRSortMode,
 } from "./types";
@@ -125,6 +126,13 @@ const SETTLE_MS = 90;
 const ANIM_MS = 300;
 const COMMIT_FRACTION = 0.28;
 
+// ── Content-mode toggle (Scenes | Galleries) — header, left of the logo ───────
+const MODE_X = 230;
+const MODE_Y = 26;
+const MODE_H = 46;
+const MODE_BTN_W = 165;
+const MODE_GAP = 8;
+
 // ── Colours ───────────────────────────────────────────────────────────────────
 const ACCENT = "rgba(96,165,250,";
 const GOLD = "rgba(250,200,80,";
@@ -133,6 +141,7 @@ const ORANGE = "rgba(250,140,30,";
 type FilterTab = "studios" | "performers";
 type MediaFilter = VRMediaFilter;
 type SortMode = VRSortMode;
+type ContentMode = "scenes" | "galleries";
 
 export class VRHomePanel extends VRCanvasPanel {
   // Server-paged grid: only the current page (+ prefetched neighbours) are held
@@ -148,6 +157,17 @@ export class VRHomePanel extends VRCanvasPanel {
   private previewVideo: HTMLVideoElement | null = null;
   private filterLabel: string | null = null;
   private sortMode: SortMode = "recent";
+
+  // Content mode: the wall shows either the scene grid or the gallery grid. The
+  // page-slide state (page/offset/anim) and the rail are shared — only one grid
+  // is visible at a time, so switching modes resets the page window.
+  private contentMode: ContentMode = "scenes";
+  // Server-paged gallery grid (parallels the scene pageCache above).
+  private galleryPageCache = new Map<number, IVRGalleryEntry[]>();
+  private galleryRequestedPages = new Set<number>();
+  private galleryTotal = 0;
+  private galleryLoaded = false;
+  private galleryPageRequester: ((pageIndex: number) => void) | null = null;
 
   // Filter rail
   private studios: IVRFilterEntry[] = [];
@@ -253,9 +273,20 @@ export class VRHomePanel extends VRCanvasPanel {
 
   /** Request any of the visible pages (current ± 1) not already cached/in-flight. */
   private ensurePagesLoaded() {
-    if (!this.pageRequester) return;
     const last = this.pageCount - 1;
     const want = [this.page, this.page - 1, this.page + 1];
+    if (this.contentMode === "galleries") {
+      if (!this.galleryPageRequester) return;
+      for (const pg of want) {
+        if (pg < 0 || pg > last) continue;
+        if (this.galleryPageCache.has(pg) || this.galleryRequestedPages.has(pg))
+          continue;
+        this.galleryRequestedPages.add(pg);
+        this.galleryPageRequester(pg);
+      }
+      return;
+    }
+    if (!this.pageRequester) return;
     for (const pg of want) {
       if (pg < 0 || pg > last) continue;
       if (this.pageCache.has(pg) || this.requestedPages.has(pg)) continue;
@@ -302,7 +333,6 @@ export class VRHomePanel extends VRCanvasPanel {
 
   /** Horizontal thumbstick: page the scene grid left or right. */
   nudgePage(dir: 1 | -1) {
-    const NAV_REARM = 0.25;
     if (dir > 0) {
       if (!this.lobbyHArmed) return;
       this.lobbyHArmed = false;
@@ -394,12 +424,75 @@ export class VRHomePanel extends VRCanvasPanel {
     this.markDirty();
   }
 
+  // ── Galleries content mode ──────────────────────────────────────────────────
+
+  get contentModeValue(): ContentMode {
+    return this.contentMode;
+  }
+
+  /** Switch the wall between the Scenes grid and the Galleries grid. */
+  setContentMode(mode: ContentMode) {
+    if (mode === this.contentMode) return;
+    this.contentMode = mode;
+    // One grid is visible at a time — reset the shared page-slide window and any
+    // in-flight gaze so the new grid starts clean at page 0.
+    this.page = 0;
+    this.offset = 0;
+    this.animStart = 0;
+    this.dwellId = null;
+    this.dwellStart = 0;
+    this.markDirty();
+  }
+
+  /** Injected by the manager: request a page of galleries from the server pager. */
+  setGalleryPageRequester(cb: (pageIndex: number) => void) {
+    this.galleryPageRequester = cb;
+  }
+
+  /** Drop cached gallery pages and reset — called when the gallery query changes. */
+  resetGalleryLibrary() {
+    this.galleryPageCache.clear();
+    this.galleryRequestedPages.clear();
+    this.galleryTotal = 0;
+    this.galleryLoaded = false;
+    if (this.contentMode === "galleries") {
+      this.page = 0;
+      this.offset = 0;
+      this.animStart = 0;
+    }
+    this.markDirty();
+  }
+
+  /** Receive a fetched gallery page from the manager's pager. */
+  setGalleryPageData(
+    pageIndex: number,
+    galleries: IVRGalleryEntry[],
+    totalCount: number
+  ) {
+    this.galleryPageCache.set(pageIndex, galleries);
+    this.galleryRequestedPages.delete(pageIndex);
+    this.galleryTotal = totalCount;
+    this.galleryLoaded = true;
+    this.markDirty();
+  }
+
   private get pageCount(): number {
-    return Math.max(1, Math.ceil(this.totalCount / PER_PAGE));
+    const total =
+      this.contentMode === "galleries" ? this.galleryTotal : this.totalCount;
+    return Math.max(1, Math.ceil(total / PER_PAGE));
   }
 
   private get railItems(): IVRFilterEntry[] {
     return this.filterTab === "studios" ? this.studios : this.performers;
+  }
+
+  /** Look up a cached gallery entry by id (for the openGallery action title). */
+  private findGallery(id: string): IVRGalleryEntry | null {
+    for (const pg of this.galleryPageCache.values()) {
+      const found = pg.find((g) => g.id === id);
+      if (found) return found;
+    }
+    return null;
   }
 
   // ── Drag / tap / pagination ────────────────────────────────────────────────
@@ -543,6 +636,19 @@ export class VRHomePanel extends VRCanvasPanel {
     }
 
     if (id === "exitVR") return { type: "exit" };
+    if (id === "mode:scenes" || id === "mode:galleries") {
+      const mode: ContentMode = id === "mode:galleries" ? "galleries" : "scenes";
+      if (mode !== this.contentMode) {
+        this.setContentMode(mode);
+        return { type: "setContentMode", mode };
+      }
+      return null;
+    }
+    if (id.startsWith("gallery:")) {
+      const galleryId = id.slice("gallery:".length);
+      const g = this.findGallery(galleryId);
+      return { type: "openGallery", galleryId, title: g?.title };
+    }
     if (id.startsWith("scene:")) {
       return { type: "switchScene", sceneId: id.slice("scene:".length) };
     }
@@ -616,8 +722,11 @@ export class VRHomePanel extends VRCanvasPanel {
       this.dwellStart = 0;
       return;
     }
+    // Dwell-launch targets the active grid: scene cards launch playback, gallery
+    // cards open the XR gallery viewer.
+    const prefix = this.contentMode === "galleries" ? "gallery:" : "scene:";
     const id = this.hoveredId;
-    if (!id?.startsWith("scene:")) {
+    if (!id?.startsWith(prefix)) {
       this.dwellId = null;
       this.dwellStart = 0;
       return;
@@ -629,8 +738,14 @@ export class VRHomePanel extends VRCanvasPanel {
     const elapsed = performance.now() - this.dwellStart;
     const frac = Math.min(1, elapsed / this.dwellMs);
     if (frac >= 1 && !this.pendingAction) {
-      const sceneId = id.slice("scene:".length);
-      this.pendingAction = { type: "switchScene", sceneId };
+      if (this.contentMode === "galleries") {
+        const galleryId = id.slice("gallery:".length);
+        const g = this.findGallery(galleryId);
+        this.pendingAction = { type: "openGallery", galleryId, title: g?.title };
+      } else {
+        const sceneId = id.slice("scene:".length);
+        this.pendingAction = { type: "switchScene", sceneId };
+      }
       this.dwellId = null;
       this.dwellStart = 0;
     }
@@ -639,8 +754,9 @@ export class VRHomePanel extends VRCanvasPanel {
     }
   }
 
-  private getDwellFrac(sceneId: string): number {
-    if (this.dwellId !== `scene:${sceneId}`) return 0;
+  private getDwellFrac(id: string): number {
+    const prefix = this.contentMode === "galleries" ? "gallery:" : "scene:";
+    if (this.dwellId !== `${prefix}${id}`) return 0;
     return Math.min(1, (performance.now() - this.dwellStart) / this.dwellMs);
   }
 
@@ -651,6 +767,7 @@ export class VRHomePanel extends VRCanvasPanel {
     this.panelBackground();
     this.drawHeader();
     this.drawSettingsButton();
+    this.drawModeToggle();
     this.drawExitButton();
     this.drawDivider();
     this.drawRail();
@@ -665,18 +782,24 @@ export class VRHomePanel extends VRCanvasPanel {
     }
   }
 
-  /** Draw the scene grid (paginated cards) or an empty-state message. */
+  /** Draw the active grid (scenes or galleries) or an empty-state message. */
   private drawGrid() {
     const { ctx } = this;
+    const galleries = this.contentMode === "galleries";
+    const loaded = galleries ? this.galleryLoaded : this.loaded;
+    const total = galleries ? this.galleryTotal : this.totalCount;
     // Empty state only once we know the library is genuinely empty for this
     // filter; before the first page arrives we fall through to skeleton cards.
-    if (this.loaded && this.totalCount === 0) {
+    if (loaded && total === 0) {
       ctx.font = "500 26px sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillStyle = "rgba(255,255,255,0.35)";
+      const kind = galleries ? "galleries" : "scenes";
       ctx.fillText(
-        this.filterLabel ? "No scenes for this filter" : "No scenes found",
+        this.filterLabel
+          ? `No ${kind} for this filter`
+          : `No ${kind} found`,
         GRID_X0 + GRID_W / 2,
         (GRID_Y0 + GRID_Y1) / 2
       );
@@ -738,8 +861,15 @@ export class VRHomePanel extends VRCanvasPanel {
       ctx.fillText("Home", this.cw / 2 + 70, TITLE_Y);
     }
 
-    const count = this.totalCount;
-    const base = count === 1 ? "1 scene" : `${count} scenes`;
+    const galleries = this.contentMode === "galleries";
+    const count = galleries ? this.galleryTotal : this.totalCount;
+    const base = galleries
+      ? count === 1
+        ? "1 gallery"
+        : `${count} galleries`
+      : count === 1
+      ? "1 scene"
+      : `${count} scenes`;
     const mediaLabel =
       this.mediaFilter === "vr"
         ? "VR library"
@@ -750,6 +880,8 @@ export class VRHomePanel extends VRCanvasPanel {
         : "library";
     const sub = this.filterLabel
       ? `${this.filterLabel}  ·  ${base}`
+      : galleries
+      ? `${base} in your library`
       : `${base} in your ${mediaLabel}`;
     ctx.font = "500 19px sans-serif";
     ctx.fillStyle = this.filterLabel
@@ -771,7 +903,8 @@ export class VRHomePanel extends VRCanvasPanel {
   // ── Filter rail ─────────────────────────────────────────────────────────────
 
   private drawRail() {
-    this.drawMediaToggle();
+    // Galleries have no media type — hide the All/VR/2D/FS toggle in that mode.
+    if (this.contentMode !== "galleries") this.drawMediaToggle();
     this.drawFilterTabs();
     this.drawAllChip();
     this.drawSortChips();
@@ -912,7 +1045,7 @@ export class VRHomePanel extends VRCanvasPanel {
     ctx.textBaseline = "middle";
     ctx.fillStyle = allActive ? `${ACCENT}0.95)` : "rgba(255,255,255,0.8)";
     ctx.fillText(
-      "All scenes",
+      this.contentMode === "galleries" ? "All galleries" : "All scenes",
       RAIL_PAD + RAIL_INNER / 2,
       ALL_Y + ALL_H / 2 + 1
     );
@@ -1122,6 +1255,10 @@ export class VRHomePanel extends VRCanvasPanel {
     xShift: number,
     interactive: boolean
   ) {
+    if (this.contentMode === "galleries") {
+      this.drawGalleryPageCards(pageIndex, xShift, interactive);
+      return;
+    }
     const items = this.pageCache.get(pageIndex);
     if (!items) {
       // Page not fetched yet — draw placeholder skeletons (ensurePagesLoaded
@@ -1148,6 +1285,36 @@ export class VRHomePanel extends VRCanvasPanel {
       const x = GRID_X0 + col * (CARD_W + GAP_X) + xShift;
       const y = GRID_TOP + row * (CARD_H + GAP_Y);
       this.drawCard(items[i], x, y, interactive);
+    }
+  }
+
+  private drawGalleryPageCards(
+    pageIndex: number,
+    xShift: number,
+    interactive: boolean
+  ) {
+    const items = this.galleryPageCache.get(pageIndex);
+    if (!items) {
+      const slots = Math.min(
+        PER_PAGE,
+        Math.max(0, this.galleryTotal - pageIndex * PER_PAGE)
+      );
+      const n = this.galleryLoaded ? slots : PER_PAGE;
+      for (let i = 0; i < n; i++) {
+        const col = i % COLS;
+        const row = Math.floor(i / COLS);
+        const x = GRID_X0 + col * (CARD_W + GAP_X) + xShift;
+        const y = GRID_TOP + row * (CARD_H + GAP_Y);
+        this.drawSkeletonCard(x, y);
+      }
+      return;
+    }
+    for (let i = 0; i < items.length; i++) {
+      const col = i % COLS;
+      const row = Math.floor(i / COLS);
+      const x = GRID_X0 + col * (CARD_W + GAP_X) + xShift;
+      const y = GRID_TOP + row * (CARD_H + GAP_Y);
+      this.drawGalleryCard(items[i], x, y, interactive);
     }
   }
 
@@ -1190,6 +1357,45 @@ export class VRHomePanel extends VRCanvasPanel {
     ctx.fillStyle = open || hovered ? "#06121f" : `${ACCENT}0.95)`;
     ctx.fillText("⚙  Settings", x + w / 2, y + h / 2 + 1);
     this.regions.push({ id: "settings", x, y, w, h });
+  }
+
+  /** Scenes | Galleries segmented toggle (header, between Settings and the logo). */
+  private drawModeToggle() {
+    const { ctx } = this;
+    const options: Array<{ id: ContentMode; label: string }> = [
+      { id: "scenes", label: "Scenes" },
+      { id: "galleries", label: "Galleries" },
+    ];
+    let bx = MODE_X;
+    for (const opt of options) {
+      const active = this.contentMode === opt.id;
+      const hovered = this.hoveredId === `mode:${opt.id}`;
+      this.roundRect(bx, MODE_Y, MODE_BTN_W, MODE_H, MODE_H / 2);
+      if (active) {
+        const g = ctx.createLinearGradient(bx, MODE_Y, bx, MODE_Y + MODE_H);
+        g.addColorStop(0, "rgba(130,190,255,0.95)");
+        g.addColorStop(1, "rgba(70,130,230,0.85)");
+        ctx.fillStyle = g;
+      } else {
+        ctx.fillStyle = hovered
+          ? "rgba(255,255,255,0.16)"
+          : "rgba(255,255,255,0.07)";
+      }
+      ctx.fill();
+      ctx.font = "700 20px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = active ? "#06121f" : "rgba(255,255,255,0.88)";
+      ctx.fillText(opt.label, bx + MODE_BTN_W / 2, MODE_Y + MODE_H / 2 + 1);
+      this.regions.push({
+        id: `mode:${opt.id}`,
+        x: bx,
+        y: MODE_Y,
+        w: MODE_BTN_W,
+        h: MODE_H,
+      });
+      bx += MODE_BTN_W + MODE_GAP;
+    }
   }
 
   /**
@@ -1636,6 +1842,147 @@ export class VRHomePanel extends VRCanvasPanel {
         h: CARD_H,
       });
       if (hovered && this.previewVideo) this.markDirty();
+    }
+  }
+
+  /** A gallery cover tile in the Galleries grid (parallels drawCard for scenes). */
+  private drawGalleryCard(
+    gallery: IVRGalleryEntry,
+    x: number,
+    y: number,
+    interactive: boolean
+  ) {
+    const { ctx } = this;
+    const hovered = interactive && this.hoveredId === `gallery:${gallery.id}`;
+    const R = 14;
+
+    ctx.save();
+    this.roundRect(x, y, CARD_W, CARD_H, R);
+    ctx.clip();
+
+    // Cover thumbnail.
+    const img = this.image(gallery.coverUrl);
+    if (img) {
+      this.drawImageCover(img, x, y, CARD_W, THUMB_H, 0);
+    } else {
+      ctx.fillStyle = "rgba(255,255,255,0.06)";
+      ctx.fillRect(x, y, CARD_W, THUMB_H);
+      // Folder glyph placeholder when there's no cover.
+      ctx.font = "300 56px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "rgba(255,255,255,0.18)";
+      ctx.fillText("🖼", x + CARD_W / 2, y + THUMB_H / 2);
+    }
+
+    // Caption bar.
+    ctx.fillStyle = "rgba(12,12,17,0.94)";
+    ctx.fillRect(x, y + THUMB_H, CARD_W, CAP_H);
+    ctx.restore();
+
+    // Title + studio text.
+    const textX = x + 16;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+    ctx.font = "600 21px sans-serif";
+    ctx.fillStyle = "rgba(255,255,255,0.95)";
+    ctx.fillText(
+      this.fitText(gallery.title || `Gallery ${gallery.id}`, CARD_W - 32),
+      textX,
+      y + THUMB_H + (gallery.studioName ? 33 : 49)
+    );
+    if (gallery.studioName) {
+      ctx.font = "400 16px sans-serif";
+      ctx.fillStyle = "rgba(255,255,255,0.55)";
+      ctx.fillText(
+        this.fitText(gallery.studioName, CARD_W - 32),
+        textX,
+        y + THUMB_H + 60
+      );
+    }
+
+    // Image-count badge (top-right of the cover).
+    {
+      const label = `${gallery.imageCount} ${
+        gallery.imageCount === 1 ? "image" : "images"
+      }`;
+      ctx.font = "700 14px sans-serif";
+      const bw = ctx.measureText(label).width + 22;
+      const bh = 26;
+      const bx = x + CARD_W - bw - 10;
+      const by = y + 10;
+      this.roundRect(bx, by, bw, bh, bh / 2);
+      ctx.fillStyle = "rgba(5,10,20,0.78)";
+      ctx.fill();
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "rgba(255,255,255,0.92)";
+      ctx.fillText(label, bx + bw / 2, by + bh / 2 + 1);
+    }
+
+    // Rating pill (lower-left of the cover) when present.
+    if (gallery.rating) {
+      const label = `★ ${(gallery.rating / 20).toFixed(1)}`;
+      ctx.font = "600 13px sans-serif";
+      const pw = ctx.measureText(label).width + 14;
+      const ph = 22;
+      const px = x + 10;
+      const py = y + THUMB_H - 32;
+      this.roundRect(px, py, pw, ph, ph / 2);
+      ctx.fillStyle = "rgba(5,10,20,0.82)";
+      ctx.fill();
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = `${GOLD}0.95)`;
+      ctx.fillText(label, px + pw / 2, py + ph / 2 + 1);
+    }
+
+    // Gaze-dwell arc — opens the gallery viewer when full.
+    const dwellFrac = interactive ? this.getDwellFrac(gallery.id) : 0;
+    if (dwellFrac > 0) {
+      const arcCx = x + CARD_W / 2;
+      const arcCy = y + THUMB_H / 2;
+      const arcR = 30;
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(arcCx, arcCy, arcR + 4, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(0,0,0,0.52)";
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(
+        arcCx,
+        arcCy,
+        arcR,
+        -Math.PI / 2,
+        -Math.PI / 2 + Math.PI * 2 * dwellFrac
+      );
+      ctx.lineWidth = 5;
+      ctx.strokeStyle = `${ACCENT}0.95)`;
+      ctx.stroke();
+      ctx.font = "700 22px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "rgba(255,255,255,0.92)";
+      ctx.fillText("⊞", arcCx, arcCy + 1);
+      ctx.restore();
+    }
+
+    // Hover border.
+    if (hovered) {
+      this.roundRect(x, y, CARD_W, CARD_H, R);
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = `${ACCENT}0.75)`;
+      ctx.stroke();
+    }
+
+    if (interactive) {
+      this.regions.push({
+        id: `gallery:${gallery.id}`,
+        x,
+        y,
+        w: CARD_W,
+        h: CARD_H,
+      });
     }
   }
 

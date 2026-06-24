@@ -724,9 +724,10 @@ export class XRSessionManager {
   /** Place the Home wall / gallery viewer centred in front of the viewer. */
   private layoutHomePanel(panel: VRCanvasPanel) {
     // uiGroup is dropped PANEL_DROP below eye level for the control bar; raise the
-    // wall back up toward eye height and push it a touch further than the bar so
-    // the large surface sits comfortably in the central field of view.
-    panel.object.position.set(0, PANEL_DROP + 0.1, -0.25);
+    // wall back toward eye height (but a touch *below* it, so its top doesn't
+    // overshoot the gaze and force an upward head tilt) and push it a touch
+    // further than the bar so the large surface sits in the central field of view.
+    panel.object.position.set(0, PANEL_DROP - 0.15, -0.25);
   }
 
   /**

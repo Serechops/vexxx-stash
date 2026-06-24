@@ -94,12 +94,20 @@ export type VRControlAction =
   /** Set the gaze-dwell auto-launch delay in ms (persisted React-side). */
   | { type: "setVrDwellMs"; ms: number }
   // ── Galleries (immersive Home content mode + XR gallery viewer) ─────────
-  /** Switch the Home wall between the Scenes grid and the Galleries grid. */
-  | { type: "setContentMode"; mode: "scenes" | "galleries" }
+  /** Switch the Home wall between the Scenes, Galleries and Movies grids. */
+  | { type: "setContentMode"; mode: "scenes" | "galleries" | "movies" }
   /** Open the XR gallery viewer for a gallery (thumbnail grid sub-view). */
   | { type: "openGallery"; galleryId: string; title?: string }
   /** Close the gallery viewer and return to the Home wall. */
   | { type: "closeGallery" }
+  // ── Movies / Groups (immersive Home content mode, in-wall drill-down) ───
+  /**
+   * Drill into a movie/group: scope the group library's scene paging to this
+   * group so the Home wall's grid shows that movie's scenes (handled in-manager).
+   */
+  | { type: "openGroup"; groupId: string; title?: string }
+  /** Leave the movie scene grid and return to the movie poster grid. */
+  | { type: "closeGroup" }
   /** Open a single image full-size (lightbox) from the gallery grid. */
   | { type: "galleryImageOpen"; index: number }
   /** Step to the previous/next image while the lightbox is open. */
@@ -294,6 +302,71 @@ export interface IVRGalleryDataSource {
   getImagePage(pageIndex: number): Promise<IVRGalleryImagePageResult>;
   /** Total images in the active gallery. */
   getImageTotal(): Promise<number>;
+}
+
+// ── Movies / Groups: server-backed library for the Home wall's Movies mode ──
+// Movies mode has two layers on the single Home wall: a poster grid of groups,
+// and — once a group is drilled into — that group's scenes rendered with the
+// same scene cards as the Scenes grid. Groups are paged/sorted/filtered on the
+// server via `findGroups`; a drilled-in group's scenes are fetched in one
+// `findScenes` call (groups have few scenes) and ordered by `scene_index`, with
+// a server-order fallback for scenes that carry no index.
+
+/** A movie/group poster tile rendered in the Home wall's Movies grid. */
+export interface IVRGroupEntry {
+  id: string;
+  title: string;
+  /** Front cover / poster URL (front_image_path), or null when absent. */
+  posterUrl: string | null;
+  /** Back cover URL (back_image_path), or null when absent. */
+  backUrl: string | null;
+  /** Number of scenes in the group (drives the count badge). */
+  sceneCount: number;
+  studioName: string | null;
+  /** Group rating 0–100 (rating100). */
+  rating?: number | null;
+  /** ISO date string from the group `date` field. */
+  date?: string | null;
+}
+
+/** One page of movie poster tiles plus the total count for pager geometry. */
+export interface IVRGroupPageResult {
+  gen: number;
+  pageIndex: number;
+  groups: IVRGroupEntry[];
+  totalCount: number;
+}
+
+/** One page of an active group's scenes plus the total count for pager geometry. */
+export interface IVRGroupScenePageResult {
+  gen: number;
+  pageIndex: number;
+  scenes: IVRSceneEntry[];
+  totalCount: number;
+}
+
+/**
+ * Server-backed movie/group library. The Movies grid reuses the Home query's
+ * sort + studio/performer filter (the media toggle is irrelevant to groups), so
+ * `setQuery` takes the same [IVRHomeQuery]. Scene paging is scoped to a drilled-
+ * in group via [setActiveGroup] and ordered by `scene_index`; both layers are
+ * generation-guarded so stale results landing after a switch are dropped.
+ */
+export interface IVRGroupDataSource {
+  /** Apply a new group query (sort + studio/performer); bumps + returns gen. */
+  setQuery(q: IVRHomeQuery): number;
+  /** Current generation (bumped on each setQuery / setActiveGroup). */
+  readonly gen: number;
+  /** Fetch a grid page of movie poster tiles under the current query. */
+  getGroupPage(pageIndex: number): Promise<IVRGroupPageResult>;
+  /** Total groups matching the current query. */
+  getGroupTotal(): Promise<number>;
+  /** Scope subsequent scene paging to a group; bumps the scene generation. */
+  setActiveGroup(groupId: string | null): number;
+  /** Fetch a grid page of the active group's scenes (ordered by scene_index). */
+  getScenePage(pageIndex: number): Promise<IVRGroupScenePageResult>;
+  /** Total scenes in the active group. */
+  getSceneTotal(): Promise<number>;
 }
 
 /** Handy device connection state, pulled each frame alongside playback. */

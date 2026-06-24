@@ -30,8 +30,8 @@ import {
   IVRHomeRail,
 } from "./types";
 
-/** Grid is 4×3 — must match PER_PAGE in VRHomePanel. */
-const PER_PAGE = 12;
+/** Scene grid is 3×2 — must match the scene PER_PAGE in VRHomePanel. */
+const PER_PAGE = 6;
 /** Seconds of resume_time past which a scene counts as "in progress". */
 const CONTINUE_THRESHOLD = 30;
 /** Cap the continue-watching prefix to a single grid page so it only shifts page 0/1. */
@@ -70,6 +70,7 @@ export function mapScene(s: SlimScene): IVRSceneEntry {
     dateAdded: s.date ?? null,
     width: s.files[0]?.width ?? null,
     height: s.files[0]?.height ?? null,
+    tags: s.tags.map((t) => t.name),
   };
 }
 

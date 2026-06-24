@@ -55,6 +55,7 @@ import {
   VRStrokeStatus,
   IVRHomeDataSource,
   IVRGalleryDataSource,
+  IVRGroupDataSource,
   IVRFilterEntry,
   VRMediaFilter,
   VRSortMode,
@@ -180,6 +181,12 @@ export interface IXRSessionManagerOptions {
    * Pages galleries and (on demand) an active gallery's images server-side.
    */
   galleryData?: IVRGalleryDataSource;
+  /**
+   * Server-backed data source for the Movies content mode. Pages movie posters
+   * and (on drill-in) an active movie's scenes — ordered by scene_index —
+   * server-side, so the wall scales to libraries of any size.
+   */
+  groupData?: IVRGroupDataSource;
   /** Start the session in lobby/Home mode (no scene loaded yet). */
   lobby?: boolean;
   /** Initial immersive-Home preferences (gaze-launch / dwell / audio). */
@@ -361,6 +368,11 @@ export class XRSessionManager {
   private galleryData: IVRGalleryDataSource | null = null;
   // True while the gallery viewer is showing (Home wall hidden behind it).
   private galleryOpen = false;
+  // Server-backed Movies (groups) library. The Movies grid pages movie posters
+  // and, once a movie is drilled into in-wall, that movie's scenes — both
+  // through this source. There is no separate viewer panel: the Home wall itself
+  // swaps to the movie's scene grid.
+  private groupData: IVRGroupDataSource | null = null;
   // Cinema room shown when a flat (non-VR) scene is playing.
   private lobbyMode = false;
   // Server-backed Home library (paged). The manager owns the live query state
@@ -578,6 +590,15 @@ export class XRSessionManager {
     viewer.setRenderState(0);
     viewer.setPageRequester((pageIndex) =>
       this.fetchGalleryImagePage(pageIndex)
+    );
+
+    // Movies content mode. The Home wall pages movie posters through one
+    // requester and a drilled-in movie's scenes through the other; the query is
+    // seeded lazily when the user switches into Movies mode (see dispatchAction).
+    this.groupData = opts.groupData ?? null;
+    home.setGroupPageRequester((pageIndex) => this.fetchGroupPage(pageIndex));
+    home.setGroupScenePageRequester((pageIndex) =>
+      this.fetchGroupScenePage(pageIndex)
     );
 
     // Preview video for scenes hover — one element, reassigned on hover change.
@@ -1050,6 +1071,56 @@ export class XRSessionManager {
     this.lastActivity = performance.now();
   }
 
+  // ── Movies content mode ─────────────────────────────────────────────────────
+
+  /** Fetch a Movies poster page and push it to the Home wall (gen-guarded). */
+  private fetchGroupPage(pageIndex: number) {
+    const ds = this.groupData;
+    if (!ds) return;
+    ds.getGroupPage(pageIndex)
+      .then((res) => {
+        if (res.gen !== ds.gen) return;
+        this.homePanel?.setGroupPageData(
+          res.pageIndex,
+          res.groups,
+          res.totalCount
+        );
+      })
+      .catch(() => undefined);
+  }
+
+  /** Fetch a page of the active movie's scenes and push it to the Home wall. */
+  private fetchGroupScenePage(pageIndex: number) {
+    const ds = this.groupData;
+    if (!ds) return;
+    ds.getScenePage(pageIndex)
+      .then((res) => {
+        if (res.gen !== ds.gen) return;
+        this.homePanel?.setGroupScenePageData(
+          res.pageIndex,
+          res.scenes,
+          res.totalCount
+        );
+      })
+      .catch(() => undefined);
+  }
+
+  /**
+   * Push the current sort + studio/performer filter to the movie pager and reset
+   * the movie poster grid. Movies ignore the media toggle. The first page is
+   * pulled lazily by the wall's own page-load loop while in Movies mode.
+   */
+  private applyGroupQuery() {
+    const ds = this.groupData;
+    if (!ds) return;
+    ds.setQuery({
+      sort: this.sortMode,
+      mediaFilter: this.mediaFilter,
+      filter: this.homeFilter,
+    });
+    this.homePanel?.resetGroupLibrary();
+  }
+
   /**
    * Push the current sort + media + studio/performer query to the pager, reset
    * the wall's page window, and refresh the media-type counts. The first page
@@ -1285,6 +1356,8 @@ export class XRSessionManager {
       );
       // Galleries honour the same studio/performer/tag filter as scenes.
       this.applyGalleryQuery();
+      // Movies honour the studio/performer filter too.
+      this.applyGroupQuery();
       // Drill-down from an info-panel chip happens during playback: surface the
       // now-filtered Home wall so the user actually sees the result. The rail's
       // own filter taps come from lobby mode, where this is a no-op.
@@ -1301,17 +1374,19 @@ export class XRSessionManager {
     }
     if (action.type === "setHomeSort") {
       this.sortMode = action.sort;
-      // The panel already reset its page window; re-query both grids under the
-      // new sort (galleries share the sort mode).
+      // The panel already reset its page window; re-query all grids under the
+      // new sort (galleries + movies share the sort mode).
       this.applyHomeQuery();
       this.applyGalleryQuery();
+      this.applyGroupQuery();
       this.lastActivity = performance.now();
       return;
     }
     if (action.type === "setContentMode") {
-      // The Home panel already flipped its own mode; seed the gallery query so
-      // its grid pages start loading when switching into Galleries mode.
+      // The Home panel already flipped its own mode; seed the relevant query so
+      // its grid pages start loading when switching into Galleries / Movies.
       if (action.mode === "galleries") this.applyGalleryQuery();
+      if (action.mode === "movies") this.applyGroupQuery();
       this.lastActivity = performance.now();
       return;
     }
@@ -1321,6 +1396,18 @@ export class XRSessionManager {
     }
     if (action.type === "closeGallery") {
       this.closeGallery();
+      return;
+    }
+    if (action.type === "openGroup") {
+      // The Home wall already drilled into the movie's scene grid; scope the
+      // group library's scene paging so those pages resolve to this movie.
+      this.groupData?.setActiveGroup(action.groupId);
+      this.lastActivity = performance.now();
+      return;
+    }
+    if (action.type === "closeGroup") {
+      this.groupData?.setActiveGroup(null);
+      this.lastActivity = performance.now();
       return;
     }
     if (

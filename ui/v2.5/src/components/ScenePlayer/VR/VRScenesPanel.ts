@@ -44,6 +44,8 @@ export interface IVRSceneEntry {
   width?: number | null;
   /** Video height in pixels. */
   height?: number | null;
+  /** Scene tag names (tags[].name) — rendered as a chip row on the Home card. */
+  tags?: string[];
 }
 
 // Same dimensions as the Info panel for symmetry; the height matches the main

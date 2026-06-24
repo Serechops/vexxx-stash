@@ -30,6 +30,7 @@ import { IVRSceneInfo } from "./VRInfoPanels";
 import { useVRPlayback } from "./useVRPlayback";
 import { VRHomeLibrary } from "./vrHomeLibrary";
 import { VRGalleryLibrary } from "./vrGalleryLibrary";
+import { VRGroupLibrary } from "./vrGroupLibrary";
 import {
   InteractiveContext,
   ConnectionState,
@@ -163,6 +164,10 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
   // Server-backed Galleries library — pages galleries + an active gallery's
   // images on the server, powering the Galleries content mode + XR gallery viewer.
   const galleryLibraryRef = useRef<VRGalleryLibrary>(new VRGalleryLibrary());
+  // Server-backed Movies library — pages movie posters + an active movie's
+  // scenes (ordered by scene_index) on the server, powering the Movies content
+  // mode and its in-wall scene drill-down.
+  const groupLibraryRef = useRef<VRGroupLibrary>(new VRGroupLibrary());
   const history = useHistory();
   const interactiveCtx = useContext(InteractiveContext);
   const handyRef = useRef<IInteractiveClient>(interactiveCtx.interactive);
@@ -803,6 +808,7 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
       getFunscriptLoaded: () => getFunscriptLoaded(),
       homeData: homeLibraryRef.current,
       galleryData: galleryLibraryRef.current,
+      groupData: groupLibraryRef.current,
       lobby: startedInLobbyRef.current,
       homeSettings: settingsRef.current,
       getThumbnail: (time) => thumbnailsRef.current?.getAt(time) ?? null,

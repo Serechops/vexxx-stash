@@ -18,6 +18,7 @@ import {
   IVRHomeSettings,
   IVRFilterEntry,
   IVRGalleryEntry,
+  IVRGroupEntry,
   VRMediaFilter,
   VRSortMode,
 } from "./types";
@@ -90,15 +91,17 @@ const PERF_ROW_H = PERF_TILE_H + TILE_GAP_Y; // 394
 const GRID_X0 = RAIL_W + 28;
 const GRID_RIGHT = CANVAS_W - PAD;
 const GRID_W = GRID_RIGHT - GRID_X0; // 1592
-const COLS = 4;
-const ROWS = 3;
-const PER_PAGE = COLS * ROWS;
+// Scene cards: 3 × 2 = 6 per page. Fewer, larger cards than the old 4×3 — wider
+// 16:9 thumbnails plus a taller caption that fits title + studio + a tag row.
+const COLS = 3;
+const ROWS = 2;
+const PER_PAGE = COLS * ROWS; // 6 — scene grid (Scenes mode + movie detail)
 const GAP_X = 24;
 const GAP_Y = 20;
-const CARD_W = Math.floor((GRID_W - GAP_X * (COLS - 1)) / COLS); // 380
-const THUMB_H = Math.round((CARD_W * 9) / 16); // 214
-const CAP_H = 78;
-const CARD_H = THUMB_H + CAP_H; // 292
+const CARD_W = Math.floor((GRID_W - GAP_X * (COLS - 1)) / COLS); // ≈514
+const THUMB_H = Math.round((CARD_W * 9) / 16); // ≈289
+const CAP_H = 104; // title + studio + tag-chip row
+const CARD_H = THUMB_H + CAP_H; // ≈393
 const GRID_Y0 = CONTENT_Y0;
 const GRID_Y1 = CANVAS_H - 90; // 1210
 const GRID_BLOCK_H = ROWS * CARD_H + (ROWS - 1) * GAP_Y; // 916
@@ -111,8 +114,29 @@ const PAGER_H = 44;
 // fixed caption bar). Separate from the scene fixed grid constants above.
 const GAL_TARGET_H = 210;   // target cover height before justification
 const GAL_GAP = 16;          // horizontal + vertical gap between cards
-const GAL_CAP_H = 78;       // caption bar height (matches CAP_H for consistency)
+const GAL_CAP_H = 78;       // caption bar height
 const GAL_DEF_ASPECT = 16 / 9;
+// Galleries page independently of the (smaller) scene grid — must match
+// GALLERY_PER_PAGE in vrGalleryLibrary.
+const GALLERY_PER_PAGE = 12;
+
+// Movie (group) poster grid — portrait 2:3 posters, 6 cols × 2 rows = 12/page
+// (matches GROUP_PER_PAGE in vrGroupLibrary). Shares the right-hand grid region
+// with the scene grid; a drilled-in movie swaps back to the scene-card grid.
+const POSTER_COLS = 6;
+const POSTER_GAP_X = 20;
+const POSTER_GAP_Y = 24;
+const POSTER_CAP_H = 58;
+const POSTER_CARD_W = Math.floor(
+  (GRID_W - POSTER_GAP_X * (POSTER_COLS - 1)) / POSTER_COLS
+); // ≈248
+const POSTER_IMG_H = Math.round((POSTER_CARD_W * 3) / 2); // 2:3 portrait poster
+const POSTER_CARD_H = POSTER_IMG_H + POSTER_CAP_H;
+const POSTER_ROWS = 2;
+const POSTER_BLOCK_H =
+  POSTER_ROWS * POSTER_CARD_H + (POSTER_ROWS - 1) * POSTER_GAP_Y;
+const POSTER_TOP =
+  GRID_Y0 + Math.max(0, (GRID_Y1 - GRID_Y0 - POSTER_BLOCK_H) / 2);
 
 // ── Interaction thresholds ────────────────────────────────────────────────────
 // Default gaze-dwell delay before auto-launch. User-overridable via the settings
@@ -149,7 +173,7 @@ const ORANGE = "rgba(250,140,30,";
 type FilterTab = "studios" | "performers";
 type MediaFilter = VRMediaFilter;
 type SortMode = VRSortMode;
-type ContentMode = "scenes" | "galleries";
+type ContentMode = "scenes" | "galleries" | "movies";
 
 export class VRHomePanel extends VRCanvasPanel {
   // Server-paged grid: only the current page (+ prefetched neighbours) are held
@@ -176,6 +200,25 @@ export class VRHomePanel extends VRCanvasPanel {
   private galleryTotal = 0;
   private galleryLoaded = false;
   private galleryPageRequester: ((pageIndex: number) => void) | null = null;
+
+  // Movies (groups) mode. Two layers on the same wall: a poster grid of groups,
+  // and — once a movie is drilled into via `activeGroupId` — that group's scenes
+  // rendered with the *same* scene cards as the Scenes grid. Both are server-
+  // paged; the scene layer parallels the scene `pageCache`/`totalCount` above.
+  private groupPageCache = new Map<number, IVRGroupEntry[]>();
+  private groupRequestedPages = new Set<number>();
+  private groupTotal = 0;
+  private groupLoaded = false;
+  private groupPageRequester: ((pageIndex: number) => void) | null = null;
+  private activeGroupId: string | null = null;
+  private activeGroupTitle: string | null = null;
+  private activeGroupPosterUrl: string | null = null;
+  private activeGroupBackUrl: string | null = null;
+  private groupScenePageCache = new Map<number, IVRSceneEntry[]>();
+  private groupSceneRequestedPages = new Set<number>();
+  private groupSceneTotal = 0;
+  private groupSceneLoaded = false;
+  private groupScenePageRequester: ((pageIndex: number) => void) | null = null;
 
   // Filter rail
   private studios: IVRFilterEntry[] = [];
@@ -269,8 +312,19 @@ export class VRHomePanel extends VRCanvasPanel {
     this.markDirty();
   }
 
-  /** Flattened view of all cached pages — for the manager's hover-preview lookup. */
+  /**
+   * Flattened view of all cached scene pages — for the manager's hover-preview
+   * lookup. Source-aware: while a movie is drilled into, the hovered cards come
+   * from the group's scene cache, so the manager must search *that* set or the
+   * preview src lookup misses every card (only ones that happened to also sit in
+   * the Home cache would play).
+   */
   allLoadedScenes(): IVRSceneEntry[] {
+    if (this.inGroupDetail) {
+      const flat: IVRSceneEntry[] = [];
+      for (const pg of this.groupScenePageCache.values()) flat.push(...pg);
+      return flat;
+    }
     return this.loadedFlat;
   }
 
@@ -283,23 +337,35 @@ export class VRHomePanel extends VRCanvasPanel {
   private ensurePagesLoaded() {
     const last = this.pageCount - 1;
     const want = [this.page, this.page - 1, this.page + 1];
-    if (this.contentMode === "galleries") {
-      if (!this.galleryPageRequester) return;
+    const pump = (
+      requester: ((pageIndex: number) => void) | null,
+      cache: Map<number, unknown>,
+      inflight: Set<number>
+    ) => {
+      if (!requester) return;
       for (const pg of want) {
         if (pg < 0 || pg > last) continue;
-        if (this.galleryPageCache.has(pg) || this.galleryRequestedPages.has(pg))
-          continue;
-        this.galleryRequestedPages.add(pg);
-        this.galleryPageRequester(pg);
+        if (cache.has(pg) || inflight.has(pg)) continue;
+        inflight.add(pg);
+        requester(pg);
       }
-      return;
-    }
-    if (!this.pageRequester) return;
-    for (const pg of want) {
-      if (pg < 0 || pg > last) continue;
-      if (this.pageCache.has(pg) || this.requestedPages.has(pg)) continue;
-      this.requestedPages.add(pg);
-      this.pageRequester(pg);
+    };
+    if (this.isGalleryGrid) {
+      pump(
+        this.galleryPageRequester,
+        this.galleryPageCache,
+        this.galleryRequestedPages
+      );
+    } else if (this.isGroupGrid) {
+      pump(this.groupPageRequester, this.groupPageCache, this.groupRequestedPages);
+    } else if (this.inGroupDetail) {
+      pump(
+        this.groupScenePageRequester,
+        this.groupScenePageCache,
+        this.groupSceneRequestedPages
+      );
+    } else {
+      pump(this.pageRequester, this.pageCache, this.requestedPages);
     }
   }
 
@@ -381,7 +447,7 @@ export class VRHomePanel extends VRCanvasPanel {
     const id = this.hoveredId;
     if (!id?.startsWith("scene:")) return null;
     const sceneId = id.slice("scene:".length);
-    for (const pg of this.pageCache.values()) {
+    for (const pg of this.sceneCache.values()) {
       const found = pg.find((s) => s.id === sceneId);
       if (found) return found.previewUrl ?? null;
     }
@@ -438,10 +504,15 @@ export class VRHomePanel extends VRCanvasPanel {
     return this.contentMode;
   }
 
-  /** Switch the wall between the Scenes grid and the Galleries grid. */
+  /** Switch the wall between the Scenes, Galleries and Movies grids. */
   setContentMode(mode: ContentMode) {
     if (mode === this.contentMode) return;
     this.contentMode = mode;
+    // Leaving Movies (or re-entering it) always returns to the poster grid.
+    this.activeGroupId = null;
+    this.activeGroupTitle = null;
+    this.activeGroupPosterUrl = null;
+    this.activeGroupBackUrl = null;
     // One grid is visible at a time — reset the shared page-slide window and any
     // in-flight gaze so the new grid starts clean at page 0.
     this.page = 0;
@@ -484,10 +555,22 @@ export class VRHomePanel extends VRCanvasPanel {
     this.markDirty();
   }
 
+  // Per-mode page size. The scene grid is small (6); galleries and the movie
+  // poster grid keep their own (larger) page sizes, so paging math must pick the
+  // right divisor for whichever grid is on screen.
+  private get perPage(): number {
+    if (this.isGalleryGrid) return GALLERY_PER_PAGE;
+    if (this.isGroupGrid) return POSTER_COLS * POSTER_ROWS;
+    return PER_PAGE;
+  }
+
   private get pageCount(): number {
-    const total =
-      this.contentMode === "galleries" ? this.galleryTotal : this.totalCount;
-    return Math.max(1, Math.ceil(total / PER_PAGE));
+    const total = this.isGalleryGrid
+      ? this.galleryTotal
+      : this.isGroupGrid
+      ? this.groupTotal
+      : this.sceneTotal;
+    return Math.max(1, Math.ceil(total / this.perPage));
   }
 
   private get railItems(): IVRFilterEntry[] {
@@ -501,6 +584,136 @@ export class VRHomePanel extends VRCanvasPanel {
       if (found) return found;
     }
     return null;
+  }
+
+  // ── Movies (groups) content mode ────────────────────────────────────────────
+
+  /** True while a movie is drilled into (its scene grid is showing). */
+  private get inGroupDetail(): boolean {
+    return this.contentMode === "movies" && this.activeGroupId !== null;
+  }
+
+  /** The right-hand grid is showing scene cards (Scenes mode, or movie detail). */
+  private get isSceneGrid(): boolean {
+    return this.contentMode === "scenes" || this.inGroupDetail;
+  }
+
+  /** The right-hand grid is showing the gallery cover grid. */
+  private get isGalleryGrid(): boolean {
+    return this.contentMode === "galleries";
+  }
+
+  /** The right-hand grid is showing the movie poster grid (no movie drilled in). */
+  private get isGroupGrid(): boolean {
+    return this.contentMode === "movies" && this.activeGroupId === null;
+  }
+
+  // The scene-card grid is fed from either the Home library (Scenes mode) or the
+  // active movie's scenes (movie detail) — these pick the right backing store so
+  // drawPageCards / pageCount / hover-preview stay source-agnostic.
+  private get sceneCache(): Map<number, IVRSceneEntry[]> {
+    return this.inGroupDetail ? this.groupScenePageCache : this.pageCache;
+  }
+  private get sceneTotal(): number {
+    return this.inGroupDetail ? this.groupSceneTotal : this.totalCount;
+  }
+  private get sceneLoaded(): boolean {
+    return this.inGroupDetail ? this.groupSceneLoaded : this.loaded;
+  }
+
+  /** Injected by the manager: request a page of movie posters from the pager. */
+  setGroupPageRequester(cb: (pageIndex: number) => void) {
+    this.groupPageRequester = cb;
+  }
+
+  /** Injected by the manager: request a page of the active movie's scenes. */
+  setGroupScenePageRequester(cb: (pageIndex: number) => void) {
+    this.groupScenePageRequester = cb;
+  }
+
+  /** Drop cached movie poster pages and reset — called when the movie query changes. */
+  resetGroupLibrary() {
+    this.groupPageCache.clear();
+    this.groupRequestedPages.clear();
+    this.groupTotal = 0;
+    this.groupLoaded = false;
+    if (this.isGroupGrid) {
+      this.page = 0;
+      this.offset = 0;
+      this.animStart = 0;
+    }
+    this.markDirty();
+  }
+
+  /** Receive a fetched movie poster page from the manager's pager. */
+  setGroupPageData(
+    pageIndex: number,
+    groups: IVRGroupEntry[],
+    totalCount: number
+  ) {
+    this.groupPageCache.set(pageIndex, groups);
+    this.groupRequestedPages.delete(pageIndex);
+    this.groupTotal = totalCount;
+    this.groupLoaded = true;
+    this.markDirty();
+  }
+
+  /** Receive a fetched page of the active movie's scenes from the manager's pager. */
+  setGroupScenePageData(
+    pageIndex: number,
+    scenes: IVRSceneEntry[],
+    totalCount: number
+  ) {
+    this.groupScenePageCache.set(pageIndex, scenes);
+    this.groupSceneRequestedPages.delete(pageIndex);
+    this.groupSceneTotal = totalCount;
+    this.groupSceneLoaded = true;
+    this.markDirty();
+  }
+
+  /** Look up a cached movie entry by id (for the openGroup action / detail title). */
+  private findGroup(id: string): IVRGroupEntry | null {
+    for (const pg of this.groupPageCache.values()) {
+      const found = pg.find((g) => g.id === id);
+      if (found) return found;
+    }
+    return null;
+  }
+
+  /** Drill into a movie: swap the grid to that movie's scenes (page 0). */
+  private enterGroup(groupId: string, group: IVRGroupEntry | null) {
+    this.activeGroupId = groupId;
+    this.activeGroupTitle = group?.title ?? null;
+    this.activeGroupPosterUrl = group?.posterUrl ?? null;
+    this.activeGroupBackUrl = group?.backUrl ?? null;
+    this.groupScenePageCache.clear();
+    this.groupSceneRequestedPages.clear();
+    this.groupSceneTotal = 0;
+    this.groupSceneLoaded = false;
+    this.page = 0;
+    this.offset = 0;
+    this.animStart = 0;
+    this.dwellId = null;
+    this.dwellStart = 0;
+    this.markDirty();
+  }
+
+  /** Leave the movie scene grid and return to the movie poster grid. */
+  private exitGroup() {
+    this.activeGroupId = null;
+    this.activeGroupTitle = null;
+    this.activeGroupPosterUrl = null;
+    this.activeGroupBackUrl = null;
+    this.groupScenePageCache.clear();
+    this.groupSceneRequestedPages.clear();
+    this.groupSceneTotal = 0;
+    this.groupSceneLoaded = false;
+    this.page = 0;
+    this.offset = 0;
+    this.animStart = 0;
+    this.dwellId = null;
+    this.dwellStart = 0;
+    this.markDirty();
   }
 
   // ── Drag / tap / pagination ────────────────────────────────────────────────
@@ -644,8 +857,8 @@ export class VRHomePanel extends VRCanvasPanel {
     }
 
     if (id === "exitVR") return { type: "exit" };
-    if (id === "mode:scenes" || id === "mode:galleries") {
-      const mode: ContentMode = id === "mode:galleries" ? "galleries" : "scenes";
+    if (id.startsWith("mode:")) {
+      const mode = id.slice("mode:".length) as ContentMode;
       if (mode !== this.contentMode) {
         this.setContentMode(mode);
         return { type: "setContentMode", mode };
@@ -656,6 +869,17 @@ export class VRHomePanel extends VRCanvasPanel {
       const galleryId = id.slice("gallery:".length);
       const g = this.findGallery(galleryId);
       return { type: "openGallery", galleryId, title: g?.title };
+    }
+    if (id.startsWith("group:")) {
+      const groupId = id.slice("group:".length);
+      const g = this.findGroup(groupId);
+      // Drill into the movie's scene grid; the manager scopes the group library.
+      this.enterGroup(groupId, g);
+      return { type: "openGroup", groupId, title: g?.title };
+    }
+    if (id === "groupBack") {
+      this.exitGroup();
+      return { type: "closeGroup" };
     }
     if (id.startsWith("scene:")) {
       return { type: "switchScene", sceneId: id.slice("scene:".length) };
@@ -731,8 +955,8 @@ export class VRHomePanel extends VRCanvasPanel {
       return;
     }
     // Dwell-launch targets the active grid: scene cards launch playback, gallery
-    // cards open the XR gallery viewer.
-    const prefix = this.contentMode === "galleries" ? "gallery:" : "scene:";
+    // cards open the XR gallery viewer, movie posters drill into the movie.
+    const prefix = this.dwellPrefix;
     const id = this.hoveredId;
     if (!id?.startsWith(prefix)) {
       this.dwellId = null;
@@ -746,10 +970,17 @@ export class VRHomePanel extends VRCanvasPanel {
     const elapsed = performance.now() - this.dwellStart;
     const frac = Math.min(1, elapsed / this.dwellMs);
     if (frac >= 1 && !this.pendingAction) {
-      if (this.contentMode === "galleries") {
+      if (this.isGalleryGrid) {
         const galleryId = id.slice("gallery:".length);
         const g = this.findGallery(galleryId);
         this.pendingAction = { type: "openGallery", galleryId, title: g?.title };
+      } else if (this.isGroupGrid) {
+        const groupId = id.slice("group:".length);
+        const g = this.findGroup(groupId);
+        // Drill in locally so the wall shows the movie's scenes; the manager
+        // scopes the group library's scene paging off the same action.
+        this.enterGroup(groupId, g);
+        this.pendingAction = { type: "openGroup", groupId, title: g?.title };
       } else {
         const sceneId = id.slice("scene:".length);
         this.pendingAction = { type: "switchScene", sceneId };
@@ -762,9 +993,15 @@ export class VRHomePanel extends VRCanvasPanel {
     }
   }
 
+  /** Region-id prefix the active grid's gaze-dwell targets. */
+  private get dwellPrefix(): string {
+    if (this.isGalleryGrid) return "gallery:";
+    if (this.isGroupGrid) return "group:";
+    return "scene:";
+  }
+
   private getDwellFrac(id: string): number {
-    const prefix = this.contentMode === "galleries" ? "gallery:" : "scene:";
-    if (this.dwellId !== `${prefix}${id}`) return 0;
+    if (this.dwellId !== `${this.dwellPrefix}${id}`) return 0;
     return Math.min(1, (performance.now() - this.dwellStart) / this.dwellMs);
   }
 
@@ -793,9 +1030,16 @@ export class VRHomePanel extends VRCanvasPanel {
   /** Draw the active grid (scenes or galleries) or an empty-state message. */
   private drawGrid() {
     const { ctx } = this;
-    const galleries = this.contentMode === "galleries";
-    const loaded = galleries ? this.galleryLoaded : this.loaded;
-    const total = galleries ? this.galleryTotal : this.totalCount;
+    const loaded = this.isGalleryGrid
+      ? this.galleryLoaded
+      : this.isGroupGrid
+      ? this.groupLoaded
+      : this.sceneLoaded;
+    const total = this.isGalleryGrid
+      ? this.galleryTotal
+      : this.isGroupGrid
+      ? this.groupTotal
+      : this.sceneTotal;
     // Empty state only once we know the library is genuinely empty for this
     // filter; before the first page arrives we fall through to skeleton cards.
     if (loaded && total === 0) {
@@ -803,7 +1047,13 @@ export class VRHomePanel extends VRCanvasPanel {
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillStyle = "rgba(255,255,255,0.35)";
-      const kind = galleries ? "galleries" : "scenes";
+      const kind = this.isGalleryGrid
+        ? "galleries"
+        : this.isGroupGrid
+        ? "movies"
+        : this.inGroupDetail
+        ? "scenes in this movie"
+        : "scenes";
       ctx.fillText(
         this.filterLabel
           ? `No ${kind} for this filter`
@@ -869,28 +1119,38 @@ export class VRHomePanel extends VRCanvasPanel {
       ctx.fillText("Home", this.cw / 2 + 70, TITLE_Y);
     }
 
-    const galleries = this.contentMode === "galleries";
-    const count = galleries ? this.galleryTotal : this.totalCount;
-    const base = galleries
-      ? count === 1
-        ? "1 gallery"
-        : `${count} galleries`
-      : count === 1
-      ? "1 scene"
-      : `${count} scenes`;
-    const mediaLabel =
-      this.mediaFilter === "vr"
-        ? "VR library"
-        : this.mediaFilter === "flat"
-        ? "2D library"
-        : this.mediaFilter === "funscript"
-        ? "interactive library"
-        : "library";
-    const sub = this.filterLabel
-      ? `${this.filterLabel}  ·  ${base}`
-      : galleries
-      ? `${base} in your library`
-      : `${base} in your ${mediaLabel}`;
+    const plural = (n: number, one: string, many: string) =>
+      n === 1 ? `1 ${one}` : `${n} ${many}`;
+    let sub: string;
+    if (this.isGalleryGrid) {
+      const base = plural(this.galleryTotal, "gallery", "galleries");
+      sub = this.filterLabel
+        ? `${this.filterLabel}  ·  ${base}`
+        : `${base} in your library`;
+    } else if (this.isGroupGrid) {
+      const base = plural(this.groupTotal, "movie", "movies");
+      sub = this.filterLabel
+        ? `${this.filterLabel}  ·  ${base}`
+        : `${base} in your library`;
+    } else if (this.inGroupDetail) {
+      const base = plural(this.groupSceneTotal, "scene", "scenes");
+      sub = this.activeGroupTitle
+        ? `${this.activeGroupTitle}  ·  ${base}`
+        : `${base} in this movie`;
+    } else {
+      const base = plural(this.totalCount, "scene", "scenes");
+      const mediaLabel =
+        this.mediaFilter === "vr"
+          ? "VR library"
+          : this.mediaFilter === "flat"
+          ? "2D library"
+          : this.mediaFilter === "funscript"
+          ? "interactive library"
+          : "library";
+      sub = this.filterLabel
+        ? `${this.filterLabel}  ·  ${base}`
+        : `${base} in your ${mediaLabel}`;
+    }
     ctx.font = "500 19px sans-serif";
     ctx.fillStyle = this.filterLabel
       ? `${ACCENT}0.85)`
@@ -911,8 +1171,16 @@ export class VRHomePanel extends VRCanvasPanel {
   // ── Filter rail ─────────────────────────────────────────────────────────────
 
   private drawRail() {
-    // Galleries have no media type — hide the All/VR/2D/FS toggle in that mode.
-    if (this.contentMode !== "galleries") this.drawMediaToggle();
+    // Drilled into a movie: the rail is replaced by a Back control + the movie
+    // title; the studio/performer/sort filters don't apply to a single movie's
+    // (scene_index-ordered) scenes.
+    if (this.inGroupDetail) {
+      this.drawGroupDetailRail();
+      return;
+    }
+    // Only scenes carry a media type — hide the All/VR/2D/FS toggle for
+    // galleries and movies.
+    if (this.contentMode === "scenes") this.drawMediaToggle();
     this.drawFilterTabs();
     this.drawAllChip();
     this.drawSortChips();
@@ -925,6 +1193,95 @@ export class VRHomePanel extends VRCanvasPanel {
     this.drawRailGrid();
     ctx.restore();
     this.drawRailScrollbar();
+  }
+
+  /** Rail content while a movie is drilled in: a Back button + the movie title. */
+  private drawGroupDetailRail() {
+    const { ctx } = this;
+    const x = RAIL_PAD;
+    const w = RAIL_INNER;
+    const h = 50;
+    const y = CONTENT_Y0;
+    const hovered = this.hoveredId === "groupBack";
+    this.roundRect(x, y, w, h, 12);
+    ctx.fillStyle = hovered ? `${ACCENT}0.92)` : `${ACCENT}0.18)`;
+    ctx.fill();
+    this.roundRect(x, y, w, h, 12);
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = hovered ? `${ACCENT}0.7)` : `${ACCENT}0.5)`;
+    ctx.stroke();
+    ctx.font = "600 20px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = hovered ? "#06121f" : `${ACCENT}0.95)`;
+    ctx.fillText("‹  All movies", x + w / 2, y + h / 2 + 1);
+    this.regions.push({ id: "groupBack", x, y, w, h });
+
+    // Movie title beneath the Back control.
+    let cursorY = y + h + 12;
+    if (this.activeGroupTitle) {
+      ctx.font = "700 24px sans-serif";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "alphabetic";
+      ctx.fillStyle = "rgba(255,255,255,0.95)";
+      ctx.fillText(this.fitText(this.activeGroupTitle, w), x, cursorY + 24);
+      cursorY += 40;
+    }
+
+    // Front + back covers. Shown side-by-side when both exist (each portrait),
+    // otherwise a single centred front cover. drawImageContain preserves the
+    // real cover aspect inside the box, so non-2:3 art isn't distorted.
+    const front = this.activeGroupPosterUrl;
+    const back = this.activeGroupBackUrl;
+    const labelY = cursorY + 22;
+    const coverY = labelY + 10;
+    const drawCover = (
+      label: string,
+      url: string | null,
+      cx: number,
+      cw: number,
+      chh: number
+    ) => {
+      ctx.font = "600 14px sans-serif";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "alphabetic";
+      ctx.fillStyle = "rgba(255,255,255,0.5)";
+      ctx.fillText(label, cx + 2, labelY);
+      const img = this.image(url);
+      if (img) {
+        this.drawImageContain(
+          img,
+          cx,
+          coverY,
+          cw,
+          chh,
+          10,
+          "rgba(255,255,255,0.04)"
+        );
+      } else {
+        this.roundRect(cx, coverY, cw, chh, 10);
+        ctx.fillStyle = "rgba(255,255,255,0.05)";
+        ctx.fill();
+        ctx.font = "300 44px sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillStyle = "rgba(255,255,255,0.16)";
+        ctx.fillText("🎬", cx + cw / 2, coverY + chh / 2);
+      }
+    };
+
+    if (front && back) {
+      const gap = 16;
+      const cw = Math.floor((w - gap) / 2);
+      const chh = Math.round(cw * 1.5); // 2:3 portrait box
+      drawCover("Front", front, x, cw, chh);
+      drawCover("Back", back, x + cw + gap, cw, chh);
+    } else {
+      const cw = Math.min(w, 300);
+      const chh = Math.round(cw * 1.5);
+      const cx = x + (w - cw) / 2;
+      drawCover("Cover", front, cx, cw, chh);
+    }
   }
 
   /** 3-button media-type row: [All N] [VR N] [2D N] */
@@ -1263,21 +1620,25 @@ export class VRHomePanel extends VRCanvasPanel {
     xShift: number,
     interactive: boolean
   ) {
-    if (this.contentMode === "galleries") {
+    if (this.isGalleryGrid) {
       this.drawGalleryPageCards(pageIndex, xShift, interactive);
       return;
     }
-    const items = this.pageCache.get(pageIndex);
+    if (this.isGroupGrid) {
+      this.drawGroupPageCards(pageIndex, xShift, interactive);
+      return;
+    }
+    const items = this.sceneCache.get(pageIndex);
     if (!items) {
       // Page not fetched yet — draw placeholder skeletons (ensurePagesLoaded
       // has already queued the request). How many slots this page holds is
       // known from the total count.
       const slots = Math.min(
         PER_PAGE,
-        Math.max(0, this.totalCount - pageIndex * PER_PAGE)
+        Math.max(0, this.sceneTotal - pageIndex * PER_PAGE)
       );
       // Before the total is known, fill a full page of skeletons.
-      const n = this.loaded ? slots : PER_PAGE;
+      const n = this.sceneLoaded ? slots : PER_PAGE;
       for (let i = 0; i < n; i++) {
         const col = i % COLS;
         const row = Math.floor(i / COLS);
@@ -1303,10 +1664,14 @@ export class VRHomePanel extends VRCanvasPanel {
   ) {
     const items = this.galleryPageCache.get(pageIndex);
     const slots = Math.min(
-      PER_PAGE,
-      Math.max(0, this.galleryTotal - pageIndex * PER_PAGE)
+      GALLERY_PER_PAGE,
+      Math.max(0, this.galleryTotal - pageIndex * GALLERY_PER_PAGE)
     );
-    const n = items ? items.length : this.galleryLoaded ? slots : PER_PAGE;
+    const n = items
+      ? items.length
+      : this.galleryLoaded
+      ? slots
+      : GALLERY_PER_PAGE;
 
     // Gather entries with aspect ratios for row-packing.
     const entries: Array<{
@@ -1363,6 +1728,30 @@ export class VRHomePanel extends VRCanvasPanel {
     }
   }
 
+  /** Movie poster grid — fixed 6×2 portrait posters (parallels the scene grid). */
+  private drawGroupPageCards(
+    pageIndex: number,
+    xShift: number,
+    interactive: boolean
+  ) {
+    const items = this.groupPageCache.get(pageIndex);
+    const posterPerPage = POSTER_COLS * POSTER_ROWS;
+    const slots = Math.min(
+      posterPerPage,
+      Math.max(0, this.groupTotal - pageIndex * posterPerPage)
+    );
+    const n = items ? items.length : this.groupLoaded ? slots : posterPerPage;
+    for (let i = 0; i < n; i++) {
+      const col = i % POSTER_COLS;
+      const row = Math.floor(i / POSTER_COLS);
+      const x = GRID_X0 + col * (POSTER_CARD_W + POSTER_GAP_X) + xShift;
+      const y = POSTER_TOP + row * (POSTER_CARD_H + POSTER_GAP_Y);
+      const entry = items?.[i];
+      if (entry) this.drawGroupCard(entry, x, y, interactive);
+      else this.drawSkeletonCard(x, y, POSTER_CARD_W, POSTER_IMG_H);
+    }
+  }
+
   /** Placeholder card shown while a page is still loading from the server. */
   private drawSkeletonCard(x: number, y: number, w?: number, coverH?: number) {
     const { ctx } = this;
@@ -1412,6 +1801,7 @@ export class VRHomePanel extends VRCanvasPanel {
     const options: Array<{ id: ContentMode; label: string }> = [
       { id: "scenes", label: "Scenes" },
       { id: "galleries", label: "Galleries" },
+      { id: "movies", label: "Movies" },
     ];
     let bx = MODE_X;
     for (const opt of options) {
@@ -1748,23 +2138,43 @@ export class VRHomePanel extends VRCanvasPanel {
 
     // Title + studio text
     const textX = x + 16;
+    const textW = CARD_W - 32;
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
-    ctx.font = "600 21px sans-serif";
+    ctx.font = "600 22px sans-serif";
     ctx.fillStyle = "rgba(255,255,255,0.95)";
     ctx.fillText(
-      this.fitText(scene.title || `Scene ${scene.id}`, CARD_W - 32),
+      this.fitText(scene.title || `Scene ${scene.id}`, textW),
       textX,
-      y + THUMB_H + (scene.studioName ? 33 : 49)
+      y + THUMB_H + 32
     );
     if (scene.studioName) {
       ctx.font = "400 16px sans-serif";
       ctx.fillStyle = "rgba(255,255,255,0.55)";
-      ctx.fillText(
-        this.fitText(scene.studioName, CARD_W - 32),
-        textX,
-        y + THUMB_H + 60
-      );
+      ctx.fillText(this.fitText(scene.studioName, textW), textX, y + THUMB_H + 56);
+    }
+
+    // Tag-chip row — as many tags as fit on one line, in the lower caption band.
+    // Gives an at-a-glance read of a scene's tags (shared by Scenes + movie
+    // detail since both render through drawCard).
+    if (scene.tags && scene.tags.length > 0) {
+      const chipH = 22;
+      const chipY = y + THUMB_H + (scene.studioName ? 70 : 56);
+      const maxX = x + CARD_W - 14;
+      let chipX = textX;
+      for (const tag of scene.tags) {
+        ctx.font = "500 14px sans-serif";
+        const cw = ctx.measureText(tag).width + 18;
+        if (chipX + cw > maxX) break;
+        this.roundRect(chipX, chipY, cw, chipH, chipH / 2);
+        ctx.fillStyle = `${ACCENT}0.16)`;
+        ctx.fill();
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+        ctx.fillStyle = "rgba(190,215,255,0.92)";
+        ctx.fillText(tag, chipX + 9, chipY + chipH / 2 + 1);
+        chipX += cw + 6;
+      }
     }
 
     // "Now Playing" badge
@@ -2033,6 +2443,139 @@ export class VRHomePanel extends VRCanvasPanel {
         w,
         h: cardH,
       });
+    }
+  }
+
+  /** Movie poster card — portrait front image + title + scene-count badge. */
+  private drawGroupCard(
+    group: IVRGroupEntry,
+    x: number,
+    y: number,
+    interactive: boolean
+  ) {
+    const { ctx } = this;
+    const w = POSTER_CARD_W;
+    const imgH = POSTER_IMG_H;
+    const cardH = POSTER_CARD_H;
+    const hovered = interactive && this.hoveredId === `group:${group.id}`;
+    const R = 14;
+
+    ctx.save();
+    this.roundRect(x, y, w, cardH, R);
+    ctx.clip();
+
+    // Poster (front_image_path).
+    const img = this.image(group.posterUrl);
+    if (img) {
+      this.drawImageCover(img, x, y, w, imgH, 0);
+    } else {
+      ctx.fillStyle = "rgba(255,255,255,0.06)";
+      ctx.fillRect(x, y, w, imgH);
+      ctx.font = "300 56px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "rgba(255,255,255,0.18)";
+      ctx.fillText("🎬", x + w / 2, y + imgH / 2);
+    }
+
+    // Caption bar.
+    ctx.fillStyle = "rgba(12,12,17,0.94)";
+    ctx.fillRect(x, y + imgH, w, POSTER_CAP_H);
+    ctx.restore();
+
+    // Title + studio text.
+    const textX = x + 14;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+    ctx.font = "600 19px sans-serif";
+    ctx.fillStyle = "rgba(255,255,255,0.95)";
+    ctx.fillText(
+      this.fitText(group.title, w - 28),
+      textX,
+      y + imgH + (group.studioName ? 26 : 36)
+    );
+    if (group.studioName) {
+      ctx.font = "400 15px sans-serif";
+      ctx.fillStyle = "rgba(255,255,255,0.55)";
+      ctx.fillText(this.fitText(group.studioName, w - 28), textX, y + imgH + 48);
+    }
+
+    // Scene-count badge (top-right of the poster).
+    {
+      const label = `${group.sceneCount} ${
+        group.sceneCount === 1 ? "scene" : "scenes"
+      }`;
+      ctx.font = "700 14px sans-serif";
+      const bw = ctx.measureText(label).width + 22;
+      const bh = 26;
+      const bx = x + w - bw - 10;
+      const by = y + 10;
+      this.roundRect(bx, by, bw, bh, bh / 2);
+      ctx.fillStyle = "rgba(5,10,20,0.78)";
+      ctx.fill();
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "rgba(255,255,255,0.92)";
+      ctx.fillText(label, bx + bw / 2, by + bh / 2 + 1);
+    }
+
+    // Rating pill (lower-left of the poster) when present.
+    if (group.rating) {
+      const label = `★ ${(group.rating / 20).toFixed(1)}`;
+      ctx.font = "600 13px sans-serif";
+      const pw = ctx.measureText(label).width + 14;
+      const ph = 22;
+      const px = x + 10;
+      const py = y + imgH - 32;
+      this.roundRect(px, py, pw, ph, ph / 2);
+      ctx.fillStyle = "rgba(5,10,20,0.82)";
+      ctx.fill();
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = `${GOLD}0.95)`;
+      ctx.fillText(label, px + pw / 2, py + ph / 2 + 1);
+    }
+
+    // Gaze-dwell arc — drills into the movie's scenes when full.
+    const dwellFrac = interactive ? this.getDwellFrac(group.id) : 0;
+    if (dwellFrac > 0) {
+      const arcCx = x + w / 2;
+      const arcCy = y + imgH / 2;
+      const arcR = 30;
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(arcCx, arcCy, arcR + 4, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(0,0,0,0.52)";
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(
+        arcCx,
+        arcCy,
+        arcR,
+        -Math.PI / 2,
+        -Math.PI / 2 + Math.PI * 2 * dwellFrac
+      );
+      ctx.lineWidth = 5;
+      ctx.strokeStyle = `${ACCENT}0.95)`;
+      ctx.stroke();
+      ctx.font = "700 22px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "rgba(255,255,255,0.92)";
+      ctx.fillText("▸", arcCx + 1, arcCy + 1);
+      ctx.restore();
+    }
+
+    // Hover border.
+    if (hovered) {
+      this.roundRect(x, y, w, cardH, R);
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = `${ACCENT}0.75)`;
+      ctx.stroke();
+    }
+
+    if (interactive) {
+      this.regions.push({ id: `group:${group.id}`, x, y, w, h: cardH });
     }
   }
 

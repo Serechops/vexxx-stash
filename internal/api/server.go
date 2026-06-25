@@ -35,6 +35,7 @@ import (
 	apiDebug "github.com/stashapp/stash/internal/api/debug"
 	"github.com/stashapp/stash/internal/api/loaders"
 	"github.com/stashapp/stash/internal/build"
+	"github.com/stashapp/stash/internal/faptap"
 	"github.com/stashapp/stash/internal/manager"
 	"github.com/stashapp/stash/internal/manager/config"
 	"github.com/stashapp/stash/pkg/fsutil"
@@ -261,6 +262,7 @@ func Initialize() (*Server, error) {
 	r.Mount("/group", server.getGroupRoutes())
 	r.Mount("/tag", server.getTagRoutes())
 	r.Mount("/downloads", server.getDownloadsRoutes())
+	r.Mount("/faptap", server.getFaptapRoutes())
 	r.Mount("/plugin", server.getPluginRoutes())
 	r.Mount("/scheduled-tasks", server.getScheduledTaskRoutes())
 	r.Mount("/proxy", server.getProxyRoutes())
@@ -716,6 +718,36 @@ func (s *Server) getTagRoutes() chi.Router {
 
 func (s *Server) getDownloadsRoutes() chi.Router {
 	return downloadsRoutes{}.Routes()
+}
+
+// getFaptapRoutes serves the optional FapTap sidecar catalog (premium VR addon).
+// The reader is lazy and re-checks the database file on each call, so the addon
+// locks/unlocks live as the file is added or removed — no restart required.
+func (s *Server) getFaptapRoutes() chi.Router {
+	// Resolve the FapTap data dir lazily so a path change (plugin setting, or
+	// dropping in the plugin folder + Reload Plugins) takes effect on the next
+	// request with no restart. Resolution order:
+	//  1. explicit dataPath / faptap_path setting;
+	//  2. the FapTap plugin's own folder (the db + funscripts/ ship inside it —
+	//     a self-contained drop-in);
+	//  3. <plugins>/faptap-vr, then <config>/faptap as last-resort fallbacks.
+	dir := func() string {
+		cfg := config.GetInstance()
+		if v := cfg.GetFaptapPath(); v != "" {
+			return v
+		}
+		if p := s.manager.PluginCache.GetPlugin("faptap"); p != nil && p.ConfigPath != "" {
+			return filepath.Dir(p.ConfigPath)
+		}
+		if pp := cfg.GetPluginsPath(); pp != "" {
+			return filepath.Join(pp, "faptap-vr")
+		}
+		return filepath.Join(cfg.GetConfigPath(), "faptap")
+	}
+	return faptapRoutes{
+		db:  faptap.New(dir),
+		dir: dir,
+	}.Routes()
 }
 
 func (s *Server) getPluginRoutes() chi.Router {

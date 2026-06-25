@@ -44,6 +44,7 @@ import {
 import { VRScenesPanel, IVRSceneEntry } from "./VRScenesPanel";
 import { VRCarouselLibrary } from "./VRCarouselLibrary";
 import { VRHomePanel } from "./VRHomePanel";
+import { fetchFaptapStatus } from "./faptapLibrary";
 import { VRGalleryViewerPanel } from "./VRGalleryViewerPanel";
 import { VRLobbyBackdrop } from "./VRLobbyBackdrop";
 import {
@@ -187,6 +188,12 @@ export interface IXRSessionManagerOptions {
    * server-side, so the wall scales to libraries of any size.
    */
   groupData?: IVRGroupDataSource;
+  /**
+   * Server-backed data source for the premium FapTap content mode. Same
+   * IVRHomeDataSource contract as [homeData] but backed by the FapTap sidecar
+   * catalog; only present (and only unlocks the tab) when its database exists.
+   */
+  faptapData?: IVRHomeDataSource;
   /** Start the session in lobby/Home mode (no scene loaded yet). */
   lobby?: boolean;
   /** Initial immersive-Home preferences (gaze-launch / dwell / audio). */
@@ -373,6 +380,11 @@ export class XRSessionManager {
   // through this source. There is no separate viewer panel: the Home wall itself
   // swaps to the movie's scene grid.
   private groupData: IVRGroupDataSource | null = null;
+  // Server-backed FapTap library (premium add-on). Swapped in for `homeData`
+  // behind the scene grid while the FapTap content mode is active.
+  private faptapData: IVRHomeDataSource | null = null;
+  // True while the FapTap content mode is showing (its source feeds the grid).
+  private faptapMode = false;
   // Cinema room shown when a flat (non-VR) scene is playing.
   private lobbyMode = false;
   // Server-backed Home library (paged). The manager owns the live query state
@@ -575,6 +587,15 @@ export class XRSessionManager {
     if (this.homeData) {
       this.applyHomeQuery();
       this.loadHomeRail();
+    }
+
+    // Premium FapTap content mode. Probe the sidecar status once; the tab stays
+    // locked until/unless its database is present.
+    this.faptapData = opts.faptapData ?? null;
+    if (this.faptapData) {
+      fetchFaptapStatus()
+        .then((s) => this.homePanel?.setFaptapAvailable(s.available))
+        .catch(() => undefined);
     }
 
     // Galleries content mode + XR gallery viewer. The Home wall pages galleries
@@ -986,7 +1007,7 @@ export class XRSessionManager {
 
   /** Fetch a Home grid page from the pager and push it to the wall (gen-guarded). */
   private fetchHomePage(pageIndex: number) {
-    const ds = this.homeData;
+    const ds = this.sceneData;
     if (!ds) return;
     ds.getPage(pageIndex)
       .then((res) => {
@@ -1127,8 +1148,18 @@ export class XRSessionManager {
    * the wall's page window, and refresh the media-type counts. The first page
    * (and neighbours) are pulled lazily by the panel's own page-load loop.
    */
+  /**
+   * The data source currently feeding the scene grid: the FapTap library while
+   * its content mode is active, otherwise the Stash Home library. Both satisfy
+   * IVRHomeDataSource, so every scene-grid orchestration method (page / counts /
+   * rail / next) routes through this transparently.
+   */
+  private get sceneData(): IVRHomeDataSource | null {
+    return this.faptapMode ? this.faptapData : this.homeData;
+  }
+
   private applyHomeQuery() {
-    const ds = this.homeData;
+    const ds = this.sceneData;
     if (!ds) return;
     ds.setQuery({
       sort: this.sortMode,
@@ -1141,7 +1172,7 @@ export class XRSessionManager {
 
   /** Refresh the rail media-type counts under the active studio/performer filter. */
   private refreshHomeCounts() {
-    const ds = this.homeData;
+    const ds = this.sceneData;
     if (!ds) return;
     const { gen } = ds;
     ds.getCounts()
@@ -1154,7 +1185,7 @@ export class XRSessionManager {
 
   /** Fetch the top studios + performers for the filter rail (once per session). */
   private loadHomeRail() {
-    const ds = this.homeData;
+    const ds = this.sceneData;
     if (!ds) return;
     ds.getRail()
       .then((rail) => {
@@ -1210,8 +1241,9 @@ export class XRSessionManager {
    * filtered + sorted home list — used by ImmersiveVRPlayer for auto-advance.
    */
   getNextSceneId(currentId: string): Promise<string | null> {
-    if (!currentId || !this.homeData) return Promise.resolve(null);
-    return this.homeData.getNextSceneId(currentId);
+    const ds = this.sceneData;
+    if (!currentId || !ds) return Promise.resolve(null);
+    return ds.getNextSceneId(currentId);
   }
 
   /** Re-orient the video so the current gaze direction becomes its centre. */
@@ -1385,9 +1417,24 @@ export class XRSessionManager {
     }
     if (action.type === "setContentMode") {
       // The Home panel already flipped its own mode; seed the relevant query so
-      // its grid pages start loading when switching into Galleries / Movies.
+      // its grid pages start loading when switching modes.
+      this.faptapMode = action.mode === "faptap";
       if (action.mode === "galleries") this.applyGalleryQuery();
-      if (action.mode === "movies") this.applyGroupQuery();
+      else if (action.mode === "movies") this.applyGroupQuery();
+      else {
+        // Scenes and FapTap share the scene grid but draw from different
+        // sources; reset + re-seed from the now-active source (this.sceneData)
+        // and refresh the rail to match (Tags/Creators vs Studios/Performers).
+        this.applyHomeQuery();
+        this.loadHomeRail();
+      }
+      this.lastActivity = performance.now();
+      return;
+    }
+    if (action.type === "switchScene" && this.faptapMode) {
+      // FapTap rows aren't Stash scenes — route the launch to the FapTap player
+      // path, which synthesizes a playable scene from the sidecar catalog.
+      this.opts.onAction({ type: "switchFapScene", videoId: action.sceneId });
       this.lastActivity = performance.now();
       return;
     }
@@ -1737,6 +1784,14 @@ export class XRSessionManager {
         this.domeMeshes.push(this.makeFisheyeMesh("left", 0));
       }
     } else if (p.fov === "flat") {
+      // Snap the flat screen to the viewer's current gaze direction at switch
+      // time. this.videoYaw is stale (captured at the last recenter press, not
+      // at this scene switch). Reading the live XR camera pose here puts the
+      // screen directly in front of wherever the viewer is looking when they
+      // tap the card. Falls back to videoYaw if the XR pose isn't ready yet.
+      const xrCam = this.renderer.xr.getCamera();
+      this.tmpEuler.setFromQuaternion(xrCam.quaternion, "YXZ");
+      this.videoGroup.rotation.y = this.tmpEuler.y;
       this.domeMeshes.push(this.makeFlatScreen(p.zoom));
     } else if (isStereo(p) && !this.debug.has("mono")) {
       this.domeMeshes.push(this.makeDomeMesh(uvTransformForEye(p, "left"), 1));
@@ -1902,7 +1957,7 @@ export class XRSessionManager {
       ? new THREE.MeshBasicMaterial({ color: 0x224466 })
       : new THREE.MeshBasicMaterial({ map: this.videoTexture });
     const mesh = new THREE.Mesh(geometry, material);
-    mesh.position.set(0, 1.4, -3.2);
+    mesh.position.set(0, 1.55, -3.2);
     mesh.layers.set(0);
     mesh.frustumCulled = false;
     return mesh;

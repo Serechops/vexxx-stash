@@ -16,7 +16,6 @@ export interface FunscriptAction {
 
 const SVG_WIDTH = 1200;
 const SVG_HEIGHT = 24;
-const MAX_POINTS = 600;
 
 /**
  * Returns a CSS `url(...)` value for use as a background-image, or an empty
@@ -33,26 +32,35 @@ export function generateFunscriptWaveform(
   const duration = sorted[sorted.length - 1].at;
   if (duration <= 0) return "";
 
-  // Downsample to keep the SVG size reasonable
-  const step = Math.max(1, Math.floor(sorted.length / MAX_POINTS));
-  const sampled: FunscriptAction[] = [];
-  for (let i = 0; i < sorted.length; i += step) sampled.push(sorted[i]);
-  const last = sorted[sorted.length - 1];
-  if (sampled[sampled.length - 1] !== last) sampled.push(last);
+  // Time-domain interpolation: sample the funscript at `width` evenly-spaced
+  // time points and linearly interpolate between adjacent actions. This produces
+  // the smooth oscillating trace (the waveform "wave" appearance) while being
+  // immune to the index-aliasing bug of the old step-2 downsampler. The old
+  // approach sampled every Nth *action* by index; with alternating 0/80 patterns
+  // and step=2, every sample landed on the pos=0 phase → flat dead zones despite
+  // real activity. Sampling by time with interpolation always reflects the actual
+  // position at that moment in the timeline.
+  const N = width;
+  const samples = new Float32Array(N);
+  let ai = 0;
+  for (let i = 0; i < N; i++) {
+    const t = (i / N) * duration;
+    while (ai < sorted.length - 2 && sorted[ai + 1].at <= t) ai++;
+    const a0 = sorted[ai];
+    const a1 = sorted[Math.min(ai + 1, sorted.length - 1)];
+    const frac =
+      a1.at > a0.at ? Math.min(1, (t - a0.at) / (a1.at - a0.at)) : 0;
+    samples[i] = a0.pos + frac * (a1.pos - a0.pos);
+  }
 
-  // Map to SVG coordinates: pos=100 → y=0 (top), pos=0 → y=height (bottom)
-  const pts = sampled.map((a) => ({
-    x: (a.at / duration) * width,
-    y: height - (a.pos / 100) * height,
-  }));
+  // Trace polygon along interpolated positions, closed at the bottom.
+  const pts: string[] = [`0,${height}`];
+  for (let i = 0; i < N; i++) {
+    pts.push(`${i},${(height - (samples[i] / 100) * height).toFixed(1)}`);
+  }
+  pts.push(`${width},${height}`);
 
-  // Polygon: bottom-left anchor → waveform trace → bottom-right anchor.
-  // The polygon auto-closes back to (0,height), forming the solid waveform silhouette.
-  const polyPoints = [
-    `0,${height}`,
-    ...pts.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`),
-    `${width},${height}`,
-  ].join(" ");
+  const polyPoints = pts.join(" ");
 
   const clipId = "wfclip";
   const svg = [

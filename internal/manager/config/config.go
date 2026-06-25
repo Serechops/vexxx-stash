@@ -35,6 +35,7 @@ const (
 	Cache               = "cache"
 	BackupDirectoryPath = "backup_directory_path"
 	Generated           = "generated"
+	FaptapPath          = "faptap_path"
 	Metadata            = "metadata"
 	BlobsPath           = "blobs_path"
 	Downloads           = "downloads"
@@ -732,6 +733,21 @@ func (i *Config) GetGeneratedPath() string {
 
 func (i *Config) GetBlobsPath() string {
 	return i.getString(BlobsPath)
+}
+
+// GetFaptapPath returns an EXPLICITLY-configured FapTap data folder, or "" when
+// none is set. When empty, the caller defaults to the FapTap plugin's own folder
+// (the database + funscripts/ ship inside the plugin so it's a self-contained
+// drop-in). Resolution of the explicit value:
+//  1. the "dataPath" setting of the "faptap" plugin (set from Settings → Plugins);
+//  2. the `faptap_path` config override.
+func (i *Config) GetFaptapPath() string {
+	if pc := i.GetPluginConfiguration("faptap"); pc != nil {
+		if v, ok := pc["dataPath"].(string); ok && v != "" {
+			return v
+		}
+	}
+	return i.getString(FaptapPath)
 }
 
 // GetExtraBlobsPaths returns extra blobs paths.

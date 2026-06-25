@@ -29,6 +29,8 @@ import { VRThumbnails } from "./vttThumbnails";
 import { IVRSceneInfo } from "./VRInfoPanels";
 import { useVRPlayback } from "./useVRPlayback";
 import { VRHomeLibrary } from "./vrHomeLibrary";
+import { FapTapHomeLibrary, buildFapSceneFragment } from "./faptapLibrary";
+import { getPlatformURL } from "src/core/createClient";
 import { VRGalleryLibrary } from "./vrGalleryLibrary";
 import { VRGroupLibrary } from "./vrGroupLibrary";
 import {
@@ -168,6 +170,9 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
   // scenes (ordered by scene_index) on the server, powering the Movies content
   // mode and its in-wall scene drill-down.
   const groupLibraryRef = useRef<VRGroupLibrary>(new VRGroupLibrary());
+  // Premium FapTap library — pages the sidecar catalog server-side and powers
+  // the locked FapTap content mode. Inert unless the sidecar database exists.
+  const faptapLibraryRef = useRef<FapTapHomeLibrary>(new FapTapHomeLibrary());
   const history = useHistory();
   const interactiveCtx = useContext(InteractiveContext);
   const handyRef = useRef<IInteractiveClient>(interactiveCtx.interactive);
@@ -413,97 +418,134 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
   // performs the full drain+metadata-wait cycle. Prevents stale onMeta
   // callbacks from racing handleSwitchScene.
   const drainStaleSrcCounter = useRef(0);
-  const handleSwitchScene = useCallback((sceneId: string) => {
-    const gen = ++switchSceneGen.current;
-    getClient()
-      .query<GQL.FindSceneQuery>({
-        query: GQL.FindSceneDocument,
-        variables: { id: sceneId },
-      })
-      .then((result) => {
-        if (gen !== switchSceneGen.current) return;
-        const next = result.data?.findScene;
-        if (!next) return;
+  // Apply an already-resolved scene fragment to the live session: drain + swap
+  // the video source, update the info/projection, and re-key live state. Shared
+  // by the Stash scene-switch path and the FapTap path so both keep the exact
+  // same Quest-compositor-safe drain ordering. `gen` is the caller's switch
+  // generation; stale applications (gen mismatch) are dropped.
+  const applyScene = useCallback(
+    (next: GQL.SceneDataFragment, gen: number, logId: string) => {
+      const v = videoRef.current;
+      if (v) {
+        // Detach the compositor from the <video> BEFORE draining it. A live
+        // WebXR media layer samples this element directly; draining its source
+        // out from under a bound layer hard-crashes the Quest compositor (see
+        // XRSessionManager.prepareSourceSwap). The new stream rebuilds a fresh
+        // layer via onVideoReady once its metadata loads.
+        managerRef.current?.prepareSourceSwap();
+        // Full video drain: pause, reset time to 0, clear src, then load.
+        // This prevents the browser from retaining the old video's position
+        // and seeking the new source to an out-of-range timestamp.
+        v.pause();
+        v.currentTime = 0;
+        v.removeAttribute("src");
+        v.load();
 
-        const v = videoRef.current;
-        if (v) {
-          // Detach the compositor from the <video> BEFORE draining it. A live
-          // WebXR media layer samples this element directly; draining its source
-          // out from under a bound layer hard-crashes the Quest compositor (see
-          // XRSessionManager.prepareSourceSwap). The new stream rebuilds a fresh
-          // layer via onVideoReady once its metadata loads.
-          managerRef.current?.prepareSourceSwap();
-          // Full video drain: pause, reset time to 0, clear src, then load.
-          // This prevents the browser from retaining the old video's position
-          // and seeking the new source to an out-of-range timestamp.
-          v.pause();
-          v.currentTime = 0;
-          v.removeAttribute("src");
+        const nextSrc = next.paths.stream ?? next.sceneStreams[0]?.url;
+        if (nextSrc) {
+          loadedSrcRef.current = nextSrc;
+          sourceIdx.current = 0;
+          v.muted = !settingsRef.current.soundOnPlay;
+
+          // Set the new source AFTER the old one is fully drained. Wait for
+          // metadata before attempting play.
+          const onMeta = () => {
+            v.removeEventListener("loadedmetadata", onMeta);
+            if (gen !== switchSceneGen.current) return;
+            v.currentTime = 0;
+            v.play().catch(() => undefined);
+          };
+          v.addEventListener("loadedmetadata", onMeta);
+          v.src = nextSrc;
+          vrLog.note("switchscene", { src: nextSrc, id: logId, gen });
           v.load();
-
-          const nextSrc = next.paths.stream ?? next.sceneStreams[0]?.url;
-          if (nextSrc) {
-            loadedSrcRef.current = nextSrc;
-            sourceIdx.current = 0;
-            v.muted = !settingsRef.current.soundOnPlay;
-
-            // Set the new source AFTER the old one is fully drained. Wait for
-            // metadata before attempting play.
-            const onMeta = () => {
-              v.removeEventListener("loadedmetadata", onMeta);
-              if (gen !== switchSceneGen.current) return;
-              v.currentTime = 0;
-              v.play().catch(() => undefined);
-            };
-            v.addEventListener("loadedmetadata", onMeta);
-            v.src = nextSrc;
-            vrLog.note("switchscene", { src: nextSrc, id: sceneId, gen });
-            v.load();
-          }
         }
+      }
 
-        const nextInfo: IVRSceneInfo = {
-          title: next.title ?? "",
-          performers: next.performers.map((p) => ({
-            id: p.id,
-            name: p.name,
-            imageUrl: p.image_path ?? null,
-          })),
-          tags: next.tags.map((t) => ({ id: t.id, name: t.name })),
-          markers: [...next.scene_markers]
-            .sort((a, b) => a.seconds - b.seconds)
-            .map((m) => ({ title: markerTitle(m), seconds: m.seconds })),
-        };
-        if (gen !== switchSceneGen.current) return;
-        managerRef.current?.updateSceneInfo(nextInfo);
-        managerRef.current?.updateCurrentSceneId(next.id);
-        // Close the Browse panels so the user lands back in the immersive view.
-        managerRef.current?.closeBrowse();
+      const nextInfo: IVRSceneInfo = {
+        title: next.title ?? "",
+        performers: next.performers.map((p) => ({
+          id: p.id,
+          name: p.name,
+          imageUrl: p.image_path ?? null,
+        })),
+        tags: next.tags.map((t) => ({ id: t.id, name: t.name })),
+        markers: [...next.scene_markers]
+          .sort((a, b) => a.seconds - b.seconds)
+          .map((m) => ({ title: markerTitle(m), seconds: m.seconds })),
+      };
+      if (gen !== switchSceneGen.current) return;
+      managerRef.current?.updateSceneInfo(nextInfo);
+      managerRef.current?.updateCurrentSceneId(next.id);
+      // Close the Browse panels so the user lands back in the immersive view.
+      managerRef.current?.closeBrowse();
 
-        // Switch projection to match the new scene's media type.
-        if (next.vr_mode) {
-          setProjection(projectionForVrMode(next.vr_mode));
-        } else {
-          setProjection({
-            fov: "flat",
-            stereo: "off",
-            swapEyes: false,
-            zoom: 1.2,
-          });
-        }
+      // Switch projection to match the new scene's media type.
+      if (next.vr_mode) {
+        setProjection(projectionForVrMode(next.vr_mode));
+      } else {
+        setProjection({
+          fov: "flat",
+          stereo: "off",
+          swapEyes: false,
+          zoom: 1.2,
+        });
+      }
 
-        // The carousel re-pages itself server-side around the new now-playing
-        // scene — updateCurrentSceneId(next.id) above already triggered that, so
-        // no client-side list rebuild is needed here.
-        // Leave the Home/lobby wall now that a scene is loaded.
-        managerRef.current?.setLobbyMode(false);
+      // The carousel re-pages itself server-side around the new now-playing
+      // scene — updateCurrentSceneId(next.id) above already triggered that, so
+      // no client-side list rebuild is needed here.
+      // Leave the Home/lobby wall now that a scene is loaded.
+      managerRef.current?.setLobbyMode(false);
 
-        if (gen !== switchSceneGen.current) return;
-        // Update live scene state — this re-keys sources/markers/info memos.
-        setLiveScene(next as GQL.SceneDataFragment);
-      })
-      .catch(() => undefined);
-  }, []);
+      if (gen !== switchSceneGen.current) return;
+      // Update live scene state — this re-keys sources/markers/info memos.
+      setLiveScene(next);
+    },
+    []
+  );
+
+  const handleSwitchScene = useCallback(
+    (sceneId: string) => {
+      const gen = ++switchSceneGen.current;
+      getClient()
+        .query<GQL.FindSceneQuery>({
+          query: GQL.FindSceneDocument,
+          variables: { id: sceneId },
+        })
+        .then((result) => {
+          if (gen !== switchSceneGen.current) return;
+          const next = result.data?.findScene;
+          if (!next) return;
+          applyScene(next as GQL.SceneDataFragment, gen, sceneId);
+        })
+        .catch(() => undefined);
+    },
+    [applyScene]
+  );
+
+  // Launch a FapTap (sidecar-catalog) video: resolve its best CDN source, then
+  // synthesize a playable scene fragment and run it through the shared path.
+  const handleSwitchFapScene = useCallback(
+    (videoId: string) => {
+      const gen = ++switchSceneGen.current;
+      const detailURL = getPlatformURL(`faptap/videos/${videoId}`).toString();
+      const sourcesURL = getPlatformURL(
+        `faptap/videos/${videoId}/sources`
+      ).toString();
+      Promise.all([
+        fetch(detailURL, { credentials: "include" }).then((r) => r.json()),
+        fetch(sourcesURL, { credentials: "include" }).then((r) => r.json()),
+      ])
+        .then(([detail, sources]) => {
+          if (gen !== switchSceneGen.current) return;
+          if (!detail || !sources?.stream) return;
+          applyScene(buildFapSceneFragment(detail, sources), gen, `faptap:${videoId}`);
+        })
+        .catch(() => undefined);
+    },
+    [applyScene]
+  );
 
   // Return to the immersive Home wall: pause + unload the video and re-enter
   // lobby mode. The XR session, dome, and controllers all stay alive.
@@ -596,6 +638,9 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
         case "switchScene":
           handleSwitchScene(a.sceneId);
           break;
+        case "switchFapScene":
+          handleSwitchFapScene(a.videoId);
+          break;
         case "navigateToScene":
           handleNavigateToScene(a.sceneId);
           break;
@@ -669,6 +714,7 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
       onPrevious,
       handleNavigateToScene,
       handleSwitchScene,
+      handleSwitchFapScene,
       handleGoHome,
     ]
   );
@@ -809,6 +855,7 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
       homeData: homeLibraryRef.current,
       galleryData: galleryLibraryRef.current,
       groupData: groupLibraryRef.current,
+      faptapData: faptapLibraryRef.current,
       lobby: startedInLobbyRef.current,
       homeSettings: settingsRef.current,
       getThumbnail: (time) => thumbnailsRef.current?.getAt(time) ?? null,

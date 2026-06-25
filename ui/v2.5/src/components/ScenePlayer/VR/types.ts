@@ -71,6 +71,12 @@ export type VRControlAction =
   | { type: "navigateToScene"; sceneId: string }
   /** Switch to a different scene while staying in the active XR session. */
   | { type: "switchScene"; sceneId: string }
+  /**
+   * Launch a FapTap (sidecar-catalog) video while staying in the active XR
+   * session. Carries the bare FapTap video id; the player resolves the CDN
+   * source + funscript and synthesizes a scene fragment to play it.
+   */
+  | { type: "switchFapScene"; videoId: string }
   /** Return to the immersive Home/lobby wall (pause playback, show the gallery). */
   | { type: "goHome" }
   /**
@@ -85,8 +91,8 @@ export type VRControlAction =
       id?: string;
       label?: string;
     }
-  /** Switch the Home wall's media-type filter (all / VR / 2D / funscript). */
-  | { type: "setMediaFilter"; filter: "all" | "vr" | "flat" | "funscript" }
+  /** Switch the Home wall's media-type filter. "favorites" is FapTap-only. */
+  | { type: "setMediaFilter"; filter: VRMediaFilter }
   /** Change the Home grid sort order (handled in-manager → re-queries the pager). */
   | { type: "setHomeSort"; sort: "recent" | "rating" | "title" }
   /** Toggle an immersive Home preference (persisted React-side). */
@@ -95,7 +101,10 @@ export type VRControlAction =
   | { type: "setVrDwellMs"; ms: number }
   // ── Galleries (immersive Home content mode + XR gallery viewer) ─────────
   /** Switch the Home wall between the Scenes, Galleries and Movies grids. */
-  | { type: "setContentMode"; mode: "scenes" | "galleries" | "movies" }
+  | {
+      type: "setContentMode";
+      mode: "scenes" | "galleries" | "movies" | "faptap";
+    }
   /** Open the XR gallery viewer for a gallery (thumbnail grid sub-view). */
   | { type: "openGallery"; galleryId: string; title?: string }
   /** Close the gallery viewer and return to the Home wall. */
@@ -162,8 +171,8 @@ export const DEFAULT_VR_HOME_SETTINGS: IVRHomeSettings = {
 // contract between the React-side pager ([VRHomeLibrary]) and the session
 // manager, which orchestrates page/rail/count requests for [VRHomePanel].
 
-/** Home media-type toggle. */
-export type VRMediaFilter = "all" | "vr" | "flat" | "funscript";
+/** Home media-type toggle. "favorites" is FapTap-mode-only (localStorage-backed). */
+export type VRMediaFilter = "all" | "vr" | "flat" | "funscript" | "favorites";
 /** Home grid sort order. */
 export type VRSortMode = "recent" | "rating" | "title";
 

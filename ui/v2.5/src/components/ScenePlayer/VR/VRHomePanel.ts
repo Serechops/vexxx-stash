@@ -24,6 +24,7 @@ import {
 } from "./types";
 import { VRCanvasPanel, IPanelRegion } from "./VRInfoPanels";
 import { IVRSceneEntry } from "./VRScenesPanel";
+import { faptapFavorites } from "./faptapLibrary";
 
 export type { IVRFilterEntry };
 
@@ -173,7 +174,7 @@ const ORANGE = "rgba(250,140,30,";
 type FilterTab = "studios" | "performers";
 type MediaFilter = VRMediaFilter;
 type SortMode = VRSortMode;
-type ContentMode = "scenes" | "galleries" | "movies";
+type ContentMode = "scenes" | "galleries" | "movies" | "faptap";
 
 export class VRHomePanel extends VRCanvasPanel {
   // Server-paged grid: only the current page (+ prefetched neighbours) are held
@@ -194,6 +195,9 @@ export class VRHomePanel extends VRCanvasPanel {
   // page-slide state (page/offset/anim) and the rail are shared — only one grid
   // is visible at a time, so switching modes resets the page window.
   private contentMode: ContentMode = "scenes";
+  // Whether the premium FapTap sidecar catalog is available (its database is
+  // present). When false the FapTap mode tab renders locked and is non-selectable.
+  private faptapAvailable = false;
   // Server-paged gallery grid (parallels the scene pageCache above).
   private galleryPageCache = new Map<number, IVRGalleryEntry[]>();
   private galleryRequestedPages = new Set<number>();
@@ -504,6 +508,17 @@ export class VRHomePanel extends VRCanvasPanel {
     return this.contentMode;
   }
 
+  /** Injected by the manager once the FapTap sidecar status is known. */
+  setFaptapAvailable(available: boolean) {
+    if (available === this.faptapAvailable) return;
+    this.faptapAvailable = available;
+    this.markDirty();
+  }
+
+  get isFaptapAvailable(): boolean {
+    return this.faptapAvailable;
+  }
+
   /** Switch the wall between the Scenes, Galleries and Movies grids. */
   setContentMode(mode: ContentMode) {
     if (mode === this.contentMode) return;
@@ -593,9 +608,13 @@ export class VRHomePanel extends VRCanvasPanel {
     return this.contentMode === "movies" && this.activeGroupId !== null;
   }
 
-  /** The right-hand grid is showing scene cards (Scenes mode, or movie detail). */
+  /** The right-hand grid is showing scene cards (Scenes/FapTap mode, or movie detail). */
   private get isSceneGrid(): boolean {
-    return this.contentMode === "scenes" || this.inGroupDetail;
+    return (
+      this.contentMode === "scenes" ||
+      this.contentMode === "faptap" ||
+      this.inGroupDetail
+    );
   }
 
   /** The right-hand grid is showing the gallery cover grid. */
@@ -859,6 +878,9 @@ export class VRHomePanel extends VRCanvasPanel {
     if (id === "exitVR") return { type: "exit" };
     if (id.startsWith("mode:")) {
       const mode = id.slice("mode:".length) as ContentMode;
+      // FapTap is a premium add-on: locked (non-selectable) until its sidecar
+      // database is present.
+      if (mode === "faptap" && !this.faptapAvailable) return null;
       if (mode !== this.contentMode) {
         this.setContentMode(mode);
         return { type: "setContentMode", mode };
@@ -921,6 +943,13 @@ export class VRHomePanel extends VRCanvasPanel {
     if (id === "media:flat") return { type: "setMediaFilter", filter: "flat" };
     if (id === "media:funscript")
       return { type: "setMediaFilter", filter: "funscript" };
+    if (id === "media:favorites")
+      return { type: "setMediaFilter", filter: "favorites" };
+    if (id.startsWith("fav:")) {
+      faptapFavorites.toggle(id.slice("fav:".length));
+      this.markDirty();
+      return null;
+    }
     if (id === "sort:recent") {
       this.setSortMode("recent");
       return { type: "setHomeSort", sort: "recent" };
@@ -1178,9 +1207,10 @@ export class VRHomePanel extends VRCanvasPanel {
       this.drawGroupDetailRail();
       return;
     }
-    // Only scenes carry a media type — hide the All/VR/2D/FS toggle for
-    // galleries and movies.
-    if (this.contentMode === "scenes") this.drawMediaToggle();
+    // Only scene grids carry a media type — hide the All/VR/2D/FS toggle for
+    // galleries and movies. FapTap shares the scene grid + media toggle.
+    if (this.contentMode === "scenes" || this.contentMode === "faptap")
+      this.drawMediaToggle();
     this.drawFilterTabs();
     this.drawAllChip();
     this.drawSortChips();
@@ -1292,6 +1322,7 @@ export class VRHomePanel extends VRCanvasPanel {
       vr: this.sceneCounts.vr,
       flat: this.sceneCounts.flat,
       funscript: this.sceneCounts.funscript,
+      favorites: faptapFavorites.list().length,
     };
     const options: Array<{ id: MediaFilter; label: string }> = [
       { id: "all", label: "All" },
@@ -1299,6 +1330,9 @@ export class VRHomePanel extends VRCanvasPanel {
       { id: "flat", label: "2D" },
       { id: "funscript", label: "FS" },
     ];
+    if (this.contentMode === "faptap") {
+      options.push({ id: "favorites", label: "★" });
+    }
     let bx = RAIL_PAD;
     for (const opt of options) {
       const active = this.mediaFilter === opt.id;
@@ -1356,9 +1390,12 @@ export class VRHomePanel extends VRCanvasPanel {
   /** Studios / Performers tabs */
   private drawFilterTabs() {
     const { ctx } = this;
+    // In FapTap mode the rail's two slots carry Tags (filterable) and Creators
+    // (display only) rather than Studios / Performers.
+    const faptap = this.contentMode === "faptap";
     const tabs: Array<{ id: FilterTab; label: string }> = [
-      { id: "studios", label: "Studios" },
-      { id: "performers", label: "Performers" },
+      { id: "studios", label: faptap ? "Tags" : "Studios" },
+      { id: "performers", label: faptap ? "Creators" : "Performers" },
     ];
     const tabW = (RAIL_INNER - 8) / 2;
     let tx = RAIL_PAD;
@@ -1410,7 +1447,11 @@ export class VRHomePanel extends VRCanvasPanel {
     ctx.textBaseline = "middle";
     ctx.fillStyle = allActive ? `${ACCENT}0.95)` : "rgba(255,255,255,0.8)";
     ctx.fillText(
-      this.contentMode === "galleries" ? "All galleries" : "All scenes",
+      this.contentMode === "galleries"
+        ? "All galleries"
+        : this.contentMode === "faptap"
+        ? "All FapTap"
+        : "All scenes",
       RAIL_PAD + RAIL_INNER / 2,
       ALL_Y + ALL_H / 2 + 1
     );
@@ -1795,43 +1836,56 @@ export class VRHomePanel extends VRCanvasPanel {
     this.regions.push({ id: "settings", x, y, w, h });
   }
 
-  /** Scenes | Galleries segmented toggle (header, between Settings and the logo). */
+  /** Scenes | Galleries | Movies | FapTap segmented toggle (header). */
   private drawModeToggle() {
     const { ctx } = this;
-    const options: Array<{ id: ContentMode; label: string }> = [
-      { id: "scenes", label: "Scenes" },
-      { id: "galleries", label: "Galleries" },
-      { id: "movies", label: "Movies" },
-    ];
+    const options: Array<{ id: ContentMode; label: string; locked?: boolean }> =
+      [
+        { id: "scenes", label: "Scenes" },
+        { id: "galleries", label: "Galleries" },
+        { id: "movies", label: "Movies" },
+        { id: "faptap", label: "FapTap", locked: !this.faptapAvailable },
+      ];
+    // Keep the original 3-button span; fit all buttons within it so the header
+    // layout (logo to the right) is unaffected by the extra FapTap tab.
+    const span = 3 * MODE_BTN_W + 2 * MODE_GAP;
+    const btnW = Math.floor((span - (options.length - 1) * MODE_GAP) / options.length);
     let bx = MODE_X;
     for (const opt of options) {
       const active = this.contentMode === opt.id;
       const hovered = this.hoveredId === `mode:${opt.id}`;
-      this.roundRect(bx, MODE_Y, MODE_BTN_W, MODE_H, MODE_H / 2);
+      this.roundRect(bx, MODE_Y, btnW, MODE_H, MODE_H / 2);
       if (active) {
         const g = ctx.createLinearGradient(bx, MODE_Y, bx, MODE_Y + MODE_H);
         g.addColorStop(0, "rgba(130,190,255,0.95)");
         g.addColorStop(1, "rgba(70,130,230,0.85)");
         ctx.fillStyle = g;
+      } else if (opt.locked) {
+        ctx.fillStyle = "rgba(255,255,255,0.04)";
       } else {
         ctx.fillStyle = hovered
           ? "rgba(255,255,255,0.16)"
           : "rgba(255,255,255,0.07)";
       }
       ctx.fill();
-      ctx.font = "700 20px sans-serif";
+      ctx.font = "700 19px sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillStyle = active ? "#06121f" : "rgba(255,255,255,0.88)";
-      ctx.fillText(opt.label, bx + MODE_BTN_W / 2, MODE_Y + MODE_H / 2 + 1);
+      ctx.fillStyle = active
+        ? "#06121f"
+        : opt.locked
+        ? "rgba(255,255,255,0.34)"
+        : "rgba(255,255,255,0.88)";
+      const label = opt.locked ? `🔒 ${opt.label}` : opt.label;
+      ctx.fillText(label, bx + btnW / 2, MODE_Y + MODE_H / 2 + 1);
       this.regions.push({
         id: `mode:${opt.id}`,
         x: bx,
         y: MODE_Y,
-        w: MODE_BTN_W,
+        w: btnW,
         h: MODE_H,
       });
-      bx += MODE_BTN_W + MODE_GAP;
+      bx += btnW + MODE_GAP;
     }
   }
 
@@ -2291,6 +2345,24 @@ export class VRHomePanel extends VRCanvasPanel {
     }
 
     if (interactive) {
+      // Heart (favorite) badge for FapTap cards — top-right of thumbnail.
+      // Pushed before the card region so this smaller hit area wins.
+      if (this.contentMode === "faptap") {
+        const isFav = faptapFavorites.has(scene.id);
+        const hw = 36, hh = 26;
+        const hx = x + CARD_W - hw - 10;
+        // Shift down when the FS badge occupies the top-right at y+10.
+        const hy = y + (scene.hasFunscript && !isPlaying ? 44 : 10);
+        this.roundRect(hx, hy, hw, hh, hh / 2);
+        ctx.fillStyle = isFav ? "rgba(239,68,68,0.88)" : "rgba(0,0,0,0.50)";
+        ctx.fill();
+        ctx.font = "600 16px sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillStyle = isFav ? "#fff" : "rgba(255,255,255,0.55)";
+        ctx.fillText("♥", hx + hw / 2, hy + hh / 2 + 1);
+        this.regions.push({ id: `fav:${scene.id}`, x: hx, y: hy, w: hw, h: hh });
+      }
       this.regions.push({
         id: `scene:${scene.id}`,
         x,

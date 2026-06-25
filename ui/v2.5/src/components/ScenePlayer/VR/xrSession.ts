@@ -45,6 +45,7 @@ import { VRScenesPanel, IVRSceneEntry } from "./VRScenesPanel";
 import { VRCarouselLibrary } from "./VRCarouselLibrary";
 import { VRHomePanel } from "./VRHomePanel";
 import { fetchFaptapStatus } from "./faptapLibrary";
+import { fetchPmvhavenStatus } from "./pmvhavenLibrary";
 import { VRGalleryViewerPanel } from "./VRGalleryViewerPanel";
 import { VRLobbyBackdrop } from "./VRLobbyBackdrop";
 import {
@@ -194,6 +195,12 @@ export interface IXRSessionManagerOptions {
    * catalog; only present (and only unlocks the tab) when its database exists.
    */
   faptapData?: IVRHomeDataSource;
+  /**
+   * Server-backed data source for the premium PMVHaven content mode. Same
+   * IVRHomeDataSource contract as [homeData]; only unlocks the tab when its
+   * sidecar database exists.
+   */
+  pmvhavenData?: IVRHomeDataSource;
   /** Start the session in lobby/Home mode (no scene loaded yet). */
   lobby?: boolean;
   /** Initial immersive-Home preferences (gaze-launch / dwell / audio). */
@@ -295,6 +302,18 @@ export class XRSessionManager {
   private session: XRSession | null = null;
   private projection: IProjectionSettings;
   private domeMeshes: THREE.Mesh[] = [];
+  // Flat screen drag-handle — a plane the user taps to toggle reposition mode.
+  // Sits below the screen and co-rotates with it. A plane (not a Sprite) so the
+  // shared controller raycaster — which has no `.camera` set — can intersect it;
+  // Sprite.raycast() requires a camera and throws every frame inside the XR loop
+  // without one (the cause of flat scenes freezing on the Home wall).
+  private flatScreenHandle: THREE.Mesh | null = null;
+  private flatScreenHandleHittable: IHittable | null = null;
+  private flatScreenHandleActive = false;
+  private flatScreenDragControllerIdx = 0;
+  private flatScreenPrevYaw = 0;
+  private flatScreenPrevPitch = 0;
+  private flatScreenPrevRayValid = false;
   // WebXR Media Layers — the default, compositor-sampled video path ("max
   // quality": the headset compositor samples the video directly, ~halving GPU
   // vs the eye-buffer dome). Used for 180/360 (equirect); the shader dome is
@@ -385,6 +404,11 @@ export class XRSessionManager {
   private faptapData: IVRHomeDataSource | null = null;
   // True while the FapTap content mode is showing (its source feeds the grid).
   private faptapMode = false;
+  // Server-backed PMVHaven library (premium add-on), swapped in for `homeData`
+  // while the PMVHaven content mode is active.
+  private pmvhavenData: IVRHomeDataSource | null = null;
+  // True while the PMVHaven content mode is showing (its source feeds the grid).
+  private pmvhavenMode = false;
   // Cinema room shown when a flat (non-VR) scene is playing.
   private lobbyMode = false;
   // Server-backed Home library (paged). The manager owns the live query state
@@ -598,6 +622,14 @@ export class XRSessionManager {
         .catch(() => undefined);
     }
 
+    // Premium PMVHaven content mode — same lazy, file-gated probe as FapTap.
+    this.pmvhavenData = opts.pmvhavenData ?? null;
+    if (this.pmvhavenData) {
+      fetchPmvhavenStatus()
+        .then((s) => this.homePanel?.setPmvhavenAvailable(s.available))
+        .catch(() => undefined);
+    }
+
     // Galleries content mode + XR gallery viewer. The Home wall pages galleries
     // through this requester; the viewer pages an active gallery's images.
     this.galleryData = opts.galleryData ?? null;
@@ -782,8 +814,11 @@ export class XRSessionManager {
       this.input.setTargets(this.hittables.map((h) => h.target));
       return;
     }
-    // Playback: bar + handy always; both peripheral Browse panels when open.
-    this.hittables = [...this.baseHittables];
+    // Playback: bar + handy always; flat screen handle when in flat mode;
+    // both peripheral Browse panels when open.
+    this.hittables = this.flatScreenHandleHittable
+      ? [...this.baseHittables, this.flatScreenHandleHittable]
+      : [...this.baseHittables];
     if (this.browseOpen) {
       for (const panel of [this.scenesPanel, this.infoPanel]) {
         if (!panel) continue;
@@ -994,9 +1029,11 @@ export class XRSessionManager {
       // Hide the video screen (dome/flat-screen meshes) in lobby so it doesn't
       // bleed through behind the home wall.
       for (const m of this.domeMeshes) m.visible = false;
+      if (this.flatScreenHandle) this.flatScreenHandle.visible = false;
     } else {
       // Restore the video screen meshes for the just-launched scene.
       for (const m of this.domeMeshes) m.visible = true;
+      if (this.flatScreenHandle) this.flatScreenHandle.visible = true;
     }
     // Drop/restore the media video layer from the compositor render state so the
     // home wall isn't backed by the (now paused) scene video while in the lobby.
@@ -1155,7 +1192,9 @@ export class XRSessionManager {
    * rail / next) routes through this transparently.
    */
   private get sceneData(): IVRHomeDataSource | null {
-    return this.faptapMode ? this.faptapData : this.homeData;
+    if (this.faptapMode) return this.faptapData;
+    if (this.pmvhavenMode) return this.pmvhavenData;
+    return this.homeData;
   }
 
   private applyHomeQuery() {
@@ -1419,12 +1458,13 @@ export class XRSessionManager {
       // The Home panel already flipped its own mode; seed the relevant query so
       // its grid pages start loading when switching modes.
       this.faptapMode = action.mode === "faptap";
+      this.pmvhavenMode = action.mode === "pmvhaven";
       if (action.mode === "galleries") this.applyGalleryQuery();
       else if (action.mode === "movies") this.applyGroupQuery();
       else {
-        // Scenes and FapTap share the scene grid but draw from different
-        // sources; reset + re-seed from the now-active source (this.sceneData)
-        // and refresh the rail to match (Tags/Creators vs Studios/Performers).
+        // Scenes, FapTap and PMVHaven share the scene grid but draw from
+        // different sources; reset + re-seed from the now-active source
+        // (this.sceneData) and refresh the rail to match.
         this.applyHomeQuery();
         this.loadHomeRail();
       }
@@ -1435,6 +1475,12 @@ export class XRSessionManager {
       // FapTap rows aren't Stash scenes — route the launch to the FapTap player
       // path, which synthesizes a playable scene from the sidecar catalog.
       this.opts.onAction({ type: "switchFapScene", videoId: action.sceneId });
+      this.lastActivity = performance.now();
+      return;
+    }
+    if (action.type === "switchScene" && this.pmvhavenMode) {
+      // PMVHaven rows aren't Stash scenes either — route to the PMVHaven path.
+      this.opts.onAction({ type: "switchPmvScene", videoId: action.sceneId });
       this.lastActivity = performance.now();
       return;
     }
@@ -1767,6 +1813,17 @@ export class XRSessionManager {
       (m.material as THREE.Material).dispose();
     }
     this.domeMeshes = [];
+    if (this.flatScreenHandle) {
+      const mat = this.flatScreenHandle.material as THREE.MeshBasicMaterial;
+      mat.map?.dispose();
+      mat.dispose();
+      this.flatScreenHandle.geometry.dispose();
+      this.videoGroup.remove(this.flatScreenHandle);
+      this.flatScreenHandle = null;
+    }
+    this.flatScreenHandleHittable = null;
+    this.flatScreenHandleActive = false;
+    this.flatScreenPrevRayValid = false;
   }
 
   private buildDome() {
@@ -1792,7 +1849,27 @@ export class XRSessionManager {
       const xrCam = this.renderer.xr.getCamera();
       this.tmpEuler.setFromQuaternion(xrCam.quaternion, "YXZ");
       this.videoGroup.rotation.y = this.tmpEuler.y;
-      this.domeMeshes.push(this.makeFlatScreen(p.zoom));
+      const flatMesh = this.makeFlatScreen(p.zoom);
+      this.domeMeshes.push(flatMesh);
+      const handle = this.makeFlatScreenHandle();
+      this.flatScreenHandle = handle;
+      if (this.lobbyMode) handle.visible = false;
+      this.videoGroup.add(handle);
+      this.flatScreenHandleHittable = {
+        target: handle,
+        hover: () => {},
+        select: () => {
+          const idx = this.input.getPressControllerIndex();
+          this.flatScreenHandleActive = !this.flatScreenHandleActive;
+          this.flatScreenPrevRayValid = false;
+          if (this.flatScreenHandleActive) {
+            this.flatScreenDragControllerIdx = idx >= 0 ? idx : 0;
+          }
+          this.updateHandleTexture();
+          return null;
+        },
+        up: () => null,
+      };
     } else if (isStereo(p) && !this.debug.has("mono")) {
       this.domeMeshes.push(this.makeDomeMesh(uvTransformForEye(p, "left"), 1));
       this.domeMeshes.push(this.makeDomeMesh(uvTransformForEye(p, "right"), 2));
@@ -1808,6 +1885,102 @@ export class XRSessionManager {
       // Stay hidden if we're in the lobby — setLobbyMode(false) will reveal them.
       if (this.lobbyMode) m.visible = false;
     }
+    // Sync the raycast target list — the flat screen hittable is added/removed
+    // based on whether we just entered or left flat projection mode.
+    this.rebuildBrowseHittables();
+  }
+
+  private updateFlatScreenDrag() {
+    const ray = this.input.getRay(this.flatScreenDragControllerIdx);
+    if (!ray) return;
+    const { dir } = ray;
+    const currentYaw = Math.atan2(-dir.x, -dir.z);
+    const currentPitch = Math.asin(Math.max(-1, Math.min(1, dir.y)));
+
+    if (!this.flatScreenPrevRayValid) {
+      this.flatScreenPrevYaw = currentYaw;
+      this.flatScreenPrevPitch = currentPitch;
+      this.flatScreenPrevRayValid = true;
+      return;
+    }
+
+    this.videoGroup.rotation.y += currentYaw - this.flatScreenPrevYaw;
+    // Pitch delta tilts the screen face toward or away from the viewer.
+    // Clamped so it can't flip past horizontal (ceiling) or past ~40° forward.
+    this.videoGroup.rotation.x = Math.max(
+      -Math.PI * 0.45,
+      Math.min(
+        Math.PI * 0.22,
+        this.videoGroup.rotation.x + (currentPitch - this.flatScreenPrevPitch)
+      )
+    );
+    this.flatScreenPrevYaw = currentYaw;
+    this.flatScreenPrevPitch = currentPitch;
+  }
+
+  private makeFlatScreenHandle(): THREE.Mesh {
+    const mat = new THREE.MeshBasicMaterial({
+      map: this.makeHandleCanvasTexture(false),
+      transparent: true,
+      depthTest: false,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
+    // A 0.35 m plane facing +Z (toward the viewer, like the flat screen). As a
+    // child of videoGroup it tilts/swivels with the screen during a drag.
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(0.35, 0.35), mat);
+    // Positioned below the flat screen in videoGroup local space.
+    // Screen mesh sits at y=1.55; its bottom edge is ~y=0.4 at zoom=1.
+    mesh.position.set(0, 0.1, -3.2);
+    mesh.renderOrder = 12;
+    mesh.layers.set(0);
+    return mesh;
+  }
+
+  private makeHandleCanvasTexture(active: boolean): THREE.CanvasTexture {
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 128;
+    const ctx = canvas.getContext("2d")!;
+    // Rounded-rectangle background.
+    const r = 20;
+    ctx.fillStyle = active ? "rgba(96,165,250,0.92)" : "rgba(20,20,20,0.78)";
+    ctx.beginPath();
+    ctx.moveTo(6 + r, 6);
+    ctx.arcTo(122, 6, 122, 122, r);
+    ctx.arcTo(122, 122, 6, 122, r);
+    ctx.arcTo(6, 122, 6, 6, r);
+    ctx.arcTo(6, 6, 122, 6, r);
+    ctx.closePath();
+    ctx.fill();
+    // 4-directional move arrows.
+    ctx.strokeStyle = "rgba(255,255,255,0.95)";
+    ctx.lineWidth = 7;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    const cx = 64, cy = 64, arm = 32, head = 11;
+    const dirs: [number, number][] = [[0, -1], [0, 1], [-1, 0], [1, 0]];
+    for (const [dx, dy] of dirs) {
+      ctx.beginPath();
+      ctx.moveTo(cx + dx * 10, cy + dy * 10);
+      ctx.lineTo(cx + dx * arm, cy + dy * arm);
+      ctx.stroke();
+      const px = -dy, py = dx;
+      ctx.beginPath();
+      ctx.moveTo(cx + dx * arm, cy + dy * arm);
+      ctx.lineTo(cx + dx * arm - dx * head + px * head * 0.55, cy + dy * arm - dy * head + py * head * 0.55);
+      ctx.moveTo(cx + dx * arm, cy + dy * arm);
+      ctx.lineTo(cx + dx * arm - dx * head - px * head * 0.55, cy + dy * arm - dy * head - py * head * 0.55);
+      ctx.stroke();
+    }
+    return new THREE.CanvasTexture(canvas);
+  }
+
+  private updateHandleTexture() {
+    if (!this.flatScreenHandle) return;
+    const mat = this.flatScreenHandle.material as THREE.MeshBasicMaterial;
+    mat.map?.dispose();
+    mat.map = this.makeHandleCanvasTexture(this.flatScreenHandleActive);
+    mat.needsUpdate = true;
   }
 
   private makeDomeMesh(uv: IUVTransform, layer: number): THREE.Mesh {
@@ -2117,6 +2290,7 @@ export class XRSessionManager {
     // buttons) — never by head direction or where the laser happens to point.
     const pIn0 = jitter ? performance.now() : 0;
     this.input.update();
+    if (this.flatScreenHandleActive) this.updateFlatScreenDrag();
     // Pick up newly-loaded controller/hand meshes and give them the white rim.
     this.deviceModels?.update();
     const pInputMs = jitter ? performance.now() - pIn0 : 0;

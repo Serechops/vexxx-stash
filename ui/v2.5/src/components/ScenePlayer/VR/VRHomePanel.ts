@@ -25,6 +25,7 @@ import {
 import { VRCanvasPanel, IPanelRegion } from "./VRInfoPanels";
 import { IVRSceneEntry } from "./VRScenesPanel";
 import { faptapFavorites } from "./faptapLibrary";
+import { pmvhavenFavorites } from "./pmvhavenLibrary";
 
 export type { IVRFilterEntry };
 
@@ -174,7 +175,7 @@ const ORANGE = "rgba(250,140,30,";
 type FilterTab = "studios" | "performers";
 type MediaFilter = VRMediaFilter;
 type SortMode = VRSortMode;
-type ContentMode = "scenes" | "galleries" | "movies" | "faptap";
+type ContentMode = "scenes" | "galleries" | "movies" | "faptap" | "pmvhaven";
 
 export class VRHomePanel extends VRCanvasPanel {
   // Server-paged grid: only the current page (+ prefetched neighbours) are held
@@ -198,6 +199,9 @@ export class VRHomePanel extends VRCanvasPanel {
   // Whether the premium FapTap sidecar catalog is available (its database is
   // present). When false the FapTap mode tab renders locked and is non-selectable.
   private faptapAvailable = false;
+  // Whether the premium PMVHaven sidecar catalog is available (its database is
+  // present). When false the PMVHaven mode tab renders locked and non-selectable.
+  private pmvhavenAvailable = false;
   // Server-paged gallery grid (parallels the scene pageCache above).
   private galleryPageCache = new Map<number, IVRGalleryEntry[]>();
   private galleryRequestedPages = new Set<number>();
@@ -519,6 +523,31 @@ export class VRHomePanel extends VRCanvasPanel {
     return this.faptapAvailable;
   }
 
+  /** Injected by the manager once the PMVHaven sidecar status is known. */
+  setPmvhavenAvailable(available: boolean) {
+    if (available === this.pmvhavenAvailable) return;
+    this.pmvhavenAvailable = available;
+    this.markDirty();
+  }
+
+  get isPmvhavenAvailable(): boolean {
+    return this.pmvhavenAvailable;
+  }
+
+  /**
+   * The favorites store backing the active content mode. FapTap and PMVHaven are
+   * separate catalogs with separate id-spaces, so each gets its own store; any
+   * other mode falls back to FapTap's (unused there).
+   */
+  private get favoritesStore() {
+    return this.contentMode === "pmvhaven" ? pmvhavenFavorites : faptapFavorites;
+  }
+
+  /** Whether the active content mode is a premium sidecar catalog (FapTap/PMVHaven). */
+  private get isSidecarMode(): boolean {
+    return this.contentMode === "faptap" || this.contentMode === "pmvhaven";
+  }
+
   /** Switch the wall between the Scenes, Galleries and Movies grids. */
   setContentMode(mode: ContentMode) {
     if (mode === this.contentMode) return;
@@ -613,6 +642,7 @@ export class VRHomePanel extends VRCanvasPanel {
     return (
       this.contentMode === "scenes" ||
       this.contentMode === "faptap" ||
+      this.contentMode === "pmvhaven" ||
       this.inGroupDetail
     );
   }
@@ -878,9 +908,10 @@ export class VRHomePanel extends VRCanvasPanel {
     if (id === "exitVR") return { type: "exit" };
     if (id.startsWith("mode:")) {
       const mode = id.slice("mode:".length) as ContentMode;
-      // FapTap is a premium add-on: locked (non-selectable) until its sidecar
-      // database is present.
+      // FapTap and PMVHaven are premium add-ons: locked (non-selectable) until
+      // their sidecar database is present.
       if (mode === "faptap" && !this.faptapAvailable) return null;
+      if (mode === "pmvhaven" && !this.pmvhavenAvailable) return null;
       if (mode !== this.contentMode) {
         this.setContentMode(mode);
         return { type: "setContentMode", mode };
@@ -946,7 +977,7 @@ export class VRHomePanel extends VRCanvasPanel {
     if (id === "media:favorites")
       return { type: "setMediaFilter", filter: "favorites" };
     if (id.startsWith("fav:")) {
-      faptapFavorites.toggle(id.slice("fav:".length));
+      this.favoritesStore.toggle(id.slice("fav:".length));
       this.markDirty();
       return null;
     }
@@ -1208,8 +1239,12 @@ export class VRHomePanel extends VRCanvasPanel {
       return;
     }
     // Only scene grids carry a media type — hide the All/VR/2D/FS toggle for
-    // galleries and movies. FapTap shares the scene grid + media toggle.
-    if (this.contentMode === "scenes" || this.contentMode === "faptap")
+    // galleries and movies. FapTap and PMVHaven share the scene grid + toggle.
+    if (
+      this.contentMode === "scenes" ||
+      this.contentMode === "faptap" ||
+      this.contentMode === "pmvhaven"
+    )
       this.drawMediaToggle();
     this.drawFilterTabs();
     this.drawAllChip();
@@ -1314,88 +1349,109 @@ export class VRHomePanel extends VRCanvasPanel {
     }
   }
 
-  /** 3-button media-type row: [All N] [VR N] [2D N] */
+  /**
+   * Media-type row. Scenes/FapTap: [All N] [VR N] [2D N] [FS N] (+ [★ N] in
+   * FapTap mode). PMVHaven is all flat + funscript-capable, so the VR/2D/FS
+   * split is meaningless there — it shows just [All N] (+ [★ N]).
+   */
   private drawMediaToggle() {
-    const { ctx } = this;
     const counts: Record<MediaFilter, number> = {
       all: this.sceneCounts.all,
       vr: this.sceneCounts.vr,
       flat: this.sceneCounts.flat,
       funscript: this.sceneCounts.funscript,
-      favorites: faptapFavorites.list().length,
+      favorites: this.favoritesStore.list().length,
     };
-    const options: Array<{ id: MediaFilter; label: string }> = [
-      { id: "all", label: "All" },
-      { id: "vr", label: "VR" },
-      { id: "flat", label: "2D" },
-      { id: "funscript", label: "FS" },
-    ];
-    if (this.contentMode === "faptap") {
-      options.push({ id: "favorites", label: "★" });
-    }
+    const pmvhaven = this.contentMode === "pmvhaven";
+    const mainOptions: Array<{ id: MediaFilter; label: string }> = pmvhaven
+      ? [{ id: "all", label: "All" }]
+      : [
+          { id: "all", label: "All" },
+          { id: "vr", label: "VR" },
+          { id: "flat", label: "2D" },
+          { id: "funscript", label: "FS" },
+        ];
+
+    // Both sidecar catalogs (FapTap/PMVHaven) carry a ★ favorites chip on the right.
+    const showFav = this.isSidecarMode;
+    const FAV_W = 62;
+    const mainW = showFav
+      ? Math.floor(
+          (RAIL_INNER - FAV_W - MEDIA_BTN_GAP * mainOptions.length) /
+            mainOptions.length
+        )
+      : MEDIA_BTN_W;
+
     let bx = RAIL_PAD;
-    for (const opt of options) {
-      const active = this.mediaFilter === opt.id;
-      const hovered = this.hoveredId === `media:${opt.id}`;
-      this.roundRect(bx, CONTENT_Y0, MEDIA_BTN_W, MEDIA_H, MEDIA_H / 2);
-      if (active) {
-        const g = ctx.createLinearGradient(
-          bx,
-          CONTENT_Y0,
-          bx,
-          CONTENT_Y0 + MEDIA_H
-        );
-        g.addColorStop(0, "rgba(96,165,250,0.90)");
-        g.addColorStop(1, "rgba(60,120,220,0.78)");
-        ctx.fillStyle = g;
-      } else {
-        ctx.fillStyle = hovered
-          ? "rgba(255,255,255,0.16)"
-          : "rgba(255,255,255,0.07)";
-      }
-      ctx.fill();
-      // Bold label + lighter count, measured and centred as a single unit so
-      // the pair stays balanced in the narrow 4-button row.
-      const n = counts[opt.id];
-      const cy = CONTENT_Y0 + MEDIA_H / 2 + 1;
-      ctx.textAlign = "left";
-      ctx.textBaseline = "middle";
-      ctx.font = "700 18px sans-serif";
-      const labelW = ctx.measureText(opt.label).width;
-      const countStr = n > 0 ? `${n}` : "";
-      ctx.font = "400 13px sans-serif";
-      const countW = countStr ? ctx.measureText(countStr).width + 6 : 0;
-      const tx = bx + MEDIA_BTN_W / 2 - (labelW + countW) / 2;
-      ctx.font = "700 18px sans-serif";
-      ctx.fillStyle = active ? "#05111f" : "rgba(255,255,255,0.88)";
-      ctx.fillText(opt.label, tx, cy);
-      if (countStr) {
-        ctx.font = "400 13px sans-serif";
-        ctx.fillStyle = active
-          ? "rgba(5,17,31,0.70)"
-          : "rgba(255,255,255,0.50)";
-        ctx.fillText(countStr, tx + labelW + 6, cy);
-      }
-      this.regions.push({
-        id: `media:${opt.id}`,
-        x: bx,
-        y: CONTENT_Y0,
-        w: MEDIA_BTN_W,
-        h: MEDIA_H,
-      });
-      bx += MEDIA_BTN_W + MEDIA_BTN_GAP;
+    for (const opt of mainOptions) {
+      this.drawMediaChip(bx, mainW, opt.id, opt.label, counts[opt.id]);
+      bx += mainW + MEDIA_BTN_GAP;
     }
+
+    if (showFav) {
+      const fx = RAIL_PAD + RAIL_INNER - FAV_W;
+      this.drawMediaChip(fx, FAV_W, "favorites", "★", counts.favorites);
+    }
+  }
+
+  /** Draw a single media-filter chip and register its hit region. */
+  private drawMediaChip(
+    bx: number,
+    w: number,
+    id: MediaFilter,
+    label: string,
+    n: number
+  ) {
+    const { ctx } = this;
+    const active = this.mediaFilter === id;
+    const hovered = this.hoveredId === `media:${id}`;
+    this.roundRect(bx, CONTENT_Y0, w, MEDIA_H, MEDIA_H / 2);
+    if (active) {
+      const g = ctx.createLinearGradient(bx, CONTENT_Y0, bx, CONTENT_Y0 + MEDIA_H);
+      g.addColorStop(0, "rgba(96,165,250,0.90)");
+      g.addColorStop(1, "rgba(60,120,220,0.78)");
+      ctx.fillStyle = g;
+    } else {
+      ctx.fillStyle = hovered
+        ? "rgba(255,255,255,0.16)"
+        : "rgba(255,255,255,0.07)";
+    }
+    ctx.fill();
+    // Bold label + lighter count, measured and centred as a single unit.
+    const cy = CONTENT_Y0 + MEDIA_H / 2 + 1;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.font = "700 18px sans-serif";
+    const labelW = ctx.measureText(label).width;
+    const countStr = n > 0 ? `${n}` : "";
+    ctx.font = "400 13px sans-serif";
+    const countW = countStr ? ctx.measureText(countStr).width + 6 : 0;
+    const tx = bx + w / 2 - (labelW + countW) / 2;
+    ctx.font = "700 18px sans-serif";
+    ctx.fillStyle = active ? "#05111f" : "rgba(255,255,255,0.88)";
+    ctx.fillText(label, tx, cy);
+    if (countStr) {
+      ctx.font = "400 13px sans-serif";
+      ctx.fillStyle = active ? "rgba(5,17,31,0.70)" : "rgba(255,255,255,0.50)";
+      ctx.fillText(countStr, tx + labelW + 6, cy);
+    }
+    this.regions.push({ id: `media:${id}`, x: bx, y: CONTENT_Y0, w, h: MEDIA_H });
   }
 
   /** Studios / Performers tabs */
   private drawFilterTabs() {
     const { ctx } = this;
-    // In FapTap mode the rail's two slots carry Tags (filterable) and Creators
-    // (display only) rather than Studios / Performers.
+    // In the sidecar modes the rail's two slots are relabelled: FapTap carries
+    // Tags (filterable) + Creators (display only); PMVHaven carries Tags + Stars
+    // (both filterable).
     const faptap = this.contentMode === "faptap";
+    const pmvhaven = this.contentMode === "pmvhaven";
     const tabs: Array<{ id: FilterTab; label: string }> = [
-      { id: "studios", label: faptap ? "Tags" : "Studios" },
-      { id: "performers", label: faptap ? "Creators" : "Performers" },
+      { id: "studios", label: faptap || pmvhaven ? "Tags" : "Studios" },
+      {
+        id: "performers",
+        label: pmvhaven ? "Stars" : faptap ? "Creators" : "Performers",
+      },
     ];
     const tabW = (RAIL_INNER - 8) / 2;
     let tx = RAIL_PAD;
@@ -1451,6 +1507,8 @@ export class VRHomePanel extends VRCanvasPanel {
         ? "All galleries"
         : this.contentMode === "faptap"
         ? "All FapTap"
+        : this.contentMode === "pmvhaven"
+        ? "All PMVHaven"
         : "All scenes",
       RAIL_PAD + RAIL_INNER / 2,
       ALL_Y + ALL_H / 2 + 1
@@ -1836,7 +1894,7 @@ export class VRHomePanel extends VRCanvasPanel {
     this.regions.push({ id: "settings", x, y, w, h });
   }
 
-  /** Scenes | Galleries | Movies | FapTap segmented toggle (header). */
+  /** Scenes | Galleries | Movies | FapTap | PMV segmented toggle (header). */
   private drawModeToggle() {
     const { ctx } = this;
     const options: Array<{ id: ContentMode; label: string; locked?: boolean }> =
@@ -1845,9 +1903,10 @@ export class VRHomePanel extends VRCanvasPanel {
         { id: "galleries", label: "Galleries" },
         { id: "movies", label: "Movies" },
         { id: "faptap", label: "FapTap", locked: !this.faptapAvailable },
+        { id: "pmvhaven", label: "PMV", locked: !this.pmvhavenAvailable },
       ];
     // Keep the original 3-button span; fit all buttons within it so the header
-    // layout (logo to the right) is unaffected by the extra FapTap tab.
+    // layout (logo to the right) is unaffected by the extra sidecar tabs.
     const span = 3 * MODE_BTN_W + 2 * MODE_GAP;
     const btnW = Math.floor((span - (options.length - 1) * MODE_GAP) / options.length);
     let bx = MODE_X;
@@ -2345,10 +2404,11 @@ export class VRHomePanel extends VRCanvasPanel {
     }
 
     if (interactive) {
-      // Heart (favorite) badge for FapTap cards — top-right of thumbnail.
-      // Pushed before the card region so this smaller hit area wins.
-      if (this.contentMode === "faptap") {
-        const isFav = faptapFavorites.has(scene.id);
+      // Heart (favorite) badge for sidecar-catalog cards (FapTap/PMVHaven) —
+      // top-right of thumbnail. Pushed before the card region so this smaller
+      // hit area wins.
+      if (this.isSidecarMode) {
+        const isFav = this.favoritesStore.has(scene.id);
         const hw = 36, hh = 26;
         const hx = x + CARD_W - hw - 10;
         // Shift down when the FS badge occupies the top-right at y+10.

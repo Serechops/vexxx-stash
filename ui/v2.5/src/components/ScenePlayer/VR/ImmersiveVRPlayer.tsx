@@ -30,6 +30,7 @@ import { IVRSceneInfo } from "./VRInfoPanels";
 import { useVRPlayback } from "./useVRPlayback";
 import { VRHomeLibrary } from "./vrHomeLibrary";
 import { FapTapHomeLibrary, buildFapSceneFragment } from "./faptapLibrary";
+import { PmvHavenHomeLibrary, buildPmvSceneFragment } from "./pmvhavenLibrary";
 import { getPlatformURL } from "src/core/createClient";
 import { VRGalleryLibrary } from "./vrGalleryLibrary";
 import { VRGroupLibrary } from "./vrGroupLibrary";
@@ -173,6 +174,9 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
   // Premium FapTap library — pages the sidecar catalog server-side and powers
   // the locked FapTap content mode. Inert unless the sidecar database exists.
   const faptapLibraryRef = useRef<FapTapHomeLibrary>(new FapTapHomeLibrary());
+  // Premium PMVHaven library — same server-paged sidecar pattern as FapTap;
+  // powers the locked PMVHaven content mode and is inert without its database.
+  const pmvhavenLibraryRef = useRef<PmvHavenHomeLibrary>(new PmvHavenHomeLibrary());
   const history = useHistory();
   const interactiveCtx = useContext(InteractiveContext);
   const handyRef = useRef<IInteractiveClient>(interactiveCtx.interactive);
@@ -547,6 +551,30 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
     [applyScene]
   );
 
+  // Launch a PMVHaven (sidecar-catalog) video: resolve its CDN source, then
+  // synthesize a playable scene fragment (flat projection, on-demand funscript)
+  // and run it through the same shared path.
+  const handleSwitchPmvScene = useCallback(
+    (videoId: string) => {
+      const gen = ++switchSceneGen.current;
+      const detailURL = getPlatformURL(`pmvhaven/videos/${videoId}`).toString();
+      const sourcesURL = getPlatformURL(
+        `pmvhaven/videos/${videoId}/sources`
+      ).toString();
+      Promise.all([
+        fetch(detailURL, { credentials: "include" }).then((r) => r.json()),
+        fetch(sourcesURL, { credentials: "include" }).then((r) => r.json()),
+      ])
+        .then(([detail, sources]) => {
+          if (gen !== switchSceneGen.current) return;
+          if (!detail || !sources?.stream) return;
+          applyScene(buildPmvSceneFragment(detail, sources), gen, `pmvhaven:${videoId}`);
+        })
+        .catch(() => undefined);
+    },
+    [applyScene]
+  );
+
   // Return to the immersive Home wall: pause + unload the video and re-enter
   // lobby mode. The XR session, dome, and controllers all stay alive.
   const handleGoHome = useCallback(() => {
@@ -641,6 +669,9 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
         case "switchFapScene":
           handleSwitchFapScene(a.videoId);
           break;
+        case "switchPmvScene":
+          handleSwitchPmvScene(a.videoId);
+          break;
         case "navigateToScene":
           handleNavigateToScene(a.sceneId);
           break;
@@ -715,6 +746,7 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
       handleNavigateToScene,
       handleSwitchScene,
       handleSwitchFapScene,
+      handleSwitchPmvScene,
       handleGoHome,
     ]
   );
@@ -856,6 +888,7 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
       galleryData: galleryLibraryRef.current,
       groupData: groupLibraryRef.current,
       faptapData: faptapLibraryRef.current,
+      pmvhavenData: pmvhavenLibraryRef.current,
       lobby: startedInLobbyRef.current,
       homeSettings: settingsRef.current,
       getThumbnail: (time) => thumbnailsRef.current?.getAt(time) ?? null,

@@ -38,6 +38,7 @@ import (
 	"github.com/stashapp/stash/internal/faptap"
 	"github.com/stashapp/stash/internal/manager"
 	"github.com/stashapp/stash/internal/manager/config"
+	"github.com/stashapp/stash/internal/pmvhaven"
 	"github.com/stashapp/stash/pkg/fsutil"
 	"github.com/stashapp/stash/pkg/logger"
 	"github.com/stashapp/stash/pkg/megaface"
@@ -263,6 +264,7 @@ func Initialize() (*Server, error) {
 	r.Mount("/tag", server.getTagRoutes())
 	r.Mount("/downloads", server.getDownloadsRoutes())
 	r.Mount("/faptap", server.getFaptapRoutes())
+	r.Mount("/pmvhaven", server.getPmvhavenRoutes())
 	r.Mount("/plugin", server.getPluginRoutes())
 	r.Mount("/scheduled-tasks", server.getScheduledTaskRoutes())
 	r.Mount("/proxy", server.getProxyRoutes())
@@ -748,6 +750,50 @@ func (s *Server) getFaptapRoutes() chi.Router {
 		db:  faptap.New(dir),
 		dir: dir,
 	}.Routes()
+}
+
+// getPmvhavenRoutes serves the optional PMVHaven sidecar catalog (premium VR
+// addon). Like FapTap the reader is lazy and re-checks the database on each call
+// so the tab locks/unlocks live. PMVHaven ships no funscripts, so the routes
+// also carry a Generator that synthesizes one on demand from each video's audio
+// (ffmpeg → analyzer.py) and caches it under the data folder's funscripts/ dir.
+func (s *Server) getPmvhavenRoutes() chi.Router {
+	// Data dir resolution mirrors FapTap:
+	//  1. explicit dataPath / pmvhaven_path setting;
+	//  2. the PMVHaven plugin's own folder (db + analyzer.py + funscripts/ cache);
+	//  3. <plugins>/pmvhaven, then <config>/pmvhaven fallbacks.
+	dir := func() string {
+		cfg := config.GetInstance()
+		if v := cfg.GetPmvhavenPath(); v != "" {
+			return v
+		}
+		if p := s.manager.PluginCache.GetPlugin("pmvhaven"); p != nil && p.ConfigPath != "" {
+			return filepath.Dir(p.ConfigPath)
+		}
+		if pp := cfg.GetPluginsPath(); pp != "" {
+			return filepath.Join(pp, "pmvhaven")
+		}
+		return filepath.Join(cfg.GetConfigPath(), "pmvhaven")
+	}
+	// pluginSetting reads a string setting from the "pmvhaven" plugin config.
+	pluginSetting := func(key string) string {
+		if pc := config.GetInstance().GetPluginConfiguration("pmvhaven"); pc != nil {
+			if v, ok := pc[key].(string); ok {
+				return v
+			}
+		}
+		return ""
+	}
+	db := pmvhaven.New(dir)
+	gen := pmvhaven.NewGenerator(
+		db,
+		dir,
+		func() string { return config.GetInstance().GetFFMpegPath() },
+		func() string { return pluginSetting("pythonPath") },
+		func() string { return pluginSetting("analyzerPath") },
+		func() string { return pluginSetting("smooth") },
+	)
+	return pmvhavenRoutes{db: db, gen: gen}.Routes()
 }
 
 func (s *Server) getPluginRoutes() chi.Router {

@@ -77,6 +77,12 @@ export type VRControlAction =
    * source + funscript and synthesizes a scene fragment to play it.
    */
   | { type: "switchFapScene"; videoId: string }
+  /**
+   * Launch a PMVHaven (sidecar-catalog) video while staying in the active XR
+   * session. Carries the bare PMVHaven video id; the player resolves the CDN
+   * source, wires the on-demand funscript URL, and synthesizes a scene fragment.
+   */
+  | { type: "switchPmvScene"; videoId: string }
   /** Return to the immersive Home/lobby wall (pause playback, show the gallery). */
   | { type: "goHome" }
   /**
@@ -103,7 +109,7 @@ export type VRControlAction =
   /** Switch the Home wall between the Scenes, Galleries and Movies grids. */
   | {
       type: "setContentMode";
-      mode: "scenes" | "galleries" | "movies" | "faptap";
+      mode: "scenes" | "galleries" | "movies" | "faptap" | "pmvhaven";
     }
   /** Open the XR gallery viewer for a gallery (thumbnail grid sub-view). */
   | { type: "openGallery"; galleryId: string; title?: string }

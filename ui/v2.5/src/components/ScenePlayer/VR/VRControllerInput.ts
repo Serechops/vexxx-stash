@@ -258,6 +258,36 @@ export class VRControllerInput {
     if (!enabled) this.draggingController = null;
   }
 
+  /** One-Euro-filtered ray for the currently-pressing controller, or null when
+   *  no trigger press is active. Lets callers track the drag direction while a
+   *  panel interaction is in progress without coupling to internal state. */
+  getPressRay(): { origin: THREE.Vector3; dir: THREE.Vector3 } | null {
+    if (!this.pressController) return null;
+    const i = this.controllers.indexOf(this.pressController);
+    if (i < 0 || !this.rayInit[i]) return null;
+    return {
+      origin: this.smoothOrigin[i].clone(),
+      dir: this.smoothDir[i].clone(),
+    };
+  }
+
+  /** Smoothed ray for the given controller slot regardless of trigger state,
+   *  or null if that slot is not connected / not yet initialised. */
+  getRay(index: number): { origin: THREE.Vector3; dir: THREE.Vector3 } | null {
+    if (index < 0 || index >= this.controllers.length) return null;
+    if (!this.connected[index] || !this.rayInit[index]) return null;
+    return {
+      origin: this.smoothOrigin[index].clone(),
+      dir: this.smoothDir[index].clone(),
+    };
+  }
+
+  /** Index (0 or 1) of the controller currently holding the trigger, or -1. */
+  getPressControllerIndex(): number {
+    if (!this.pressController) return -1;
+    return this.controllers.indexOf(this.pressController);
+  }
+
   /** Returns (and clears) whether deliberate input happened since last call. */
   consumeActivity(): boolean {
     const a = this.activity;

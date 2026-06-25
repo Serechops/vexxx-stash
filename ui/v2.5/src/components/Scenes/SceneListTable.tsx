@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import * as GQL from "src/core/generated-graphql";
 import NavUtils from "src/utils/navigation";
@@ -8,12 +8,27 @@ import { objectTitle } from "src/core/files";
 import { galleryTitle } from "src/core/galleries";
 import SceneQueue from "src/models/sceneQueue";
 import { RatingSystem } from "../Shared/Rating/RatingSystem";
-import { useSceneUpdate } from "src/core/StashService";
+import {
+  useSceneUpdate,
+  useListSceneScrapers,
+  queryScrapeSceneURL,
+} from "src/core/StashService";
 import { IColumn, ListTable } from "../List/ListTable";
 import { useTableColumns } from "src/hooks/useTableColumns";
 import { FileSize } from "../Shared/FileSize";
 import { CommaList, NewlineList } from "../Shared/CommaList";
 import { Box } from "@mui/material";
+import { useToast } from "src/hooks/Toast";
+import { lazyComponent } from "src/utils/lazyComponent";
+import { SceneURLsCell } from "./SceneURLsCell";
+import { Performer } from "src/components/Performers/PerformerSelect";
+import { Studio } from "src/components/Studios/StudioSelect";
+import { Group } from "src/components/Groups/GroupSelect";
+import { Tag } from "src/components/Tags/TagSelect";
+
+const SceneScrapeDialog = lazyComponent(
+  () => import("./SceneDetails/SceneScrapeDialog")
+);
 
 interface ISceneListTableProps {
   scenes: GQL.SlimSceneDataFragment[];
@@ -28,8 +43,14 @@ export const SceneListTable: React.FC<ISceneListTableProps> = (
   props: ISceneListTableProps
 ) => {
   const intl = useIntl();
+  const Toast = useToast();
 
   const [updateScene] = useSceneUpdate();
+  const Scrapers = useListSceneScrapers();
+
+  const [scrapingScene, setScrapingScene] =
+    useState<GQL.SlimSceneDataFragment>();
+  const [scrapedScene, setScrapedScene] = useState<GQL.ScrapedScene | null>();
 
   function setRating(v: number | null, sceneId: string) {
     if (sceneId) {
@@ -41,6 +62,90 @@ export const SceneListTable: React.FC<ISceneListTableProps> = (
           },
         },
       });
+    }
+  }
+
+  function saveURLs(sceneId: string, urls: string[]) {
+    updateScene({
+      variables: { input: { id: sceneId, urls } },
+    });
+  }
+
+  function urlScrapable(url: string): boolean {
+    return (Scrapers?.data?.listScrapers ?? []).some((s) =>
+      (s?.scene?.urls ?? []).some((u) => url.includes(u))
+    );
+  }
+
+  async function onScrapeSceneURL(
+    scene: GQL.SlimSceneDataFragment,
+    url: string
+  ) {
+    if (!url) return;
+    try {
+      const result = await queryScrapeSceneURL(url);
+      if (!result.data || !result.data.scrapeSceneURL) {
+        Toast.success("No scenes found");
+        return;
+      }
+      setScrapingScene(scene);
+      setScrapedScene(result.data.scrapeSceneURL);
+    } catch (e) {
+      Toast.error(e);
+    }
+  }
+
+  // Apply the reviewed scrape results to the scene via a single update mutation.
+  // The SceneScrapeDialog has already resolved/created any new entities, so the
+  // returned fragment's stored_ids are safe to write directly.
+  async function onApplyScrape(scraped?: GQL.ScrapedSceneDataFragment) {
+    const target = scrapingScene;
+    setScrapedScene(undefined);
+    setScrapingScene(undefined);
+    if (!scraped || !target) return;
+
+    const input: GQL.SceneUpdateInput = { id: target.id };
+    if (scraped.title) input.title = scraped.title;
+    if (scraped.code) input.code = scraped.code;
+    if (scraped.details) input.details = scraped.details;
+    if (scraped.director) input.director = scraped.director;
+    if (scraped.date) input.date = scraped.date;
+    if (scraped.urls) input.urls = scraped.urls;
+    if (scraped.studio?.stored_id) input.studio_id = scraped.studio.stored_id;
+    if (scraped.performers?.length) {
+      const ids = scraped.performers
+        .filter((p) => p.stored_id)
+        .map((p) => p.stored_id!);
+      if (ids.length) input.performer_ids = ids;
+    }
+    if (scraped.groups?.length) {
+      const g = scraped.groups
+        .filter((x) => x.stored_id)
+        .map((x) => ({ group_id: x.stored_id!, scene_index: null }));
+      if (g.length) input.groups = g;
+    }
+    if (scraped.tags?.length) {
+      const ids = scraped.tags
+        .filter((t) => t.stored_id)
+        .map((t) => t.stored_id!);
+      if (ids.length) input.tag_ids = ids;
+    }
+    if (scraped.image) input.cover_image = scraped.image;
+
+    try {
+      await updateScene({ variables: { input } });
+      Toast.success(
+        intl.formatMessage(
+          { id: "toast.updated_entity" },
+          {
+            entity: intl
+              .formatMessage({ id: "scene" })
+              .toLocaleLowerCase(),
+          }
+        )
+      );
+    } catch (e) {
+      Toast.error(e);
     }
   }
 
@@ -247,6 +352,15 @@ export const SceneListTable: React.FC<ISceneListTableProps> = (
     </NewlineList>
   );
 
+  const URLsCell = (scene: GQL.SlimSceneDataFragment) => (
+    <SceneURLsCell
+      urls={scene.urls ?? []}
+      onSave={(urls) => saveURLs(scene.id, urls)}
+      urlScrapable={urlScrapable}
+      onScrape={(url) => onScrapeSceneURL(scene, url)}
+    />
+  );
+
   interface IColumnSpec {
     value: string;
     label: string;
@@ -346,6 +460,12 @@ export const SceneListTable: React.FC<ISceneListTableProps> = (
       render: ResolutionCell,
     },
     {
+      value: "urls",
+      label: intl.formatMessage({ id: "urls" }),
+      defaultShow: true,
+      render: URLsCell,
+    },
+    {
       value: "path",
       label: intl.formatMessage({ id: "path" }),
       render: PathCell,
@@ -406,16 +526,64 @@ export const SceneListTable: React.FC<ISceneListTableProps> = (
     if (render) return render(scene, index);
   }
 
+  function renderScrapeDialog() {
+    if (!scrapedScene || !scrapingScene) return;
+
+    const s = scrapingScene;
+    const currentScene: Partial<GQL.SceneUpdateInput> = {
+      id: s.id,
+      title: s.title ?? undefined,
+      code: s.code ?? undefined,
+      urls: s.urls,
+      date: s.date ?? undefined,
+      director: s.director ?? undefined,
+      details: s.details ?? undefined,
+      cover_image: s.paths.screenshot ?? undefined,
+      stash_ids: s.stash_ids as GQL.StashIdInput[],
+    };
+
+    return (
+      <React.Suspense fallback={null}>
+        <SceneScrapeDialog
+          scene={currentScene}
+          sceneStudio={
+            s.studio
+              ? ({ id: s.studio.id, name: s.studio.name } as Studio)
+              : null
+          }
+          sceneTags={s.tags.map((t) => ({ id: t.id, name: t.name })) as Tag[]}
+          scenePerformers={
+            s.performers.map((p) => ({
+              id: p.id,
+              name: p.name,
+            })) as Performer[]
+          }
+          sceneGroups={
+            s.groups.map((g) => ({
+              id: g.group.id,
+              name: g.group.name,
+            })) as Group[]
+          }
+          scraped={scrapedScene}
+          onClose={(sd) => onApplyScrape(sd)}
+        />
+      </React.Suspense>
+    );
+  }
+
   return (
-    <ListTable
-      className="scene-table"
-      items={props.scenes}
-      allColumns={allColumns}
-      columns={selectedColumns}
-      setColumns={(c) => saveColumns(c)}
-      selectedIds={props.selectedIds}
-      onSelectChange={props.onSelectChange}
-      renderCell={renderCell}
-    />
+    <>
+      {renderScrapeDialog()}
+      <ListTable
+        className="scene-table"
+        items={props.scenes}
+        allColumns={allColumns}
+        columns={selectedColumns}
+        setColumns={(c) => saveColumns(c)}
+        selectedIds={props.selectedIds}
+        onSelectChange={props.onSelectChange}
+        renderCell={renderCell}
+      />
+    </>
   );
 };

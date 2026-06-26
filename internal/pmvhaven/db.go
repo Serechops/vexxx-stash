@@ -221,7 +221,11 @@ func buildFilter(p ListParams) (string, []interface{}) {
 		args = append(args, p.TagID)
 	}
 	if p.StarID != "" {
-		sb.WriteString(" AND EXISTS (SELECT 1 FROM stars_tags st WHERE st.video_id = videos.id AND st.star_name = ?)")
+		// id IN (subquery) scans stars_tags ONCE and probes videos by primary
+		// key. The previous correlated EXISTS re-scanned the unindexed
+		// stars_tags (~20k rows) once per video (~8k rows) — ~5s per query,
+		// which froze the grid whenever a performer was tapped in the rail.
+		sb.WriteString(" AND videos.id IN (SELECT video_id FROM stars_tags WHERE star_name = ?)")
 		args = append(args, p.StarID)
 	}
 	if q := strings.TrimSpace(p.Query); q != "" {

@@ -94,10 +94,12 @@ export class VRControllerInput {
     new THREE.Vector3(),
     new THREE.Vector3(),
   ];
-  // Grip-drag state (moving the control panel around).
-  private draggable: THREE.Object3D | null = null;
-  private dragEnabled = false;
+  // Grip-drag state. Several objects can be registered grip-draggable at once
+  // (e.g. the control bar and the flat media screen); a squeeze grabs whichever
+  // one the ray is pointing at. `dragTarget` is the object the active drag moves.
+  private draggables: THREE.Object3D[] = [];
   private draggingController: THREE.Group | null = null;
+  private dragTarget: THREE.Object3D | null = null;
   private grabDistance = 2.4;
 
   // Activity tracking for auto-hide.
@@ -105,6 +107,10 @@ export class VRControllerInput {
 
   // Whether any controller is currently pointing at a registered panel.
   private hoveringPanel = false;
+  // A target that stays hoverable/selectable but must NOT keep the auto-hiding
+  // UI awake on hover — the flat video screen, which the user points at almost
+  // constantly. Without this, aiming at the screen would pin the control bar.
+  private hoverWakeExcluded: THREE.Object3D | null = null;
 
   // Per-slot connection state. three's getController(i) groups are created
   // eagerly for both slots but only fire `connected` once a real input source
@@ -248,14 +254,53 @@ export class VRControllerInput {
   }
 
   /**
-   * Mark an object as grip-draggable. When enabled, squeezing while pointing at
-   * a panel grabs it; otherwise squeeze recenters. Disabling cancels any
-   * in-progress drag.
+   * Mark a target whose hover must NOT wake / keep-awake the auto-hiding UI
+   * (the flat screen — pointed at constantly). It stays fully hoverable and
+   * selectable; only the `hoveringPanel` keep-awake signal ignores it. Pass
+   * null to clear (e.g. when leaving flat projection).
+   */
+  setHoverWakeExcluded(object: THREE.Object3D | null) {
+    this.hoverWakeExcluded = object;
+  }
+
+  /** Signed, most-deflected thumbstick Y across both controllers (Quest:
+   *  axes[3], up = negative). No dead-zone — callers gate it. Drives flat-screen
+   *  tilt while repositioning, mirroring the grip-drag push/pull convention. */
+  getStickY(): number {
+    return this.maxAxis(3);
+  }
+
+  /**
+   * Register (or unregister) an object as grip-draggable. Several objects can be
+   * draggable at once — squeezing while pointing at one grabs that object; a
+   * squeeze that hits no draggable recenters instead. Unregistering an object
+   * cancels any in-progress drag of it. Passing a null object clears the set.
    */
   setDraggable(object: THREE.Object3D | null, enabled: boolean) {
-    this.draggable = object;
-    this.dragEnabled = enabled;
-    if (!enabled) this.draggingController = null;
+    if (!object) {
+      this.draggables = [];
+      this.draggingController = null;
+      this.dragTarget = null;
+      return;
+    }
+    const i = this.draggables.indexOf(object);
+    if (enabled) {
+      if (i < 0) this.draggables.push(object);
+    } else if (i >= 0) {
+      this.draggables.splice(i, 1);
+      if (this.dragTarget === object) {
+        this.draggingController = null;
+        this.dragTarget = null;
+      }
+    }
+  }
+
+  /** The registered draggable that `obj` belongs to (itself or an ancestor). */
+  private draggableFor(obj: THREE.Object3D | null): THREE.Object3D | null {
+    for (let o: THREE.Object3D | null = obj; o; o = o.parent) {
+      if (this.draggables.includes(o)) return o;
+    }
+    return null;
   }
 
   /** One-Euro-filtered ray for the currently-pressing controller, or null when
@@ -310,11 +355,14 @@ export class VRControllerInput {
   }
 
   private beginGrabOrRecenter(controller: THREE.Group) {
-    if (this.dragEnabled && this.draggable && this.intersect(controller)) {
+    const hit = this.draggables.length ? this.raycastNearest(controller) : null;
+    const target = hit ? this.draggableFor(hit.object) : null;
+    if (target) {
       this.draggingController = controller;
+      this.dragTarget = target;
       controller.updateMatrixWorld(true);
       const origin = this.tmpV1.setFromMatrixPosition(controller.matrixWorld);
-      const panelPos = this.draggable.getWorldPosition(this.tmpV2);
+      const panelPos = target.getWorldPosition(this.tmpV2);
       this.grabDistance = Math.min(
         DRAG_MAX,
         Math.max(DRAG_MIN, origin.distanceTo(panelPos))
@@ -452,7 +500,10 @@ export class VRControllerInput {
       this.lasers[i].scale.z = hit ? hit.distance : LASER_LENGTH;
       if (hit && !hover) hover = { object: hit.object, uv: hit.uv };
     }
-    this.hoveringPanel = hover !== null;
+    // The flat screen is hoverable/selectable but excluded from the keep-awake
+    // signal so casually aiming at it doesn't pin the auto-hiding control bar.
+    this.hoveringPanel =
+      hover !== null && hover.object !== this.hoverWakeExcluded;
     this.cb.onHover(hover);
 
     // While the trigger is held on a panel, stream drag moves to it (carousels
@@ -467,7 +518,7 @@ export class VRControllerInput {
 
     // While grabbing a panel, the thumbstick push/pulls it instead of
     // scrubbing; the panel rides the controller ray and faces the viewer.
-    if (this.draggingController && this.draggable) {
+    if (this.draggingController && this.dragTarget) {
       this.updateDrag();
       return;
     }
@@ -539,13 +590,13 @@ export class VRControllerInput {
       );
     }
 
-    this.draggable!.position.copy(origin).addScaledVector(
+    this.dragTarget!.position.copy(origin).addScaledVector(
       dir,
       this.grabDistance
     );
     const cam = this.renderer.xr.getCamera();
     this.camPos.setFromMatrixPosition(cam.matrixWorld);
-    this.draggable!.lookAt(this.camPos);
+    this.dragTarget!.lookAt(this.camPos);
   }
 
   private updateScrub() {
@@ -624,7 +675,8 @@ export class VRControllerInput {
     this.lasers = [];
     this.controllers = [];
     this.targets = [];
-    this.draggable = null;
+    this.draggables = [];
+    this.dragTarget = null;
     this.draggingController = null;
     this.pressController = null;
     this.pressObject = null;

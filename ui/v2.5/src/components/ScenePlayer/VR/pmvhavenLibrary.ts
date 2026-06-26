@@ -14,7 +14,12 @@
  *
  * Differences from FapTap:
  *  - all content is flat (no VR projection) → `vrMode` is always null;
- *  - thumbnails are CORS-enabled on the CDN, so no image proxy is needed;
+ *  - the PMVHaven CDN sends NO Access-Control-Allow-Origin, so thumbnails,
+ *    previews and the video stream are all proxied same-origin through
+ *    `/pmvhaven/thumb` and `/pmvhaven/media`. A direct cross-origin load is
+ *    rejected by the browser for the crossorigin="anonymous" <img>/<video> the
+ *    WebGL canvas wall and flat-scene texture require (without this the cards
+ *    are blank and the video never plays);
  *  - performers are real and filterable: the rail's two slots are Tags (studio
  *    slot) and Stars (performer slot), both usable as filters;
  *  - PMVHaven has no funscripts; every video is funscript-capable because the
@@ -50,6 +55,29 @@ async function getJSON<T>(path: string, params?: Record<string, string>): Promis
   const res = await fetch(pmvURL(path, params), { credentials: "include" });
   if (!res.ok) throw new Error(`pmvhaven ${path} ${res.status}`);
   return (await res.json()) as T;
+}
+
+/** PMVHaven CDN host whose assets must be proxied (it sends no CORS headers). */
+const PMV_CDN = "https://video.pmvhaven.com/";
+
+/**
+ * Rewrite a CDN image URL through the same-origin `/pmvhaven/thumb` proxy so a
+ * crossorigin="anonymous" <img> (required to draw cards into the WebGL canvas)
+ * is accepted. Non-CDN/relative URLs pass through unchanged.
+ */
+function proxyImg(url: string | null | undefined): string | null {
+  if (!url) return null;
+  return url.startsWith(PMV_CDN) ? pmvURL("thumb", { url }) : url;
+}
+
+/**
+ * Rewrite a CDN video URL (full stream or hover preview) through the same-origin
+ * `/pmvhaven/media` range proxy so the crossorigin="anonymous" <video> the flat
+ * texture path needs can load and seek it. Non-CDN/relative URLs pass through.
+ */
+function proxyMedia(url: string | null | undefined): string | null {
+  if (!url) return null;
+  return url.startsWith(PMV_CDN) ? pmvURL("media", { url }) : url;
 }
 
 // ── Wire shapes returned by the Go handlers ──────────────────────────────────
@@ -95,13 +123,13 @@ function mapCard(c: RawCard): IVRSceneEntry {
   return {
     id: c.id,
     title: c.name || `PMVHaven ${c.id}`,
-    thumbnailUrl: c.thumbnail_url || null,
+    thumbnailUrl: proxyImg(c.thumbnail_url),
     // Full playback resolves its CDN source lazily on launch via
     // /pmvhaven/videos/{id}/sources; the grid card hovers the preview clip.
     streamUrl: null,
     studioName: null,
     performers: [],
-    previewUrl: c.preview_url || null,
+    previewUrl: proxyMedia(c.preview_url),
     // PMVHaven is all flat — no VR projection.
     vrMode: null,
     hasFunscript: true,
@@ -120,7 +148,11 @@ export function buildPmvSceneFragment(
   detail: RawDetail,
   sources: RawSources
 ): GQL.SceneDataFragment {
-  const allUrls = [sources.stream, ...(sources.fallbacks ?? [])].filter(Boolean);
+  // Every CDN source goes through the same-origin media proxy so the
+  // crossorigin="anonymous" <video> can load and texture-upload it.
+  const allUrls = [sources.stream, ...(sources.fallbacks ?? [])]
+    .filter(Boolean)
+    .map((u) => proxyMedia(u) as string);
   const streams = allUrls.map(
     (url) => ({ __typename: "SceneStreamEndpoint", url, label: null, mime_type: null } as never)
   );
@@ -135,9 +167,9 @@ export function buildPmvSceneFragment(
     vr_mode: null,
     paths: {
       __typename: "ScenePathsType",
-      stream: sources.stream || null,
-      screenshot: detail.thumbnail_url || null,
-      preview: detail.preview_url || null,
+      stream: allUrls[0] || null,
+      screenshot: proxyImg(detail.thumbnail_url),
+      preview: proxyMedia(detail.preview_url),
       funscript: funscriptUrl,
     },
     sceneStreams: streams,

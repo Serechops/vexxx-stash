@@ -82,6 +82,15 @@ const SIDE_PANEL_FORWARD = 0.5;
 // below-eye-level panel faces up at the viewer. Tuned on-device (Quest 3).
 const HANDY_TILT = -0.4;
 
+// Flat-screen placement. The curved screen is world-anchored and grip-draggable
+// with the same machinery as the control bar (VRControllerInput.setDraggable):
+// squeeze-grab rides it on the controller ray and auto-faces the eye; an empty
+// squeeze recenters it in front of the current gaze. It's seeded directly in
+// front of the viewer's actual head pose so it lands at eye level no matter where
+// the head is.
+const FLAT_SCREEN_DISTANCE = 3.2; // metres in front of the eye on (re)placement
+const FLAT_FALLBACK_EYE_Y = 1.6; // standing eye height if the pose isn't ready yet
+
 // Performance auto-throttle thresholds (timings in ms):
 //   HITCH_MS       — any single frame longer than this counts as a hitch
 //   HITCH_WINDOW   — sliding window (ms) over which we count hitches
@@ -274,7 +283,7 @@ class GpuTimer {
 
   private poll(): void {
     if (!this.ext) return;
-    const gl = this.gl;
+    const { gl } = this;
     const disjoint = gl.getParameter(this.ext.GPU_DISJOINT_EXT);
     while (this.inflight.length) {
       const q = this.inflight[0];
@@ -302,18 +311,15 @@ export class XRSessionManager {
   private session: XRSession | null = null;
   private projection: IProjectionSettings;
   private domeMeshes: THREE.Mesh[] = [];
-  // Flat screen drag-handle — a plane the user taps to toggle reposition mode.
-  // Sits below the screen and co-rotates with it. A plane (not a Sprite) so the
-  // shared controller raycaster — which has no `.camera` set — can intersect it;
-  // Sprite.raycast() requires a camera and throws every frame inside the XR loop
-  // without one (the cause of flat scenes freezing on the Home wall).
-  private flatScreenHandle: THREE.Mesh | null = null;
-  private flatScreenHandleHittable: IHittable | null = null;
-  private flatScreenHandleActive = false;
-  private flatScreenDragControllerIdx = 0;
-  private flatScreenPrevYaw = 0;
-  private flatScreenPrevPitch = 0;
-  private flatScreenPrevRayValid = false;
+  // Flat (2D) screen. The curved screen is world-anchored (parented to the scene,
+  // not videoGroup) and registered grip-draggable, so it repositions with the
+  // exact same feel as the control bar / Home wall: a squeeze grabs it (it rides
+  // the controller ray and faces the eye), an empty squeeze recenters it in front
+  // of the gaze. The mesh is the raycast/grab target so the user can grab anywhere
+  // on it.
+  private flatScreenGroup: THREE.Group | null = null;
+  private flatScreenMesh: THREE.Mesh | null = null;
+  private flatScreenHittable: IHittable | null = null;
   // WebXR Media Layers — the default, compositor-sampled video path ("max
   // quality": the headset compositor samples the video directly, ~halving GPU
   // vs the eye-buffer dome). Used for 180/360 (equirect); the shader dome is
@@ -814,10 +820,10 @@ export class XRSessionManager {
       this.input.setTargets(this.hittables.map((h) => h.target));
       return;
     }
-    // Playback: bar + handy always; flat screen handle when in flat mode;
+    // Playback: bar + handy always; the grabbable flat screen when in flat mode;
     // both peripheral Browse panels when open.
-    this.hittables = this.flatScreenHandleHittable
-      ? [...this.baseHittables, this.flatScreenHandleHittable]
+    this.hittables = this.flatScreenHittable
+      ? [...this.baseHittables, this.flatScreenHittable]
       : [...this.baseHittables];
     if (this.browseOpen) {
       for (const panel of [this.scenesPanel, this.infoPanel]) {
@@ -1029,11 +1035,17 @@ export class XRSessionManager {
       // Hide the video screen (dome/flat-screen meshes) in lobby so it doesn't
       // bleed through behind the home wall.
       for (const m of this.domeMeshes) m.visible = false;
-      if (this.flatScreenHandle) this.flatScreenHandle.visible = false;
+      if (this.flatScreenGroup) this.flatScreenGroup.visible = false;
     } else {
       // Restore the video screen meshes for the just-launched scene.
       for (const m of this.domeMeshes) m.visible = true;
-      if (this.flatScreenHandle) this.flatScreenHandle.visible = true;
+      if (this.flatScreenGroup) {
+        this.flatScreenGroup.visible = true;
+        // Re-snap the flat screen in front of the viewer's gaze as it appears, so
+        // a scene launched from the lobby lands at eye level wherever the head now
+        // is (build-time placement may have been mid-lobby-turn).
+        this.placeFlatInstant(this.renderer.xr.getCamera());
+      }
     }
     // Drop/restore the media video layer from the compositor render state so the
     // home wall isn't backed by the (now paused) scene video while in the lobby.
@@ -1290,15 +1302,18 @@ export class XRSessionManager {
     const cam = this.renderer.xr.getCamera();
     this.tmpEuler.setFromQuaternion(cam.quaternion, "YXZ");
     this.videoYaw = this.tmpEuler.y;
+    // Flat path: there's no dome to rotate — re-place the world-anchored screen
+    // directly in front of the current gaze (the control bar's empty-squeeze
+    // recenter, applied to the flat media wall).
+    if (this.projection.fov === "flat") {
+      this.placeFlatInstant(cam);
+      return;
+    }
     // Shader-dome path: rotate the mesh group.
     this.videoGroup.rotation.y = this.videoYaw;
-    // Media-layer path: rotate the equirect layer's transform (the flat quad is
-    // a fixed screen in front of the viewer and isn't recentred).
-    if (
-      this.usingMediaLayer &&
-      this.mediaLayer &&
-      this.projection.fov !== "flat"
-    ) {
+    // Media-layer path: rotate the equirect layer's transform. (Flat already
+    // returned above, so any media layer here is an equirect dome.)
+    if (this.usingMediaLayer && this.mediaLayer) {
       (this.mediaLayer as XREquirectLayer).transform = this.equirectTransform();
     }
   }
@@ -1648,7 +1663,7 @@ export class XRSessionManager {
    * fisheye shader's similar note); the equirect default centres on -Z (forward).
    */
   private buildMediaLayer() {
-    const session = this.session;
+    const { session } = this;
     if (!session) return;
     const refSpace = this.renderer.xr.getReferenceSpace();
     if (!refSpace) {
@@ -1734,7 +1749,7 @@ export class XRSessionManager {
    * base layer there).
    */
   private syncRenderStateLayers() {
-    const session = this.session;
+    const { session } = this;
     if (!session) return;
     const showVideoLayer =
       this.usingMediaLayer && !!this.mediaLayer && !this.lobbyMode;
@@ -1769,7 +1784,7 @@ export class XRSessionManager {
    * graph sizes are included so a runaway mesh/child count is visible too.
    */
   private resourceSnapshot(): Record<string, number | null> {
-    const info = this.renderer.info;
+    const { info } = this.renderer;
     const mem = (
       performance as Performance & {
         memory?: { usedJSHeapSize: number; jsHeapSizeLimit: number };
@@ -1813,22 +1828,32 @@ export class XRSessionManager {
       (m.material as THREE.Material).dispose();
     }
     this.domeMeshes = [];
-    if (this.flatScreenHandle) {
-      const mat = this.flatScreenHandle.material as THREE.MeshBasicMaterial;
-      mat.map?.dispose();
-      mat.dispose();
-      this.flatScreenHandle.geometry.dispose();
-      this.videoGroup.remove(this.flatScreenHandle);
-      this.flatScreenHandle = null;
+    if (this.flatScreenMesh) {
+      // Dispose geometry + material but NOT material.map — that's the shared
+      // videoTexture, owned and reused across rebuilds.
+      this.flatScreenMesh.geometry.dispose();
+      (this.flatScreenMesh.material as THREE.Material).dispose();
+      this.flatScreenMesh = null;
     }
-    this.flatScreenHandleHittable = null;
-    this.flatScreenHandleActive = false;
-    this.flatScreenPrevRayValid = false;
+    if (this.flatScreenGroup) {
+      // The flat screen is scene-anchored and grip-draggable — unregister it
+      // before teardown so a stale reference can't be grabbed.
+      this.input.setDraggable(this.flatScreenGroup, false);
+      this.scene.remove(this.flatScreenGroup);
+      this.flatScreenGroup = null;
+    }
+    this.flatScreenHittable = null;
+    // Stop excluding the (now-gone) screen from the hover keep-awake signal.
+    this.input.setHoverWakeExcluded(null);
   }
 
   private buildDome() {
     this.clearDome();
     const p = this.projection;
+    // Upright baseline — domes are always upright, so drop any residual group
+    // pitch from a prior projection before (re)building. (Flat scenes no longer
+    // touch videoGroup; the screen is scene-anchored.)
+    this.videoGroup.rotation.x = 0;
 
     if (p.fov === "fisheye190") {
       // Dual-fisheye SBS: a forward dome per eye, sampling its own circle via a
@@ -1841,33 +1866,32 @@ export class XRSessionManager {
         this.domeMeshes.push(this.makeFisheyeMesh("left", 0));
       }
     } else if (p.fov === "flat") {
-      // Snap the flat screen to the viewer's current gaze direction at switch
-      // time. this.videoYaw is stale (captured at the last recenter press, not
-      // at this scene switch). Reading the live XR camera pose here puts the
-      // screen directly in front of wherever the viewer is looking when they
-      // tap the card. Falls back to videoYaw if the XR pose isn't ready yet.
-      const xrCam = this.renderer.xr.getCamera();
-      this.tmpEuler.setFromQuaternion(xrCam.quaternion, "YXZ");
-      this.videoGroup.rotation.y = this.tmpEuler.y;
+      // The flat screen is world-anchored (parented to the scene, like the
+      // control bar) and grip-draggable, so it repositions with the same feel as
+      // the Home wall. The curved mesh is centred on its own origin, so the
+      // wrapping group's origin is the screen centre — lookAt then faces it
+      // squarely at the eye. Seed it directly in front of the viewer's actual
+      // head pose so it lands at eye level wherever the head is.
       const flatMesh = this.makeFlatScreen(p.zoom);
-      this.domeMeshes.push(flatMesh);
-      const handle = this.makeFlatScreenHandle();
-      this.flatScreenHandle = handle;
-      if (this.lobbyMode) handle.visible = false;
-      this.videoGroup.add(handle);
-      this.flatScreenHandleHittable = {
-        target: handle,
+      const group = new THREE.Group();
+      group.add(flatMesh);
+      if (this.lobbyMode) group.visible = false;
+      this.scene.add(group);
+      this.flatScreenGroup = group;
+      this.flatScreenMesh = flatMesh;
+      this.placeFlatInstant(this.renderer.xr.getCamera());
+
+      // Grip-drag target: squeeze on the screen to grab it (it rides the
+      // controller ray and auto-faces the eye via VRControllerInput.updateDrag),
+      // release to set; an empty squeeze recenters it. Excluded from the hover
+      // keep-awake signal so aiming at it doesn't pin the auto-hiding bar. The
+      // trigger no longer repositions it, so select/up are inert.
+      this.input.setHoverWakeExcluded(flatMesh);
+      this.input.setDraggable(group, true);
+      this.flatScreenHittable = {
+        target: flatMesh,
         hover: () => {},
-        select: () => {
-          const idx = this.input.getPressControllerIndex();
-          this.flatScreenHandleActive = !this.flatScreenHandleActive;
-          this.flatScreenPrevRayValid = false;
-          if (this.flatScreenHandleActive) {
-            this.flatScreenDragControllerIdx = idx >= 0 ? idx : 0;
-          }
-          this.updateHandleTexture();
-          return null;
-        },
+        select: () => null,
         up: () => null,
       };
     } else if (isStereo(p) && !this.debug.has("mono")) {
@@ -1888,99 +1912,6 @@ export class XRSessionManager {
     // Sync the raycast target list — the flat screen hittable is added/removed
     // based on whether we just entered or left flat projection mode.
     this.rebuildBrowseHittables();
-  }
-
-  private updateFlatScreenDrag() {
-    const ray = this.input.getRay(this.flatScreenDragControllerIdx);
-    if (!ray) return;
-    const { dir } = ray;
-    const currentYaw = Math.atan2(-dir.x, -dir.z);
-    const currentPitch = Math.asin(Math.max(-1, Math.min(1, dir.y)));
-
-    if (!this.flatScreenPrevRayValid) {
-      this.flatScreenPrevYaw = currentYaw;
-      this.flatScreenPrevPitch = currentPitch;
-      this.flatScreenPrevRayValid = true;
-      return;
-    }
-
-    this.videoGroup.rotation.y += currentYaw - this.flatScreenPrevYaw;
-    // Pitch delta tilts the screen face toward or away from the viewer.
-    // Clamped so it can't flip past horizontal (ceiling) or past ~40° forward.
-    this.videoGroup.rotation.x = Math.max(
-      -Math.PI * 0.45,
-      Math.min(
-        Math.PI * 0.22,
-        this.videoGroup.rotation.x + (currentPitch - this.flatScreenPrevPitch)
-      )
-    );
-    this.flatScreenPrevYaw = currentYaw;
-    this.flatScreenPrevPitch = currentPitch;
-  }
-
-  private makeFlatScreenHandle(): THREE.Mesh {
-    const mat = new THREE.MeshBasicMaterial({
-      map: this.makeHandleCanvasTexture(false),
-      transparent: true,
-      depthTest: false,
-      depthWrite: false,
-      side: THREE.DoubleSide,
-    });
-    // A 0.35 m plane facing +Z (toward the viewer, like the flat screen). As a
-    // child of videoGroup it tilts/swivels with the screen during a drag.
-    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(0.35, 0.35), mat);
-    // Positioned below the flat screen in videoGroup local space.
-    // Screen mesh sits at y=1.55; its bottom edge is ~y=0.4 at zoom=1.
-    mesh.position.set(0, 0.1, -3.2);
-    mesh.renderOrder = 12;
-    mesh.layers.set(0);
-    return mesh;
-  }
-
-  private makeHandleCanvasTexture(active: boolean): THREE.CanvasTexture {
-    const canvas = document.createElement("canvas");
-    canvas.width = canvas.height = 128;
-    const ctx = canvas.getContext("2d")!;
-    // Rounded-rectangle background.
-    const r = 20;
-    ctx.fillStyle = active ? "rgba(96,165,250,0.92)" : "rgba(20,20,20,0.78)";
-    ctx.beginPath();
-    ctx.moveTo(6 + r, 6);
-    ctx.arcTo(122, 6, 122, 122, r);
-    ctx.arcTo(122, 122, 6, 122, r);
-    ctx.arcTo(6, 122, 6, 6, r);
-    ctx.arcTo(6, 6, 122, 6, r);
-    ctx.closePath();
-    ctx.fill();
-    // 4-directional move arrows.
-    ctx.strokeStyle = "rgba(255,255,255,0.95)";
-    ctx.lineWidth = 7;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    const cx = 64, cy = 64, arm = 32, head = 11;
-    const dirs: [number, number][] = [[0, -1], [0, 1], [-1, 0], [1, 0]];
-    for (const [dx, dy] of dirs) {
-      ctx.beginPath();
-      ctx.moveTo(cx + dx * 10, cy + dy * 10);
-      ctx.lineTo(cx + dx * arm, cy + dy * arm);
-      ctx.stroke();
-      const px = -dy, py = dx;
-      ctx.beginPath();
-      ctx.moveTo(cx + dx * arm, cy + dy * arm);
-      ctx.lineTo(cx + dx * arm - dx * head + px * head * 0.55, cy + dy * arm - dy * head + py * head * 0.55);
-      ctx.moveTo(cx + dx * arm, cy + dy * arm);
-      ctx.lineTo(cx + dx * arm - dx * head - px * head * 0.55, cy + dy * arm - dy * head - py * head * 0.55);
-      ctx.stroke();
-    }
-    return new THREE.CanvasTexture(canvas);
-  }
-
-  private updateHandleTexture() {
-    if (!this.flatScreenHandle) return;
-    const mat = this.flatScreenHandle.material as THREE.MeshBasicMaterial;
-    mat.map?.dispose();
-    mat.map = this.makeHandleCanvasTexture(this.flatScreenHandleActive);
-    mat.needsUpdate = true;
   }
 
   private makeDomeMesh(uv: IUVTransform, layer: number): THREE.Mesh {
@@ -2130,7 +2061,8 @@ export class XRSessionManager {
       ? new THREE.MeshBasicMaterial({ color: 0x224466 })
       : new THREE.MeshBasicMaterial({ map: this.videoTexture });
     const mesh = new THREE.Mesh(geometry, material);
-    mesh.position.set(0, 1.55, -3.2);
+    // Position is set by the caller (buildDome) relative to the tilt-pivot
+    // group, so the geometry sits at its rest pose when tilt = 0.
     mesh.layers.set(0);
     mesh.frustumCulled = false;
     return mesh;
@@ -2206,9 +2138,15 @@ export class XRSessionManager {
     // This counteracts the intentional per-frame-update (needed to prevent
     // Quest compositor desync) by at least skipping truly identical frames.
     // At throttle≥1, skip stale uploads on stall to cut bus pressure.
-    // Only needed for the shader-dome path (fisheye / Layers-less fallback):
-    // when the media layer is active the compositor samples the <video> itself.
-    if (this.domeMeshes.length > 0 && this.opts.video.readyState >= 2) {
+    // Only needed for the shader-dome path (fisheye / Layers-less fallback) and
+    // the flat curved screen — both sample videoTexture directly. When the media
+    // layer is active the compositor samples the <video> itself (no upload). The
+    // flat screen lives in its own tilt-pivot group (not domeMeshes), so include
+    // it explicitly or flat scenes freeze on the first frame.
+    if (
+      (this.domeMeshes.length > 0 || this.flatScreenMesh) &&
+      this.opts.video.readyState >= 2
+    ) {
       const ct = this.opts.video.currentTime;
       const frameChanged = Math.abs(ct - this.lastUploadedFrame) > 0.01;
       if (frameChanged || this.opts.video.paused) {
@@ -2290,7 +2228,6 @@ export class XRSessionManager {
     // buttons) — never by head direction or where the laser happens to point.
     const pIn0 = jitter ? performance.now() : 0;
     this.input.update();
-    if (this.flatScreenHandleActive) this.updateFlatScreenDrag();
     // Pick up newly-loaded controller/hand meshes and give them the white rim.
     this.deviceModels?.update();
     const pInputMs = jitter ? performance.now() - pIn0 : 0;
@@ -2566,6 +2503,32 @@ export class XRSessionManager {
     // XYZ order applies pitch about world-X and induces an apparent roll (the
     // bar tilting to one side) whenever yaw is non-zero.
     this.uiGroup.rotation.set(PANEL_TILT, yaw, 0, "YXZ");
+  }
+
+  /**
+   * Snap the flat screen directly in front of the viewer's current gaze, at the
+   * head's actual world height — so it lands at eye level no matter where the
+   * head is. Mirrors placeUiInstant, but faces the eye via lookAt so a later
+   * grab/lift keeps it angled toward the viewer (matching updateDrag).
+   */
+  private placeFlatInstant(cam: THREE.Camera) {
+    const g = this.flatScreenGroup;
+    if (!g) return;
+    this.tmpVec.setFromMatrixPosition(cam.matrixWorld);
+    this.tmpEuler.setFromQuaternion(cam.quaternion, "YXZ");
+    const yaw = this.tmpEuler.y;
+    // A pre-pose camera sits at the origin; fall back to a standing eye height so
+    // the screen doesn't end up on the floor on the very first frame(s).
+    const eyeY =
+      this.tmpVec.lengthSq() > 0.01 ? this.tmpVec.y : FLAT_FALLBACK_EYE_Y;
+    g.position.set(
+      this.tmpVec.x - Math.sin(yaw) * FLAT_SCREEN_DISTANCE,
+      eyeY,
+      this.tmpVec.z - Math.cos(yaw) * FLAT_SCREEN_DISTANCE
+    );
+    // Face the eye at the same height → level when placed in front; once grabbed
+    // and lifted, the shared lookAt auto-tilts it toward the viewer.
+    g.lookAt(this.tmpVec.x, eyeY, this.tmpVec.z);
   }
 
   /** Title of the marker/chapter whose span contains `time`, or null. */

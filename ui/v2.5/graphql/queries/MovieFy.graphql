@@ -27,6 +27,40 @@ query MovieFyConfig {
   }
 }
 
+# Scenes whose file lives directly inside a chosen folder. Used by the MovieFy
+# "Browse" tab so users can pick scene files by path instead of relying on the
+# title-based search assuming a depth-1 folder named after the movie.
+query MovieFyFolderScenes(
+  $filter: FindFilterType
+  $scene_filter: SceneFilterType
+) {
+  findScenes(filter: $filter, scene_filter: $scene_filter) {
+    count
+    scenes {
+      id
+      title
+      paths {
+        screenshot
+      }
+      files {
+        id
+        path
+        basename
+        parent_folder {
+          id
+        }
+      }
+      groups {
+        group {
+          id
+          name
+        }
+        scene_index
+      }
+    }
+  }
+}
+
 mutation ConfigureMovieFy($input: MovieFyConfigInput!) {
   configureMovieFy(input: $input)
 }

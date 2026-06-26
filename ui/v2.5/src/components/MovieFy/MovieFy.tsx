@@ -49,6 +49,7 @@ import { debounce } from "lodash-es";
 import * as GQL from "src/core/generated-graphql";
 import { useToast } from "src/hooks/Toast";
 import { MovieFyQueue } from "./MovieFyQueue";
+import { MovieFyFileBrowser } from "./MovieFyFileBrowser";
 
 // Types for internal use
 interface SceneItem {
@@ -159,6 +160,7 @@ export const MovieFy: React.FC = () => {
 
     // UI State
     const [viewMode, setViewMode] = useState<"list" | "grid">("list");
+    const [leftMode, setLeftMode] = useState<"search" | "browse">("search");
     const [excludeGrouped, setExcludeGrouped] = useState(false);
     const [selectedScenes, setSelectedScenes] = useState<SceneItem[]>([]);
     const [selectedGroup, setSelectedGroup] = useState<{ id?: string; name: string; url?: string; front_image?: string } | null>(null);
@@ -307,6 +309,23 @@ export const MovieFy: React.FC = () => {
             return exists ? prev.filter((s) => s.id !== scene.id) : [...prev, scene];
         });
     }, []);
+
+    // Bulk add/remove used by the folder-browser "select all in folder" action.
+    const handleScenesBulk = useCallback((scenes: SceneItem[], select: boolean) => {
+        setSelectedScenes((prev) => {
+            if (select) {
+                const have = new Set(prev.map((s) => s.id));
+                return [...prev, ...scenes.filter((s) => !have.has(s.id))];
+            }
+            const remove = new Set(scenes.map((s) => s.id));
+            return prev.filter((s) => !remove.has(s.id));
+        });
+    }, []);
+
+    const selectedSceneIds = useMemo(
+        () => new Set(selectedScenes.map((s) => s.id)),
+        [selectedScenes]
+    );
 
     // Group selection
     // Group selection
@@ -657,11 +676,31 @@ export const MovieFy: React.FC = () => {
                             title={
                                 <Box display="flex" alignItems="center">
                                     <Icon icon={faFilm} className="mr-2" />
-                                    <Typography variant="h6">Scenes ({filteredScenes.length})</Typography>
+                                    <Typography variant="h6">
+                                        Scenes{leftMode === "search" ? ` (${filteredScenes.length})` : ""}
+                                    </Typography>
                                     {selectedScenes.length > 0 && (
                                         <Chip label={`${selectedScenes.length} selected`} color="primary" sx={{ ml: 2 }} />
                                     )}
                                 </Box>
+                            }
+                            action={
+                                <ButtonGroup variant="outlined" size="small" sx={{ mt: 0.5 }}>
+                                    <Button
+                                        variant={leftMode === "search" ? "contained" : "outlined"}
+                                        onClick={() => setLeftMode("search")}
+                                        startIcon={<Icon icon={faSearch} />}
+                                    >
+                                        Search
+                                    </Button>
+                                    <Button
+                                        variant={leftMode === "browse" ? "contained" : "outlined"}
+                                        onClick={() => setLeftMode("browse")}
+                                        startIcon={<Icon icon={faFolder} />}
+                                    >
+                                        Browse
+                                    </Button>
+                                </ButtonGroup>
                             }
                             sx={{ borderBottom: 1, borderColor: 'divider', bgcolor: 'background.paper' }}
                         />
@@ -688,6 +727,14 @@ export const MovieFy: React.FC = () => {
                                 </Box>
                             </Box>
                         )}
+                        {leftMode === "browse" ? (
+                            <MovieFyFileBrowser
+                                selectedSceneIds={selectedSceneIds}
+                                excludeGrouped={excludeGrouped}
+                                onToggleScene={handleSceneSelect}
+                                onBulkToggle={handleScenesBulk}
+                            />
+                        ) : (
                         <CardContent sx={{ p: 0, flexGrow: 1, overflowY: 'auto' }}>
                             {scenesLoading ? (
                                 <Box display="flex" justifyContent="center" p={4}>
@@ -774,7 +821,8 @@ export const MovieFy: React.FC = () => {
                                 </Grid>
                             )}
                         </CardContent>
-                        {totalPages > 1 && (
+                        )}
+                        {leftMode === "search" && totalPages > 1 && (
                             <Box sx={{ p: 2, display: 'flex', justifyContent: 'center', borderTop: 1, borderColor: 'divider' }}>
                                 <Pagination
                                     count={totalPages}

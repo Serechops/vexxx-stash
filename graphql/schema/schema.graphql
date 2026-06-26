@@ -726,6 +726,8 @@ extend type Query {
 extend type Mutation {
   "Configure MovieFy database path"
   configureMovieFy(input: MovieFyConfigInput!): Boolean!
+  "Add or update a movie entry in the local moviefy.db"
+  addMovieFyEntry(input: AddMovieFyEntryInput!): MovieFyResult!
 }
 
 # User Management

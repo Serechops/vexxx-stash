@@ -51,6 +51,9 @@ type ScrapedGroup {
   front_image: String
   "This should be a base64 encoded data URL"
   back_image: String
+
+  "Scene clip URLs found on the movie page, populated by scrapers that support it"
+  scene_urls: [String!]
 }
 
 input ScrapedGroupInput {

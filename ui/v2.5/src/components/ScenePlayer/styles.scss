@@ -41,6 +41,13 @@
   }
 }
 
+// Fill mode: cover crops to fill the player, removing letterbox bars
+.video-js.vjs-fill-mode video {
+  object-fit: cover !important;
+}
+
+// Icon is injected as an <img> element directly in fill-mode.ts — no CSS needed here
+
 .video-js {
   height: 100%;
   position: absolute;

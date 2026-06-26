@@ -182,6 +182,88 @@ func (r *queryResolver) MovieFyConfig(ctx context.Context) (*MovieFyConfig, erro
 	}, nil
 }
 
+// AddMovieFyEntry upserts a movie entry into the local moviefy.db by URL.
+func (r *mutationResolver) AddMovieFyEntry(ctx context.Context, input AddMovieFyEntryInput) (*MovieFyResult, error) {
+	dbPath := config.GetInstance().GetMovieFyDatabasePath()
+	if dbPath == "" {
+		return nil, fmt.Errorf("MovieFy database path is not configured")
+	}
+	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+		return nil, fmt.Errorf("MovieFy database not found: %s", dbPath)
+	}
+
+	db, err := sql.Open("sqlite3", dbPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open moviefy database: %w", err)
+	}
+	defer db.Close()
+
+	var frontImage, studioName *string
+	if input.FrontImage != nil && *input.FrontImage != "" {
+		frontImage = input.FrontImage
+	}
+	if input.StudioName != nil && *input.StudioName != "" {
+		studioName = input.StudioName
+	}
+
+	// Check whether a row with this URL already exists
+	var existingID int64
+	err = db.QueryRowContext(ctx, `SELECT id FROM movies WHERE url = ?`, input.URL).Scan(&existingID)
+	if err != nil && err != sql.ErrNoRows {
+		return nil, fmt.Errorf("failed to query existing entry: %w", err)
+	}
+
+	var rowID int64
+	if existingID > 0 {
+		// Update existing row
+		_, err = db.ExecContext(ctx,
+			`UPDATE movies SET name = ?, front_image = ?, studio_name = ? WHERE id = ?`,
+			input.Name, frontImage, studioName, existingID,
+		)
+		if err != nil {
+			// studio_name column may not exist — retry without it
+			_, err = db.ExecContext(ctx,
+				`UPDATE movies SET name = ?, front_image = ? WHERE id = ?`,
+				input.Name, frontImage, existingID,
+			)
+			if err != nil {
+				return nil, fmt.Errorf("failed to update entry: %w", err)
+			}
+		}
+		rowID = existingID
+	} else {
+		// Insert new row
+		res, err := db.ExecContext(ctx,
+			`INSERT INTO movies (name, url, front_image, studio_name) VALUES (?, ?, ?, ?)`,
+			input.Name, input.URL, frontImage, studioName,
+		)
+		if err != nil {
+			// Retry without studio_name if column doesn't exist
+			res, err = db.ExecContext(ctx,
+				`INSERT INTO movies (name, url, front_image) VALUES (?, ?, ?)`,
+				input.Name, input.URL, frontImage,
+			)
+			if err != nil {
+				return nil, fmt.Errorf("failed to insert entry: %w", err)
+			}
+		}
+		rowID, _ = res.LastInsertId()
+	}
+
+	result := &MovieFyResult{
+		ID:         fmt.Sprintf("%d", rowID),
+		Name:       input.Name,
+		URL:        &input.URL,
+		FrontImage: frontImage,
+		StudioName: studioName,
+	}
+	parts := strings.Split(input.URL, "/")
+	if len(parts) > 2 {
+		result.Domain = &parts[2]
+	}
+	return result, nil
+}
+
 // ConfigureMovieFy sets the MovieFy database path
 func (r *mutationResolver) ConfigureMovieFy(ctx context.Context, input MovieFyConfigInput) (bool, error) {
 	// Validate the path exists and is a valid SQLite database

@@ -39,6 +39,9 @@ export interface SceneItem {
     scene_index?: number;
   }>;
   new_scene_index?: number;
+  studio?: { id: string } | null;
+  tags?: Array<{ id: string }>;
+  performers?: Array<{ id: string }>;
 }
 
 const basename = (p: string) => {
@@ -241,6 +244,9 @@ export const MovieFyFileBrowser: React.FC<IMovieFyFileBrowserProps> = ({
         group: { id: g.group.id, name: g.group.name },
         scene_index: g.scene_index ?? undefined,
       })),
+      studio: s.studio ? { id: s.studio.id } : null,
+      tags: s.tags?.map((t) => ({ id: t.id })) ?? [],
+      performers: s.performers?.map((p) => ({ id: p.id })) ?? [],
     }));
     return excludeGrouped
       ? mapped.filter((s) => !s.groups || s.groups.length === 0)

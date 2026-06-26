@@ -28,7 +28,8 @@ import {
     Paper
 } from "@mui/material";
 import { GroupScrapeDialog } from "../Groups/GroupDetails/GroupScrapeDialog";
-import { queryScrapeGroupURL } from "src/core/StashService";
+import { queryScrapeGroupURL, queryScrapeSceneURL } from "src/core/StashService";
+import { MovieFySceneURLMatcher } from "./MovieFySceneURLMatcher";
 import { useIntl } from "react-intl";
 import { Icon } from "../Shared/Icon";
 import {
@@ -67,11 +68,22 @@ interface SceneItem {
         scene_index?: number;
     }>;
     new_scene_index?: number;
+    studio?: { id: string } | null;
+    tags?: Array<{ id: string }>;
+    performers?: Array<{ id: string }>;
+}
+
+interface ClipEntry {
+    url: string;
+    scraped?: GQL.ScrapedScene | null;
 }
 
 interface QueueItem {
     group: GQL.ScrapedGroup & { id?: string };
     scenes: SceneItem[];
+    propagateToScenes: boolean;
+    sceneURLMap?: Record<string, string>; // sceneId → clip URL
+    sceneClipData?: Record<string, GQL.ScrapedScene>; // sceneId → pre-scraped clip data
 }
 
 export const MovieFy: React.FC = () => {
@@ -81,6 +93,7 @@ export const MovieFy: React.FC = () => {
     // Database configuration
     const { data: configData, loading: configLoading, refetch: refetchConfig } = GQL.useMovieFyConfigQuery();
     const [configureMovieFy] = GQL.useConfigureMovieFyMutation();
+    const [addMovieFyEntry] = GQL.useAddMovieFyEntryMutation();
     const [dbPathInput, setDbPathInput] = useState("");
     const [showConfig, setShowConfig] = useState(false);
 
@@ -159,6 +172,8 @@ export const MovieFy: React.FC = () => {
     const [updateScene] = GQL.useSceneUpdateMutation();
 
     // UI State
+    const [manualUrl, setManualUrl] = useState("");
+    const [isManualEntry, setIsManualEntry] = useState(false);
     const [viewMode, setViewMode] = useState<"list" | "grid">("list");
     const [leftMode, setLeftMode] = useState<"search" | "browse">("search");
     const [excludeGrouped, setExcludeGrouped] = useState(false);
@@ -170,30 +185,47 @@ export const MovieFy: React.FC = () => {
     const [processing, setProcessing] = useState(false);
     const [scrapedGroup, setScrapedGroup] = useState<GQL.ScrapedGroup>();
     const [previewLoadingId, setPreviewLoadingId] = useState<string | null>(null);
+    const [pendingClipData, setPendingClipData] = useState<ClipEntry[]>([]);
+    const [clipsFetching, setClipsFetching] = useState(false);
+    const [pendingQueueItem, setPendingQueueItem] = useState<Omit<QueueItem, "sceneURLMap" | "sceneClipData"> | null>(null);
+    const [showURLMatcher, setShowURLMatcher] = useState(false);
 
-    async function handlePreview(movie: GQL.MovieFyResult, e: React.MouseEvent) {
-        e.stopPropagation();
-        if (!movie.url) return;
-
-        setPreviewLoadingId(movie.id);
+    async function handleScrapeAndQueue(url: string, name: string, front_image?: string | null) {
+        setPreviewLoadingId(url);
         try {
-            const result = await queryScrapeGroupURL(movie.url);
+            const result = await queryScrapeGroupURL(url);
             if (result.data?.scrapeGroupURL) {
-                setScrapedGroup(result.data.scrapeGroupURL);
+                const sg = result.data.scrapeGroupURL;
+                const clipURLs = sg.scene_urls ?? [];
+                if (clipURLs.length > 0) {
+                    // Seed placeholders immediately so the matcher can open even before fetches resolve
+                    setPendingClipData(clipURLs.map(u => ({ url: u })));
+                    setClipsFetching(true);
+                    // Pre-fetch all clip pages in parallel while user reviews the movie in GroupScrapeDialog
+                    Promise.all(
+                        clipURLs.map(async (u): Promise<ClipEntry> => {
+                            try {
+                                const r = await queryScrapeSceneURL(u);
+                                return { url: u, scraped: r.data?.scrapeSceneURL ?? null };
+                            } catch {
+                                return { url: u, scraped: null };
+                            }
+                        })
+                    ).then(results => {
+                        setPendingClipData(results);
+                        setClipsFetching(false);
+                    });
+                } else {
+                    setPendingClipData([]);
+                }
+                setScrapedGroup(sg);
             } else {
-                setScrapedGroup({
-                    name: movie.name,
-                    front_image: movie.front_image,
-                    urls: [movie.url],
-                } as GQL.ScrapedGroup);
+                setPendingClipData([]);
+                setScrapedGroup({ name, front_image: front_image ?? null, urls: [url] } as GQL.ScrapedGroup);
             }
-        } catch (error) {
-            console.error("Scrape failed", error);
-            setScrapedGroup({
-                name: movie.name,
-                front_image: movie.front_image,
-                urls: [movie.url],
-            } as GQL.ScrapedGroup);
+        } catch {
+            setPendingClipData([]);
+            setScrapedGroup({ name, front_image: front_image ?? null, urls: [url] } as GQL.ScrapedGroup);
         } finally {
             setPreviewLoadingId(null);
         }
@@ -225,9 +257,20 @@ export const MovieFy: React.FC = () => {
     };
 
     // MovieFy database results
-    const movieFyMovies = movieFyData?.searchMovieFyDatabase?.movies || [];
+    const movieFyMoviesRaw = movieFyData?.searchMovieFyDatabase?.movies || [];
     const movieFyPagination = movieFyData?.searchMovieFyDatabase?.pagination;
     const movieFyMode = movieFyData?.searchMovieFyDatabase?.mode || "basic";
+
+    // Sort AdultEmpire results first
+    const movieFyMovies = useMemo(() => {
+        const isAE = (url?: string | null) =>
+            !!url && (url.includes("adultempire.com") || url.includes("adultdvdempire.com"));
+        return [...movieFyMoviesRaw].sort((a, b) => {
+            const aAE = isAE(a.url) ? 0 : 1;
+            const bAE = isAE(b.url) ? 0 : 1;
+            return aAE - bAE;
+        });
+    }, [movieFyMoviesRaw]);
 
     // Keep page number in bounds when result count shrinks after a new search.
     useEffect(() => {
@@ -276,6 +319,9 @@ export const MovieFy: React.FC = () => {
                 groups: scene.groups?.map((g) => ({
                     group: { id: g.group.id, name: g.group.name },
                 })),
+                studio: scene.studio ? { id: scene.studio.id } : null,
+                tags: scene.tags?.map((t) => ({ id: t.id })) ?? [],
+                performers: scene.performers?.map((p) => ({ id: p.id })) ?? [],
             });
         });
 
@@ -330,8 +376,9 @@ export const MovieFy: React.FC = () => {
     // Group selection
     // Group selection
     const handleGroupSelect = useCallback(
-        (group: { id: string; name: string; url?: string; front_image?: string }) => {
+        (group: { id: string; name: string; url?: string; front_image?: string }, manual = false) => {
             setSelectedGroup((prev) => (prev?.id === group.id && group.id !== "" ? null : group));
+            setIsManualEntry(manual);
         },
         []
     );
@@ -375,6 +422,7 @@ export const MovieFy: React.FC = () => {
                         urls: groupToUse.url ? [groupToUse.url] : undefined,
                     },
                     scenes: selectedScenes,
+                    propagateToScenes: false,
                 };
                 Toast.success("Added to queue");
                 return [...prevQueue, queueItem];
@@ -391,34 +439,51 @@ export const MovieFy: React.FC = () => {
             return;
         }
 
+        // Save to local moviefy.db if this came from a manually-entered URL
+        if (isManualEntry && scrapedGroup.urls?.[0]) {
+            addMovieFyEntry({
+                variables: {
+                    input: {
+                        name: scrapedGroup.name ?? "",
+                        url: scrapedGroup.urls[0],
+                        front_image: scrapedGroup.front_image ?? undefined,
+                        studio_name: scrapedGroup.studio?.name ?? undefined,
+                    },
+                },
+            }).catch(() => {/* non-fatal — DB save is best-effort */});
+            setIsManualEntry(false);
+        }
+
+        const scenesToAdd = selectedScenes.map((scene, i) => ({
+            ...scene,
+            new_scene_index: sceneIndex !== undefined ? sceneIndex + i : undefined,
+        }));
+
+        // When the scrape returned clip URLs, show the scene matcher before queuing
+        if (pendingClipData.length > 0) {
+            setPendingQueueItem({ group: scrapedGroup, scenes: scenesToAdd, propagateToScenes: true });
+            setShowURLMatcher(true);
+            setScrapedGroup(undefined);
+            setSelectedScenes([]);
+            return;
+        }
+
         setQueue((prevQueue) => {
             const existingItemIndex = prevQueue.findIndex(item =>
                 (item.group.urls && scrapedGroup.urls && item.group.urls[0] === scrapedGroup.urls[0]) ||
                 item.group.name === scrapedGroup.name
             );
 
-            // Create scenes with the index (if provided)
-            const scenesToAdd = selectedScenes.map((scene, i) => {
-                const newIndex = sceneIndex !== undefined ? sceneIndex + i : undefined;
-                return {
-                    ...scene,
-                    new_scene_index: newIndex
-                };
-            });
-
             if (existingItemIndex !== -1) {
-                // Merge
                 const newQueue = [...prevQueue];
                 const existingItem = newQueue[existingItemIndex];
-
-                // Identify duplicates?
                 const existingIds = new Set(existingItem.scenes.map(s => s.id));
                 const nonDuplicates = scenesToAdd.filter(s => !existingIds.has(s.id));
 
                 if (nonDuplicates.length > 0) {
                     newQueue[existingItemIndex] = {
                         ...existingItem,
-                        scenes: [...existingItem.scenes, ...nonDuplicates]
+                        scenes: [...existingItem.scenes, ...nonDuplicates],
                     };
                     Toast.success(`Added ${nonDuplicates.length} scenes to existing group in queue`);
                 } else {
@@ -426,10 +491,10 @@ export const MovieFy: React.FC = () => {
                 }
                 return newQueue;
             } else {
-                // Add new
                 const queueItem: QueueItem = {
                     group: scrapedGroup,
                     scenes: scenesToAdd,
+                    propagateToScenes: true,
                 };
                 Toast.success(`Added "${scrapedGroup.name}" to queue with ${scenesToAdd.length} scenes`);
                 return [...prevQueue, queueItem];
@@ -438,7 +503,40 @@ export const MovieFy: React.FC = () => {
 
         setScrapedGroup(undefined);
         setSelectedScenes([]);
-    }, [selectedScenes, Toast]);
+    }, [selectedScenes, pendingClipData, Toast]);
+
+    const handleURLMatcherConfirm = useCallback((sceneURLMap: Record<string, string>, sceneClipData: Record<string, GQL.ScrapedScene>) => {
+        if (!pendingQueueItem) return;
+
+        // Build 1-based clip position from the ordered pendingClipData array
+        const clipOrder: Record<string, number> = {};
+        pendingClipData.forEach((clip, i) => { clipOrder[clip.url] = i + 1; });
+
+        // Auto-fill new_scene_index for matched scenes based on clip order
+        const scenesWithIndex = pendingQueueItem.scenes.map(scene => {
+            const clipURL = sceneURLMap[scene.id];
+            return clipURL && clipOrder[clipURL] !== undefined
+                ? { ...scene, new_scene_index: clipOrder[clipURL] }
+                : scene;
+        });
+
+        setQueue(prev => [...prev, { ...pendingQueueItem, scenes: scenesWithIndex, sceneURLMap, sceneClipData }]);
+        Toast.success(`Added "${pendingQueueItem.group.name}" to queue with ${Object.keys(sceneURLMap).length} scene clip matches`);
+        setPendingQueueItem(null);
+        setPendingClipData([]);
+        setClipsFetching(false);
+        setShowURLMatcher(false);
+    }, [pendingQueueItem, pendingClipData, Toast]);
+
+    const handleURLMatcherSkip = useCallback(() => {
+        if (!pendingQueueItem) return;
+        setQueue(prev => [...prev, pendingQueueItem]);
+        Toast.success(`Added "${pendingQueueItem.group.name}" to queue`);
+        setPendingQueueItem(null);
+        setPendingClipData([]);
+        setClipsFetching(false);
+        setShowURLMatcher(false);
+    }, [pendingQueueItem, Toast]);
 
     // Process single item immediately
     const handleProcessNow = useCallback(async () => {
@@ -540,7 +638,6 @@ export const MovieFy: React.FC = () => {
                         scene_index: g.scene_index,
                     })) || [];
 
-                    // New group association
                     const newGroupAssoc: { group_id: string; scene_index?: number } = {
                         group_id: groupId
                     };
@@ -548,13 +645,66 @@ export const MovieFy: React.FC = () => {
                         newGroupAssoc.scene_index = scene.new_scene_index;
                     }
 
+                    const sceneInput: GQL.SceneUpdateInput = {
+                        id: scene.id,
+                        groups: [...existingGroups, newGroupAssoc],
+                    };
+
+                    if (item.propagateToScenes) {
+                        const studioId = item.group.studio?.stored_id;
+                        if (studioId) {
+                            sceneInput.studio_id = studioId;
+                        }
+
+                        const movieTagIds = (item.group.tags ?? [])
+                            .map((t) => t.stored_id)
+                            .filter((id): id is string => !!id);
+                        if (movieTagIds.length > 0) {
+                            const existingTagIds = (scene.tags ?? []).map((t) => t.id);
+                            sceneInput.tag_ids = [...new Set([...existingTagIds, ...movieTagIds])];
+                        }
+                    }
+
+                    // Apply clip metadata — use pre-scraped data if available, otherwise fetch
+                    const clipURL = item.sceneURLMap?.[scene.id];
+                    let clipScraped: GQL.ScrapedScene | null | undefined = item.sceneClipData?.[scene.id];
+                    if (!clipScraped && clipURL) {
+                        try {
+                            const clipResult = await queryScrapeSceneURL(clipURL);
+                            clipScraped = clipResult.data?.scrapeSceneURL;
+                        } catch (clipErr) {
+                            console.warn(`Failed to scrape clip URL ${clipURL}:`, clipErr);
+                        }
+                    }
+                    if (clipScraped) {
+                        const matchedPerformerIds = (clipScraped.performers ?? [])
+                            .map((p) => p.stored_id)
+                            .filter((id): id is string => !!id);
+                        if (matchedPerformerIds.length > 0) {
+                            const existing = (scene.performers ?? []).map((p) => p.id);
+                            sceneInput.performer_ids = [...new Set([...existing, ...matchedPerformerIds])];
+                        }
+
+                        const clipTagIds = (clipScraped.tags ?? [])
+                            .map((t) => t.stored_id)
+                            .filter((id): id is string => !!id);
+                        if (clipTagIds.length > 0) {
+                            const existing = sceneInput.tag_ids ?? (scene.tags ?? []).map((t) => t.id);
+                            sceneInput.tag_ids = [...new Set([...existing, ...clipTagIds])];
+                        }
+
+                        if (clipScraped.image) sceneInput.cover_image = clipScraped.image;
+                        if (clipScraped.date) sceneInput.date = clipScraped.date;
+                        if (clipScraped.title && !scene.title) sceneInput.title = clipScraped.title;
+                        if (clipScraped.details) sceneInput.details = clipScraped.details;
+
+                        if (clipScraped.studio?.stored_id && !sceneInput.studio_id) {
+                            sceneInput.studio_id = clipScraped.studio.stored_id;
+                        }
+                    }
+
                     await updateScene({
-                        variables: {
-                            input: {
-                                id: scene.id,
-                                groups: [...existingGroups, newGroupAssoc],
-                            },
-                        },
+                        variables: { input: sceneInput },
                     });
                 }
             }
@@ -913,6 +1063,44 @@ export const MovieFy: React.FC = () => {
                                         </Typography>
                                     )}
                                 </Box>
+
+                                {/* Manual URL entry */}
+                                <Box px={2} pb={2} borderBottom={1} borderColor="divider">
+                                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.75 }}>
+                                        Or scrape directly from a URL
+                                    </Typography>
+                                    <Box display="flex" gap={1}>
+                                        <TextField
+                                            fullWidth
+                                            size="small"
+                                            placeholder="https://www.adultempire.com/…"
+                                            value={manualUrl}
+                                            onChange={(e) => setManualUrl(e.target.value)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === "Enter" && manualUrl.trim()) {
+                                                    const url = manualUrl.trim();
+                                                    try { new URL(url); } catch { return; }
+                                                    handleGroupSelect({ id: "", name: new URL(url).hostname, url }, true);
+                                                    setManualUrl("");
+                                                }
+                                            }}
+                                        />
+                                        <Button
+                                            variant="outlined"
+                                            size="small"
+                                            sx={{ flexShrink: 0 }}
+                                            disabled={!manualUrl.trim()}
+                                            onClick={() => {
+                                                const url = manualUrl.trim();
+                                                try { new URL(url); } catch { return; }
+                                                handleGroupSelect({ id: "", name: new URL(url).hostname, url }, true);
+                                                setManualUrl("");
+                                            }}
+                                        >
+                                            Use
+                                        </Button>
+                                    </Box>
+                                </Box>
                             </Box>
 
                             {/* DB Results */}
@@ -934,29 +1122,36 @@ export const MovieFy: React.FC = () => {
                                             return (
                                                 <ListItemButton
                                                     key={movie.id}
-                                                    selected={isSelected}
-                                                    onClick={() =>
+                                                    selected={isSelected || previewLoadingId === movie.url}
+                                                    disabled={!!previewLoadingId && previewLoadingId !== movie.url}
+                                                    onClick={() => {
                                                         handleGroupSelect({
                                                             id: "",
                                                             name: movie.name,
                                                             url: movie.url || undefined,
                                                             front_image: movie.front_image || undefined,
-                                                        })
-                                                    }
+                                                        });
+                                                    }}
                                                     divider
                                                 >
-                                                    <ListItemAvatar sx={{ mr: 2 }}>
+                                                    <ListItemAvatar sx={{ mr: 2, position: "relative", minWidth: "auto" }}>
                                                         <img
                                                             src={movie.front_image || ""}
                                                             alt=""
                                                             style={{
-                                                                width: 50,
-                                                                height: 70,
+                                                                width: 90,
+                                                                height: 126,
                                                                 objectFit: "cover",
                                                                 borderRadius: 4,
                                                                 backgroundColor: "#333",
+                                                                display: "block",
                                                             }}
                                                         />
+                                                        {previewLoadingId === movie.url && (
+                                                            <Box sx={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", bgcolor: "rgba(0,0,0,0.6)", borderRadius: "4px" }}>
+                                                                <CircularProgress size={20} color="inherit" />
+                                                            </Box>
+                                                        )}
                                                     </ListItemAvatar>
                                                     <ListItemText
                                                         primary={<Typography variant="subtitle1" noWrap>{movie.name}</Typography>}
@@ -975,20 +1170,6 @@ export const MovieFy: React.FC = () => {
                                                             </React.Fragment>
                                                         }
                                                     />
-                                                    {movie.url && (
-                                                        <IconButton
-                                                            edge="end"
-                                                            onClick={(e) => handlePreview(movie, e)}
-                                                            title="Preview & Scrape"
-                                                            size="small"
-                                                        >
-                                                            {previewLoadingId === movie.id ? (
-                                                                <CircularProgress size={20} />
-                                                            ) : (
-                                                                <Icon icon={faSearch} />
-                                                            )}
-                                                        </IconButton>
-                                                    )}
                                                 </ListItemButton>
                                             );
                                         })}
@@ -1014,16 +1195,28 @@ export const MovieFy: React.FC = () => {
                     <Box mt={2} display="flex" gap={2}>
                         <Button
                             variant="contained"
-                            color="inherit"
-                            onClick={handleAddToQueue}
-                            disabled={!selectedGroup || selectedScenes.length === 0}
-                            startIcon={<Icon icon={faPlus} />}
+                            color="primary"
+                            onClick={() => {
+                                if (selectedGroup?.url) {
+                                    handleScrapeAndQueue(selectedGroup.url, selectedGroup.name, selectedGroup.front_image);
+                                } else {
+                                    handleAddToQueue();
+                                }
+                            }}
+                            disabled={!selectedGroup || selectedScenes.length === 0 || !!previewLoadingId}
+                            startIcon={
+                                previewLoadingId
+                                    ? <CircularProgress size={16} color="inherit" />
+                                    : selectedGroup?.url
+                                    ? <Icon icon={faSearch} />
+                                    : <Icon icon={faPlus} />
+                            }
                         >
-                            Add to Queue
+                            {selectedGroup?.url ? "Scrape & Queue" : "Add to Queue"}
                         </Button>
                         <Button
-                            variant="contained"
-                            color="primary"
+                            variant="outlined"
+                            color="inherit"
                             onClick={handleProcessNow}
                             disabled={!selectedGroup || selectedScenes.length === 0 || processing}
                             startIcon={!processing ? <Icon icon={faPlay} /> : undefined}
@@ -1033,7 +1226,7 @@ export const MovieFy: React.FC = () => {
                                     <CircularProgress size={20} color="inherit" sx={{ mr: 1 }} /> Processing...
                                 </>
                             ) : (
-                                "Process Now"
+                                "Link Now"
                             )}
                         </Button>
                     </Box>
@@ -1074,10 +1267,27 @@ export const MovieFy: React.FC = () => {
                                 front_image: result.front_image ?? undefined,
                             });
                         }
+                        setPendingClipData([]);
+                        setClipsFetching(false);
                         setScrapedGroup(undefined);
                     }}
                 />
             )}
+            {/* Scene URL Matcher — shown after GroupScrapeDialog when clip URLs were found */}
+            <MovieFySceneURLMatcher
+                open={showURLMatcher}
+                clipData={pendingClipData}
+                clipsFetching={clipsFetching}
+                scenes={pendingQueueItem?.scenes ?? []}
+                onConfirm={handleURLMatcherConfirm}
+                onSkip={handleURLMatcherSkip}
+                onClose={() => {
+                    setPendingQueueItem(null);
+                    setPendingClipData([]);
+                    setClipsFetching(false);
+                    setShowURLMatcher(false);
+                }}
+            />
         </Box>
     );
 };

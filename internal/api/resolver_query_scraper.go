@@ -128,6 +128,7 @@ func (r *queryResolver) ScrapeGroupURL(ctx context.Context, url string) (*models
 		Tags:       ret.Tags,
 		FrontImage: ret.FrontImage,
 		BackImage:  ret.BackImage,
+		SceneURLs:  ret.SceneURLs,
 	}
 
 	// Try to scrape trailer URL for AdultEmpire groups

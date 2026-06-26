@@ -104,6 +104,7 @@ fragment ScrapedGroupData on ScrapedGroup {
   trailer_url
   front_image
   back_image
+  scene_urls
 
   studio {
     ...ScrapedGroupStudioData

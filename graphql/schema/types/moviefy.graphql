@@ -53,6 +53,16 @@ input MovieFyConfigInput {
 }
 
 """
+Input to add or update a movie entry in the local moviefy.db
+"""
+input AddMovieFyEntryInput {
+  name: String!
+  url: String!
+  front_image: String
+  studio_name: String
+}
+
+"""
 MovieFy configuration result
 """
 type MovieFyConfig {

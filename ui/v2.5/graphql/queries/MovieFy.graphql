@@ -57,6 +57,15 @@ query MovieFyFolderScenes(
         }
         scene_index
       }
+      studio {
+        id
+      }
+      tags {
+        id
+      }
+      performers {
+        id
+      }
     }
   }
 }

@@ -24,6 +24,7 @@ void MarkersPlugin;
 import "./vtt-thumbnails";
 import "./big-buttons";
 import "./track-activity";
+import "./fill-mode";
 import "./vrmode";
 import { VRType } from "./vrmode";
 import "./media-session";
@@ -528,6 +529,7 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
           autostartButton: {
             enabled: interfaceConfig?.autostartVideo ?? false,
           },
+          fillMode: {},
           ratingButton: {
             rating: scene.rating100 ?? null,
             ratingSystemType: configuration?.ui.ratingSystemOptions?.type,
@@ -1067,6 +1069,7 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
     // Keyboard shortcut help dialog
     const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
 
+
     // Add 'g' and '?' hotkeys via global listener (independent of player focus)
     useEffect(() => {
       const handleKeyDown = (e: globalThis.KeyboardEvent) => {
@@ -1084,11 +1087,14 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
         if (e.key === "?") {
           setShowShortcutsHelp((v) => !v);
         }
+        if (e.key === "z" || e.key === "Z") {
+          getPlayer()?.fillMode()?.toggle();
+        }
       };
 
       window.addEventListener("keydown", handleKeyDown);
       return () => window.removeEventListener("keydown", handleKeyDown);
-    }, []);
+    }, [getPlayer]);
 
     const getVideoElement = () => {
       const player = getPlayer();
@@ -1511,6 +1517,7 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
                   ["Shift+L", "Player loop toggle"],
                   ["> / <", "Speed up / down"],
                   ["G", "Open gallery creator"],
+                  ["Z", "Fill / letterbox toggle"],
                   ["?", "Show this help"],
                 ].map(([key, action]) => (
                   <TableRow

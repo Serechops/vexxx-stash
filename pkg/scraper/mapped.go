@@ -30,7 +30,7 @@ type mappedScraper struct {
 }
 
 func urlsIsMulti(key string) bool {
-	return key == "URLs"
+	return key == "URLs" || key == "SceneURLs"
 }
 
 func (s mappedScraper) scrapePerformer(ctx context.Context, q mappedQuery) (*models.ScrapedPerformer, error) {

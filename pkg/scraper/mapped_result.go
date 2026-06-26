@@ -246,6 +246,7 @@ func (r mappedResult) scrapedGroup() *models.ScrapedGroup {
 		Synopsis:   r.stringPtr("Synopsis"),
 		FrontImage: r.stringPtr("FrontImage"),
 		BackImage:  r.stringPtr("BackImage"),
+		SceneURLs:  r.stringSlice("SceneURLs"),
 	}
 
 	return ret

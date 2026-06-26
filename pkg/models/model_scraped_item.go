@@ -549,7 +549,8 @@ type ScrapedGroup struct {
 	// This should be a base64 encoded data URL
 	FrontImage *string `json:"front_image"`
 	// This should be a base64 encoded data URL
-	BackImage *string `json:"back_image"`
+	BackImage  *string  `json:"back_image"`
+	SceneURLs  []string `json:"scene_urls"`
 }
 
 func (ScrapedGroup) IsScrapedContent() {}

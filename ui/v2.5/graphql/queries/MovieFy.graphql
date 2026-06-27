@@ -73,3 +73,14 @@ query MovieFyFolderScenes(
 mutation ConfigureMovieFy($input: MovieFyConfigInput!) {
   configureMovieFy(input: $input)
 }
+
+mutation AddMovieFyEntry($input: AddMovieFyEntryInput!) {
+  addMovieFyEntry(input: $input) {
+    id
+    name
+    url
+    front_image
+    domain
+    studio_name
+  }
+}

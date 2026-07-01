@@ -11,13 +11,10 @@ import { Box, Tooltip } from "@mui/material";
 import Vrpano from "@mui/icons-material/Vrpano";
 import * as GQL from "src/core/generated-graphql";
 import { useConfigurationContext } from "src/hooks/Config";
+import { immersiveSupported, requestImmersiveSession } from "./passthrough";
 import "./styles.scss";
 
 const ImmersiveVRPlayer = React.lazy(() => import("./ImmersiveVRPlayer"));
-
-const SESSION_INIT: XRSessionInit = {
-  optionalFeatures: ["local-floor", "bounded-floor", "hand-tracking", "layers"],
-};
 
 function isQuestBrowser(): boolean {
   return /oculusbrowser|quest/i.test(navigator.userAgent);
@@ -50,12 +47,7 @@ export const EnterVRButton: React.FC<IEnterVRButtonProps> = ({
 
   useEffect(() => {
     let active = true;
-    const { xr } = navigator;
-    if (!xr?.isSessionSupported) {
-      setSupported(false);
-      return;
-    }
-    xr.isSessionSupported("immersive-vr")
+    immersiveSupported(navigator.xr)
       .then((ok) => {
         if (!active) return;
         setSupported(ok);
@@ -75,7 +67,8 @@ export const EnterVRButton: React.FC<IEnterVRButtonProps> = ({
     launchingRef.current = true;
     setLaunching(true);
     try {
-      const xrSession = await xr.requestSession("immersive-vr", SESSION_INIT);
+      // AR-first (enables the passthrough toggles), immersive-vr fallback.
+      const xrSession = await requestImmersiveSession(xr);
       setSession(xrSession);
     } catch {
       // user cancelled or runtime refused — silently reset

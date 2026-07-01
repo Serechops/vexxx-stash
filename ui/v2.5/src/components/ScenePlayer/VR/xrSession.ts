@@ -49,11 +49,21 @@ import { fetchPmvhavenStatus } from "./pmvhavenLibrary";
 import { VRGalleryViewerPanel } from "./VRGalleryViewerPanel";
 import { VRLobbyBackdrop } from "./VRLobbyBackdrop";
 import {
+  hsvToRgb,
+  rgbToHsv,
+  keySimilarity,
+  keySmoothness,
+  isPassthroughSession,
+} from "./passthrough";
+import { VRPassthroughPanel } from "./VRPassthroughPanel";
+import {
   VRControlAction,
   IVRMarker,
   IVRPlaybackState,
   IVRHandyState,
   IVRHomeSettings,
+  IVRPassthroughSettings,
+  DEFAULT_VR_PASSTHROUGH_SETTINGS,
   VRStrokeStatus,
   IVRHomeDataSource,
   IVRGalleryDataSource,
@@ -66,6 +76,17 @@ import type { IThumbnailCrop } from "./vttThumbnails";
 import { vrLog } from "./vrLog";
 
 const DOME_RADIUS = 500;
+
+// Opaque blackout shell radius — outside the video dome (500) and the lobby
+// sky (470) but inside the camera far plane (2000). In an immersive-ar session
+// the camera feed sits beneath the ENTIRE layer stack, so every "black void"
+// the old immersive-vr renderer got for free (behind a 180° video, around the
+// flat screen, past the fisheye circle) must be real opaque geometry — a
+// transparent clear exposes the room there instead.
+const BLACKOUT_RADIUS = 900;
+// Overlap (radians) past the 180° boundary so no camera-feed hairline shows at
+// the seam between the rear blackout shell and the video's edge.
+const BLACKOUT_SEAM = 0.015;
 // Dome geometry segments — lowered from 64×40 to 48×32 (~40% fewer tris) to
 // reduce GPU fill-rate pressure on Quest 3, especially for the always-shader
 // fisheye190 path. 48×32 is visually indistinguishable at DOME_RADIUS=500.
@@ -214,6 +235,8 @@ export interface IXRSessionManagerOptions {
   lobby?: boolean;
   /** Initial immersive-Home preferences (gaze-launch / dwell / audio). */
   homeSettings?: IVRHomeSettings;
+  /** Persisted chroma-key / passthrough tuning (PT panel state). */
+  passthroughSettings?: IVRPassthroughSettings;
   /** Sprite crop for a scrubber-hover preview, or null when unavailable. */
   getThumbnail?: (time: number) => IThumbnailCrop | null;
   onAction: (a: VRControlAction) => void;
@@ -417,6 +440,38 @@ export class XRSessionManager {
   private pmvhavenMode = false;
   // Cinema room shown when a flat (non-VR) scene is playing.
   private lobbyMode = false;
+
+  // ── Mixed-reality passthrough (see passthrough.ts) ────────────────────────
+  // Camera passthrough only exists inside an immersive-ar session (detected in
+  // init); the two toggles below are purely render-side, so flipping them never
+  // touches the session or the <video> — playback quality is unaffected.
+  private passthroughAvailable = false;
+  /** Hub preference: show the room behind the Home wall (IVRHomeSettings). */
+  private homePassthrough = false;
+  /** The now-playing source carries an SLR-style alpha matte (auto-arm hint). */
+  private videoAlphaCapable = false;
+  /** Player passthrough: chroma-key the video so the room shows through. */
+  private videoPassthrough = false;
+  /** Full-sphere blackout: occludes the camera on the dome/flat/lobby paths. */
+  private blackoutFull: THREE.Mesh;
+  /** Rear-hemisphere blackout: complement of a 180° equirect media layer. */
+  private blackoutRear: THREE.Mesh;
+  /** Chroma-key tuning (PT panel) — seeded from opts, persisted React-side. */
+  private passthroughSettings: IVRPassthroughSettings;
+  /**
+   * Key colour (linear space), derived from passthroughSettings. Mutated IN
+   * PLACE so every keyed material's uKeyColor uniform shares this object and
+   * colour edits apply live without touching the materials.
+   */
+  private chromaKeyColor = new THREE.Color(0, 0, 0);
+  /**
+   * Live keyed ShaderMaterials (fisheye + keyed dome/flat) so slider edits
+   * update uKeySim/uKeySmooth in place. Rebuilt with the dome (clearDome).
+   */
+  private keyedMaterials: THREE.ShaderMaterial[] = [];
+  /** DeoVR-style passthrough adjustment panel (right-hand slot). */
+  private ptPanel: VRPassthroughPanel | null = null;
+  private ptPanelOpen = false;
   // Server-backed Home library (paged). The manager owns the live query state
   // (sort + media + studio/performer) and orchestrates page/count/rail fetches.
   private homeData: IVRHomeDataSource | null = null;
@@ -507,6 +562,10 @@ export class XRSessionManager {
   constructor(opts: IXRSessionManagerOptions) {
     this.opts = opts;
     this.projection = opts.projection;
+    this.passthroughSettings = {
+      ...(opts.passthroughSettings ?? DEFAULT_VR_PASSTHROUGH_SETTINGS),
+    };
+    this.updateChromaKeyColor();
     this.debug = readVrDebug();
     if (this.debug.size) {
       // eslint-disable-next-line no-console
@@ -542,6 +601,32 @@ export class XRSessionManager {
     this.scene.add(this.videoGroup);
     this.scene.add(this.uiGroup);
 
+    // Opaque blackout shells (see BLACKOUT_RADIUS). Parented to videoGroup so
+    // the 180° complement tracks recenter yaw exactly like the dome / equirect
+    // layer. Visibility is driven by syncPassthroughBlackout each path change.
+    const blackoutMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+    const fullGeo = new THREE.SphereGeometry(BLACKOUT_RADIUS, 24, 12);
+    fullGeo.scale(-1, 1, 1); // inside-out, same recipe as the dome
+    this.blackoutFull = new THREE.Mesh(fullGeo, blackoutMat);
+    // Rear hemisphere: the same construction as the 180 dome (makeDomeMesh)
+    // with phiStart advanced by π — the exact complement of the video's
+    // coverage, slightly overlapped so no camera hairline survives the seam.
+    const rearGeo = new THREE.SphereGeometry(
+      BLACKOUT_RADIUS,
+      24,
+      12,
+      Math.PI / 2 + Math.PI - BLACKOUT_SEAM,
+      Math.PI + 2 * BLACKOUT_SEAM
+    );
+    rearGeo.scale(-1, 1, 1);
+    this.blackoutRear = new THREE.Mesh(rearGeo, blackoutMat);
+    this.blackoutRear.rotation.y = -Math.PI / 2; // mirrors makeDomeMesh
+    for (const m of [this.blackoutFull, this.blackoutRear]) {
+      m.visible = false;
+      m.frustumCulled = false;
+      this.videoGroup.add(m);
+    }
+
     this.videoTexture = new THREE.VideoTexture(opts.video);
     this.videoTexture.colorSpace = THREE.SRGBColorSpace;
     this.videoTexture.minFilter = THREE.LinearFilter;
@@ -562,6 +647,9 @@ export class XRSessionManager {
       handyOpen: false,
       browseOpen: false,
       handy: undefined,
+      // Mutated in place each frame (like the rest of drawInput) — allocation-
+      // free render loop.
+      passthrough: { available: false, on: false },
     };
 
     // Compact Handy panel — LEFT side, angled inward (+Y rotation).
@@ -570,6 +658,17 @@ export class XRSessionManager {
     this.uiGroup.add(handy.object);
     this.layoutHandyPanel(handy);
     handy.setRenderState(0);
+
+    // Passthrough adjustment panel — RIGHT side slot, mirroring DeoVR's
+    // placement. Slider drags stream through applyPassthroughLive (uniform-
+    // only updates); persistence rides the setPassthroughSettings action the
+    // panel emits on release.
+    const pt = new VRPassthroughPanel((s) => this.applyPassthroughLive(s));
+    this.ptPanel = pt;
+    this.uiGroup.add(pt.object);
+    this.layoutSidePanel(pt, "right");
+    pt.setRenderState(0);
+    pt.setSettings(this.passthroughSettings);
 
     // Info panel — RIGHT peripheral slot (performers + tags).
     const infoPane = new VRInfoPanel(opts.info);
@@ -601,8 +700,11 @@ export class XRSessionManager {
     if (opts.homeSettings) home.setSettings(opts.homeSettings);
 
     this.lobbyMode = !!opts.lobby;
+    this.homePassthrough = !!opts.homeSettings?.passthroughHome;
 
     // Slideshow backdrop — additive environment (never touches the main dome).
+    // Visibility settles in init() once we know whether the session can show
+    // passthrough (hub passthrough hides it to reveal the room).
     this.backdrop = new VRLobbyBackdrop();
     this.scene.add(this.backdrop.object);
     this.backdrop.setVisible(this.lobbyMode);
@@ -708,6 +810,16 @@ export class XRSessionManager {
         up: (uv: THREE.Vector2) => hp.pointerUp(uv),
       });
     }
+    if (this.ptPanel) {
+      const pp = this.ptPanel;
+      this.baseHittables.push({
+        target: pp.hitTarget,
+        hover: (uv: THREE.Vector2 | null) => pp.setHovered(uv),
+        select: (uv: THREE.Vector2) => pp.activate(uv),
+        move: (uv: THREE.Vector2) => pp.pointerMove(uv),
+        up: (uv: THREE.Vector2) => pp.pointerUp(uv),
+      });
+    }
     this.rebuildBrowseHittables();
     // Pinned by default → grip grabs/drags the UI group (squeeze elsewhere
     // still recenters).
@@ -763,10 +875,7 @@ export class XRSessionManager {
    * Place a peripheral panel beside the bar, angled ~40° inward. Both side
    * panels share dimensions, so left/right are mirror images for symmetry.
    */
-  private layoutSidePanel(
-    panel: VRInfoPanel | VRScenesPanel,
-    side: "left" | "right"
-  ) {
+  private layoutSidePanel(panel: VRCanvasPanel, side: "left" | "right") {
     const sign = side === "left" ? -1 : 1;
     const angle = Math.PI / 4.5; // inward yaw (~40°)
     const barHalf = this.panel.widthMeters / 2;
@@ -847,6 +956,11 @@ export class XRSessionManager {
     session.addEventListener("end", this.onSessionEnd);
     await this.renderer.xr.setSession(session);
     this.input.setSession(session);
+    // Camera passthrough only composites inside an immersive-ar session (the
+    // Enter-VR buttons request AR-first); both toggles key off this.
+    this.passthroughAvailable = isPassthroughSession(session);
+    this.homePanel?.setPassthroughSupported(this.passthroughAvailable);
+    this.applyLobbyBackdrop();
     // Re-attempt the media layer once the video has dimensions / on scene switch.
     this.opts.video.addEventListener("loadedmetadata", this.onVideoReady);
     this.opts.video.addEventListener("loadeddata", this.onVideoReady);
@@ -893,6 +1007,7 @@ export class XRSessionManager {
       this.infoPanel,
       this.scenesPanel,
       this.handyPanel,
+      this.ptPanel,
       this.homePanel,
       this.galleryViewer,
     ]) {
@@ -1029,7 +1144,9 @@ export class XRSessionManager {
       this.previewHoverTimer = null;
     }
     if (this.previewVideo) this.previewVideo.pause();
-    this.backdrop?.setVisible(on);
+    // Hub passthrough hides the backdrop; player passthrough is applied by the
+    // dome materials — both clear-alpha states settle in syncRenderStateLayers.
+    this.applyLobbyBackdrop();
     if (on) {
       this.thumbPreview.visible = false;
       // Hide the video screen (dome/flat-screen meshes) in lobby so it doesn't
@@ -1254,6 +1371,179 @@ export class XRSessionManager {
   /** Push updated immersive-Home preferences to the Home wall. */
   setHomeSettings(settings: IVRHomeSettings) {
     this.homePanel?.setSettings(settings);
+    const pt = !!settings.passthroughHome;
+    if (pt !== this.homePassthrough) {
+      this.homePassthrough = pt;
+      this.applyLobbyBackdrop();
+      this.syncRenderStateLayers();
+    }
+  }
+
+  // ── Mixed-reality passthrough ────────────────────────────────────────────
+
+  /** Whether the compositor should currently reveal the camera feed. */
+  private passthroughActive(): boolean {
+    if (!this.passthroughAvailable) return false;
+    return this.lobbyMode ? this.homePassthrough : this.videoPassthrough;
+  }
+
+  /**
+   * Drive the opaque blackout shells that occlude the camera feed whenever
+   * passthrough shouldn't show. The projection layer must stay CLEAR over a
+   * compositor media layer (the video composites beneath it), so with a 180°
+   * layer only the rear hemisphere is shelled; 360° video covers the full
+   * sphere and needs nothing. Every other path (dome / fisheye / flat / lobby)
+   * gets the full shell — closer opaque content (video dome at 500, lobby sky
+   * at 470, panels) simply draws in front of it via the depth test.
+   */
+  private syncPassthroughBlackout(showVideoLayer: boolean) {
+    const pt = this.passthroughActive();
+    let full = false;
+    let rear = false;
+    if (!pt) {
+      if (showVideoLayer) {
+        rear = this.projection.fov === "180";
+      } else {
+        full = true;
+      }
+    }
+    this.blackoutFull.visible = full;
+    this.blackoutRear.visible = rear;
+  }
+
+  /** The lobby backdrop shows only when the hub is NOT in passthrough. */
+  private applyLobbyBackdrop() {
+    this.backdrop?.setVisible(
+      this.lobbyMode && !(this.passthroughAvailable && this.homePassthrough)
+    );
+  }
+
+  /**
+   * Auto-arm hint from the React layer on every load/in-VR switch: scenes with
+   * an SLR-style "_alpha" filename auto-ENGAGE passthrough (matching DeoVR);
+   * every other scene starts with it off. This is convenience only — the PT
+   * panel's toggle works on ANY source regardless of this flag.
+   */
+  setVideoAlpha(capable: boolean) {
+    this.videoAlphaCapable = capable;
+    this.setVideoPassthrough(capable && this.passthroughAvailable);
+  }
+
+  /**
+   * In-player passthrough toggle (PT panel / control bar). Deliberately NOT
+   * gated on the alpha-matte filename hint — users key whatever they like;
+   * the chroma key just won't find much matte on an ordinary video until the
+   * key colour/range are tuned to it.
+   */
+  toggleVideoPassthrough() {
+    if (!this.passthroughAvailable) return;
+    this.setVideoPassthrough(!this.videoPassthrough);
+  }
+
+  private setVideoPassthrough(on: boolean) {
+    if (on === this.videoPassthrough) return;
+    this.videoPassthrough = on;
+    // Re-pick the video path with the new state: the keyed shader needs the
+    // dome (a compositor media layer can't chroma-key), and the dome materials
+    // are rebuilt with/without the key. The <video> itself is untouched, so
+    // playback continues seamlessly across the toggle.
+    if (this.session) this.rebuildVideoProjection();
+    vrLog.note("passthrough_video", { on: on ? 1 : 0 });
+  }
+
+  /**
+   * Uniform-only application of new chroma-key tuning — cheap enough to run
+   * at slider-drag frequency (no material or dome rebuild). The key colour is
+   * mutated in place (shared uKeyColor object); sim/smooth are pushed onto
+   * every live keyed material.
+   */
+  private applyPassthroughLive(s: IVRPassthroughSettings) {
+    this.passthroughSettings = { ...s };
+    this.updateChromaKeyColor();
+    const sim = keySimilarity(s);
+    const smooth = keySmoothness(s);
+    for (const m of this.keyedMaterials) {
+      m.uniforms.uKeySim.value = sim;
+      m.uniforms.uKeySmooth.value = smooth;
+    }
+  }
+
+  /** settings (HSV, sRGB) → linear-space chromaKeyColor, mutated in place. */
+  private updateChromaKeyColor() {
+    const s = this.passthroughSettings;
+    const { r, g, b } = hsvToRgb(s.hue, s.saturation, s.brightness);
+    // Compared against GPU-decoded (linear) video texels in the shader.
+    this.chromaKeyColor.setRGB(r, g, b).convertSRGBToLinear();
+  }
+
+  /** React-side push (persisted load / after a sample): apply + sync panel. */
+  setPassthroughSettings(s: IVRPassthroughSettings) {
+    this.applyPassthroughLive(s);
+    this.ptPanel?.setSettings(s);
+  }
+
+  /**
+   * "Sample from video" (DeoVR's "(A)" button): estimate the matte colour from
+   * the live frame. Samples a few points in the upper part of the left-eye
+   * image — in an alpha encode everything except the performer is the flat
+   * matte, and the frame corners sit OUTSIDE the fisheye circle (black), so
+   * corners are deliberately avoided. The sampled colour lands on the PT
+   * panel's H/S/B sliders and is persisted via a setPassthroughSettings
+   * action; range/falloff are left as the user tuned them. No-op when the
+   * frame isn't readable yet (e.g. sampled before first play).
+   */
+  private sampleChromaKeyColor() {
+    const v = this.opts.video;
+    if (v.readyState < 2 || !v.videoWidth) return;
+    try {
+      const w = 64;
+      const h = 32;
+      const cnv = document.createElement("canvas");
+      cnv.width = w;
+      cnv.height = h;
+      const ctx = cnv.getContext("2d", { willReadFrequently: true });
+      if (!ctx) return;
+      ctx.drawImage(v, 0, 0, w, h);
+      // (u,v) in frame space: inside the left-eye circle, above the performer.
+      const pts: Array<[number, number]> = [
+        [0.25, 0.12],
+        [0.15, 0.28],
+        [0.35, 0.28],
+      ];
+      let r = 0;
+      let g = 0;
+      let b = 0;
+      for (const [u, vv] of pts) {
+        const d = ctx.getImageData(
+          Math.round(u * (w - 1)),
+          Math.round(vv * (h - 1)),
+          1,
+          1
+        ).data;
+        r += d[0];
+        g += d[1];
+        b += d[2];
+      }
+      const n = pts.length * 255;
+      const hsv = rgbToHsv(r / n, g / n, b / n);
+      const next: IVRPassthroughSettings = {
+        ...this.passthroughSettings,
+        hue: hsv.h,
+        saturation: hsv.s,
+        brightness: hsv.v,
+      };
+      this.applyPassthroughLive(next);
+      this.ptPanel?.setSettings(next);
+      // Route through React so the sampled colour persists like a slider edit.
+      this.opts.onAction({ type: "setPassthroughSettings", settings: next });
+      vrLog.note("chromakey_sample", {
+        r: +(r / n).toFixed(3),
+        g: +(g / n).toFixed(3),
+        b: +(b / n).toFixed(3),
+      });
+    } catch {
+      /* tainted canvas / decoder not ready — keep the current colour */
+    }
   }
 
   /** Forward stroke-zone confirmation state to the Handy panel (React-driven). */
@@ -1428,8 +1718,28 @@ export class XRSessionManager {
       this.lastActivity = performance.now();
       return;
     }
+    if (action.type === "ptPanelToggle") {
+      this.ptPanelOpen = !this.ptPanelOpen;
+      // The right-hand slot is shared with the Browse info panel — close
+      // Browse so the two never overlap.
+      if (this.ptPanelOpen && this.browseOpen) {
+        this.browseOpen = false;
+        this.rebuildBrowseHittables();
+      }
+      this.lastActivity = performance.now();
+      return;
+    }
+    if (action.type === "chromaSample") {
+      // Pull the key colour from the live frame; persistence rides the
+      // setPassthroughSettings action the sampler emits through onAction.
+      this.sampleChromaKeyColor();
+      this.lastActivity = performance.now();
+      return;
+    }
     if (action.type === "browsePanelToggle") {
       this.browseOpen = !this.browseOpen;
+      // Browse claims the right-hand slot the PT panel also uses.
+      if (this.browseOpen) this.ptPanelOpen = false;
       // The carousel self-loads page 0 lazily from its draw loop while Browse is
       // open (no seeding needed — see VRScenesPanel.ensureLoaded).
       this.rebuildBrowseHittables();
@@ -1569,6 +1879,9 @@ export class XRSessionManager {
     return (
       p.fov !== "fisheye190" &&
       p.fov !== "flat" &&
+      // Chroma-keyed (alpha matte) playback needs the shader path — the
+      // compositor samples the <video> directly and can't key anything out.
+      !this.videoPassthrough &&
       this.mediaLayersAvailable() &&
       this.layersApiActive()
     );
@@ -1757,9 +2070,14 @@ export class XRSessionManager {
     // compositing beneath it; otherwise opaque black, so the dome / fisheye /
     // lobby paths don't expose a transparent buffer (which the compositor fills
     // with black tiles when it reprojects a dropped frame). `opaque` flag pins it.
+    // Passthrough is the second sanctioned transparent case: in an immersive-ar
+    // session the compositor fills disoccluded regions with the camera feed, so
+    // the black-tile reprojection hazard above doesn't apply there.
     if (!this.debug.has("opaque")) {
-      this.renderer.setClearColor(0x000000, showVideoLayer ? 0 : 1);
+      const transparent = showVideoLayer || this.passthroughActive();
+      this.renderer.setClearColor(0x000000, transparent ? 0 : 1);
     }
+    this.syncPassthroughBlackout(showVideoLayer);
     const threeLayer = this.renderer.xr.getBaseLayer();
     if (
       typeof XRProjectionLayer === "undefined" ||
@@ -1822,6 +2140,9 @@ export class XRSessionManager {
   // --- dome construction ----------------------------------------------------
 
   private clearDome() {
+    // Keyed materials live on the dome/flat meshes disposed below — drop the
+    // live-tuning registry with them (rebuilt by the next buildDome).
+    this.keyedMaterials.length = 0;
     for (const m of this.domeMeshes) {
       this.videoGroup.remove(m);
       m.geometry.dispose();
@@ -1933,6 +2254,8 @@ export class XRSessionManager {
 
     const material = this.debug.has("solid")
       ? new THREE.MeshBasicMaterial({ color: 0x224466 })
+      : this.videoPassthrough
+      ? this.makeKeyedVideoMaterial(THREE.FrontSide)
       : new THREE.MeshBasicMaterial({ map: this.videoTexture });
     const mesh = new THREE.Mesh(geometry, material);
     mesh.rotation.y = -Math.PI / 2;
@@ -1978,12 +2301,19 @@ export class XRSessionManager {
       ? new THREE.MeshBasicMaterial({ color: 0x224466, side: THREE.BackSide })
       : new THREE.ShaderMaterial({
           side: THREE.BackSide,
+          // Only the alpha OUTPUT changes for passthrough — the un-distort
+          // (view-direction → UV) math below is the calibrated path, untouched.
+          transparent: this.videoPassthrough,
           uniforms: {
             uTex: { value: this.videoTexture },
             uCenter: { value: center },
             uRadius: { value: radius },
             uMaxTheta: { value: FISHEYE190_MAX_THETA },
             uZoom: { value: this.projection.zoom || 1 },
+            uKeyOn: { value: this.videoPassthrough ? 1 : 0 },
+            uKeyColor: { value: this.chromaKeyColor },
+            uKeySim: { value: keySimilarity(this.passthroughSettings) },
+            uKeySmooth: { value: keySmoothness(this.passthroughSettings) },
           },
           vertexShader: `
             varying vec3 vDir;
@@ -1999,6 +2329,10 @@ export class XRSessionManager {
             uniform vec2 uRadius;
             uniform float uMaxTheta;
             uniform float uZoom;
+            uniform float uKeyOn;
+            uniform vec3 uKeyColor;
+            uniform float uKeySim;
+            uniform float uKeySmooth;
             varying vec3 vDir;
             void main() {
               vec3 d = normalize(vDir);
@@ -2006,18 +2340,31 @@ export class XRSessionManager {
               float theta = acos(clamp(-d.z, -1.0, 1.0));
               float r = (theta / uMaxTheta) / uZoom;
               if (r > 1.0) {
-                gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+                // Outside the encoded circle: opaque black normally,
+                // transparent in passthrough so the room wraps the image.
+                gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0 - uKeyOn);
                 return;
               }
               float phi = atan(d.y, d.x);
               // NOTE: vertical sign may need flipping on-device depending on the
               // source's circle orientation; negate uRadius.y if it's upside down.
               vec2 uv = uCenter + r * uRadius * vec2(cos(phi), sin(phi));
-              gl_FragColor = texture2D(uTex, uv);
+              vec4 c = texture2D(uTex, uv);
+              float a = 1.0;
+              if (uKeyOn > 0.5) {
+                // Alpha-matte chroma key: knock out texels near the matte
+                // colour (linear-space RGB distance, feathered edge).
+                a = smoothstep(uKeySim, uKeySim + uKeySmooth, distance(c.rgb, uKeyColor));
+              }
+              gl_FragColor = vec4(c.rgb, a);
             }
           `,
         });
 
+    // Register for live PT-panel tuning (skipped for the `solid` debug material).
+    if (material instanceof THREE.ShaderMaterial) {
+      this.keyedMaterials.push(material);
+    }
     const mesh = new THREE.Mesh(geometry, material);
     mesh.layers.set(layer);
     mesh.frustumCulled = false;
@@ -2059,6 +2406,8 @@ export class XRSessionManager {
 
     const material = this.debug.has("solid")
       ? new THREE.MeshBasicMaterial({ color: 0x224466 })
+      : this.videoPassthrough
+      ? this.makeKeyedVideoMaterial(THREE.FrontSide)
       : new THREE.MeshBasicMaterial({ map: this.videoTexture });
     const mesh = new THREE.Mesh(geometry, material);
     // Position is set by the caller (buildDome) relative to the tilt-pivot
@@ -2066,6 +2415,49 @@ export class XRSessionManager {
     mesh.layers.set(0);
     mesh.frustumCulled = false;
     return mesh;
+  }
+
+  /**
+   * Video material with the alpha-matte chroma key applied, for the equirect
+   * dome and flat screen while player passthrough is on. Sampling is the plain
+   * per-vertex UV path — identical coverage to MeshBasicMaterial({map}) over
+   * the same calibrated geometry/UV transforms — only the fragment's alpha
+   * differs. (The fisheye path carries the same key inline in its own shader.)
+   */
+  private makeKeyedVideoMaterial(side: THREE.Side): THREE.ShaderMaterial {
+    const material = new THREE.ShaderMaterial({
+      side,
+      transparent: true,
+      uniforms: {
+        uTex: { value: this.videoTexture },
+        uKeyColor: { value: this.chromaKeyColor },
+        uKeySim: { value: keySimilarity(this.passthroughSettings) },
+        uKeySmooth: { value: keySmoothness(this.passthroughSettings) },
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        precision highp float;
+        uniform sampler2D uTex;
+        uniform vec3 uKeyColor;
+        uniform float uKeySim;
+        uniform float uKeySmooth;
+        varying vec2 vUv;
+        void main() {
+          vec4 c = texture2D(uTex, vUv);
+          float a = smoothstep(uKeySim, uKeySim + uKeySmooth, distance(c.rgb, uKeyColor));
+          gl_FragColor = vec4(c.rgb, a);
+        }
+      `,
+    });
+    // Register for live PT-panel tuning (uKeySim/uKeySmooth in place).
+    this.keyedMaterials.push(material);
+    return material;
   }
 
   private applyUv(geometry: THREE.BufferGeometry, t: IUVTransform) {
@@ -2277,6 +2669,7 @@ export class XRSessionManager {
       // shows both peripheral panels together (Scenes left, Info right).
       // Filter panel is lobby-only — hidden during playback.
       this.handyPanel?.setRenderState(this.handyPanelOpen ? op : 0);
+      this.ptPanel?.setRenderState(this.ptPanelOpen ? op : 0);
       this.infoPanel?.setRenderState(this.browseOpen ? op : 0);
       this.scenesPanel?.setRenderState(this.browseOpen ? op : 0);
       this.homePanel?.setRenderState(0);
@@ -2325,6 +2718,10 @@ export class XRSessionManager {
         d.caption = this.opts.getCaption();
         d.handyOpen = this.handyPanelOpen;
         d.browseOpen = this.browseOpen;
+        if (d.passthrough) {
+          d.passthrough.available = this.passthroughAvailable;
+          d.passthrough.on = this.videoPassthrough;
+        }
         if (this.opts.getHandyState) {
           const hs = this.opts.getHandyState();
           d.handy = {
@@ -2341,6 +2738,10 @@ export class XRSessionManager {
             this.handyPanel.setHandyState(this.opts.getHandyState());
           }
           this.handyPanel.update();
+        }
+        if (this.ptPanelOpen && this.ptPanel) {
+          this.ptPanel.setPassthroughState(this.videoPassthrough);
+          this.ptPanel.update();
         }
         if (this.browseOpen) {
           this.infoPanel?.update();
@@ -2671,6 +3072,7 @@ export class XRSessionManager {
     this.deviceModels?.dispose();
     this.panel.dispose();
     this.handyPanel?.dispose();
+    this.ptPanel?.dispose();
     this.infoPanel?.dispose();
     this.scenesPanel?.dispose();
     this.homePanel?.dispose();
@@ -2691,6 +3093,10 @@ export class XRSessionManager {
     this.thumbPreview.geometry.dispose();
     this.clearDome();
     this.destroyMediaLayer();
+    this.blackoutFull.geometry.dispose();
+    this.blackoutRear.geometry.dispose();
+    // Shared between both shells — disposing one material handle is enough.
+    (this.blackoutFull.material as THREE.Material).dispose();
     this.gpuTimer = null;
     this.mediaBinding = null;
     this.videoTexture.dispose();

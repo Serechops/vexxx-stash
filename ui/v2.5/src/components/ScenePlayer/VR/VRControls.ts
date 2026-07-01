@@ -84,6 +84,12 @@ export interface IDrawInput {
   browseOpen?: boolean;
   /** Handy connection status for icon tint + pattern strip visibility. */
   handy?: { connected: boolean; funscriptLoaded: boolean };
+  /**
+   * Mixed-reality passthrough: "PT" opens the adjustment panel (toggle +
+   * chroma-key sliders). Shown whenever the session can composite the camera
+   * feed (immersive-ar); lit while passthrough is active.
+   */
+  passthrough?: { available: boolean; on: boolean };
 }
 
 const RATE_STEPS = [0.5, 0.75, 1, 1.25, 1.5, 2];
@@ -123,6 +129,8 @@ export class VRControlPanel extends VRCanvasPanel {
     patternActive: null as string | null,
     fov: "",
     stereo: "",
+    ptShow: false,
+    ptOn: false,
     chap: null as string | null,
     cap: null as string | null,
     hov: null as string | null,
@@ -251,6 +259,8 @@ export class VRControlPanel extends VRCanvasPanel {
     const browseOpen = !!input.browseOpen;
     const handyConnected = !!input.handy?.connected;
     const handyFsl = !!input.handy?.funscriptLoaded;
+    const ptShow = !!input.passthrough?.available;
+    const ptOn = !!input.passthrough?.on;
     const heat = this.heatmap != null;
     const pr = this.prev;
     if (
@@ -273,6 +283,8 @@ export class VRControlPanel extends VRCanvasPanel {
       pr.patternActive === this.patternActive &&
       pr.fov === fov &&
       pr.stereo === stereo &&
+      pr.ptShow === ptShow &&
+      pr.ptOn === ptOn &&
       pr.chap === chapterTitle &&
       pr.cap === caption
     ) {
@@ -297,6 +309,8 @@ export class VRControlPanel extends VRCanvasPanel {
     pr.patternActive = this.patternActive;
     pr.fov = fov;
     pr.stereo = stereo;
+    pr.ptShow = ptShow;
+    pr.ptOn = ptOn;
     pr.chap = chapterTitle;
     pr.cap = caption;
     return true;
@@ -362,6 +376,8 @@ export class VRControlPanel extends VRCanvasPanel {
         return { type: "cycleStereo" };
       case "swap":
         return { type: "toggleSwapEyes" };
+      case "passthrough":
+        return { type: "ptPanelToggle" };
       case "recenter":
         return { type: "recenter" };
       case "captions":
@@ -622,9 +638,22 @@ export class VRControlPanel extends VRCanvasPanel {
       { id: "fov", w: 104, label: fovLabel(projection) },
       { id: "stereo", w: 116, label: stereoLabel(projection) },
       { id: "swap", w: 104, label: "Swap", active: projection.swapEyes },
-      { id: "recenter", w: 150, label: "Recenter" },
-      { id: "captions", w: 84, label: "CC", active: state.captionsOn },
     ];
+    // Passthrough adjustment panel — any source, AR sessions only. Lit green
+    // while chroma-key passthrough is active.
+    if (input.passthrough?.available) {
+      row2.push({
+        id: "passthrough",
+        w: 84,
+        label: "PT",
+        active: input.passthrough.on,
+        variant: input.passthrough.on ? "green" : "default",
+      });
+    }
+    row2.push(
+      { id: "recenter", w: 150, label: "Recenter" },
+      { id: "captions", w: 84, label: "CC", active: state.captionsOn }
+    );
     const handyGreen = !!(input.handy?.connected && input.handy?.funscriptLoaded);
     row2.push({
       id: "handy",

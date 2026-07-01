@@ -102,7 +102,25 @@ export type VRControlAction =
   /** Change the Home grid sort order (handled in-manager → re-queries the pager). */
   | { type: "setHomeSort"; sort: "recent" | "rating" | "title" }
   /** Toggle an immersive Home preference (persisted React-side). */
-  | { type: "setVrSetting"; key: "hoverLaunch" | "soundOnPlay"; value: boolean }
+  | {
+      type: "setVrSetting";
+      key: "hoverLaunch" | "soundOnPlay" | "passthroughHome";
+      value: boolean;
+    }
+  /**
+   * Toggle chroma-key passthrough for the now-playing video (PT panel toggle;
+   * only emitted when the session supports passthrough).
+   */
+  | { type: "togglePassthrough" }
+  /** Open/close the passthrough adjustment panel (handled in-manager). */
+  | { type: "ptPanelToggle" }
+  /** Apply + persist a full set of passthrough tuning values (PT panel). */
+  | { type: "setPassthroughSettings"; settings: IVRPassthroughSettings }
+  /**
+   * Sample the chroma-key colour from the live video frame — DeoVR's "(A)"
+   * button (handled in-manager; persistence rides setPassthroughSettings).
+   */
+  | { type: "chromaSample" }
   /** Set the gaze-dwell auto-launch delay in ms (persisted React-side). */
   | { type: "setVrDwellMs"; ms: number }
   // ── Galleries (immersive Home content mode + XR gallery viewer) ─────────
@@ -162,6 +180,13 @@ export interface IVRHomeSettings {
   dwellMs: number;
   /** Play scene audio when a scene launches (false = start muted). */
   soundOnPlay: boolean;
+  /**
+   * Show camera passthrough behind the Home wall while browsing (needs an
+   * immersive-ar session). Independent of the in-player video passthrough:
+   * entering a scene applies the video's own state, returning Home re-applies
+   * this one.
+   */
+  passthroughHome: boolean;
 }
 
 /** Sensible defaults — dwell deliberately slower than the old 1.4 s. */
@@ -169,6 +194,36 @@ export const DEFAULT_VR_HOME_SETTINGS: IVRHomeSettings = {
   hoverLaunch: true,
   dwellMs: 2500,
   soundOnPlay: true,
+  passthroughHome: false,
+};
+
+/**
+ * In-player passthrough / chroma-key tuning — the same five controls DeoVR
+ * exposes. Hue / Saturation / Brightness define the key colour in HSV space;
+ * `range` is the keying tolerance (how far from the key colour still keys
+ * out) and `falloff` the edge feather. Adjusted in-headset on the PT panel,
+ * persisted React-side (localStorage), applied live to the keyed shaders.
+ */
+export interface IVRPassthroughSettings {
+  /** Key colour hue, degrees 0..360. */
+  hue: number;
+  /** Key colour saturation, 0..1. */
+  saturation: number;
+  /** Key colour brightness (HSV value), 0..1. */
+  brightness: number;
+  /** Keying tolerance, 0..1 — 0 keys the exact colour only. */
+  range: number;
+  /** Edge feather width, 0..1 — softness of the matte boundary. */
+  falloff: number;
+}
+
+/** Defaults tuned for SLR's flat mid-grey alpha matte. */
+export const DEFAULT_VR_PASSTHROUGH_SETTINGS: IVRPassthroughSettings = {
+  hue: 0,
+  saturation: 0,
+  brightness: 0.5,
+  range: 0.24,
+  falloff: 0.32,
 };
 
 // ── Immersive Home wall: server-backed library data source ──────────────────

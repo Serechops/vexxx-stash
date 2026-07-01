@@ -32,6 +32,7 @@ import { VRHomeLibrary } from "./vrHomeLibrary";
 import { FapTapHomeLibrary, buildFapSceneFragment } from "./faptapLibrary";
 import { PmvHavenHomeLibrary, buildPmvSceneFragment } from "./pmvhavenLibrary";
 import { getPlatformURL } from "src/core/createClient";
+import { sceneSupportsAlphaPassthrough } from "./passthrough";
 import { VRGalleryLibrary } from "./vrGalleryLibrary";
 import { VRGroupLibrary } from "./vrGroupLibrary";
 import {
@@ -54,10 +55,13 @@ import {
   IVRHandyState,
   IVRHomeSettings,
   DEFAULT_VR_HOME_SETTINGS,
+  IVRPassthroughSettings,
+  DEFAULT_VR_PASSTHROUGH_SETTINGS,
 } from "./types";
 import { vrLog } from "./vrLog";
 
 const VR_SETTINGS_KEY = "vrHomeSettings";
+const VR_PT_SETTINGS_KEY = "vrPassthroughSettings";
 
 /** Load persisted immersive-Home preferences, falling back to defaults. */
 function loadVRHomeSettings(): IVRHomeSettings {
@@ -73,6 +77,25 @@ function loadVRHomeSettings(): IVRHomeSettings {
 function saveVRHomeSettings(s: IVRHomeSettings) {
   try {
     window.localStorage.setItem(VR_SETTINGS_KEY, JSON.stringify(s));
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Load persisted passthrough / chroma-key tuning, falling back to defaults. */
+function loadVRPassthroughSettings(): IVRPassthroughSettings {
+  try {
+    const raw = window.localStorage.getItem(VR_PT_SETTINGS_KEY);
+    if (raw) return { ...DEFAULT_VR_PASSTHROUGH_SETTINGS, ...JSON.parse(raw) };
+  } catch {
+    /* SSR / blocked storage / bad JSON — use defaults */
+  }
+  return { ...DEFAULT_VR_PASSTHROUGH_SETTINGS };
+}
+
+function saveVRPassthroughSettings(s: IVRPassthroughSettings) {
+  try {
+    window.localStorage.setItem(VR_PT_SETTINGS_KEY, JSON.stringify(s));
   } catch {
     /* ignore */
   }
@@ -211,6 +234,11 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
   // a ref so the stable action handler reads the latest without re-creating the
   // XR session; mutated in-place and persisted on each change.
   const settingsRef = useRef<IVRHomeSettings>(loadVRHomeSettings());
+  // Persisted passthrough / chroma-key tuning (PT panel). Same ref pattern:
+  // mutated + saved on each panel edit, seeded into the manager at creation.
+  const ptSettingsRef = useRef<IVRPassthroughSettings>(
+    loadVRPassthroughSettings()
+  );
 
   const sourceIdx = useRef(0);
   // Key the source list on scene.id only. The `scene` object identity changes
@@ -481,6 +509,9 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
       if (gen !== switchSceneGen.current) return;
       managerRef.current?.updateSceneInfo(nextInfo);
       managerRef.current?.updateCurrentSceneId(next.id);
+      // Auto-arm chroma-key passthrough for SLR-style alpha-matte encodes
+      // (and disarm it for everything else).
+      managerRef.current?.setVideoAlpha(sceneSupportsAlphaPassthrough(next));
       // Close the Browse panels so the user lands back in the immersive view.
       managerRef.current?.closeBrowse();
 
@@ -643,6 +674,16 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
           break;
         case "recenter":
           managerRef.current?.recenter();
+          break;
+        case "togglePassthrough":
+          managerRef.current?.toggleVideoPassthrough();
+          break;
+        case "setPassthroughSettings":
+          // Emitted by the PT panel on slider release / reset / frame sample.
+          // The manager already applied it live; persist + re-sync.
+          ptSettingsRef.current = a.settings;
+          saveVRPassthroughSettings(a.settings);
+          managerRef.current?.setPassthroughSettings(a.settings);
           break;
         case "nextMarker":
           seekToMarker(1);
@@ -891,6 +932,7 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
       pmvhavenData: pmvhavenLibraryRef.current,
       lobby: startedInLobbyRef.current,
       homeSettings: settingsRef.current,
+      passthroughSettings: ptSettingsRef.current,
       getThumbnail: (time) => thumbnailsRef.current?.getAt(time) ?? null,
       onAction: (a) => actionRef.current(a),
       onEnd: () => onExitRef.current(),
@@ -903,6 +945,10 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
         if (!disposed) {
           setIsInitializing(false);
           manager.updateCurrentSceneId(liveSceneRef.current.id);
+          // Arm chroma-key passthrough if the launch scene is an alpha encode.
+          manager.setVideoAlpha(
+            sceneSupportsAlphaPassthrough(liveSceneRef.current)
+          );
           // The Home wall sources its data from homeData (server-paged); the
           // manager kicks that off itself, so nothing to seed here.
         }

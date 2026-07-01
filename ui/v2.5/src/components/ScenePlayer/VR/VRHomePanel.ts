@@ -248,6 +248,10 @@ export class VRHomePanel extends VRCanvasPanel {
   private hoverLaunch = true;
   private dwellMs = DWELL_MS_DEFAULT;
   private soundOnPlay = true;
+  private passthroughHome = false;
+  // Whether the live session can composite camera passthrough at all
+  // (immersive-ar). Gates the settings row — runtime capability, not a pref.
+  private passthroughSupported = false;
   private settingsOpen = false;
 
   // Thumbstick nav edge-trigger arms (reset when stick returns to centre).
@@ -405,12 +409,23 @@ export class VRHomePanel extends VRCanvasPanel {
       this.soundOnPlay = s.soundOnPlay;
       changed = true;
     }
+    if (!!s.passthroughHome !== this.passthroughHome) {
+      this.passthroughHome = !!s.passthroughHome;
+      changed = true;
+    }
     if (changed) {
       // Reset any in-flight gaze so a delay change takes effect cleanly.
       this.dwellId = null;
       this.dwellStart = 0;
       this.markDirty();
     }
+  }
+
+  /** Runtime capability from the session (immersive-ar); shows/hides the row. */
+  setPassthroughSupported(on: boolean) {
+    if (this.passthroughSupported === on) return;
+    this.passthroughSupported = on;
+    this.markDirty();
   }
 
   /** Horizontal thumbstick: page the scene grid left or right. */
@@ -891,6 +906,15 @@ export class VRHomePanel extends VRCanvasPanel {
           type: "setVrSetting",
           key: "soundOnPlay",
           value: this.soundOnPlay,
+        };
+      }
+      if (id === "set:passthroughHome") {
+        this.passthroughHome = !this.passthroughHome;
+        this.markDirty();
+        return {
+          type: "setVrSetting",
+          key: "passthroughHome",
+          value: this.passthroughHome,
         };
       }
       if (id.startsWith("dwell:")) {
@@ -1952,6 +1976,7 @@ export class VRHomePanel extends VRCanvasPanel {
    * Modal preferences panel drawn over the dimmed wall. Controls:
    *  • Auto-launch on gaze (on/off) + the dwell delay (1.5 / 2.5 / 4 s)
    *  • Play sound on launch (on/off)
+   *  • Passthrough while browsing (on/off) — immersive-ar sessions only
    * Control regions are pushed first so they win over the full-canvas backdrop
    * region (pushed last) that closes the modal on an outside tap.
    */
@@ -1963,7 +1988,8 @@ export class VRHomePanel extends VRCanvasPanel {
     ctx.fillRect(0, 0, this.cw, this.ch);
 
     const mW = 760;
-    const mH = 520;
+    // Taller when the passthrough row is present (AR session).
+    const mH = this.passthroughSupported ? 640 : 520;
     const mX = (this.cw - mW) / 2;
     const mY = (this.ch - mH) / 2;
 
@@ -2087,6 +2113,27 @@ export class VRHomePanel extends VRCanvasPanel {
       this.soundOnPlay,
       "set:soundOnPlay"
     );
+
+    // ── Row 3: Hub passthrough (only in an immersive-ar session) ────────────
+    if (this.passthroughSupported) {
+      rowY += 96;
+      ctx.strokeStyle = "rgba(255,255,255,0.08)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(rowX, rowY);
+      ctx.lineTo(rowX + rowW, rowY);
+      ctx.stroke();
+      rowY += 24;
+      this.drawSettingRow(
+        rowX,
+        rowY,
+        rowW,
+        "Passthrough while browsing",
+        "See your room behind the Home wall",
+        this.passthroughHome,
+        "set:passthroughHome"
+      );
+    }
 
     // Backdrop region (pushed LAST so the controls above win the hit test).
     this.regions.push({

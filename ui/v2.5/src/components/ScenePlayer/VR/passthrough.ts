@@ -148,3 +148,32 @@ export function keySimilarity(s: { range: number }): number {
 export function keySmoothness(s: { falloff: number }): number {
   return Math.max(0.008, s.falloff * 0.15);
 }
+
+// ── Embedded alpha-mask edge tuning ("(A)" mode) ─────────────────────────────
+// The corner-packed mask is a real H.264/HEVC-encoded region (staircased by
+// macroblock quantization), so softening its edge takes two coupled knobs: a
+// spatial blur that rounds off the blocky silhouette, and the threshold band
+// that turns the blurred sample into alpha. One "Edge softness" slider (0..1)
+// drives both; 0.5 reproduces the fixed values this fork originally shipped
+// with (blur radius 1.5, threshold band 0.1..0.9).
+
+/**
+ * "Edge softness" slider (0..1) → 3x3 blur sample radius in texels. 0 makes
+ * every sample land on the same texel (no blur, pixel-hard silhouette).
+ */
+export function maskBlurRadius(s: { maskEdgeSoftness: number }): number {
+  return s.maskEdgeSoftness * 3;
+}
+
+/**
+ * "Edge softness" slider (0..1) → smoothstep band around the blurred mask
+ * sample. Widening the band softens/feathers the boundary; narrowing it
+ * toward zero-width sharpens it into a hard cutoff (floored so the two edges
+ * never collide, which is undefined for GLSL's smoothstep).
+ */
+export function maskEdgeBand(s: {
+  maskEdgeSoftness: number;
+}): { lo: number; hi: number } {
+  const half = Math.max(0.01, s.maskEdgeSoftness * 0.8);
+  return { lo: 0.5 - half, hi: 0.5 + half };
+}

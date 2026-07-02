@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { Button, Box } from "@mui/material";
 import {
@@ -135,6 +135,7 @@ export const LibraryTasks: React.FC = () => {
 
   const { configuration } = useConfigurationContext();
   const [configRead, setConfigRead] = useState(false);
+  const scanDefaultsSyncedRef = useRef(false);
 
   useEffect(() => {
     if (!configuration?.defaults || loading) {
@@ -151,10 +152,16 @@ export const LibraryTasks: React.FC = () => {
       // the library watcher (and any other server-side scan trigger) has no
       // browser session, so it can only see scan options that have reached
       // defaults.scan_task in the backend config, not this UI-local cache.
-      // Keep the backend in sync whenever it drifts from what's shown here,
-      // so a checkbox set once (even before the backend ever saw it) still
-      // takes effect without the user having to retoggle it.
-      if (!isEqual(scan ? withoutTypename(scan) : undefined, taskDefaults.scan)) {
+      // Sync it once on load to pick up settings that predate this fix. Only
+      // once: saveDefaults isn't referentially stable across renders (it
+      // closes over provider state), so keeping it in the effect's deps
+      // without a guard re-fires this on every save, faster than
+      // `configuration` can refetch to catch up, spamming the backend.
+      if (
+        !scanDefaultsSyncedRef.current &&
+        !isEqual(scan ? withoutTypename(scan) : undefined, taskDefaults.scan)
+      ) {
+        scanDefaultsSyncedRef.current = true;
         saveDefaults({ scan: taskDefaults.scan });
       }
     } else if (scan) {

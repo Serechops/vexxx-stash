@@ -52,6 +52,8 @@ import {
   rgbToHsv,
   keySimilarity,
   keySmoothness,
+  maskBlurRadius,
+  maskEdgeBand,
   isPassthroughSession,
 } from "./passthrough";
 import { VRPassthroughPanel } from "./VRPassthroughPanel";
@@ -1522,9 +1524,17 @@ export class XRSessionManager {
     this.updateChromaKeyUniforms();
     const sim = keySimilarity(s);
     const smooth = keySmoothness(s);
+    const blur = maskBlurRadius(s);
+    const band = maskEdgeBand(s);
     for (const m of this.keyedMaterials) {
       m.uniforms.uKeySim.value = sim;
       m.uniforms.uKeySmooth.value = smooth;
+      // Only the fisheye materials carry the mask-edge uniforms (embedded
+      // alpha-mask mode is fisheye only).
+      if (m.uniforms.uMaskBlur) m.uniforms.uMaskBlur.value = blur;
+      if (m.uniforms.uMaskBand) {
+        m.uniforms.uMaskBand.value.set(band.lo, band.hi);
+      }
     }
   }
 
@@ -2363,6 +2373,7 @@ export class XRSessionManager {
     const centerU = isOff ? 0.25 : uv.offsetX + 0.25;
     const center = new THREE.Vector2(centerU, 0.5);
     const radius = new THREE.Vector2(0.25, 0.5);
+    const maskBand = maskEdgeBand(this.passthroughSettings);
 
     const material = this.debug.has("solid")
       ? new THREE.MeshBasicMaterial({ color: 0x224466, side: THREE.BackSide })
@@ -2388,6 +2399,12 @@ export class XRSessionManager {
                 1 / (this.opts.video.videoHeight || 2048)
               ),
             },
+            // User-tunable "Edge softness" (PT panel) — see maskBlurRadius /
+            // maskEdgeBand in passthrough.ts for the settings mapping.
+            uMaskBlur: { value: maskBlurRadius(this.passthroughSettings) },
+            uMaskBand: {
+              value: new THREE.Vector2(maskBand.lo, maskBand.hi),
+            },
             uKeyHSV: { value: this.chromaKeyHSV },
             uKeyWeights: { value: this.chromaKeyWeights },
             uKeySim: { value: keySimilarity(this.passthroughSettings) },
@@ -2410,6 +2427,11 @@ export class XRSessionManager {
             uniform float uKeyOn;
             uniform float uMaskAlpha;
             uniform vec2 uMaskTexel;
+            // "Edge softness" (PT panel): uMaskBlur scales the 3x3 sample
+            // radius, uMaskBand is the threshold band the blurred sample is
+            // mapped through — see maskBlurRadius / maskEdgeBand.
+            uniform float uMaskBlur;
+            uniform vec2 uMaskBand;
             ${CHROMA_KEY_GLSL}
             varying vec3 vDir;
             // 3x3 box blur around the mask sample. The matte is a real H.264/
@@ -2422,7 +2444,7 @@ export class XRSessionManager {
               float sum = 0.0;
               for (int dx = -1; dx <= 1; dx++) {
                 for (int dy = -1; dy <= 1; dy++) {
-                  vec2 o = uMaskTexel * 1.5 * vec2(float(dx), float(dy));
+                  vec2 o = uMaskTexel * uMaskBlur * vec2(float(dx), float(dy));
                   sum += texture2D(uTex, fract(uv + o)).r;
                 }
               }
@@ -2457,7 +2479,7 @@ export class XRSessionManager {
                   float ax = uCenter.x > 0.5 ? 0.0 : 0.5;
                   float mx = fract(ax + 0.4 * (uv.x - uCenter.x));
                   float my = fract(0.4 * (0.5 - uv.y));
-                  a = smoothstep(0.1, 0.9, sampleMask(vec2(mx, 1.0 - my)));
+                  a = smoothstep(uMaskBand.x, uMaskBand.y, sampleMask(vec2(mx, 1.0 - my)));
                 } else {
                   // Weighted-HSV chroma key (see CHROMA_KEY_GLSL).
                   a = keyAlpha(c.rgb);

@@ -8,6 +8,10 @@
  * metric (not the key colour!), Color range is the keying tolerance and
  * Falloff the edge feather. The key colour itself comes from "Sample from
  * video" (DeoVR's "(A)" button) and shows on the swatch beside the title.
+ * A sixth slider, Edge softness, is this fork's addition — it tunes the
+ * embedded alpha-mask ("(A)" mode) boundary blur/threshold instead, so the
+ * two alpha sources each get a dedicated edge control. Sliders for the
+ * INACTIVE alpha source dim (but stay adjustable) rather than disappear.
  *
  * Slider drags apply LIVE through the onLive callback (shader-uniform updates
  * only — cheap at drag frequency); release emits setPassthroughSettings once
@@ -28,7 +32,9 @@ const PAD = 32;
 const TRACK_X = PAD;
 const TRACK_W = CANVAS_W - PAD * 2;
 const SLIDERS_Y = 214;
-const SLIDER_H = 96;
+// 80 * 6 sliders == the original 96 * 5, so adding the mask-edge-softness
+// slider doesn't change the panel's physical size.
+const SLIDER_H = 80;
 const TRACK_H = 10;
 const HANDLE_R = 16;
 
@@ -44,15 +50,29 @@ interface ISliderDef {
   /** Stored-value maximum (slider fraction × max = stored value). */
   max: number;
   format: (v: number) => string;
+  /** Which alpha source this control affects — dims when the other is active. */
+  mode: "chroma" | "mask";
 }
 
-/** DeoVR's slider order: H/S/B channel weights, then tolerance, then feather. */
+/**
+ * DeoVR's slider order: H/S/B channel weights, then tolerance, then feather —
+ * all chroma-key only. "Edge softness" is this fork's addition, tuning the
+ * embedded alpha-mask ("(A)" mode) boundary instead (see maskBlurRadius /
+ * maskEdgeBand in passthrough.ts).
+ */
 const SLIDERS: ISliderDef[] = [
-  { key: "hueWeight", label: "Hue", max: 1, format: pct },
-  { key: "satWeight", label: "Saturation", max: 1, format: pct },
-  { key: "briWeight", label: "Brightness", max: 1, format: pct },
-  { key: "range", label: "Color range", max: 1, format: pct },
-  { key: "falloff", label: "Falloff", max: 1, format: pct },
+  { key: "hueWeight", label: "Hue", max: 1, format: pct, mode: "chroma" },
+  { key: "satWeight", label: "Saturation", max: 1, format: pct, mode: "chroma" },
+  { key: "briWeight", label: "Brightness", max: 1, format: pct, mode: "chroma" },
+  { key: "range", label: "Color range", max: 1, format: pct, mode: "chroma" },
+  { key: "falloff", label: "Falloff", max: 1, format: pct, mode: "chroma" },
+  {
+    key: "maskEdgeSoftness",
+    label: "Edge softness",
+    max: 1,
+    format: pct,
+    mode: "mask",
+  },
 ];
 
 export class VRPassthroughPanel extends VRCanvasPanel {
@@ -245,16 +265,21 @@ export class VRPassthroughPanel extends VRCanvasPanel {
     ctx.fillStyle = "rgba(255,255,255,0.45)";
     ctx.fillText(
       this.alphaMaskOn
-        ? "Using the video's embedded alpha mask — sliders apply to chroma mode"
+        ? "Using the video's embedded alpha mask — Edge softness tunes its boundary"
         : "Chroma key mode — sliders tune what gets keyed out",
       PAD,
       btnY + btnH + 26
     );
 
-    // Sliders (dimmed while the embedded mask overrides the chroma key).
-    ctx.globalAlpha = this.alphaMaskOn ? 0.35 : 1;
+    // Sliders — each dims when the OTHER alpha source is active (chroma
+    // sliders dim under the embedded mask and vice versa for Edge softness).
     for (let i = 0; i < SLIDERS.length; i++) {
-      this.drawSlider(SLIDERS[i], SLIDERS_Y + i * SLIDER_H);
+      const def = SLIDERS[i];
+      const dimmed = this.alphaMaskOn
+        ? def.mode === "chroma"
+        : def.mode === "mask";
+      ctx.globalAlpha = dimmed ? 0.35 : 1;
+      this.drawSlider(def, SLIDERS_Y + i * SLIDER_H);
     }
     ctx.globalAlpha = 1;
   }

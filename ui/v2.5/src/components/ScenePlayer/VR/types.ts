@@ -234,6 +234,13 @@ export interface IVRPassthroughSettings {
   range: number;
   /** Edge feather width, 0..1 — softness of the matte boundary. */
   falloff: number;
+  /**
+   * Embedded alpha-mask edge softness, 0..1 ("(A)" mode only) — 0 is a
+   * pixel-hard silhouette, 1 heavily blurs + feathers the matte boundary.
+   * Independent of `falloff`, which only affects the chroma-key path; see
+   * `maskBlurRadius` / `maskEdgeBand` in passthrough.ts for the mapping.
+   */
+  maskEdgeSoftness: number;
 }
 
 /**
@@ -251,6 +258,9 @@ export const DEFAULT_VR_PASSTHROUGH_SETTINGS: IVRPassthroughSettings = {
   briWeight: 1,
   range: 0.45,
   falloff: 0.4,
+  // 0.5 reproduces the blur radius / threshold band this fork shipped with
+  // before the control was surfaced (see maskBlurRadius / maskEdgeBand).
+  maskEdgeSoftness: 0.5,
 };
 
 // ── Immersive Home wall: server-backed library data source ──────────────────

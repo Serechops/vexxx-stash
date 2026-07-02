@@ -205,20 +205,6 @@ Navigate to **Settings → Tasks → Scheduled Tasks** to configure automated jo
 
 ---
 
-## 📚 Documentation
-
-- [Stash Documentation](https://docs.stashapp.cc) - Core functionality documentation
-- [In-App Manual](https://docs.stashapp.cc/in-app-manual) - Press `Shift+?` in the app
-
----
-
-## 🌐 Community & Support
-
-- [Discord](https://discord.gg/2TsNFKt) - Real-time chat and community support
-- [Stash Community Forum](https://discourse.stashapp.cc) - Community discussions and support
-
----
-
 ## 📜 Credits
 
 Vexxx is built on the excellent foundation of [Stash](https://github.com/stashapp/stash) by the stashapp team. We're grateful for their work and the community they've built.

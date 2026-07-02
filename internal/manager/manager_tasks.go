@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/stashapp/stash/internal/identify"
 	"github.com/stashapp/stash/internal/manager/config"
 	"github.com/stashapp/stash/pkg/file"
 	file_image "github.com/stashapp/stash/pkg/file/image"
@@ -23,6 +24,7 @@ import (
 	"github.com/stashapp/stash/pkg/plugin"
 	"github.com/stashapp/stash/pkg/scene"
 	"github.com/stashapp/stash/pkg/scene/generate"
+	"github.com/stashapp/stash/pkg/txn"
 )
 
 func useAsVideo(pathname string) bool {
@@ -350,6 +352,7 @@ func (g *watcherSceneGenerator) Generate(ctx context.Context, s *models.Scene, f
 	cfg := config.GetInstance()
 	opts := cfg.GetDefaultScanSettings()
 	if opts == nil {
+		logger.Debugf("Library watcher: no default scan settings configured, skipping generation for %s", f.Path)
 		return nil
 	}
 
@@ -365,6 +368,7 @@ func (g *watcherSceneGenerator) Generate(ctx context.Context, s *models.Scene, f
 	}
 
 	if opts.ScanGeneratePhashes {
+		logger.Infof("Library watcher: generating phash for %s", f.Path)
 		taskPhash := GeneratePhashTask{
 			repository:          mgr.Repository,
 			File:                f,
@@ -372,6 +376,10 @@ func (g *watcherSceneGenerator) Generate(ctx context.Context, s *models.Scene, f
 			fileNamingAlgorithm: cfg.GetVideoFileNamingAlgorithm(),
 		}
 		taskPhash.Start(ctx)
+
+		if opts.ScanAutoIdentify {
+			g.autoIdentify(ctx, s.ID)
+		}
 	}
 
 	if opts.ScanGeneratePreviews {
@@ -408,6 +416,60 @@ func (g *watcherSceneGenerator) Generate(ctx context.Context, s *models.Scene, f
 	}
 
 	return nil
+}
+
+// autoIdentify runs Identify against a single scene using the configured
+// default Identify sources. It mirrors the sequential auto-identify path
+// used by the bulk Scan task (see ScanJob.Execute), but runs inline since
+// the watcher only ever processes one file at a time.
+func (g *watcherSceneGenerator) autoIdentify(ctx context.Context, sceneID int) {
+	cfg := config.GetInstance()
+	defaultSettings := cfg.GetDefaultIdentifySettings()
+	if defaultSettings == nil || len(defaultSettings.Sources) == 0 {
+		logger.Warnf("Library watcher: auto-identify is enabled but no default identify sources are configured; skipping")
+		return
+	}
+
+	mgr := GetInstance()
+
+	identifyJob := &IdentifyJob{
+		postHookExecutor: mgr.PluginCache,
+		input: identify.Options{
+			Sources: defaultSettings.Sources,
+			Options: defaultSettings.Options,
+		},
+		stashBoxes: cfg.GetStashBoxes(),
+	}
+
+	sources, err := identifyJob.getSources()
+	if err != nil {
+		logger.Errorf("Library watcher: error resolving identify sources: %v", err)
+		return
+	}
+
+	// invalidate the scene cache entry so the reload below picks up the
+	// phash fingerprint that was just generated
+	if mgr.Database.Caches != nil {
+		mgr.Database.Caches.InvalidateScene(sceneID)
+	}
+
+	var dbScene *models.Scene
+	if err := txn.WithReadTxn(ctx, mgr.Repository.TxnManager, func(ctx context.Context) error {
+		var err error
+		dbScene, err = mgr.Repository.Scene.Find(ctx, sceneID)
+		return err
+	}); err != nil {
+		logger.Errorf("Library watcher: error reloading scene %d for auto-identify: %v", sceneID, err)
+		return
+	}
+	if dbScene == nil {
+		return
+	}
+
+	logger.Infof("Library watcher: auto-identifying %s", dbScene.Path)
+	identifyJob.identifyScene(ctx, dbScene, sources)
+	identifyJob.processRenames(ctx)
+	logger.Infof("Library watcher: auto-identify finished for %s", dbScene.Path)
 }
 
 // getScanHandlersSync returns scan handlers for synchronous scanning (without task queue)

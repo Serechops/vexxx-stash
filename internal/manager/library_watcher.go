@@ -2,6 +2,7 @@ package manager
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -267,8 +268,7 @@ func (lw *LibraryWatcher) processPending() {
 		}
 
 		// 3. Try to open the file to verify lock status
-		f, err := os.OpenFile(path, os.O_RDWR, 0)
-		if err != nil {
+		if !isFileUnlocked(path) {
 			// File is still locked by downloader/browser
 			fileState.retryCount++
 			if fileState.retryCount > 30 {
@@ -280,7 +280,6 @@ func (lw *LibraryWatcher) processPending() {
 			}
 			continue
 		}
-		f.Close()
 
 		// Settle check passed! Trigger the scan
 		delete(lw.pending, path)
@@ -310,6 +309,32 @@ func (lw *LibraryWatcher) processPending() {
 			}
 		}(path)
 	}
+}
+
+// isFileUnlocked reports whether path can be safely handed off for scanning.
+// It opens for read-write first, since exclusive locks held by downloaders/
+// browsers on Windows block that outright. A permission error on that open
+// doesn't necessarily mean the file is still being written though - it's
+// also what a read-only mount (e.g. a Docker `:ro` library volume) looks
+// like - so in that case fall back to a read-only open to confirm the file
+// is at least accessible.
+func isFileUnlocked(path string) bool {
+	f, err := os.OpenFile(path, os.O_RDWR, 0)
+	if err == nil {
+		f.Close()
+		return true
+	}
+
+	if !errors.Is(err, fs.ErrPermission) {
+		return false
+	}
+
+	rf, err := os.Open(path)
+	if err != nil {
+		return false
+	}
+	rf.Close()
+	return true
 }
 
 func (lw *LibraryWatcher) ensureParentFoldersExist(ctx context.Context, fileDir string, watchedRoots []string) error {

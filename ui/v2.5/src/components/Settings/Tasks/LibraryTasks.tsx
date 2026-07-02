@@ -7,6 +7,7 @@ import {
   mutateMetadataGenerate,
 } from "src/core/StashService";
 import { withoutTypename } from "src/utils/data";
+import isEqual from "lodash-es/isEqual";
 import { useConfigurationContext } from "src/hooks/Config";
 import { IdentifyDialog } from "../../Dialogs/IdentifyDialog/IdentifyDialog";
 import * as GQL from "src/core/generated-graphql";
@@ -78,7 +79,7 @@ export const AutoTagOptions: React.FC<IAutoTagOptions> = ({
 export const LibraryTasks: React.FC = () => {
   const intl = useIntl();
   const Toast = useToast();
-  const { ui, saveUI, loading } = useSettings();
+  const { ui, saveUI, saveDefaults, loading } = useSettings();
 
   const { taskDefaults } = ui;
 
@@ -146,6 +147,16 @@ export const LibraryTasks: React.FC = () => {
     // other defaults should be deprecated
     if (taskDefaults?.scan) {
       setScanOptions(taskDefaults.scan);
+
+      // the library watcher (and any other server-side scan trigger) has no
+      // browser session, so it can only see scan options that have reached
+      // defaults.scan_task in the backend config, not this UI-local cache.
+      // Keep the backend in sync whenever it drifts from what's shown here,
+      // so a checkbox set once (even before the backend ever saw it) still
+      // takes effect without the user having to retoggle it.
+      if (!isEqual(scan ? withoutTypename(scan) : undefined, taskDefaults.scan)) {
+        saveDefaults({ scan: taskDefaults.scan });
+      }
     } else if (scan) {
       setScanOptions(withoutTypename(scan));
     }
@@ -171,7 +182,7 @@ export const LibraryTasks: React.FC = () => {
 
       setConfigRead(true);
     }
-  }, [configuration, configRead, taskDefaults, loading]);
+  }, [configuration, configRead, taskDefaults, loading, saveDefaults]);
 
   function configureDefaults(partial: Record<string, {}>) {
     saveUI({ taskDefaults: { ...partial } });
@@ -179,6 +190,10 @@ export const LibraryTasks: React.FC = () => {
 
   function onSetScanOptions(s: GQL.ScanMetadataInput) {
     configureDefaults({ scan: s });
+    // also persist to the backend config: the library watcher runs server-side
+    // with no browser session, so it can only see scan options that reach the
+    // server via configureDefaults, not the UI-local taskDefaults cache above.
+    saveDefaults({ scan: s });
     setScanOptions(s);
   }
 

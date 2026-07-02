@@ -1180,6 +1180,7 @@ export class XRSessionManager {
     if (on) {
       this.browseOpen = false;
       this.handyPanelOpen = false;
+      this.ptPanelOpen = false;
     }
     // Reset the shared hover-preview <video> across the mode change.
     this.previewSceneId = null;

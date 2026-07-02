@@ -2379,6 +2379,15 @@ export class XRSessionManager {
             uZoom: { value: this.projection.zoom || 1 },
             uKeyOn: { value: this.videoPassthrough ? 1 : 0 },
             uMaskAlpha: { value: this.maskAlphaOn ? 1 : 0 },
+            // Per-texel step in uTex space, used to spatially blur the
+            // corner-packed mask so H.264 macroblock edges don't show up as a
+            // jagged silhouette (see the sampling comment below).
+            uMaskTexel: {
+              value: new THREE.Vector2(
+                1 / (this.opts.video.videoWidth || 4096),
+                1 / (this.opts.video.videoHeight || 2048)
+              ),
+            },
             uKeyHSV: { value: this.chromaKeyHSV },
             uKeyWeights: { value: this.chromaKeyWeights },
             uKeySim: { value: keySimilarity(this.passthroughSettings) },
@@ -2400,8 +2409,25 @@ export class XRSessionManager {
             uniform float uZoom;
             uniform float uKeyOn;
             uniform float uMaskAlpha;
+            uniform vec2 uMaskTexel;
             ${CHROMA_KEY_GLSL}
             varying vec3 vDir;
+            // 3x3 box blur around the mask sample. The matte is a real H.264/
+            // HEVC-encoded region, so its boundary is staircased by macroblock
+            // quantization — a value-only smoothstep can soften the alpha
+            // GRADIENT but can't undo a blocky boundary SHAPE. Spatially
+            // averaging neighbouring texels before thresholding is what
+            // actually rounds the silhouette off.
+            float sampleMask(vec2 uv) {
+              float sum = 0.0;
+              for (int dx = -1; dx <= 1; dx++) {
+                for (int dy = -1; dy <= 1; dy++) {
+                  vec2 o = uMaskTexel * 1.5 * vec2(float(dx), float(dy));
+                  sum += texture2D(uTex, fract(uv + o)).r;
+                }
+              }
+              return sum / 9.0;
+            }
             void main() {
               vec3 d = normalize(vDir);
               // Optical axis is -Z; angle from it gives the equidistant radius.
@@ -2431,7 +2457,7 @@ export class XRSessionManager {
                   float ax = uCenter.x > 0.5 ? 0.0 : 0.5;
                   float mx = fract(ax + 0.4 * (uv.x - uCenter.x));
                   float my = fract(0.4 * (0.5 - uv.y));
-                  a = smoothstep(0.1, 0.9, texture2D(uTex, vec2(mx, 1.0 - my)).r);
+                  a = smoothstep(0.1, 0.9, sampleMask(vec2(mx, 1.0 - my)));
                 } else {
                   // Weighted-HSV chroma key (see CHROMA_KEY_GLSL).
                   a = keyAlpha(c.rgb);

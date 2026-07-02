@@ -54,6 +54,10 @@ Custom components and features are added alongside upstream code. Prefer extendi
 
 When the user asks for a commit message, **only output the message text** — do not stage files or run `git commit`. Leave all git operations (add, commit, push, branch, etc.) to the user.
 
+## Verification
+
+No headless browser tooling (chromium-cli, Playwright, etc.) is set up in this environment. Don't spend time searching for one or trying to install it. Instead: run type checks / builds / tests as appropriate, then describe exactly what to click/select to verify the fix and let the user check it live in their own browser (dev server is normally already running on :3000/:9999).
+
 ## Context Management
 
 After each discrete task completes, proactively suggest `/compact` if the conversation is getting long. Be aggressive: suggest it after any task that involved reading multiple files, a build/test cycle, or more than ~10 tool calls. Don't wait until context is already bloated — suggest early and often. When switching to a completely different area of the codebase, suggest `/clear` instead.

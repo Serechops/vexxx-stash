@@ -4,8 +4,8 @@
  * Uses @tanstack/react-virtual for efficient rendering of large studio lists.
  */
 
-import React, { useMemo, useCallback, useRef } from "react";
-import { useVirtualizer } from "@tanstack/react-virtual";
+import React, { useMemo, useCallback, useRef, useLayoutEffect } from "react";
+import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import * as GQL from "src/core/generated-graphql";
 import { StudioCard } from "./StudioCard";
 import { StudioCardSkeleton } from "../Shared/Skeletons/StudioCardSkeleton";
@@ -33,6 +33,7 @@ export const VirtualizedStudioCardGrid: React.FC<IVirtualizedStudioCardGrid> = (
   itemsPerPage,
 }) => {
   const parentRef = useRef<HTMLDivElement>(null);
+  const parentOffsetRef = useRef(0);
   const [containerWidth, setContainerWidth] = React.useState(0);
   
   const columnWidth = zoomWidths[zoomIndex] || zoomWidths[0];
@@ -75,15 +76,22 @@ export const VirtualizedStudioCardGrid: React.FC<IVirtualizedStudioCardGrid> = (
 
     resizeObserver.observe(element);
     setContainerWidth(element.getBoundingClientRect().width);
-    
+
     return () => resizeObserver.disconnect();
   }, []);
 
-  const virtualizer = useVirtualizer({
+  // This page scrolls via the window, not a bounded ancestor div, so the
+  // virtualizer needs to measure against the window rather than a
+  // parentElement scroll container (which has no fixed height here).
+  useLayoutEffect(() => {
+    parentOffsetRef.current = parentRef.current?.offsetTop ?? 0;
+  }, []);
+
+  const virtualizer = useWindowVirtualizer({
     count: rowCount,
-    getScrollElement: () => parentRef.current?.parentElement ?? null,
     estimateSize: useCallback(() => estimatedRowHeight, [estimatedRowHeight]),
     overscan: 3,
+    scrollMargin: parentOffsetRef.current,
   });
 
   const getRowItems = useCallback(
@@ -108,7 +116,7 @@ export const VirtualizedStudioCardGrid: React.FC<IVirtualizedStudioCardGrid> = (
         ref={parentRef}
         style={{
           display: "grid",
-          gridTemplateColumns: `repeat(auto-fit, minmax(${columnWidth}px, 1fr))`,
+          gridTemplateColumns: `repeat(auto-fill, minmax(${columnWidth}px, 1fr))`,
           gap: `${gap}px`,
           padding: `0 ${padding}px`,
           justifyContent: "center",
@@ -122,14 +130,7 @@ export const VirtualizedStudioCardGrid: React.FC<IVirtualizedStudioCardGrid> = (
   }
 
   return (
-    <div
-      ref={parentRef}
-      style={{
-        height: "100%",
-        overflow: "auto",
-        contain: "strict",
-      }}
-    >
+    <div ref={parentRef} style={{ width: "100%" }}>
       <div
         style={{
           height: `${virtualizer.getTotalSize()}px`,
@@ -148,7 +149,9 @@ export const VirtualizedStudioCardGrid: React.FC<IVirtualizedStudioCardGrid> = (
                 left: 0,
                 width: "100%",
                 height: `${virtualRow.size}px`,
-                transform: `translateY(${virtualRow.start}px)`,
+                transform: `translateY(${
+                  virtualRow.start - virtualizer.options.scrollMargin
+                }px)`,
               }}
             >
               <div

@@ -25,6 +25,7 @@ fragment SceneMarkerData on SceneMarker {
 fragment SceneMarkerSceneData on Scene {
   id
   title
+  vr_mode
   files {
     width
     height

@@ -106,7 +106,7 @@ export const VirtualizedTagCardGrid: React.FC<IVirtualizedTagCardGrid> = ({
         ref={containerRef}
         style={{
           display: "grid",
-          gridTemplateColumns: `repeat(auto-fit, minmax(${columnWidth}px, 1fr))`,
+          gridTemplateColumns: `repeat(auto-fill, minmax(${columnWidth}px, 1fr))`,
           gap: `${gap}px`,
           padding: `0 ${padding}px`,
           justifyContent: "center",

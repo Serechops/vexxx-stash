@@ -51,7 +51,7 @@ export const StudioCardGrid: React.FC<IStudioCardGrid> = ({
       ref={componentRef}
       style={{
         display: "grid",
-        gridTemplateColumns: `repeat(auto-fit, minmax(${columnWidth}px, 1fr))`,
+        gridTemplateColumns: `repeat(auto-fill, minmax(${columnWidth}px, 1fr))`,
         gap: "1rem",
         padding: "0 1rem",
         justifyContent: "center",

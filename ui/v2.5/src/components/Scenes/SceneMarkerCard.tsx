@@ -130,6 +130,7 @@ export const SceneMarkerCard = PatchComponent(
               isHovered={isHovered}
               soundActive={configuration?.interface?.soundOnPreview ?? false}
               isPortrait={isPortrait}
+              vrMode={marker.scene.vr_mode}
             />
             {duration && (
               <Box

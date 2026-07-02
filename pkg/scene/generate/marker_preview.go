@@ -69,6 +69,8 @@ func (g Generator) markerPreviewVideo(input string, options sceneMarkerOptions) 
 			videoFilter = videoFilter.Append("v360=input=equirect:output=flat:in_stereo=tb:out_stereo=2d:d_fov=120:w=1280:h=720")
 		case "MONO360":
 			videoFilter = videoFilter.Append("v360=input=equirect:output=flat:in_stereo=2d:out_stereo=2d:d_fov=120:w=1280:h=720")
+		case "FISHEYE190":
+			videoFilter = videoFilter.Append("v360=input=fisheye:ih_fov=190:iv_fov=190:in_stereo=sbs:out_stereo=2d:output=flat:d_fov=120:w=1280:h=720")
 		}
 		videoFilter = videoFilter.ScaleWidth(markerPreviewWidth)
 
@@ -142,6 +144,8 @@ func (g Generator) sceneMarkerWebp(input string, options sceneMarkerOptions) gen
 			videoFilter = videoFilter.Append("v360=input=equirect:output=flat:in_stereo=tb:out_stereo=2d:d_fov=120:w=1280:h=720")
 		case "MONO360":
 			videoFilter = videoFilter.Append("v360=input=equirect:output=flat:in_stereo=2d:out_stereo=2d:d_fov=120:w=1280:h=720")
+		case "FISHEYE190":
+			videoFilter = videoFilter.Append("v360=input=fisheye:ih_fov=190:iv_fov=190:in_stereo=sbs:out_stereo=2d:output=flat:d_fov=120:w=1280:h=720")
 		}
 		videoFilter = videoFilter.ScaleWidth(markerPreviewWidth)
 		videoFilter = videoFilter.Fps(markerWebpFPS)

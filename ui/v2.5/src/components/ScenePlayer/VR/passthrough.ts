@@ -129,18 +129,22 @@ export function rgbToHsv(
 }
 
 /**
- * "Color range" slider (0..1) → linear-space RGB key distance below which a
- * texel is fully keyed out. 0.5 caps the tolerance well short of the √3
- * maximum so the slider's useful travel isn't crammed into its first third.
+ * "Color range" slider (0..1) → weighted-HSV key distance below which a texel
+ * is fully keyed out. Scale chosen against measured SLR footage: at default
+ * weights the grey stand-in suit sits ≲0.25 from the matte while skin /
+ * colored / bright clothing sits ≳0.45, so the slider's mid-range travel
+ * lands exactly on the decision boundary.
  */
 export function keySimilarity(s: { range: number }): number {
-  return s.range * 0.5;
+  return s.range * 0.7;
 }
 
 /**
  * "Falloff" slider (0..1) → feather band width above the similarity cut.
+ * Kept narrow (≤0.15) — with the weighted metric the suit/skin gap is ~0.2,
+ * and a feather wider than that turns the performer semi-transparent.
  * Floored so a zero falloff still anti-aliases the matte edge slightly.
  */
 export function keySmoothness(s: { falloff: number }): number {
-  return Math.max(0.005, s.falloff * 0.25);
+  return Math.max(0.008, s.falloff * 0.15);
 }

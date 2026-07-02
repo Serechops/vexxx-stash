@@ -49,7 +49,6 @@ import { fetchPmvhavenStatus } from "./pmvhavenLibrary";
 import { VRGalleryViewerPanel } from "./VRGalleryViewerPanel";
 import { VRLobbyBackdrop } from "./VRLobbyBackdrop";
 import {
-  hsvToRgb,
   rgbToHsv,
   keySimilarity,
   keySmoothness,
@@ -87,6 +86,44 @@ const BLACKOUT_RADIUS = 900;
 // Overlap (radians) past the 180° boundary so no camera-feed hairline shows at
 // the seam between the rear blackout shell and the video's edge.
 const BLACKOUT_SEAM = 0.015;
+
+/**
+ * Shared chroma-key GLSL: WEIGHTED-HSV distance from the key colour (DeoVR's
+ * model), not plain RGB distance. Measured on SLR "_alpha" footage: in RGB a
+ * bright fold of the grey stand-in suit is equidistant from the matte as the
+ * performer's mid-tone skin — no threshold separates them. In HSV the suit
+ * stays near-zero saturation at ANY brightness (small weighted distance)
+ * while skin/clothing carry chroma or a far-off value (large distance).
+ *
+ * Texels arrive linear (GPU-decoded sRGB video) and are re-encoded to sRGB
+ * before the HSV conversion so thresholds live in the same space the key
+ * colour was sampled in (canvas pixels). The hue term is gated by the smaller
+ * of the two saturations — hue is numerically meaningless for near-neutral
+ * colours, which is exactly what a grey matte is.
+ */
+const CHROMA_KEY_GLSL = `
+  uniform vec3 uKeyHSV;
+  uniform vec3 uKeyWeights;
+  uniform float uKeySim;
+  uniform float uKeySmooth;
+  vec3 rgb2hsv(vec3 c) {
+    vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
+    vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));
+    vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));
+    float d = q.x - min(q.w, q.y);
+    float e = 1.0e-10;
+    return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);
+  }
+  float keyAlpha(vec3 rgbLinear) {
+    vec3 srgb = pow(max(rgbLinear, vec3(0.0)), vec3(1.0 / 2.2));
+    vec3 hsv = rgb2hsv(srgb);
+    float dh = abs(hsv.x - uKeyHSV.x);
+    dh = min(dh, 1.0 - dh) * 2.0;
+    dh *= min(hsv.y, uKeyHSV.y);
+    vec3 d3 = vec3(dh, hsv.y - uKeyHSV.y, hsv.z - uKeyHSV.z) * uKeyWeights;
+    return smoothstep(uKeySim, uKeySim + uKeySmooth, length(d3));
+  }
+`;
 // Dome geometry segments — lowered from 64×40 to 48×32 (~40% fewer tris) to
 // reduce GPU fill-rate pressure on Quest 3, especially for the always-shader
 // fisheye190 path. 48×32 is visually indistinguishable at DOME_RADIUS=500.
@@ -450,8 +487,14 @@ export class XRSessionManager {
   private homePassthrough = false;
   /** The now-playing source carries an SLR-style alpha matte (auto-arm hint). */
   private videoAlphaCapable = false;
-  /** Player passthrough: chroma-key the video so the room shows through. */
+  /** Player passthrough: knock the background out so the room shows through. */
   private videoPassthrough = false;
+  /**
+   * Alpha source: true = the video's embedded corner-packed mask (SLR alpha
+   * encodes; fisheye only), false = the chroma key. Auto-set from the
+   * filename on each scene, user-togglable via the PT panel's (A) pill.
+   */
+  private maskAlphaOn = false;
   /** Full-sphere blackout: occludes the camera on the dome/flat/lobby paths. */
   private blackoutFull: THREE.Mesh;
   /** Rear-hemisphere blackout: complement of a 180° equirect media layer. */
@@ -459,11 +502,13 @@ export class XRSessionManager {
   /** Chroma-key tuning (PT panel) — seeded from opts, persisted React-side. */
   private passthroughSettings: IVRPassthroughSettings;
   /**
-   * Key colour (linear space), derived from passthroughSettings. Mutated IN
-   * PLACE so every keyed material's uKeyColor uniform shares this object and
-   * colour edits apply live without touching the materials.
+   * Key colour (HSV: h in 0..1 turns, s, v — sRGB space) and per-channel
+   * metric weights, derived from passthroughSettings. Mutated IN PLACE so
+   * every keyed material's uniforms share these objects and PT-panel edits
+   * apply live without touching the materials.
    */
-  private chromaKeyColor = new THREE.Color(0, 0, 0);
+  private chromaKeyHSV = new THREE.Vector3();
+  private chromaKeyWeights = new THREE.Vector3(1, 1, 1);
   /**
    * Live keyed ShaderMaterials (fisheye + keyed dome/flat) so slider edits
    * update uKeySim/uKeySmooth in place. Rebuilt with the dome (clearDome).
@@ -565,7 +610,7 @@ export class XRSessionManager {
     this.passthroughSettings = {
       ...(opts.passthroughSettings ?? DEFAULT_VR_PASSTHROUGH_SETTINGS),
     };
-    this.updateChromaKeyColor();
+    this.updateChromaKeyUniforms();
     this.debug = readVrDebug();
     if (this.debug.size) {
       // eslint-disable-next-line no-console
@@ -1426,7 +1471,21 @@ export class XRSessionManager {
    */
   setVideoAlpha(capable: boolean) {
     this.videoAlphaCapable = capable;
+    // Alpha-matte encodes carry a real embedded mask — prefer it over the
+    // chroma key (DeoVR's default when streaming "_alpha" files).
+    this.setAlphaMask(capable);
     this.setVideoPassthrough(capable && this.passthroughAvailable);
+  }
+
+  /** Switch the alpha source between the embedded mask and the chroma key. */
+  private setAlphaMask(on: boolean) {
+    if (on === this.maskAlphaOn) return;
+    this.maskAlphaOn = on;
+    // Live uniform flip — only the fisheye materials carry uMaskAlpha.
+    for (const m of this.keyedMaterials) {
+      if (m.uniforms.uMaskAlpha) m.uniforms.uMaskAlpha.value = on ? 1 : 0;
+    }
+    vrLog.note("passthrough_maskmode", { on: on ? 1 : 0 });
   }
 
   /**
@@ -1453,13 +1512,13 @@ export class XRSessionManager {
 
   /**
    * Uniform-only application of new chroma-key tuning — cheap enough to run
-   * at slider-drag frequency (no material or dome rebuild). The key colour is
-   * mutated in place (shared uKeyColor object); sim/smooth are pushed onto
-   * every live keyed material.
+   * at slider-drag frequency (no material or dome rebuild). Key colour and
+   * weights are mutated in place (shared uniform vectors); sim/smooth are
+   * pushed onto every live keyed material.
    */
   private applyPassthroughLive(s: IVRPassthroughSettings) {
     this.passthroughSettings = { ...s };
-    this.updateChromaKeyColor();
+    this.updateChromaKeyUniforms();
     const sim = keySimilarity(s);
     const smooth = keySmoothness(s);
     for (const m of this.keyedMaterials) {
@@ -1468,12 +1527,13 @@ export class XRSessionManager {
     }
   }
 
-  /** settings (HSV, sRGB) → linear-space chromaKeyColor, mutated in place. */
-  private updateChromaKeyColor() {
+  /** settings → shared uKeyHSV / uKeyWeights uniform vectors, in place. */
+  private updateChromaKeyUniforms() {
     const s = this.passthroughSettings;
-    const { r, g, b } = hsvToRgb(s.hue, s.saturation, s.brightness);
-    // Compared against GPU-decoded (linear) video texels in the shader.
-    this.chromaKeyColor.setRGB(r, g, b).convertSRGBToLinear();
+    const hsv = rgbToHsv(s.keyR, s.keyG, s.keyB);
+    // Hue as 0..1 turns to match the shader's rgb2hsv output.
+    this.chromaKeyHSV.set(hsv.h / 360, hsv.s, hsv.v);
+    this.chromaKeyWeights.set(s.hueWeight, s.satWeight, s.briWeight);
   }
 
   /** React-side push (persisted load / after a sample): apply + sync panel. */
@@ -1488,9 +1548,9 @@ export class XRSessionManager {
    * image — in an alpha encode everything except the performer is the flat
    * matte, and the frame corners sit OUTSIDE the fisheye circle (black), so
    * corners are deliberately avoided. The sampled colour lands on the PT
-   * panel's H/S/B sliders and is persisted via a setPassthroughSettings
-   * action; range/falloff are left as the user tuned them. No-op when the
-   * frame isn't readable yet (e.g. sampled before first play).
+   * panel's key swatch and is persisted via a setPassthroughSettings action;
+   * the weight/range/falloff sliders are left as the user tuned them. No-op
+   * when the frame isn't readable yet (e.g. sampled before first play).
    */
   private sampleChromaKeyColor() {
     const v = this.opts.video;
@@ -1525,12 +1585,13 @@ export class XRSessionManager {
         b += d[2];
       }
       const n = pts.length * 255;
-      const hsv = rgbToHsv(r / n, g / n, b / n);
+      // Raw sRGB canvas averages — the same space the shader compares in
+      // (texels are re-encoded to sRGB before the HSV conversion there).
       const next: IVRPassthroughSettings = {
         ...this.passthroughSettings,
-        hue: hsv.h,
-        saturation: hsv.s,
-        brightness: hsv.v,
+        keyR: r / n,
+        keyG: g / n,
+        keyB: b / n,
       };
       this.applyPassthroughLive(next);
       this.ptPanel?.setSettings(next);
@@ -1733,6 +1794,11 @@ export class XRSessionManager {
       // Pull the key colour from the live frame; persistence rides the
       // setPassthroughSettings action the sampler emits through onAction.
       this.sampleChromaKeyColor();
+      this.lastActivity = performance.now();
+      return;
+    }
+    if (action.type === "toggleAlphaMask") {
+      this.setAlphaMask(!this.maskAlphaOn);
       this.lastActivity = performance.now();
       return;
     }
@@ -2311,7 +2377,9 @@ export class XRSessionManager {
             uMaxTheta: { value: FISHEYE190_MAX_THETA },
             uZoom: { value: this.projection.zoom || 1 },
             uKeyOn: { value: this.videoPassthrough ? 1 : 0 },
-            uKeyColor: { value: this.chromaKeyColor },
+            uMaskAlpha: { value: this.maskAlphaOn ? 1 : 0 },
+            uKeyHSV: { value: this.chromaKeyHSV },
+            uKeyWeights: { value: this.chromaKeyWeights },
             uKeySim: { value: keySimilarity(this.passthroughSettings) },
             uKeySmooth: { value: keySmoothness(this.passthroughSettings) },
           },
@@ -2330,9 +2398,8 @@ export class XRSessionManager {
             uniform float uMaxTheta;
             uniform float uZoom;
             uniform float uKeyOn;
-            uniform vec3 uKeyColor;
-            uniform float uKeySim;
-            uniform float uKeySmooth;
+            uniform float uMaskAlpha;
+            ${CHROMA_KEY_GLSL}
             varying vec3 vDir;
             void main() {
               vec3 d = normalize(vDir);
@@ -2352,9 +2419,22 @@ export class XRSessionManager {
               vec4 c = texture2D(uTex, uv);
               float a = 1.0;
               if (uKeyOn > 0.5) {
-                // Alpha-matte chroma key: knock out texels near the matte
-                // colour (linear-space RGB distance, feathered edge).
-                a = smoothstep(uKeySim, uKeySim + uKeySmooth, distance(c.rgb, uKeyColor));
+                if (uMaskAlpha > 0.5) {
+                  // SLR corner-packed alpha: the eye's true matte, scaled to
+                  // 40%, is overlaid at an anchor with WRAP addressing — the
+                  // left eye's at the seam-top (0.5, 0), the right eye's at
+                  // the frame origin — red channel carries the mask. Layout
+                  // verified against real footage (IoU 0.93+ vs silhouette).
+                  // The mild smoothstep squashes chroma-subsampling noise
+                  // while keeping the mask's feathered edges.
+                  float ax = uCenter.x > 0.5 ? 0.0 : 0.5;
+                  float mx = fract(ax + 0.4 * (uv.x - uCenter.x));
+                  float my = fract(0.4 * (0.5 - uv.y));
+                  a = smoothstep(0.1, 0.9, texture2D(uTex, vec2(mx, 1.0 - my)).r);
+                } else {
+                  // Weighted-HSV chroma key (see CHROMA_KEY_GLSL).
+                  a = keyAlpha(c.rgb);
+                }
               }
               gl_FragColor = vec4(c.rgb, a);
             }
@@ -2430,7 +2510,8 @@ export class XRSessionManager {
       transparent: true,
       uniforms: {
         uTex: { value: this.videoTexture },
-        uKeyColor: { value: this.chromaKeyColor },
+        uKeyHSV: { value: this.chromaKeyHSV },
+        uKeyWeights: { value: this.chromaKeyWeights },
         uKeySim: { value: keySimilarity(this.passthroughSettings) },
         uKeySmooth: { value: keySmoothness(this.passthroughSettings) },
       },
@@ -2444,14 +2525,11 @@ export class XRSessionManager {
       fragmentShader: `
         precision highp float;
         uniform sampler2D uTex;
-        uniform vec3 uKeyColor;
-        uniform float uKeySim;
-        uniform float uKeySmooth;
+        ${CHROMA_KEY_GLSL}
         varying vec2 vUv;
         void main() {
           vec4 c = texture2D(uTex, vUv);
-          float a = smoothstep(uKeySim, uKeySim + uKeySmooth, distance(c.rgb, uKeyColor));
-          gl_FragColor = vec4(c.rgb, a);
+          gl_FragColor = vec4(c.rgb, keyAlpha(c.rgb));
         }
       `,
     });
@@ -2741,6 +2819,7 @@ export class XRSessionManager {
         }
         if (this.ptPanelOpen && this.ptPanel) {
           this.ptPanel.setPassthroughState(this.videoPassthrough);
+          this.ptPanel.setAlphaMaskState(this.maskAlphaOn);
           this.ptPanel.update();
         }
         if (this.browseOpen) {

@@ -114,6 +114,12 @@ export type VRControlAction =
   | { type: "togglePassthrough" }
   /** Open/close the passthrough adjustment panel (handled in-manager). */
   | { type: "ptPanelToggle" }
+  /**
+   * Toggle sourcing alpha from the video's embedded corner-packed mask (SLR
+   * "_alpha" encodes) instead of the chroma key — DeoVR's "(A)" button
+   * (handled in-manager; auto-enabled when the filename indicates a mask).
+   */
+  | { type: "toggleAlphaMask" }
   /** Apply + persist a full set of passthrough tuning values (PT panel). */
   | { type: "setPassthroughSettings"; settings: IVRPassthroughSettings }
   /**
@@ -199,31 +205,52 @@ export const DEFAULT_VR_HOME_SETTINGS: IVRHomeSettings = {
 
 /**
  * In-player passthrough / chroma-key tuning — the same five controls DeoVR
- * exposes. Hue / Saturation / Brightness define the key colour in HSV space;
- * `range` is the keying tolerance (how far from the key colour still keys
- * out) and `falloff` the edge feather. Adjusted in-headset on the PT panel,
- * persisted React-side (localStorage), applied live to the keyed shaders.
+ * exposes. The key (matte) colour itself comes from "Sample from video"
+ * (DeoVR's "(A)"); the Hue / Saturation / Brightness sliders are per-channel
+ * WEIGHTS of the HSV-space distance metric, `range` the keying tolerance and
+ * `falloff` the edge feather. Weighted HSV — not plain RGB distance — is what
+ * separates a grey chroma-suit stand-in (near-zero saturation at any
+ * brightness → small distance) from the performer's skin/clothing (chroma or
+ * far-off value → large distance); in RGB the two are indistinguishable.
+ * Adjusted in-headset on the PT panel, persisted React-side (localStorage),
+ * applied live to the keyed shader uniforms.
  */
 export interface IVRPassthroughSettings {
-  /** Key colour hue, degrees 0..360. */
-  hue: number;
-  /** Key colour saturation, 0..1. */
-  saturation: number;
-  /** Key colour brightness (HSV value), 0..1. */
-  brightness: number;
+  /** Key (matte) colour, sRGB 0..1 — from "Sample from video" or default. */
+  keyR: number;
+  keyG: number;
+  keyB: number;
+  /**
+   * Weight of the hue term, 0..1. Hue is additionally gated by chroma in the
+   * shader (meaningless for neutrals), so this mostly matters for
+   * green/blue-screen keys, not SLR's grey matte.
+   */
+  hueWeight: number;
+  /** Weight of the saturation term, 0..1 — the grey-suit discriminator. */
+  satWeight: number;
+  /** Weight of the brightness (HSV value) term, 0..1. */
+  briWeight: number;
   /** Keying tolerance, 0..1 — 0 keys the exact colour only. */
   range: number;
   /** Edge feather width, 0..1 — softness of the matte boundary. */
   falloff: number;
 }
 
-/** Defaults tuned for SLR's flat mid-grey alpha matte. */
+/**
+ * Defaults tuned for SLR "_alpha" encodes, measured from real footage: the
+ * matte is a very uniform DARK blue-grey — RGB ≈ (0.139, 0.148, 0.157),
+ * HSV ≈ (210°, 0.12, 0.15) — not mid-grey. Weights follow DeoVR's published
+ * troubleshooting recipe (Hue 50 / Sat 100 / Bri 100 of their 0–100 scales).
+ */
 export const DEFAULT_VR_PASSTHROUGH_SETTINGS: IVRPassthroughSettings = {
-  hue: 0,
-  saturation: 0,
-  brightness: 0.5,
-  range: 0.24,
-  falloff: 0.32,
+  keyR: 0.139,
+  keyG: 0.148,
+  keyB: 0.157,
+  hueWeight: 0.5,
+  satWeight: 1,
+  briWeight: 1,
+  range: 0.45,
+  falloff: 0.4,
 };
 
 // ── Immersive Home wall: server-backed library data source ──────────────────

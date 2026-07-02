@@ -61,7 +61,9 @@ import {
 import { vrLog } from "./vrLog";
 
 const VR_SETTINGS_KEY = "vrHomeSettings";
-const VR_PT_SETTINGS_KEY = "vrPassthroughSettings";
+// ".v2": the schema changed from key-colour HSV fields to metric weights —
+// stale v1 values would mis-map onto the new sliders, so start fresh.
+const VR_PT_SETTINGS_KEY = "vrPassthroughSettings.v2";
 
 /** Load persisted immersive-Home preferences, falling back to defaults. */
 function loadVRHomeSettings(): IVRHomeSettings {

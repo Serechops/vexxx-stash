@@ -3,10 +3,11 @@
  *
  * Opened from the control bar's "PT" button into the right-hand side slot
  * (mirroring DeoVR's passthrough controls). Holds the on/off toggle plus the
- * full chroma-key tuning surface: Hue / Saturation / Brightness define the
- * key colour (HSV), Color range is the keying tolerance and Falloff the edge
- * feather — the same five sliders DeoVR exposes. "Sample from video" pulls
- * the key colour straight from the playing frame (DeoVR's "(A)" button).
+ * full chroma-key tuning surface — the same five sliders DeoVR exposes:
+ * Hue / Saturation / Brightness are per-channel WEIGHTS of the HSV distance
+ * metric (not the key colour!), Color range is the keying tolerance and
+ * Falloff the edge feather. The key colour itself comes from "Sample from
+ * video" (DeoVR's "(A)" button) and shows on the swatch beside the title.
  *
  * Slider drags apply LIVE through the onLive callback (shader-uniform updates
  * only — cheap at drag frequency); release emits setPassthroughSettings once
@@ -20,7 +21,6 @@ import {
   DEFAULT_VR_PASSTHROUGH_SETTINGS,
   VRControlAction,
 } from "./types";
-import { hsvToRgb } from "./passthrough";
 
 const CANVAS_W = 640;
 const CANVAS_H = 720;
@@ -46,11 +46,11 @@ interface ISliderDef {
   format: (v: number) => string;
 }
 
-/** DeoVR's slider order: key colour (H/S/B), then tolerance, then feather. */
+/** DeoVR's slider order: H/S/B channel weights, then tolerance, then feather. */
 const SLIDERS: ISliderDef[] = [
-  { key: "hue", label: "Hue", max: 360, format: (v) => `${Math.round(v)}°` },
-  { key: "saturation", label: "Saturation", max: 1, format: pct },
-  { key: "brightness", label: "Brightness", max: 1, format: pct },
+  { key: "hueWeight", label: "Hue", max: 1, format: pct },
+  { key: "satWeight", label: "Saturation", max: 1, format: pct },
+  { key: "briWeight", label: "Brightness", max: 1, format: pct },
   { key: "range", label: "Color range", max: 1, format: pct },
   { key: "falloff", label: "Falloff", max: 1, format: pct },
 ];
@@ -60,6 +60,12 @@ export class VRPassthroughPanel extends VRCanvasPanel {
     ...DEFAULT_VR_PASSTHROUGH_SETTINGS,
   };
   private ptOn = false;
+  /**
+   * "(A)" mode: alpha comes from the video's embedded corner-packed mask
+   * (SLR alpha encodes) instead of the chroma key — DeoVR's (A) button.
+   * Auto-set from the filename, user-togglable.
+   */
+  private alphaMaskOn = false;
   /** Slider the trigger is currently dragging (null = not dragging). */
   private dragging: ISliderDef | null = null;
 
@@ -86,10 +92,20 @@ export class VRPassthroughPanel extends VRCanvasPanel {
     }
   }
 
+  /** Reflect the embedded-alpha-mask mode on the (A) pill. */
+  setAlphaMaskState(on: boolean) {
+    if (on !== this.alphaMaskOn) {
+      this.alphaMaskOn = on;
+      this.markDirty();
+    }
+  }
+
   protected handleSelect(region: IPanelRegion): VRControlAction | null {
     switch (region.id) {
       case "ptToggle":
         return { type: "togglePassthrough" };
+      case "ptAlphaMask":
+        return { type: "toggleAlphaMask" };
       case "ptSample":
         return { type: "chromaSample" };
       case "ptReset": {
@@ -151,10 +167,9 @@ export class VRPassthroughPanel extends VRCanvasPanel {
     const { ctx } = this;
     this.panelBackground();
     const s = this.settings;
-    const key = hsvToRgb(s.hue, s.saturation, s.brightness);
-    const keyCss = `rgb(${Math.round(key.r * 255)},${Math.round(
-      key.g * 255
-    )},${Math.round(key.b * 255)})`;
+    const keyCss = `rgb(${Math.round(s.keyR * 255)},${Math.round(
+      s.keyG * 255
+    )},${Math.round(s.keyB * 255)})`;
 
     // Title + live key-colour swatch.
     ctx.font = "700 30px sans-serif";
@@ -198,6 +213,23 @@ export class VRPassthroughPanel extends VRCanvasPanel {
       h: pillH,
     });
 
+    // "(A)" pill — embedded alpha-mask mode (DeoVR parity), left of ON/OFF.
+    const aW = 60;
+    const aX = pillX - 14 - aW;
+    const aHover = this.hoveredId === "ptAlphaMask";
+    this.roundRect(aX, pillY, aW, pillH, pillH / 2);
+    ctx.fillStyle = this.alphaMaskOn
+      ? ACCENT
+      : aHover
+      ? "rgba(255,255,255,0.18)"
+      : "rgba(255,255,255,0.10)";
+    ctx.fill();
+    ctx.font = "700 26px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillStyle = this.alphaMaskOn ? "#06121f" : "rgba(255,255,255,0.85)";
+    ctx.fillText("A", aX + aW / 2, pillY + pillH / 2 + 1);
+    this.regions.push({ id: "ptAlphaMask", x: aX, y: pillY, w: aW, h: pillH });
+
     // Sample / Reset buttons.
     const btnY = 112;
     const btnH = 56;
@@ -206,10 +238,25 @@ export class VRPassthroughPanel extends VRCanvasPanel {
     this.drawButton("ptSample", "Sample from video", PAD, btnY, half, btnH);
     this.drawButton("ptReset", "Reset", PAD + half + gap, btnY, half, btnH);
 
-    // Sliders.
+    // Mode hint under the buttons.
+    ctx.font = "400 18px sans-serif";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "rgba(255,255,255,0.45)";
+    ctx.fillText(
+      this.alphaMaskOn
+        ? "Using the video's embedded alpha mask — sliders apply to chroma mode"
+        : "Chroma key mode — sliders tune what gets keyed out",
+      PAD,
+      btnY + btnH + 26
+    );
+
+    // Sliders (dimmed while the embedded mask overrides the chroma key).
+    ctx.globalAlpha = this.alphaMaskOn ? 0.35 : 1;
     for (let i = 0; i < SLIDERS.length; i++) {
       this.drawSlider(SLIDERS[i], SLIDERS_Y + i * SLIDER_H);
     }
+    ctx.globalAlpha = 1;
   }
 
   private drawButton(
@@ -254,25 +301,21 @@ export class VRPassthroughPanel extends VRCanvasPanel {
     ctx.fillStyle = "rgba(255,255,255,0.6)";
     ctx.fillText(def.format(value), this.cw - PAD, y + 14);
 
-    // Track — colour-meaningful gradients for the HSV sliders, accent fill
-    // for the tolerance/feather ones.
+    // Track with an accent fill up to the handle.
     const ty = y + 52;
     this.roundRect(TRACK_X, ty - TRACK_H / 2, TRACK_W, TRACK_H, TRACK_H / 2);
-    ctx.fillStyle = this.trackFill(def);
+    ctx.fillStyle = "rgba(255,255,255,0.10)";
     ctx.fill();
-    if (def.key === "range" || def.key === "falloff") {
-      // Filled portion up to the handle.
-      if (frac > 0.01) {
-        this.roundRect(
-          TRACK_X,
-          ty - TRACK_H / 2,
-          TRACK_W * frac,
-          TRACK_H,
-          TRACK_H / 2
-        );
-        ctx.fillStyle = ACCENT;
-        ctx.fill();
-      }
+    if (frac > 0.01) {
+      this.roundRect(
+        TRACK_X,
+        ty - TRACK_H / 2,
+        TRACK_W * frac,
+        TRACK_H,
+        TRACK_H / 2
+      );
+      ctx.fillStyle = ACCENT;
+      ctx.fill();
     }
 
     // Handle.
@@ -294,50 +337,6 @@ export class VRPassthroughPanel extends VRCanvasPanel {
       w: TRACK_W + 16,
       h: 60,
     });
-  }
-
-  /** Track background for a slider — HSV sliders preview their colour axis. */
-  private trackFill(def: ISliderDef): string | CanvasGradient {
-    const { ctx } = this;
-    const s = this.settings;
-    if (def.key === "hue") {
-      const g = ctx.createLinearGradient(TRACK_X, 0, TRACK_X + TRACK_W, 0);
-      for (let i = 0; i <= 6; i++) {
-        const { r, g: gg, b } = hsvToRgb(i * 60, 1, 1);
-        g.addColorStop(
-          i / 6,
-          `rgb(${Math.round(r * 255)},${Math.round(gg * 255)},${Math.round(
-            b * 255
-          )})`
-        );
-      }
-      return g;
-    }
-    if (def.key === "saturation" || def.key === "brightness") {
-      const from =
-        def.key === "saturation"
-          ? hsvToRgb(s.hue, 0, s.brightness)
-          : hsvToRgb(s.hue, s.saturation, 0);
-      const to =
-        def.key === "saturation"
-          ? hsvToRgb(s.hue, 1, s.brightness)
-          : hsvToRgb(s.hue, s.saturation, 1);
-      const g = ctx.createLinearGradient(TRACK_X, 0, TRACK_X + TRACK_W, 0);
-      g.addColorStop(
-        0,
-        `rgb(${Math.round(from.r * 255)},${Math.round(
-          from.g * 255
-        )},${Math.round(from.b * 255)})`
-      );
-      g.addColorStop(
-        1,
-        `rgb(${Math.round(to.r * 255)},${Math.round(to.g * 255)},${Math.round(
-          to.b * 255
-        )})`
-      );
-      return g;
-    }
-    return "rgba(255,255,255,0.10)";
   }
 }
 

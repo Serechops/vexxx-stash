@@ -9,7 +9,7 @@
     "generate-cc:rc": "node scripts/generate-cc.cjs --rc",
     "build:diag": "make -C ../.. stash-diag",
     "run:diag": "make -C ../.. stash-diag && ../../dist/stash-diag.exe",
-    "server": "make -C ../.. server-start GITHASH=dev STASH_VERSION=dev BUILD_DATE=2026-01-01",
+    "server": "make -C ../.. server-start GITHASH=dev STASH_VERSION=dev",
     "all": "pnpm run dev",
     "release": "make -C ../.. build-release",
     "generate": "make -C ../.. generate",

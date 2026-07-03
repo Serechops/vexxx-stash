@@ -264,6 +264,10 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
           title: markerTitle(m),
           seconds: m.seconds,
           endSeconds: m.end_seconds ?? null,
+          previewUrl: m.preview || null,
+          screenshotUrl: m.screenshot || null,
+          streamUrl: m.stream || null,
+          vrMode: liveScene.vr_mode ?? null,
         })),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [liveScene.id]

@@ -7,6 +7,7 @@
  */
 // Type-only import — erased at runtime, so no module cycle is created.
 import type { IVRSceneEntry } from "./VRScenesPanel";
+import * as GQL from "src/core/generated-graphql";
 
 /** A snapshot of the underlying <video> element, pulled each render frame. */
 export interface IVRPlaybackState {
@@ -33,6 +34,14 @@ export interface IVRMarker {
   endSeconds: number | null;
   /** CSS colour string for the tick, when known. */
   color?: string;
+  /** Marker's own generated preview (animated webp), for the chapter-card hover preview. */
+  previewUrl?: string | null;
+  /** Marker's own generated static screenshot — fallback when no preview is available. */
+  screenshotUrl?: string | null;
+  /** Marker's own generated preview video clip — the same clip SceneMarkerCard hover-plays. */
+  streamUrl?: string | null;
+  /** Scene's VR projection mode, so the preview clip can be cropped to one eye like HoverVideoPreview. */
+  vrMode?: GQL.VrMode | null;
 }
 
 /**

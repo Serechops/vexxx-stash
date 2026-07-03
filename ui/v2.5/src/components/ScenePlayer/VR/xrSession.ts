@@ -23,6 +23,7 @@
  * the <video> element and projection state.
  */
 import * as THREE from "three";
+import * as GQL from "src/core/generated-graphql";
 import {
   IProjectionSettings,
   IUVTransform,
@@ -451,6 +452,13 @@ export class XRSessionManager {
   // ray across the wall must not thrash the media element (see updateHoverPreview).
   private previewPendingId: string | null = null;
   private previewHoverTimer: number | null = null;
+  // Chapter-card (marker) hover preview — a separate <video> from the Browse
+  // scene-card preview above so the two hover contexts never fight over src.
+  // Same dwell-then-load debounce as updateHoverPreview (see driveChapterPreviewVideo).
+  private chapterPreviewVideo: HTMLVideoElement | null = null;
+  private chapterPreviewPendingIndex: number | null = null;
+  private chapterPreviewLoadedIndex: number | null = null;
+  private chapterPreviewTimer: number | null = null;
   private hittables: IHittable[] = [];
   private baseHittables: IHittable[] = [];
   // Immersive Home wall (with merged filter rail) + ambient backdrop (Option 2).
@@ -814,6 +822,12 @@ export class XRSessionManager {
     this.previewVideo.muted = true;
     this.previewVideo.loop = true;
     this.previewVideo.playsInline = true;
+
+    // Preview video for chapter/marker hover — same recipe, separate element.
+    this.chapterPreviewVideo = document.createElement("video");
+    this.chapterPreviewVideo.muted = true;
+    this.chapterPreviewVideo.loop = true;
+    this.chapterPreviewVideo.playsInline = true;
 
     this.input = new VRControllerInput(this.renderer, this.scene, {
       onHover: (hit) => this.routeHover(hit),
@@ -3105,20 +3119,140 @@ export class XRSessionManager {
   }
 
   /**
-   * Float a preview above the scrubber while it's being hovered: the VTT
-   * thumbnail when available, plus the name of the marker the hovered position
-   * sits within. When there's no thumbnail but the position is inside a marker,
-   * a name-only plate is shown so hovering still previews the marker.
+   * Float a preview above the scrubber or the chapter strip while either is
+   * hovered. Scrubber hover takes the VTT-thumbnail path (unchanged); chapter-
+   * card hover plays the marker's own preview clip (falling back to its
+   * preview/screenshot image while that clip loads). The two never overlap
+   * (one panel hover target at a time), so both share the one quad.
    */
   private updateThumbnailPreview(duration: number, uiOpacity: number) {
+    if (uiOpacity < 0.5 || !this.thumbCtx) {
+      this.thumbPreview.visible = false;
+      this.stopChapterPreviewVideo();
+      return;
+    }
     const frac = this.panel.scrubberHoverFraction;
+    if (frac != null && duration && isFinite(duration)) {
+      this.stopChapterPreviewVideo();
+      this.updateScrubberThumb(frac, duration, uiOpacity);
+      return;
+    }
+    const chapIndex = this.panel.hoveredChapterIndex;
+    if (chapIndex != null) {
+      this.updateChapterThumb(chapIndex, uiOpacity);
+      return;
+    }
+    this.thumbPreview.visible = false;
+    this.stopChapterPreviewVideo();
+  }
+
+  /**
+   * Lazily (re)point the chapter-preview <video> at the hovered card's clip.
+   * Mirrors updateHoverPreview's scene-card recipe: assigning <video>.src +
+   * play() tears down and re-inits the decode pipeline (a measured interaction
+   * hitch), so the swap is deferred until the hover settles on one card.
+   */
+  private driveChapterPreviewVideo(index: number, streamUrl: string | null) {
     if (
-      uiOpacity < 0.5 ||
-      frac == null ||
-      !this.thumbCtx ||
-      !duration ||
-      !isFinite(duration)
-    ) {
+      index === this.chapterPreviewLoadedIndex ||
+      index === this.chapterPreviewPendingIndex
+    )
+      return;
+    if (this.chapterPreviewTimer !== null) {
+      window.clearTimeout(this.chapterPreviewTimer);
+      this.chapterPreviewTimer = null;
+    }
+    this.chapterPreviewLoadedIndex = null;
+    this.chapterPreviewPendingIndex = index;
+    if (!streamUrl || !this.chapterPreviewVideo) return;
+    this.chapterPreviewTimer = window.setTimeout(() => {
+      this.chapterPreviewTimer = null;
+      if (
+        this.chapterPreviewPendingIndex !== index ||
+        !this.chapterPreviewVideo
+      )
+        return;
+      this.chapterPreviewLoadedIndex = index;
+      this.chapterPreviewVideo.src = streamUrl;
+      this.chapterPreviewVideo.play().catch(() => undefined);
+    }, HOVER_PREVIEW_DWELL_MS);
+  }
+
+  /** Stop + forget the chapter-preview video — called whenever hover leaves the chapter strip. */
+  private stopChapterPreviewVideo() {
+    if (this.chapterPreviewTimer !== null) {
+      window.clearTimeout(this.chapterPreviewTimer);
+      this.chapterPreviewTimer = null;
+    }
+    this.chapterPreviewPendingIndex = null;
+    if (this.chapterPreviewLoadedIndex !== null) {
+      this.chapterPreviewLoadedIndex = null;
+      this.chapterPreviewVideo?.pause();
+    }
+  }
+
+  /**
+   * Draw the chapter-preview <video>'s current frame into the floating
+   * thumbnail, cropping legacy dual-eye stereo clips down to one eye first —
+   * the same LR180/TB360 aspect-ratio treatment [HoverVideoPreview] applies to
+   * these same marker.stream clips on the 2D marker cards, so the in-VR
+   * preview reads as a normal video instead of a side-by-side/top-bottom
+   * splitscreen.
+   */
+  private drawChapterVideoFrame(
+    video: HTMLVideoElement,
+    vrMode?: GQL.VrMode | null
+  ) {
+    const ctx = this.thumbCtx;
+    if (!ctx) return;
+    ctx.clearRect(0, 0, THUMB_CANVAS_W, THUMB_CANVAS_H);
+    ctx.fillStyle = "rgba(12,16,32,0.92)";
+    ctx.fillRect(0, 0, THUMB_CANVAS_W, THUMB_CANVAS_H);
+
+    const vw = video.videoWidth;
+    const vh = video.videoHeight;
+    if (vw && vh) {
+      let sw = vw;
+      let sh = vh;
+      const ratio = vw / vh;
+      if (vrMode === GQL.VrMode.Lr180 && ratio > 1.85) {
+        sw = vw / 2;
+      } else if (vrMode === GQL.VrMode.Tb360 && ratio < 1.2) {
+        sh = vh / 2;
+      }
+      const ir = sw / sh;
+      const cr = THUMB_CANVAS_W / THUMB_CANVAS_H;
+      let dw: number, dh: number, dx: number, dy: number;
+      if (ir > cr) {
+        dw = THUMB_CANVAS_W;
+        dh = dw / ir;
+        dx = 0;
+        dy = (THUMB_CANVAS_H - dh) / 2;
+      } else {
+        dh = THUMB_CANVAS_H;
+        dw = dh * ir;
+        dx = (THUMB_CANVAS_W - dw) / 2;
+        dy = 0;
+      }
+      try {
+        ctx.drawImage(video, 0, 0, sw, sh, dx, dy, dw, dh);
+      } catch {
+        // decode not ready this tick — keep the plate, retry next frame
+      }
+    }
+
+    ctx.strokeStyle = "rgba(255,255,255,0.6)";
+    ctx.lineWidth = 4;
+    ctx.strokeRect(0, 0, THUMB_CANVAS_W, THUMB_CANVAS_H);
+  }
+
+  private updateScrubberThumb(
+    frac: number,
+    duration: number,
+    uiOpacity: number
+  ) {
+    const ctx = this.thumbCtx;
+    if (!ctx) {
       this.thumbPreview.visible = false;
       return;
     }
@@ -3139,10 +3273,10 @@ export class XRSessionManager {
         }`
       : `nothumb#${title ?? ""}`;
     if (key !== this.lastThumbKey) {
-      this.thumbCtx.clearRect(0, 0, THUMB_CANVAS_W, THUMB_CANVAS_H);
+      ctx.clearRect(0, 0, THUMB_CANVAS_W, THUMB_CANVAS_H);
       if (crop) {
         try {
-          this.thumbCtx.drawImage(
+          ctx.drawImage(
             crop.image,
             crop.sx,
             crop.sy,
@@ -3160,12 +3294,12 @@ export class XRSessionManager {
         }
       } else {
         // No thumbnail — solid plate behind the marker name.
-        this.thumbCtx.fillStyle = "rgba(12,16,32,0.92)";
-        this.thumbCtx.fillRect(0, 0, THUMB_CANVAS_W, THUMB_CANVAS_H);
+        ctx.fillStyle = "rgba(12,16,32,0.92)";
+        ctx.fillRect(0, 0, THUMB_CANVAS_W, THUMB_CANVAS_H);
       }
-      this.thumbCtx.strokeStyle = "rgba(255,255,255,0.6)";
-      this.thumbCtx.lineWidth = 4;
-      this.thumbCtx.strokeRect(0, 0, THUMB_CANVAS_W, THUMB_CANVAS_H);
+      ctx.strokeStyle = "rgba(255,255,255,0.6)";
+      ctx.lineWidth = 4;
+      ctx.strokeRect(0, 0, THUMB_CANVAS_W, THUMB_CANVAS_H);
       if (title) this.drawThumbCaption(title);
       this.thumbTexture.needsUpdate = true;
       this.lastThumbKey = key;
@@ -3173,6 +3307,98 @@ export class XRSessionManager {
 
     // Position above the scrubber at the hovered fraction, clamped to the panel.
     const anchor = this.panel.scrubberAnchorLocal(frac);
+    const limit = this.panel.widthMeters / 2 - THUMB_W_M / 2;
+    const x = Math.min(limit, Math.max(-limit, anchor.x));
+    this.thumbPreview.position.set(
+      x,
+      anchor.y + THUMB_H_M / 2 + 0.06,
+      anchor.z + 0.02
+    );
+    (this.thumbPreview.material as THREE.MeshBasicMaterial).opacity = uiOpacity;
+    this.thumbPreview.visible = true;
+  }
+
+  /**
+   * Float a marker's own preview clip above its hovered chapter card — the
+   * same playing video SceneMarkerCard hover-plays, cropped to one eye for
+   * stereo VR scenes. Falls back to the static preview/screenshot image while
+   * the clip is loading (dwell debounce / buffering) or when the marker has no
+   * stream, so hovering still previews something immediately either way.
+   */
+  private updateChapterThumb(index: number, uiOpacity: number) {
+    const ctx = this.thumbCtx;
+    const marker = this.panel.getChapterMarker(index);
+    const anchor = marker ? this.panel.chapterCardAnchorLocal(index) : null;
+    if (!ctx || !marker || !anchor) {
+      this.thumbPreview.visible = false;
+      this.stopChapterPreviewVideo();
+      return;
+    }
+
+    this.driveChapterPreviewVideo(index, marker.streamUrl ?? null);
+    const video = this.chapterPreviewVideo;
+    const videoActive =
+      index === this.chapterPreviewLoadedIndex &&
+      !!video &&
+      video.readyState >= 2;
+
+    if (videoActive && video) {
+      // A moving picture can't be gated behind the static dirty-check below —
+      // redraw + re-upload every tick while it's playing.
+      this.drawChapterVideoFrame(video, marker.vrMode);
+      this.thumbTexture.needsUpdate = true;
+      const limit = this.panel.widthMeters / 2 - THUMB_W_M / 2;
+      const x = Math.min(limit, Math.max(-limit, anchor.x));
+      this.thumbPreview.position.set(
+        x,
+        anchor.y + THUMB_H_M / 2 + 0.06,
+        anchor.z + 0.02
+      );
+      (this.thumbPreview.material as THREE.MeshBasicMaterial).opacity =
+        uiOpacity;
+      this.thumbPreview.visible = true;
+      return;
+    }
+
+    const img = this.panel.getChapterPreviewImage(index);
+    if (!img) {
+      this.thumbPreview.visible = false;
+      return;
+    }
+
+    const key = `chap:${index}#${img.src}`;
+    if (key !== this.lastThumbKey) {
+      ctx.clearRect(0, 0, THUMB_CANVAS_W, THUMB_CANVAS_H);
+      try {
+        ctx.fillStyle = "rgba(12,16,32,0.92)";
+        ctx.fillRect(0, 0, THUMB_CANVAS_W, THUMB_CANVAS_H);
+        const ir = img.naturalWidth / img.naturalHeight;
+        const cr = THUMB_CANVAS_W / THUMB_CANVAS_H;
+        let dw: number, dh: number, dx: number, dy: number;
+        if (ir > cr) {
+          dw = THUMB_CANVAS_W;
+          dh = dw / ir;
+          dx = 0;
+          dy = (THUMB_CANVAS_H - dh) / 2;
+        } else {
+          dh = THUMB_CANVAS_H;
+          dw = dh * ir;
+          dx = (THUMB_CANVAS_W - dw) / 2;
+          dy = 0;
+        }
+        ctx.drawImage(img, dx, dy, dw, dh);
+      } catch {
+        // tainted/incomplete image — skip this frame
+        this.thumbPreview.visible = false;
+        return;
+      }
+      ctx.strokeStyle = "rgba(255,255,255,0.6)";
+      ctx.lineWidth = 4;
+      ctx.strokeRect(0, 0, THUMB_CANVAS_W, THUMB_CANVAS_H);
+      this.thumbTexture.needsUpdate = true;
+      this.lastThumbKey = key;
+    }
+
     const limit = this.panel.widthMeters / 2 - THUMB_W_M / 2;
     const x = Math.min(limit, Math.max(-limit, anchor.x));
     this.thumbPreview.position.set(
@@ -3215,6 +3441,15 @@ export class XRSessionManager {
       this.previewVideo.pause();
       this.previewVideo.src = "";
       this.previewVideo = null;
+    }
+    if (this.chapterPreviewTimer !== null) {
+      window.clearTimeout(this.chapterPreviewTimer);
+      this.chapterPreviewTimer = null;
+    }
+    if (this.chapterPreviewVideo) {
+      this.chapterPreviewVideo.pause();
+      this.chapterPreviewVideo.src = "";
+      this.chapterPreviewVideo = null;
     }
     this.thumbTexture.dispose();
     (this.thumbPreview.material as THREE.Material).dispose();

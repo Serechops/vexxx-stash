@@ -182,6 +182,45 @@ export class VRControlPanel extends VRCanvasPanel {
     return this.hoverFraction;
   }
 
+  /** Chapter-strip card index currently hovered (parsed from "chap:N"), or null. */
+  get hoveredChapterIndex(): number | null {
+    const id = this.hoveredId;
+    if (!id || !id.startsWith("chap:")) return null;
+    const i = Number(id.slice(5));
+    return Number.isFinite(i) ? i : null;
+  }
+
+  /**
+   * Panel-local anchor above a chapter card, from the last content draw's
+   * layout. Null once the card has scrolled out of the last-drawn strip.
+   */
+  chapterCardAnchorLocal(index: number): THREE.Vector3 | null {
+    const region = this.regions.find((r) => r.id === `chap:${index}`);
+    if (!region) return null;
+    const localX = ((region.x + region.w / 2) / this.cw - 0.5) * this.wM;
+    const localY = (0.5 - region.y / this.ch) * this.hM;
+    return new THREE.Vector3(localX, localY, 0.03);
+  }
+
+  /**
+   * Best-available preview image for a chapter card: the marker's own preview
+   * (animated webp) first, falling back to its static screenshot. Both load
+   * through the shared image cache; null while loading or on failure — the
+   * caller then hides the floating preview, same as today's no-image hover.
+   */
+  getChapterPreviewImage(index: number): HTMLImageElement | null {
+    const m = this.last?.markers[index];
+    if (!m) return null;
+    return (
+      this.image(m.previewUrl ?? null) ?? this.image(m.screenshotUrl ?? null)
+    );
+  }
+
+  /** Full marker record for a chapter card, so the caller can drive its video preview. */
+  getChapterMarker(index: number): IVRMarker | null {
+    return this.last?.markers[index] ?? null;
+  }
+
   /**
    * Panel-local position of the top of the scrubber at the given fraction —
    * the anchor for a floating thumbnail preview.

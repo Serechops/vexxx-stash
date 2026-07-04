@@ -425,6 +425,8 @@ export class VRControlPanel extends VRCanvasPanel {
         return { type: "prevMarker" };
       case "nextMarker":
         return { type: "nextMarker" };
+      case "loop":
+        return { type: "loopChapter" };
       case "handy":
         return { type: "handyPanelToggle" };
       case "home":
@@ -667,6 +669,13 @@ export class VRControlPanel extends VRCanvasPanel {
         { id: "mute", w: 80, label: state.muted ? "icon:muted" : "icon:vol" },
         { id: "volume", w: 170, kind: "volume" },
         { id: "rate", w: 92, label: `${state.playbackRate}x` },
+        {
+          id: "loop",
+          w: 90,
+          label: "Loop",
+          active: state.loopActive,
+          variant: state.loopActive ? "green" : "default",
+        },
       ],
       ROW1_Y,
       state

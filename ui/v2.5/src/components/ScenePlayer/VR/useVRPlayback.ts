@@ -110,8 +110,15 @@ class VRActivityTracker {
 export function useVRPlayback(params: {
   scene: GQL.SceneDataFragment;
   video: HTMLVideoElement | null;
+  /**
+   * Manual activation gate. When false the device is left completely idle even
+   * if the InteractiveContext has auto-connected — the funscript is not
+   * uploaded and no play/seek drives the device. Flipping it true arms the
+   * device for the current scene; flipping it false pauses it immediately.
+   */
+  interactiveEnabled: boolean;
 }) {
-  const { scene, video } = params;
+  const { scene, video, interactiveEnabled } = params;
   const { configuration } = useConfigurationContext();
   const uiConfig = configuration?.ui;
 
@@ -128,20 +135,39 @@ export function useVRPlayback(params: {
   const interactiveReady = useRef(false);
   const tracker = useRef(new VRActivityTracker());
 
-  // Upload the funscript when the scene is interactive.
+  // Upload the funscript when the scene is interactive — but only once the user
+  // has armed the device. Until then we leave it idle (nothing uploaded, so
+  // interactiveReady stays false and playback never drives the device). When the
+  // upload completes while already playing, start motion so arming mid-scene
+  // takes effect without waiting for the next play event.
   useEffect(() => {
-    if (scene.interactive && interactiveInitialised) {
+    if (scene.interactive && interactiveInitialised && interactiveEnabled) {
       interactiveReady.current = false;
       uploadScript(scene.paths.funscript || "").then(() => {
         interactiveReady.current = true;
+        if (interactiveEnabled && video && !video.paused) {
+          interactiveClient.play(video.currentTime);
+        }
       });
     }
   }, [
     uploadScript,
     interactiveInitialised,
+    interactiveEnabled,
+    interactiveClient,
+    video,
     scene.interactive,
     scene.paths.funscript,
   ]);
+
+  // Disarming (or losing arm on scene change) pauses the device immediately so
+  // it can't keep stroking to a stale script.
+  useEffect(() => {
+    if (!interactiveEnabled) {
+      interactiveReady.current = false;
+      interactiveClient.pause();
+    }
+  }, [interactiveEnabled, interactiveClient]);
 
   // Configure the activity tracker from UI config + scene segment bounds.
   useEffect(() => {
@@ -211,7 +237,7 @@ export function useVRPlayback(params: {
 
     const onPlaying = () => {
       t.start();
-      if (scene.interactive && interactiveReady.current) {
+      if (interactiveEnabled && scene.interactive && interactiveReady.current) {
         interactiveClient.play(video.currentTime);
       }
     };
@@ -220,7 +246,12 @@ export function useVRPlayback(params: {
       interactiveClient.pause();
     };
     const onSeeking = () => {
-      if (!video.paused && scene.interactive && interactiveReady.current) {
+      if (
+        interactiveEnabled &&
+        !video.paused &&
+        scene.interactive &&
+        interactiveReady.current
+      ) {
         interactiveClient.play(video.currentTime);
       }
     };
@@ -242,12 +273,14 @@ export function useVRPlayback(params: {
       t.stop();
       interactiveClient.pause();
     };
-  }, [video, scene.interactive, interactiveClient]);
+  }, [video, scene.interactive, interactiveClient, interactiveEnabled]);
 
-  // If the script becomes ready while already playing, start it.
+  // If the script becomes ready while already playing, start it — but only when
+  // the user has armed the device.
   useEffect(() => {
+    if (!interactiveEnabled) return;
     if (interactiveState !== ConnectionState.Ready) return;
     if (!video || video.paused) return;
     interactiveClient.ensurePlaying(video.currentTime);
-  }, [interactiveState, video, interactiveClient]);
+  }, [interactiveEnabled, interactiveState, video, interactiveClient]);
 }

@@ -436,6 +436,9 @@ export class XRSessionManager {
   // Collapsible Handy (interactive device) sub-panel, toggled from the bar.
   private handyPanel: VRHandyPanel | null = null;
   private handyPanelOpen = false;
+  // Edge-trigger state for control-bar hover haptics: only pulse when the
+  // hovered button *changes*, not every frame the ray holds still on one.
+  private lastHapticHoverId: string | null = null;
   // Scene-info side panel (performers, tags, chapters), toggled via Browse.
   private infoPanel: VRInfoPanel | null = null;
   // VR scenes side panel with scene cards, toggled via Browse.
@@ -1015,6 +1018,11 @@ export class XRSessionManager {
   async init(session: XRSession): Promise<void> {
     this.session = session;
     session.addEventListener("end", this.onSessionEnd);
+    // NB: we deliberately leave the XR framebuffer scale at the default (1.0).
+    // A 1.2x bump made panel text crisper but overloaded the GPU on the
+    // shader-dome paths (fisheye190 / flat / keyed), and even gated to the
+    // media-layer scenes it drifted into per-eye panel ghosting a few seconds
+    // into playback under compositor reprojection. Not worth the sharpness.
     await this.renderer.xr.setSession(session);
     this.input.setSession(session);
     // Camera passthrough only composites inside an immersive-ar session (the
@@ -1704,6 +1712,14 @@ export class XRSessionManager {
     for (const h of this.hittables) {
       h.hover(hit && hit.object === h.target ? hit.uv : null);
     }
+    // Edge-triggered haptic tick as the ray sweeps across the control bar's
+    // button row: one pulse per button entered, none while holding still on
+    // one (this.panel.hoveredRegionId only changes on a genuine crossing).
+    const hoverId = this.panel?.hoveredRegionId ?? null;
+    if (hoverId !== this.lastHapticHoverId) {
+      this.lastHapticHoverId = hoverId;
+      if (hoverId) this.input.pulse(hit?.controllerIndex ?? 0, 0.3, 12);
+    }
     // Drive the hover-preview video for whichever scene-card surface is active.
     if (this.lobbyMode) {
       this.updateHoverPreview(
@@ -1780,6 +1796,8 @@ export class XRSessionManager {
   private routeSelect(hit: IPanelHit) {
     const h = this.hittables.find((x) => x.target === hit.object);
     if (!h) return;
+    // Firmer than the hover tick — a press should read as distinctly weightier.
+    this.input.pulse(hit.controllerIndex, 0.6, 20);
     const action = h.select(hit.uv);
     if (action) this.dispatchAction(action);
   }

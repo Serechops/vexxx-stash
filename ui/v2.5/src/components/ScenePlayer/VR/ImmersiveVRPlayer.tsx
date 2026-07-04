@@ -60,6 +60,12 @@ import {
 } from "./types";
 import { vrLog } from "./vrLog";
 
+// A currentTime jump bigger than this between consecutive `timeupdate` ticks
+// is treated as a deliberate seek (vs. the ~0.25s natural playback advance) —
+// used to tell "scrubbed away from the looped chapter" apart from "looped
+// playback just wrapped".
+const LOOP_SEEK_JUMP_SECONDS = 1.5;
+
 const VR_SETTINGS_KEY = "vrHomeSettings";
 // ".v2": the schema changed from key-colour HSV fields to metric weights —
 // stale v1 values would mis-map onto the new sliders, so start fresh.
@@ -149,6 +155,19 @@ function candidateSources(scene: GQL.SceneDataFragment): string[] {
 }
 
 /**
+ * Seek a freshly-loaded video to pick up where the user left off. Only kicks
+ * in past 30s in (short skips aren't worth rewinding for) and rewinds 5s so
+ * playback doesn't resume mid-word/mid-action. If resume_time lands in the
+ * scene's last minute, treat it as "finished" and restart from 0 instead of
+ * resuming into the credits.
+ */
+function resumeStartTime(v: HTMLVideoElement, resumeTime: number | null | undefined): void {
+  if (!resumeTime || resumeTime < 30) return;
+  if (Number.isFinite(v.duration) && v.duration - resumeTime <= 60) return;
+  v.currentTime = Math.max(0, resumeTime - 5);
+}
+
+/**
  * Empty scene for "lobby" mode — the session opens on the Home wall with no
  * video loaded. The cast avoids hand-writing every SceneDataFragment field; only
  * the fields the player reads (paths, streams, performers, tags, markers…) need
@@ -216,6 +235,15 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
 
+  // Manual Handy activation gate. The global InteractiveContext auto-connects,
+  // but in VR we hold the device idle until the user taps Activate — so it never
+  // starts stroking the moment a scene plays. Mirrored into a ref so the stable
+  // buildHandyState / action handler read the latest without re-creating the XR
+  // session.
+  const [handyArmed, setHandyArmed] = useState(false);
+  const handyArmedRef = useRef(handyArmed);
+  handyArmedRef.current = handyArmed;
+
   // Live scene state — starts as the prop scene and is replaced on in-VR
   // scene switches without touching the XR session or rebuilding the dome.
   const [liveScene, setLiveScene] = useState<GQL.SceneDataFragment>(
@@ -253,8 +281,13 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
   const sources = useMemo(() => candidateSources(liveScene), [liveScene.id]);
   const loadedSrcRef = useRef<string | null>(null);
 
-  // Wire interactive sync + activity tracking to the live video element.
-  useVRPlayback({ scene: liveScene, video: videoEl });
+  // Wire interactive sync + activity tracking to the live video element. The
+  // interactive device stays idle until the user manually arms it (handyArmed).
+  useVRPlayback({
+    scene: liveScene,
+    video: videoEl,
+    interactiveEnabled: handyArmed,
+  });
 
   const markers = useMemo<IVRMarker[]>(
     () =>
@@ -334,7 +367,11 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
       default:
         label = configured ? "Disconnected" : "Handy";
     }
-    return { status, label, configured };
+    // Distinguish "connected but idle" from "armed and driving". The global
+    // context auto-connects (status ready) but we hold the device inactive until
+    // the user taps Activate.
+    if (status === "ready") label = handyArmedRef.current ? "Active" : "Inactive";
+    return { status, label, configured, active: handyArmedRef.current };
   }, []);
 
   const getFunscriptLoaded = useCallback((): boolean => {
@@ -355,6 +392,11 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
     return null;
   }, []);
 
+  // A-B loop bounds for the chapter under the playhead, or null when no loop
+  // is armed. Enforced by the timeupdate effect below; read into getState()
+  // each frame so the control bar can light the Loop button.
+  const loopRef = useRef<{ start: number; end: number } | null>(null);
+
   // Reused state object — getState is polled every render frame, so mutating a
   // single object instead of allocating a fresh one keeps the XR loop free of
   // per-frame garbage (a cause of GC-stall black flicker). The manager consumes
@@ -369,6 +411,7 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
     bufferedAhead: 0,
     waiting: false,
     captionsOn: false,
+    loopActive: false,
   });
   const getState = useCallback((): IVRPlaybackState => {
     const st = stateRef.current;
@@ -383,6 +426,7 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
       st.bufferedAhead = 0;
       st.waiting = false;
       st.captionsOn = captionsOnRef.current;
+      st.loopActive = !!loopRef.current;
       return st;
     }
     let bufferedAhead = 0;
@@ -404,6 +448,7 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
     st.bufferedAhead = bufferedAhead;
     st.waiting = v.readyState < 3 && !v.paused;
     st.captionsOn = captionsOnRef.current;
+    st.loopActive = !!loopRef.current;
     return st;
   }, []);
 
@@ -463,6 +508,9 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
   // generation; stale applications (gen mismatch) are dropped.
   const applyScene = useCallback(
     (next: GQL.SceneDataFragment, gen: number, logId: string) => {
+      // A loop's chapter bounds belong to the outgoing scene — drop it before
+      // the new one's markers/duration are in place.
+      loopRef.current = null;
       const v = videoRef.current;
       if (v) {
         // Detach the compositor from the <video> BEFORE draining it. A live
@@ -491,6 +539,7 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
             v.removeEventListener("loadedmetadata", onMeta);
             if (gen !== switchSceneGen.current) return;
             v.currentTime = 0;
+            resumeStartTime(v, next.resume_time);
             v.play().catch(() => undefined);
           };
           v.addEventListener("loadedmetadata", onMeta);
@@ -615,6 +664,7 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
   // Return to the immersive Home wall: pause + unload the video and re-enter
   // lobby mode. The XR session, dome, and controllers all stay alive.
   const handleGoHome = useCallback(() => {
+    loopRef.current = null;
     const v = videoRef.current;
     if (v) {
       // Release the live media layer before draining the <video> (same Quest
@@ -697,6 +747,24 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
         case "prevMarker":
           seekToMarker(-1);
           break;
+        case "loopChapter":
+          if (loopRef.current) {
+            loopRef.current = null;
+          } else if (v) {
+            const t = v.currentTime;
+            const m = markersRef.current;
+            let start = 0;
+            let end = v.duration || Infinity;
+            for (let i = m.length - 1; i >= 0; i--) {
+              if (t >= m[i].seconds) {
+                start = m[i].seconds;
+                end = i + 1 < m.length ? m[i + 1].seconds : v.duration || Infinity;
+                break;
+              }
+            }
+            loopRef.current = { start, end };
+          }
+          break;
         case "toggleCaptions":
           toggleCaptions();
           break;
@@ -747,6 +815,22 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
         case "handyConnect":
           ctxRef.current.initialise().catch(() => undefined);
           break;
+        case "handyActivate": {
+          // Manual activation toggle. Arming ensures the device is connected
+          // (the global context usually already did this) and lets useVRPlayback
+          // upload the script + drive playback. Disarming halts it immediately.
+          const next = !handyArmedRef.current;
+          setHandyArmed(next);
+          if (next) {
+            if (ctxRef.current.state !== ConnectionState.Ready) {
+              ctxRef.current.initialise().catch(() => undefined);
+            }
+          } else {
+            patternRunnerRef.current.stop();
+            handyRef.current.emergencyStop?.();
+          }
+          break;
+        }
         case "handySync":
           ctxRef.current.sync().catch(() => undefined);
           break;
@@ -859,6 +943,7 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
       v.removeEventListener("loadedmetadata", onMeta);
       if (drainGen !== drainStaleSrcCounter.current) return;
       v.currentTime = 0;
+      resumeStartTime(v, liveSceneRef.current.resume_time);
       v.play().catch(() => undefined);
     };
     v.addEventListener("loadedmetadata", onMeta);
@@ -882,6 +967,7 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
           v.removeEventListener("loadedmetadata", onFallbackMeta);
           if (drainGen !== drainStaleSrcCounter.current) return;
           v.currentTime = 0;
+          resumeStartTime(v, liveSceneRef.current.resume_time);
           v.play().catch(() => undefined);
         };
         v.addEventListener("loadedmetadata", onFallbackMeta);
@@ -913,6 +999,32 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
     };
     track.addEventListener("cuechange", onCue);
     return () => track.removeEventListener("cuechange", onCue);
+  }, [videoEl]);
+
+  // Enforce the A-B chapter loop: wrap back to `start` once playback crosses
+  // `end`. A large jump in currentTime between ticks (a deliberate scrub, not
+  // the ~0.25s natural playback advance) that lands outside the loop's bounds
+  // silently releases it — walking away from the chapter is the drop signal,
+  // not an error to fight.
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    let lastT = v.currentTime;
+    const onTimeUpdate = () => {
+      const loop = loopRef.current;
+      const t = v.currentTime;
+      if (loop) {
+        const jumped = Math.abs(t - lastT) > LOOP_SEEK_JUMP_SECONDS;
+        if (jumped && (t < loop.start || t > loop.end)) {
+          loopRef.current = null;
+        } else if (t >= loop.end) {
+          v.currentTime = loop.start;
+        }
+      }
+      lastT = t;
+    };
+    v.addEventListener("timeupdate", onTimeUpdate);
+    return () => v.removeEventListener("timeupdate", onTimeUpdate);
   }, [videoEl]);
 
   // Create the session manager once the video element exists.

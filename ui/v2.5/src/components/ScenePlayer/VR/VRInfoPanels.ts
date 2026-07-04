@@ -186,6 +186,11 @@ export abstract class VRCanvasPanel {
     return this.hM;
   }
 
+  /** id of the currently-hovered hit region (button/strip-item), or null. */
+  get hoveredRegionId(): string | null {
+    return this.hoveredId;
+  }
+
   /** Fade + cull: opacity drives the material; below threshold we hide it. */
   setRenderState(opacity: number) {
     this.material.opacity = opacity;
@@ -1098,6 +1103,7 @@ export class VRHandyPanel extends VRCanvasPanel {
     status: "missing",
     label: "",
     configured: false,
+    active: false,
   };
 
   // Stroke-zone envelope, each 0..1. Defaults to the device's full range.
@@ -1137,7 +1143,8 @@ export class VRHandyPanel extends VRCanvasPanel {
     if (
       st.status !== this.handyState.status ||
       st.label !== this.handyState.label ||
-      st.configured !== this.handyState.configured
+      st.configured !== this.handyState.configured ||
+      st.active !== this.handyState.active
     ) {
       this.handyState = st;
       this.markDirty();
@@ -1177,6 +1184,8 @@ export class VRHandyPanel extends VRCanvasPanel {
     switch (region.id) {
       case "handyConnect":
         return { type: "handyConnect" };
+      case "handyActivate":
+        return { type: "handyActivate" };
       case "handySync":
         return { type: "handySync" };
       default:
@@ -1257,7 +1266,11 @@ export class VRHandyPanel extends VRCanvasPanel {
       missing: "rgba(255,255,255,0.25)",
       disconnected: "rgba(255,255,255,0.25)",
     };
-    const statusColor = statusColors[hs.status] ?? "rgba(255,255,255,0.25)";
+    // Muted dot while idle (connected but not armed) so a green "ready" dot
+    // doesn't imply the device is actually driving.
+    const statusColor = !hs.active
+      ? "rgba(255,255,255,0.30)"
+      : statusColors[hs.status] ?? "rgba(255,255,255,0.25)";
 
     // Status row — glass card
     this.roundRect(20, 20, this.cw - 40, 52, 14);
@@ -1291,20 +1304,36 @@ export class VRHandyPanel extends VRCanvasPanel {
       ctx.fillStyle = "rgba(255,255,255,0.45)";
       ctx.fillText("Set your connection key in", this.cw / 2, 130);
       ctx.fillText("Settings to pair.", this.cw / 2, 158);
+    } else if (!hs.active) {
+      // Idle until the user manually arms the device — nothing drives it yet.
+      this.drawActionBtn(
+        this.cw - 156,
+        20,
+        136,
+        52,
+        "Activate",
+        "handyActivate",
+        "green"
+      );
     } else if (hs.status === "ready") {
-      this.drawActionBtn(this.cw - 140, 20, 120, 52, "Sync", "handySync");
+      // Armed + connected: Stop (disarm) plus Sync.
+      this.drawActionBtn(this.cw - 116, 20, 96, 52, "Stop", "handyActivate", "red");
+      this.drawActionBtn(this.cw - 224, 20, 96, 52, "Sync", "handySync");
     } else if (
       hs.status === "disconnected" ||
       hs.status === "error" ||
       hs.status === "missing"
     ) {
-      this.drawActionBtn(this.cw - 156, 20, 136, 52, "Connect", "handyConnect");
+      // Armed but not yet connected — offer Connect (and a Stop to back out).
+      this.drawActionBtn(this.cw - 116, 20, 96, 52, "Stop", "handyActivate", "red");
+      this.drawActionBtn(this.cw - 224, 20, 96, 52, "Connect", "handyConnect");
     } else {
+      this.drawActionBtn(this.cw - 116, 20, 96, 52, "Stop", "handyActivate", "red");
       ctx.font = "500 18px sans-serif";
       ctx.textAlign = "right";
       ctx.textBaseline = "middle";
       ctx.fillStyle = "rgba(255,255,255,0.55)";
-      ctx.fillText("Connecting…", this.cw - 28, 46);
+      ctx.fillText("Connecting…", this.cw - 232, 46);
     }
 
     // Stroke-zone range slider — only meaningful once a device is paired.
@@ -1435,13 +1464,20 @@ export class VRHandyPanel extends VRCanvasPanel {
     w: number,
     h: number,
     label: string,
-    id: string
+    id: string,
+    accent?: "green" | "red"
   ) {
     const { ctx } = this;
     const hovered = this.hoveredId === id;
     this.roundRect(x, y, w, h, 12);
     const bg = ctx.createLinearGradient(x, y, x, y + h);
-    if (hovered) {
+    if (accent === "green") {
+      bg.addColorStop(0, hovered ? "rgba(76,175,80,0.55)" : "rgba(76,175,80,0.34)");
+      bg.addColorStop(1, hovered ? "rgba(76,175,80,0.34)" : "rgba(76,175,80,0.18)");
+    } else if (accent === "red") {
+      bg.addColorStop(0, hovered ? "rgba(244,67,54,0.55)" : "rgba(244,67,54,0.34)");
+      bg.addColorStop(1, hovered ? "rgba(244,67,54,0.34)" : "rgba(244,67,54,0.18)");
+    } else if (hovered) {
       bg.addColorStop(0, "rgba(255,255,255,0.24)");
       bg.addColorStop(1, "rgba(255,255,255,0.12)");
     } else {

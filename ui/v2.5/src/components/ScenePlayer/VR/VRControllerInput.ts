@@ -20,6 +20,9 @@ import * as THREE from "three";
 export interface IPanelHit {
   object: THREE.Object3D;
   uv: THREE.Vector2;
+  /** Slot (0 or 1) of the controller that produced this hit — lets callers
+   *  target haptics at the hand that's actually pointing at the panel. */
+  controllerIndex: number;
 }
 
 export interface IControllerInputCallbacks {
@@ -118,6 +121,11 @@ export class VRControllerInput {
   // laser would keep being drawn from its last/stale pose — a static ray from a
   // controller that isn't there. We gate the ray + raycast on this.
   private connected = [false, false];
+  // The XRInputSource bound to each slot (set on the `connected` event, which
+  // hands us the source directly — far more reliable than trying to line up
+  // `session.inputSources` order with three's controller-group indices).
+  // Used to reach that hand's `gamepad.hapticActuators` for pulse().
+  private inputSourcesBySlot: (XRInputSource | null)[] = [null, null];
   // Tracks the global rays-visible state so a controller reconnecting mid-session
   // restores its laser to whatever setRaysVisible last requested.
   private raysVisible = true;
@@ -192,7 +200,9 @@ export class VRControllerInput {
         if (this.pressController !== controller) return;
         const obj = this.pressObject;
         const uv = obj ? this.uvOnObject(controller, obj) : null;
-        this.cb.onSelectEnd(obj && uv ? { object: obj, uv } : null);
+        this.cb.onSelectEnd(
+          obj && uv ? { object: obj, uv, controllerIndex: i } : null
+        );
         this.pressController = null;
         this.pressObject = null;
       };
@@ -205,12 +215,14 @@ export class VRControllerInput {
       // source is bound to it. On disconnect, hide the laser, drop the stale
       // filtered ray (so a reconnect re-seeds instead of snapping from old data),
       // and abandon any press/drag that controller owned.
-      const onConnected = () => {
+      const onConnected = (event: { data: XRInputSource }) => {
         this.connected[i] = true;
+        this.inputSourcesBySlot[i] = event.data;
         if (this.lasers[i]) this.lasers[i].visible = this.raysVisible;
       };
       const onDisconnected = () => {
         this.connected[i] = false;
+        this.inputSourcesBySlot[i] = null;
         this.rayInit[i] = false;
         if (this.lasers[i]) this.lasers[i].visible = false;
         if (this.pressController === controller) {
@@ -345,6 +357,25 @@ export class VRControllerInput {
     return this.hoveringPanel;
   }
 
+  /**
+   * Fire a short haptic pulse on the given controller slot (0 or 1), if that
+   * hand's gamepad exposes the (still-experimental, not in lib.dom) Gamepad
+   * Haptics Actuator API. Silently no-ops on hands/controllers that don't
+   * support it — this is a feel enhancement, never load-bearing.
+   */
+  pulse(index: number, intensity: number, durationMs: number) {
+    const src = this.inputSourcesBySlot[index];
+    const actuator = (
+      src?.gamepad as unknown as {
+        hapticActuators?: Array<{
+          pulse: (value: number, duration: number) => Promise<boolean>;
+        }>;
+      }
+    )?.hapticActuators?.[0];
+    if (!actuator) return;
+    actuator.pulse(intensity, durationMs).catch(() => undefined);
+  }
+
   /** Show or hide all controller laser rays (e.g. suppress when UI is hidden). */
   setRaysVisible(visible: boolean) {
     this.raysVisible = visible;
@@ -470,7 +501,13 @@ export class VRControllerInput {
 
   private intersect(controller: THREE.Group): IPanelHit | null {
     const hit = this.raycastNearest(controller);
-    return hit ? { object: hit.object, uv: hit.uv } : null;
+    return hit
+      ? {
+          object: hit.object,
+          uv: hit.uv,
+          controllerIndex: this.controllers.indexOf(controller),
+        }
+      : null;
   }
 
   /** UV of the ray hit on a specific object, or null if the ray misses it. */
@@ -498,7 +535,7 @@ export class VRControllerInput {
       if (!this.connected[i]) continue;
       const hit = this.raycastNearest(this.controllers[i]);
       this.lasers[i].scale.z = hit ? hit.distance : LASER_LENGTH;
-      if (hit && !hover) hover = { object: hit.object, uv: hit.uv };
+      if (hit && !hover) hover = { object: hit.object, uv: hit.uv, controllerIndex: i };
     }
     // The flat screen is hoverable/selectable but excluded from the keep-awake
     // signal so casually aiming at it doesn't pin the auto-hiding control bar.
@@ -510,7 +547,12 @@ export class VRControllerInput {
     // use this for drag-to-scroll; tap-vs-drag is resolved on release).
     if (this.pressController && this.pressObject) {
       const uv = this.uvOnObject(this.pressController, this.pressObject);
-      if (uv) this.cb.onSelectMove({ object: this.pressObject, uv });
+      if (uv)
+        this.cb.onSelectMove({
+          object: this.pressObject,
+          uv,
+          controllerIndex: this.controllers.indexOf(this.pressController),
+        });
     }
 
     this.detectClap();

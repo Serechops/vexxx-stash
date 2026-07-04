@@ -25,6 +25,8 @@ export interface IVRPlaybackState {
   /** True while the media is seeking/stalled (shows a spinner hint). */
   waiting: boolean;
   captionsOn: boolean;
+  /** True while an A-B chapter loop is armed (Loop button lit). */
+  loopActive: boolean;
 }
 
 /** A scene marker projected onto the VR scrubber + chapter list. */
@@ -65,6 +67,8 @@ export type VRControlAction =
   | { type: "recenter" }
   | { type: "nextMarker" }
   | { type: "prevMarker" }
+  /** Toggle an A-B loop over the chapter under the playhead. */
+  | { type: "loopChapter" }
   | { type: "seekSeconds"; seconds: number }
   | { type: "toggleCaptions" }
   | { type: "next" }
@@ -170,6 +174,8 @@ export type VRControlAction =
   | { type: "handyPatternStop" }
   | { type: "handyEmergencyStop" }
   | { type: "handyConnect" }
+  /** Arm/disarm the device for this VR session (manual activation gate). */
+  | { type: "handyActivate" }
   | { type: "handySync" }
   /** Set the device stroke-zone envelope (min/max, each 0..1) from the VR panel. */
   | { type: "setHandyStroke"; min: number; max: number };
@@ -499,4 +505,10 @@ export interface IVRHandyState {
   label: string;
   /** Whether the connection key is configured in settings. */
   configured: boolean;
+  /**
+   * Whether the user has manually armed the device for this VR session. The
+   * global InteractiveContext auto-connects, but in VR we deliberately hold the
+   * device idle until the user taps Activate — nothing drives it while false.
+   */
+  active: boolean;
 }

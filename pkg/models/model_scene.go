@@ -336,3 +336,13 @@ type SceneCaption struct {
 	CaptionType  string `json:"caption_type"`
 	Filepath     string `json:"filepath"`
 }
+
+// SceneFunscript represents a funscript assigned to a scene. A scene may have
+// several (auto-detected from the video's directory or manually added); the
+// currently-active one is pointed to by Scene.FunscriptPath.
+type SceneFunscript struct {
+	// Path is the absolute path to the .funscript file.
+	Path string `json:"path"`
+	// Label is a human-friendly name (typically the file's basename).
+	Label string `json:"label"`
+}

@@ -46,14 +46,19 @@ type SceneCaptionFinder interface {
 	GetSceneCaptions(ctx context.Context, sceneID int) ([]*models.SceneCaption, error)
 }
 
+type SceneFunscriptFinder interface {
+	GetSceneFunscripts(ctx context.Context, sceneID int) ([]*models.SceneFunscript, error)
+}
+
 type sceneRoutes struct {
 	routes
-	sceneFinder        SceneFinder
-	fileGetter         models.FileGetter
-	captionFinder      CaptionFinder
-	sceneCaptionFinder SceneCaptionFinder
-	sceneMarkerFinder  SceneMarkerFinder
-	tagFinder          SceneMarkerTagFinder
+	sceneFinder          SceneFinder
+	fileGetter           models.FileGetter
+	captionFinder        CaptionFinder
+	sceneCaptionFinder   SceneCaptionFinder
+	sceneFunscriptFinder SceneFunscriptFinder
+	sceneMarkerFinder    SceneMarkerFinder
+	tagFinder            SceneMarkerTagFinder
 }
 
 func (rs sceneRoutes) Routes() chi.Router {
@@ -409,22 +414,46 @@ func (rs sceneRoutes) VttSprite(w http.ResponseWriter, r *http.Request) {
 	utils.ServeStaticFile(w, r, filepath)
 }
 
-func (rs sceneRoutes) Funscript(w http.ResponseWriter, r *http.Request) {
-	s := r.Context().Value(sceneKey).(*models.Scene)
+// resolveFunscriptPath returns the funscript file to serve for a scene. It
+// defaults to the active script (FunscriptPath, else the filename-derived
+// default), but an optional `?funscript=<index>` query param selects one of the
+// scene's assigned scripts (scene_funscripts) by index. This lets the in-VR
+// selector switch scripts at runtime — a distinct URL per index re-triggers the
+// Handy upload + heatmap regeneration — without persisting the choice.
+func (rs sceneRoutes) resolveFunscriptPath(r *http.Request, s *models.Scene) string {
 	filepath := video.GetFunscriptPath(s.Path)
 	if s.FunscriptPath != nil {
 		filepath = *s.FunscriptPath
 	}
+
+	idxStr := r.URL.Query().Get("funscript")
+	if idxStr == "" || rs.sceneFunscriptFinder == nil {
+		return filepath
+	}
+	idx, err := strconv.Atoi(idxStr)
+	if err != nil || idx < 0 {
+		return filepath
+	}
+	_ = rs.withReadTxn(r, func(ctx context.Context) error {
+		list, lerr := rs.sceneFunscriptFinder.GetSceneFunscripts(ctx, s.ID)
+		if lerr == nil && idx < len(list) {
+			filepath = list[idx].Path
+		}
+		return nil
+	})
+	return filepath
+}
+
+func (rs sceneRoutes) Funscript(w http.ResponseWriter, r *http.Request) {
+	s := r.Context().Value(sceneKey).(*models.Scene)
+	filepath := rs.resolveFunscriptPath(r, s)
 
 	utils.ServeStaticFile(w, r, filepath)
 }
 
 func (rs sceneRoutes) InteractiveCSV(w http.ResponseWriter, r *http.Request) {
 	s := r.Context().Value(sceneKey).(*models.Scene)
-	filepath := video.GetFunscriptPath(s.Path)
-	if s.FunscriptPath != nil {
-		filepath = *s.FunscriptPath
-	}
+	filepath := rs.resolveFunscriptPath(r, s)
 
 	// TheHandy directly only accepts interactive CSVs
 	csvBytes, err := manager.ConvertFunscriptToCSV(filepath)

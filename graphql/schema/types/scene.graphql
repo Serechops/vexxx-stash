@@ -44,6 +44,19 @@ input SceneCaptionInput {
   filepath: String!
 }
 
+"A funscript assigned to a scene. A scene may have several; the active one is pointed to by funscript_path."
+type SceneFunscript {
+  "Absolute path to the .funscript file."
+  path: String!
+  "Human-friendly name (typically the file basename)."
+  label: String!
+}
+
+input SceneFunscriptInput {
+  path: String!
+  label: String!
+}
+
 enum VRMode {
   LR180
   TB360
@@ -86,6 +99,8 @@ type Scene {
   vr_mode: VRMode
   "Manually linked funscript file path (overrides auto-detected path from video filename)"
   funscript_path: String
+  "All funscripts assigned to this scene (auto-detected from the video's directory or manually added). The active one is funscript_path."
+  funscripts: [SceneFunscript!]
 
   "Times a scene was played"
   play_history: [Time!]!
@@ -153,6 +168,8 @@ input SceneCreateInput {
   funscript_path: String
   "Manually linked caption files"
   captions: [SceneCaptionInput!]
+  "All funscripts assigned to this scene"
+  funscripts: [SceneFunscriptInput!]
 }
 
 input SceneUpdateInput {
@@ -199,6 +216,8 @@ input SceneUpdateInput {
   funscript_path: String
   "Manually linked caption files"
   captions: [SceneCaptionInput!]
+  "All funscripts assigned to this scene"
+  funscripts: [SceneFunscriptInput!]
 }
 
 enum BulkUpdateIdMode {

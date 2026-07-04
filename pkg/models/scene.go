@@ -166,6 +166,11 @@ type SceneCaptionInput struct {
 	Filepath     string `json:"filepath"`
 }
 
+type SceneFunscriptInput struct {
+	Path  string `json:"path"`
+	Label string `json:"label"`
+}
+
 type SceneCreateInput struct {
 	Title        *string           `json:"title"`
 	Code         *string           `json:"code"`
@@ -190,11 +195,12 @@ type SceneCreateInput struct {
 	// Files must not already be primary for another scene.
 	FileIds []string `json:"file_ids"`
 
-	StartPoint    *float64             `json:"start_point"`
-	EndPoint      *float64             `json:"end_point"`
-	VrMode        *VRMode              `json:"vr_mode"`
-	FunscriptPath *string              `json:"funscript_path"`
-	Captions      []*SceneCaptionInput `json:"captions"`
+	StartPoint    *float64               `json:"start_point"`
+	EndPoint      *float64               `json:"end_point"`
+	VrMode        *VRMode                `json:"vr_mode"`
+	FunscriptPath *string                `json:"funscript_path"`
+	Captions      []*SceneCaptionInput   `json:"captions"`
+	Funscripts    []*SceneFunscriptInput `json:"funscripts"`
 }
 
 type SceneUpdateInput struct {
@@ -224,11 +230,12 @@ type SceneUpdateInput struct {
 	PlayCount     *int           `json:"play_count"`
 	PrimaryFileID *string        `json:"primary_file_id"`
 
-	StartPoint    *float64             `json:"start_point"`
-	EndPoint      *float64             `json:"end_point"`
-	VrMode        *VRMode              `json:"vr_mode"`
-	FunscriptPath *string              `json:"funscript_path"`
-	Captions      []*SceneCaptionInput `json:"captions"`
+	StartPoint    *float64               `json:"start_point"`
+	EndPoint      *float64               `json:"end_point"`
+	VrMode        *VRMode                `json:"vr_mode"`
+	FunscriptPath *string                `json:"funscript_path"`
+	Captions      []*SceneCaptionInput   `json:"captions"`
+	Funscripts    []*SceneFunscriptInput `json:"funscripts"`
 }
 
 type SceneDestroyInput struct {

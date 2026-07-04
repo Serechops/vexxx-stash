@@ -76,6 +76,13 @@ export type VRControlAction =
   | { type: "exit" }
   /** Toggle the collapsible compact Handy panel (left side, handled in-manager). */
   | { type: "handyPanelToggle" }
+  /**
+   * Switch the active funscript at runtime from the in-VR Handy panel selector.
+   * `index` is into the scene's assigned scripts (scene.funscripts); the React
+   * layer rewrites the live scene's funscript URL, which re-uploads to the Handy
+   * and regenerates the scrubber heatmap.
+   */
+  | { type: "switchFunscript"; index: number }
   /** Toggle the Browse side panel (Info + Scenes tabs, handled in-manager). */
   | { type: "browsePanelToggle" }
   /** Switch the active Browse tab (handled in-manager). */

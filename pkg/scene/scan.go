@@ -32,6 +32,9 @@ type ScanCreatorUpdater interface {
 	Create(ctx context.Context, newScene *models.Scene, fileIDs []models.FileID) error
 	UpdatePartial(ctx context.Context, id int, updatedScene models.ScenePartial) (*models.Scene, error)
 	AddFileID(ctx context.Context, id int, fileID models.FileID) error
+
+	GetSceneFunscripts(ctx context.Context, sceneID int) ([]*models.SceneFunscript, error)
+	UpdateSceneFunscripts(ctx context.Context, sceneID int, funscripts []*models.SceneFunscript) error
 }
 
 type ScanGalleryFinderUpdater interface {
@@ -137,6 +140,14 @@ func (h *ScanHandler) Handle(ctx context.Context, f models.File, oldFile models.
 
 	if err := h.associateGallery(ctx, existing, f); err != nil {
 		return err
+	}
+
+	// auto-assign any .funscript files sitting in the same directory as the video.
+	// Non-critical: log and continue on failure so a bad funscript never fails a scan.
+	for _, s := range existing {
+		if _, err := DetectAndStoreFunscripts(ctx, h.CreatorUpdater, s.ID, f.Base().Path); err != nil {
+			logger.Errorf("Error detecting funscripts for %s: %v", f.Base().Path, err)
+		}
 	}
 
 	// do this after the commit so that cover generation doesn't hold up the transaction

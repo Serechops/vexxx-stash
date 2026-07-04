@@ -8,7 +8,6 @@ import { StudioSelect } from "../Shared/Select";
 import { ModalComponent } from "../Shared/Modal";
 import { MultiSet } from "../Shared/MultiSet";
 import { useToast } from "src/hooks/Toast";
-import * as FormUtils from "src/utils/form";
 import { RatingSystem } from "../Shared/Rating/RatingSystem";
 import {
   getAggregateInputIDs,
@@ -48,7 +47,7 @@ export const EditScenesDialog: React.FC<IListOperationProps> = (
   const [groupIds, setGroupIds] = useState<string[]>();
   const [existingGroupIds, setExistingGroupIds] = useState<string[]>();
   const [organized, setOrganized] = useState<boolean | undefined>();
-  // undefined = no change; "" = clear; "LR180"/"TB360"/"MONO360" = set
+  // undefined = no change; "" = clear; "LR180"/"TB360"/"MONO360"/"FISHEYE190" = set
   const [vrMode, setVrMode] = useState<string | undefined>(undefined);
 
   const [updateScenes] = useBulkSceneUpdate(getSceneInput());
@@ -369,6 +368,7 @@ export const EditScenesDialog: React.FC<IListOperationProps> = (
                   <MenuItem value="LR180">180° LR</MenuItem>
                   <MenuItem value="TB360">360° TB</MenuItem>
                   <MenuItem value="MONO360">360° Mono</MenuItem>
+                  <MenuItem value="FISHEYE190">190° Fisheye (SBS)</MenuItem>
                 </Select>
               </FormControl>
             </Grid>

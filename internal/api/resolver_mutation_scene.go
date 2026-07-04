@@ -37,6 +37,52 @@ func (r *mutationResolver) getScene(ctx context.Context, id int) (ret *models.Sc
 	return ret, nil
 }
 
+// SceneDetectFunscripts scans the scene's video directory for .funscript files
+// and unions any newly-found ones into the scene's assigned funscripts, then
+// returns the full updated list. Existing (including manual) funscripts are kept.
+func (r *mutationResolver) SceneDetectFunscripts(ctx context.Context, id string) ([]*models.SceneFunscript, error) {
+	sceneID, err := strconv.Atoi(id)
+	if err != nil {
+		return nil, err
+	}
+
+	var ret []*models.SceneFunscript
+	if err := r.withTxn(ctx, func(ctx context.Context) error {
+		s, err := r.repository.Scene.Find(ctx, sceneID)
+		if err != nil {
+			return err
+		}
+		if s == nil {
+			return fmt.Errorf("scene with id %d not found", sceneID)
+		}
+
+		path := s.Path
+		if path == "" {
+			if err := s.LoadFiles(ctx, r.repository.Scene); err != nil {
+				return err
+			}
+			if files := s.Files.List(); len(files) > 0 {
+				path = files[0].Path
+			}
+		}
+		if path != "" {
+			if _, err := scene.DetectAndStoreFunscripts(ctx, r.repository.Scene, sceneID, path); err != nil {
+				return err
+			}
+		}
+
+		ret, err = r.repository.Scene.GetSceneFunscripts(ctx, sceneID)
+		return err
+	}); err != nil {
+		return nil, err
+	}
+
+	if ret == nil {
+		ret = []*models.SceneFunscript{}
+	}
+	return ret, nil
+}
+
 func (r *mutationResolver) SceneCreate(ctx context.Context, input models.SceneCreateInput) (ret *models.Scene, err error) {
 	translator := changesetTranslator{
 		inputMap: getUpdateInputMap(ctx),
@@ -128,7 +174,22 @@ func (r *mutationResolver) SceneCreate(ctx context.Context, input models.SceneCr
 					Filepath:     c.Filepath,
 				})
 			}
-			return r.repository.Scene.UpdateSceneCaptions(ctx, ret.ID, sceneCapts)
+			if err := r.repository.Scene.UpdateSceneCaptions(ctx, ret.ID, sceneCapts); err != nil {
+				return err
+			}
+		}
+		// Save assigned funscripts if provided.
+		if len(input.Funscripts) > 0 {
+			var sceneFuncs []*models.SceneFunscript
+			for _, f := range input.Funscripts {
+				sceneFuncs = append(sceneFuncs, &models.SceneFunscript{
+					Path:  f.Path,
+					Label: f.Label,
+				})
+			}
+			if err := r.repository.Scene.UpdateSceneFunscripts(ctx, ret.ID, sceneFuncs); err != nil {
+				return err
+			}
 		}
 		return nil
 	}); err != nil {
@@ -416,6 +477,20 @@ func (r *mutationResolver) sceneUpdate(ctx context.Context, input models.SceneUp
 			})
 		}
 		if err := qb.UpdateSceneCaptions(ctx, sceneID, sceneCapts); err != nil {
+			return nil, err
+		}
+	}
+
+	// Update assigned funscripts if the field was provided.
+	if translator.hasField("funscripts") {
+		var sceneFuncs []*models.SceneFunscript
+		for _, f := range input.Funscripts {
+			sceneFuncs = append(sceneFuncs, &models.SceneFunscript{
+				Path:  f.Path,
+				Label: f.Label,
+			})
+		}
+		if err := qb.UpdateSceneFunscripts(ctx, sceneID, sceneFuncs); err != nil {
 			return nil, err
 		}
 	}

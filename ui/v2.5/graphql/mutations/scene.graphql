@@ -10,6 +10,13 @@ mutation SceneUpdate($input: SceneUpdateInput!) {
   }
 }
 
+mutation SceneDetectFunscripts($id: ID!) {
+  sceneDetectFunscripts(id: $id) {
+    path
+    label
+  }
+}
+
 mutation BulkSceneUpdate($input: BulkSceneUpdateInput!) {
   bulkSceneUpdate(input: $input) {
     ...SceneData

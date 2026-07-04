@@ -23,6 +23,11 @@ fragment SceneData on Scene {
   vr_mode
   funscript_path
 
+  funscripts {
+    path
+    label
+  }
+
   captions {
     language_code
     caption_type

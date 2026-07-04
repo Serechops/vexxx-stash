@@ -1668,3 +1668,38 @@ func (_m *SceneReaderWriter) UpdateSceneCaptions(ctx context.Context, sceneID in
 
 	return r0
 }
+
+func (_m *SceneReaderWriter) GetSceneFunscripts(ctx context.Context, sceneID int) ([]*models.SceneFunscript, error) {
+	ret := _m.Called(ctx, sceneID)
+
+	var r0 []*models.SceneFunscript
+	if rf, ok := ret.Get(0).(func(context.Context, int) []*models.SceneFunscript); ok {
+		r0 = rf(ctx, sceneID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*models.SceneFunscript)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, int) error); ok {
+		r1 = rf(ctx, sceneID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+func (_m *SceneReaderWriter) UpdateSceneFunscripts(ctx context.Context, sceneID int, funscripts []*models.SceneFunscript) error {
+	ret := _m.Called(ctx, sceneID, funscripts)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, int, []*models.SceneFunscript) error); ok {
+		r0 = rf(ctx, sceneID, funscripts)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}

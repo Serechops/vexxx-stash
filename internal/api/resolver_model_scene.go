@@ -195,6 +195,16 @@ func (r *sceneResolver) Captions(ctx context.Context, obj *models.Scene) (ret []
 	return ret, nil
 }
 
+func (r *sceneResolver) Funscripts(ctx context.Context, obj *models.Scene) (ret []*models.SceneFunscript, err error) {
+	if err := r.withReadTxn(ctx, func(ctx context.Context) error {
+		ret, err = r.repository.Scene.GetSceneFunscripts(ctx, obj.ID)
+		return err
+	}); err != nil {
+		return nil, err
+	}
+	return ret, nil
+}
+
 func (r *sceneResolver) Galleries(ctx context.Context, obj *models.Scene) (ret []*models.Gallery, err error) {
 	var galleryIDs []int
 	if !obj.GalleryIDs.Loaded() {

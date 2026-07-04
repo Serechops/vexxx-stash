@@ -251,6 +251,10 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
   );
   const liveSceneRef = useRef<GQL.SceneDataFragment>(liveScene);
   liveSceneRef.current = liveScene;
+  // Which of the scene's assigned funscripts is active in the in-VR selector.
+  // -1 = the server default (funscript_path / filename-derived). Rewriting the
+  // live scene's funscript URL on switch re-fires the Handy upload + heatmap.
+  const [activeFunscriptIndex, setActiveFunscriptIndex] = useState(-1);
   // When launched from the navbar with no scene, open on the Home wall (lobby).
   const startedInLobbyRef = useRef<boolean>(!scene);
 
@@ -837,6 +841,26 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
         case "handyToggle":
           handyRef.current.emergencyStop?.();
           break;
+        case "switchFunscript": {
+          // Switch the active funscript at runtime. Rewriting the live scene's
+          // funscript URL (a distinct `?funscript=<index>` per script) re-fires
+          // both the Handy upload (useVRPlayback) and the scrubber heatmap
+          // effect, which are keyed on paths.funscript — no extra plumbing. The
+          // choice is session-local; it isn't persisted to funscript_path.
+          const s = liveSceneRef.current;
+          const list = s.funscripts ?? [];
+          if (a.index < 0 || a.index >= list.length) break;
+          const base = (s.paths.funscript ?? `/scene/${s.id}/funscript`).split(
+            "?"
+          )[0];
+          setActiveFunscriptIndex(a.index);
+          setLiveScene((prev) => ({
+            ...prev,
+            interactive: true,
+            paths: { ...prev.paths, funscript: `${base}?funscript=${a.index}` },
+          }));
+          break;
+        }
         case "setHandyStroke": {
           // Apply the stroke-zone envelope to the device. /slider/stroke clamps
           // both HAMP and funscript (HSSP) motion into this min..max range.
@@ -1136,6 +1160,24 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
       cancelled = true;
     };
   }, [liveScene.interactive, liveScene.paths.funscript, videoEl]);
+
+  // Reset the active-funscript selection when the scene changes, seeding it from
+  // the scene's persisted funscript_path (else the server default, -1).
+  useEffect(() => {
+    const list = liveSceneRef.current.funscripts ?? [];
+    const fp = liveSceneRef.current.funscript_path;
+    setActiveFunscriptIndex(fp ? list.findIndex((f) => f.path === fp) : -1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveScene.id]);
+
+  // Push the scene's assigned funscripts + active index to the in-VR Handy
+  // selector (redraws only when the list or selection actually changes).
+  useEffect(() => {
+    managerRef.current?.setFunscripts(
+      (liveScene.funscripts ?? []).map((f) => ({ label: f.label })),
+      activeFunscriptIndex
+    );
+  }, [liveScene.funscripts, activeFunscriptIndex, videoEl]);
 
   // Auto-advance: when a scene ends, switch to the next scene in the current
   // filtered order after a short delay. The manager keeps the filtered list;

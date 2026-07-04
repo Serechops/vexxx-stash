@@ -1438,6 +1438,11 @@ export class XRSessionManager {
     this.panel.setHeatmap(cssUrl);
   }
 
+  /** Push the scene's assigned funscripts + active index to the Handy panel. */
+  setFunscripts(list: { label: string }[], active: number) {
+    this.handyPanel?.setFunscripts(list, active);
+  }
+
   /** Push updated immersive-Home preferences to the Home wall. */
   setHomeSettings(settings: IVRHomeSettings) {
     this.homePanel?.setSettings(settings);

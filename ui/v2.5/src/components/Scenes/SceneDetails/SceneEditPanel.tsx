@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
-import { Button, ButtonGroup, Box, Typography, TextField, Select, MenuItem, FormControl, IconButton } from "@mui/material";
+import { Button, ButtonGroup, Box, Typography, TextField, Select, MenuItem, FormControl, IconButton, Radio } from "@mui/material";
 import Grid from "@mui/material/Grid";
 import Mousetrap from "mousetrap";
 import * as GQL from "src/core/generated-graphql";
@@ -91,6 +91,8 @@ export const SceneEditPanel: React.FC<IProps> = ({
   const [destroyGenerated, { loading: isDestroyingGenerated }] =
     useSceneDestroyGenerated();
   const [showFunscriptBrowser, setShowFunscriptBrowser] = useState(false);
+  const [detectFunscripts] = GQL.useSceneDetectFunscriptsMutation();
+  const [isDetectingFunscripts, setIsDetectingFunscripts] = useState(false);
   // Index of the caption being browsed for a file path, or -1 for "add new"
   const [captionBrowseIndex, setCaptionBrowseIndex] = useState<number | null>(null);
   const [scrapedScene, setScrapedScene] = useState<GQL.ScrapedScene | null>();
@@ -147,6 +149,10 @@ export const SceneEditPanel: React.FC<IProps> = ({
     cover_image: yup.string().nullable().optional(),
     vr_mode: yup.mixed<GQL.VrMode>().nullable().optional(),
     funscript_path: yup.string().nullable().optional(),
+    funscripts: yup.array(yup.object({
+      path: yup.string().required(),
+      label: yup.string().required(),
+    }).required()).defined(),
     captions: yup.array(yup.object({
       language_code: yup.string().required(),
       caption_type: yup.string().required(),
@@ -173,6 +179,19 @@ export const SceneEditPanel: React.FC<IProps> = ({
       cover_image: initialCoverImage,
       vr_mode: scene.vr_mode ?? null,
       funscript_path: scene.funscript_path ?? null,
+      funscripts: (() => {
+        const list = (scene.funscripts ?? []).map((f) => ({
+          path: f.path,
+          label: f.label,
+        }));
+        // Ensure a legacy/explicit funscript_path override is always represented
+        // in the list so it stays visible and selectable.
+        const fp = scene.funscript_path;
+        if (fp && !list.some((f) => f.path === fp)) {
+          list.unshift({ path: fp, label: fp.replace(/^.*[\\/]/, "") });
+        }
+        return list;
+      })(),
       captions: (scene.captions ?? []).map((c) => ({
         language_code: c.language_code,
         caption_type: c.caption_type,
@@ -304,6 +323,34 @@ export const SceneEditPanel: React.FC<IProps> = ({
       Toast.error(e);
     }
     setIsLoading(false);
+  }
+
+  // Scan the scene's video directory server-side for .funscript files and merge
+  // the result into the editable list (preserving any unsaved manual additions).
+  async function onDetectFunscripts() {
+    if (!scene.id) return;
+    setIsDetectingFunscripts(true);
+    try {
+      const result = await detectFunscripts({ variables: { id: scene.id } });
+      const detected = result.data?.sceneDetectFunscripts ?? [];
+      const byPath = new Map(
+        (formik.values.funscripts ?? []).map((f) => [f.path, f])
+      );
+      for (const d of detected) {
+        byPath.set(d.path, { path: d.path, label: d.label });
+      }
+      formik.setFieldValue("funscripts", Array.from(byPath.values()));
+      Toast.success(
+        intl.formatMessage({
+          id: "funscript_detect_success",
+          defaultMessage: "Funscripts detected",
+        })
+      );
+    } catch (e) {
+      Toast.error(e);
+    } finally {
+      setIsDetectingFunscripts(false);
+    }
   }
 
   const encodingImage = ImageUtils.usePasteImage(onImageLoad);
@@ -812,6 +859,14 @@ export const SceneEditPanel: React.FC<IProps> = ({
           extensions={[".funscript"]}
           onClose={(filePath) => {
             if (filePath !== undefined) {
+              const existing = formik.values.funscripts ?? [];
+              if (!existing.some((f) => f.path === filePath)) {
+                formik.setFieldValue("funscripts", [
+                  ...existing,
+                  { path: filePath, label: filePath.replace(/^.*[\\/]/, "") },
+                ]);
+              }
+              // Make the newly-added funscript the active one.
               formik.setFieldValue("funscript_path", filePath);
             }
             setShowFunscriptBrowser(false);
@@ -934,27 +989,80 @@ export const SceneEditPanel: React.FC<IProps> = ({
               </FormControl>
             )}
 
-            {/* Funscript path override */}
+            {/* Funscripts — a scene may have several assigned scripts; the
+                selected radio marks the active one served to the device. */}
             {renderField(
-              "funscript_path",
-              intl.formatMessage({ id: "funscript_path", defaultMessage: "Funscript Path" }),
+              "funscripts",
               <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                <TextField
-                  fullWidth
+                <FormattedMessage id="funscripts" defaultMessage="Funscripts" />
+                <IconButton
                   size="small"
-                  value={formik.values.funscript_path ?? ""}
-                  placeholder={intl.formatMessage({ id: "funscript_path_placeholder", defaultMessage: "Auto-detected (leave blank)" })}
-                  onChange={(e) => formik.setFieldValue("funscript_path", e.target.value || null)}
-                />
-                <IconButton size="small" onClick={() => setShowFunscriptBrowser(true)}>
+                  title={intl.formatMessage({ id: "funscript_add", defaultMessage: "Add funscript" })}
+                  onClick={() => setShowFunscriptBrowser(true)}
+                >
+                  <AddIcon fontSize="small" />
+                </IconButton>
+                <IconButton
+                  size="small"
+                  title={intl.formatMessage({ id: "funscript_detect", defaultMessage: "Detect from folder" })}
+                  disabled={!scene.id || isDetectingFunscripts}
+                  onClick={onDetectFunscripts}
+                >
                   <FolderOpenIcon fontSize="small" />
                 </IconButton>
-                {formik.values.funscript_path && (
-                  <IconButton size="small" onClick={() => formik.setFieldValue("funscript_path", null)}>
-                    <DeleteIcon fontSize="small" />
-                  </IconButton>
-                )}
-              </Box>
+              </Box>,
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+                {/* Active = auto-detected default (matches the video filename). */}
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                  <Radio
+                    size="small"
+                    checked={!formik.values.funscript_path}
+                    onChange={() => formik.setFieldValue("funscript_path", null)}
+                  />
+                  <Typography variant="body2" color="textSecondary">
+                    <FormattedMessage
+                      id="funscript_auto_default"
+                      defaultMessage="Auto (matches video filename)"
+                    />
+                  </Typography>
+                </Box>
+                {(formik.values.funscripts ?? []).map((fs, idx) => (
+                  <Box key={idx} sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                    <Radio
+                      size="small"
+                      checked={formik.values.funscript_path === fs.path}
+                      onChange={() => formik.setFieldValue("funscript_path", fs.path)}
+                    />
+                    <TextField
+                      fullWidth
+                      size="small"
+                      value={fs.path}
+                      onChange={(e) => {
+                        const { value } = e.target;
+                        const updated = [...(formik.values.funscripts ?? [])];
+                        const wasActive = formik.values.funscript_path === updated[idx].path;
+                        updated[idx] = { path: value, label: value.replace(/^.*[\\/]/, "") };
+                        formik.setFieldValue("funscripts", updated);
+                        if (wasActive) formik.setFieldValue("funscript_path", value || null);
+                      }}
+                    />
+                    <IconButton
+                      size="small"
+                      onClick={() => {
+                        const removed = (formik.values.funscripts ?? [])[idx];
+                        const updated = (formik.values.funscripts ?? []).filter((_, i) => i !== idx);
+                        formik.setFieldValue("funscripts", updated);
+                        if (removed && formik.values.funscript_path === removed.path) {
+                          formik.setFieldValue("funscript_path", null);
+                        }
+                      }}
+                    >
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </Box>
+                ))}
+              </Box>,
+              fullWidthProps
             )}
 
             {/* Captions */}

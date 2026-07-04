@@ -22,6 +22,7 @@ import (
 	"github.com/stashapp/stash/pkg/image"
 	"github.com/stashapp/stash/pkg/job"
 	"github.com/stashapp/stash/pkg/logger"
+	"github.com/stashapp/stash/pkg/models"
 	"github.com/stashapp/stash/pkg/models/paths"
 	"github.com/stashapp/stash/pkg/plugin"
 	"github.com/stashapp/stash/pkg/scene"
@@ -281,7 +282,91 @@ func (s *Manager) postInit(ctx context.Context) error {
 
 	InitLibraryWatcher(context.Background())
 
+	// Background: auto-assign funscripts to every VR scene by scanning each
+	// scene's directory for .funscript files. Non-blocking so server boot is
+	// never gated on it.
+	if !migrationNeeded {
+		go s.scanVRSceneFunscripts(context.Background())
+	}
+
 	return nil
+}
+
+// scanVRSceneFunscripts iterates every scene with a VR mode set and unions any
+// .funscript files found alongside its video into the scene's assigned
+// funscripts. Existing (including manually added) funscripts are preserved.
+// Runs in the background at startup so newly-dropped scripts are picked up
+// without a full library rescan. Paged to bound memory on large libraries.
+func (s *Manager) scanVRSceneFunscripts(ctx context.Context) {
+	type vrScene struct {
+		id   int
+		path string
+	}
+	var vrScenes []vrScene
+
+	const pageSize = 500
+	sortBy := "id"
+	notNull := models.CriterionModifierNotNull
+
+	if err := s.Repository.WithReadTxn(ctx, func(ctx context.Context) error {
+		for page := 1; ; page++ {
+			p := page
+			pp := pageSize
+			findFilter := &models.FindFilterType{Page: &p, PerPage: &pp, Sort: &sortBy}
+			sceneFilter := &models.SceneFilterType{
+				VrMode: &models.VRModeCriterionInput{Modifier: notNull},
+			}
+			result, err := s.Repository.Scene.Query(ctx, models.SceneQueryOptions{
+				QueryOptions: models.QueryOptions{FindFilter: findFilter},
+				SceneFilter:  sceneFilter,
+			})
+			if err != nil {
+				return err
+			}
+			scenes, err := result.Resolve(ctx)
+			if err != nil {
+				return err
+			}
+			for _, sc := range scenes {
+				path := sc.Path
+				if path == "" {
+					if err := sc.LoadFiles(ctx, s.Repository.Scene); err != nil {
+						return err
+					}
+					if files := sc.Files.List(); len(files) > 0 {
+						path = files[0].Path
+					}
+				}
+				if path != "" {
+					vrScenes = append(vrScenes, vrScene{id: sc.ID, path: path})
+				}
+			}
+			if len(scenes) < pageSize {
+				break
+			}
+		}
+		return nil
+	}); err != nil {
+		logger.Warnf("funscript startup scan: querying VR scenes: %v", err)
+		return
+	}
+
+	added := 0
+	for _, vs := range vrScenes {
+		if err := s.Repository.WithTxn(ctx, func(ctx context.Context) error {
+			n, err := scene.DetectAndStoreFunscripts(ctx, s.Repository.Scene, vs.id, vs.path)
+			added += n
+			return err
+		}); err != nil {
+			logger.Warnf("funscript startup scan: scene %d: %v", vs.id, err)
+		}
+	}
+
+	if added > 0 {
+		logger.Infof("funscript startup scan: assigned %d new funscript(s) across %d VR scene(s)", added, len(vrScenes))
+	} else {
+		logger.Debugf("funscript startup scan: checked %d VR scene(s), no new funscripts", len(vrScenes))
+	}
 }
 
 func (s *Manager) checkSecurityTripwire() {

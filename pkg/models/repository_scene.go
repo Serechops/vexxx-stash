@@ -136,6 +136,7 @@ type SceneReader interface {
 	HasCover(ctx context.Context, sceneID int) (bool, error)
 
 	GetSceneCaptions(ctx context.Context, sceneID int) ([]*SceneCaption, error)
+	GetSceneFunscripts(ctx context.Context, sceneID int) ([]*SceneFunscript, error)
 }
 
 type OHistoryWriter interface {
@@ -166,6 +167,7 @@ type SceneWriter interface {
 	ResetActivity(ctx context.Context, sceneID int, resetResume bool, resetDuration bool) (bool, error)
 
 	UpdateSceneCaptions(ctx context.Context, sceneID int, captions []*SceneCaption) error
+	UpdateSceneFunscripts(ctx context.Context, sceneID int, funscripts []*SceneFunscript) error
 }
 
 // SceneReaderWriter provides all scene methods.

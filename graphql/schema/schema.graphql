@@ -323,6 +323,8 @@ type Mutation {
 
   sceneCreate(input: SceneCreateInput!): Scene
   sceneUpdate(input: SceneUpdateInput!): Scene
+  "Scan the scene's video directory for .funscript files and union any newly-found ones into the scene's assigned funscripts. Returns the full updated list."
+  sceneDetectFunscripts(id: ID!): [SceneFunscript!]!
   sceneMerge(input: SceneMergeInput!): Scene
   bulkSceneUpdate(input: BulkSceneUpdateInput!): [Scene!]
   sceneDestroy(input: SceneDestroyInput!): Boolean!

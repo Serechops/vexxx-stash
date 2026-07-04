@@ -1912,3 +1912,54 @@ func (qb *SceneStore) UpdateSceneCaptions(ctx context.Context, sceneID int, capt
 	}
 	return nil
 }
+
+// ---- Scene-level funscripts (scene_funscripts table) ----
+
+const (
+	sceneFunscriptsTable  = "scene_funscripts"
+	sceneFunscriptSceneID = "scene_id"
+	sceneFunscriptPath    = "path"
+	sceneFunscriptLabel   = "label"
+)
+
+var sceneFunscriptRepo = repository{
+	tableName: sceneFunscriptsTable,
+	idColumn:  sceneFunscriptSceneID,
+}
+
+func (qb *SceneStore) GetSceneFunscripts(ctx context.Context, sceneID int) ([]*models.SceneFunscript, error) {
+	query := fmt.Sprintf(
+		"SELECT %s, %s FROM %s WHERE %s = ?",
+		sceneFunscriptPath, sceneFunscriptLabel,
+		sceneFunscriptsTable, sceneFunscriptSceneID,
+	)
+	var ret []*models.SceneFunscript
+	err := sceneFunscriptRepo.queryFunc(ctx, query, []interface{}{sceneID}, false, func(rows *sqlx.Rows) error {
+		var path, label string
+		if err := rows.Scan(&path, &label); err != nil {
+			return err
+		}
+		ret = append(ret, &models.SceneFunscript{
+			Path:  path,
+			Label: label,
+		})
+		return nil
+	})
+	return ret, err
+}
+
+func (qb *SceneStore) UpdateSceneFunscripts(ctx context.Context, sceneID int, funscripts []*models.SceneFunscript) error {
+	if err := sceneFunscriptRepo.destroy(ctx, []int{sceneID}); err != nil {
+		return err
+	}
+	for _, f := range funscripts {
+		insStmt := fmt.Sprintf(
+			"INSERT INTO %s (%s, %s, %s) VALUES (?, ?, ?)",
+			sceneFunscriptsTable, sceneFunscriptSceneID, sceneFunscriptPath, sceneFunscriptLabel,
+		)
+		if _, err := dbWrapper.Exec(ctx, insStmt, sceneID, f.Path, f.Label); err != nil {
+			return err
+		}
+	}
+	return nil
+}

@@ -1112,6 +1112,13 @@ export class VRHandyPanel extends VRCanvasPanel {
   // Which handle the trigger is currently dragging (null = not dragging).
   private dragging: "min" | "max" | null = null;
 
+  // Assigned funscripts (scene_funscripts) + the currently-active index, for the
+  // in-VR script selector. -1 = the server default (no explicit selection).
+  private funscripts: { label: string }[] = [];
+  private activeFunscript = -1;
+  private fsScroll = 0;
+  private fsWidths: number[] = [];
+
   // Confirmation feedback for the last stroke-zone change. `pending` while the
   // request is in flight, `confirmed` (a brief green flash) once the server
   // acks, `error` if it failed. Driven from React via setStrokeStatus().
@@ -1131,12 +1138,33 @@ export class VRHandyPanel extends VRCanvasPanel {
   private static readonly MIN_GAP = 0.05;
 
   constructor() {
-    super(0.9, 640, 280);
+    // Taller than the bare status/slider panel to make room for the funscript
+    // selector strip at the bottom. The top edge stays anchored below the main
+    // bar (see layoutHandyPanel), so status + slider keep their positions and
+    // the extra height extends downward.
+    super(0.9, 640, 380);
     this.mesh.name = "vr-handy-panel";
   }
 
   get hasContent(): boolean {
     return true;
+  }
+
+  /**
+   * Set the scene's assigned funscripts and which one is active. `active` is an
+   * index into `list`, or -1 for the server default. Cheap dirty-check so the
+   * per-frame push from React doesn't force a redraw when nothing changed.
+   */
+  setFunscripts(list: { label: string }[], active: number) {
+    const same =
+      active === this.activeFunscript &&
+      list.length === this.funscripts.length &&
+      list.every((f, i) => f.label === this.funscripts[i]?.label);
+    if (same) return;
+    this.funscripts = list;
+    this.activeFunscript = active;
+    this.fsScroll = 0;
+    this.markDirty();
   }
 
   setHandyState(st: IVRHandyState) {
@@ -1188,7 +1216,19 @@ export class VRHandyPanel extends VRCanvasPanel {
         return { type: "handyActivate" };
       case "handySync":
         return { type: "handySync" };
+      case "fsScrollL":
+        this.fsScroll = this.scrollBy("fs", -1, this.fsScroll);
+        this.markDirty();
+        return null;
+      case "fsScrollR":
+        this.fsScroll = this.scrollBy("fs", 1, this.fsScroll);
+        this.markDirty();
+        return null;
       default:
+        if (region.id.startsWith("fs:")) {
+          const idx = Number(region.id.slice(3));
+          if (Number.isInteger(idx)) return { type: "switchFunscript", index: idx };
+        }
         return null;
     }
   }
@@ -1338,6 +1378,85 @@ export class VRHandyPanel extends VRCanvasPanel {
 
     // Stroke-zone range slider — only meaningful once a device is paired.
     if (hs.configured) this.drawStrokeSlider();
+
+    // Funscript selector strip along the bottom.
+    this.drawFunscriptStrip();
+  }
+
+  /**
+   * Bottom-anchored selector for the scene's assigned funscripts. The active
+   * script is highlighted; tapping another emits `switchFunscript`, which the
+   * React layer applies at runtime (re-upload + heatmap regen). Hidden entirely
+   * when the scene has no assigned scripts.
+   */
+  private drawFunscriptStrip() {
+    const { ctx } = this;
+    const labelY = 268;
+    this.sectionLabel("Scripts", 20, labelY);
+
+    if (this.funscripts.length === 0) {
+      ctx.font = "500 22px sans-serif";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "rgba(255,255,255,0.35)";
+      ctx.fillText("No alternate scripts", 20, labelY + 44);
+      return;
+    }
+
+    const stripY = labelY + 16;
+    const stripH = 60;
+    ctx.font = "600 22px sans-serif";
+    this.fsWidths = this.funscripts.map((f) =>
+      Math.min(300, Math.max(120, ctx.measureText(f.label).width + 40))
+    );
+    this.hStrip({
+      prefix: "fs",
+      x0: 20,
+      x1: this.cw - 20,
+      y: stripY,
+      h: stripH,
+      scrollX: this.fsScroll,
+      widths: this.fsWidths,
+      gap: 12,
+      drawItem: (i, x, w) => this.drawFsChip(i, x, stripY, w, stripH),
+      regionId: (i) => ({ id: `fs:${i}` }),
+    });
+  }
+
+  private drawFsChip(i: number, x: number, y: number, w: number, h: number) {
+    const { ctx } = this;
+    const active = i === this.activeFunscript;
+    const hovered = this.hoveredId === `fs:${i}`;
+    this.roundRect(x, y, w, h, 14);
+    const g = ctx.createLinearGradient(x, y, x, y + h);
+    if (active) {
+      g.addColorStop(0, "rgba(96,165,250,0.42)");
+      g.addColorStop(1, "rgba(96,165,250,0.22)");
+    } else if (hovered) {
+      g.addColorStop(0, "rgba(96,165,250,0.22)");
+      g.addColorStop(1, "rgba(96,165,250,0.10)");
+    } else {
+      g.addColorStop(0, "rgba(255,255,255,0.12)");
+      g.addColorStop(1, "rgba(255,255,255,0.05)");
+    }
+    ctx.fillStyle = g;
+    ctx.fill();
+    ctx.lineWidth = active ? 2 : 1;
+    ctx.strokeStyle = active
+      ? "rgba(96,165,250,0.85)"
+      : hovered
+      ? "rgba(96,165,250,0.40)"
+      : "rgba(255,255,255,0.14)";
+    ctx.stroke();
+    ctx.font = "600 22px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = active ? "rgba(255,255,255,0.98)" : "rgba(255,255,255,0.85)";
+    ctx.fillText(
+      this.fitText(this.funscripts[i].label, w - 28),
+      x + w / 2,
+      y + h / 2 + 1
+    );
   }
 
   /** Draw the dual-handle stroke-zone slider (min..max envelope, 0..100%). */

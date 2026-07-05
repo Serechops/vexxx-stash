@@ -237,6 +237,7 @@ const ImageListImages: React.FC<IImageListImages> = ({
     pageCount,
     filter.currentPage,
     filter.itemsPerPage,
+    filter.displayMode,
     slideshowRunning,
     handleClose,
     handleLightBoxPage,

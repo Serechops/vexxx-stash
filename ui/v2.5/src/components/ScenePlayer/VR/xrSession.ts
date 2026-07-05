@@ -395,6 +395,12 @@ export class XRSessionManager {
   private usingMediaLayer = false;
   // Recenter yaw applied to the video, preserved across media-layer rebuilds.
   private videoYaw = 0;
+  // Grip-drag / recenter pitch (radians, +up) applied together with the yaw —
+  // lets a lying-down viewer pull the dome's centre up to the ceiling. Roll is
+  // never exposed: rolling the dome would break the stereo eyes' horizontal
+  // disparity. Like the yaw, it survives scene switches and media-layer
+  // rebuilds; recenter re-matches it to the current gaze.
+  private videoPitch = 0;
   private opts: IXRSessionManagerOptions;
   private debug: Set<string>;
   private onSessionEnd = () => this.handleEnd();
@@ -840,6 +846,7 @@ export class XRSessionManager {
       onScrub: (seconds) =>
         this.opts.onAction({ type: "seekRelative", seconds }),
       onRecenter: () => this.recenter(),
+      onDomeDrag: (dYaw, dPitch) => this.nudgeVideoOrientation(dYaw, dPitch),
       onClap: () => {
         // Clap gesture: show the UI panels immediately.  This is the primary
         // way users bring the controls back up during playback — unlike hand
@@ -1201,6 +1208,7 @@ export class XRSessionManager {
   setLobbyMode(on: boolean) {
     if (this.lobbyMode === on) return;
     this.lobbyMode = on;
+    this.syncDomeDragEnabled();
     if (on) {
       this.browseOpen = false;
       this.handyPanelOpen = false;
@@ -1691,6 +1699,14 @@ export class XRSessionManager {
     const cam = this.renderer.xr.getCamera();
     this.tmpEuler.setFromQuaternion(cam.quaternion, "YXZ");
     this.videoYaw = this.tmpEuler.y;
+    // Match the gaze pitch too, so recentering while lying down brings the
+    // video centre up to the ceiling. Standing and looking level this is ~0,
+    // preserving the classic recenter feel.
+    this.videoPitch = THREE.MathUtils.clamp(
+      this.tmpEuler.x,
+      -Math.PI / 2,
+      Math.PI / 2
+    );
     // Flat path: there's no dome to rotate — re-place the world-anchored screen
     // directly in front of the current gaze (the control bar's empty-squeeze
     // recenter, applied to the flat media wall).
@@ -1698,13 +1714,34 @@ export class XRSessionManager {
       this.placeFlatInstant(cam);
       return;
     }
-    // Shader-dome path: rotate the mesh group.
-    this.videoGroup.rotation.y = this.videoYaw;
-    // Media-layer path: rotate the equirect layer's transform. (Flat already
-    // returned above, so any media layer here is an equirect dome.)
+    this.applyVideoOrientation();
+  }
+
+  /**
+   * Push the current yaw/pitch offset to whichever video path is live: the
+   * shader dome's mesh group and/or the compositor equirect layer's transform.
+   * Yaw-then-pitch (YXZ) with roll pinned at 0 — see the videoPitch note.
+   */
+  private applyVideoOrientation() {
+    this.videoGroup.rotation.set(this.videoPitch, this.videoYaw, 0, "YXZ");
     if (this.usingMediaLayer && this.mediaLayer) {
       (this.mediaLayer as XREquirectLayer).transform = this.equirectTransform();
     }
+  }
+
+  /**
+   * Grip-drag on the dome: rotate the video by the ray's angular movement so
+   * the grabbed content follows the controller sweep. Pitch clamps at straight
+   * up/down; yaw is unbounded (360 content wraps).
+   */
+  private nudgeVideoOrientation(deltaYaw: number, deltaPitch: number) {
+    this.videoYaw += deltaYaw;
+    this.videoPitch = THREE.MathUtils.clamp(
+      this.videoPitch + deltaPitch,
+      -Math.PI / 2,
+      Math.PI / 2
+    );
+    this.applyVideoOrientation();
   }
 
   end() {
@@ -2001,10 +2038,10 @@ export class XRSessionManager {
     );
   }
 
-  /** Rigid transform encoding the current recenter yaw for the equirect layer. */
+  /** Rigid transform encoding the current yaw/pitch for the equirect layer. */
   private equirectTransform(): XRRigidTransform {
     const q = new THREE.Quaternion().setFromEuler(
-      new THREE.Euler(0, this.videoYaw, 0, "YXZ")
+      new THREE.Euler(this.videoPitch, this.videoYaw, 0, "YXZ")
     );
     return new XRRigidTransform(
       { x: 0, y: 0, z: 0 },
@@ -2076,6 +2113,18 @@ export class XRSessionManager {
       );
     }
     this.syncRenderStateLayers();
+    this.syncDomeDragEnabled();
+  }
+
+  /**
+   * Dome-rotation grip-drag is live whenever a dome projection is showing
+   * video: flat has its own draggable screen, and the lobby has no video —
+   * in both, an empty squeeze keeps its immediate-recenter meaning.
+   */
+  private syncDomeDragEnabled() {
+    this.input.setDomeDragEnabled(
+      this.projection.fov !== "flat" && !this.lobbyMode
+    );
   }
 
   /**
@@ -2285,10 +2334,10 @@ export class XRSessionManager {
   private buildDome() {
     this.clearDome();
     const p = this.projection;
-    // Upright baseline — domes are always upright, so drop any residual group
-    // pitch from a prior projection before (re)building. (Flat scenes no longer
-    // touch videoGroup; the screen is scene-anchored.)
-    this.videoGroup.rotation.x = 0;
+    // Re-assert the persisted yaw/pitch offset (recenter / dome grip-drag) so
+    // the user's viewing angle survives a dome rebuild. Roll stays pinned at 0.
+    // (Flat scenes don't touch videoGroup; the screen is scene-anchored.)
+    this.videoGroup.rotation.set(this.videoPitch, this.videoYaw, 0, "YXZ");
 
     if (p.fov === "fisheye190") {
       // Dual-fisheye SBS: a forward dome per eye, sampling its own circle via a

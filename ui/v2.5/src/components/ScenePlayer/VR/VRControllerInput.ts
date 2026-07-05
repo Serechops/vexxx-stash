@@ -4,8 +4,10 @@
  * Builds a laser pointer per controller, raycasts against any number of control
  * panels for hover/select (reporting *which* panel was hit so the session
  * manager can route the interaction), and reads gamepad axes for thumbstick
- * scrubbing. The grip (squeeze) button either grabs-and-drags the panel group
- * (when it's unpinned-into-drag-mode and being pointed at) or recenters.
+ * scrubbing. The grip (squeeze) button grabs-and-drags whichever registered
+ * draggable the ray hits; an empty squeeze grabs the video dome itself (when
+ * dome dragging is enabled — the drag rotates the video to follow the ray) or
+ * recenters (always on a quick squeeze that barely moves).
  *
  * It also surfaces a per-frame "activity" signal (any deliberate controller
  * movement, thumbstick deflection or button press) so the manager can auto-hide
@@ -36,6 +38,13 @@ export interface IControllerInputCallbacks {
   onScrub: (deltaSeconds: number) => void;
   onRecenter: () => void;
   /**
+   * Grip-drag on the video dome itself (a squeeze that hit no draggable while
+   * dome dragging is enabled). Reports the smoothed ray's angular movement
+   * this frame; positive yaw = ray swept right, positive pitch = ray swept up.
+   * The video should follow the ray — "grab the sky and pull it".
+   */
+  onDomeDrag: (deltaYaw: number, deltaPitch: number) => void;
+  /**
    * Clap gesture detected: both controllers are within CLAP_DISTANCE of each
    * other (i.e. the user brought their hands together), which should show
    * the UI panels.  Fires once per clap.
@@ -54,6 +63,10 @@ const SCRUB_SECONDS = 10;
 const DRAG_MIN = 0.6;
 const DRAG_MAX = 6;
 const DRAG_STEP = 0.04;
+// Dome-drag tap threshold (radians of total angular ray movement). A squeeze
+// released with less movement than this was a deliberate "quick squeeze" —
+// the classic empty-squeeze recenter — not a drag. ~2.3 degrees.
+const DOME_DRAG_TAP_RAD = 0.04;
 // Clap gesture: both controller grip positions must be within this distance
 // (metres) of each other. On Quest controllers the resting "arms down" pose
 // is ~0.5–0.7 m apart; hands brought together for a clap are ~0.15–0.25 m.
@@ -104,6 +117,16 @@ export class VRControllerInput {
   private draggingController: THREE.Group | null = null;
   private dragTarget: THREE.Object3D | null = null;
   private grabDistance = 2.4;
+
+  // Dome-rotation drag: while enabled (dome projections during playback), a
+  // squeeze that hits no draggable grabs the video sphere itself and rotates
+  // it to follow the ray. The grab is tentative — if the ray barely moves
+  // before release it counts as the classic quick-squeeze recenter instead.
+  private domeDragEnabled = false;
+  private domeDragController: THREE.Group | null = null;
+  private domeDragAz = 0;
+  private domeDragEl = 0;
+  private domeDragMoved = 0;
 
   // Activity tracking for auto-hide.
   private activity = false;
@@ -232,6 +255,10 @@ export class VRControllerInput {
         if (this.draggingController === controller) {
           this.draggingController = null;
         }
+        // Abandon a dome grab silently — no recenter on a lost controller.
+        if (this.domeDragController === controller) {
+          this.domeDragController = null;
+        }
       };
       controller.addEventListener("selectstart", onSelectStart);
       controller.addEventListener("selectend", onSelectEnd);
@@ -305,6 +332,16 @@ export class VRControllerInput {
         this.dragTarget = null;
       }
     }
+  }
+
+  /**
+   * Enable/disable grabbing the video dome itself with an empty squeeze (one
+   * that hits no panel/draggable). While disabled — flat projection, lobby —
+   * an empty squeeze recenters immediately, exactly as before.
+   */
+  setDomeDragEnabled(enabled: boolean) {
+    this.domeDragEnabled = enabled;
+    if (!enabled) this.domeDragController = null;
   }
 
   /** The registered draggable that `obj` belongs to (itself or an ancestor). */
@@ -398,6 +435,19 @@ export class VRControllerInput {
         DRAG_MAX,
         Math.max(DRAG_MIN, origin.distanceTo(panelPos))
       );
+    } else if (this.domeDragEnabled) {
+      // Grab the dome: rotate the video to follow the ray. Recenter still
+      // fires on release if the ray barely moved (quick empty squeeze).
+      const i = this.controllers.indexOf(controller);
+      if (i < 0 || !this.rayInit[i]) {
+        this.cb.onRecenter();
+        return;
+      }
+      const d = this.smoothDir[i];
+      this.domeDragController = controller;
+      this.domeDragAz = Math.atan2(-d.x, -d.z);
+      this.domeDragEl = Math.asin(THREE.MathUtils.clamp(d.y, -1, 1));
+      this.domeDragMoved = 0;
     } else {
       this.cb.onRecenter();
     }
@@ -405,6 +455,12 @@ export class VRControllerInput {
 
   private endGrab(controller: THREE.Group) {
     if (this.draggingController === controller) this.draggingController = null;
+    if (this.domeDragController === controller) {
+      this.domeDragController = null;
+      // Barely moved before release → this was the classic quick-squeeze
+      // recenter, not a drag.
+      if (this.domeDragMoved < DOME_DRAG_TAP_RAD) this.cb.onRecenter();
+    }
   }
 
   /**
@@ -565,7 +621,37 @@ export class VRControllerInput {
       return;
     }
 
+    // While grabbing the dome, angular ray movement rotates the video; the
+    // early return keeps the thumbstick scrub from firing mid-adjustment.
+    if (this.domeDragController) {
+      this.updateDomeDrag();
+      return;
+    }
+
     this.updateScrub();
+  }
+
+  /**
+   * Stream this frame's angular ray movement to the dome-drag callback as
+   * yaw/pitch deltas (azimuth/elevation of the smoothed ray). The consumer
+   * adds them to the video orientation so the content follows the ray.
+   */
+  private updateDomeDrag() {
+    const i = this.controllers.indexOf(this.domeDragController!);
+    if (i < 0 || !this.connected[i] || !this.rayInit[i]) return;
+    const d = this.smoothDir[i];
+    const az = Math.atan2(-d.x, -d.z);
+    const el = Math.asin(THREE.MathUtils.clamp(d.y, -1, 1));
+    // Shortest-path wrap for the azimuth delta — sweeping across the ±π seam
+    // behind the viewer must not register as a ~2π spin.
+    let dAz = az - this.domeDragAz;
+    if (dAz > Math.PI) dAz -= 2 * Math.PI;
+    else if (dAz < -Math.PI) dAz += 2 * Math.PI;
+    const dEl = el - this.domeDragEl;
+    this.domeDragAz = az;
+    this.domeDragEl = el;
+    this.domeDragMoved += Math.abs(dAz) + Math.abs(dEl);
+    if (dAz !== 0 || dEl !== 0) this.cb.onDomeDrag(dAz, dEl);
   }
 
   /** Detect clap gesture (both controllers near each other). */

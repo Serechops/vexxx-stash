@@ -503,7 +503,7 @@ export const MovieFy: React.FC = () => {
 
         setScrapedGroup(undefined);
         setSelectedScenes([]);
-    }, [selectedScenes, pendingClipData, Toast]);
+    }, [selectedScenes, pendingClipData, Toast, isManualEntry, addMovieFyEntry]);
 
     const handleURLMatcherConfirm = useCallback((sceneURLMap: Record<string, string>, sceneClipData: Record<string, GQL.ScrapedScene>) => {
         if (!pendingQueueItem) return;

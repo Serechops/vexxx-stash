@@ -1054,6 +1054,8 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
     }, [
       getPlayer,
       scene.id,
+      scene.start_point,
+      scene.end_point,
       sceneSaveActivity,
       sceneIncrementPlayCount,
       trackActivity,

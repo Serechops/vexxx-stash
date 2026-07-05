@@ -1616,7 +1616,7 @@ export const TaggerContext: React.FC = ({ children }) => {
       });
     });
     return tagSet.size;
-  }, [searchResults]);
+  }, [searchResults, config.setTags]);
 
   const pendingPerformersCount = React.useMemo(() => {
     const performerSet = new Set<string>();
@@ -1634,7 +1634,7 @@ export const TaggerContext: React.FC = ({ children }) => {
       });
     });
     return performerSet.size;
-  }, [searchResults]);
+  }, [searchResults, config.performerGenders]);
 
   const pendingStudiosCount = React.useMemo(() => {
     const studioSet = new Set<string>();

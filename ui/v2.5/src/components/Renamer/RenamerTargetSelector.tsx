@@ -71,10 +71,10 @@ export const RenamerTargetSelector: React.FC<RenamerTargetSelectorProps> = ({
         }
     };
 
-    if (error) return <Typography color="error">Error loading scenes: {error.message}</Typography>;
-
     const { data: configData } = useConfigurationQuery();
     const stashes = configData?.configuration?.general?.stashes || [];
+
+    if (error) return <Typography color="error">Error loading scenes: {error.message}</Typography>;
 
     return (
         <Box mb={3}>

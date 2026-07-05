@@ -711,7 +711,7 @@ export const StashTagIdentification: React.FC<StashTagIdentificationProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [scene, canAnalyze, threshold, endpoint, onTagsFound, Toast]);
+  }, [scene, canAnalyze, loading, threshold, endpoint, onTagsFound, Toast]);
 
   // Process results to extract tags with confidence scores
   const processedTags = useMemo((): ProcessedTag[] => {

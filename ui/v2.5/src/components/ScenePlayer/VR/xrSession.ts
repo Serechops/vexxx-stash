@@ -3142,13 +3142,20 @@ export class XRSessionManager {
   }
 
   /**
-   * Float a preview above the scrubber or the chapter strip while either is
-   * hovered. Scrubber hover takes the VTT-thumbnail path (unchanged); chapter-
-   * card hover plays the marker's own preview clip (falling back to its
-   * preview/screenshot image while that clip loads). The two never overlap
-   * (one panel hover target at a time), so both share the one quad.
+   * Float a preview above the scrubber, the chapter strip, or a hovered
+   * Scenes-panel row — whichever is currently hovered. Scrubber hover takes
+   * the VTT-thumbnail path (unchanged); chapter-card hover plays the marker's
+   * own preview clip; a Scenes row plays the same hover-preview clip
+   * updateHoverPreview already lazily loads for it. Only one of the three can
+   * be hovered at a time (each lives on a different mesh), so all three share
+   * the one quad.
    */
   private updateThumbnailPreview(duration: number, uiOpacity: number) {
+    // Scrubber/chapter previews face forward (the control bar sits unrotated
+    // at the uiGroup origin); only the Scenes-row path re-angles the quad to
+    // match the Scenes panel below, so reset to identity before dispatching —
+    // otherwise a rotation from a prior scene-row hover would leak into them.
+    this.thumbPreview.quaternion.identity();
     if (uiOpacity < 0.5 || !this.thumbCtx) {
       this.thumbPreview.visible = false;
       this.stopChapterPreviewVideo();
@@ -3163,6 +3170,12 @@ export class XRSessionManager {
     const chapIndex = this.panel.hoveredChapterIndex;
     if (chapIndex != null) {
       this.updateChapterThumb(chapIndex, uiOpacity);
+      return;
+    }
+    const sceneHoverId = this.scenesPanel?.hoveredSceneId ?? null;
+    if (sceneHoverId) {
+      this.stopChapterPreviewVideo();
+      this.updateSceneRowThumb(sceneHoverId, uiOpacity);
       return;
     }
     this.thumbPreview.visible = false;
@@ -3391,33 +3404,10 @@ export class XRSessionManager {
 
     const key = `chap:${index}#${img.src}`;
     if (key !== this.lastThumbKey) {
-      ctx.clearRect(0, 0, THUMB_CANVAS_W, THUMB_CANVAS_H);
-      try {
-        ctx.fillStyle = "rgba(12,16,32,0.92)";
-        ctx.fillRect(0, 0, THUMB_CANVAS_W, THUMB_CANVAS_H);
-        const ir = img.naturalWidth / img.naturalHeight;
-        const cr = THUMB_CANVAS_W / THUMB_CANVAS_H;
-        let dw: number, dh: number, dx: number, dy: number;
-        if (ir > cr) {
-          dw = THUMB_CANVAS_W;
-          dh = dw / ir;
-          dx = 0;
-          dy = (THUMB_CANVAS_H - dh) / 2;
-        } else {
-          dh = THUMB_CANVAS_H;
-          dw = dh * ir;
-          dx = (THUMB_CANVAS_W - dw) / 2;
-          dy = 0;
-        }
-        ctx.drawImage(img, dx, dy, dw, dh);
-      } catch {
-        // tainted/incomplete image — skip this frame
+      if (!this.drawThumbStaticImage(img)) {
         this.thumbPreview.visible = false;
         return;
       }
-      ctx.strokeStyle = "rgba(255,255,255,0.6)";
-      ctx.lineWidth = 4;
-      ctx.strokeRect(0, 0, THUMB_CANVAS_W, THUMB_CANVAS_H);
       this.thumbTexture.needsUpdate = true;
       this.lastThumbKey = key;
     }
@@ -3429,6 +3419,108 @@ export class XRSessionManager {
       anchor.y + THUMB_H_M / 2 + 0.06,
       anchor.z + 0.02
     );
+    (this.thumbPreview.material as THREE.MeshBasicMaterial).opacity = uiOpacity;
+    this.thumbPreview.visible = true;
+  }
+
+  /**
+   * Draw a static preview image (cover-fit + border) onto the shared thumb
+   * canvas. Shared by the chapter-hover fallback and the Scenes-row popup, so
+   * both floating previews get identical framing. Returns false (and leaves
+   * the canvas untouched) if the image can't be drawn this tick — a tainted
+   * cross-origin image or one whose decode isn't ready yet.
+   */
+  private drawThumbStaticImage(img: HTMLImageElement): boolean {
+    const ctx = this.thumbCtx;
+    if (!ctx) return false;
+    ctx.clearRect(0, 0, THUMB_CANVAS_W, THUMB_CANVAS_H);
+    try {
+      ctx.fillStyle = "rgba(12,16,32,0.92)";
+      ctx.fillRect(0, 0, THUMB_CANVAS_W, THUMB_CANVAS_H);
+      const ir = img.naturalWidth / img.naturalHeight;
+      const cr = THUMB_CANVAS_W / THUMB_CANVAS_H;
+      let dw: number, dh: number, dx: number, dy: number;
+      if (ir > cr) {
+        dw = THUMB_CANVAS_W;
+        dh = dw / ir;
+        dx = 0;
+        dy = (THUMB_CANVAS_H - dh) / 2;
+      } else {
+        dh = THUMB_CANVAS_H;
+        dw = dh * ir;
+        dx = (THUMB_CANVAS_W - dw) / 2;
+        dy = 0;
+      }
+      ctx.drawImage(img, dx, dy, dw, dh);
+    } catch {
+      // tainted/incomplete image — skip this frame
+      return false;
+    }
+    ctx.strokeStyle = "rgba(255,255,255,0.6)";
+    ctx.lineWidth = 4;
+    ctx.strokeRect(0, 0, THUMB_CANVAS_W, THUMB_CANVAS_H);
+    return true;
+  }
+
+  /**
+   * Float a scene row's own preview above the Scenes panel, angled to match
+   * it — the same "popup and play a larger preview" recipe as chapter cards
+   * (updateChapterThumb), reusing the shared hover-preview <video> that
+   * updateHoverPreview already lazily points at the row's stream/preview clip
+   * on dwell. Falls back to the row's static thumbnail while that clip loads
+   * or when the scene has no stream.
+   */
+  private updateSceneRowThumb(id: string, uiOpacity: number) {
+    const ctx = this.thumbCtx;
+    const panel = this.scenesPanel;
+    if (!ctx || !panel) {
+      this.thumbPreview.visible = false;
+      return;
+    }
+
+    const videoActive =
+      id === this.previewSceneId &&
+      !!this.previewVideo &&
+      this.previewVideo.readyState >= 2;
+
+    if (videoActive && this.previewVideo) {
+      // A moving picture can't be gated behind the static dirty-check below —
+      // redraw + re-upload every tick while it's playing.
+      const entry = panel.allLoadedScenes().find((s) => s.id === id);
+      this.drawChapterVideoFrame(
+        this.previewVideo,
+        entry?.vrMode as GQL.VrMode | undefined
+      );
+      this.thumbTexture.needsUpdate = true;
+    } else {
+      const img = panel.getScenePreviewImage(id);
+      if (!img) {
+        this.thumbPreview.visible = false;
+        return;
+      }
+      const key = `scene:${id}#${img.src}`;
+      if (key !== this.lastThumbKey) {
+        if (!this.drawThumbStaticImage(img)) {
+          this.thumbPreview.visible = false;
+          return;
+        }
+        this.thumbTexture.needsUpdate = true;
+        this.lastThumbKey = key;
+      }
+    }
+
+    // The Scenes panel sits at its own position/rotation (angled inward beside
+    // the main bar) unlike the control bar it shares thumbPreview with, so its
+    // panel-local anchor must be carried through the panel's own transform
+    // into uiGroup space (where thumbPreview lives) rather than used directly.
+    // The quad is likewise re-angled to match the panel's yaw — panel.object
+    // is a direct child of uiGroup, so its local quaternion already *is* the
+    // rotation relative to uiGroup, no further conversion needed.
+    const anchor = panel.previewAnchorLocal(THUMB_H_M);
+    const world = panel.object.localToWorld(anchor);
+    const local = this.uiGroup.worldToLocal(world);
+    this.thumbPreview.position.copy(local);
+    this.thumbPreview.quaternion.copy(panel.object.quaternion);
     (this.thumbPreview.material as THREE.MeshBasicMaterial).opacity = uiOpacity;
     this.thumbPreview.visible = true;
   }

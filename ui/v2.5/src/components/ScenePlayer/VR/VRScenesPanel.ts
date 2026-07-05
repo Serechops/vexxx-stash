@@ -1,14 +1,22 @@
 /**
- * VRScenesPanel — left-side peripheral "Scenes" browser: a vertical carousel of
- * landscape scene cards (two visible at a time) with a lower-third title/studio
- * overlay and a hover video preview.
+ * VRScenesPanel — left-side peripheral "Scenes" browser: a compact vertical
+ * list of scenes (small landscape thumbnail + title/studio text per row) so
+ * far more scenes fit in view than a large-card carousel would.
  *
- * Interaction: the carousel is click-and-dragged to scroll (vertical), and a
- * card is only navigated to on a *tap* (press + release without dragging) — so
+ * Interaction: the list is click-and-dragged to scroll (vertical), and a row
+ * is only navigated to on a *tap* (press + release without dragging) — so
  * users can browse the list before committing. Drag-vs-tap is resolved here in
  * pointerMove/pointerUp, fed by the controller input's trigger-press stream.
+ *
+ * Hover preview: unlike the old carousel (which played the hover clip inline
+ * inside the card), a row's preview floats in a larger popup beside the panel
+ * — the session manager's shared thumbnail-preview quad, the same one used
+ * for marker/chapter hover (see xrSession's updateThumbnailPreview). This
+ * panel only exposes the data that popup needs (`getScenePreviewImage`,
+ * `sceneRowAnchorLocal`); it does not draw the preview itself.
  */
 import * as THREE from "three";
+import TextUtils from "src/utils/text";
 import { VRControlAction } from "./types";
 import { VRCanvasPanel } from "./VRInfoPanels";
 
@@ -55,13 +63,21 @@ const CANVAS_H = 736;
 const PANEL_WIDTH_M = 1.1;
 
 const TITLE_Y = 44; // "SCENES" label baseline
-const VIEW_Y0 = 64; // carousel viewport top (below the title)
-const VIEW_Y1 = CANVAS_H - 16; // carousel viewport bottom
-const CARD_GAP = 18;
-// Two cards visible at a time, landscape 16:9, centred horizontally.
-const CARD_H = Math.floor((VIEW_Y1 - VIEW_Y0 - CARD_GAP) / 2);
-const CARD_W = Math.round((CARD_H * 16) / 9);
-const CARD_X = Math.round((CANVAS_W - CARD_W) / 2);
+const VIEW_Y0 = 64; // list viewport top (below the title)
+const VIEW_Y1 = CANVAS_H - 16; // list viewport bottom
+
+// Compact row: a small landscape thumbnail + title/studio text. At ROW_H=100
+// with a 10px gap, ~6 rows are visible at once vs. 2 with the old large-card
+// layout.
+const ROW_X0 = 20;
+const ROW_W = CANVAS_W - ROW_X0 * 2;
+const ROW_GAP = 10;
+const ROW_H = 100;
+const ROW_PAD = 14; // inner padding between the row edge and its thumbnail/text
+const THUMB_W = 150;
+const THUMB_H = Math.round((THUMB_W * 9) / 16);
+const TEXT_X = ROW_X0 + ROW_PAD + THUMB_W + 16;
+const TEXT_W = ROW_W - (ROW_PAD + THUMB_W + 16 + ROW_PAD);
 
 // Pixels of travel before a held press is treated as a drag (cancels the tap).
 const DRAG_THRESHOLD = 10;
@@ -80,7 +96,6 @@ export class VRScenesPanel extends VRCanvasPanel {
 
   private scroll = 0; // vertical scroll offset, px
   private maxScroll = 0;
-  private previewVideo: HTMLVideoElement | null = null;
   private currentSceneId: string | null = null;
 
   // Drag/tap resolution state for the current trigger press.
@@ -98,7 +113,7 @@ export class VRScenesPanel extends VRCanvasPanel {
     return this.scenes.length > 0;
   }
 
-  /** Scene ID of the card currently under the ray/cursor, or null. */
+  /** Scene ID of the row currently under the ray/cursor, or null. */
   get hoveredSceneId(): string | null {
     if (this.hoveredId?.startsWith("scene:")) {
       return this.hoveredId.slice("scene:".length);
@@ -118,8 +133,8 @@ export class VRScenesPanel extends VRCanvasPanel {
 
   /**
    * Reset the list back to empty (called when the now-playing scene changes, so
-   * the carousel re-pages excluding it). Page 0 is pulled lazily the next time
-   * the panel draws while Browse is open.
+   * the list re-pages excluding it). Page 0 is pulled lazily the next time the
+   * panel draws while Browse is open.
    */
   resetLibrary() {
     this.scenes = [];
@@ -148,14 +163,14 @@ export class VRScenesPanel extends VRCanvasPanel {
 
   /**
    * Pull the next page when we have a requester, nothing is in flight, more
-   * remain, and the user has scrolled within ~1.5 cards of the bottom (or we
+   * remain, and the user has scrolled within ~1.5 rows of the bottom (or we
    * haven't loaded anything yet). Cheap to call every draw — it self-gates.
    */
   private ensureLoaded() {
     if (!this.pageRequester || this.loading || this.reachedEnd) return;
     const noneYet = this.requestedPages === 0;
     const more = this.totalCount === 0 || this.scenes.length < this.totalCount;
-    const nearBottom = this.scroll >= this.maxScroll - CARD_H * 1.5;
+    const nearBottom = this.scroll >= this.maxScroll - ROW_H * 1.5;
     if (noneYet || (more && nearBottom)) {
       this.loading = true;
       const pageIndex = this.requestedPages;
@@ -164,7 +179,7 @@ export class VRScenesPanel extends VRCanvasPanel {
     }
   }
 
-  /** Mark which scene is currently playing so its card gets the Now Playing badge. */
+  /** Mark which scene is currently playing so its row gets the Now Playing accent. */
   setCurrentSceneId(id: string | null) {
     if (id !== this.currentSceneId) {
       this.currentSceneId = id;
@@ -172,10 +187,31 @@ export class VRScenesPanel extends VRCanvasPanel {
     }
   }
 
-  /** Provide the preview video element; pass null to revert to screenshot. */
-  setPreviewVideo(video: HTMLVideoElement | null) {
-    this.previewVideo = video;
-    this.markDirty();
+  /**
+   * No-op: the row list shows a floating full-size preview via the session
+   * manager's shared thumbnail popup (mirrors the marker/chapter hover
+   * preview) rather than compositing video inline into the compact row. Kept
+   * to satisfy the manager's generic hover-preview panel interface.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  setPreviewVideo(_video: HTMLVideoElement | null): void {}
+
+  /** Best-available static preview image for a row's popup (its thumbnail). */
+  getScenePreviewImage(id: string): HTMLImageElement | null {
+    const scene = this.scenes.find((s) => s.id === id);
+    return scene ? this.image(scene.thumbnailUrl) : null;
+  }
+
+  /**
+   * Panel-local anchor for the row-hover popup: centred just above the
+   * panel's top edge, a fixed spot regardless of which row is hovered or how
+   * far the list has scrolled — so the popup doesn't jump around as the user
+   * browses. `popupHeightM` (the caller's popup mesh height) sizes the gap so
+   * the popup clears the panel's top edge rather than overlapping it.
+   */
+  previewAnchorLocal(popupHeightM: number): THREE.Vector3 {
+    const gap = 0.06;
+    return new THREE.Vector3(0, this.hM / 2 + popupHeightM / 2 + gap, 0.05);
   }
 
   // ── Drag-to-scroll + tap-to-select ────────────────────────────────────────
@@ -194,7 +230,7 @@ export class VRScenesPanel extends VRCanvasPanel {
     const py = (1 - uv.y) * this.ch;
     const dy = py - this.pressY;
     if (Math.abs(dy) > DRAG_THRESHOLD) this.dragged = true;
-    // Drag down → reveal earlier cards (content follows the finger).
+    // Drag down → reveal earlier rows (content follows the finger).
     const next = Math.min(this.maxScroll, Math.max(0, this.pressScroll - dy));
     if (next !== this.scroll) {
       this.scroll = next;
@@ -208,7 +244,7 @@ export class VRScenesPanel extends VRCanvasPanel {
     this.pressY = null;
     this.downId = null;
     if (!wasTap) return null;
-    // Only navigate if the release lands on the same card the press started on.
+    // Only navigate if the release lands on the same row the press started on.
     const region = this.regionAt(uv);
     if (region && region.id === downId && region.id.startsWith("scene:")) {
       return {
@@ -247,7 +283,7 @@ export class VRScenesPanel extends VRCanvasPanel {
 
     const viewH = VIEW_Y1 - VIEW_Y0;
     const total =
-      this.scenes.length * CARD_H + (this.scenes.length - 1) * CARD_GAP;
+      this.scenes.length * ROW_H + (this.scenes.length - 1) * ROW_GAP;
     this.maxScroll = Math.max(0, total - viewH);
     const sc = Math.min(this.maxScroll, Math.max(0, this.scroll));
     this.scroll = sc;
@@ -257,18 +293,18 @@ export class VRScenesPanel extends VRCanvasPanel {
     ctx.rect(0, VIEW_Y0, this.cw, viewH);
     ctx.clip();
     for (let i = 0; i < this.scenes.length; i++) {
-      const y = VIEW_Y0 - sc + i * (CARD_H + CARD_GAP);
-      if (y + CARD_H < VIEW_Y0 || y > VIEW_Y1) continue;
-      this.drawSceneCard(i, CARD_X, y);
+      const y = VIEW_Y0 - sc + i * (ROW_H + ROW_GAP);
+      if (y + ROW_H < VIEW_Y0 || y > VIEW_Y1) continue;
+      this.drawSceneRow(i, y);
       // Clamp the hit region to the visible viewport.
       const ry = Math.max(y, VIEW_Y0);
-      const rh = Math.min(y + CARD_H, VIEW_Y1) - ry;
+      const rh = Math.min(y + ROW_H, VIEW_Y1) - ry;
       if (rh > 6) {
         this.regions.push({
           id: `scene:${this.scenes[i].id}`,
-          x: CARD_X,
+          x: ROW_X0,
           y: ry,
-          w: CARD_W,
+          w: ROW_W,
           h: rh,
         });
       }
@@ -287,108 +323,83 @@ export class VRScenesPanel extends VRCanvasPanel {
     }
   }
 
-  private drawSceneCard(i: number, x: number, y: number) {
+  private drawSceneRow(i: number, y: number) {
     const { ctx } = this;
     const scene = this.scenes[i];
     const hovered = this.hoveredId === `scene:${scene.id}`;
     const isPlaying = this.currentSceneId === scene.id;
+    const x = ROW_X0;
 
-    // Card base — glass placeholder behind the thumbnail.
-    this.roundRect(x, y, CARD_W, CARD_H, 12);
-    ctx.fillStyle = "rgba(255,255,255,0.07)";
+    // Row background.
+    this.roundRect(x, y, ROW_W, ROW_H, 12);
+    ctx.fillStyle = hovered
+      ? "rgba(255,255,255,0.10)"
+      : "rgba(255,255,255,0.05)";
     ctx.fill();
-
-    // Thumbnail: preview video when hovered + loaded, else static screenshot.
-    const videoEl = hovered ? this.previewVideo : null;
-    if (videoEl && videoEl.readyState >= 2) {
-      ctx.save();
-      this.roundRect(x, y, CARD_W, CARD_H, 12);
-      ctx.clip();
-      const vr = videoEl.videoWidth / videoEl.videoHeight;
-      const cr = CARD_W / CARD_H;
-      let sx = 0,
-        sy = 0,
-        sw = videoEl.videoWidth,
-        sh = videoEl.videoHeight;
-      if (vr > cr) {
-        sw = sh * cr;
-        sx = (videoEl.videoWidth - sw) / 2;
-      } else {
-        sh = sw / cr;
-        sy = (videoEl.videoHeight - sh) / 2;
-      }
-      ctx.drawImage(videoEl, sx, sy, sw, sh, x, y, CARD_W, CARD_H);
-      ctx.restore();
-    } else {
-      const img = this.image(scene.thumbnailUrl);
-      if (img) {
-        this.drawImageCover(img, x, y, CARD_W, CARD_H, 12);
-      } else {
-        this.roundRect(x, y, CARD_W, CARD_H, 12);
-        ctx.fillStyle = "rgba(255,255,255,0.07)";
-        ctx.fill();
-      }
-    }
-
-    // Lower-third gradient overlay.
-    const overlayH = Math.round(CARD_H * 0.38);
-    const overlayY = y + CARD_H - overlayH;
-    ctx.save();
-    this.roundRect(x, y, CARD_W, CARD_H, 12);
-    ctx.clip();
-    const grad = ctx.createLinearGradient(0, overlayY, 0, y + CARD_H);
-    grad.addColorStop(0, "rgba(0,0,0,0)");
-    grad.addColorStop(0.35, "rgba(0,0,0,0.6)");
-    grad.addColorStop(1, "rgba(0,0,0,0.6)");
-    ctx.fillStyle = grad;
-    ctx.fillRect(x, overlayY, CARD_W, overlayH);
-    ctx.restore();
-
-    // Card border: gold for now-playing, blue for hover.
     if (isPlaying || hovered) {
-      this.roundRect(x, y, CARD_W, CARD_H, 12);
+      this.roundRect(x, y, ROW_W, ROW_H, 12);
       ctx.lineWidth = 2;
       ctx.strokeStyle = isPlaying
         ? "rgba(250,200,80,0.85)"
-        : "rgba(96,165,250,0.70)";
+        : "rgba(96,165,250,0.60)";
       ctx.stroke();
     }
 
-    // "Now Playing" badge — top-left pill.
-    if (isPlaying) {
-      const badgeX = x + 10;
-      const badgeY = y + 10;
-      const badgeW = 108;
-      const badgeH = 28;
-      this.roundRect(badgeX, badgeY, badgeW, badgeH, badgeH / 2);
-      ctx.fillStyle = "rgba(250,200,80,0.90)";
+    // Thumbnail.
+    const tx = x + ROW_PAD;
+    const ty = y + (ROW_H - THUMB_H) / 2;
+    const img = this.image(scene.thumbnailUrl);
+    if (img) {
+      this.drawImageCover(img, tx, ty, THUMB_W, THUMB_H, 8);
+    } else {
+      this.roundRect(tx, ty, THUMB_W, THUMB_H, 8);
+      ctx.fillStyle = "rgba(255,255,255,0.08)";
       ctx.fill();
-      ctx.font = "700 16px sans-serif";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillStyle = "rgba(30,20,0,0.95)";
-      ctx.fillText("NOW PLAYING", badgeX + badgeW / 2, badgeY + badgeH / 2 + 1);
     }
 
-    // Title + studio inside the overlay.
-    const textX = x + 12;
-    const titleY = y + CARD_H - (scene.studioName ? 36 : 22);
-    ctx.font = "600 20px sans-serif";
+    // Duration badge, bottom-right corner of the thumbnail.
+    if (scene.durationSecs) {
+      const label = TextUtils.secondsToTimestamp(scene.durationSecs);
+      ctx.font = "600 13px monospace";
+      const padX = 6;
+      const bw = ctx.measureText(label).width + padX * 2;
+      const bh = 18;
+      const bx = tx + THUMB_W - bw - 5;
+      const by = ty + THUMB_H - bh - 5;
+      this.roundRect(bx, by, bw, bh, 5);
+      ctx.fillStyle = "rgba(0,0,0,0.65)";
+      ctx.fill();
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "rgba(255,255,255,0.92)";
+      ctx.fillText(label, bx + bw / 2, by + bh / 2 + 1);
+    }
+
+    // Now-playing dot, top-left corner of the thumbnail.
+    if (isPlaying) {
+      ctx.beginPath();
+      ctx.arc(tx + 11, ty + 11, 5, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(250,200,80,0.95)";
+      ctx.fill();
+    }
+
+    // Title + studio.
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
+    ctx.font = "600 21px sans-serif";
     ctx.fillStyle = "rgba(255,255,255,0.95)";
     ctx.fillText(
-      this.fitText(scene.title || `Scene ${scene.id}`, CARD_W - 24),
-      textX,
-      titleY
+      this.fitText(scene.title || `Scene ${scene.id}`, TEXT_W),
+      TEXT_X,
+      y + ROW_H / 2 - (scene.studioName ? 6 : -7)
     );
     if (scene.studioName) {
-      ctx.font = "400 15px sans-serif";
-      ctx.fillStyle = "rgba(255,255,255,0.65)";
+      ctx.font = "400 16px sans-serif";
+      ctx.fillStyle = "rgba(255,255,255,0.6)";
       ctx.fillText(
-        this.fitText(scene.studioName, CARD_W - 24),
-        textX,
-        y + CARD_H - 14
+        this.fitText(scene.studioName, TEXT_W),
+        TEXT_X,
+        y + ROW_H / 2 + 19
       );
     }
   }

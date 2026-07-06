@@ -56,6 +56,8 @@ export interface IVRPlaybackState {
   captionsOn: boolean;
   /** True while an A-B chapter loop is armed (Loop button lit). */
   loopActive: boolean;
+  /** True while the whole scene is set to loop on end (native `video.loop`). */
+  loopSceneActive: boolean;
 }
 
 /** A scene marker projected onto the VR scrubber + chapter list. */
@@ -98,6 +100,8 @@ export type VRControlAction =
   | { type: "prevMarker" }
   /** Toggle an A-B loop over the chapter under the playhead. */
   | { type: "loopChapter" }
+  /** Toggle looping the whole scene on end (native `video.loop`). */
+  | { type: "toggleLoopScene" }
   | { type: "seekSeconds"; seconds: number }
   | { type: "toggleCaptions" }
   | { type: "next" }
@@ -118,6 +122,16 @@ export type VRControlAction =
   | { type: "browseSetTab"; tab: "info" | "scenes" }
   /** Navigate to a different scene from the VR scenes panel. */
   | { type: "navigateToScene"; sceneId: string }
+  /**
+   * Summon the system keyboard to edit the Scenes-panel free-text search
+   * (handled in-manager via [VRSystemKeyboard]; falls back to a status hint
+   * when the browser has no WebXR keyboard support).
+   */
+  | { type: "scenesSearchOpen" }
+  /** Apply (or clear, with null) the Scenes-panel free-text search. */
+  | { type: "setScenesSearch"; search: string | null }
+  /** Change the Scenes-panel carousel's sort order. */
+  | { type: "setScenesSort"; sort: "recent" | "rating" | "title" }
   /** Switch to a different scene while staying in the active XR session. */
   | { type: "switchScene"; sceneId: string }
   /**

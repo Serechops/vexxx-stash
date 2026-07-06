@@ -29,6 +29,23 @@ export const VRT = {
   greenGradBot: "rgba(52,150,74,0.85)",
   greenBorder: "rgba(148,226,160,0.42)",
 
+  // ── Now-playing (warm gold — distinguishes "this is currently loaded" from
+  // accent-blue hover across the Home wall and the in-player Scenes list) ───
+  gold: "rgba(250,200,80,0.95)",
+  /** Wide, low-alpha halo stroke — pairs with `gold` for the two-stroke glow. */
+  goldHalo: "rgba(250,200,80,0.20)",
+  /** Crisp inner stroke for the now-playing glow (paired with `goldHalo`). */
+  goldGlow: "rgba(250,200,80,0.85)",
+
+  // ── Raw RGB triplets ──────────────────────────────────────────────────────
+  // For call sites that need an alpha this file doesn't offer a fixed token
+  // for (e.g. a canvas panel compositing many one-off translucencies from a
+  // single hue) — compose via `rgba(${VRT.accentRGB},0.42)` instead of
+  // hardcoding the hue a second time. Keeps every panel's accent/gold in sync
+  // with this file even where a fixed alpha token doesn't fit.
+  accentRGB: "96,165,250",
+  goldRGB: "250,200,80",
+
   // ── Danger (Exit) ─────────────────────────────────────────────────────────
   dangerText: "rgba(252,168,168,0.95)",
   dangerBorder: "rgba(248,113,113,0.50)",

@@ -540,6 +540,8 @@ export class VRControlPanel extends VRCanvasPanel {
         return { type: "nextMarker" };
       case "loop":
         return { type: "loopChapter" };
+      case "loopScene":
+        return { type: "toggleLoopScene" };
       case "handy":
         return { type: "handyPanelToggle" };
       case "home":
@@ -794,6 +796,13 @@ export class VRControlPanel extends VRCanvasPanel {
           label: "Loop",
           active: state.loopActive,
           variant: state.loopActive ? "green" : "default",
+        },
+        {
+          id: "loopScene",
+          w: 76,
+          label: "🔁",
+          active: state.loopSceneActive,
+          variant: state.loopSceneActive ? "green" : "default",
         },
       ],
       ROW1_Y,

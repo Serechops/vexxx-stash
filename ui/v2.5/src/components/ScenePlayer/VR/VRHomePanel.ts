@@ -31,6 +31,7 @@ import { VRCanvasPanel, IPanelRegion } from "./VRInfoPanels";
 import { IVRSceneEntry } from "./VRScenesPanel";
 import { faptapFavorites } from "./faptapLibrary";
 import { pmvhavenFavorites } from "./pmvhavenLibrary";
+import { VRT } from "./vrTheme";
 
 export type { IVRFilterEntry };
 
@@ -196,8 +197,13 @@ const SEARCH_EXIT_W = 132;
 const SEARCH_EXIT_GAP = 16;
 
 // ── Colours ───────────────────────────────────────────────────────────────────
-const ACCENT = "rgba(96,165,250,";
-const GOLD = "rgba(250,200,80,";
+// Prefix constants (not full VRT tokens) so every call site below can compose
+// its own one-off alpha via `${ACCENT}0.42)` — VRT's fixed-alpha tokens don't
+// cover all of them. Deriving from VRT.accentRGB/goldRGB (rather than
+// hardcoding the hue again) is what keeps this file from drifting out of sync
+// with the shared theme.
+const ACCENT = `rgba(${VRT.accentRGB},`;
+const GOLD = `rgba(${VRT.goldRGB},`;
 const ORANGE = "rgba(250,140,30,";
 
 type FilterTab = "studios" | "performers";
@@ -2668,16 +2674,19 @@ export class VRHomePanel extends VRCanvasPanel {
     }
 
     // Hover / playing border — a wide low-alpha pass under the crisp stroke
-    // fakes an outer glow without canvas shadowBlur (too slow per-frame).
+    // fakes an outer glow without canvas shadowBlur (too slow per-frame). VRT
+    // tokens (not the ACCENT/GOLD prefixes) so this reads identically to the
+    // Scenes-panel row's hover glow, which uses the same technique.
     if (isPlaying || hovered) {
-      const tone = isPlaying ? GOLD : ACCENT;
+      const halo = isPlaying ? VRT.goldHalo : VRT.accentHalo;
+      const glow = isPlaying ? VRT.goldGlow : VRT.accent;
       this.roundRect(x, y, CARD_W, CARD_H, R);
       ctx.lineWidth = 7;
-      ctx.strokeStyle = `${tone}0.20)`;
+      ctx.strokeStyle = halo;
       ctx.stroke();
       this.roundRect(x, y, CARD_W, CARD_H, R);
       ctx.lineWidth = 2.5;
-      ctx.strokeStyle = `${tone}0.85)`;
+      ctx.strokeStyle = glow;
       ctx.stroke();
     }
 

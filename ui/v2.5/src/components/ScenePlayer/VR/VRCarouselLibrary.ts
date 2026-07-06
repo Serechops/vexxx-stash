@@ -3,16 +3,17 @@
  * "Scenes" carousel.
  *
  * The carousel shows VR-capable scenes (it's built for dome playback, not flat
- * content), newest first, excluding whatever scene is currently playing. Like
- * the Home wall ([VRHomeLibrary]) it pages on the server via `findScenes` rather
- * than loading a capped slice into memory, so it scales to any library size.
+ * content), excluding whatever scene is currently playing. Like the Home wall
+ * ([VRHomeLibrary]) it pages on the server via `findScenes` rather than loading
+ * a capped slice into memory, so it scales to any library size.
  *
- * It is deliberately much smaller than the Home library: one fixed query (VR
- * only, date desc), no rail / counts / continue-watching prefix, and a single
- * `excludeId` (the now-playing scene) the server filters out — so the list never
- * needs the client-side splicing the old fixed-50 carousel relied on. It is
- * generation-guarded: [setExcludeId] bumps a counter and clears the caches so a
- * page response that lands after the playing scene changed can be dropped.
+ * It is deliberately smaller than the Home library: VR-only (no media-type
+ * toggle — matching content, not swapping it, is the point of a mid-playback
+ * "what else can I watch" list), no rail / counts / continue-watching prefix.
+ * It does support free-text search + the same three sort modes as the Home
+ * wall (recent/rating/title). Generation-guarded: [setQuery] bumps a counter
+ * and clears the caches so a page response that lands after a query change
+ * can be dropped.
  */
 import * as GQL from "src/core/generated-graphql";
 import { getClient } from "src/core/StashService";
@@ -22,6 +23,7 @@ import { mapScene } from "./vrHomeLibrary";
 /** Scenes fetched per network block; the panel grows by appending these. */
 const PER_PAGE = 12;
 const DESC = GQL.SortDirectionEnum.Desc;
+const ASC = GQL.SortDirectionEnum.Asc;
 
 export interface IVRCarouselPage {
   /** Generation the page was fetched under — stale results (gen mismatch) are dropped. */
@@ -32,9 +34,15 @@ export interface IVRCarouselPage {
   totalCount: number;
 }
 
+export interface IVRCarouselQuery {
+  sort: "recent" | "rating" | "title";
+  search: string | null;
+}
+
 export class VRCarouselLibrary {
   private generation = 0;
   private excludeId: string | null = null;
+  private query: IVRCarouselQuery = { sort: "recent", search: null };
   private blockCache = new Map<number, IVRSceneEntry[]>();
   private blockPromises = new Map<number, Promise<IVRSceneEntry[]>>();
   private totalForQuery = -1;
@@ -53,6 +61,16 @@ export class VRCarouselLibrary {
     const norm = id || null;
     if (norm === this.excludeId) return this.generation;
     this.excludeId = norm;
+    return this.bumpAndClear();
+  }
+
+  /** Apply a new sort/search query. Bumps the generation and clears the caches. */
+  setQuery(q: IVRCarouselQuery): number {
+    this.query = q;
+    return this.bumpAndClear();
+  }
+
+  private bumpAndClear(): number {
     this.generation++;
     this.blockCache.clear();
     this.blockPromises.clear();
@@ -69,6 +87,17 @@ export class VRCarouselLibrary {
     return this.excludeId ? [this.excludeId] : undefined;
   }
 
+  private get searchQ(): string | undefined {
+    const s = this.query.search?.trim();
+    return s ? s : undefined;
+  }
+
+  private get sortKey(): { sort: string; direction: GQL.SortDirectionEnum } {
+    if (this.query.sort === "rating") return { sort: "rating", direction: DESC };
+    if (this.query.sort === "title") return { sort: "title", direction: ASC };
+    return { sort: "date", direction: DESC };
+  }
+
   private loadTotal(): Promise<number> {
     if (this.totalForQuery >= 0) return Promise.resolve(this.totalForQuery);
     if (!this.totalPromise) {
@@ -76,7 +105,12 @@ export class VRCarouselLibrary {
         .query<GQL.FindScenesQuery>({
           query: GQL.FindScenesDocument,
           variables: {
-            filter: { per_page: 0, page: 1, exclude_ids: this.excludeIds },
+            filter: {
+              per_page: 0,
+              page: 1,
+              exclude_ids: this.excludeIds,
+              q: this.searchQ,
+            },
             scene_filter: this.sceneFilter(),
           },
           fetchPolicy: "network-only",
@@ -98,6 +132,7 @@ export class VRCarouselLibrary {
     if (cached) return Promise.resolve(cached);
     let p = this.blockPromises.get(blockIndex);
     if (!p) {
+      const { sort, direction } = this.sortKey;
       p = getClient()
         .query<GQL.FindScenesQuery>({
           query: GQL.FindScenesDocument,
@@ -105,9 +140,10 @@ export class VRCarouselLibrary {
             filter: {
               per_page: PER_PAGE,
               page: blockIndex + 1,
-              sort: "date",
-              direction: DESC,
+              sort,
+              direction,
               exclude_ids: this.excludeIds,
+              q: this.searchQ,
             },
             scene_filter: this.sceneFilter(),
           },

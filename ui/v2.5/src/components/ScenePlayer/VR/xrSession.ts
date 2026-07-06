@@ -498,9 +498,13 @@ export class XRSessionManager {
   private scenesPanel: VRScenesPanel | null = null;
   private browseOpen = false;
   // Server-paged data source behind the Browse "Scenes" carousel (VR-only,
-  // newest first, excluding the now-playing scene). Replaces the old fixed-50
-  // in-memory list + client-side splice.
+  // excluding the now-playing scene, with its own search + sort independent
+  // of the Home wall's). Replaces the old fixed-50 in-memory list + client-side
+  // splice.
   private carouselData = new VRCarouselLibrary();
+  private scenesSearch: string | null = null;
+  private scenesSort: "recent" | "rating" | "title" = "recent";
+  private scenesSearchDebounce: number | null = null;
   private previewVideo: HTMLVideoElement | null = null;
   private previewSceneId: string | null = null;
   // Hover-preview debounce: the card the ray is currently over and the timer
@@ -1529,6 +1533,47 @@ export class XRSessionManager {
     else apply();
   }
 
+  /** Re-page the Browse "Scenes" carousel under the current sort + search. */
+  private applyScenesQuery() {
+    const before = this.carouselData.gen;
+    this.carouselData.setQuery({
+      sort: this.scenesSort,
+      search: this.scenesSearch,
+    });
+    if (this.carouselData.gen !== before) this.scenesPanel?.resetLibrary();
+  }
+
+  /**
+   * Apply the Browse "Scenes" panel's free-text search. Mirrors [setHomeSearch]
+   * but is independent of it — the two lists (Home wall vs. in-player Browse
+   * carousel) can be filtered to different things at once.
+   *
+   * Unlike the Home wall (always full-opacity in lobby mode), Browse's auto-
+   * hide timer keeps running during playback: typing on the system keyboard
+   * doesn't touch a controller, so without this the whole side panel fades to
+   * invisible ~4s into a search and stays that way (nothing else refreshes
+   * `lastActivity` until the user moves a controller again) — the search
+   * still applies underneath, but it looks like the panel vanished and ate it.
+   */
+  private setScenesSearch(text: string, debounce: boolean) {
+    this.lastActivity = performance.now();
+    const t = text.trim();
+    const next = t ? t : null;
+    this.scenesPanel?.setSearchText(next);
+    if (this.scenesSearchDebounce !== null) {
+      window.clearTimeout(this.scenesSearchDebounce);
+      this.scenesSearchDebounce = null;
+    }
+    const apply = () => {
+      this.scenesSearchDebounce = null;
+      if (next === this.scenesSearch) return;
+      this.scenesSearch = next;
+      this.applyScenesQuery();
+    };
+    if (debounce) this.scenesSearchDebounce = window.setTimeout(apply, 350);
+    else apply();
+  }
+
   /** Refresh the rail media-type counts under the active studio/performer filter. */
   private refreshHomeCounts() {
     const ds = this.sceneData;
@@ -2086,6 +2131,28 @@ export class XRSessionManager {
       this.applyHomeQuery();
       this.applyGalleryQuery();
       this.applyGroupQuery();
+      this.lastActivity = performance.now();
+      return;
+    }
+    if (action.type === "scenesSearchOpen") {
+      const opened = this.keyboard.open({
+        initial: this.scenesSearch ?? "",
+        onInput: (text) => this.setScenesSearch(text, true),
+        onCommit: (text) => this.setScenesSearch(text, false),
+      });
+      if (!opened) this.scenesPanel?.showSearchUnsupported();
+      this.lastActivity = performance.now();
+      return;
+    }
+    if (action.type === "setScenesSearch") {
+      this.setScenesSearch(action.search ?? "", false);
+      this.lastActivity = performance.now();
+      return;
+    }
+    if (action.type === "setScenesSort") {
+      this.scenesSort = action.sort;
+      this.scenesPanel?.setSortMode(action.sort);
+      this.applyScenesQuery();
       this.lastActivity = performance.now();
       return;
     }

@@ -19,6 +19,7 @@ import * as THREE from "three";
 import TextUtils from "src/utils/text";
 import { VRControlAction } from "./types";
 import { VRCanvasPanel } from "./VRInfoPanels";
+import { VRT } from "./vrTheme";
 
 export interface IVRSceneEntry {
   id: string;
@@ -62,15 +63,27 @@ const CANVAS_W = 820;
 const CANVAS_H = 736;
 const PANEL_WIDTH_M = 1.1;
 
-const TITLE_Y = 44; // "SCENES" label baseline
-const VIEW_Y0 = 64; // list viewport top (below the title)
+const TITLE_Y = 34; // "SCENES" label baseline
+
+const ROW_X0 = 20;
+const ROW_W = CANVAS_W - ROW_X0 * 2;
+
+// Search pill + sort chip row — lets the in-player list find/reorder scenes
+// without leaving Browse for the Home wall. Search reuses the Home wall's
+// system-keyboard flow; sort is a single tap-to-cycle chip (Recent → Rating →
+// A-Z) since there's no room here for three separate chips like the wall has.
+const CTRL_Y = 54;
+const CTRL_H = 40;
+const SORT_W = 132;
+const SORT_GAP = 12;
+const SEARCH_W = ROW_W - SORT_W - SORT_GAP;
+
+const VIEW_Y0 = CTRL_Y + CTRL_H + 16; // list viewport top (below the control row)
 const VIEW_Y1 = CANVAS_H - 16; // list viewport bottom
 
 // Compact row: a small landscape thumbnail + title/studio text. At ROW_H=100
-// with a 10px gap, ~6 rows are visible at once vs. 2 with the old large-card
-// layout.
-const ROW_X0 = 20;
-const ROW_W = CANVAS_W - ROW_X0 * 2;
+// with a 10px gap, ~5 rows are visible at once (down from ~6 before the
+// control row was added) vs. 2 with the old large-card layout.
 const ROW_GAP = 10;
 const ROW_H = 100;
 const ROW_PAD = 14; // inner padding between the row edge and its thumbnail/text
@@ -97,6 +110,12 @@ export class VRScenesPanel extends VRCanvasPanel {
   private scroll = 0; // vertical scroll offset, px
   private maxScroll = 0;
   private currentSceneId: string | null = null;
+
+  // Search + sort — mirror the Home wall's fields; the manager drives the
+  // actual query (VRCarouselLibrary) and pushes the live state back down.
+  private searchText: string | null = null;
+  private sortMode: "recent" | "rating" | "title" = "recent";
+  private searchUnsupportedUntil = 0;
 
   // Drag/tap resolution state for the current trigger press.
   private pressY: number | null = null;
@@ -187,6 +206,30 @@ export class VRScenesPanel extends VRCanvasPanel {
     }
   }
 
+  /** Mirror the manager's live search text (updates as the user types). */
+  setSearchText(text: string | null) {
+    const t = text?.trim() ? text.trim() : null;
+    if (t !== this.searchText) {
+      this.searchText = t;
+      this.markDirty();
+    }
+  }
+
+  /** Mirror the manager's active sort mode for the chip label. */
+  setSortMode(sort: "recent" | "rating" | "title") {
+    if (sort !== this.sortMode) {
+      this.sortMode = sort;
+      this.markDirty();
+    }
+  }
+
+  /** Flash a "no VR keyboard" hint on the search pill (unsupported browser). */
+  showSearchUnsupported() {
+    this.searchUnsupportedUntil = performance.now() + 2500;
+    this.markDirty();
+    setTimeout(() => this.markDirty(), 2600);
+  }
+
   /**
    * No-op: the row list shows a floating full-size preview via the session
    * manager's shared thumbnail popup (mirrors the marker/chapter hover
@@ -244,13 +287,21 @@ export class VRScenesPanel extends VRCanvasPanel {
     this.pressY = null;
     this.downId = null;
     if (!wasTap) return null;
-    // Only navigate if the release lands on the same row the press started on.
+    // Only act if the release lands on the same region the press started on.
     const region = this.regionAt(uv);
-    if (region && region.id === downId && region.id.startsWith("scene:")) {
-      return {
-        type: "switchScene",
-        sceneId: region.id.slice("scene:".length),
+    if (!region || region.id !== downId) return null;
+    if (region.id.startsWith("scene:")) {
+      return { type: "switchScene", sceneId: region.id.slice("scene:".length) };
+    }
+    if (region.id === "searchOpen") return { type: "scenesSearchOpen" };
+    if (region.id === "searchClear") return { type: "setScenesSearch", search: null };
+    if (region.id === "sortChip") {
+      const next: Record<string, "recent" | "rating" | "title"> = {
+        recent: "rating",
+        rating: "title",
+        title: "recent",
       };
+      return { type: "setScenesSort", sort: next[this.sortMode] };
     }
     return null;
   }
@@ -266,6 +317,7 @@ export class VRScenesPanel extends VRCanvasPanel {
 
     this.panelBackground();
     this.sectionLabel("Scenes", 24, TITLE_Y);
+    this.drawSceneControls();
 
     // Drive lazy paging from the draw loop (runs while Browse is open).
     this.ensureLoaded();
@@ -274,9 +326,14 @@ export class VRScenesPanel extends VRCanvasPanel {
       ctx.font = "500 22px sans-serif";
       ctx.textAlign = "left";
       ctx.textBaseline = "middle";
-      ctx.fillStyle = "rgba(255,255,255,0.35)";
-      // Distinguish "still loading page 0" from a genuinely empty result.
-      const msg = this.reachedEnd ? "No VR scenes found" : "Loading scenes…";
+      ctx.fillStyle = VRT.textFaint;
+      // Distinguish "still loading page 0" from a genuinely empty result, and
+      // a genuinely empty library from a search with no matches.
+      const msg = !this.reachedEnd
+        ? "Loading scenes…"
+        : this.searchText
+        ? `No matches for "${this.searchText}"`
+        : "No VR scenes found";
       ctx.fillText(msg, 24, (VIEW_Y0 + VIEW_Y1) / 2);
       return;
     }
@@ -318,9 +375,109 @@ export class VRScenesPanel extends VRCanvasPanel {
       ctx.fillRect(trackX, VIEW_Y0, 3, viewH);
       const thumbH = Math.max(30, viewH * (viewH / total));
       const thumbY = VIEW_Y0 + (viewH - thumbH) * (sc / this.maxScroll);
-      ctx.fillStyle = "rgba(96,165,250,0.6)";
+      ctx.fillStyle = VRT.accentSoft;
       ctx.fillRect(trackX, thumbY, 3, thumbH);
     }
+  }
+
+  /**
+   * Search pill + sort chip, drawn regardless of whether the list currently
+   * has content — a search with zero matches still needs a visible, tappable
+   * ✕ to clear it.
+   */
+  private drawSceneControls() {
+    const { ctx } = this;
+    const y = CTRL_Y;
+    const h = CTRL_H;
+
+    // Search pill (tap opens the system keyboard; ✕ clears an active query).
+    const sx = ROW_X0;
+    const sw = SEARCH_W;
+    const active = !!this.searchText;
+    const searchHovered =
+      this.hoveredId === "searchOpen" || this.hoveredId === "searchClear";
+    const unsupported = performance.now() < this.searchUnsupportedUntil;
+
+    this.roundRect(sx, y, sw, h, h / 2);
+    ctx.fillStyle = active
+      ? VRT.accentWashBot
+      : searchHovered
+      ? "rgba(255,255,255,0.14)"
+      : "rgba(255,255,255,0.07)";
+    ctx.fill();
+    this.roundRect(sx, y, sw, h, h / 2);
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = active
+      ? VRT.accentBorder
+      : searchHovered
+      ? "rgba(255,255,255,0.35)"
+      : "rgba(255,255,255,0.16)";
+    ctx.stroke();
+
+    const clearW = active ? h : 0;
+    if (active) {
+      const cx = sx + sw - h / 2 - 4;
+      const cy = y + h / 2;
+      const clearHover = this.hoveredId === "searchClear";
+      if (clearHover) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, 14, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(255,255,255,0.18)";
+        ctx.fill();
+      }
+      ctx.font = "600 17px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = clearHover ? VRT.textHi : VRT.textMid;
+      ctx.fillText("✕", cx, cy + 1);
+      this.regions.push({
+        id: "searchClear",
+        x: sx + sw - h - 4,
+        y,
+        w: h + 4,
+        h,
+      });
+    }
+
+    ctx.font = active ? "600 16px sans-serif" : "500 16px sans-serif";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = unsupported ? VRT.dangerText : active ? VRT.textHi : VRT.textDim;
+    const label = unsupported
+      ? "Search unavailable"
+      : active
+      ? this.fitText(this.searchText!, sw - 32 - clearW)
+      : "🔍  Search scenes…";
+    ctx.fillText(label, sx + 16, y + h / 2 + 1);
+    this.regions.push({ id: "searchOpen", x: sx, y, w: sw - clearW, h });
+
+    // Sort chip — tap cycles Recent → Rating → A-Z → Recent.
+    const chx = sx + sw + SORT_GAP;
+    const chw = SORT_W;
+    const chHovered = this.hoveredId === "sortChip";
+    const sortLabel =
+      this.sortMode === "rating"
+        ? "★ Rating"
+        : this.sortMode === "title"
+        ? "A–Z"
+        : "🕐 Recent";
+    this.roundRect(chx, y, chw, h, h / 2);
+    ctx.fillStyle = chHovered
+      ? "rgba(255,255,255,0.14)"
+      : "rgba(255,255,255,0.07)";
+    ctx.fill();
+    this.roundRect(chx, y, chw, h, h / 2);
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = chHovered
+      ? "rgba(255,255,255,0.35)"
+      : "rgba(255,255,255,0.16)";
+    ctx.stroke();
+    ctx.font = "600 15px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = VRT.textMid;
+    ctx.fillText(sortLabel, chx + chw / 2, y + h / 2 + 1);
+    this.regions.push({ id: "sortChip", x: chx, y, w: chw, h });
   }
 
   private drawSceneRow(i: number, y: number) {
@@ -329,19 +486,41 @@ export class VRScenesPanel extends VRCanvasPanel {
     const hovered = this.hoveredId === `scene:${scene.id}`;
     const isPlaying = this.currentSceneId === scene.id;
     const x = ROW_X0;
+    const R = 12;
 
-    // Row background.
-    this.roundRect(x, y, ROW_W, ROW_H, 12);
-    ctx.fillStyle = hovered
-      ? "rgba(255,255,255,0.10)"
-      : "rgba(255,255,255,0.05)";
+    // Row background — a subtle vertical gradient reads as a lit tile rather
+    // than a flat cut-out (mirrors the Home wall's card caption treatment).
+    this.roundRect(x, y, ROW_W, ROW_H, R);
+    const bg = ctx.createLinearGradient(0, y, 0, y + ROW_H);
+    if (hovered) {
+      bg.addColorStop(0, "rgba(255,255,255,0.13)");
+      bg.addColorStop(1, "rgba(255,255,255,0.07)");
+    } else {
+      bg.addColorStop(0, "rgba(255,255,255,0.06)");
+      bg.addColorStop(1, "rgba(255,255,255,0.03)");
+    }
+    ctx.fillStyle = bg;
     ctx.fill();
+
+    // Resting hairline — keeps rows reading as distinct tiles between hovers.
+    this.roundRect(x, y, ROW_W, ROW_H, R);
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = "rgba(255,255,255,0.08)";
+    ctx.stroke();
+
+    // Hover / playing border — a wide low-alpha pass under the crisp stroke
+    // fakes an outer glow without canvas shadowBlur (too slow per-frame),
+    // the same technique the Home wall's scene cards use.
     if (isPlaying || hovered) {
-      this.roundRect(x, y, ROW_W, ROW_H, 12);
+      const halo = isPlaying ? VRT.goldHalo : VRT.accentHalo;
+      const glow = isPlaying ? VRT.goldGlow : VRT.accent;
+      this.roundRect(x, y, ROW_W, ROW_H, R);
+      ctx.lineWidth = 6;
+      ctx.strokeStyle = halo;
+      ctx.stroke();
+      this.roundRect(x, y, ROW_W, ROW_H, R);
       ctx.lineWidth = 2;
-      ctx.strokeStyle = isPlaying
-        ? "rgba(250,200,80,0.85)"
-        : "rgba(96,165,250,0.60)";
+      ctx.strokeStyle = glow;
       ctx.stroke();
     }
 
@@ -371,7 +550,7 @@ export class VRScenesPanel extends VRCanvasPanel {
       ctx.fill();
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillStyle = "rgba(255,255,255,0.92)";
+      ctx.fillStyle = VRT.textHi;
       ctx.fillText(label, bx + bw / 2, by + bh / 2 + 1);
     }
 
@@ -379,7 +558,7 @@ export class VRScenesPanel extends VRCanvasPanel {
     if (isPlaying) {
       ctx.beginPath();
       ctx.arc(tx + 11, ty + 11, 5, 0, Math.PI * 2);
-      ctx.fillStyle = "rgba(250,200,80,0.95)";
+      ctx.fillStyle = VRT.gold;
       ctx.fill();
     }
 
@@ -387,7 +566,7 @@ export class VRScenesPanel extends VRCanvasPanel {
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
     ctx.font = "600 21px sans-serif";
-    ctx.fillStyle = "rgba(255,255,255,0.95)";
+    ctx.fillStyle = VRT.textHi;
     ctx.fillText(
       this.fitText(scene.title || `Scene ${scene.id}`, TEXT_W),
       TEXT_X,
@@ -395,7 +574,7 @@ export class VRScenesPanel extends VRCanvasPanel {
     );
     if (scene.studioName) {
       ctx.font = "400 16px sans-serif";
-      ctx.fillStyle = "rgba(255,255,255,0.6)";
+      ctx.fillStyle = VRT.textDim;
       ctx.fillText(
         this.fitText(scene.studioName, TEXT_W),
         TEXT_X,

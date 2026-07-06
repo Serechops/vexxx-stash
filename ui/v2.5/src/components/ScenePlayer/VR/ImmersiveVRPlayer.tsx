@@ -417,6 +417,7 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
     waiting: false,
     captionsOn: false,
     loopActive: false,
+    loopSceneActive: false,
   });
   const getState = useCallback((): IVRPlaybackState => {
     const st = stateRef.current;
@@ -432,6 +433,7 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
       st.waiting = false;
       st.captionsOn = captionsOnRef.current;
       st.loopActive = !!loopRef.current;
+      st.loopSceneActive = false;
       return st;
     }
     let bufferedAhead = 0;
@@ -454,6 +456,7 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
     st.waiting = v.readyState < 3 && !v.paused;
     st.captionsOn = captionsOnRef.current;
     st.loopActive = !!loopRef.current;
+    st.loopSceneActive = v.loop;
     return st;
   }, []);
 
@@ -513,11 +516,13 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
   // generation; stale applications (gen mismatch) are dropped.
   const applyScene = useCallback(
     (next: GQL.SceneDataFragment, gen: number, logId: string) => {
-      // A loop's chapter bounds belong to the outgoing scene — drop it before
-      // the new one's markers/duration are in place.
+      // A loop's chapter bounds (and whole-scene loop flag) belong to the
+      // outgoing scene — drop them before the new one's markers/duration are
+      // in place.
       loopRef.current = null;
       const v = videoRef.current;
       if (v) {
+        v.loop = false;
         // Decode-hint ordering (cached MediaCapabilities verdicts) picks the
         // swap source — async, so the drain below runs inside the callback and
         // the gen guard drops a switch that went stale while resolving.
@@ -681,6 +686,7 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
     loopRef.current = null;
     const v = videoRef.current;
     if (v) {
+      v.loop = false;
       // Release the live media layer before draining the <video> (same Quest
       // compositor crash hazard as an in-VR scene switch).
       managerRef.current?.prepareSourceSwap();
@@ -778,6 +784,9 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
             }
             loopRef.current = { start, end };
           }
+          break;
+        case "toggleLoopScene":
+          if (v) v.loop = !v.loop;
           break;
         case "toggleCaptions":
           toggleCaptions();

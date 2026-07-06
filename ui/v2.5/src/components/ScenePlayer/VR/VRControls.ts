@@ -25,6 +25,7 @@ import TextUtils from "src/utils/text";
 import { IProjectionSettings, fovLabel, stereoLabel } from "./projection";
 import { VRControlAction, IVRMarker, IVRPlaybackState } from "./types";
 import { VRCanvasPanel, IPanelRegion } from "./VRInfoPanels";
+import type { IVRStatusSnapshot } from "./vrStatus";
 
 const CANVAS_W = 1280;
 const CANVAS_H = 486;
@@ -90,6 +91,10 @@ export interface IDrawInput {
    * feed (immersive-ar); lit while passthrough is active.
    */
   passthrough?: { available: boolean; on: boolean };
+  /** Compact status cluster (wall clock + batteries), centred on the time row. */
+  status?: IVRStatusSnapshot;
+  /** Monitor version — the fingerprint's cheap change signal for `status`. */
+  statusVersion?: number;
 }
 
 const RATE_STEPS = [0.5, 0.75, 1, 1.25, 1.5, 2];
@@ -135,6 +140,7 @@ export class VRControlPanel extends VRCanvasPanel {
     cap: null as string | null,
     hov: null as string | null,
     hf: -1,
+    stv: -1,
   };
 
   // --- layered hover compositing --------------------------------------------
@@ -265,6 +271,9 @@ export class VRControlPanel extends VRCanvasPanel {
    */
   sync(input: IDrawInput) {
     this.last = input;
+    // Stage 2 of a split update: the canvas was rasterized on the previous
+    // frame — its GPU upload is this frame's panel work, nothing else runs.
+    if (this.flushPendingUpload()) return;
     // Content (non-hover) change forces a base-layer rebuild; a hover-only
     // change just re-composites the cached base with the new hovered element.
     const contentChanged = this.stateChanged(input);
@@ -273,6 +282,14 @@ export class VRControlPanel extends VRCanvasPanel {
     const hoverChanged =
       this.prev.hov !== this.hoveredId || this.prev.hf !== hf;
     if (!this.contentDirty && !contentChanged && !hoverChanged) return;
+    // Claim the frame's panel work slot for this raster so the side panels
+    // stagger behind it. stateChanged() already folded this change into its
+    // fingerprint, so on the (rare) claim failure carry it via contentDirty —
+    // the next frame redraws unconditionally.
+    if (!VRCanvasPanel.claimWorkSlot()) {
+      this.contentDirty = true;
+      return;
+    }
     if (this.contentDirty || contentChanged) this.baseDirty = true;
     this.contentDirty = false;
     this.prev.hov = this.hoveredId;
@@ -301,6 +318,7 @@ export class VRControlPanel extends VRCanvasPanel {
     const ptShow = !!input.passthrough?.available;
     const ptOn = !!input.passthrough?.on;
     const heat = this.heatmap != null;
+    const stv = input.statusVersion ?? -1;
     const pr = this.prev;
     if (
       pr.paused === s.paused &&
@@ -325,7 +343,8 @@ export class VRControlPanel extends VRCanvasPanel {
       pr.ptShow === ptShow &&
       pr.ptOn === ptOn &&
       pr.chap === chapterTitle &&
-      pr.cap === caption
+      pr.cap === caption &&
+      pr.stv === stv
     ) {
       return false;
     }
@@ -352,7 +371,96 @@ export class VRControlPanel extends VRCanvasPanel {
     pr.ptOn = ptOn;
     pr.chap = chapterTitle;
     pr.cap = caption;
+    pr.stv = stv;
     return true;
+  }
+
+  /**
+   * Wall clock + battery levels, centred on the time row. Only what's known is
+   * drawn: the clock is always available; headset % needs getBattery(); the
+   * controller pair appears only if the runtime ever exposes gamepad charge
+   * (none do today — see VRStatusMonitor). Layout is measured left-to-right so
+   * the cluster stays centred whatever subset is present.
+   */
+  private drawStatusCluster(st?: IVRStatusSnapshot) {
+    if (!st) return;
+    const { ctx } = this;
+    const hasHmd = st.headsetPct != null;
+    if (!st.clock && !hasHmd) return;
+
+    ctx.font = "500 22px monospace";
+    ctx.textBaseline = "alphabetic";
+
+    const SEP = "   ";
+    const clockText = st.clock;
+    const hmdText = hasHmd ? `${st.headsetPct}%` : "";
+    const ctrlText = [
+      st.leftCtrlPct != null ? `L${st.leftCtrlPct}%` : "",
+      st.rightCtrlPct != null ? `R${st.rightCtrlPct}%` : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+    // Battery glyph geometry (canvas px, placed relative to the text baseline).
+    const BAT_W = 30;
+    const BAT_H = 15;
+    const BAT_NUB = 3;
+    const BAT_GAP = 7; // icon → percentage text
+
+    let total = ctx.measureText(clockText).width;
+    if (hasHmd) {
+      total +=
+        ctx.measureText(SEP).width +
+        BAT_W +
+        BAT_NUB +
+        BAT_GAP +
+        ctx.measureText(hmdText).width;
+    }
+    if (ctrlText) total += ctx.measureText(SEP + ctrlText).width;
+
+    let x = (CANVAS_W - total) / 2;
+    ctx.textAlign = "left";
+    ctx.fillStyle = "rgba(255,255,255,0.55)";
+    ctx.fillText(clockText, x, TIME_Y);
+    x += ctx.measureText(clockText).width;
+
+    if (hasHmd) {
+      x += ctx.measureText(SEP).width;
+      const pct = st.headsetPct ?? 0;
+      const top = TIME_Y - BAT_H + 1; // optically centred on the digits
+      // Shell + terminal nub.
+      ctx.strokeStyle = "rgba(255,255,255,0.45)";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x + 1, top, BAT_W - 2, BAT_H);
+      ctx.fillStyle = "rgba(255,255,255,0.45)";
+      ctx.fillRect(x + BAT_W, top + BAT_H / 2 - 3, BAT_NUB, 6);
+      // Charge fill — red when low, soft white otherwise.
+      ctx.fillStyle =
+        pct <= 20 ? "rgba(248,113,113,0.9)" : "rgba(255,255,255,0.7)";
+      const fillW = Math.max(1, ((BAT_W - 6) * pct) / 100);
+      ctx.fillRect(x + 3, top + 2, fillW, BAT_H - 4);
+      if (st.headsetCharging) {
+        // Tiny lightning bolt over the fill (monochrome — no emoji fonts).
+        ctx.strokeStyle = "rgba(0,0,0,0.85)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        const cx = x + BAT_W / 2;
+        ctx.moveTo(cx + 3, top + 2);
+        ctx.lineTo(cx - 2, top + BAT_H / 2 + 1);
+        ctx.lineTo(cx + 2, top + BAT_H / 2 - 1);
+        ctx.lineTo(cx - 3, top + BAT_H - 2);
+        ctx.stroke();
+      }
+      x += BAT_W + BAT_NUB + BAT_GAP;
+      ctx.fillStyle = "rgba(255,255,255,0.55)";
+      ctx.fillText(hmdText, x, TIME_Y);
+      x += ctx.measureText(hmdText).width;
+    }
+
+    if (ctrlText) {
+      ctx.fillStyle = "rgba(255,255,255,0.4)";
+      ctx.fillText(SEP + ctrlText, x, TIME_Y);
+    }
   }
 
   // --- hit testing ----------------------------------------------------------
@@ -541,7 +649,7 @@ export class VRControlPanel extends VRCanvasPanel {
       ctx.clearRect(0, 0, this.cw, this.ch);
       this.draw();
       this.baseDirty = true;
-      this.texture.needsUpdate = true;
+      this.requestUpload();
       return;
     }
 
@@ -565,7 +673,7 @@ export class VRControlPanel extends VRCanvasPanel {
       this.regions.length = rlen;
       ctx.restore();
     }
-    this.texture.needsUpdate = true;
+    this.requestUpload();
   }
 
   /** The scrubber's hover overlay (outline + position marker), drawn on top of
@@ -648,6 +756,10 @@ export class VRControlPanel extends VRCanvasPanel {
     ctx.textAlign = "right";
     ctx.fillStyle = "rgba(255,255,255,0.55)";
     ctx.fillText(TextUtils.secondsToTimestamp(dur), CANVAS_W - PAD, TIME_Y);
+
+    // Compact status cluster (wall clock · battery) centred between the time
+    // labels — the one line of "outside world" the headset otherwise hides.
+    this.drawStatusCluster(input.status);
 
     // Chapters / timestamp row — directly beneath the progress bar.
     this.drawChapters(markers);

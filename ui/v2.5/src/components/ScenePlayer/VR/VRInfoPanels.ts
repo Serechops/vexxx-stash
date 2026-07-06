@@ -127,13 +127,66 @@ export abstract class VRCanvasPanel {
 
   private images = new Map<string, HTMLImageElement>();
   private failed = new Set<string>();
+  // A thumbnail only becomes drawable once it is fully DECODED (see image()).
+  // Gating the return on this — not just img.complete — guarantees the render-
+  // loop draw() never triggers a synchronous JPEG decode, which is the stall
+  // that drops XR frames (browse/hover judder, worst as black tiles over
+  // transparent passthrough) when a row of thumbnails first paints.
+  private decoded = new Set<string>();
   private dirty = true;
+  // Raster done, GPU upload staged for a later frame (see requestUpload()).
+  protected pendingUpload = false;
   // LRU eviction cap: image cache per panel. Beyond this, the least-recently-
   // used entry is evicted on each new insert. Keeps memory bounded across long
   // VR sessions that cycle through hundreds of scene cards / performer portraits.
   private static readonly MAX_IMAGES_PER_PANEL = 150;
   // Insertion-order array mirrors the image Map keys for LRU eviction.
   private imageOrder: string[] = [];
+  // Coalesce the redraws triggered by images finishing loading. A panel row of
+  // thumbnails all resolve within a few ms of each other; firing markDirty per
+  // image would re-rasterize + re-upload the whole (large) canvas texture once
+  // per image, and that upload burst drops XR frames — which, on the transparent
+  // media-layer projection buffer, the compositor reprojects as black tiles
+  // ("black shuttering" when opening Browse). Batching collapses the burst into
+  // a single redraw once the arrivals settle.
+  private imageRedrawTimer: ReturnType<typeof setTimeout> | null = null;
+  private static readonly IMAGE_REDRAW_COALESCE_MS = 90;
+
+  // ── Per-frame panel work budget ───────────────────────────────────────────
+  // During playback every XR frame already carries the mandatory video texture
+  // upload, so a panel-canvas raster (gradients + thumbnails, several ms) plus
+  // its full-canvas texImage2D (~2.5 MB) landing on the SAME frame
+  // intermittently blows the frame deadline. Over passthrough a missed frame
+  // has no opaque stale layer to reproject — the whole UI drops out against
+  // the camera feed for a frame ("panels flicker transparent"). The budget
+  // caps panel canvas work at ONE unit (a raster OR an upload) per frame
+  // across all panels, and staging (requestUpload) splits each panel's raster
+  // and upload across two consecutive frames so neither stacks on the other.
+  private static deferPanelWork = false;
+  private static workUnitsThisFrame = 0;
+
+  /**
+   * Reset the frame's panel work budget — called by the session manager at the
+   * top of every XR frame. `deferWork=true` (playback) arms the one-unit cap
+   * and raster/upload staging; `false` (lobby: no per-frame video upload, and
+   * page-slide animations need full rate) keeps the legacy immediate path.
+   */
+  static beginFrame(deferWork: boolean) {
+    VRCanvasPanel.deferPanelWork = deferWork;
+    VRCanvasPanel.workUnitsThisFrame = 0;
+  }
+
+  /**
+   * Claim this frame's single panel-work slot (one raster or one texture
+   * upload). Always succeeds outside playback. Public so the session manager
+   * can budget the shared floating-thumbnail canvas against panel work too.
+   */
+  static claimWorkSlot(): boolean {
+    if (!VRCanvasPanel.deferPanelWork) return true;
+    if (VRCanvasPanel.workUnitsThisFrame >= 1) return false;
+    VRCanvasPanel.workUnitsThisFrame += 1;
+    return true;
+  }
 
   constructor(widthM: number, canvasW: number, canvasH: number, radius = 0) {
     this.wM = widthM;
@@ -231,17 +284,60 @@ export abstract class VRCanvasPanel {
 
   /** Redraw only when something visible changed (cheap when idle). */
   update() {
+    // Stage 2 of a split update: the canvas was rasterized on an earlier
+    // frame — its GPU upload is this frame's panel work, nothing else runs.
+    if (this.flushPendingUpload()) return;
     if (!this.dirty) return;
+    // Another panel already used this frame's work slot — stay dirty and
+    // rasterize on the next free frame instead of stacking onto this one.
+    if (!VRCanvasPanel.claimWorkSlot()) return;
     // Clear *before* draw so a panel can re-mark itself dirty during draw()
     // (page-slide animation, or a playing hover-preview) to drive the next frame.
     this.dirty = false;
     this.regions = [];
     this.draw();
-    this.texture.needsUpdate = true;
+    this.requestUpload();
   }
 
   protected markDirty() {
     this.dirty = true;
+  }
+
+  /**
+   * Flush a staged GPU upload when the frame budget allows. Returns true when
+   * an upload was pending (whether or not it flushed this frame) — the caller
+   * must then do no further canvas work this frame.
+   */
+  protected flushPendingUpload(): boolean {
+    if (!this.pendingUpload) return false;
+    if (VRCanvasPanel.claimWorkSlot()) {
+      this.pendingUpload = false;
+      this.texture.needsUpdate = true;
+    }
+    return true;
+  }
+
+  /**
+   * Send the freshly-rasterized canvas to the GPU: immediately outside
+   * playback, staged to the NEXT frame during it — so no single XR frame pays
+   * the raster and the texImage2D upload on top of the per-frame video upload.
+   */
+  protected requestUpload() {
+    if (VRCanvasPanel.deferPanelWork) this.pendingUpload = true;
+    else this.texture.needsUpdate = true;
+  }
+
+  /**
+   * Debounced markDirty for image `onload`/`onerror`: a burst of thumbnails
+   * resolving together collapses into one redraw instead of one full-canvas
+   * re-upload per image. Only the first arrival in a window arms the timer.
+   */
+  private scheduleImageRedraw() {
+    if (this.imageRedrawTimer !== null) return;
+    this.imageRedrawTimer = setTimeout(() => {
+      this.imageRedrawTimer = null;
+      this.markDirty();
+    }, VRCanvasPanel.IMAGE_REDRAW_COALESCE_MS);
   }
 
   /**
@@ -252,8 +348,14 @@ export abstract class VRCanvasPanel {
    * XR frame. Called during session pre-warm while the loader hides the cost.
    */
   prewarm(renderer: THREE.WebGLRenderer): void {
-    this.dirty = true;
-    this.update();
+    // Direct raster + upload, bypassing the frame work budget — prewarm runs
+    // behind the loader (or a scene switch) where a long frame is invisible,
+    // and deferring it would push the cost onto a live XR frame instead.
+    this.dirty = false;
+    this.pendingUpload = false;
+    this.regions = [];
+    this.draw();
+    this.texture.needsUpdate = true;
     renderer.initTexture(this.texture);
   }
 
@@ -290,7 +392,8 @@ export abstract class VRCanvasPanel {
         this.imageOrder.splice(pos, 1);
         this.imageOrder.push(url);
       }
-      return img.complete && img.naturalWidth > 0 ? img : null;
+      // Only hand back a fully-decoded image so draw() never stalls on decode.
+      return this.decoded.has(url) ? img : null;
     }
     // Cache miss — evict the LRU entry if at capacity.
     if (this.images.size >= VRCanvasPanel.MAX_IMAGES_PER_PANEL) {
@@ -300,19 +403,31 @@ export abstract class VRCanvasPanel {
         if (old && old.parentNode) old.remove();
         this.images.delete(lru);
         this.failed.delete(lru);
+        this.decoded.delete(lru);
       }
     }
     img = new Image();
     img.crossOrigin = "anonymous";
-    img.onload = () => this.markDirty();
-    img.onerror = () => {
-      this.failed.add(url);
-      this.markDirty();
-    };
     img.src = url;
+    // Decode OFF the render thread before the thumbnail is ever handed to
+    // draw(). decode() resolves only once the bitmap is ready to paint without
+    // a synchronous decode, so deferring the redraw until then keeps the JPEG
+    // decode cost out of the XR frame that composites the panel — the stall
+    // behind browse/hover judder, seen as black tiles over transparent
+    // passthrough. On reject (network/decode error) the url is marked failed.
+    img
+      .decode()
+      .then(() => {
+        this.decoded.add(url);
+        this.scheduleImageRedraw();
+      })
+      .catch(() => {
+        this.failed.add(url);
+        this.scheduleImageRedraw();
+      });
     this.images.set(url, img);
     this.imageOrder.push(url);
-    return img.complete && img.naturalWidth > 0 ? img : null;
+    return null;
   }
 
   protected roundRect(x: number, y: number, w: number, h: number, r: number) {
@@ -631,6 +746,10 @@ export abstract class VRCanvasPanel {
   }
 
   dispose() {
+    if (this.imageRedrawTimer !== null) {
+      clearTimeout(this.imageRedrawTimer);
+      this.imageRedrawTimer = null;
+    }
     this.texture.dispose();
     this.material.dispose();
     this.mesh.geometry.dispose();

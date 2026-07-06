@@ -59,6 +59,7 @@ import {
   DEFAULT_VR_PASSTHROUGH_SETTINGS,
 } from "./types";
 import { vrLog } from "./vrLog";
+import { orderSourcesByDecodeSupport } from "./vrDecodeHints";
 
 // A currentTime jump bigger than this between consecutive `timeupdate` ticks
 // is treated as a deliberate seek (vs. the ~0.25s natural playback advance) —
@@ -517,40 +518,49 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
       loopRef.current = null;
       const v = videoRef.current;
       if (v) {
-        // Detach the compositor from the <video> BEFORE draining it. A live
-        // WebXR media layer samples this element directly; draining its source
-        // out from under a bound layer hard-crashes the Quest compositor (see
-        // XRSessionManager.prepareSourceSwap). The new stream rebuilds a fresh
-        // layer via onVideoReady once its metadata loads.
-        managerRef.current?.prepareSourceSwap();
-        // Full video drain: pause, reset time to 0, clear src, then load.
-        // This prevents the browser from retaining the old video's position
-        // and seeking the new source to an out-of-range timestamp.
-        v.pause();
-        v.currentTime = 0;
-        v.removeAttribute("src");
-        v.load();
-
-        const nextSrc = next.paths.stream ?? next.sceneStreams[0]?.url;
-        if (nextSrc) {
-          loadedSrcRef.current = nextSrc;
-          sourceIdx.current = 0;
-          v.muted = !settingsRef.current.soundOnPlay;
-
-          // Set the new source AFTER the old one is fully drained. Wait for
-          // metadata before attempting play.
-          const onMeta = () => {
-            v.removeEventListener("loadedmetadata", onMeta);
+        // Decode-hint ordering (cached MediaCapabilities verdicts) picks the
+        // swap source — async, so the drain below runs inside the callback and
+        // the gen guard drops a switch that went stale while resolving.
+        orderSourcesByDecodeSupport(next, candidateSources(next)).then(
+          (ordered) => {
             if (gen !== switchSceneGen.current) return;
+            // Detach the compositor from the <video> BEFORE draining it. A live
+            // WebXR media layer samples this element directly; draining its
+            // source out from under a bound layer hard-crashes the Quest
+            // compositor (see XRSessionManager.prepareSourceSwap). The new
+            // stream rebuilds a fresh layer via onVideoReady once its metadata
+            // loads.
+            managerRef.current?.prepareSourceSwap();
+            // Full video drain: pause, reset time to 0, clear src, then load.
+            // This prevents the browser from retaining the old video's position
+            // and seeking the new source to an out-of-range timestamp.
+            v.pause();
             v.currentTime = 0;
-            resumeStartTime(v, next.resume_time);
-            v.play().catch(() => undefined);
-          };
-          v.addEventListener("loadedmetadata", onMeta);
-          v.src = nextSrc;
-          vrLog.note("switchscene", { src: nextSrc, id: logId, gen });
-          v.load();
-        }
+            v.removeAttribute("src");
+            v.load();
+
+            const nextSrc = ordered[0];
+            if (nextSrc) {
+              loadedSrcRef.current = nextSrc;
+              sourceIdx.current = 0;
+              v.muted = !settingsRef.current.soundOnPlay;
+
+              // Set the new source AFTER the old one is fully drained. Wait for
+              // metadata before attempting play.
+              const onMeta = () => {
+                v.removeEventListener("loadedmetadata", onMeta);
+                if (gen !== switchSceneGen.current) return;
+                v.currentTime = 0;
+                resumeStartTime(v, next.resume_time);
+                v.play().catch(() => undefined);
+              };
+              v.addEventListener("loadedmetadata", onMeta);
+              v.src = nextSrc;
+              vrLog.note("switchscene", { src: nextSrc, id: logId, gen });
+              v.load();
+            }
+          }
+        );
       }
 
       const nextInfo: IVRSceneInfo = {
@@ -631,10 +641,10 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
         fetch(detailURL, { credentials: "include" }).then((r) => r.json()),
         fetch(sourcesURL, { credentials: "include" }).then((r) => r.json()),
       ])
-        .then(([detail, sources]) => {
+        .then(([detail, srcs]) => {
           if (gen !== switchSceneGen.current) return;
-          if (!detail || !sources?.stream) return;
-          applyScene(buildFapSceneFragment(detail, sources), gen, `faptap:${videoId}`);
+          if (!detail || !srcs?.stream) return;
+          applyScene(buildFapSceneFragment(detail, srcs), gen, `faptap:${videoId}`);
         })
         .catch(() => undefined);
     },
@@ -655,10 +665,10 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
         fetch(detailURL, { credentials: "include" }).then((r) => r.json()),
         fetch(sourcesURL, { credentials: "include" }).then((r) => r.json()),
       ])
-        .then(([detail, sources]) => {
+        .then(([detail, srcs]) => {
           if (gen !== switchSceneGen.current) return;
-          if (!detail || !sources?.stream) return;
-          applyScene(buildPmvSceneFragment(detail, sources), gen, `pmvhaven:${videoId}`);
+          if (!detail || !srcs?.stream) return;
+          applyScene(buildPmvSceneFragment(detail, srcs), gen, `pmvhaven:${videoId}`);
         })
         .catch(() => undefined);
     },
@@ -942,68 +952,92 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
       }
       return;
     }
-    // Guard against redundant reloads: only (re)assign the source when it
-    // actually changes. Prevents mid-playback restarts from re-renders.
-    if (loadedSrcRef.current === sources[0]) return;
-    loadedSrcRef.current = sources[0];
-    sourceIdx.current = 0;
+    // Guard against redundant reloads: if whatever is already loaded belongs
+    // to this scene's candidate set (the effect re-running after an in-VR
+    // applyScene, or a cache-driven re-render), don't drain and reload it.
+    // Membership rather than ===sources[0], because the decode hint below may
+    // have demoted the direct stream on the previous run. Prevents
+    // mid-playback restarts.
+    if (loadedSrcRef.current && sources.includes(loadedSrcRef.current)) return;
     drainStaleSrcCounter.current++;
     const drainGen = drainStaleSrcCounter.current;
+    let disposed = false;
+    let onError: (() => void) | null = null;
 
-    // Detach any live media layer before draining (Quest compositor crash
-    // hazard; no-op on the dome path / first load).
-    managerRef.current?.prepareSourceSwap();
-    // Drain the old source before loading the new one. This prevents the
-    // browser from retaining the previous video's currentTime and trying to
-    // seek the new source to an out-of-range position.
-    v.pause();
-    v.currentTime = 0;
-    v.removeAttribute("src");
-    v.load();
+    // Decode-support hint: demote the direct stream below the transcodes when
+    // MediaCapabilities says this device can't decode its codec — proactive,
+    // instead of waiting for the <video> error fallback below to find out.
+    orderSourcesByDecodeSupport(liveSceneRef.current, sources).then(
+      (ordered) => {
+        if (disposed || drainGen !== drainStaleSrcCounter.current) return;
+        loadedSrcRef.current = ordered[0];
+        sourceIdx.current = 0;
 
-    // Use loadedmetadata to confirm the new source is ready, reset currentTime,
-    // and start playback. This mirrors the handleSwitchScene pattern exactly.
-    const onMeta = () => {
-      v.removeEventListener("loadedmetadata", onMeta);
-      if (drainGen !== drainStaleSrcCounter.current) return;
-      v.currentTime = 0;
-      resumeStartTime(v, liveSceneRef.current.resume_time);
-      v.play().catch(() => undefined);
-    };
-    v.addEventListener("loadedmetadata", onMeta);
-    v.src = sources[0];
-    vrLog.attach(v);
-    vrLog.note("srcset", { src: sources[0], count: sources.length });
-    v.muted = !settingsRef.current.soundOnPlay;
-
-    const onError = () => {
-      v.removeEventListener("error", onError);
-      if (drainGen !== drainStaleSrcCounter.current) return;
-      if (sourceIdx.current < sources.length - 1) {
-        sourceIdx.current += 1;
-        loadedSrcRef.current = sources[sourceIdx.current];
-        // Drain + metadata-wait for the fallback source too.
+        // Detach any live media layer before draining (Quest compositor crash
+        // hazard; no-op on the dome path / first load).
+        managerRef.current?.prepareSourceSwap();
+        // Drain the old source before loading the new one. This prevents the
+        // browser from retaining the previous video's currentTime and trying
+        // to seek the new source to an out-of-range position.
         v.pause();
         v.currentTime = 0;
         v.removeAttribute("src");
         v.load();
-        const onFallbackMeta = () => {
-          v.removeEventListener("loadedmetadata", onFallbackMeta);
+
+        // Use loadedmetadata to confirm the new source is ready, reset
+        // currentTime, and start playback. Mirrors handleSwitchScene exactly.
+        const onMeta = () => {
+          v.removeEventListener("loadedmetadata", onMeta);
           if (drainGen !== drainStaleSrcCounter.current) return;
           v.currentTime = 0;
           resumeStartTime(v, liveSceneRef.current.resume_time);
           v.play().catch(() => undefined);
         };
-        v.addEventListener("loadedmetadata", onFallbackMeta);
-        v.src = sources[sourceIdx.current];
-        v.load();
-      } else {
-        setError("Unable to play this scene in VR (codec unsupported).");
+        v.addEventListener("loadedmetadata", onMeta);
+        v.src = ordered[0];
+        vrLog.attach(v);
+        vrLog.note("srcset", { src: ordered[0], count: ordered.length });
+        v.muted = !settingsRef.current.soundOnPlay;
+
+        // Walks the WHOLE candidate chain (the old handler removed itself and
+        // never re-armed, so only one fallback step ever ran). Detached during
+        // each drain and re-armed after the new src is set, so a spurious
+        // error from the drain itself can't skip a candidate.
+        const handleError = () => {
+          v.removeEventListener("error", handleError);
+          if (drainGen !== drainStaleSrcCounter.current) return;
+          if (sourceIdx.current < ordered.length - 1) {
+            sourceIdx.current += 1;
+            loadedSrcRef.current = ordered[sourceIdx.current];
+            // Drain + metadata-wait for the fallback source too.
+            v.pause();
+            v.currentTime = 0;
+            v.removeAttribute("src");
+            v.load();
+            const onFallbackMeta = () => {
+              v.removeEventListener("loadedmetadata", onFallbackMeta);
+              if (drainGen !== drainStaleSrcCounter.current) return;
+              v.currentTime = 0;
+              resumeStartTime(v, liveSceneRef.current.resume_time);
+              v.play().catch(() => undefined);
+            };
+            v.addEventListener("loadedmetadata", onFallbackMeta);
+            v.src = ordered[sourceIdx.current];
+            v.addEventListener("error", handleError);
+            v.load();
+          } else {
+            setError("Unable to play this scene in VR (codec unsupported).");
+          }
+        };
+        onError = handleError;
+        v.addEventListener("error", handleError);
+        v.load(); // kick off the network fetch
       }
+    );
+    return () => {
+      disposed = true;
+      if (onError) v.removeEventListener("error", onError);
     };
-    v.addEventListener("error", onError);
-    v.load(); // kick off the network fetch
-    return () => v.removeEventListener("error", onError);
   }, [sources]);
 
   // Track the active caption cue for the in-VR caption line.

@@ -45,6 +45,12 @@ export interface IControllerInputCallbacks {
    */
   onDomeDrag: (deltaYaw: number, deltaPitch: number) => void;
   /**
+   * A dome grip-drag engaged (true) or released/abandoned (false). Lets the
+   * renderer swap dome tessellation for the duration of the drag. Optional —
+   * purely a performance hook, never load-bearing.
+   */
+  onDomeDragActive?: (active: boolean) => void;
+  /**
    * Clap gesture detected: both controllers are within CLAP_DISTANCE of each
    * other (i.e. the user brought their hands together), which should show
    * the UI panels.  Fires once per clap.
@@ -258,6 +264,7 @@ export class VRControllerInput {
         // Abandon a dome grab silently — no recenter on a lost controller.
         if (this.domeDragController === controller) {
           this.domeDragController = null;
+          this.cb.onDomeDragActive?.(false);
         }
       };
       controller.addEventListener("selectstart", onSelectStart);
@@ -341,7 +348,10 @@ export class VRControllerInput {
    */
   setDomeDragEnabled(enabled: boolean) {
     this.domeDragEnabled = enabled;
-    if (!enabled) this.domeDragController = null;
+    if (!enabled && this.domeDragController) {
+      this.domeDragController = null;
+      this.cb.onDomeDragActive?.(false);
+    }
   }
 
   /** The registered draggable that `obj` belongs to (itself or an ancestor). */
@@ -448,6 +458,7 @@ export class VRControllerInput {
       this.domeDragAz = Math.atan2(-d.x, -d.z);
       this.domeDragEl = Math.asin(THREE.MathUtils.clamp(d.y, -1, 1));
       this.domeDragMoved = 0;
+      this.cb.onDomeDragActive?.(true);
     } else {
       this.cb.onRecenter();
     }
@@ -457,6 +468,8 @@ export class VRControllerInput {
     if (this.draggingController === controller) this.draggingController = null;
     if (this.domeDragController === controller) {
       this.domeDragController = null;
+      // Restore full dome tessellation before a possible recenter below.
+      this.cb.onDomeDragActive?.(false);
       // Barely moved before release → this was the classic quick-squeeze
       // recenter, not a drag.
       if (this.domeDragMoved < DOME_DRAG_TAP_RAD) this.cb.onRecenter();

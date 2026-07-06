@@ -8,9 +8,10 @@
  * every projection control (FOV, stereo, swap-eyes, recenter) and renders
  * crisply on Quest 3 at high framebuffer scale.
  *
- * NOTE: an `XREquirectLayer` media-layer "max quality" mode (compositor-sampled
- * video) is a planned follow-up — it needs on-device tuning and gracefully sits
- * behind this same manager interface.
+ * NOTE: the `XREquirectLayer` media-layer path (compositor-sampled video) has
+ * shipped and is the preferred path for 180/360 equirect content — see
+ * wantsMediaLayer() / buildMediaLayer(). The shader dome remains the path for
+ * fisheye190, flat, chroma-key passthrough, and Layers-less runtimes.
  *
  * The floating UI is one consolidated control panel (transport + performers
  * carousel + tag/chapter strips) plus a collapsible Handy sub-panel, living in
@@ -76,6 +77,7 @@ import {
 } from "./types";
 import type { IThumbnailCrop } from "./vttThumbnails";
 import { vrLog } from "./vrLog";
+import { VRStatusMonitor } from "./vrStatus";
 
 const DOME_RADIUS = 500;
 
@@ -132,6 +134,12 @@ const CHROMA_KEY_GLSL = `
 // fisheye190 path. 48×32 is visually indistinguishable at DOME_RADIUS=500.
 const DOME_SEG_W = 48;
 const DOME_SEG_H = 32;
+// Coarser tessellation swapped in only while a grip-drag is rotating the dome
+// (per-frame orientation updates land on a lighter mesh, and drag motion masks
+// the already-subtle difference). Swapping is a geometry-pointer flip — both
+// LODs are prebuilt by makeDomeMesh / makeFisheyeMesh.
+const DOME_DRAG_SEG_W = 24;
+const DOME_DRAG_SEG_H = 16;
 const PANEL_DISTANCE = 2.4;
 const PANEL_DROP = 0.45; // metres below eye level
 const PANEL_TILT = 0.18; // radians the UI group leans back toward the eyes
@@ -182,14 +190,17 @@ const THUMB_CANVAS_H = 270;
 
 /**
  * Debug bisection flags for the on-device flicker hunt, read from the URL
- * (`?vrDebug=solid,mono`) or localStorage `vrDebug`. All default off, so the
- * normal render path is unchanged. Flags:
+ * (`?vrDebug=solid,mono`) or localStorage `vrDebug`. Parsed ONCE into a typed
+ * object at manager construction — call sites read `this.debug.solid` etc., so
+ * a typo'd flag name is a compile error and this interface is the whole QA
+ * surface. All default off, so the normal render path is unchanged. Flags:
  *   solid      — dome uses a flat colour, not the video texture (isolates the
  *                VideoTexture / per-frame upload as the flicker source)
  *   mono       — force a single mono dome mesh (isolates the stereo eye-layer
  *                assignment)
  *   noaa       — disable renderer MSAA (antialias)
- *   nofov      — disable fixed-foveated rendering
+ *   nofov      — disable fixed-foveated rendering (also pins the load-adaptive
+ *                escalation in applyLoadFoveation off)
  *   hideui     — keep the whole UI hidden (isolates panel rendering)
  *   noautohide — keep the UI permanently visible (isolates the auto-hide fade)
  *   nomedialayer — force the shader-dome texture path instead of the WebXR
@@ -197,9 +208,26 @@ const THUMB_CANVAS_H = 270;
  *   opaque     — build the renderer opaque (alpha off, opaque black clear), i.e.
  *                the pre-media-layer behaviour. Use with `nomedialayer` to fully
  *                restore the original render path for regression A/B.
+ * (`noar` also exists but is honoured by passthrough.ts's session-request
+ * helper in the eager bundle, which keeps its own tiny reader.)
  */
-function readVrDebug(): Set<string> {
-  const out = new Set<string>();
+interface IVRDebugFlags {
+  readonly solid: boolean;
+  readonly mono: boolean;
+  readonly noaa: boolean;
+  readonly nofov: boolean;
+  readonly hideui: boolean;
+  readonly noautohide: boolean;
+  readonly nomedialayer: boolean;
+  readonly opaque: boolean;
+  /** True when any token (recognised or not) is set — gates diagnostics. */
+  readonly any: boolean;
+  /** Raw tokens for the constructor's flag echo. */
+  readonly raw: string[];
+}
+
+function readVrDebug(): IVRDebugFlags {
+  const set = new Set<string>();
   try {
     const url = new URLSearchParams(window.location.search).get("vrDebug");
     const ls = window.localStorage.getItem("vrDebug");
@@ -207,13 +235,24 @@ function readVrDebug(): Set<string> {
       if (!raw) continue;
       for (const part of raw.split(",")) {
         const t = part.trim().toLowerCase();
-        if (t) out.add(t);
+        if (t) set.add(t);
       }
     }
   } catch {
     /* SSR / blocked storage — ignore */
   }
-  return out;
+  return {
+    solid: set.has("solid"),
+    mono: set.has("mono"),
+    noaa: set.has("noaa"),
+    nofov: set.has("nofov"),
+    hideui: set.has("hideui"),
+    noautohide: set.has("noautohide"),
+    nomedialayer: set.has("nomedialayer"),
+    opaque: set.has("opaque"),
+    any: set.size > 0,
+    raw: [...set],
+  };
 }
 
 /** Map our stereo-packing mode to the WebXR composition-layer layout. */
@@ -402,7 +441,7 @@ export class XRSessionManager {
   // rebuilds; recenter re-matches it to the current gaze.
   private videoPitch = 0;
   private opts: IXRSessionManagerOptions;
-  private debug: Set<string>;
+  private debug: IVRDebugFlags;
   private onSessionEnd = () => this.handleEnd();
   // Promote to the media layer once the <video> has real dimensions. The layer
   // constructors throw on a zero-size video, so on a cold session start (or a
@@ -438,6 +477,9 @@ export class XRSessionManager {
   };
   private tmpVec = new THREE.Vector3();
   private tmpEuler = new THREE.Euler(0, 0, 0, "YXZ");
+  // Scratch for equirectTransform — a grip-drag updates the media layer's
+  // transform every frame, so its quaternion must not be re-allocated.
+  private tmpQuat = new THREE.Quaternion();
 
   // Collapsible Handy (interactive device) sub-panel, toggled from the bar.
   private handyPanel: VRHandyPanel | null = null;
@@ -553,6 +595,8 @@ export class XRSessionManager {
   private lobbyVArmed = true;
   // Reused per-frame draw payload (avoids allocating an object every frame).
   private drawInput: IDrawInput;
+  // Wall clock + battery levels for the control bar's status cluster.
+  private status = new VRStatusMonitor();
 
   // Auto-hide fade state. The UI is world-anchored (never head-follows) and is
   // moved only by grabbing it; it just fades out after a spell of no input.
@@ -631,9 +675,9 @@ export class XRSessionManager {
     };
     this.updateChromaKeyUniforms();
     this.debug = readVrDebug();
-    if (this.debug.size) {
+    if (this.debug.any) {
       // eslint-disable-next-line no-console
-      console.info("[VR debug] flags:", [...this.debug].join(", "));
+      console.info("[VR debug] flags:", this.debug.raw.join(", "));
     }
 
     // Transparent context so three's XR projection layer (UI + controllers) can
@@ -643,9 +687,9 @@ export class XRSessionManager {
     // buffer makes the Quest compositor show black tiles in disoccluded regions
     // when it reprojects a late frame, so we keep the dome/lobby paths opaque.
     // The `opaque` debug flag forces the pre-media-layer renderer for A/B.
-    const transparent = !this.debug.has("opaque");
+    const transparent = !this.debug.opaque;
     this.renderer = new THREE.WebGLRenderer({
-      antialias: !this.debug.has("noaa"),
+      antialias: !this.debug.noaa,
       alpha: transparent,
     });
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -847,6 +891,7 @@ export class XRSessionManager {
         this.opts.onAction({ type: "seekRelative", seconds }),
       onRecenter: () => this.recenter(),
       onDomeDrag: (dYaw, dPitch) => this.nudgeVideoOrientation(dYaw, dPitch),
+      onDomeDragActive: (active) => this.setDomeDragLod(active),
       onClap: () => {
         // Clap gesture: show the UI panels immediately.  This is the primary
         // way users bring the controls back up during playback — unlike hand
@@ -1035,17 +1080,16 @@ export class XRSessionManager {
     // Camera passthrough only composites inside an immersive-ar session (the
     // Enter-VR buttons request AR-first); both toggles key off this.
     this.passthroughAvailable = isPassthroughSession(session);
+    this.status.setSession(session);
     this.homePanel?.setPassthroughSupported(this.passthroughAvailable);
     this.applyLobbyBackdrop();
     // Re-attempt the media layer once the video has dimensions / on scene switch.
     this.opts.video.addEventListener("loadedmetadata", this.onVideoReady);
     this.opts.video.addEventListener("loadeddata", this.onVideoReady);
     this.opts.video.addEventListener("resize", this.onVideoReady);
-    try {
-      this.renderer.xr.setFoveation(this.debug.has("nofov") ? 0 : 0.5);
-    } catch {
-      /* not supported — ignore */
-    }
+    // Baseline fixed foveation; escalated with the auto-throttle level by
+    // applyLoadFoveation, pinned off by the `nofov` debug flag.
+    this.applyLoadFoveation();
     // The session, reference space and three's projection layer all exist now,
     // so pick the video path: WebXR media layer (default) or the shader dome.
     this.rebuildVideoProjection();
@@ -1184,8 +1228,28 @@ export class XRSessionManager {
   closeBrowse() {
     if (this.browseOpen) {
       this.browseOpen = false;
+      // A row preview started while hovering the Scenes list would otherwise
+      // keep playing (and its floating quad keep showing) after the panel is
+      // dismissed — stop it as the panel closes.
+      this.resetHoverPreview();
       this.rebuildBrowseHittables();
     }
+  }
+
+  /**
+   * Stop + forget the shared hover-preview <video> and hide its floating quad.
+   * Shared by the lobby-mode change and Browse close so a preview started while
+   * hovering a scene row can't outlive the panel it belongs to.
+   */
+  private resetHoverPreview() {
+    this.previewSceneId = null;
+    this.previewPendingId = null;
+    if (this.previewHoverTimer !== null) {
+      window.clearTimeout(this.previewHoverTimer);
+      this.previewHoverTimer = null;
+    }
+    if (this.previewVideo) this.previewVideo.pause();
+    this.thumbPreview.visible = false;
   }
 
   /** Tell the scenes panel which scene is currently playing (for the Now Playing badge). */
@@ -1215,13 +1279,7 @@ export class XRSessionManager {
       this.ptPanelOpen = false;
     }
     // Reset the shared hover-preview <video> across the mode change.
-    this.previewSceneId = null;
-    this.previewPendingId = null;
-    if (this.previewHoverTimer !== null) {
-      window.clearTimeout(this.previewHoverTimer);
-      this.previewHoverTimer = null;
-    }
-    if (this.previewVideo) this.previewVideo.pause();
+    this.resetHoverPreview();
     // Hub passthrough hides the backdrop; player passthrough is applied by the
     // dome materials — both clear-alpha states settle in syncRenderStateLayers.
     this.applyLobbyBackdrop();
@@ -1997,7 +2055,7 @@ export class XRSessionManager {
   /** Is the WebXR Media Binding usable in this build/runtime? */
   private mediaLayersAvailable(): boolean {
     return (
-      !this.debug.has("nomedialayer") &&
+      !this.debug.nomedialayer &&
       typeof XRMediaBinding !== "undefined" &&
       typeof XRRigidTransform !== "undefined"
     );
@@ -2038,10 +2096,15 @@ export class XRSessionManager {
     );
   }
 
-  /** Rigid transform encoding the current yaw/pitch for the equirect layer. */
+  /**
+   * Rigid transform encoding the current yaw/pitch for the equirect layer.
+   * Scratch euler/quaternion are reused — this runs on every orientation
+   * update during a grip-drag (i.e. per frame); only the XRRigidTransform
+   * itself is allocated, being an immutable platform object.
+   */
   private equirectTransform(): XRRigidTransform {
-    const q = new THREE.Quaternion().setFromEuler(
-      new THREE.Euler(this.videoPitch, this.videoYaw, 0, "YXZ")
+    const q = this.tmpQuat.setFromEuler(
+      this.tmpEuler.set(this.videoPitch, this.videoYaw, 0, "YXZ")
     );
     return new XRRigidTransform(
       { x: 0, y: 0, z: 0 },
@@ -2099,7 +2162,7 @@ export class XRSessionManager {
     vrLog.flushNow();
     // Diagnostic (visible over chrome://inspect) — which video path won and why.
     // Gated behind any vrDebug flag so production stays quiet.
-    if (this.debug.size) {
+    if (this.debug.any) {
       // eslint-disable-next-line no-console
       console.info(
         `[VR] video path = ${
@@ -2125,6 +2188,43 @@ export class XRSessionManager {
     this.input.setDomeDragEnabled(
       this.projection.fov !== "flat" && !this.lobbyMode
     );
+  }
+
+  /**
+   * Swap the dome meshes between full and drag tessellation (see
+   * DOME_DRAG_SEG_W). Pointer swap only — both geometries are prebuilt, so
+   * this never allocates mid-drag. No-op on the media-layer path (no dome
+   * meshes) and for the flat screen (dome drag is disabled there).
+   */
+  private setDomeDragLod(dragging: boolean) {
+    for (const m of this.domeMeshes) {
+      const g = (dragging ? m.userData.lodDrag : m.userData.lodFull) as
+        | THREE.BufferGeometry
+        | undefined;
+      if (g && m.geometry !== g) m.geometry = g;
+    }
+  }
+
+  /**
+   * Fixed-foveation for the current load. Baseline 0.5 (the shipped constant);
+   * sustained-hitch throttle levels push it to 0.75 / 1.0 — peripheral
+   * resolution is the cheapest quality to give back under load, so it goes
+   * first, ahead of the level-2 backdrop/upload skips. `nofov` pins it off (0)
+   * for A/B bisection.
+   */
+  private applyLoadFoveation() {
+    const f = this.debug.nofov
+      ? 0
+      : this.throttleLevel === 0
+      ? 0.5
+      : this.throttleLevel === 1
+      ? 0.75
+      : 1;
+    try {
+      this.renderer.xr.setFoveation(f);
+    } catch {
+      /* not supported — ignore */
+    }
   }
 
   /**
@@ -2173,7 +2273,7 @@ export class XRSessionManager {
     this.destroyMediaLayer();
 
     const p = this.projection;
-    if (this.debug.size) {
+    if (this.debug.any) {
       const v = this.opts.video;
       // eslint-disable-next-line no-console
       console.info(
@@ -2236,7 +2336,7 @@ export class XRSessionManager {
     // Passthrough is the second sanctioned transparent case: in an immersive-ar
     // session the compositor fills disoccluded regions with the camera feed, so
     // the black-tile reprojection hazard above doesn't apply there.
-    if (!this.debug.has("opaque")) {
+    if (!this.debug.opaque) {
       const transparent = showVideoLayer || this.passthroughActive();
       this.renderer.setClearColor(0x000000, transparent ? 0 : 1);
     }
@@ -2308,7 +2408,16 @@ export class XRSessionManager {
     this.keyedMaterials.length = 0;
     for (const m of this.domeMeshes) {
       this.videoGroup.remove(m);
-      m.geometry.dispose();
+      // Dispose both prebuilt LODs (m.geometry aliases one of them).
+      const lods = m.userData as {
+        lodFull?: THREE.BufferGeometry;
+        lodDrag?: THREE.BufferGeometry;
+      };
+      lods.lodFull?.dispose();
+      lods.lodDrag?.dispose();
+      if (m.geometry !== lods.lodFull && m.geometry !== lods.lodDrag) {
+        m.geometry.dispose();
+      }
       (m.material as THREE.Material).dispose();
     }
     this.domeMeshes = [];
@@ -2343,7 +2452,7 @@ export class XRSessionManager {
       // Dual-fisheye SBS: a forward dome per eye, sampling its own circle via a
       // shader that un-distorts the equidistant projection. Additive path —
       // leaves the equirect/flat logic below untouched.
-      if (isStereo(p) && !this.debug.has("mono")) {
+      if (isStereo(p) && !this.debug.mono) {
         this.domeMeshes.push(this.makeFisheyeMesh("left", 1));
         this.domeMeshes.push(this.makeFisheyeMesh("right", 2));
       } else {
@@ -2378,7 +2487,7 @@ export class XRSessionManager {
         select: () => null,
         up: () => null,
       };
-    } else if (isStereo(p) && !this.debug.has("mono")) {
+    } else if (isStereo(p) && !this.debug.mono) {
       this.domeMeshes.push(this.makeDomeMesh(uvTransformForEye(p, "left"), 1));
       this.domeMeshes.push(this.makeDomeMesh(uvTransformForEye(p, "right"), 2));
     } else {
@@ -2404,18 +2513,22 @@ export class XRSessionManager {
     // For 180, span the front hemisphere; phiStart calibrated so the centre
     // faces forward after the -PI/2 mesh rotation below. Full sphere for 360.
     const phiStart = is180 ? Math.PI / 2 : 0;
-    const geometry = new THREE.SphereGeometry(
-      DOME_RADIUS,
-      DOME_SEG_W,
-      DOME_SEG_H,
-      phiStart,
-      coverage
-    );
-    // Render the inside without mirroring the texture (proven recipe).
-    geometry.scale(-1, 1, 1);
-    this.applyUv(geometry, uv);
+    const buildGeo = (segW: number, segH: number) => {
+      const g = new THREE.SphereGeometry(
+        DOME_RADIUS,
+        segW,
+        segH,
+        phiStart,
+        coverage
+      );
+      // Render the inside without mirroring the texture (proven recipe).
+      g.scale(-1, 1, 1);
+      this.applyUv(g, uv);
+      return g;
+    };
+    const geometry = buildGeo(DOME_SEG_W, DOME_SEG_H);
 
-    const material = this.debug.has("solid")
+    const material = this.debug.solid
       ? new THREE.MeshBasicMaterial({ color: 0x224466 })
       : this.videoPassthrough
       ? this.makeKeyedVideoMaterial(THREE.FrontSide)
@@ -2426,6 +2539,9 @@ export class XRSessionManager {
     // Never frustum-cull: the viewer is inside this dome, so a marginal
     // bounding-sphere test must never blank the whole video as the head turns.
     mesh.frustumCulled = false;
+    // Both LODs prebuilt — setDomeDragLod() just swaps geometry pointers.
+    mesh.userData.lodFull = geometry;
+    mesh.userData.lodDrag = buildGeo(DOME_DRAG_SEG_W, DOME_DRAG_SEG_H);
     return mesh;
   }
 
@@ -2441,14 +2557,18 @@ export class XRSessionManager {
     // into the geometry means the shader can derive the view direction straight
     // from `position`, and BackSide handles inside-out viewing without the
     // texture-mirroring scale(-1,1,1) trick the equirect path relies on.
-    const geometry = new THREE.SphereGeometry(
-      DOME_RADIUS,
-      DOME_SEG_W,
-      DOME_SEG_H,
-      Math.PI / 2,
-      Math.PI
-    );
-    geometry.rotateY(Math.PI / 2); // centre the hemisphere on -Z (forward)
+    const buildGeo = (segW: number, segH: number) => {
+      const g = new THREE.SphereGeometry(
+        DOME_RADIUS,
+        segW,
+        segH,
+        Math.PI / 2,
+        Math.PI
+      );
+      g.rotateY(Math.PI / 2); // centre the hemisphere on -Z (forward)
+      return g;
+    };
+    const geometry = buildGeo(DOME_SEG_W, DOME_SEG_H);
 
     // This eye's half of the SBS frame. The encoded circle fills its half-frame
     // square: in UV the radius is 0.25 horizontally (half of a half-width) but
@@ -2461,7 +2581,7 @@ export class XRSessionManager {
     const radius = new THREE.Vector2(0.25, 0.5);
     const maskBand = maskEdgeBand(this.passthroughSettings);
 
-    const material = this.debug.has("solid")
+    const material = this.debug.solid
       ? new THREE.MeshBasicMaterial({ color: 0x224466, side: THREE.BackSide })
       : new THREE.ShaderMaterial({
           side: THREE.BackSide,
@@ -2583,6 +2703,11 @@ export class XRSessionManager {
     const mesh = new THREE.Mesh(geometry, material);
     mesh.layers.set(layer);
     mesh.frustumCulled = false;
+    // Both LODs prebuilt — setDomeDragLod() just swaps geometry pointers. The
+    // fisheye shader derives view direction from `position` per-pixel, so the
+    // coarse mesh only affects tessellation, not the un-distort mapping.
+    mesh.userData.lodFull = geometry;
+    mesh.userData.lodDrag = buildGeo(DOME_DRAG_SEG_W, DOME_DRAG_SEG_H);
     return mesh;
   }
 
@@ -2619,7 +2744,7 @@ export class XRSessionManager {
     geometry.setIndex(idx);
     geometry.computeVertexNormals();
 
-    const material = this.debug.has("solid")
+    const material = this.debug.solid
       ? new THREE.MeshBasicMaterial({ color: 0x224466 })
       : this.videoPassthrough
       ? this.makeKeyedVideoMaterial(THREE.FrontSide)
@@ -2690,12 +2815,19 @@ export class XRSessionManager {
   private render = (time: number) => {
     const jitter = vrLog.profile === "jitter";
     let didUpload = false;
+    // Previous→current frame delta, computed ONCE before frameLast advances.
+    // Both the telemetry block and the auto-throttle consume it — the throttle
+    // used to re-derive it from frameLast *after* the telemetry block had set
+    // frameLast = time (and frameLast never advanced at all without ?vrlog),
+    // so its dt was always 0 and no throttle level was ever reachable.
+    const frameDt = this.frameLast > 0 ? time - this.frameLast : 0;
+    this.frameLast = time;
     // XR frame-time telemetry (only when ?vrlog is active). A hitch here = a long
     // JS/render frame (our code, GC, texture upload); if these stay smooth but
     // the headset still judders, the stutter is compositor/cadence, not render.
     if (vrLog.active) {
-      if (this.frameLast) {
-        const dt = time - this.frameLast;
+      if (frameDt > 0) {
+        const dt = frameDt;
         this.frameAccum += dt;
         this.frameCount++;
         if (dt > this.frameMax) this.frameMax = dt;
@@ -2728,7 +2860,6 @@ export class XRSessionManager {
       } else {
         this.frameReportAt = time;
       }
-      this.frameLast = time;
     }
 
     // Force the video texture to upload the latest decoded frame every XR
@@ -2773,7 +2904,7 @@ export class XRSessionManager {
     // tracks a rolling window of hitches (frames > THROTTLE_HITCH_MS). When
     // the count exceeds THROTTLE_ESCALATE_AT within the window, quality is
     // dialled down a notch. Smooth frames gradually decay the level back.
-    const dt = this.frameLast ? time - this.frameLast : 0;
+    const dt = frameDt;
     if (dt > THROTTLE_HITCH_MS) {
       this.throttleHitches++;
       if (time - this.throttleWindowStart > THROTTLE_WINDOW_MS) {
@@ -2787,6 +2918,7 @@ export class XRSessionManager {
         this.throttleLevel++;
         this.throttleHitches = 0;
         this.throttleWindowStart = time;
+        this.applyLoadFoveation();
         vrLog.note("throttle_escalate", { level: this.throttleLevel });
       }
     }
@@ -2798,6 +2930,7 @@ export class XRSessionManager {
         this.throttleDecayAccum = 0;
         this.throttleHitches = 0;
         this.throttleWindowStart = time;
+        this.applyLoadFoveation();
         vrLog.note("throttle_decay", { level: this.throttleLevel });
       }
     } else if (dt > THROTTLE_HITCH_MS) {
@@ -2847,15 +2980,22 @@ export class XRSessionManager {
     }
 
     const pUi0 = jitter ? performance.now() : 0;
+    // Panel canvas work budget for this frame. During playback every frame
+    // already carries the video texture upload, so panel rasters/uploads are
+    // capped at one per frame and staged across frames (see VRCanvasPanel) —
+    // otherwise an interaction-frame pileup drops the frame, which over
+    // transparent passthrough reads as the whole UI flickering out against
+    // the camera feed. Lobby frames have no video upload: full-rate updates.
+    VRCanvasPanel.beginFrame(!this.lobbyMode);
     // Auto-hide: fade the whole UI group toward visible/hidden. Debug flags can
     // pin it fully hidden or fully shown to isolate UI rendering vs the dome.
     const lobby = this.lobbyMode;
     if (lobby) {
       // The Home wall is always visible (no auto-hide) while in the lobby.
       this.uiOpacity = 1;
-    } else if (this.debug.has("hideui")) {
+    } else if (this.debug.hideui) {
       this.uiOpacity = 0;
-    } else if (this.debug.has("noautohide")) {
+    } else if (this.debug.noautohide) {
       this.uiOpacity = 1;
     } else {
       const idle = time - this.lastActivity > AUTO_HIDE_MS;
@@ -2868,6 +3008,9 @@ export class XRSessionManager {
       // playback bar + side panels stay hidden.
       this.panel.setRenderState(0);
       this.handyPanel?.setRenderState(0);
+      // The PT panel is hidden in lobby too — omitting it here left it stuck at
+      // its last playback-mode visibility, floating over the Home wall.
+      this.ptPanel?.setRenderState(0);
       this.infoPanel?.setRenderState(0);
       this.scenesPanel?.setRenderState(0);
       this.homePanel?.setRenderState(this.galleryOpen ? 0 : op);
@@ -2931,6 +3074,10 @@ export class XRSessionManager {
         d.caption = this.opts.getCaption();
         d.handyOpen = this.handyPanelOpen;
         d.browseOpen = this.browseOpen;
+        // Status cluster (clock + batteries): snapshot() reuses one object and
+        // self-throttles to 1 Hz; statusVersion is the fingerprint change signal.
+        d.status = this.status.snapshot(time);
+        d.statusVersion = this.status.version;
         if (d.passthrough) {
           d.passthrough.available = this.passthroughAvailable;
           d.passthrough.on = this.videoPassthrough;
@@ -3221,7 +3368,12 @@ export class XRSessionManager {
       this.updateChapterThumb(chapIndex, uiOpacity);
       return;
     }
-    const sceneHoverId = this.scenesPanel?.hoveredSceneId ?? null;
+    // Only the Scenes list drives the row popup, and only while Browse is open —
+    // a stale hoveredSceneId left over after the panel closed must not keep the
+    // floating preview alive.
+    const sceneHoverId = this.browseOpen
+      ? this.scenesPanel?.hoveredSceneId ?? null
+      : null;
     if (sceneHoverId) {
       this.stopChapterPreviewVideo();
       this.updateSceneRowThumb(sceneHoverId, uiOpacity);
@@ -3357,7 +3509,9 @@ export class XRSessionManager {
           title ?? ""
         }`
       : `nothumb#${title ?? ""}`;
-    if (key !== this.lastThumbKey) {
+    // The redraw + upload competes for the frame's panel-work slot; on a miss
+    // the previous canvas stays up one more frame and the key retries.
+    if (key !== this.lastThumbKey && VRCanvasPanel.claimWorkSlot()) {
       ctx.clearRect(0, 0, THUMB_CANVAS_W, THUMB_CANVAS_H);
       if (crop) {
         try {
@@ -3429,9 +3583,13 @@ export class XRSessionManager {
 
     if (videoActive && video) {
       // A moving picture can't be gated behind the static dirty-check below —
-      // redraw + re-upload every tick while it's playing.
-      this.drawChapterVideoFrame(video, marker.vrMode);
-      this.thumbTexture.needsUpdate = true;
+      // redraw + re-upload every tick it wins the frame's panel-work slot (a
+      // skipped tick just holds the previous frame; under contention the clip
+      // runs at ~half rate instead of dropping compositor frames).
+      if (VRCanvasPanel.claimWorkSlot()) {
+        this.drawChapterVideoFrame(video, marker.vrMode);
+        this.thumbTexture.needsUpdate = true;
+      }
       const limit = this.panel.widthMeters / 2 - THUMB_W_M / 2;
       const x = Math.min(limit, Math.max(-limit, anchor.x));
       this.thumbPreview.position.set(
@@ -3452,7 +3610,7 @@ export class XRSessionManager {
     }
 
     const key = `chap:${index}#${img.src}`;
-    if (key !== this.lastThumbKey) {
+    if (key !== this.lastThumbKey && VRCanvasPanel.claimWorkSlot()) {
       if (!this.drawThumbStaticImage(img)) {
         this.thumbPreview.visible = false;
         return;
@@ -3534,13 +3692,17 @@ export class XRSessionManager {
 
     if (videoActive && this.previewVideo) {
       // A moving picture can't be gated behind the static dirty-check below —
-      // redraw + re-upload every tick while it's playing.
-      const entry = panel.allLoadedScenes().find((s) => s.id === id);
-      this.drawChapterVideoFrame(
-        this.previewVideo,
-        entry?.vrMode as GQL.VrMode | undefined
-      );
-      this.thumbTexture.needsUpdate = true;
+      // redraw + re-upload every tick it wins the frame's panel-work slot (a
+      // skipped tick just holds the previous frame; under contention the clip
+      // runs at ~half rate instead of dropping compositor frames).
+      if (VRCanvasPanel.claimWorkSlot()) {
+        const entry = panel.allLoadedScenes().find((s) => s.id === id);
+        this.drawChapterVideoFrame(
+          this.previewVideo,
+          entry?.vrMode as GQL.VrMode | undefined
+        );
+        this.thumbTexture.needsUpdate = true;
+      }
     } else {
       const img = panel.getScenePreviewImage(id);
       if (!img) {
@@ -3548,7 +3710,7 @@ export class XRSessionManager {
         return;
       }
       const key = `scene:${id}#${img.src}`;
-      if (key !== this.lastThumbKey) {
+      if (key !== this.lastThumbKey && VRCanvasPanel.claimWorkSlot()) {
         if (!this.drawThumbStaticImage(img)) {
           this.thumbPreview.visible = false;
           return;
@@ -3587,6 +3749,7 @@ export class XRSessionManager {
     this.opts.video.removeEventListener("loadeddata", this.onVideoReady);
     this.opts.video.removeEventListener("resize", this.onVideoReady);
     this.input.dispose();
+    this.status.dispose();
     this.deviceModels?.dispose();
     this.panel.dispose();
     this.handyPanel?.dispose();

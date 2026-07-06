@@ -51,10 +51,14 @@ const LOGO_CY = 50; // vertical centre of the enlarged header logo
 const SUB_Y = 110; // pushed down to clear the larger logo
 const CONTENT_Y0 = 132; // top of all content rows
 
-// ── Filter rail (left 540 px) ─────────────────────────────────────────────────
-const RAIL_W = 540;
+// ── Filter rail (left 620 px) ─────────────────────────────────────────────────
+// Widened from 540px: at the old width the rail had shrunk to ~18.75% of the
+// (now much wider) canvas, next to grid cards that grew — studio/performer
+// tiles read as a cramped strip. 620px restores it to ~21.5%, closer to the
+// original 24.5% balance, at the cost of ~3.6% narrower grid cards.
+const RAIL_W = 620;
 const RAIL_PAD = 28;
-const RAIL_INNER = RAIL_W - RAIL_PAD * 2; // 484
+const RAIL_INNER = RAIL_W - RAIL_PAD * 2; // 564
 
 // Media-type toggle row ( [All] [VR] [2D] [FS] )
 const MEDIA_H = 46;
@@ -62,7 +66,7 @@ const MEDIA_BTN_COUNT = 4;
 const MEDIA_BTN_GAP = 8;
 const MEDIA_BTN_W = Math.floor(
   (RAIL_INNER - MEDIA_BTN_GAP * (MEDIA_BTN_COUNT - 1)) / MEDIA_BTN_COUNT
-); // 115
+); // 135
 
 // Studios / Performers tabs
 const TAB_Y = CONTENT_Y0 + MEDIA_H + 10; // 188
@@ -86,40 +90,39 @@ const TILE_GAP_X = 12;
 const TILE_GAP_Y = 12;
 const TILE_W = Math.floor(
   (RAIL_INNER - TILE_GAP_X * (TILE_COLS - 1)) / TILE_COLS
-); // 236
+); // 276
 
-const STUDIO_IMG_H = Math.round((TILE_W * 9) / 16); // 133 — landscape logo
+const STUDIO_IMG_H = Math.round((TILE_W * 9) / 16); // 155 — landscape logo
 const STUDIO_LABEL_H = 28;
-const STUDIO_TILE_H = STUDIO_IMG_H + STUDIO_LABEL_H; // 161
-const STUDIO_ROW_H = STUDIO_TILE_H + TILE_GAP_Y; // 173
+const STUDIO_TILE_H = STUDIO_IMG_H + STUDIO_LABEL_H; // 183
+const STUDIO_ROW_H = STUDIO_TILE_H + TILE_GAP_Y; // 195
 
-const PERF_IMG_H = Math.round((TILE_W * 3) / 2); // 354 — tall portrait
+const PERF_IMG_H = Math.round((TILE_W * 3) / 2); // 414 — tall portrait
 const PERF_LABEL_H = 28;
-const PERF_TILE_H = PERF_IMG_H + PERF_LABEL_H; // 382
-const PERF_ROW_H = PERF_TILE_H + TILE_GAP_Y; // 394
+const PERF_TILE_H = PERF_IMG_H + PERF_LABEL_H; // 442
+const PERF_ROW_H = PERF_TILE_H + TILE_GAP_Y; // 454
 
 // ── Scene grid (right side) ───────────────────────────────────────────────────
 const GRID_X0 = RAIL_W + 28;
 const GRID_RIGHT = CANVAS_W - PAD;
-const GRID_W = GRID_RIGHT - GRID_X0; // 2272
-// Scene cards: 4 × 3 = 12 per page. The wider, taller wall absorbs the extra
-// column and row, so cards stay as large as the old 3-across layout — 16:9
-// thumbnails plus a caption tall enough for title + studio + a tag row.
-// Col/row counts live in types.ts so the data sources' fetch page size can't
-// drift from the layout.
+const GRID_W = GRID_RIGHT - GRID_X0; // 2192
+// Scene cards: 4 × 3 = 12 per page. Col/row counts live in types.ts so the
+// data sources' fetch page size can't drift from the layout. Card width gave
+// up ~20px (≈550→≈530) to the widened filter rail — still comfortably larger
+// than the pre-redesign 3-across layout.
 const COLS = VR_SCENE_GRID_COLS;
 const ROWS = VR_SCENE_GRID_ROWS;
 const PER_PAGE = COLS * ROWS; // 12 — scene grid (Scenes mode + movie detail)
 const GAP_X = 24;
 const GAP_Y = 20;
-const CARD_W = Math.floor((GRID_W - GAP_X * (COLS - 1)) / COLS); // ≈550
-const THUMB_H = Math.round((CARD_W * 9) / 16); // ≈309
+const CARD_W = Math.floor((GRID_W - GAP_X * (COLS - 1)) / COLS); // ≈530
+const THUMB_H = Math.round((CARD_W * 9) / 16); // ≈298
 const CAP_H = 104; // title + studio + tag-chip row
-const CARD_H = THUMB_H + CAP_H; // ≈413
+const CARD_H = THUMB_H + CAP_H; // ≈402
 const GRID_Y0 = CONTENT_Y0;
 const GRID_Y1 = CANVAS_H - 90; // 1470
-const GRID_BLOCK_H = ROWS * CARD_H + (ROWS - 1) * GAP_Y; // ≈1279
-const GRID_TOP = GRID_Y0 + Math.max(0, (GRID_Y1 - GRID_Y0 - GRID_BLOCK_H) / 2); // ≈162
+const GRID_BLOCK_H = ROWS * CARD_H + (ROWS - 1) * GAP_Y; // ≈1246
+const GRID_TOP = GRID_Y0 + Math.max(0, (GRID_Y1 - GRID_Y0 - GRID_BLOCK_H) / 2); // ≈178
 const PAGER_Y = CANVAS_H - 45; // 1515
 const PAGER_H = 44;
 
@@ -138,18 +141,17 @@ const GALLERY_PER_PAGE = VR_GALLERY_PAGE_SIZE;
 // Movie (group) poster grid — portrait 2:3 posters, 8 cols × 3 rows = 24/page.
 // Shares the right-hand grid region with the scene grid; a drilled-in movie
 // swaps back to the scene-card grid. Col/row counts live in types.ts alongside
-// the scene grid's so vrGroupLibrary's page size stays in lockstep. Fitting a
-// 3rd row of portrait posters in the same vertical space as the scene grid's
-// 3 rows needs narrower cards (≈266px vs the old ≈307px) and a trimmed
-// caption bar (58px→36px, single condensed title+studio pair) — the poster
-// grid was already at ~2 rows' worth of headroom before the wall grew.
+// the scene grid's so vrGroupLibrary's page size stays in lockstep. The
+// widened filter rail narrowed GRID_W further (≈266px→≈256px cards), which
+// freed up vertical slack (narrower 2:3 cards are also shorter) — put back
+// into a less-cramped caption bar than the first 8×3 pass (36px→44px).
 const POSTER_COLS = VR_GROUP_GRID_COLS;
 const POSTER_GAP_X = 20;
-const POSTER_GAP_Y = 14;
-const POSTER_CAP_H = 36;
+const POSTER_GAP_Y = 20;
+const POSTER_CAP_H = 44;
 const POSTER_CARD_W = Math.floor(
   (GRID_W - POSTER_GAP_X * (POSTER_COLS - 1)) / POSTER_COLS
-); // ≈266
+); // ≈256
 const POSTER_IMG_H = Math.round((POSTER_CARD_W * 3) / 2); // 2:3 portrait poster
 const POSTER_CARD_H = POSTER_IMG_H + POSTER_CAP_H;
 const POSTER_ROWS = VR_GROUP_GRID_ROWS;
@@ -2891,21 +2893,21 @@ export class VRHomePanel extends VRCanvasPanel {
     ctx.fillRect(x, y + imgH, w, POSTER_CAP_H);
     ctx.restore();
 
-    // Title + studio text — condensed to fit the trimmed POSTER_CAP_H (36px).
+    // Title + studio text — condensed to fit the trimmed POSTER_CAP_H (44px).
     const textX = x + 12;
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
-    ctx.font = "600 15px sans-serif";
+    ctx.font = "600 16px sans-serif";
     ctx.fillStyle = "rgba(255,255,255,0.95)";
     ctx.fillText(
       this.fitText(group.title, w - 24),
       textX,
-      y + imgH + (group.studioName ? 16 : 22)
+      y + imgH + (group.studioName ? 18 : 26)
     );
     if (group.studioName) {
-      ctx.font = "400 12px sans-serif";
+      ctx.font = "400 13px sans-serif";
       ctx.fillStyle = "rgba(255,255,255,0.55)";
-      ctx.fillText(this.fitText(group.studioName, w - 24), textX, y + imgH + 30);
+      ctx.fillText(this.fitText(group.studioName, w - 24), textX, y + imgH + 32);
     }
 
     // Scene-count badge (top-right of the poster).

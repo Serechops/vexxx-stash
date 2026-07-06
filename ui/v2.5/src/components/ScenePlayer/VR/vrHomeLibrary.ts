@@ -28,10 +28,11 @@ import {
   IVRHomePageResult,
   IVRHomeQuery,
   IVRHomeRail,
+  VR_SCENE_PAGE_SIZE,
 } from "./types";
 
-/** Scene grid is 3×2 — must match the scene PER_PAGE in VRHomePanel. */
-const PER_PAGE = 6;
+/** One Home-wall scene grid page — from the shared layout contract in types.ts. */
+const PER_PAGE = VR_SCENE_PAGE_SIZE;
 /** Seconds of resume_time past which a scene counts as "in progress". */
 const CONTINUE_THRESHOLD = 30;
 /** Cap the continue-watching prefix to a single grid page so it only shifts page 0/1. */

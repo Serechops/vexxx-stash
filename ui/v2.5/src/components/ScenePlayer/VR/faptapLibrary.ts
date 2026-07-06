@@ -27,10 +27,11 @@ import {
   IVRHomePageResult,
   IVRHomeQuery,
   IVRHomeRail,
+  VR_SCENE_PAGE_SIZE,
 } from "./types";
 
-/** Scene grid is 3×2 — must match the scene PER_PAGE in VRHomePanel. */
-const PER_PAGE = 6;
+/** One Home-wall scene grid page — from the shared layout contract in types.ts. */
+const PER_PAGE = VR_SCENE_PAGE_SIZE;
 
 /** Build an absolute /faptap URL honouring the app base path + dev port. */
 function faptapURL(path: string, params?: Record<string, string>): string {

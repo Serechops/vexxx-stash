@@ -22,10 +22,11 @@ import {
   IVRGalleryImagePageResult,
   IVRGalleryPageResult,
   IVRHomeQuery,
+  VR_GALLERY_PAGE_SIZE,
 } from "./types";
 
-/** Gallery grid is 4×3 — must match PER_PAGE in VRHomePanel. */
-const GALLERY_PER_PAGE = 12;
+/** One Home-wall gallery grid page — from the shared layout contract in types.ts. */
+const GALLERY_PER_PAGE = VR_GALLERY_PAGE_SIZE;
 /** Image grid is 5×3 — must match PER_PAGE in VRGalleryViewerPanel. */
 const IMAGE_PER_PAGE = 15;
 

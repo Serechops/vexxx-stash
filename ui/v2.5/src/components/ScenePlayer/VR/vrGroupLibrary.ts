@@ -25,12 +25,14 @@ import {
   IVRGroupPageResult,
   IVRGroupScenePageResult,
   IVRHomeQuery,
+  VR_GROUP_PAGE_SIZE,
+  VR_SCENE_PAGE_SIZE,
 } from "./types";
 
-/** Movie poster grid is 6×2 — must match GROUP_PER_PAGE in VRHomePanel. */
-const GROUP_PER_PAGE = 12;
-/** A drilled-in movie's scene grid is 3×2 — must match the scene PER_PAGE in VRHomePanel. */
-const SCENE_PER_PAGE = 6;
+/** One movie-poster grid page — from the shared layout contract in types.ts. */
+const GROUP_PER_PAGE = VR_GROUP_PAGE_SIZE;
+/** A drilled-in movie's scene grid page — matches the Home wall scene grid. */
+const SCENE_PER_PAGE = VR_SCENE_PAGE_SIZE;
 
 const DESC = GQL.SortDirectionEnum.Desc;
 const ASC = GQL.SortDirectionEnum.Asc;

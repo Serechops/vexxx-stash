@@ -9,6 +9,35 @@
 import type { IVRSceneEntry } from "./VRScenesPanel";
 import * as GQL from "src/core/generated-graphql";
 
+// ── Shared grid-layout contract ───────────────────────────────────────────────
+// Single source of truth for the Home wall's paginated grids. VRHomePanel
+// derives its layout math from the col/row counts; the data-source libraries
+// (vrHomeLibrary, vrGroupLibrary, faptapLibrary, pmvhavenLibrary) fetch and
+// cache page blocks of the matching size, so the two can never drift apart.
+
+/** Home-wall scene grid columns (Scenes mode + movie drill-down). */
+export const VR_SCENE_GRID_COLS = 4;
+/** Home-wall scene grid rows. */
+export const VR_SCENE_GRID_ROWS = 3;
+/** Scenes fetched/cached per grid page. */
+export const VR_SCENE_PAGE_SIZE = VR_SCENE_GRID_COLS * VR_SCENE_GRID_ROWS;
+
+/** Movie (group) poster grid columns. */
+export const VR_GROUP_GRID_COLS = 8;
+/** Movie (group) poster grid rows. */
+export const VR_GROUP_GRID_ROWS = 3;
+/** Movie posters fetched/cached per grid page. */
+export const VR_GROUP_PAGE_SIZE = VR_GROUP_GRID_COLS * VR_GROUP_GRID_ROWS;
+
+/**
+ * Galleries fetched/cached per Home-wall page. Galleries use a justified
+ * variable-height row layout (cover aspect ratios differ per gallery), so
+ * there's no fixed col/row count to derive this from — it's tuned so a
+ * typical 16:9-cover page fills the wall's vertical space without a row
+ * spilling past the pager.
+ */
+export const VR_GALLERY_PAGE_SIZE = 20;
+
 /** A snapshot of the underlying <video> element, pulled each render frame. */
 export interface IVRPlaybackState {
   paused: boolean;

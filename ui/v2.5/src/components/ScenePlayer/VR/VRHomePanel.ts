@@ -21,6 +21,11 @@ import {
   IVRGroupEntry,
   VRMediaFilter,
   VRSortMode,
+  VR_SCENE_GRID_COLS,
+  VR_SCENE_GRID_ROWS,
+  VR_GROUP_GRID_COLS,
+  VR_GROUP_GRID_ROWS,
+  VR_GALLERY_PAGE_SIZE,
 } from "./types";
 import { VRCanvasPanel, IPanelRegion } from "./VRInfoPanels";
 import { IVRSceneEntry } from "./VRScenesPanel";
@@ -30,9 +35,13 @@ import { pmvhavenFavorites } from "./pmvhavenLibrary";
 export type { IVRFilterEntry };
 
 // ── Canvas / panel dimensions ─────────────────────────────────────────────────
-const CANVAS_W = 2200;
-const CANVAS_H = 1300; // taller for the extra scene row
-const PANEL_WIDTH_M = 3.4;
+// A wide cinematic wall: 4.4 m of arc at 2.65 m radius wraps ~95° around the
+// viewer. Canvas dimensions scale with the physical size so pixel density
+// stays ~650 px/m and text keeps its crispness. The wall stands ~2.4 m tall
+// (three scene-card rows), extending symmetrically around eye level.
+const CANVAS_W = 2880;
+const CANVAS_H = 1560;
+const PANEL_WIDTH_M = 4.4;
 const PANEL_RADIUS = 2.65;
 
 // ── Shared layout ─────────────────────────────────────────────────────────────
@@ -69,7 +78,7 @@ const SORT_H = 34;
 
 // Scrollable filter tile grid (starts below sort chips)
 const RAIL_VIEW_Y0 = SORT_Y + SORT_H + 8; // 336
-const RAIL_VIEW_Y1 = CANVAS_H - 68; // 1232
+const RAIL_VIEW_Y1 = CANVAS_H - 68; // 1492
 
 // 2-column tile grid within the rail
 const TILE_COLS = 2;
@@ -92,23 +101,26 @@ const PERF_ROW_H = PERF_TILE_H + TILE_GAP_Y; // 394
 // ── Scene grid (right side) ───────────────────────────────────────────────────
 const GRID_X0 = RAIL_W + 28;
 const GRID_RIGHT = CANVAS_W - PAD;
-const GRID_W = GRID_RIGHT - GRID_X0; // 1592
-// Scene cards: 3 × 2 = 6 per page. Fewer, larger cards than the old 4×3 — wider
-// 16:9 thumbnails plus a taller caption that fits title + studio + a tag row.
-const COLS = 3;
-const ROWS = 2;
-const PER_PAGE = COLS * ROWS; // 6 — scene grid (Scenes mode + movie detail)
+const GRID_W = GRID_RIGHT - GRID_X0; // 2272
+// Scene cards: 4 × 3 = 12 per page. The wider, taller wall absorbs the extra
+// column and row, so cards stay as large as the old 3-across layout — 16:9
+// thumbnails plus a caption tall enough for title + studio + a tag row.
+// Col/row counts live in types.ts so the data sources' fetch page size can't
+// drift from the layout.
+const COLS = VR_SCENE_GRID_COLS;
+const ROWS = VR_SCENE_GRID_ROWS;
+const PER_PAGE = COLS * ROWS; // 12 — scene grid (Scenes mode + movie detail)
 const GAP_X = 24;
 const GAP_Y = 20;
-const CARD_W = Math.floor((GRID_W - GAP_X * (COLS - 1)) / COLS); // ≈514
-const THUMB_H = Math.round((CARD_W * 9) / 16); // ≈289
+const CARD_W = Math.floor((GRID_W - GAP_X * (COLS - 1)) / COLS); // ≈550
+const THUMB_H = Math.round((CARD_W * 9) / 16); // ≈309
 const CAP_H = 104; // title + studio + tag-chip row
-const CARD_H = THUMB_H + CAP_H; // ≈393
+const CARD_H = THUMB_H + CAP_H; // ≈413
 const GRID_Y0 = CONTENT_Y0;
-const GRID_Y1 = CANVAS_H - 90; // 1210
-const GRID_BLOCK_H = ROWS * CARD_H + (ROWS - 1) * GAP_Y; // 916
-const GRID_TOP = GRID_Y0 + Math.max(0, (GRID_Y1 - GRID_Y0 - GRID_BLOCK_H) / 2); // ≈213
-const PAGER_Y = CANVAS_H - 45; // 1255
+const GRID_Y1 = CANVAS_H - 90; // 1470
+const GRID_BLOCK_H = ROWS * CARD_H + (ROWS - 1) * GAP_Y; // ≈1279
+const GRID_TOP = GRID_Y0 + Math.max(0, (GRID_Y1 - GRID_Y0 - GRID_BLOCK_H) / 2); // ≈162
+const PAGER_Y = CANVAS_H - 45; // 1515
 const PAGER_H = 44;
 
 // Gallery justified-row layout — galleries are packed greedily by cover-aspect
@@ -118,23 +130,29 @@ const GAL_TARGET_H = 210;   // target cover height before justification
 const GAL_GAP = 16;          // horizontal + vertical gap between cards
 const GAL_CAP_H = 78;       // caption bar height
 const GAL_DEF_ASPECT = 16 / 9;
-// Galleries page independently of the (smaller) scene grid — must match
-// GALLERY_PER_PAGE in vrGalleryLibrary.
-const GALLERY_PER_PAGE = 12;
+// Galleries page independently of the (smaller) scene grid. Page size lives
+// in types.ts (justified-row layout has no fixed col/row count to derive it
+// from) alongside the scene/group grid contracts.
+const GALLERY_PER_PAGE = VR_GALLERY_PAGE_SIZE;
 
-// Movie (group) poster grid — portrait 2:3 posters, 6 cols × 2 rows = 12/page
-// (matches GROUP_PER_PAGE in vrGroupLibrary). Shares the right-hand grid region
-// with the scene grid; a drilled-in movie swaps back to the scene-card grid.
-const POSTER_COLS = 6;
+// Movie (group) poster grid — portrait 2:3 posters, 8 cols × 3 rows = 24/page.
+// Shares the right-hand grid region with the scene grid; a drilled-in movie
+// swaps back to the scene-card grid. Col/row counts live in types.ts alongside
+// the scene grid's so vrGroupLibrary's page size stays in lockstep. Fitting a
+// 3rd row of portrait posters in the same vertical space as the scene grid's
+// 3 rows needs narrower cards (≈266px vs the old ≈307px) and a trimmed
+// caption bar (58px→36px, single condensed title+studio pair) — the poster
+// grid was already at ~2 rows' worth of headroom before the wall grew.
+const POSTER_COLS = VR_GROUP_GRID_COLS;
 const POSTER_GAP_X = 20;
-const POSTER_GAP_Y = 24;
-const POSTER_CAP_H = 58;
+const POSTER_GAP_Y = 14;
+const POSTER_CAP_H = 36;
 const POSTER_CARD_W = Math.floor(
   (GRID_W - POSTER_GAP_X * (POSTER_COLS - 1)) / POSTER_COLS
-); // ≈248
+); // ≈266
 const POSTER_IMG_H = Math.round((POSTER_CARD_W * 3) / 2); // 2:3 portrait poster
 const POSTER_CARD_H = POSTER_IMG_H + POSTER_CAP_H;
-const POSTER_ROWS = 2;
+const POSTER_ROWS = VR_GROUP_GRID_ROWS;
 const POSTER_BLOCK_H =
   POSTER_ROWS * POSTER_CARD_H + (POSTER_ROWS - 1) * POSTER_GAP_Y;
 const POSTER_TOP =
@@ -909,6 +927,17 @@ export class VRHomePanel extends VRCanvasPanel {
     this.markDirty();
   }
 
+  /** Direct jump (pager dots) — skips the slide animation, which only knows
+   *  how to travel ±1 page. */
+  private jumpToPage(target: number) {
+    const clamped = Math.max(0, Math.min(this.pageCount - 1, target));
+    if (this.animStart || clamped === this.page) return;
+    this.page = clamped;
+    this.offset = 0;
+    this.ensurePagesLoaded();
+    this.markDirty();
+  }
+
   protected handleSelect(region: IPanelRegion): VRControlAction | null {
     const { id } = region;
 
@@ -1017,6 +1046,10 @@ export class VRHomePanel extends VRCanvasPanel {
     }
     if (id === "pageL") {
       this.startArrow(-1);
+      return null;
+    }
+    if (id.startsWith("pageDot:")) {
+      this.jumpToPage(Number(id.slice("pageDot:".length)));
       return null;
     }
     if (id === "tab:studios" || id === "tab:performers") {
@@ -1910,7 +1943,7 @@ export class VRHomePanel extends VRCanvasPanel {
     }
   }
 
-  /** Movie poster grid — fixed 6×2 portrait posters (parallels the scene grid). */
+  /** Movie poster grid — fixed 8×3 portrait posters (parallels the scene grid). */
   private drawGroupPageCards(
     pageIndex: number,
     xShift: number,
@@ -2422,6 +2455,20 @@ export class VRHomePanel extends VRCanvasPanel {
       }
     }
 
+    // Bottom scrim — grounds the caption bar and keeps the heatmap strip and
+    // metadata pills readable over bright frames.
+    const scrimH = 84;
+    const scrim = ctx.createLinearGradient(
+      0,
+      y + THUMB_H - scrimH,
+      0,
+      y + THUMB_H
+    );
+    scrim.addColorStop(0, "rgba(8,10,16,0)");
+    scrim.addColorStop(1, "rgba(8,10,16,0.55)");
+    ctx.fillStyle = scrim;
+    ctx.fillRect(x, y + THUMB_H - scrimH, CARD_W, scrimH);
+
     // Funscript heatmap strip at the bottom of the thumbnail.
     if (scene.hasFunscript && scene.heatmapUrl) {
       const hmImg = this.image(scene.heatmapUrl);
@@ -2456,10 +2503,21 @@ export class VRHomePanel extends VRCanvasPanel {
       ctx.fillRect(x, y + THUMB_H - 4, CARD_W * frac, 4);
     }
 
-    // Caption bar
-    ctx.fillStyle = "rgba(12,12,17,0.94)";
+    // Caption bar — subtle vertical gradient so the card reads as a lit tile
+    // rather than a flat cut-out.
+    const cap = ctx.createLinearGradient(0, y + THUMB_H, 0, y + CARD_H);
+    cap.addColorStop(0, "rgba(20,23,32,0.96)");
+    cap.addColorStop(1, "rgba(11,12,18,0.96)");
+    ctx.fillStyle = cap;
     ctx.fillRect(x, y + THUMB_H, CARD_W, CAP_H);
     ctx.restore();
+
+    // Resting hairline — separates the card from the glass background so the
+    // grid still reads as tiles between hovers.
+    this.roundRect(x, y, CARD_W, CARD_H, R);
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = "rgba(255,255,255,0.08)";
+    ctx.stroke();
 
     // Title + studio text
     const textX = x + 16;
@@ -2607,11 +2665,17 @@ export class VRHomePanel extends VRCanvasPanel {
       ctx.restore();
     }
 
-    // Hover / playing border
+    // Hover / playing border — a wide low-alpha pass under the crisp stroke
+    // fakes an outer glow without canvas shadowBlur (too slow per-frame).
     if (isPlaying || hovered) {
+      const tone = isPlaying ? GOLD : ACCENT;
+      this.roundRect(x, y, CARD_W, CARD_H, R);
+      ctx.lineWidth = 7;
+      ctx.strokeStyle = `${tone}0.20)`;
+      ctx.stroke();
       this.roundRect(x, y, CARD_W, CARD_H, R);
       ctx.lineWidth = 2.5;
-      ctx.strokeStyle = isPlaying ? `${GOLD}0.85)` : `${ACCENT}0.75)`;
+      ctx.strokeStyle = `${tone}0.85)`;
       ctx.stroke();
     }
 
@@ -2827,21 +2891,21 @@ export class VRHomePanel extends VRCanvasPanel {
     ctx.fillRect(x, y + imgH, w, POSTER_CAP_H);
     ctx.restore();
 
-    // Title + studio text.
-    const textX = x + 14;
+    // Title + studio text — condensed to fit the trimmed POSTER_CAP_H (36px).
+    const textX = x + 12;
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
-    ctx.font = "600 19px sans-serif";
+    ctx.font = "600 15px sans-serif";
     ctx.fillStyle = "rgba(255,255,255,0.95)";
     ctx.fillText(
-      this.fitText(group.title, w - 28),
+      this.fitText(group.title, w - 24),
       textX,
-      y + imgH + (group.studioName ? 26 : 36)
+      y + imgH + (group.studioName ? 16 : 22)
     );
     if (group.studioName) {
-      ctx.font = "400 15px sans-serif";
+      ctx.font = "400 12px sans-serif";
       ctx.fillStyle = "rgba(255,255,255,0.55)";
-      ctx.fillText(this.fitText(group.studioName, w - 28), textX, y + imgH + 48);
+      ctx.fillText(this.fitText(group.studioName, w - 24), textX, y + imgH + 30);
     }
 
     // Scene-count badge (top-right of the poster).
@@ -2929,13 +2993,24 @@ export class VRHomePanel extends VRCanvasPanel {
     if (pages <= 1) return;
 
     const cy = PAGER_Y;
-    const label = `Page ${this.page + 1} / ${pages}`;
-    ctx.font = "600 20px sans-serif";
-    const labelW = ctx.measureText(label).width;
     const arrowW = 48;
     const gap = 24;
-    const total = arrowW + gap + labelW + gap + arrowW;
-    let x = GRID_X0 + (GRID_W - total) / 2;
+    // Dots up to a dozen pages (each dot is a tap target that jumps straight
+    // to its page); beyond that a fraction label over a thin progress track.
+    const useDots = pages <= 12;
+    const DOT_STEP = 26;
+    const DOT_R = 4.5;
+
+    let label = "";
+    let midW: number;
+    if (useDots) {
+      midW = (pages - 1) * DOT_STEP + DOT_R * 2;
+    } else {
+      label = `${this.page + 1} / ${pages}`;
+      ctx.font = "600 20px sans-serif";
+      midW = Math.max(220, ctx.measureText(label).width);
+    }
+    let x = GRID_X0 + (GRID_W - (arrowW + gap + midW + gap + arrowW)) / 2;
 
     const drawArrow = (id: "pageL" | "pageR", enabled: boolean) => {
       const hovered = this.hoveredId === id;
@@ -2943,7 +3018,7 @@ export class VRHomePanel extends VRCanvasPanel {
       ctx.fillStyle = !enabled
         ? "rgba(255,255,255,0.04)"
         : hovered
-        ? "rgba(255,255,255,0.18)"
+        ? `${ACCENT}0.30)`
         : "rgba(255,255,255,0.09)";
       ctx.fill();
       ctx.fillStyle = enabled
@@ -2966,12 +3041,55 @@ export class VRHomePanel extends VRCanvasPanel {
 
     drawArrow("pageL", this.page > 0);
     x += arrowW + gap;
-    ctx.font = "600 20px sans-serif";
-    ctx.fillStyle = "rgba(255,255,255,0.7)";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(label, x + labelW / 2, cy + 1);
-    x += labelW + gap;
+
+    if (useDots) {
+      for (let i = 0; i < pages; i++) {
+        const dx = x + DOT_R + i * DOT_STEP;
+        const active = i === this.page;
+        const hovered = this.hoveredId === `pageDot:${i}`;
+        if (active) {
+          // Soft halo behind the active dot.
+          ctx.beginPath();
+          ctx.arc(dx, cy, DOT_R + 5, 0, Math.PI * 2);
+          ctx.fillStyle = `${ACCENT}0.22)`;
+          ctx.fill();
+        }
+        ctx.beginPath();
+        ctx.arc(dx, cy, active ? DOT_R + 1 : DOT_R, 0, Math.PI * 2);
+        ctx.fillStyle = active
+          ? `${ACCENT}0.95)`
+          : hovered
+          ? "rgba(255,255,255,0.65)"
+          : "rgba(255,255,255,0.28)";
+        ctx.fill();
+        if (!active) {
+          this.regions.push({
+            id: `pageDot:${i}`,
+            x: dx - DOT_STEP / 2,
+            y: cy - PAGER_H / 2,
+            w: DOT_STEP,
+            h: PAGER_H,
+          });
+        }
+      }
+      x += midW + gap;
+    } else {
+      ctx.font = "600 20px sans-serif";
+      ctx.fillStyle = "rgba(255,255,255,0.75)";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(label, x + midW / 2, cy - 7);
+      const trackY = cy + 12;
+      this.roundRect(x, trackY, midW, 4, 2);
+      ctx.fillStyle = "rgba(255,255,255,0.12)";
+      ctx.fill();
+      const frac = this.page / (pages - 1);
+      this.roundRect(x, trackY, Math.max(8, midW * frac), 4, 2);
+      ctx.fillStyle = `${ACCENT}0.9)`;
+      ctx.fill();
+      x += midW + gap;
+    }
+
     drawArrow("pageR", this.page < pages - 1);
   }
 }

@@ -77,6 +77,7 @@ import {
 } from "./types";
 import type { IThumbnailCrop } from "./vttThumbnails";
 import { vrLog } from "./vrLog";
+import { vrAudio } from "./vrAudio";
 import { VRStatusMonitor } from "./vrStatus";
 
 const DOME_RADIUS = 500;
@@ -174,6 +175,9 @@ const THROTTLE_DECAY_MS = 10000;
 // time, and back in on the next deliberate input.
 const AUTO_HIDE_MS = 4000;
 const FADE_LERP = 0.18;
+// Faster fade for an explicit dismiss (empty-space click) — reads as an
+// immediate response rather than the ambient auto-hide timing out.
+const FADE_LERP_DISMISS = 0.42;
 
 // How long the controller ray must dwell on a scene card before its hover
 // preview <video> is loaded. Sweeping across cards faster than this loads
@@ -602,6 +606,10 @@ export class XRSessionManager {
   // moved only by grabbing it; it just fades out after a spell of no input.
   private uiOpacity = 1;
   private lastActivity = 0;
+  // Explicit "click away" dismiss: while set, hover keep-awake is ignored and
+  // the UI fades out fast. Cleared by any deliberate input (button, stick,
+  // squeeze, clap) or another empty click — the existing summon gestures.
+  private uiDismissed = false;
   private placed = false;
 
   // XR frame-time telemetry (only computed while vrLog is active). Distinguishes
@@ -892,11 +900,14 @@ export class XRSessionManager {
       onRecenter: () => this.recenter(),
       onDomeDrag: (dYaw, dPitch) => this.nudgeVideoOrientation(dYaw, dPitch),
       onDomeDragActive: (active) => this.setDomeDragLod(active),
+      onEmptySelect: () => this.toggleUiPanels(),
       onClap: () => {
         // Clap gesture: show the UI panels immediately.  This is the primary
         // way users bring the controls back up during playback — unlike hand
         // movement (which is constant during VR playback), a deliberate two-
         // hand-together gesture is unambiguous.
+        if (!this.lobbyMode && this.uiOpacity < 0.5) vrAudio.open();
+        this.uiDismissed = false;
         this.lastActivity = performance.now();
         this.uiOpacity = 1;
       },
@@ -1070,6 +1081,10 @@ export class XRSessionManager {
   async init(session: XRSession): Promise<void> {
     this.session = session;
     session.addEventListener("end", this.onSessionEnd);
+    // UI sound cues: arm the lazy AudioContext now that we're inside a
+    // user-gesture-derived session.
+    vrAudio.init();
+    vrAudio.setEnabled(this.opts.homeSettings?.uiSfx ?? true);
     // NB: we deliberately leave the XR framebuffer scale at the default (1.0).
     // A 1.2x bump made panel text crisper but overloaded the GPU on the
     // shader-dome paths (fisheye190 / flat / keyed), and even gated to the
@@ -1512,6 +1527,7 @@ export class XRSessionManager {
   /** Push updated immersive-Home preferences to the Home wall. */
   setHomeSettings(settings: IVRHomeSettings) {
     this.homePanel?.setSettings(settings);
+    vrAudio.setEnabled(settings.uiSfx ?? true);
     const pt = !!settings.passthroughHome;
     if (pt !== this.homePassthrough) {
       this.homePassthrough = pt;
@@ -1808,6 +1824,23 @@ export class XRSessionManager {
 
   // --- hit routing ----------------------------------------------------------
 
+  /**
+   * "Click away" toggle: a trigger press on empty space (or the inert flat
+   * screen) instantly dismisses the playback UI, and summons it when hidden.
+   * No-op in the lobby — the Home wall has no auto-hide to toggle.
+   */
+  private toggleUiPanels() {
+    if (this.lobbyMode) return;
+    if (this.uiDismissed || this.uiOpacity < 0.5) {
+      this.uiDismissed = false;
+      this.lastActivity = performance.now();
+      vrAudio.open();
+    } else {
+      this.uiDismissed = true;
+      vrAudio.close();
+    }
+  }
+
   private routeHover(hit: IPanelHit | null) {
     for (const h of this.hittables) {
       h.hover(hit && hit.object === h.target ? hit.uv : null);
@@ -1898,6 +1931,9 @@ export class XRSessionManager {
     if (!h) return;
     // Firmer than the hover tick — a press should read as distinctly weightier.
     this.input.pulse(hit.controllerIndex, 0.6, 20);
+    // Audible tap to match — except on the flat screen, whose select is the
+    // UI-visibility toggle and plays its own open/close motif instead.
+    if (hit.object !== this.flatScreenHittable?.target) vrAudio.press();
     const action = h.select(hit.uv);
     if (action) this.dispatchAction(action);
   }
@@ -1919,11 +1955,15 @@ export class XRSessionManager {
   private dispatchAction(action: VRControlAction) {
     if (action.type === "handyPanelToggle") {
       this.handyPanelOpen = !this.handyPanelOpen;
+      if (this.handyPanelOpen) vrAudio.open();
+      else vrAudio.close();
       this.lastActivity = performance.now();
       return;
     }
     if (action.type === "ptPanelToggle") {
       this.ptPanelOpen = !this.ptPanelOpen;
+      if (this.ptPanelOpen) vrAudio.open();
+      else vrAudio.close();
       // The right-hand slot is shared with the Browse info panel — close
       // Browse so the two never overlap.
       if (this.ptPanelOpen && this.browseOpen) {
@@ -1947,6 +1987,8 @@ export class XRSessionManager {
     }
     if (action.type === "browsePanelToggle") {
       this.browseOpen = !this.browseOpen;
+      if (this.browseOpen) vrAudio.open();
+      else vrAudio.close();
       // Browse claims the right-hand slot the PT panel also uses.
       if (this.browseOpen) this.ptPanelOpen = false;
       // The carousel self-loads page 0 lazily from its draw loop while Browse is
@@ -2484,7 +2526,12 @@ export class XRSessionManager {
       this.flatScreenHittable = {
         target: flatMesh,
         hover: () => {},
-        select: () => null,
+        // The screen fills the view in flat mode, so a click on it stands in
+        // for the empty-space UI toggle (its select is otherwise inert).
+        select: () => {
+          this.toggleUiPanels();
+          return null;
+        },
         up: () => null,
       };
     } else if (isStereo(p) && !this.debug.mono) {
@@ -2970,12 +3017,18 @@ export class XRSessionManager {
     this.deviceModels?.update();
     const pInputMs = jitter ? performance.now() - pIn0 : 0;
     if (this.input.consumeActivity()) {
+      // Any deliberate input also lifts an explicit dismiss — these are the
+      // same gestures that have always summoned the UI.
+      if (this.uiDismissed && !this.lobbyMode) vrAudio.open();
+      this.uiDismissed = false;
       this.lastActivity = time;
     }
     // A controller actively pointing at a panel counts as interaction: keep the
     // UI visible for as long as the user is aiming at it (without requiring a
-    // press), so they have time to read and target elements.
-    if (this.input.isHoveringPanel) {
+    // press), so they have time to read and target elements. Ignored right
+    // after an explicit dismiss, or the still-fading panel under the ray would
+    // wake itself straight back up.
+    if (this.input.isHoveringPanel && !this.uiDismissed) {
       this.lastActivity = time;
     }
 
@@ -2992,16 +3045,27 @@ export class XRSessionManager {
     const lobby = this.lobbyMode;
     if (lobby) {
       // The Home wall is always visible (no auto-hide) while in the lobby.
+      // Entering the lobby also clears any explicit dismiss, so the next
+      // scene launch starts with its controls up.
       this.uiOpacity = 1;
+      this.uiDismissed = false;
     } else if (this.debug.hideui) {
       this.uiOpacity = 0;
     } else if (this.debug.noautohide) {
       this.uiOpacity = 1;
+    } else if (this.uiDismissed) {
+      // Explicit dismiss: fast fade to hidden, immune to hover keep-awake.
+      this.uiOpacity += (0 - this.uiOpacity) * FADE_LERP_DISMISS;
     } else {
       const idle = time - this.lastActivity > AUTO_HIDE_MS;
       this.uiOpacity += ((idle ? 0 : 1) - this.uiOpacity) * FADE_LERP;
     }
     const op = this.uiOpacity;
+
+    // Controller / hand meshes are cosmetic UI: hide them together with the
+    // panels during playback so an undisturbed view is truly clean. The lobby
+    // always shows them (the Home wall never auto-hides).
+    this.deviceModels?.setVisible(lobby || op > 0.05);
 
     if (lobby) {
       // Lobby: show the Home wall, or the gallery viewer when a gallery is open;
@@ -3064,7 +3128,11 @@ export class XRSessionManager {
         }
         // Poll for gaze-dwell launch (Home wall only — scene/gallery cards).
         const pa = this.homePanel?.takePendingAction();
-        if (pa) this.dispatchAction(pa);
+        if (pa) {
+          // The dwell ring completed — confirm it audibly like a press.
+          vrAudio.press();
+          this.dispatchAction(pa);
+        }
       } else {
         const d = this.drawInput;
         d.state = state;
@@ -3750,6 +3818,7 @@ export class XRSessionManager {
     this.opts.video.removeEventListener("resize", this.onVideoReady);
     this.input.dispose();
     this.status.dispose();
+    vrAudio.dispose();
     this.deviceModels?.dispose();
     this.panel.dispose();
     this.handyPanel?.dispose();

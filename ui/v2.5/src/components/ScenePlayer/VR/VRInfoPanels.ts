@@ -13,6 +13,8 @@
 import * as THREE from "three";
 import TextUtils from "src/utils/text";
 import { VRControlAction, IVRHandyState, VRStrokeStatus } from "./types";
+import { vrAudio } from "./vrAudio";
+import { VRT } from "./vrTheme";
 
 export interface IVRPerformer {
   /** Performer id — enables the drill-down filter from the info panel. */
@@ -255,6 +257,9 @@ export abstract class VRCanvasPanel {
     const px = uv ? { x: uv.x * this.cw, y: (1 - uv.y) * this.ch } : null;
     if (id !== this.hoveredId) {
       this.hoveredId = id;
+      // Soft audible tick as the ray crosses onto an actionable region — the
+      // same edge (id change to non-null) that drives the hover repaint.
+      if (id) vrAudio.hover();
       this.markDirty();
     }
     this.hoverUV = px;
@@ -444,19 +449,21 @@ export abstract class VRCanvasPanel {
 
   protected panelBackground() {
     const { ctx } = this;
+    const r = VRT.radiusPanel;
     ctx.clearRect(0, 0, this.cw, this.ch);
 
-    // Base gradient — lighter at top gives the illusion of depth/glass thickness
-    this.roundRect(0, 0, this.cw, this.ch, 24);
+    // Base gradient — cool blue-black glass, lighter at the top for depth.
+    this.roundRect(0, 0, this.cw, this.ch, r);
     const base = ctx.createLinearGradient(0, 0, 0, this.ch);
-    base.addColorStop(0, "rgba(26,26,36,0.95)");
-    base.addColorStop(0.45, "rgba(14,14,20,0.93)");
-    base.addColorStop(1, "rgba(7,7,11,0.91)");
+    base.addColorStop(0, VRT.panelTop);
+    base.addColorStop(0.45, VRT.panelMid);
+    base.addColorStop(1, VRT.panelBot);
     ctx.fillStyle = base;
     ctx.fill();
 
-    // Inner radial glow from top-centre — simulates light refracting through glass
-    this.roundRect(0, 0, this.cw, this.ch, 24);
+    // Inner radial sheen from top-centre — light refracting through the glass,
+    // tinted faintly toward the accent so the surface reads cool, not grey.
+    this.roundRect(0, 0, this.cw, this.ch, r);
     const glow = ctx.createRadialGradient(
       this.cw / 2,
       0,
@@ -465,33 +472,38 @@ export abstract class VRCanvasPanel {
       0,
       this.cw * 0.55
     );
-    glow.addColorStop(0, "rgba(255,255,255,0.055)");
-    glow.addColorStop(1, "rgba(255,255,255,0)");
+    glow.addColorStop(0, VRT.panelSheen);
+    glow.addColorStop(1, "rgba(164,196,255,0)");
     ctx.fillStyle = glow;
     ctx.fill();
 
     // Dim outer border
-    this.roundRect(0, 0, this.cw, this.ch, 24);
+    this.roundRect(0, 0, this.cw, this.ch, r);
     ctx.lineWidth = 1.5;
-    ctx.strokeStyle = "rgba(255,255,255,0.09)";
+    ctx.strokeStyle = VRT.panelBorder;
     ctx.stroke();
 
     // Top-edge rim — the signature glass highlight, simulates a lit upper edge
     ctx.beginPath();
-    ctx.moveTo(25, 1);
-    ctx.lineTo(this.cw - 25, 1);
+    ctx.moveTo(r + 1, 1);
+    ctx.lineTo(this.cw - r - 1, 1);
     ctx.lineWidth = 1;
-    ctx.strokeStyle = "rgba(255,255,255,0.30)";
+    ctx.strokeStyle = VRT.panelRim;
     ctx.stroke();
   }
 
   protected sectionLabel(text: string, x: number, y: number) {
     const { ctx } = this;
-    ctx.font = "700 20px sans-serif";
+    // Tracked-out caps read as a deliberate eyebrow label rather than shouting.
+    // letterSpacing is Chromium-only canvas API; harmless where unsupported.
+    const c = ctx as CanvasRenderingContext2D & { letterSpacing?: string };
+    ctx.font = "700 19px sans-serif";
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
-    ctx.fillStyle = "rgba(255,255,255,0.60)";
+    ctx.fillStyle = VRT.textDim;
+    if ("letterSpacing" in c) c.letterSpacing = "2px";
     ctx.fillText(text.toUpperCase(), x, y);
+    if ("letterSpacing" in c) c.letterSpacing = "0px";
   }
 
   /**
@@ -512,23 +524,28 @@ export abstract class VRCanvasPanel {
     for (const tab of tabs) {
       const isActive = tab.id === active;
       const hov = this.hoveredId === `browseTab:${tab.id}`;
-      this.roundRect(x, PAD, tabW, TAB_H, 12);
+      this.roundRect(x, PAD, tabW, TAB_H, 14);
       if (isActive) {
         const tg = ctx.createLinearGradient(x, PAD, x, PAD + TAB_H);
-        tg.addColorStop(0, "rgba(130,190,255,0.92)");
-        tg.addColorStop(1, "rgba(70,130,230,0.80)");
+        tg.addColorStop(0, VRT.accentGradTop);
+        tg.addColorStop(1, VRT.accentGradBot);
         ctx.fillStyle = tg;
+      } else if (hov) {
+        const hg = ctx.createLinearGradient(x, PAD, x, PAD + TAB_H);
+        hg.addColorStop(0, VRT.accentWashTop);
+        hg.addColorStop(1, VRT.accentWashBot);
+        ctx.fillStyle = hg;
       } else {
-        ctx.fillStyle = hov
-          ? "rgba(255,255,255,0.16)"
-          : "rgba(255,255,255,0.07)";
+        ctx.fillStyle = "rgba(255,255,255,0.07)";
       }
       ctx.fill();
       // Border
-      this.roundRect(x, PAD, tabW, TAB_H, 12);
+      this.roundRect(x, PAD, tabW, TAB_H, 14);
       ctx.lineWidth = 1;
       ctx.strokeStyle = isActive
-        ? "rgba(160,210,255,0.30)"
+        ? VRT.accentBorder
+        : hov
+        ? "rgba(150,200,255,0.35)"
         : "rgba(255,255,255,0.10)";
       ctx.stroke();
       // Glass rim on active tab
@@ -543,7 +560,7 @@ export abstract class VRCanvasPanel {
       ctx.font = "600 24px sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillStyle = isActive ? "#091428" : "rgba(255,255,255,0.9)";
+      ctx.fillStyle = isActive ? VRT.onAccent : "rgba(255,255,255,0.9)";
       ctx.fillText(tab.label, x + tabW / 2, PAD + TAB_H / 2 + 1);
       if (!isActive) {
         this.regions.push({
@@ -725,15 +742,13 @@ export abstract class VRCanvasPanel {
     const hovered = this.hoveredId === id;
     ctx.beginPath();
     ctx.arc(cx, cy, 24, 0, Math.PI * 2);
-    ctx.fillStyle = hovered
-      ? "rgba(255,255,255,0.20)"
-      : "rgba(255,255,255,0.09)";
+    ctx.fillStyle = hovered ? VRT.accentWashTop : "rgba(255,255,255,0.09)";
     ctx.fill();
     if (hovered) {
       ctx.beginPath();
       ctx.arc(cx, cy, 24, 0, Math.PI * 2);
       ctx.lineWidth = 1;
-      ctx.strokeStyle = "rgba(255,255,255,0.32)";
+      ctx.strokeStyle = VRT.accentBorder;
       ctx.stroke();
     }
     ctx.font = "700 34px sans-serif";
@@ -1157,6 +1172,7 @@ export class VRInfoPanel extends VRCanvasPanel {
     const p = this.info.performers[i];
     const img = this.image(p.imageUrl);
     const radius = 16;
+    const hovered = this.hoveredId === `perf:${p.id}`;
 
     if (img) {
       this.drawImageCover(img, x, y, w, h, radius);
@@ -1188,26 +1204,32 @@ export class VRInfoPanel extends VRCanvasPanel {
     ctx.restore();
 
     this.roundRect(x, y, w, h, radius);
-    ctx.lineWidth = 1.5;
-    ctx.strokeStyle = "rgba(255,255,255,0.22)";
+    ctx.lineWidth = hovered ? 2 : 1.5;
+    ctx.strokeStyle = hovered ? VRT.accentBorder : "rgba(255,255,255,0.22)";
     ctx.stroke();
   }
 
   private drawTagChip(i: number, x: number, y: number, w: number, h: number) {
     const { ctx } = this;
+    const hovered = this.hoveredId === `tag:${this.info.tags[i].id}`;
     this.roundRect(x, y, w, h, h / 2);
     const cg = ctx.createLinearGradient(x, y, x, y + h);
-    cg.addColorStop(0, "rgba(255,255,255,0.14)");
-    cg.addColorStop(1, "rgba(255,255,255,0.06)");
+    if (hovered) {
+      cg.addColorStop(0, VRT.accentWashTop);
+      cg.addColorStop(1, VRT.accentWashBot);
+    } else {
+      cg.addColorStop(0, "rgba(255,255,255,0.14)");
+      cg.addColorStop(1, "rgba(255,255,255,0.06)");
+    }
     ctx.fillStyle = cg;
     ctx.fill();
     ctx.lineWidth = 1;
-    ctx.strokeStyle = "rgba(255,255,255,0.18)";
+    ctx.strokeStyle = hovered ? VRT.accentBorder : "rgba(255,255,255,0.18)";
     ctx.stroke();
     ctx.font = "500 22px sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillStyle = "rgba(255,255,255,0.9)";
+    ctx.fillStyle = hovered ? VRT.textHi : "rgba(255,255,255,0.9)";
     ctx.fillText(
       this.fitText(this.info.tags[i].name, w - 24),
       x + w / 2,

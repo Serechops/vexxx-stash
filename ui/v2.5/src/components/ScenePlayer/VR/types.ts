@@ -124,7 +124,7 @@ export type VRControlAction =
   /** Toggle an immersive Home preference (persisted React-side). */
   | {
       type: "setVrSetting";
-      key: "hoverLaunch" | "soundOnPlay" | "passthroughHome";
+      key: "hoverLaunch" | "soundOnPlay" | "passthroughHome" | "uiSfx";
       value: boolean;
     }
   /**
@@ -215,6 +215,8 @@ export interface IVRHomeSettings {
    * this one.
    */
   passthroughHome: boolean;
+  /** Soft UI sound cues on hover/press (Quest-shell-style blips). */
+  uiSfx: boolean;
 }
 
 /** Sensible defaults — dwell deliberately slower than the old 1.4 s. */
@@ -223,6 +225,7 @@ export const DEFAULT_VR_HOME_SETTINGS: IVRHomeSettings = {
   dwellMs: 2500,
   soundOnPlay: true,
   passthroughHome: false,
+  uiSfx: true,
 };
 
 /**

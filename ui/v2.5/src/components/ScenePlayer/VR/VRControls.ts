@@ -26,6 +26,8 @@ import { IProjectionSettings, fovLabel, stereoLabel } from "./projection";
 import { VRControlAction, IVRMarker, IVRPlaybackState } from "./types";
 import { VRCanvasPanel, IPanelRegion } from "./VRInfoPanels";
 import type { IVRStatusSnapshot } from "./vrStatus";
+import { vrAudio } from "./vrAudio";
+import { VRT } from "./vrTheme";
 
 const CANVAS_W = 1280;
 const CANVAS_H = 486;
@@ -62,7 +64,7 @@ const STRIP_LABEL_X = 24;
 const STRIP_X0 = 116;
 const STRIP_X1 = CANVAS_W - 20;
 
-const ACCENT = "rgba(96,165,250,0.95)";
+const ACCENT = VRT.accent;
 
 interface IRowItem {
   id: string;
@@ -467,6 +469,9 @@ export class VRControlPanel extends VRCanvasPanel {
 
   setHovered(uv: THREE.Vector2 | null) {
     const region = uv ? this.regionAt(uv) : null;
+    // Audible tick on crossing onto a new actionable element (mirrors the
+    // edge-triggered haptic tick the session manager drives off hoveredId).
+    if (region?.id && region.id !== this.hoveredId) vrAudio.hover();
     this.hoveredId = region?.id ?? null;
     this.hoverUV = uv ? { x: uv.x * this.cw, y: (1 - uv.y) * this.ch } : null;
     let fraction: number | null = null;
@@ -682,12 +687,14 @@ export class VRControlPanel extends VRCanvasPanel {
     const { ctx } = this;
     const r = h / 2;
     this.roundRect(x, y, w, h, r);
-    ctx.strokeStyle = "rgba(96,165,250,0.55)";
+    ctx.strokeStyle = VRT.accentSoft;
     ctx.lineWidth = 1.5;
     ctx.stroke();
     if (this.hoverFraction != null) {
       const hx = x + this.hoverFraction * w;
-      ctx.fillStyle = "rgba(255,255,255,0.85)";
+      ctx.fillStyle = VRT.accentHalo;
+      ctx.fillRect(hx - 4, y - 10, 8, h + 20);
+      ctx.fillStyle = "rgba(255,255,255,0.9)";
       ctx.fillRect(hx - 1.5, y - 8, 3, h + 16);
     }
   }
@@ -856,11 +863,15 @@ export class VRControlPanel extends VRCanvasPanel {
 
   private drawStripLabel(text: string, bandY: number, bandH: number) {
     const { ctx } = this;
-    ctx.font = "700 18px sans-serif";
+    // Tracked-out caps (Chromium-only canvas letterSpacing; harmless elsewhere).
+    const c = ctx as CanvasRenderingContext2D & { letterSpacing?: string };
+    ctx.font = "700 17px sans-serif";
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
-    ctx.fillStyle = "rgba(255,255,255,0.60)";
+    ctx.fillStyle = VRT.textDim;
+    if ("letterSpacing" in c) c.letterSpacing = "2px";
     ctx.fillText(text.toUpperCase(), STRIP_LABEL_X, bandY + bandH / 2);
+    if ("letterSpacing" in c) c.letterSpacing = "0px";
   }
 
   private emptyStrip(text: string, bandY: number, bandH: number) {
@@ -917,19 +928,19 @@ export class VRControlPanel extends VRCanvasPanel {
     const { ctx } = this;
     const m = markers[i];
     const hovered = this.hoveredId === `chap:${i}`;
-    this.roundRect(x, y, w, h, 12);
+    this.roundRect(x, y, w, h, VRT.radiusCard);
     const mg = ctx.createLinearGradient(x, y, x, y + h);
     if (hovered) {
-      mg.addColorStop(0, "rgba(96,165,250,0.22)");
-      mg.addColorStop(1, "rgba(96,165,250,0.10)");
+      mg.addColorStop(0, VRT.accentWashTop);
+      mg.addColorStop(1, VRT.accentWashBot);
     } else {
-      mg.addColorStop(0, "rgba(255,255,255,0.10)");
-      mg.addColorStop(1, "rgba(255,255,255,0.04)");
+      mg.addColorStop(0, VRT.raisedTop);
+      mg.addColorStop(1, VRT.raisedBot);
     }
     ctx.fillStyle = mg;
     ctx.fill();
     ctx.lineWidth = 1;
-    ctx.strokeStyle = hovered ? "rgba(96,165,250,0.40)" : "rgba(255,255,255,0.12)";
+    ctx.strokeStyle = hovered ? VRT.accentBorder : VRT.raisedBorder;
     ctx.stroke();
 
     ctx.textAlign = "left";
@@ -992,23 +1003,30 @@ export class VRControlPanel extends VRCanvasPanel {
     const hovered = this.hoveredId === `pat:${pat.id}`;
     const chipY = PAT_Y + 4;
     const chipH = PAT_H - 8;
-    this.roundRect(x, chipY, w, chipH, 12);
+    this.roundRect(x, chipY, w, chipH, VRT.radiusCard);
     if (active) {
       const ag = ctx.createLinearGradient(x, chipY, x, chipY + chipH);
-      ag.addColorStop(0, "rgba(130,190,255,0.92)");
-      ag.addColorStop(1, "rgba(70,130,230,0.80)");
+      ag.addColorStop(0, VRT.accentGradTop);
+      ag.addColorStop(1, VRT.accentGradBot);
       ctx.fillStyle = ag;
+    } else if (hovered) {
+      const hg = ctx.createLinearGradient(x, chipY, x, chipY + chipH);
+      hg.addColorStop(0, VRT.accentWashTop);
+      hg.addColorStop(1, VRT.accentWashBot);
+      ctx.fillStyle = hg;
     } else {
       const dg = ctx.createLinearGradient(x, chipY, x, chipY + chipH);
-      dg.addColorStop(0, hovered ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.12)");
-      dg.addColorStop(1, hovered ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.05)");
+      dg.addColorStop(0, VRT.raisedTop);
+      dg.addColorStop(1, VRT.raisedBot);
       ctx.fillStyle = dg;
     }
     ctx.fill();
     ctx.lineWidth = 1;
     ctx.strokeStyle = active
-      ? "rgba(160,210,255,0.35)"
-      : hovered ? "rgba(255,255,255,0.28)" : "rgba(255,255,255,0.14)";
+      ? VRT.accentBorder
+      : hovered
+      ? VRT.accentBorder
+      : VRT.raisedBorder;
     ctx.stroke();
     // Glass rim
     ctx.beginPath();
@@ -1020,7 +1038,7 @@ export class VRControlPanel extends VRCanvasPanel {
     ctx.font = "500 20px sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillStyle = active ? "#091428" : "rgba(255,255,255,0.9)";
+    ctx.fillStyle = active ? VRT.onAccent : "rgba(255,255,255,0.9)";
     ctx.fillText(pat.label, x + w / 2, PAT_Y + PAT_H / 2 + 1);
   }
 
@@ -1078,7 +1096,12 @@ export class VRControlPanel extends VRCanvasPanel {
         ctx.fill();
       }
 
-      // Playhead
+      // Playhead — white core with a soft accent halo so it reads as the one
+      // live element on the bar.
+      ctx.beginPath();
+      ctx.arc(progressX, y + h / 2, h * 0.62 + 5, 0, Math.PI * 2);
+      ctx.fillStyle = VRT.accentHalo;
+      ctx.fill();
       ctx.beginPath();
       ctx.arc(progressX, y + h / 2, h * 0.62, 0, Math.PI * 2);
       ctx.fillStyle = "#ffffff";
@@ -1131,14 +1154,20 @@ export class VRControlPanel extends VRCanvasPanel {
     this.roundRect(x, ty, w * level, track, track / 2);
     ctx.fillStyle = "rgba(96,165,250,0.85)";
     ctx.fill();
-    // knob
+    // knob (accent halo when hovered, matching the playhead treatment)
+    if (this.hoveredId === "volume") {
+      ctx.beginPath();
+      ctx.arc(x + w * level, y + h / 2, h * 0.16 + 4, 0, Math.PI * 2);
+      ctx.fillStyle = VRT.accentHalo;
+      ctx.fill();
+    }
     ctx.beginPath();
     ctx.arc(x + w * level, y + h / 2, h * 0.16, 0, Math.PI * 2);
     ctx.fillStyle = "#ffffff";
     ctx.fill();
     if (this.hoveredId === "volume") {
       this.roundRect(x - 6, y + 6, w + 12, h - 12, 12);
-      ctx.strokeStyle = "rgba(96,165,250,0.45)";
+      ctx.strokeStyle = VRT.accentSoft;
       ctx.lineWidth = 1.5;
       ctx.stroke();
     }
@@ -1153,49 +1182,69 @@ export class VRControlPanel extends VRCanvasPanel {
     const { ctx } = this;
     const { x, y, w, h } = region;
     const hovered = this.hoveredId === region.id;
+    const r = VRT.radiusButton;
 
-    this.roundRect(x, y, w, h, 14);
+    // Soft halo behind lit/hovered buttons — a wide low-alpha stroke on the
+    // button path itself (extends 2px out, inside the hover-patch clip).
+    if (active || hovered) {
+      this.roundRect(x, y, w, h, r);
+      ctx.lineWidth = 4;
+      ctx.strokeStyle =
+        variant === "green" && active
+          ? "rgba(110,214,128,0.18)"
+          : variant === "danger"
+          ? "rgba(248,113,113,0.16)"
+          : VRT.accentHalo;
+      ctx.stroke();
+    }
+
+    this.roundRect(x, y, w, h, r);
     if (active) {
       const ag = ctx.createLinearGradient(x, y, x, y + h);
       if (variant === "green") {
-        ag.addColorStop(0, "rgba(110,210,115,0.92)");
-        ag.addColorStop(1, "rgba(60,155,65,0.80)");
+        ag.addColorStop(0, VRT.greenGradTop);
+        ag.addColorStop(1, VRT.greenGradBot);
       } else {
-        ag.addColorStop(0, "rgba(130,190,255,0.92)");
-        ag.addColorStop(1, "rgba(70,130,230,0.80)");
+        ag.addColorStop(0, VRT.accentGradTop);
+        ag.addColorStop(1, VRT.accentGradBot);
       }
       ctx.fillStyle = ag;
     } else if (hovered) {
+      // Accent-tinted wash (red-tinted for the danger button) so hover reads
+      // as "this will respond", not just a brighter grey.
       const hg = ctx.createLinearGradient(x, y, x, y + h);
-      hg.addColorStop(0, "rgba(255,255,255,0.26)");
-      hg.addColorStop(1, "rgba(255,255,255,0.11)");
+      if (variant === "danger") {
+        hg.addColorStop(0, "rgba(248,113,113,0.24)");
+        hg.addColorStop(1, "rgba(248,113,113,0.10)");
+      } else {
+        hg.addColorStop(0, VRT.accentWashTop);
+        hg.addColorStop(1, VRT.accentWashBot);
+      }
       ctx.fillStyle = hg;
     } else {
       const dg = ctx.createLinearGradient(x, y, x, y + h);
-      dg.addColorStop(0, "rgba(255,255,255,0.12)");
-      dg.addColorStop(1, "rgba(255,255,255,0.05)");
+      dg.addColorStop(0, VRT.raisedTop);
+      dg.addColorStop(1, VRT.raisedBot);
       ctx.fillStyle = dg;
     }
     ctx.fill();
 
     // Border
-    this.roundRect(x, y, w, h, 14);
+    this.roundRect(x, y, w, h, r);
     ctx.lineWidth = 1;
     if (variant === "danger" && !active) {
-      ctx.strokeStyle = "rgba(248,113,113,0.55)";
+      ctx.strokeStyle = VRT.dangerBorder;
     } else if (active) {
-      ctx.strokeStyle = variant === "green"
-        ? "rgba(130,220,135,0.35)"
-        : "rgba(160,210,255,0.35)";
+      ctx.strokeStyle = variant === "green" ? VRT.greenBorder : VRT.accentBorder;
     } else {
-      ctx.strokeStyle = hovered ? "rgba(255,255,255,0.30)" : "rgba(255,255,255,0.12)";
+      ctx.strokeStyle = hovered ? VRT.accentBorder : VRT.raisedBorder;
     }
     ctx.stroke();
 
     // Glass rim — top-edge highlight
     ctx.beginPath();
-    ctx.moveTo(x + 15, y + 1);
-    ctx.lineTo(x + w - 15, y + 1);
+    ctx.moveTo(x + r + 1, y + 1);
+    ctx.lineTo(x + w - r - 1, y + 1);
     ctx.lineWidth = 1;
     ctx.strokeStyle = active ? "rgba(255,255,255,0.50)" : "rgba(255,255,255,0.22)";
     ctx.stroke();
@@ -1212,9 +1261,9 @@ export class VRControlPanel extends VRCanvasPanel {
       ctx.textBaseline = "middle";
       ctx.fillStyle =
         variant === "danger"
-          ? "rgba(252,165,165,0.95)"
+          ? VRT.dangerText
           : active
-          ? "#091428"
+          ? VRT.onAccent
           : "rgba(255,255,255,0.92)";
       ctx.fillText(label, cx, cy + 1);
     }

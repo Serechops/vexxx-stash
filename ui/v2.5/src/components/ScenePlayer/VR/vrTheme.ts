@@ -1,0 +1,63 @@
+/**
+ * vrTheme — shared visual tokens for the immersive player's canvas-drawn UI.
+ *
+ * One place for the glass/accent language every panel speaks, so the control
+ * bar, side panels, tabs and chips read as a single product instead of a
+ * collection of hand-mixed rgba() literals. Canvas 2D has no CSS variables;
+ * these constants are the equivalent. All values are chosen to stay cheap to
+ * rasterize (flat fills, two-stop gradients, hairline strokes — no blurs).
+ */
+export const VRT = {
+  // ── Accent (electric blue, matches the laser + Home wall) ────────────────
+  accent: "rgba(96,165,250,0.95)",
+  accentSoft: "rgba(96,165,250,0.55)",
+  /** Faint accent wash for hovered surfaces. */
+  accentWashTop: "rgba(120,180,255,0.26)",
+  accentWashBot: "rgba(96,165,250,0.10)",
+  /** Active (lit) element gradient. */
+  accentGradTop: "rgba(136,196,255,0.95)",
+  accentGradBot: "rgba(64,122,226,0.85)",
+  /** Border for accent-hovered / active elements. */
+  accentBorder: "rgba(168,212,255,0.45)",
+  /** Wide, low-alpha halo stroke — the cheap stand-in for an outer glow. */
+  accentHalo: "rgba(96,165,250,0.18)",
+  /** Text/glyph colour on top of a lit accent fill. */
+  onAccent: "#07111f",
+
+  // ── Positive / success (Handy connected, loop armed) ─────────────────────
+  greenGradTop: "rgba(110,214,128,0.95)",
+  greenGradBot: "rgba(52,150,74,0.85)",
+  greenBorder: "rgba(148,226,160,0.42)",
+
+  // ── Danger (Exit) ─────────────────────────────────────────────────────────
+  dangerText: "rgba(252,168,168,0.95)",
+  dangerBorder: "rgba(248,113,113,0.50)",
+
+  // ── Glass surfaces ────────────────────────────────────────────────────────
+  /** Panel body gradient, top → mid → bottom (cool blue-black glass). */
+  panelTop: "rgba(24,28,42,0.96)",
+  panelMid: "rgba(13,15,24,0.94)",
+  panelBot: "rgba(7,8,14,0.92)",
+  /** Faint cool sheen radiating from the panel's top edge. */
+  panelSheen: "rgba(164,196,255,0.06)",
+  panelBorder: "rgba(255,255,255,0.10)",
+  panelRim: "rgba(255,255,255,0.28)",
+  /** Idle raised element (button/chip/card) gradient. */
+  raisedTop: "rgba(255,255,255,0.10)",
+  raisedBot: "rgba(255,255,255,0.04)",
+  raisedBorder: "rgba(255,255,255,0.11)",
+  /** Neutral-hover variant (elements that shouldn't tint blue). */
+  raisedHoverTop: "rgba(255,255,255,0.22)",
+  raisedHoverBot: "rgba(255,255,255,0.10)",
+
+  // ── Text tiers ────────────────────────────────────────────────────────────
+  textHi: "rgba(255,255,255,0.95)",
+  textMid: "rgba(255,255,255,0.72)",
+  textDim: "rgba(255,255,255,0.50)",
+  textFaint: "rgba(255,255,255,0.34)",
+
+  // ── Radii (canvas px) ─────────────────────────────────────────────────────
+  radiusPanel: 28,
+  radiusButton: 18,
+  radiusCard: 14,
+} as const;

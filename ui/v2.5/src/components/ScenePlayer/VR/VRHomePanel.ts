@@ -248,6 +248,7 @@ export class VRHomePanel extends VRCanvasPanel {
   private hoverLaunch = true;
   private dwellMs = DWELL_MS_DEFAULT;
   private soundOnPlay = true;
+  private uiSfx = true;
   private passthroughHome = false;
   // Whether the live session can composite camera passthrough at all
   // (immersive-ar). Gates the settings row — runtime capability, not a pref.
@@ -411,6 +412,10 @@ export class VRHomePanel extends VRCanvasPanel {
     }
     if (!!s.passthroughHome !== this.passthroughHome) {
       this.passthroughHome = !!s.passthroughHome;
+      changed = true;
+    }
+    if (!!s.uiSfx !== this.uiSfx) {
+      this.uiSfx = !!s.uiSfx;
       changed = true;
     }
     if (changed) {
@@ -906,6 +911,15 @@ export class VRHomePanel extends VRCanvasPanel {
           type: "setVrSetting",
           key: "soundOnPlay",
           value: this.soundOnPlay,
+        };
+      }
+      if (id === "set:uiSfx") {
+        this.uiSfx = !this.uiSfx;
+        this.markDirty();
+        return {
+          type: "setVrSetting",
+          key: "uiSfx",
+          value: this.uiSfx,
         };
       }
       if (id === "set:passthroughHome") {
@@ -1989,7 +2003,7 @@ export class VRHomePanel extends VRCanvasPanel {
 
     const mW = 760;
     // Taller when the passthrough row is present (AR session).
-    const mH = this.passthroughSupported ? 640 : 520;
+    const mH = this.passthroughSupported ? 760 : 640;
     const mX = (this.cw - mW) / 2;
     const mY = (this.ch - mH) / 2;
 
@@ -2114,7 +2128,26 @@ export class VRHomePanel extends VRCanvasPanel {
       "set:soundOnPlay"
     );
 
-    // ── Row 3: Hub passthrough (only in an immersive-ar session) ────────────
+    // ── Row 3: UI sound cues toggle ─────────────────────────────────────────
+    rowY += 96;
+    ctx.strokeStyle = "rgba(255,255,255,0.08)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(rowX, rowY);
+    ctx.lineTo(rowX + rowW, rowY);
+    ctx.stroke();
+    rowY += 24;
+    this.drawSettingRow(
+      rowX,
+      rowY,
+      rowW,
+      "UI sound effects",
+      "Soft cues when hovering and selecting",
+      this.uiSfx,
+      "set:uiSfx"
+    );
+
+    // ── Row 4: Hub passthrough (only in an immersive-ar session) ────────────
     if (this.passthroughSupported) {
       rowY += 96;
       ctx.strokeStyle = "rgba(255,255,255,0.08)";

@@ -30,6 +30,13 @@ export interface IPanelHit {
 export interface IControllerInputCallbacks {
   onHover: (hit: IPanelHit | null) => void;
   onSelect: (hit: IPanelHit) => void;
+  /**
+   * Trigger pressed while pointing at nothing interactable ("click away").
+   * Deliberately NOT routed through the generic activity/wake signal — the
+   * session manager decides whether it means "summon the UI" (hidden) or
+   * "dismiss it instantly" (visible). Optional for back-compat.
+   */
+  onEmptySelect?: () => void;
   /** Trigger held and dragged across a panel (drag-to-scroll carousels). */
   onSelectMove: (hit: IPanelHit) => void;
   /** Trigger released; hit is the panel under the ray at release, or null. */
@@ -217,12 +224,16 @@ export class VRControllerInput {
       scene.add(laser);
 
       const onSelectStart = () => {
-        this.activity = true;
         const hit = this.intersect(controller);
         if (hit) {
+          this.activity = true;
           this.pressController = controller;
           this.pressObject = hit.object;
           this.cb.onSelect(hit);
+        } else {
+          // No hit: hand the click to the session as a UI-visibility toggle
+          // rather than a plain wake — see onEmptySelect docs.
+          this.cb.onEmptySelect?.();
         }
       };
       const onSelectEnd = () => {

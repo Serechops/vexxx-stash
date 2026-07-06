@@ -167,6 +167,14 @@ const MODE_H = 46;
 const MODE_BTN_W = 165;
 const MODE_GAP = 8;
 
+// ── Search pill — header, between the logo and the Exit pill ─────────────────
+const SEARCH_W = 360;
+const SEARCH_H = 44;
+const SEARCH_Y = 26;
+// Matches drawExitButton's geometry (132 wide at cw − PAD).
+const SEARCH_EXIT_W = 132;
+const SEARCH_EXIT_GAP = 16;
+
 // ── Colours ───────────────────────────────────────────────────────────────────
 const ACCENT = "rgba(96,165,250,";
 const GOLD = "rgba(250,200,80,";
@@ -191,6 +199,12 @@ export class VRHomePanel extends VRCanvasPanel {
   private previewVideo: HTMLVideoElement | null = null;
   private filterLabel: string | null = null;
   private sortMode: SortMode = "recent";
+  // Live free-text search (typed on the system keyboard), mirrored from the
+  // manager so the pill + subtitle track keystrokes as they arrive.
+  private searchText: string | null = null;
+  // Deadline for the "no VR keyboard" hint flashed on the search pill when the
+  // browser can't show the WebXR system keyboard.
+  private searchUnsupportedUntil = 0;
 
   // Content mode: the wall shows either the scene grid or the gallery grid. The
   // page-slide state (page/offset/anim) and the rail are shared — only one grid
@@ -500,6 +514,22 @@ export class VRHomePanel extends VRCanvasPanel {
       this.filterLabel = label;
       this.markDirty();
     }
+  }
+
+  /** Mirror the manager's live search text (updates as the user types). */
+  setSearchText(text: string | null) {
+    const t = text?.trim() ? text.trim() : null;
+    if (t !== this.searchText) {
+      this.searchText = t;
+      this.markDirty();
+    }
+  }
+
+  /** Flash a "no VR keyboard" hint on the search pill (unsupported browser). */
+  showSearchUnsupported() {
+    this.searchUnsupportedUntil = performance.now() + 2500;
+    this.markDirty();
+    setTimeout(() => this.markDirty(), 2600);
   }
 
   setCurrentSceneId(id: string | null) {
@@ -944,6 +974,12 @@ export class VRHomePanel extends VRCanvasPanel {
     }
 
     if (id === "exitVR") return { type: "exit" };
+    if (id === "searchOpen") return { type: "homeSearchOpen" };
+    if (id === "searchClear") {
+      this.searchText = null;
+      this.markDirty();
+      return { type: "setHomeSearch", search: null };
+    }
     if (id.startsWith("mode:")) {
       const mode = id.slice("mode:".length) as ContentMode;
       // FapTap and PMVHaven are premium add-ons: locked (non-selectable) until
@@ -1111,6 +1147,7 @@ export class VRHomePanel extends VRCanvasPanel {
     this.drawHeader();
     this.drawSettingsButton();
     this.drawModeToggle();
+    this.drawSearchPill();
     this.drawExitButton();
     this.drawDivider();
     this.drawRail();
@@ -1153,7 +1190,9 @@ export class VRHomePanel extends VRCanvasPanel {
         ? "scenes in this movie"
         : "scenes";
       ctx.fillText(
-        this.filterLabel
+        this.searchText && !this.inGroupDetail
+          ? `No ${kind} matching “${this.searchText}”`
+          : this.filterLabel
           ? `No ${kind} for this filter`
           : `No ${kind} found`,
         GRID_X0 + GRID_W / 2,
@@ -1249,10 +1288,16 @@ export class VRHomePanel extends VRCanvasPanel {
         ? `${this.filterLabel}  ·  ${base}`
         : `${base} in your ${mediaLabel}`;
     }
+    // Active search reads as part of the query line (skipped in a movie
+    // drill-down, whose scene list ignores the search).
+    if (this.searchText && !this.inGroupDetail) {
+      sub = `“${this.searchText}”  ·  ${sub}`;
+    }
     ctx.font = "500 19px sans-serif";
-    ctx.fillStyle = this.filterLabel
-      ? `${ACCENT}0.85)`
-      : "rgba(255,255,255,0.45)";
+    ctx.fillStyle =
+      this.filterLabel || (this.searchText && !this.inGroupDetail)
+        ? `${ACCENT}0.85)`
+        : "rgba(255,255,255,0.45)";
     ctx.fillText(sub, this.cw / 2, SUB_Y);
   }
 
@@ -1930,6 +1975,93 @@ export class VRHomePanel extends VRCanvasPanel {
     ctx.fillStyle = open || hovered ? "#06121f" : `${ACCENT}0.95)`;
     ctx.fillText("⚙  Settings", x + w / 2, y + h / 2 + 1);
     this.regions.push({ id: "settings", x, y, w, h });
+  }
+
+  /**
+   * Header search pill — tap to summon the system keyboard (handled in-manager
+   * via [homeSearchOpen]). While a search is active it shows the live term plus
+   * an ✕ sub-region that clears it; hidden inside a movie drill-down, where the
+   * (scene_index-ordered) scene list ignores the search.
+   */
+  private drawSearchPill() {
+    if (this.inGroupDetail) return;
+    const { ctx } = this;
+    const w = SEARCH_W;
+    const h = SEARCH_H;
+    const y = SEARCH_Y;
+    const x = this.cw - PAD - SEARCH_EXIT_W - SEARCH_EXIT_GAP - w;
+    const active = !!this.searchText;
+    const unsupported = performance.now() < this.searchUnsupportedUntil;
+    const hovered =
+      this.hoveredId === "searchOpen" || this.hoveredId === "searchClear";
+
+    this.roundRect(x, y, w, h, h / 2);
+    ctx.fillStyle = active
+      ? `${ACCENT}0.22)`
+      : hovered
+      ? "rgba(255,255,255,0.14)"
+      : "rgba(255,255,255,0.07)";
+    ctx.fill();
+    this.roundRect(x, y, w, h, h / 2);
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = active
+      ? `${ACCENT}0.65)`
+      : hovered
+      ? "rgba(255,255,255,0.35)"
+      : "rgba(255,255,255,0.16)";
+    ctx.stroke();
+
+    // Clear ✕ (active search only) — pushed before the main region so it wins.
+    const clearW = active ? h : 0;
+    if (active) {
+      const cx = x + w - h / 2 - 4;
+      const cy = y + h / 2;
+      const clearHover = this.hoveredId === "searchClear";
+      if (clearHover) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, 15, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(255,255,255,0.18)";
+        ctx.fill();
+      }
+      ctx.font = "600 20px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = clearHover
+        ? "rgba(255,255,255,0.95)"
+        : "rgba(255,255,255,0.6)";
+      ctx.fillText("✕", cx, cy + 1);
+      this.regions.push({
+        id: "searchClear",
+        x: x + w - h - 4,
+        y,
+        w: h + 4,
+        h,
+      });
+    }
+
+    ctx.font = active ? "600 19px sans-serif" : "500 19px sans-serif";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    let label: string;
+    if (unsupported) {
+      ctx.fillStyle = `${ORANGE}0.95)`;
+      label = "🔍  No VR keyboard";
+    } else if (active) {
+      ctx.fillStyle = `${ACCENT}0.95)`;
+      label = `🔍  “${this.searchText}”`;
+    } else {
+      ctx.fillStyle = hovered
+        ? "rgba(255,255,255,0.92)"
+        : "rgba(255,255,255,0.6)";
+      label = "🔍  Search";
+    }
+    // Ellipsize long terms so they never collide with the clear ✕.
+    const maxTextW = w - 24 * 2 - clearW;
+    while (label.length > 4 && ctx.measureText(label).width > maxTextW) {
+      label = `${label.slice(0, -2)}…`;
+    }
+    ctx.fillText(label, x + 24, y + h / 2 + 1);
+    this.regions.push({ id: "searchOpen", x, y, w: w - clearW, h });
   }
 
   /** Scenes | Galleries | Movies | FapTap | PMV segmented toggle (header). */

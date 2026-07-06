@@ -46,6 +46,7 @@ import {
 import { VRScenesPanel, IVRSceneEntry } from "./VRScenesPanel";
 import { VRCarouselLibrary } from "./VRCarouselLibrary";
 import { VRHomePanel } from "./VRHomePanel";
+import { VRSystemKeyboard } from "./vrKeyboard";
 import { fetchFaptapStatus } from "./faptapLibrary";
 import { fetchPmvhavenStatus } from "./pmvhavenLibrary";
 import { VRGalleryViewerPanel } from "./VRGalleryViewerPanel";
@@ -591,6 +592,12 @@ export class XRSessionManager {
   } | null = null;
   private mediaFilter: VRMediaFilter = "all";
   private sortMode: VRSortMode = "recent";
+  // Free-text search (typed on the system keyboard), part of the live query.
+  private homeSearch: string | null = null;
+  // Meta Quest Browser system keyboard, summoned from the Home wall's search
+  // pill. Keystrokes re-query live (debounced below).
+  private keyboard = new VRSystemKeyboard();
+  private searchDebounce: number | null = null;
   // Cached rail lists, kept for resolving a tapped filter's display label.
   private railStudios: IVRFilterEntry[] = [];
   private railPerformers: IVRFilterEntry[] = [];
@@ -1092,6 +1099,9 @@ export class XRSessionManager {
     // into playback under compositor reprojection. Not worth the sharpness.
     await this.renderer.xr.setSession(session);
     this.input.setSession(session);
+    // System keyboard availability is a session attribute — attach now so the
+    // Home wall's search pill can summon it.
+    this.keyboard.setSession(session);
     // Camera passthrough only composites inside an immersive-ar session (the
     // Enter-VR buttons request AR-first); both toggles key off this.
     this.passthroughAvailable = isPassthroughSession(session);
@@ -1365,6 +1375,7 @@ export class XRSessionManager {
       sort: this.sortMode,
       mediaFilter: this.mediaFilter,
       filter: this.homeFilter,
+      search: this.homeSearch,
     });
     this.homePanel?.resetGalleryLibrary();
   }
@@ -1456,6 +1467,7 @@ export class XRSessionManager {
       sort: this.sortMode,
       mediaFilter: this.mediaFilter,
       filter: this.homeFilter,
+      search: this.homeSearch,
     });
     this.homePanel?.resetGroupLibrary();
   }
@@ -1484,9 +1496,37 @@ export class XRSessionManager {
       sort: this.sortMode,
       mediaFilter: this.mediaFilter,
       filter: this.homeFilter,
+      search: this.homeSearch,
     });
     this.homePanel?.resetLibrary();
     this.refreshHomeCounts();
+  }
+
+  /**
+   * Apply the free-text search across every grid (scenes/sidecars + galleries
+   * + movies all honour it). Live keystrokes from the system keyboard pass
+   * `debounce` so we re-query at most ~3×/s while typing; commits (keyboard
+   * dismissed, ✕ clear) apply immediately.
+   */
+  private setHomeSearch(text: string, debounce: boolean) {
+    const t = text.trim();
+    const next = t ? t : null;
+    // The pill + subtitle track every keystroke, even before the re-query.
+    this.homePanel?.setSearchText(next);
+    if (this.searchDebounce !== null) {
+      window.clearTimeout(this.searchDebounce);
+      this.searchDebounce = null;
+    }
+    const apply = () => {
+      this.searchDebounce = null;
+      if (next === this.homeSearch) return;
+      this.homeSearch = next;
+      this.applyHomeQuery();
+      this.applyGalleryQuery();
+      this.applyGroupQuery();
+    };
+    if (debounce) this.searchDebounce = window.setTimeout(apply, 350);
+    else apply();
   }
 
   /** Refresh the rail media-type counts under the active studio/performer filter. */
@@ -2017,6 +2057,25 @@ export class XRSessionManager {
       this.mediaFilter = action.filter;
       this.homePanel?.setMediaFilter(action.filter);
       this.applyHomeQuery();
+      this.lastActivity = performance.now();
+      return;
+    }
+    if (action.type === "homeSearchOpen") {
+      // Focus the hidden DOM input → Quest Browser overlays its system
+      // keyboard. Keystrokes re-query live (debounced); dismissing the
+      // keyboard commits immediately.
+      const opened = this.keyboard.open({
+        initial: this.homeSearch ?? "",
+        onInput: (text) => this.setHomeSearch(text, true),
+        onCommit: (text) => this.setHomeSearch(text, false),
+      });
+      if (!opened) this.homePanel?.showSearchUnsupported();
+      this.lastActivity = performance.now();
+      return;
+    }
+    if (action.type === "setHomeSearch") {
+      // Direct set/clear (the pill's ✕) — no keyboard round-trip.
+      this.setHomeSearch(action.search ?? "", false);
       this.lastActivity = performance.now();
       return;
     }
@@ -3818,6 +3877,13 @@ export class XRSessionManager {
     this.opts.video.removeEventListener("resize", this.onVideoReady);
     this.input.dispose();
     this.status.dispose();
+    if (this.searchDebounce !== null) {
+      window.clearTimeout(this.searchDebounce);
+      this.searchDebounce = null;
+    }
+    // Removes the hidden keyboard input from the DOM (Meta docs: leaving it
+    // behind can leave the underlying 2D page scrolled/altered).
+    this.keyboard.dispose();
     vrAudio.dispose();
     this.deviceModels?.dispose();
     this.panel.dispose();

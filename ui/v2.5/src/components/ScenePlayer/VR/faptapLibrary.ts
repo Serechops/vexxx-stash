@@ -209,7 +209,9 @@ function queryParams(q: IVRHomeQuery): Record<string, string> {
   if (q.filter && (q.filter.kind === "tag" || q.filter.kind === "studio")) {
     tag = q.filter.id;
   }
-  return { media, sort, tag };
+  // Free-text search → sidecar `q` param (name LIKE match server-side; the
+  // empty string is dropped by getJSON's param builder).
+  return { media, sort, tag, q: q.search?.trim() ?? "" };
 }
 
 // ── Favorites (localStorage-backed, no server round-trip) ────────────────────
@@ -278,6 +280,7 @@ export class FapTapHomeLibrary implements IVRHomeDataSource {
     sort: "recent",
     mediaFilter: "all",
     filter: null,
+    search: null,
   };
   private generation = 0;
   // Virtual index of every row we've paged, for auto-advance.

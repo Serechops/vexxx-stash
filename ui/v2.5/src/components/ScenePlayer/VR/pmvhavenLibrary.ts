@@ -212,7 +212,9 @@ function queryParams(q: IVRHomeQuery): Record<string, string> {
       star = q.filter.id;
     }
   }
-  return { sort, tag, star, media: "all" };
+  // Free-text search → sidecar `q` param (title LIKE match server-side; the
+  // empty string is dropped by getJSON's param builder).
+  return { sort, tag, star, media: "all", q: q.search?.trim() ?? "" };
 }
 
 // ── Favorites (localStorage-backed, no server round-trip) ────────────────────
@@ -281,6 +283,7 @@ export class PmvHavenHomeLibrary implements IVRHomeDataSource {
     sort: "recent",
     mediaFilter: "all",
     filter: null,
+    search: null,
   };
   private generation = 0;
   // Virtual index of every row we've paged, for auto-advance.

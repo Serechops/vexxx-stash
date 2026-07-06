@@ -121,6 +121,14 @@ export type VRControlAction =
   | { type: "setMediaFilter"; filter: VRMediaFilter }
   /** Change the Home grid sort order (handled in-manager → re-queries the pager). */
   | { type: "setHomeSort"; sort: "recent" | "rating" | "title" }
+  /**
+   * Summon the system keyboard to edit the Home free-text search (handled
+   * in-manager via [VRSystemKeyboard]; falls back to a status hint when the
+   * browser has no WebXR keyboard support).
+   */
+  | { type: "homeSearchOpen" }
+  /** Apply (or clear, with null) the Home free-text search across all grids. */
+  | { type: "setHomeSearch"; search: string | null }
   /** Toggle an immersive Home preference (persisted React-side). */
   | {
       type: "setVrSetting";
@@ -312,6 +320,12 @@ export interface IVRHomeQuery {
   sort: VRSortMode;
   mediaFilter: VRMediaFilter;
   filter: { kind: "studio" | "performer" | "tag"; id: string } | null;
+  /**
+   * Free-text search typed on the system keyboard, or null when inactive.
+   * Local sources map it onto the GraphQL find filter's `q`; the FapTap /
+   * PMVHaven sidecars pass it as the REST `q` param (title LIKE match).
+   */
+  search: string | null;
 }
 
 /** One page of grid scenes plus the total count for pager geometry. */

@@ -120,6 +120,7 @@ export class VRHomeLibrary implements IVRHomeDataSource {
     sort: "recent",
     mediaFilter: "all",
     filter: null,
+    search: null,
   };
   private generation = 0;
 
@@ -152,9 +153,18 @@ export class VRHomeLibrary implements IVRHomeDataSource {
     return this.generation;
   }
 
-  /** Recent sort floats in-progress scenes to the top via a virtual prefix. */
+  /** Free-text search term for the find filter's `q`, or undefined when off. */
+  private get searchQ(): string | undefined {
+    const s = this.query.search?.trim();
+    return s ? s : undefined;
+  }
+
+  /**
+   * Recent sort floats in-progress scenes to the top via a virtual prefix —
+   * suppressed while searching, so results read as one plain ranked list.
+   */
   private get hasPrefix(): boolean {
-    return this.query.sort === "recent";
+    return this.query.sort === "recent" && !this.searchQ;
   }
 
   private loadContinue(): Promise<IVRSceneEntry[]> {
@@ -201,7 +211,7 @@ export class VRHomeLibrary implements IVRHomeDataSource {
         .query<GQL.FindScenesQuery>({
           query: GQL.FindScenesDocument,
           variables: {
-            filter: { per_page: 0, page: 1 },
+            filter: { per_page: 0, page: 1, q: this.searchQ },
             scene_filter: buildSceneFilter(this.query),
           },
           fetchPolicy: "network-only",
@@ -237,6 +247,7 @@ export class VRHomeLibrary implements IVRHomeDataSource {
               page: blockIndex + 1,
               sort,
               direction,
+              q: this.searchQ,
               exclude_ids: excludeIds.length ? excludeIds : undefined,
             },
             scene_filter: buildSceneFilter(this.query),
@@ -309,7 +320,7 @@ export class VRHomeLibrary implements IVRHomeDataSource {
         const r = await getClient().query<GQL.FindScenesQuery>({
           query: GQL.FindScenesDocument,
           variables: {
-            filter: { per_page: 0, page: 1 },
+            filter: { per_page: 0, page: 1, q: this.searchQ },
             scene_filter: { ...base, ...extra },
           },
           fetchPolicy: "network-only",

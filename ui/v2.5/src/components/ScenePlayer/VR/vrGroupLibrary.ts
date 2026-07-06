@@ -66,6 +66,12 @@ function buildGroupFilter(q: IVRHomeQuery): GQL.GroupFilterType {
   return f;
 }
 
+/** Free-text search term for the find filter's `q`, or undefined when off. */
+function searchQ(q: IVRHomeQuery): string | undefined {
+  const s = q.search?.trim();
+  return s ? s : undefined;
+}
+
 /** Map the Home sort mode onto a group sort key + direction. */
 function groupSort(q: IVRHomeQuery): {
   sort: string;
@@ -81,6 +87,7 @@ export class VRGroupLibrary implements IVRGroupDataSource {
     sort: "recent",
     mediaFilter: "all",
     filter: null,
+    search: null,
   };
   private generation = 0;
 
@@ -128,7 +135,7 @@ export class VRGroupLibrary implements IVRGroupDataSource {
         .query<GQL.FindGroupsQuery>({
           query: GQL.FindGroupsDocument,
           variables: {
-            filter: { per_page: 0, page: 1 },
+            filter: { per_page: 0, page: 1, q: searchQ(this.query) },
             group_filter: buildGroupFilter(this.query),
           },
           fetchPolicy: "network-only",
@@ -160,6 +167,7 @@ export class VRGroupLibrary implements IVRGroupDataSource {
               page: blockIndex + 1,
               sort,
               direction,
+              q: searchQ(this.query),
             },
             group_filter: buildGroupFilter(this.query),
           },

@@ -93,6 +93,12 @@ function buildGalleryFilter(q: IVRHomeQuery): GQL.GalleryFilterType {
   return f;
 }
 
+/** Free-text search term for the find filter's `q`, or undefined when off. */
+function searchQ(q: IVRHomeQuery): string | undefined {
+  const s = q.search?.trim();
+  return s ? s : undefined;
+}
+
 /** Map the Home sort mode onto a gallery sort key + direction. */
 function gallerySort(q: IVRHomeQuery): {
   sort: string;
@@ -108,6 +114,7 @@ export class VRGalleryLibrary implements IVRGalleryDataSource {
     sort: "recent",
     mediaFilter: "all",
     filter: null,
+    search: null,
   };
   private generation = 0;
 
@@ -159,7 +166,7 @@ export class VRGalleryLibrary implements IVRGalleryDataSource {
         .query<GQL.FindGalleriesQuery>({
           query: GQL.FindGalleriesDocument,
           variables: {
-            filter: { per_page: 0, page: 1 },
+            filter: { per_page: 0, page: 1, q: searchQ(this.query) },
             gallery_filter: buildGalleryFilter(this.query),
           },
           fetchPolicy: "network-only",
@@ -191,6 +198,7 @@ export class VRGalleryLibrary implements IVRGalleryDataSource {
               page: blockIndex + 1,
               sort,
               direction,
+              q: searchQ(this.query),
             },
             gallery_filter: buildGalleryFilter(this.query),
           },

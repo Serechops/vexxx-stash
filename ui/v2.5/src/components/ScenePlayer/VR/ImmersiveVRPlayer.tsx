@@ -365,6 +365,8 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
       markers: [...liveScene.scene_markers]
         .sort((a, b) => a.seconds - b.seconds)
         .map((m) => ({ title: markerTitle(m), seconds: m.seconds })),
+      sceneId: liveScene.id,
+      rating100: liveScene.rating100 ?? null,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [liveScene.id]
@@ -645,6 +647,8 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
         markers: [...next.scene_markers]
           .sort((a, b) => a.seconds - b.seconds)
           .map((m) => ({ title: markerTitle(m), seconds: m.seconds })),
+        sceneId: next.id,
+        rating100: next.rating100 ?? null,
       };
       if (gen !== switchSceneGen.current) return;
       managerRef.current?.updateSceneInfo(nextInfo);
@@ -866,6 +870,26 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
         case "toggleCaptions":
           cycleCaptions();
           break;
+        // ── In-VR scene metadata edits (Info panel actions row) ──
+        // The panel already applied the tap optimistically; here we persist it
+        // and only push a patch back to reconcile or revert on failure.
+        // Guarded against taps landing after a scene switch.
+        case "setSceneRating": {
+          if (a.sceneId !== liveSceneRef.current.id) break;
+          const prevRating = liveSceneRef.current.rating100 ?? null;
+          setLiveScene((p) => ({ ...p, rating100: a.rating100 }));
+          getClient()
+            .mutate({
+              mutation: GQL.SceneUpdateDocument,
+              variables: { input: { id: a.sceneId, rating100: a.rating100 } },
+            })
+            .catch(() => {
+              if (liveSceneRef.current.id !== a.sceneId) return;
+              setLiveScene((p) => ({ ...p, rating100: prevRating }));
+              managerRef.current?.updateSceneMeta({ rating100: prevRating });
+            });
+          break;
+        }
         case "next":
           onNext?.();
           break;
@@ -1345,23 +1369,41 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
     const v = videoRef.current;
     if (!v) return;
     let timer: ReturnType<typeof setTimeout> | null = null;
+    // Bumped whenever the user resumes watching (replay/seek after `ended`),
+    // voiding both the armed timer AND any getNextSceneId still resolving —
+    // otherwise a replayed scene gets yanked away 3 s later.
+    let armGen = 0;
+    const cancelAdvance = () => {
+      armGen++;
+      if (timer != null) {
+        clearTimeout(timer);
+        timer = null;
+      }
+    };
     const onEnded = () => {
-      if (timer) clearTimeout(timer);
+      cancelAdvance();
+      const gen = armGen;
       // getNextSceneId is async now (the next scene may live on an unfetched
       // server page); resolve it, then schedule the switch.
       const endedId = liveSceneRef.current.id;
       managerRef.current
         ?.getNextSceneId(endedId)
         .then((nextId) => {
-          // Bail if the scene changed out from under us while resolving.
+          // Bail if the user resumed watching or the scene changed out from
+          // under us while resolving.
+          if (gen !== armGen) return;
           if (!nextId || liveSceneRef.current.id !== endedId) return;
           timer = setTimeout(() => handleSwitchScene(nextId), 3000);
         })
         .catch(() => undefined);
     };
     v.addEventListener("ended", onEnded);
+    v.addEventListener("play", cancelAdvance);
+    v.addEventListener("seeking", cancelAdvance);
     return () => {
       v.removeEventListener("ended", onEnded);
+      v.removeEventListener("play", cancelAdvance);
+      v.removeEventListener("seeking", cancelAdvance);
       if (timer != null) clearTimeout(timer);
     };
   }, [videoEl, handleSwitchScene]);

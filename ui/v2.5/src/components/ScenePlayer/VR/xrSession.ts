@@ -41,6 +41,7 @@ import {
   VRHandyPanel,
   VRInfoPanel,
   IVRSceneInfo,
+  IVRSceneMetaPatch,
   VRCanvasPanel,
 } from "./VRInfoPanels";
 import { VRScenesPanel, IVRSceneEntry } from "./VRScenesPanel";
@@ -1268,6 +1269,15 @@ export class XRSessionManager {
     // class before the OOM crash (repro: hard crash after 2–3 switches).
     this.jSwitchCount++;
     this.emitResourceSnapshot("switch");
+  }
+
+  /**
+   * Patch the Info panel's rating stars in place — reconcile or error revert
+   * after an in-VR rating tap. Unlike [updateSceneInfo] this never rebuilds
+   * the panel, so scroll positions and the prewarmed texture survive.
+   */
+  updateSceneMeta(patch: IVRSceneMetaPatch) {
+    this.infoPanel?.updateMeta(patch);
   }
 
   /** Fetch a carousel page from the pager and append it (gen-guarded). */

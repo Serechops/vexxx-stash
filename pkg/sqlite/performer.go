@@ -848,16 +848,25 @@ func (qb *PerformerStore) findIDsFast(ctx context.Context, findFilter *models.Fi
 
 	offset := (page - 1) * perPage
 
+	var where string
+	var args []interface{}
+	if findFilter != nil && len(findFilter.ExcludeIds) > 0 {
+		where = "WHERE performers.id NOT IN " + getInBinding(len(findFilter.ExcludeIds))
+		for _, id := range findFilter.ExcludeIds {
+			args = append(args, id)
+		}
+	}
+
 	sql := fmt.Sprintf(
-		"SELECT performers.id FROM performers %s LIMIT %d OFFSET %d",
-		orderBy, perPage, offset,
+		"SELECT performers.id FROM performers %s %s LIMIT %d OFFSET %d",
+		where, orderBy, perPage, offset,
 	)
 
 	var result []struct {
 		ID int `db:"id"`
 	}
 
-	if err := dbWrapper.Select(ctx, &result, sql); err != nil {
+	if err := dbWrapper.Select(ctx, &result, sql, args...); err != nil {
 		return nil, fmt.Errorf("fast IDs query failed: %w", err)
 	}
 

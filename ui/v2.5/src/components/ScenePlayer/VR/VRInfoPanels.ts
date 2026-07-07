@@ -16,6 +16,16 @@ import { VRControlAction, IVRHandyState, VRStrokeStatus } from "./types";
 import { vrAudio } from "./vrAudio";
 import { VRT } from "./vrTheme";
 
+/** Stepping patterns offered by the Handy panel's compact patterns strip. */
+const HANDY_PATTERNS = [
+  { id: "slow_wave", label: "Slow Wave" },
+  { id: "steady", label: "Steady" },
+  { id: "fast_pulse", label: "Fast Pulse" },
+  { id: "tease", label: "Tease" },
+  { id: "upper_zone", label: "Upper Zone" },
+  { id: "ripple", label: "Ripple" },
+];
+
 export interface IVRPerformer {
   /** Performer id — enables the drill-down filter from the info panel. */
   id: string;
@@ -29,6 +39,23 @@ export interface IVRSceneInfo {
   /** Tags carry ids so a tap can drill down into the filtered Home wall. */
   tags: { id: string; name: string }[];
   markers: { title: string; seconds: number }[];
+  /**
+   * Stash scene id — enables the Info panel's rating-stars actions row.
+   * Absent/empty (lobby) or sidecar-prefixed ids ("faptap:…", "pmvhaven:…")
+   * hide the row: those catalogs have no Stash record to write back to.
+   */
+  sceneId?: string;
+  /** Scene rating 0–100 (rating100), or null when unrated. */
+  rating100?: number | null;
+}
+
+/**
+ * Partial refresh for the Info panel's rating stars. The panel applies taps
+ * optimistically; the React layer pushes one of these back only to reconcile —
+ * a revert after a failed mutation.
+ */
+export interface IVRSceneMetaPatch {
+  rating100?: number | null;
 }
 
 export interface IPanelRegion {
@@ -520,39 +547,52 @@ export abstract class VRCanvasPanel {
       { id: "info", label: "Info" },
       { id: "scenes", label: "Scenes" },
     ];
+    // Inset the visible pill inside each tab's tap-target slot: its rounded
+    // corners then never reach the slot's true corners, so the panel glass
+    // shows through evenly on every side instead of an asymmetric square
+    // poking out past one corner (see [VRControlPanel.drawButton]).
+    const m = 4;
+    const iy = PAD + m;
+    const ih = TAB_H - m * 2;
+    const ir = 10;
     let x = PAD;
     for (const tab of tabs) {
       const isActive = tab.id === active;
       const hov = this.hoveredId === `browseTab:${tab.id}`;
-      this.roundRect(x, PAD, tabW, TAB_H, 14);
+      const ix = x + m;
+      const iw = tabW - m * 2;
+      this.roundRect(ix, iy, iw, ih, ir);
       if (isActive) {
-        const tg = ctx.createLinearGradient(x, PAD, x, PAD + TAB_H);
+        const tg = ctx.createLinearGradient(ix, iy, ix, iy + ih);
         tg.addColorStop(0, VRT.accentGradTop);
         tg.addColorStop(1, VRT.accentGradBot);
         ctx.fillStyle = tg;
       } else if (hov) {
-        const hg = ctx.createLinearGradient(x, PAD, x, PAD + TAB_H);
+        const hg = ctx.createLinearGradient(ix, iy, ix, iy + ih);
         hg.addColorStop(0, VRT.accentWashTop);
         hg.addColorStop(1, VRT.accentWashBot);
         ctx.fillStyle = hg;
       } else {
-        ctx.fillStyle = "rgba(255,255,255,0.07)";
+        const dg = ctx.createLinearGradient(ix, iy, ix, iy + ih);
+        dg.addColorStop(0, VRT.raisedTop);
+        dg.addColorStop(1, VRT.raisedBot);
+        ctx.fillStyle = dg;
       }
       ctx.fill();
       // Border
-      this.roundRect(x, PAD, tabW, TAB_H, 14);
+      this.roundRect(ix, iy, iw, ih, ir);
       ctx.lineWidth = 1;
       ctx.strokeStyle = isActive
         ? VRT.accentBorder
         : hov
         ? "rgba(150,200,255,0.35)"
-        : "rgba(255,255,255,0.10)";
+        : VRT.raisedBorder;
       ctx.stroke();
       // Glass rim on active tab
       if (isActive) {
         ctx.beginPath();
-        ctx.moveTo(x + 13, PAD + 1);
-        ctx.lineTo(x + tabW - 13, PAD + 1);
+        ctx.moveTo(ix + ir + 1, iy + 1);
+        ctx.lineTo(ix + iw - ir - 1, iy + 1);
         ctx.lineWidth = 1;
         ctx.strokeStyle = "rgba(255,255,255,0.45)";
         ctx.stroke();
@@ -990,12 +1030,12 @@ export class VRSceneInfoPanel extends VRCanvasPanel {
     const { ctx } = this;
     this.roundRect(x, y, w, h, h / 2);
     const cg = ctx.createLinearGradient(x, y, x, y + h);
-    cg.addColorStop(0, "rgba(255,255,255,0.14)");
-    cg.addColorStop(1, "rgba(255,255,255,0.06)");
+    cg.addColorStop(0, VRT.raisedTop);
+    cg.addColorStop(1, VRT.raisedBot);
     ctx.fillStyle = cg;
     ctx.fill();
     ctx.lineWidth = 1;
-    ctx.strokeStyle = "rgba(255,255,255,0.18)";
+    ctx.strokeStyle = VRT.raisedBorder;
     ctx.stroke();
     ctx.font = "500 22px sans-serif";
     ctx.textAlign = "center";
@@ -1018,15 +1058,15 @@ export class VRSceneInfoPanel extends VRCanvasPanel {
       mg.addColorStop(0, "rgba(96,165,250,0.22)");
       mg.addColorStop(1, "rgba(96,165,250,0.10)");
     } else {
-      mg.addColorStop(0, "rgba(255,255,255,0.10)");
-      mg.addColorStop(1, "rgba(255,255,255,0.04)");
+      mg.addColorStop(0, VRT.raisedTop);
+      mg.addColorStop(1, VRT.raisedBot);
     }
     ctx.fillStyle = mg;
     ctx.fill();
     ctx.lineWidth = 1;
     ctx.strokeStyle = hovered
       ? "rgba(96,165,250,0.40)"
-      : "rgba(255,255,255,0.12)";
+      : VRT.raisedBorder;
     ctx.stroke();
 
     ctx.textAlign = "left";
@@ -1077,6 +1117,18 @@ export class VRInfoPanel extends VRCanvasPanel {
         return null;
       default:
         break;
+    }
+    // Rating stars (Stash scenes only). Tap applies optimistically to the drawn
+    // state — the emitted action fires the mutation React-side, which pushes an
+    // [IVRSceneMetaPatch] back only to reconcile (error revert).
+    if (this.canEditScene && region.id.startsWith("star:")) {
+      const sceneId = this.info.sceneId!;
+      const val = Number(region.id.slice("star:".length)) * 20;
+      // Tapping the current rating clears it, mirroring the 2D star widget.
+      const next = this.info.rating100 === val ? null : val;
+      this.info.rating100 = next;
+      this.markDirty();
+      return { type: "setSceneRating", sceneId, rating100: next };
     }
     // Drill-down: tapping a performer/tag filters the Home wall by it. The label
     // is passed through so the wall header reads correctly without a rail lookup
@@ -1165,6 +1217,47 @@ export class VRInfoPanel extends VRCanvasPanel {
         regionId: (i) => ({ id: `tag:${this.info.tags[i].id}` }),
       });
     }
+
+    // ── Rating stars (Stash scenes only) ────────────────────────────────────
+    if (this.canEditScene) this.drawActionsRow(656, 64);
+  }
+
+  /** True when the loaded content is a Stash scene the actions can write to. */
+  private get canEditScene(): boolean {
+    const id = this.info.sceneId;
+    return !!id && !id.includes(":");
+  }
+
+  /**
+   * Merge a metadata patch into the actions row in place — no panel rebuild,
+   * so scroll positions and the prewarmed texture survive a reconcile.
+   */
+  updateMeta(patch: IVRSceneMetaPatch) {
+    if (patch.rating100 !== undefined) this.info.rating100 = patch.rating100;
+    this.markDirty();
+  }
+
+  private drawActionsRow(y: number, h: number) {
+    const { ctx } = this;
+
+    // Rating: five tappable stars; rating100 maps 20 points per star.
+    const filled = Math.round((this.info.rating100 ?? 0) / 20);
+    const starW = 54;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    for (let i = 1; i <= 5; i++) {
+      const x = 24 + (i - 1) * starW;
+      const hovered = this.hoveredId === `star:${i}`;
+      ctx.font = "44px sans-serif";
+      ctx.fillStyle =
+        i <= filled
+          ? "rgba(250,204,21,0.95)"
+          : hovered
+          ? "rgba(250,204,21,0.55)"
+          : "rgba(255,255,255,0.28)";
+      ctx.fillText("★", x + starW / 2, y + h / 2 + 2);
+      this.regions.push({ id: `star:${i}`, x, y, w: starW, h });
+    }
   }
 
   private drawPerfCard(i: number, x: number, y: number, w: number, h: number) {
@@ -1218,13 +1311,13 @@ export class VRInfoPanel extends VRCanvasPanel {
       cg.addColorStop(0, VRT.accentWashTop);
       cg.addColorStop(1, VRT.accentWashBot);
     } else {
-      cg.addColorStop(0, "rgba(255,255,255,0.14)");
-      cg.addColorStop(1, "rgba(255,255,255,0.06)");
+      cg.addColorStop(0, VRT.raisedTop);
+      cg.addColorStop(1, VRT.raisedBot);
     }
     ctx.fillStyle = cg;
     ctx.fill();
     ctx.lineWidth = 1;
-    ctx.strokeStyle = hovered ? VRT.accentBorder : "rgba(255,255,255,0.18)";
+    ctx.strokeStyle = hovered ? VRT.accentBorder : VRT.raisedBorder;
     ctx.stroke();
     ctx.font = "500 22px sans-serif";
     ctx.textAlign = "center";
@@ -1266,6 +1359,15 @@ export class VRHandyPanel extends VRCanvasPanel {
   private strokeStatus: VRStrokeStatus = "idle";
   private strokeStatusTimer: ReturnType<typeof setTimeout> | null = null;
 
+  // Which stepping pattern (if any) is currently running, mirrored from the
+  // tap that started it — cleared on a second tap of the same chip.
+  private patternActive: string | null = null;
+
+  // Dim-tinted cache of the scripts icon (/scripts-icon.svg), prefixed to the
+  // "Scripts" section label. Single static tint (no active/inactive states),
+  // built once from the same source-in compositing trick as [getHandyIcon].
+  private scriptsIcon: HTMLCanvasElement | null = null;
+
   // Slider track geometry in canvas pixels (computed from cw in draw()).
   private get trackX() {
     return 40;
@@ -1280,10 +1382,10 @@ export class VRHandyPanel extends VRCanvasPanel {
 
   constructor() {
     // Taller than the bare status/slider panel to make room for the funscript
-    // selector strip at the bottom. The top edge stays anchored below the main
-    // bar (see layoutHandyPanel), so status + slider keep their positions and
-    // the extra height extends downward.
-    super(0.9, 640, 380);
+    // and patterns strips at the bottom. The top edge stays anchored below the
+    // main bar (see layoutHandyPanel), so status + slider keep their positions
+    // and the extra height extends downward.
+    super(0.9, 640, 452);
     this.mesh.name = "vr-handy-panel";
   }
 
@@ -1369,6 +1471,17 @@ export class VRHandyPanel extends VRCanvasPanel {
         if (region.id.startsWith("fs:")) {
           const idx = Number(region.id.slice(3));
           if (Number.isInteger(idx)) return { type: "switchFunscript", index: idx };
+        }
+        if (region.id.startsWith("pat:")) {
+          const pid = region.id.slice(4);
+          if (pid === this.patternActive) {
+            this.patternActive = null;
+            this.markDirty();
+            return { type: "handyPatternStop" };
+          }
+          this.patternActive = pid;
+          this.markDirty();
+          return { type: "handyPatternStart", patternId: pid };
         }
         return null;
     }
@@ -1456,12 +1569,12 @@ export class VRHandyPanel extends VRCanvasPanel {
     // Status row — glass card
     this.roundRect(20, 20, this.cw - 40, 52, 14);
     const srg = ctx.createLinearGradient(20, 20, 20, 72);
-    srg.addColorStop(0, "rgba(255,255,255,0.10)");
-    srg.addColorStop(1, "rgba(255,255,255,0.04)");
+    srg.addColorStop(0, VRT.raisedTop);
+    srg.addColorStop(1, VRT.raisedBot);
     ctx.fillStyle = srg;
     ctx.fill();
     ctx.lineWidth = 1;
-    ctx.strokeStyle = "rgba(255,255,255,0.13)";
+    ctx.strokeStyle = VRT.raisedBorder;
     ctx.stroke();
 
     // Status dot
@@ -1520,8 +1633,9 @@ export class VRHandyPanel extends VRCanvasPanel {
     // Stroke-zone range slider — only meaningful once a device is paired.
     if (hs.configured) this.drawStrokeSlider();
 
-    // Funscript selector strip along the bottom.
+    // Funscript selector strip, then the compact patterns strip beneath it.
     this.drawFunscriptStrip();
+    this.drawPatternsStrip();
   }
 
   /**
@@ -1533,7 +1647,8 @@ export class VRHandyPanel extends VRCanvasPanel {
   private drawFunscriptStrip() {
     const { ctx } = this;
     const labelY = 268;
-    this.sectionLabel("Scripts", 20, labelY);
+    this.drawScriptsIcon(20, labelY);
+    this.sectionLabel("Scripts", 46, labelY);
 
     if (this.funscripts.length === 0) {
       ctx.font = "500 22px sans-serif";
@@ -1577,8 +1692,8 @@ export class VRHandyPanel extends VRCanvasPanel {
       g.addColorStop(0, "rgba(96,165,250,0.22)");
       g.addColorStop(1, "rgba(96,165,250,0.10)");
     } else {
-      g.addColorStop(0, "rgba(255,255,255,0.12)");
-      g.addColorStop(1, "rgba(255,255,255,0.05)");
+      g.addColorStop(0, VRT.raisedTop);
+      g.addColorStop(1, VRT.raisedBot);
     }
     ctx.fillStyle = g;
     ctx.fill();
@@ -1587,7 +1702,7 @@ export class VRHandyPanel extends VRCanvasPanel {
       ? "rgba(96,165,250,0.85)"
       : hovered
       ? "rgba(96,165,250,0.40)"
-      : "rgba(255,255,255,0.14)";
+      : VRT.raisedBorder;
     ctx.stroke();
     ctx.font = "600 22px sans-serif";
     ctx.textAlign = "center";
@@ -1598,6 +1713,75 @@ export class VRHandyPanel extends VRCanvasPanel {
       x + w / 2,
       y + h / 2 + 1
     );
+  }
+
+  /**
+   * Compact patterns strip — small tappable chips (same pill styling as the
+   * Info panel's tag chips), one per stepping pattern. Hidden behind a note
+   * until the device is actually connected, mirroring the funscript strip's
+   * empty state.
+   */
+  private drawPatternsStrip() {
+    const { ctx } = this;
+    const labelY = 356;
+    this.sectionLabel("Patterns", 20, labelY);
+
+    if (this.handyState.status !== "ready") {
+      ctx.font = "500 22px sans-serif";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "rgba(255,255,255,0.35)";
+      ctx.fillText("Connect Handy to use patterns", 20, labelY + 44);
+      return;
+    }
+
+    const stripY = labelY + 16;
+    const stripH = 52;
+    ctx.font = "500 20px sans-serif";
+    const widths = HANDY_PATTERNS.map((p) =>
+      Math.min(200, Math.max(100, ctx.measureText(p.label).width + 32))
+    );
+    this.hStrip({
+      prefix: "pat",
+      x0: 20,
+      x1: this.cw - 20,
+      y: stripY,
+      h: stripH,
+      scrollX: 0,
+      widths,
+      gap: 10,
+      drawItem: (i, x, w) => this.drawPatChip(i, x, stripY, w, stripH),
+      regionId: (i) => ({ id: `pat:${HANDY_PATTERNS[i].id}` }),
+    });
+  }
+
+  private drawPatChip(i: number, x: number, y: number, w: number, h: number) {
+    const { ctx } = this;
+    const pat = HANDY_PATTERNS[i];
+    const active = this.patternActive === pat.id;
+    const hovered = this.hoveredId === `pat:${pat.id}`;
+    this.roundRect(x, y, w, h, h / 2);
+    const g = ctx.createLinearGradient(x, y, x, y + h);
+    if (active) {
+      g.addColorStop(0, VRT.accentWashTop);
+      g.addColorStop(1, VRT.accentWashBot);
+    } else if (hovered) {
+      g.addColorStop(0, VRT.raisedHoverTop);
+      g.addColorStop(1, VRT.raisedHoverBot);
+    } else {
+      g.addColorStop(0, VRT.raisedTop);
+      g.addColorStop(1, VRT.raisedBot);
+    }
+    ctx.fillStyle = g;
+    ctx.fill();
+    ctx.lineWidth = active || hovered ? 2 : 1;
+    ctx.strokeStyle = active || hovered ? VRT.accentBorder : VRT.raisedBorder;
+    ctx.stroke();
+    ctx.font = "500 20px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = active ? VRT.textHi : "rgba(255,255,255,0.9)";
+    ctx.fillText(this.fitText(pat.label, w - 24), x + w / 2, y + h / 2 + 1);
   }
 
   /** Draw the dual-handle stroke-zone slider (min..max envelope, 0..100%). */
@@ -1729,8 +1913,18 @@ export class VRHandyPanel extends VRCanvasPanel {
   ) {
     const { ctx } = this;
     const hovered = this.hoveredId === id;
-    this.roundRect(x, y, w, h, 12);
-    const bg = ctx.createLinearGradient(x, y, x, y + h);
+    // Inset the visible pill a few px inside the tap target: its rounded
+    // corners then never reach the box's true corners, so the panel glass
+    // shows through evenly on every side instead of an asymmetric square
+    // poking out past one corner (see [VRControlPanel.drawButton]).
+    const m = 4;
+    const ix = x + m;
+    const iy = y + m;
+    const iw = w - m * 2;
+    const ih = h - m * 2;
+    const ir = 8;
+    this.roundRect(ix, iy, iw, ih, ir);
+    const bg = ctx.createLinearGradient(ix, iy, ix, iy + ih);
     if (accent === "green") {
       bg.addColorStop(0, hovered ? "rgba(76,175,80,0.55)" : "rgba(76,175,80,0.34)");
       bg.addColorStop(1, hovered ? "rgba(76,175,80,0.34)" : "rgba(76,175,80,0.18)");
@@ -1738,23 +1932,21 @@ export class VRHandyPanel extends VRCanvasPanel {
       bg.addColorStop(0, hovered ? "rgba(244,67,54,0.55)" : "rgba(244,67,54,0.34)");
       bg.addColorStop(1, hovered ? "rgba(244,67,54,0.34)" : "rgba(244,67,54,0.18)");
     } else if (hovered) {
-      bg.addColorStop(0, "rgba(255,255,255,0.24)");
-      bg.addColorStop(1, "rgba(255,255,255,0.12)");
+      bg.addColorStop(0, VRT.raisedHoverTop);
+      bg.addColorStop(1, VRT.raisedHoverBot);
     } else {
-      bg.addColorStop(0, "rgba(255,255,255,0.14)");
-      bg.addColorStop(1, "rgba(255,255,255,0.06)");
+      bg.addColorStop(0, VRT.raisedTop);
+      bg.addColorStop(1, VRT.raisedBot);
     }
     ctx.fillStyle = bg;
     ctx.fill();
     ctx.lineWidth = 1;
-    ctx.strokeStyle = hovered
-      ? "rgba(255,255,255,0.32)"
-      : "rgba(255,255,255,0.16)";
+    ctx.strokeStyle = hovered ? VRT.raisedHoverTop : VRT.raisedBorder;
     ctx.stroke();
     // Glass rim
     ctx.beginPath();
-    ctx.moveTo(x + 13, y + 1);
-    ctx.lineTo(x + w - 13, y + 1);
+    ctx.moveTo(ix + ir + 1, iy + 1);
+    ctx.lineTo(ix + iw - ir - 1, iy + 1);
     ctx.lineWidth = 1;
     ctx.strokeStyle = "rgba(255,255,255,0.30)";
     ctx.stroke();
@@ -1764,6 +1956,37 @@ export class VRHandyPanel extends VRCanvasPanel {
     ctx.fillStyle = "rgba(255,255,255,0.92)";
     ctx.fillText(label, x + w / 2, y + h / 2 + 1);
     this.regions.push({ id, x, y, w, h });
+  }
+
+  /** Dim-tinted /scripts-icon.svg, cached after its first successful decode. */
+  private getScriptsIcon(): HTMLCanvasElement | null {
+    const img = this.image("/scripts-icon.svg");
+    if (!img) return null;
+    if (!this.scriptsIcon) {
+      const c = document.createElement("canvas");
+      c.width = img.naturalWidth;
+      c.height = img.naturalHeight;
+      const cx = c.getContext("2d");
+      if (!cx) return null;
+      cx.drawImage(img, 0, 0);
+      // Replace the icon's opaque pixels with the label's dim tone, preserving
+      // its alpha — same recipe as [getHandyIcon].
+      cx.globalCompositeOperation = "source-in";
+      cx.fillStyle = VRT.textDim;
+      cx.fillRect(0, 0, c.width, c.height);
+      this.scriptsIcon = c;
+    }
+    return this.scriptsIcon;
+  }
+
+  /** Small icon prefixed to the "Scripts" section label, vertically centred
+   * on its cap-height. `labelY` is the label's text baseline. */
+  private drawScriptsIcon(x: number, labelY: number) {
+    const { ctx } = this;
+    const icon = this.getScriptsIcon();
+    if (!icon || icon.width === 0) return;
+    const size = 18;
+    ctx.drawImage(icon, x, labelY - 15, size, size);
   }
 }
 

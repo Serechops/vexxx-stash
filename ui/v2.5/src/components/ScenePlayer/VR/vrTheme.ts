@@ -59,13 +59,20 @@ export const VRT = {
   panelSheen: "rgba(164,196,255,0.06)",
   panelBorder: "rgba(255,255,255,0.10)",
   panelRim: "rgba(255,255,255,0.28)",
-  /** Idle raised element (button/chip/card) gradient. */
-  raisedTop: "rgba(255,255,255,0.10)",
-  raisedBot: "rgba(255,255,255,0.04)",
-  raisedBorder: "rgba(255,255,255,0.11)",
+  /**
+   * Idle raised element (button/chip/card) gradient. Deliberately brighter
+   * than a subtle glass tint — panelTop/Mid/Bot are ~92-96% opaque near-black,
+   * so a too-faint raised fill reads as "invisible", leaving only each
+   * element's own rounded-corner cutout visible against the panel behind it
+   * (a stark dark square peeking out at the corners instead of a clearly
+   * separate raised card).
+   */
+  raisedTop: "rgba(255,255,255,0.18)",
+  raisedBot: "rgba(255,255,255,0.08)",
+  raisedBorder: "rgba(255,255,255,0.22)",
   /** Neutral-hover variant (elements that shouldn't tint blue). */
-  raisedHoverTop: "rgba(255,255,255,0.22)",
-  raisedHoverBot: "rgba(255,255,255,0.10)",
+  raisedHoverTop: "rgba(255,255,255,0.32)",
+  raisedHoverBot: "rgba(255,255,255,0.16)",
 
   // ── Text tiers ────────────────────────────────────────────────────────────
   textHi: "rgba(255,255,255,0.95)",
@@ -76,5 +83,13 @@ export const VRT = {
   // ── Radii (canvas px) ─────────────────────────────────────────────────────
   radiusPanel: 28,
   radiusButton: 18,
+  /**
+   * How far a button's hover/active fill pulls in from its full tap-target
+   * box. Idle buttons draw no fill at all (see [VRControlPanel.drawButton]);
+   * insetting the interactive-state pill keeps its rounded corners well clear
+   * of the box's true corners, so the panel glass shows through evenly on
+   * every side instead of an asymmetric square poking out past one corner.
+   */
+  buttonInset: 8,
   radiusCard: 14,
 } as const;

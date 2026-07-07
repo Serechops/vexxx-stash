@@ -2204,11 +2204,19 @@ export class VRHomePanel extends VRCanvasPanel {
       this.hoveredId === "searchOpen" || this.hoveredId === "searchClear";
 
     this.roundRect(x, y, w, h, h / 2);
-    ctx.fillStyle = active
-      ? `${ACCENT}0.22)`
-      : hovered
-      ? "rgba(255,255,255,0.14)"
-      : "rgba(255,255,255,0.07)";
+    if (active) {
+      ctx.fillStyle = `${ACCENT}0.22)`;
+    } else {
+      const pg = ctx.createLinearGradient(x, y, x, y + h);
+      if (hovered) {
+        pg.addColorStop(0, VRT.raisedHoverTop);
+        pg.addColorStop(1, VRT.raisedHoverBot);
+      } else {
+        pg.addColorStop(0, VRT.raisedTop);
+        pg.addColorStop(1, VRT.raisedBot);
+      }
+      ctx.fillStyle = pg;
+    }
     ctx.fill();
     this.roundRect(x, y, w, h, h / 2);
     ctx.lineWidth = 1.5;
@@ -2216,7 +2224,7 @@ export class VRHomePanel extends VRCanvasPanel {
       ? `${ACCENT}0.65)`
       : hovered
       ? "rgba(255,255,255,0.35)"
-      : "rgba(255,255,255,0.16)";
+      : VRT.raisedBorder;
     ctx.stroke();
 
     // Clear ✕ (active search only) — pushed before the main region so it wins.

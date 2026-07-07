@@ -1339,16 +1339,25 @@ func (qb *SceneStore) findIDsFast(ctx context.Context, findFilter *models.FindFi
 
 	offset := (page - 1) * perPage
 
+	var where string
+	var args []interface{}
+	if findFilter != nil && len(findFilter.ExcludeIds) > 0 {
+		where = "WHERE scenes.id NOT IN " + getInBinding(len(findFilter.ExcludeIds))
+		for _, id := range findFilter.ExcludeIds {
+			args = append(args, id)
+		}
+	}
+
 	sql := fmt.Sprintf(
-		"SELECT scenes.id FROM scenes %s LIMIT %d OFFSET %d",
-		orderBy, perPage, offset,
+		"SELECT scenes.id FROM scenes %s %s LIMIT %d OFFSET %d",
+		where, orderBy, perPage, offset,
 	)
 
 	var result []struct {
 		ID int `db:"id"`
 	}
 
-	if err := dbWrapper.Select(ctx, &result, sql); err != nil {
+	if err := dbWrapper.Select(ctx, &result, sql, args...); err != nil {
 		return nil, fmt.Errorf("fast IDs query failed: %w", err)
 	}
 

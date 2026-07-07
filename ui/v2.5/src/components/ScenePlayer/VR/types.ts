@@ -115,6 +115,9 @@ export type VRControlAction =
   | { type: "toggleLoopScene" }
   | { type: "seekSeconds"; seconds: number }
   | { type: "toggleCaptions" }
+  // ── In-VR scene metadata edits (Info panel actions row; Stash scenes only) ─
+  /** Set (or clear, with null) the scene rating from the Info panel stars. */
+  | { type: "setSceneRating"; sceneId: string; rating100: number | null }
   | { type: "next" }
   | { type: "previous" }
   | { type: "exit" }

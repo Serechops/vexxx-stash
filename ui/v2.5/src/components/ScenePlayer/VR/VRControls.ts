@@ -30,7 +30,7 @@ import { vrAudio } from "./vrAudio";
 import { VRT } from "./vrTheme";
 
 const CANVAS_W = 1280;
-const CANVAS_H = 486;
+const CANVAS_H = 398;
 /** Physical width of the panel plane, metres (height derived from aspect). */
 const PANEL_WIDTH_M = 2.6;
 
@@ -50,13 +50,8 @@ const TIME_Y = SCRUB_Y + SCRUB_H + 24;
 const CHAP_Y = 136;
 const CHAP_H = 74;
 
-// Pattern strip — directly below chapters.
-const PAT_Y = 224;
-const PAT_H = 72;
-
-// Button rows shift down to accommodate the pattern strip.
-const ROW1_Y = 312;
-const ROW2_Y = 400;
+const ROW1_Y = 224;
+const ROW2_Y = 312;
 const BTN_H = 72;
 const GAP = 16;
 
@@ -85,7 +80,7 @@ export interface IDrawInput {
   handyOpen?: boolean;
   /** Whether the Browse side panel (Info | Scenes) is open. */
   browseOpen?: boolean;
-  /** Handy connection status for icon tint + pattern strip visibility. */
+  /** Handy connection status for the toggle button's icon tint. */
   handy?: { connected: boolean; funscriptLoaded: boolean };
   /**
    * Mixed-reality passthrough: "PT" opens the adjustment panel (toggle +
@@ -110,7 +105,6 @@ export class VRControlPanel extends VRCanvasPanel {
   // White/dark-tinted cache of the Handy modal icon (/handy.png).
   private handyTint: HTMLCanvasElement | null = null;
   private handyTintActive = false;
-  private patternActive: string | null = null;
 
   private last: IDrawInput | null = null;
   // Raised by scroll changes / late image loads (base markDirty override). The
@@ -133,7 +127,6 @@ export class VRControlPanel extends VRCanvasPanel {
     browseOpen: false,
     handyConnected: false,
     handyFsl: false,
-    patternActive: null as string | null,
     fov: "",
     stereo: "",
     ptShow: false,
@@ -339,7 +332,6 @@ export class VRControlPanel extends VRCanvasPanel {
       pr.browseOpen === browseOpen &&
       pr.handyConnected === handyConnected &&
       pr.handyFsl === handyFsl &&
-      pr.patternActive === this.patternActive &&
       pr.fov === fov &&
       pr.stereo === stereo &&
       pr.ptShow === ptShow &&
@@ -366,7 +358,6 @@ export class VRControlPanel extends VRCanvasPanel {
     pr.browseOpen = browseOpen;
     pr.handyConnected = handyConnected;
     pr.handyFsl = handyFsl;
-    pr.patternActive = this.patternActive;
     pr.fov = fov;
     pr.stereo = stereo;
     pr.ptShow = ptShow;
@@ -562,17 +553,6 @@ export class VRControlPanel extends VRCanvasPanel {
         if (region.id.startsWith("chap:") && region.data != null) {
           return { type: "seekSeconds", seconds: region.data };
         }
-        if (region.id.startsWith("pat:")) {
-          const pid = region.id.slice(4);
-          if (pid === this.patternActive) {
-            this.patternActive = null;
-            this.markDirty();
-            return { type: "handyPatternStop" };
-          }
-          this.patternActive = pid;
-          this.markDirty();
-          return { type: "handyPatternStart", patternId: pid };
-        }
         return null;
     }
   }
@@ -636,6 +616,11 @@ export class VRControlPanel extends VRCanvasPanel {
     ctx.beginPath();
     ctx.rect(clip.x, clip.y, clip.w, clip.h);
     ctx.clip();
+    // Replace, don't composite-over: the panel glass is semi-transparent, so
+    // stacking bgCanvas onto the base's identical pixels would double the
+    // alpha and render this slot visibly darker than the panel around it (a
+    // black box against the video showing through the glass).
+    ctx.clearRect(clip.x, clip.y, clip.w, clip.h);
     ctx.drawImage(this.bgCanvas, 0, 0);
     drawItem();
     ctx.restore();
@@ -667,10 +652,16 @@ export class VRControlPanel extends VRCanvasPanel {
       if (!target.additive) {
         // Restore the background under the element (inflated slightly so the
         // 1px border/rim isn't clipped) before repainting it in hover state.
+        // Replace, don't composite-over: the panel glass is semi-transparent,
+        // so stacking bgCanvas onto the base's identical pixels would double
+        // the alpha and render this rect visibly darker than the panel around
+        // it — a black box framing the hovered button against the video
+        // showing through the glass.
         const r = target.rect;
         ctx.beginPath();
         ctx.rect(r.x - 2, r.y - 2, r.w + 4, r.h + 4);
         ctx.clip();
+        ctx.clearRect(r.x - 2, r.y - 2, r.w + 4, r.h + 4);
         ctx.drawImage(this.bgCanvas, 0, 0);
       }
       // The hit-regions are owned by the base build; discard any pushed by a
@@ -772,8 +763,6 @@ export class VRControlPanel extends VRCanvasPanel {
 
     // Chapters / timestamp row — directly beneath the progress bar.
     this.drawChapters(markers);
-
-    this.drawPatterns(input);
 
     // Row 1 — transport, chapter nav, mute + volume, rate.
     this.layoutRow(
@@ -965,94 +954,6 @@ export class VRControlPanel extends VRCanvasPanel {
     ctx.fillText(this.fitText(m.title || "Chapter", w - 28), x + 14, y + 62);
   }
 
-  // --- pattern strip --------------------------------------------------------
-
-  private drawPatterns(input: IDrawInput) {
-    const { ctx } = this;
-    const connected = !!input.handy?.connected;
-    this.drawStripLabel("Patterns", PAT_Y, PAT_H);
-    if (!connected) {
-      this.emptyStrip("Connect Handy to use patterns", PAT_Y, PAT_H);
-      return;
-    }
-    const pats = [
-      { id: "slow_wave", label: "Slow Wave" },
-      { id: "steady", label: "Steady" },
-      { id: "fast_pulse", label: "Fast Pulse" },
-      { id: "tease", label: "Tease" },
-      { id: "upper_zone", label: "Upper Zone" },
-      { id: "ripple", label: "Ripple" },
-    ];
-    ctx.font = "500 20px sans-serif";
-    const widths = pats.map((p) =>
-      Math.min(250, Math.max(110, ctx.measureText(p.label).width + 36))
-    );
-    this.hStrip({
-      prefix: "pat",
-      x0: STRIP_X0,
-      x1: STRIP_X1,
-      y: PAT_Y,
-      h: PAT_H,
-      scrollX: 0,
-      widths,
-      gap: 10,
-      drawItem: (i, x, w) => this.drawPatChip(pats[i], x, w),
-      regionId: (i) => ({ id: `pat:${pats[i].id}` }),
-      onItem: (i, ox, ow, clip) =>
-        this.registerHover(
-          `pat:${pats[i].id}`,
-          clip,
-          () => this.patchStripItem(clip, () => this.drawPatChip(pats[i], ox, ow)),
-          true
-        ),
-    });
-  }
-
-  private drawPatChip(pat: { id: string; label: string }, x: number, w: number) {
-    const { ctx } = this;
-    const active = this.patternActive === pat.id;
-    const hovered = this.hoveredId === `pat:${pat.id}`;
-    const chipY = PAT_Y + 4;
-    const chipH = PAT_H - 8;
-    this.roundRect(x, chipY, w, chipH, VRT.radiusCard);
-    if (active) {
-      const ag = ctx.createLinearGradient(x, chipY, x, chipY + chipH);
-      ag.addColorStop(0, VRT.accentGradTop);
-      ag.addColorStop(1, VRT.accentGradBot);
-      ctx.fillStyle = ag;
-    } else if (hovered) {
-      const hg = ctx.createLinearGradient(x, chipY, x, chipY + chipH);
-      hg.addColorStop(0, VRT.accentWashTop);
-      hg.addColorStop(1, VRT.accentWashBot);
-      ctx.fillStyle = hg;
-    } else {
-      const dg = ctx.createLinearGradient(x, chipY, x, chipY + chipH);
-      dg.addColorStop(0, VRT.raisedTop);
-      dg.addColorStop(1, VRT.raisedBot);
-      ctx.fillStyle = dg;
-    }
-    ctx.fill();
-    ctx.lineWidth = 1;
-    ctx.strokeStyle = active
-      ? VRT.accentBorder
-      : hovered
-      ? VRT.accentBorder
-      : VRT.raisedBorder;
-    ctx.stroke();
-    // Glass rim
-    ctx.beginPath();
-    ctx.moveTo(x + 13, chipY + 1);
-    ctx.lineTo(x + w - 13, chipY + 1);
-    ctx.lineWidth = 1;
-    ctx.strokeStyle = active ? "rgba(255,255,255,0.45)" : "rgba(255,255,255,0.20)";
-    ctx.stroke();
-    ctx.font = "500 20px sans-serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillStyle = active ? VRT.onAccent : "rgba(255,255,255,0.9)";
-    ctx.fillText(pat.label, x + w / 2, PAT_Y + PAT_H / 2 + 1);
-  }
-
   // --- scrubber + transport widgets -----------------------------------------
 
   private drawScrubber(
@@ -1241,11 +1142,28 @@ export class VRControlPanel extends VRCanvasPanel {
     const { x, y, w, h } = region;
     const hovered = this.hoveredId === region.id;
     const r = VRT.radiusButton;
+    const cx = x + w / 2;
+    const cy = y + h / 2;
 
-    // Soft halo behind lit/hovered buttons — a wide low-alpha stroke on the
-    // button path itself (extends 2px out, inside the hover-patch clip).
+    // Idle buttons draw NO backing at all — just icon/label floating on the
+    // panel glass. A filled+bordered idle state used to span the button's
+    // full tap-target box; since that box's rounded corners always leave its
+    // four literal corners uncovered, the panel's own much-darker glass
+    // showed straight through there, reading as a hard black square behind
+    // each rounded button. Only draw a pill when there's something to show
+    // (hover/active) — and even then, INSET it well inside the tap target so
+    // its corners never reach the box's true corners: the glass then shows
+    // through evenly on all sides instead of an asymmetric corner cutout.
     if (active || hovered) {
-      this.roundRect(x, y, w, h, r);
+      const m = VRT.buttonInset;
+      const ix = x + m;
+      const iy = y + m;
+      const iw = w - m * 2;
+      const ih = h - m * 2;
+      const ir = Math.max(4, r - m);
+
+      // Soft halo — a wide low-alpha stroke just outside the inset pill.
+      this.roundRect(ix, iy, iw, ih, ir);
       ctx.lineWidth = 4;
       ctx.strokeStyle =
         variant === "green" && active
@@ -1254,61 +1172,53 @@ export class VRControlPanel extends VRCanvasPanel {
           ? "rgba(248,113,113,0.16)"
           : VRT.accentHalo;
       ctx.stroke();
-    }
 
-    this.roundRect(x, y, w, h, r);
-    if (active) {
-      const ag = ctx.createLinearGradient(x, y, x, y + h);
-      if (variant === "green") {
-        ag.addColorStop(0, VRT.greenGradTop);
-        ag.addColorStop(1, VRT.greenGradBot);
+      this.roundRect(ix, iy, iw, ih, ir);
+      if (active) {
+        const ag = ctx.createLinearGradient(ix, iy, ix, iy + ih);
+        if (variant === "green") {
+          ag.addColorStop(0, VRT.greenGradTop);
+          ag.addColorStop(1, VRT.greenGradBot);
+        } else {
+          ag.addColorStop(0, VRT.accentGradTop);
+          ag.addColorStop(1, VRT.accentGradBot);
+        }
+        ctx.fillStyle = ag;
       } else {
-        ag.addColorStop(0, VRT.accentGradTop);
-        ag.addColorStop(1, VRT.accentGradBot);
+        // Hovered, not active. Accent-tinted wash (red-tinted for the danger
+        // button) so hover reads as "this will respond", not just a brighter grey.
+        const hg = ctx.createLinearGradient(ix, iy, ix, iy + ih);
+        if (variant === "danger") {
+          hg.addColorStop(0, "rgba(248,113,113,0.24)");
+          hg.addColorStop(1, "rgba(248,113,113,0.10)");
+        } else {
+          hg.addColorStop(0, VRT.accentWashTop);
+          hg.addColorStop(1, VRT.accentWashBot);
+        }
+        ctx.fillStyle = hg;
       }
-      ctx.fillStyle = ag;
-    } else if (hovered) {
-      // Accent-tinted wash (red-tinted for the danger button) so hover reads
-      // as "this will respond", not just a brighter grey.
-      const hg = ctx.createLinearGradient(x, y, x, y + h);
-      if (variant === "danger") {
-        hg.addColorStop(0, "rgba(248,113,113,0.24)");
-        hg.addColorStop(1, "rgba(248,113,113,0.10)");
+      ctx.fill();
+
+      // Border
+      this.roundRect(ix, iy, iw, ih, ir);
+      ctx.lineWidth = 1;
+      if (variant === "danger" && !active) {
+        ctx.strokeStyle = VRT.dangerBorder;
+      } else if (active) {
+        ctx.strokeStyle = variant === "green" ? VRT.greenBorder : VRT.accentBorder;
       } else {
-        hg.addColorStop(0, VRT.accentWashTop);
-        hg.addColorStop(1, VRT.accentWashBot);
+        ctx.strokeStyle = VRT.accentBorder;
       }
-      ctx.fillStyle = hg;
-    } else {
-      const dg = ctx.createLinearGradient(x, y, x, y + h);
-      dg.addColorStop(0, VRT.raisedTop);
-      dg.addColorStop(1, VRT.raisedBot);
-      ctx.fillStyle = dg;
+      ctx.stroke();
+
+      // Glass rim — top-edge highlight
+      ctx.beginPath();
+      ctx.moveTo(ix + ir + 1, iy + 1);
+      ctx.lineTo(ix + iw - ir - 1, iy + 1);
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = active ? "rgba(255,255,255,0.50)" : "rgba(255,255,255,0.22)";
+      ctx.stroke();
     }
-    ctx.fill();
-
-    // Border
-    this.roundRect(x, y, w, h, r);
-    ctx.lineWidth = 1;
-    if (variant === "danger" && !active) {
-      ctx.strokeStyle = VRT.dangerBorder;
-    } else if (active) {
-      ctx.strokeStyle = variant === "green" ? VRT.greenBorder : VRT.accentBorder;
-    } else {
-      ctx.strokeStyle = hovered ? VRT.accentBorder : VRT.raisedBorder;
-    }
-    ctx.stroke();
-
-    // Glass rim — top-edge highlight
-    ctx.beginPath();
-    ctx.moveTo(x + r + 1, y + 1);
-    ctx.lineTo(x + w - r - 1, y + 1);
-    ctx.lineWidth = 1;
-    ctx.strokeStyle = active ? "rgba(255,255,255,0.50)" : "rgba(255,255,255,0.22)";
-    ctx.stroke();
-
-    const cx = x + w / 2;
-    const cy = y + h / 2;
     if (label.startsWith("icon:")) {
       const name = label.slice(5);
       if (name === "handy") this.drawHandyIcon(cx, cy, active);
@@ -1354,7 +1264,7 @@ export class VRControlPanel extends VRCanvasPanel {
     const { ctx } = this;
     const icon = this.getHandyIcon(active);
     if (icon && icon.width > 0) {
-      const max = 34;
+      const max = 56;
       const scale = Math.min(max / icon.width, max / icon.height);
       const w = icon.width * scale;
       const h = icon.height * scale;

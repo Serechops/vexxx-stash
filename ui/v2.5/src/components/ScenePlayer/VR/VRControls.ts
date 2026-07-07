@@ -792,15 +792,17 @@ export class VRControlPanel extends VRCanvasPanel {
         { id: "rate", w: 92, label: `${state.playbackRate}x` },
         {
           id: "loop",
-          w: 90,
-          label: "Loop",
-          active: state.loopActive,
+          w: 84,
+          label: "A/B",
+          // Lit (but not green) after the first tap while armed for the
+          // second; green once both points are marked and the loop is live.
+          active: state.loopActive || state.abLoopArmed,
           variant: state.loopActive ? "green" : "default",
         },
         {
           id: "loopScene",
-          w: 76,
-          label: "🔁",
+          w: 90,
+          label: "Loop",
           active: state.loopSceneActive,
           variant: state.loopSceneActive ? "green" : "default",
         },
@@ -1105,6 +1107,26 @@ export class VRControlPanel extends VRCanvasPanel {
         ctx.fill();
       }
 
+      // A/B loop marks — a single gold tick while armed (point A dropped,
+      // waiting on B), or a shaded green segment with both A/B ticks once
+      // the loop is live. Gives the A/B button's state a physical anchor on
+      // the timeline instead of relying on the button glow alone.
+      if (state.loopActive && state.loopRange) {
+        const sx = x + Math.max(0, Math.min(1, state.loopRange.start / dur)) * w;
+        const ex = x + Math.max(0, Math.min(1, state.loopRange.end / dur)) * w;
+        ctx.save();
+        this.roundRect(x, y, w, h, r);
+        ctx.clip();
+        ctx.fillStyle = "rgba(110,214,128,0.35)";
+        ctx.fillRect(sx, y, Math.max(2, ex - sx), h);
+        ctx.restore();
+        this.drawAbTick(sx, y, h, "A");
+        this.drawAbTick(ex, y, h, "B");
+      } else if (state.abLoopArmed && state.abLoopPointA != null) {
+        const ax = x + Math.max(0, Math.min(1, state.abLoopPointA / dur)) * w;
+        this.drawAbTick(ax, y, h, "A");
+      }
+
       // Playhead — white core with a soft accent halo so it reads as the one
       // live element on the bar.
       ctx.beginPath();
@@ -1120,6 +1142,33 @@ export class VRControlPanel extends VRCanvasPanel {
     // The hover outline + position marker is composited on top of the cached
     // base separately (drawScrubberHover) so the base layer stays hover-free.
     this.regions.push({ id: "scrubber", x, y: y - 8, w, h: h + 16 });
+  }
+
+  /** A single A/B loop-mark tick: a vertical gold line through the track plus
+   * a small lettered pill poking above it, at the given timeline x-position.
+   * Only overshoots upward (there's no headroom below the bar before the
+   * time labels) — same convention as the playhead's halo bleeding into the
+   * heatmap strip above. */
+  private drawAbTick(tx: number, y: number, h: number, label: "A" | "B") {
+    const { ctx } = this;
+    ctx.beginPath();
+    ctx.moveTo(tx, y - 10);
+    ctx.lineTo(tx, y + h);
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = VRT.gold;
+    ctx.stroke();
+
+    const pr = 9;
+    const py = y - 10 - pr + 3;
+    ctx.beginPath();
+    ctx.arc(tx, py, pr, 0, Math.PI * 2);
+    ctx.fillStyle = VRT.gold;
+    ctx.fill();
+    ctx.font = "700 13px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "#06121f";
+    ctx.fillText(label, tx, py + 1);
   }
 
   /**

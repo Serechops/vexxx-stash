@@ -54,8 +54,16 @@ export interface IVRPlaybackState {
   /** True while the media is seeking/stalled (shows a spinner hint). */
   waiting: boolean;
   captionsOn: boolean;
-  /** True while an A-B chapter loop is armed (Loop button lit). */
+  /** True once both the A and B points are marked and the loop is active. */
   loopActive: boolean;
+  /** True after the first A/B tap, waiting for the second (B) tap. */
+  abLoopArmed: boolean;
+  /** Seconds mark for point A while `abLoopArmed` is true, else null — lets
+   *  the scrubber draw a tick at the pending mark. */
+  abLoopPointA: number | null;
+  /** Active A-B loop bounds in seconds, or null when no loop is set — lets
+   *  the scrubber shade the looping segment. */
+  loopRange: { start: number; end: number } | null;
   /** True while the whole scene is set to loop on end (native `video.loop`). */
   loopSceneActive: boolean;
 }
@@ -98,7 +106,10 @@ export type VRControlAction =
   | { type: "recenter" }
   | { type: "nextMarker" }
   | { type: "prevMarker" }
-  /** Toggle an A-B loop over the chapter under the playhead. */
+  /**
+   * Advance the A/B loop state machine one tap: mark point A, then mark
+   * point B and start looping, then (a third tap) clear the loop.
+   */
   | { type: "loopChapter" }
   /** Toggle looping the whole scene on end (native `video.loop`). */
   | { type: "toggleLoopScene" }

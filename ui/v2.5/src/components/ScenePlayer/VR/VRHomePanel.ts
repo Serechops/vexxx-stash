@@ -288,7 +288,7 @@ const ONBOARDING_PAGES: IOnboardingPage[] = [
       {
         icon: "⟳",
         title: "Chapters & looping",
-        body: "Jump between chapter markers from the control bar, and loop the current chapter or the whole scene.",
+        body: "Jump between chapter markers from the control bar. Tap A/B twice to loop a custom segment, or Loop to repeat the whole scene.",
       },
       {
         icon: "◐",

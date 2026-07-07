@@ -434,10 +434,14 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
     return null;
   }, []);
 
-  // A-B loop bounds for the chapter under the playhead, or null when no loop
-  // is armed. Enforced by the timeupdate effect below; read into getState()
-  // each frame so the control bar can light the Loop button.
+  // User-marked A-B loop bounds, or null when no loop is active. Enforced by
+  // the timeupdate effect below; read into getState() each frame so the
+  // control bar can light the A/B button.
   const loopRef = useRef<{ start: number; end: number } | null>(null);
+  // The A point once the user has tapped A/B once, waiting for the second
+  // (B) tap. Null when no mark is pending (button idle) or once the loop is
+  // fully set (loopRef takes over).
+  const abLoopPointARef = useRef<number | null>(null);
 
   // Reused state object — getState is polled every render frame, so mutating a
   // single object instead of allocating a fresh one keeps the XR loop free of
@@ -454,6 +458,9 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
     waiting: false,
     captionsOn: false,
     loopActive: false,
+    abLoopArmed: false,
+    abLoopPointA: null,
+    loopRange: null,
     loopSceneActive: false,
   });
   const getState = useCallback((): IVRPlaybackState => {
@@ -470,6 +477,9 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
       st.waiting = false;
       st.captionsOn = activeCaptionRef.current >= 0;
       st.loopActive = !!loopRef.current;
+      st.abLoopArmed = abLoopPointARef.current != null;
+      st.abLoopPointA = abLoopPointARef.current;
+      st.loopRange = loopRef.current;
       st.loopSceneActive = false;
       return st;
     }
@@ -493,6 +503,9 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
     st.waiting = v.readyState < 3 && !v.paused;
     st.captionsOn = activeCaptionRef.current >= 0;
     st.loopActive = !!loopRef.current;
+    st.abLoopArmed = abLoopPointARef.current != null;
+    st.abLoopPointA = abLoopPointARef.current;
+    st.loopRange = loopRef.current;
     st.loopSceneActive = v.loop;
     return st;
   }, []);
@@ -568,10 +581,11 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
   // generation; stale applications (gen mismatch) are dropped.
   const applyScene = useCallback(
     (next: GQL.SceneDataFragment, gen: number, logId: string) => {
-      // A loop's chapter bounds (and whole-scene loop flag) belong to the
-      // outgoing scene — drop them before the new one's markers/duration are
-      // in place.
+      // A loop's A-B bounds (and whole-scene loop flag) belong to the
+      // outgoing scene — drop them, plus any half-set A mark, before the new
+      // one's markers/duration are in place.
       loopRef.current = null;
+      abLoopPointARef.current = null;
       const v = videoRef.current;
       if (v) {
         v.loop = false;
@@ -736,6 +750,7 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
   // lobby mode. The XR session, dome, and controllers all stay alive.
   const handleGoHome = useCallback(() => {
     loopRef.current = null;
+    abLoopPointARef.current = null;
     const v = videoRef.current;
     if (v) {
       v.loop = false;
@@ -820,21 +835,29 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
           seekToMarker(-1);
           break;
         case "loopChapter":
+          // A/B loop, marked with two taps: first tap drops point A at the
+          // playhead and arms the button; second tap drops point B and starts
+          // looping between them (order-independent — B can land before A).
+          // A third tap (while the loop is active) clears it and rearms for a
+          // fresh A. If B lands within half a second of A, the mark is
+          // dropped instead of creating a degenerate loop.
           if (loopRef.current) {
             loopRef.current = null;
+            abLoopPointARef.current = null;
           } else if (v) {
-            const t = v.currentTime;
-            const m = markersRef.current;
-            let start = 0;
-            let end = v.duration || Infinity;
-            for (let i = m.length - 1; i >= 0; i--) {
-              if (t >= m[i].seconds) {
-                start = m[i].seconds;
-                end = i + 1 < m.length ? m[i + 1].seconds : v.duration || Infinity;
-                break;
+            if (abLoopPointARef.current == null) {
+              abLoopPointARef.current = v.currentTime;
+            } else {
+              const pointA = abLoopPointARef.current;
+              const pointB = v.currentTime;
+              abLoopPointARef.current = null;
+              if (Math.abs(pointB - pointA) > 0.5) {
+                loopRef.current = {
+                  start: Math.min(pointA, pointB),
+                  end: Math.max(pointA, pointB),
+                };
               }
             }
-            loopRef.current = { start, end };
           }
           break;
         case "toggleLoopScene":
@@ -1140,11 +1163,11 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
     };
   }, [videoEl]);
 
-  // Enforce the A-B chapter loop: wrap back to `start` once playback crosses
-  // `end`. A large jump in currentTime between ticks (a deliberate scrub, not
-  // the ~0.25s natural playback advance) that lands outside the loop's bounds
-  // silently releases it — walking away from the chapter is the drop signal,
-  // not an error to fight.
+  // Enforce the user-marked A-B loop: wrap back to `start` once playback
+  // crosses `end`. A large jump in currentTime between ticks (a deliberate
+  // scrub, not the ~0.25s natural playback advance) that lands outside the
+  // loop's bounds silently releases it — walking away from the marked range
+  // is the drop signal, not an error to fight.
   useEffect(() => {
     const v = videoRef.current;
     if (!v) return;

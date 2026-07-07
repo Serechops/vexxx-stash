@@ -565,6 +565,16 @@ export class XRSessionManager {
    * filename on each scene, user-togglable via the PT panel's (A) pill.
    */
   private maskAlphaOn = false;
+
+  // ── Comfort vignette (IVRHomeSettings.comfortVignette) ───────────────────
+  // Head-locked dimmed-edge mesh, faded in while dome-dragging (look-around)
+  // or on a zoom change, faded out ~500ms after. Opt-in, off by default.
+  private comfortVignetteEnabled = false;
+  private comfortVignetteActive = false;
+  private comfortVignetteOpacity = 0;
+  private readonly comfortVignetteMaxOpacity = 0.55;
+  private comfortPulseTimer: number | null = null;
+  private vignetteMesh: THREE.Mesh | null = null;
   /** Full-sphere blackout: occludes the camera on the dome/flat/lobby paths. */
   private blackoutFull: THREE.Mesh;
   /** Rear-hemisphere blackout: complement of a 180° equirect media layer. */
@@ -722,6 +732,12 @@ export class XRSessionManager {
     this.camera = new THREE.PerspectiveCamera(70, 1, 0.1, 2000);
     // So the flat (non-immersive) preview shows the left eye.
     this.camera.layers.enable(1);
+    // Added to the scene graph purely so the head-locked vignette mesh below
+    // (a child of the camera) gets traversed/rendered — WebXR still overrides
+    // the camera's own pose each frame regardless of scene-graph parentage.
+    this.scene.add(this.camera);
+    this.vignetteMesh = this.buildComfortVignette();
+    this.camera.add(this.vignetteMesh);
 
     this.videoGroup = new THREE.Group();
     this.uiGroup = new THREE.Group();
@@ -1174,8 +1190,21 @@ export class XRSessionManager {
   }
 
   setProjection(projection: IProjectionSettings) {
+    if (projection.zoom !== this.projection.zoom) this.pulseComfortVignette();
     this.projection = projection;
     this.rebuildVideoProjection();
+  }
+
+  /** Briefly show the comfort vignette for a discrete change (e.g. zoom),
+   * as opposed to the held-duration dome-drag case (see setDomeDragLod). */
+  private pulseComfortVignette() {
+    if (!this.comfortVignetteEnabled) return;
+    this.comfortVignetteActive = true;
+    if (this.comfortPulseTimer !== null) window.clearTimeout(this.comfortPulseTimer);
+    this.comfortPulseTimer = window.setTimeout(() => {
+      this.comfortVignetteActive = false;
+      this.comfortPulseTimer = null;
+    }, 500);
   }
 
   /**
@@ -1619,6 +1648,8 @@ export class XRSessionManager {
       this.applyLobbyBackdrop();
       this.syncRenderStateLayers();
     }
+    this.comfortVignetteEnabled = !!settings.comfortVignette;
+    if (!this.comfortVignetteEnabled) this.comfortVignetteActive = false;
   }
 
   // ── Mixed-reality passthrough ────────────────────────────────────────────
@@ -2364,6 +2395,49 @@ export class XRSessionManager {
    * this never allocates mid-drag. No-op on the media-layer path (no dome
    * meshes) and for the flat screen (dome drag is disabled there).
    */
+  /**
+   * Head-locked comfort-vignette mesh: a soft-centre/dark-edge radial gradient
+   * plane, big enough at its fixed offset to overfill even the widest headset
+   * FOV. Hidden (opacity 0) until enabled + faded in by comfortVignette* state
+   * in the render loop; depthTest/Write off + high renderOrder so it always
+   * draws on top regardless of video path (media layer or shader dome).
+   */
+  private buildComfortVignette(): THREE.Mesh {
+    const size = 512;
+    const canvas = document.createElement("canvas");
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext("2d")!;
+    const grad = ctx.createRadialGradient(
+      size / 2,
+      size / 2,
+      size * 0.32,
+      size / 2,
+      size / 2,
+      size * 0.5
+    );
+    grad.addColorStop(0, "rgba(0,0,0,0)");
+    grad.addColorStop(1, "rgba(0,0,0,1)");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, size, size);
+    const texture = new THREE.CanvasTexture(canvas);
+    const material = new THREE.MeshBasicMaterial({
+      map: texture,
+      transparent: true,
+      opacity: 0,
+      depthTest: false,
+      depthWrite: false,
+      toneMapped: false,
+    });
+    // 1.2m square at 0.25m in front of the eye ⇒ ~67° half-angle, comfortably
+    // wider than any current headset's FOV.
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 1.2), material);
+    mesh.position.set(0, 0, -0.25);
+    mesh.renderOrder = 10000;
+    mesh.name = "vr-comfort-vignette";
+    return mesh;
+  }
+
   private setDomeDragLod(dragging: boolean) {
     for (const m of this.domeMeshes) {
       const g = (dragging ? m.userData.lodDrag : m.userData.lodFull) as
@@ -2371,6 +2445,9 @@ export class XRSessionManager {
         | undefined;
       if (g && m.geometry !== g) m.geometry = g;
     }
+    // Piggyback on the same drag-active signal (fires regardless of dome vs
+    // media-layer path) to drive the comfort vignette while looking around.
+    this.comfortVignetteActive = dragging && this.comfortVignetteEnabled;
   }
 
   /**
@@ -3307,6 +3384,18 @@ export class XRSessionManager {
 
     if (!lobby) this.updateThumbnailPreview(state.duration, op);
 
+    if (this.vignetteMesh) {
+      const target = this.comfortVignetteActive
+        ? this.comfortVignetteMaxOpacity
+        : 0;
+      if (Math.abs(this.comfortVignetteOpacity - target) > 0.002) {
+        this.comfortVignetteOpacity +=
+          (target - this.comfortVignetteOpacity) * 0.15;
+        (this.vignetteMesh.material as THREE.MeshBasicMaterial).opacity =
+          this.comfortVignetteOpacity;
+      }
+    }
+
     const pUiMs = jitter ? performance.now() - pUi0 : 0;
     const pR0 = jitter ? performance.now() : 0;
     if (jitter && this.gpuTimer) this.gpuTimer.begin();
@@ -3983,6 +4072,13 @@ export class XRSessionManager {
     this.thumbTexture.dispose();
     (this.thumbPreview.material as THREE.Material).dispose();
     this.thumbPreview.geometry.dispose();
+    if (this.comfortPulseTimer !== null) window.clearTimeout(this.comfortPulseTimer);
+    if (this.vignetteMesh) {
+      const vm = this.vignetteMesh.material as THREE.MeshBasicMaterial;
+      vm.map?.dispose();
+      vm.dispose();
+      this.vignetteMesh.geometry.dispose();
+    }
     this.clearDome();
     this.destroyMediaLayer();
     this.blackoutFull.geometry.dispose();

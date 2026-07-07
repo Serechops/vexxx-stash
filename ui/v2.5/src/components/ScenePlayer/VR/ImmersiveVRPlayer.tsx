@@ -91,6 +91,33 @@ function saveVRHomeSettings(s: IVRHomeSettings) {
   }
 }
 
+const VR_FUNSCRIPT_SELECTION_KEY = "vrFunscriptSelection";
+
+/**
+ * Per-scene in-VR funscript pick (sceneId → funscript path), so re-entering a
+ * scene resumes the script the user selected in the Handy panel rather than
+ * always resetting to the server default (`funscript_path`). Deliberately kept
+ * out of `funscript_path` itself — that field is the shared/server-side default
+ * everyone gets; this is a local, per-viewer override.
+ */
+function loadFunscriptSelection(): Record<string, string> {
+  try {
+    const raw = window.localStorage.getItem(VR_FUNSCRIPT_SELECTION_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {
+    /* SSR / blocked storage / bad JSON — start empty */
+  }
+  return {};
+}
+
+function saveFunscriptSelection(m: Record<string, string>) {
+  try {
+    window.localStorage.setItem(VR_FUNSCRIPT_SELECTION_KEY, JSON.stringify(m));
+  } catch {
+    /* ignore */
+  }
+}
+
 /** Load persisted passthrough / chroma-key tuning, falling back to defaults. */
 function loadVRPassthroughSettings(): IVRPassthroughSettings {
   try {
@@ -262,8 +289,18 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
   const projectionRef = useRef(projection);
   projectionRef.current = projection;
 
-  const captionsOnRef = useRef(false);
+  // Index of the active caption track (-1 = off), into v.textTracks /
+  // captionTracks. Tapping the CC control-bar button cycles through every
+  // assigned language track, then off, rather than only ever toggling track 0.
+  const activeCaptionRef = useRef(-1);
   const activeCueRef = useRef<string | null>(null);
+
+  // Per-scene in-VR funscript picks (sceneId → path), persisted locally so
+  // re-entering a scene resumes the last script chosen in the Handy panel
+  // instead of always resetting to the server default.
+  const funscriptSelectionRef = useRef<Record<string, string>>(
+    loadFunscriptSelection()
+  );
 
   // Persisted immersive-Home preferences (gaze-launch / dwell / audio). Held in
   // a ref so the stable action handler reads the latest without re-creating the
@@ -431,7 +468,7 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
       st.playbackRate = 1;
       st.bufferedAhead = 0;
       st.waiting = false;
-      st.captionsOn = captionsOnRef.current;
+      st.captionsOn = activeCaptionRef.current >= 0;
       st.loopActive = !!loopRef.current;
       st.loopSceneActive = false;
       return st;
@@ -454,7 +491,7 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
     st.playbackRate = v.playbackRate;
     st.bufferedAhead = bufferedAhead;
     st.waiting = v.readyState < 3 && !v.paused;
-    st.captionsOn = captionsOnRef.current;
+    st.captionsOn = activeCaptionRef.current >= 0;
     st.loopActive = !!loopRef.current;
     st.loopSceneActive = v.loop;
     return st;
@@ -474,15 +511,30 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
     }
   }, []);
 
-  const toggleCaptions = useCallback(() => {
+  // Tapping the CC button cycles Off → track 0 → track 1 → ... → Off, so every
+  // assigned language is reachable without leaving VR (there's no separate
+  // picker panel). A track's native `.label` (set from the <track label> JSX
+  // below) is flashed onto the in-VR caption line for ~1.5s as confirmation.
+  const cycleCaptions = useCallback(() => {
     const v = videoRef.current;
     if (!v || !v.textTracks.length) return;
-    const on = !captionsOnRef.current;
-    captionsOnRef.current = on;
-    for (let i = 0; i < v.textTracks.length; i++) {
-      v.textTracks[i].mode = on && i === 0 ? "hidden" : "disabled";
+    const n = v.textTracks.length;
+    const next = activeCaptionRef.current >= n - 1 ? -1 : activeCaptionRef.current + 1;
+    activeCaptionRef.current = next;
+    for (let i = 0; i < n; i++) {
+      v.textTracks[i].mode = i === next ? "hidden" : "disabled";
     }
-    if (!on) activeCueRef.current = null;
+    if (next === -1) {
+      activeCueRef.current = null;
+      return;
+    }
+    const label = v.textTracks[next].label || `Track ${next + 1}`;
+    activeCueRef.current = label;
+    // Clear the flash after a beat — but only if nothing else (a real cue
+    // starting, or another cycle) has since overwritten it.
+    window.setTimeout(() => {
+      if (activeCueRef.current === label) activeCueRef.current = null;
+    }, 1500);
   }, []);
 
   // ── VR Scenes data ─────────────────────────────────────────────────────
@@ -789,7 +841,7 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
           if (v) v.loop = !v.loop;
           break;
         case "toggleCaptions":
-          toggleCaptions();
+          cycleCaptions();
           break;
         case "next":
           onNext?.();
@@ -865,7 +917,9 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
           // funscript URL (a distinct `?funscript=<index>` per script) re-fires
           // both the Handy upload (useVRPlayback) and the scrubber heatmap
           // effect, which are keyed on paths.funscript — no extra plumbing. The
-          // choice is session-local; it isn't persisted to funscript_path.
+          // pick isn't written to the shared/server-side funscript_path, but it
+          // IS remembered locally per-scene (see funscriptSelectionRef) so
+          // reopening the scene resumes it instead of the server default.
           const s = liveSceneRef.current;
           const list = s.funscripts ?? [];
           if (a.index < 0 || a.index >= list.length) break;
@@ -878,6 +932,14 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
             interactive: true,
             paths: { ...prev.paths, funscript: `${base}?funscript=${a.index}` },
           }));
+          if (s.id) {
+            const next = {
+              ...funscriptSelectionRef.current,
+              [s.id]: list[a.index].path,
+            };
+            funscriptSelectionRef.current = next;
+            saveFunscriptSelection(next);
+          }
           break;
         }
         case "setHandyStroke": {
@@ -914,7 +976,7 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
     },
     [
       seekToMarker,
-      toggleCaptions,
+      cycleCaptions,
       onNext,
       onPrevious,
       handleNavigateToScene,
@@ -1049,23 +1111,33 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
     };
   }, [sources]);
 
-  // Track the active caption cue for the in-VR caption line.
+  // Track the active caption cue for the in-VR caption line. Listens on every
+  // track (not just index 0) since cycleCaptions can make any of them active;
+  // each handler no-ops unless its own index is the currently active one.
   useEffect(() => {
     const v = videoRef.current;
     if (!v || !v.textTracks.length) return;
-    const track = v.textTracks[0];
-    const onCue = () => {
-      if (!captionsOnRef.current) return;
-      const cues = track.activeCues;
-      activeCueRef.current =
-        cues && cues.length
-          ? Array.from(cues)
-              .map((c) => (c as VTTCue).text)
-              .join("\n")
-          : null;
+    const handlers: { track: TextTrack; onCue: () => void }[] = [];
+    for (let i = 0; i < v.textTracks.length; i++) {
+      const track = v.textTracks[i];
+      const onCue = () => {
+        if (activeCaptionRef.current !== i) return;
+        const cues = track.activeCues;
+        activeCueRef.current =
+          cues && cues.length
+            ? Array.from(cues)
+                .map((c) => (c as VTTCue).text)
+                .join("\n")
+            : null;
+      };
+      track.addEventListener("cuechange", onCue);
+      handlers.push({ track, onCue });
+    }
+    return () => {
+      for (const { track, onCue } of handlers) {
+        track.removeEventListener("cuechange", onCue);
+      }
     };
-    track.addEventListener("cuechange", onCue);
-    return () => track.removeEventListener("cuechange", onCue);
   }, [videoEl]);
 
   // Enforce the A-B chapter loop: wrap back to `start` once playback crosses
@@ -1107,7 +1179,8 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
       getState,
       getMarkers: () => markersRef.current,
       getChapterTitle,
-      getCaption: () => (captionsOnRef.current ? activeCueRef.current : null),
+      getCaption: () =>
+        activeCaptionRef.current >= 0 ? activeCueRef.current : null,
       getHandyState: () => buildHandyState(),
       getFunscriptLoaded: () => getFunscriptLoaded(),
       homeData: homeLibraryRef.current,
@@ -1204,12 +1277,32 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
     };
   }, [liveScene.interactive, liveScene.paths.funscript, videoEl]);
 
-  // Reset the active-funscript selection when the scene changes, seeding it from
-  // the scene's persisted funscript_path (else the server default, -1).
+  // Reset the active-funscript selection when the scene changes, seeding it
+  // from this viewer's remembered pick for the scene (falling back to the
+  // scene's persisted funscript_path, else the server default, -1).
   useEffect(() => {
-    const list = liveSceneRef.current.funscripts ?? [];
-    const fp = liveSceneRef.current.funscript_path;
-    setActiveFunscriptIndex(fp ? list.findIndex((f) => f.path === fp) : -1);
+    const live = liveSceneRef.current;
+    const list = live.funscripts ?? [];
+    const sceneId = live.id;
+    const remembered = sceneId
+      ? funscriptSelectionRef.current[sceneId]
+      : undefined;
+    const fp = remembered ?? live.funscript_path;
+    const idx = fp ? list.findIndex((f) => f.path === fp) : -1;
+    setActiveFunscriptIndex(idx);
+    // The scene fragment only serves the server default (funscript_path) by
+    // URL; if the remembered pick differs, re-point paths.funscript so
+    // playback/heatmap/Handy upload actually load it, not just the highlight.
+    if (remembered && idx >= 0 && remembered !== live.funscript_path) {
+      const base = (live.paths.funscript ?? `/scene/${live.id}/funscript`).split(
+        "?"
+      )[0];
+      setLiveScene((prev) => ({
+        ...prev,
+        interactive: true,
+        paths: { ...prev.paths, funscript: `${base}?funscript=${idx}` },
+      }));
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveScene.id]);
 

@@ -182,7 +182,9 @@ const ANIM_MS = 300;
 const COMMIT_FRACTION = 0.28;
 
 // ── Content-mode toggle (Scenes | Galleries) — header, left of the logo ───────
-const MODE_X = 230;
+// Settings (40–190) + help "?" (202–246) sit to the left; start the mode
+// toggle well clear of them so it doesn't crowd/overlap the help button.
+const MODE_X = 280;
 const MODE_Y = 26;
 const MODE_H = 46;
 const MODE_BTN_W = 165;
@@ -210,6 +212,92 @@ type FilterTab = "studios" | "performers";
 type MediaFilter = VRMediaFilter;
 type SortMode = VRSortMode;
 type ContentMode = "scenes" | "galleries" | "movies" | "faptap" | "pmvhaven";
+
+const ONBOARDING_SEEN_KEY = "vrOnboardingSeen";
+
+/** Has the one-time controls onboarding already been dismissed on this device? */
+function loadOnboardingSeen(): boolean {
+  try {
+    return window.localStorage.getItem(ONBOARDING_SEEN_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function saveOnboardingSeen() {
+  try {
+    window.localStorage.setItem(ONBOARDING_SEEN_KEY, "1");
+  } catch {
+    /* ignore */
+  }
+}
+
+interface IOnboardingCard {
+  icon: string;
+  title: string;
+  body: string;
+}
+interface IOnboardingPage {
+  heading: string;
+  sub: string;
+  cards: IOnboardingCard[];
+}
+
+/**
+ * One-time onboarding content — page 1 is the gesture legend (recenter /
+ * look-around / tap-vs-drag), page 2 walks through the player features that
+ * aren't otherwise self-evident from the control bar (captions, interactive
+ * scripts, chapters/looping, comfort). Reopenable any time via the "?" button.
+ */
+const ONBOARDING_PAGES: IOnboardingPage[] = [
+  {
+    heading: "Welcome to VR",
+    sub: "A few controls before you dive in",
+    cards: [
+      {
+        icon: "◎",
+        title: "Recenter",
+        body: "Give the grip button a quick squeeze while pointing at empty space to reset your view forward.",
+      },
+      {
+        icon: "↻",
+        title: "Look around",
+        body: "Hold the grip button and move the controller to grab and rotate the video around you.",
+      },
+      {
+        icon: "⇥",
+        title: "Tap vs. drag",
+        body: "A quick trigger press selects. Press and move before releasing to drag — scroll a strip, adjust a slider.",
+      },
+    ],
+  },
+  {
+    heading: "Know the features",
+    sub: "A quick tour of what's built in",
+    cards: [
+      {
+        icon: "CC",
+        title: "Captions",
+        body: "Tap CC on the control bar to cycle through every subtitle track, then off again.",
+      },
+      {
+        icon: "▶",
+        title: "Interactive scripts",
+        body: "Scenes with more than one script let you pick from the Handy panel — your choice is remembered next time you open the scene.",
+      },
+      {
+        icon: "⟳",
+        title: "Chapters & looping",
+        body: "Jump between chapter markers from the control bar, and loop the current chapter or the whole scene.",
+      },
+      {
+        icon: "◐",
+        title: "Comfort vignette",
+        body: "Feeling queasy while looking around or zooming? Turn on Comfort vignette in Settings to dim your peripheral vision.",
+      },
+    ],
+  },
+];
 
 export class VRHomePanel extends VRCanvasPanel {
   // Server-paged grid: only the current page (+ prefetched neighbours) are held
@@ -290,10 +378,18 @@ export class VRHomePanel extends VRCanvasPanel {
   private soundOnPlay = true;
   private uiSfx = true;
   private passthroughHome = false;
+  private comfortVignette = false;
   // Whether the live session can composite camera passthrough at all
   // (immersive-ar). Gates the settings row — runtime capability, not a pref.
   private passthroughSupported = false;
   private settingsOpen = false;
+
+  // One-time controls legend (recenter / look-around / tap-vs-drag) followed
+  // by a feature walkthrough page. Opens automatically the first time this
+  // device shows the Home wall; reopenable any time via the "?" help button
+  // next to the settings gear (always restarts on page 0).
+  private onboardingOpen = false;
+  private onboardingPage = 0;
 
   // Thumbstick nav edge-trigger arms (reset when stick returns to centre).
   private lobbyHArmed = true;
@@ -321,6 +417,7 @@ export class VRHomePanel extends VRCanvasPanel {
   constructor() {
     super(PANEL_WIDTH_M, CANVAS_W, CANVAS_H, PANEL_RADIUS);
     this.mesh.name = "vr-home-panel";
+    this.onboardingOpen = !loadOnboardingSeen();
   }
 
   get hasContent(): boolean {
@@ -456,6 +553,10 @@ export class VRHomePanel extends VRCanvasPanel {
     }
     if (!!s.uiSfx !== this.uiSfx) {
       this.uiSfx = !!s.uiSfx;
+      changed = true;
+    }
+    if (!!s.comfortVignette !== this.comfortVignette) {
+      this.comfortVignette = !!s.comfortVignette;
       changed = true;
     }
     if (changed) {
@@ -862,8 +963,9 @@ export class VRHomePanel extends VRCanvasPanel {
 
   pointerMove(uv: THREE.Vector2): void {
     if (!this.pressActive) return;
-    // While the settings modal is open the wall behind it is inert.
-    if (this.settingsOpen) return;
+    // While the settings modal or onboarding legend is open the wall behind it
+    // is inert.
+    if (this.settingsOpen || this.onboardingOpen) return;
     // Settle window: absorb the trigger-pull kick by re-baselining the press
     // point (and the drag bases) to wherever the ray has settled, so the spike
     // never counts toward the drag delta. A drag can only begin afterwards.
@@ -961,6 +1063,33 @@ export class VRHomePanel extends VRCanvasPanel {
       this.markDirty();
       return null;
     }
+    // Controls legend — "?" reopens it any time; dismissing marks it seen so
+    // it won't auto-show again on this device.
+    if (id === "help") {
+      this.onboardingOpen = true;
+      this.onboardingPage = 0;
+      this.markDirty();
+      return null;
+    }
+    if (id === "onboardingClose" || id === "onboardingGotIt") {
+      this.onboardingOpen = false;
+      saveOnboardingSeen();
+      this.markDirty();
+      return null;
+    }
+    if (id === "onboardingNext") {
+      this.onboardingPage = Math.min(
+        ONBOARDING_PAGES.length - 1,
+        this.onboardingPage + 1
+      );
+      this.markDirty();
+      return null;
+    }
+    if (id === "onboardingBack") {
+      this.onboardingPage = Math.max(0, this.onboardingPage - 1);
+      this.markDirty();
+      return null;
+    }
     if (this.settingsOpen) {
       if (id === "set:hoverLaunch") {
         this.hoverLaunch = !this.hoverLaunch;
@@ -987,6 +1116,15 @@ export class VRHomePanel extends VRCanvasPanel {
           type: "setVrSetting",
           key: "uiSfx",
           value: this.uiSfx,
+        };
+      }
+      if (id === "set:comfortVignette") {
+        this.comfortVignette = !this.comfortVignette;
+        this.markDirty();
+        return {
+          type: "setVrSetting",
+          key: "comfortVignette",
+          value: this.comfortVignette,
         };
       }
       if (id === "set:passthroughHome") {
@@ -1123,8 +1261,8 @@ export class VRHomePanel extends VRCanvasPanel {
 
   private tickDwell() {
     // Disabled when the user turns off gaze-launch, or while the settings modal
-    // is open (the grid is non-interactive behind it).
-    if (!this.hoverLaunch || this.settingsOpen) {
+    // or onboarding legend is open (the grid is non-interactive behind it).
+    if (!this.hoverLaunch || this.settingsOpen || this.onboardingOpen) {
       this.dwellId = null;
       this.dwellStart = 0;
       return;
@@ -1187,6 +1325,7 @@ export class VRHomePanel extends VRCanvasPanel {
     this.panelBackground();
     this.drawHeader();
     this.drawSettingsButton();
+    this.drawHelpButton();
     this.drawModeToggle();
     this.drawSearchPill();
     this.drawExitButton();
@@ -1200,6 +1339,9 @@ export class VRHomePanel extends VRCanvasPanel {
     if (this.settingsOpen) {
       this.regions = [];
       this.drawSettingsOverlay();
+    } else if (this.onboardingOpen) {
+      this.regions = [];
+      this.drawOnboardingOverlay();
     }
   }
 
@@ -2018,6 +2160,31 @@ export class VRHomePanel extends VRCanvasPanel {
     this.regions.push({ id: "settings", x, y, w, h });
   }
 
+  /** Small round "?" button beside the settings gear — reopens the one-time
+   * onboarding (controls legend + feature walkthrough) any time. */
+  private drawHelpButton() {
+    const { ctx } = this;
+    const w = 44;
+    const x = PAD + 150 + 12;
+    const y = 26;
+    const hovered = this.hoveredId === "help";
+    const active = this.onboardingOpen;
+    this.roundRect(x, y, w, w, w / 2);
+    ctx.fillStyle =
+      active || hovered ? `${ACCENT}0.92)` : "rgba(255,255,255,0.08)";
+    ctx.fill();
+    this.roundRect(x, y, w, w, w / 2);
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = active || hovered ? `${ACCENT}0.7)` : "rgba(255,255,255,0.2)";
+    ctx.stroke();
+    ctx.font = "600 20px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = active || hovered ? "#06121f" : "rgba(255,255,255,0.75)";
+    ctx.fillText("?", x + w / 2, y + w / 2 + 1);
+    this.regions.push({ id: "help", x, y, w, h: w });
+  }
+
   /**
    * Header search pill — tap to summon the system keyboard (handled in-manager
    * via [homeSearchOpen]). While a search is active it shows the live term plus
@@ -2176,7 +2343,7 @@ export class VRHomePanel extends VRCanvasPanel {
 
     const mW = 760;
     // Taller when the passthrough row is present (AR session).
-    const mH = this.passthroughSupported ? 760 : 640;
+    const mH = this.passthroughSupported ? 856 : 736;
     const mX = (this.cw - mW) / 2;
     const mY = (this.ch - mH) / 2;
 
@@ -2320,7 +2487,26 @@ export class VRHomePanel extends VRCanvasPanel {
       "set:uiSfx"
     );
 
-    // ── Row 4: Hub passthrough (only in an immersive-ar session) ────────────
+    // ── Row 4: Comfort vignette ───────────────────────────────────────────────
+    rowY += 96;
+    ctx.strokeStyle = "rgba(255,255,255,0.08)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(rowX, rowY);
+    ctx.lineTo(rowX + rowW, rowY);
+    ctx.stroke();
+    rowY += 24;
+    this.drawSettingRow(
+      rowX,
+      rowY,
+      rowW,
+      "Comfort vignette",
+      "Dim edges of view while looking around or zooming",
+      this.comfortVignette,
+      "set:comfortVignette"
+    );
+
+    // ── Row 5: Hub passthrough (only in an immersive-ar session) ────────────
     if (this.passthroughSupported) {
       rowY += 96;
       ctx.strokeStyle = "rgba(255,255,255,0.08)";
@@ -2349,6 +2535,197 @@ export class VRHomePanel extends VRCanvasPanel {
       w: this.cw,
       h: this.ch,
     });
+  }
+
+  /**
+   * One-time onboarding — page 1 is the controls legend (recenter /
+   * look-around / tap-vs-drag), page 2 walks through the player features.
+   * Shown automatically the first time this device opens the Home wall (see
+   * loadOnboardingSeen in the constructor); reopenable via the "?" button
+   * (always restarts on page 1).
+   */
+  private drawOnboardingOverlay() {
+    const { ctx } = this;
+    const pageIndex = this.onboardingPage;
+    const page = ONBOARDING_PAGES[pageIndex];
+    const isLastPage = pageIndex === ONBOARDING_PAGES.length - 1;
+
+    ctx.fillStyle = "rgba(4,6,12,0.78)";
+    ctx.fillRect(0, 0, this.cw, this.ch);
+
+    const mW = 760;
+    // Sized to fit this page's cards (104px/row) plus fixed header/footer
+    // chrome — matches the original 620px for the 3-card gesture legend.
+    const mH = page.cards.length * 104 + 308;
+    const mX = (this.cw - mW) / 2;
+    const mY = (this.ch - mH) / 2;
+
+    this.roundRect(mX, mY, mW, mH, 24);
+    const g = ctx.createLinearGradient(mX, mY, mX, mY + mH);
+    g.addColorStop(0, "rgba(30,32,44,0.98)");
+    g.addColorStop(1, "rgba(14,15,22,0.98)");
+    ctx.fillStyle = g;
+    ctx.fill();
+    this.roundRect(mX, mY, mW, mH, 24);
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = "rgba(255,255,255,0.12)";
+    ctx.stroke();
+
+    ctx.font = "700 30px sans-serif";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+    ctx.fillStyle = "rgba(255,255,255,0.95)";
+    ctx.fillText(page.heading, mX + 36, mY + 56);
+    ctx.font = "400 18px sans-serif";
+    ctx.fillStyle = "rgba(255,255,255,0.5)";
+    ctx.fillText(page.sub, mX + 36, mY + 84);
+
+    const clW = 44;
+    const clX = mX + mW - clW - 24;
+    const clY = mY + 22;
+    const clHover = this.hoveredId === "onboardingClose";
+    this.roundRect(clX, clY, clW, clW, clW / 2);
+    ctx.fillStyle = clHover ? "rgba(220,72,72,0.92)" : "rgba(255,255,255,0.08)";
+    ctx.fill();
+    ctx.font = "600 22px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = clHover ? "#fff" : "rgba(255,255,255,0.8)";
+    ctx.fillText("✕", clX + clW / 2, clY + clW / 2 + 1);
+    this.regions.push({ id: "onboardingClose", x: clX, y: clY, w: clW, h: clW });
+
+    const rowX = mX + 36;
+    const rowW = mW - 72;
+    const rowH = 104;
+    let rowY = mY + 116;
+    for (const card of page.cards) {
+      const iconR = 28;
+      this.roundRect(rowX, rowY, iconR * 2, iconR * 2, iconR);
+      ctx.fillStyle = `${ACCENT}0.16)`;
+      ctx.fill();
+      ctx.font = "600 22px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = `${ACCENT}0.95)`;
+      ctx.fillText(card.icon, rowX + iconR, rowY + iconR + 2);
+
+      const textX = rowX + iconR * 2 + 24;
+      const textW = rowW - iconR * 2 - 24;
+      ctx.textAlign = "left";
+      ctx.textBaseline = "alphabetic";
+      ctx.font = "600 22px sans-serif";
+      ctx.fillStyle = "rgba(255,255,255,0.92)";
+      ctx.fillText(card.title, textX, rowY + 26);
+
+      ctx.font = "400 18px sans-serif";
+      ctx.fillStyle = "rgba(255,255,255,0.62)";
+      let ly = rowY + 54;
+      for (const line of this.wrapLines(card.body, textW)) {
+        ctx.fillText(line, textX, ly);
+        ly += 24;
+      }
+
+      rowY += rowH;
+    }
+
+    // Page dots — only meaningful with more than one page, but harmless at 1.
+    if (ONBOARDING_PAGES.length > 1) {
+      const dotR = 5;
+      const dotGap = 18;
+      const dotsW = (ONBOARDING_PAGES.length - 1) * dotGap;
+      let dotX = mX + mW / 2 - dotsW / 2;
+      const dotY = mY + mH - 68;
+      for (let i = 0; i < ONBOARDING_PAGES.length; i++) {
+        ctx.beginPath();
+        ctx.arc(dotX, dotY, dotR, 0, Math.PI * 2);
+        ctx.fillStyle =
+          i === pageIndex ? `${ACCENT}0.9)` : "rgba(255,255,255,0.25)";
+        ctx.fill();
+        dotX += dotGap;
+      }
+    }
+
+    const btnW = 220;
+    const btnH = 52;
+    const btnY = mY + mH - btnH - 28;
+    const showBack = pageIndex > 0;
+    const primaryId = isLastPage ? "onboardingGotIt" : "onboardingNext";
+    const primaryLabel = isLastPage ? "Got it" : "Next";
+
+    if (showBack) {
+      const backW = 120;
+      const gap = 16;
+      const groupW = backW + gap + btnW;
+      const backX = mX + (mW - groupW) / 2;
+      const btnX = backX + backW + gap;
+      const backHover = this.hoveredId === "onboardingBack";
+      this.roundRect(backX, btnY, backW, btnH, btnH / 2);
+      ctx.fillStyle = backHover
+        ? "rgba(255,255,255,0.16)"
+        : "rgba(255,255,255,0.07)";
+      ctx.fill();
+      ctx.font = "600 18px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "rgba(255,255,255,0.8)";
+      ctx.fillText("Back", backX + backW / 2, btnY + btnH / 2 + 1);
+      this.regions.push({
+        id: "onboardingBack",
+        x: backX,
+        y: btnY,
+        w: backW,
+        h: btnH,
+      });
+
+      const primaryHover = this.hoveredId === primaryId;
+      this.roundRect(btnX, btnY, btnW, btnH, btnH / 2);
+      ctx.fillStyle = primaryHover ? `${ACCENT}0.95)` : `${ACCENT}0.85)`;
+      ctx.fill();
+      ctx.font = "600 20px sans-serif";
+      ctx.fillStyle = "#06121f";
+      ctx.fillText(primaryLabel, btnX + btnW / 2, btnY + btnH / 2 + 1);
+      this.regions.push({ id: primaryId, x: btnX, y: btnY, w: btnW, h: btnH });
+    } else {
+      const btnX = mX + (mW - btnW) / 2;
+      const primaryHover = this.hoveredId === primaryId;
+      this.roundRect(btnX, btnY, btnW, btnH, btnH / 2);
+      ctx.fillStyle = primaryHover ? `${ACCENT}0.95)` : `${ACCENT}0.85)`;
+      ctx.fill();
+      ctx.font = "600 20px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "#06121f";
+      ctx.fillText(primaryLabel, btnX + btnW / 2, btnY + btnH / 2 + 1);
+      this.regions.push({ id: primaryId, x: btnX, y: btnY, w: btnW, h: btnH });
+    }
+
+    // Backdrop region (pushed LAST so the controls above win the hit test).
+    this.regions.push({
+      id: "onboardingClose",
+      x: 0,
+      y: 0,
+      w: this.cw,
+      h: this.ch,
+    });
+  }
+
+  /** Break `text` into lines no wider than `maxW` at the canvas's current font. */
+  private wrapLines(text: string, maxW: number): string[] {
+    const { ctx } = this;
+    const words = text.split(" ");
+    const lines: string[] = [];
+    let line = "";
+    for (const word of words) {
+      const candidate = line ? `${line} ${word}` : word;
+      if (ctx.measureText(candidate).width > maxW && line) {
+        lines.push(line);
+        line = word;
+      } else {
+        line = candidate;
+      }
+    }
+    if (line) lines.push(line);
+    return lines;
   }
 
   /** One labelled toggle row with a pill switch on the right. */

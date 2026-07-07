@@ -333,8 +333,12 @@ interface IHittable {
   target: THREE.Object3D;
   hover: (uv: THREE.Vector2 | null) => void;
   select: (uv: THREE.Vector2) => VRControlAction | null;
-  /** Trigger held + dragged across the panel (drag-to-scroll). */
-  move?: (uv: THREE.Vector2) => void;
+  /**
+   * Trigger held + dragged across the panel (drag-to-scroll, or a live drag
+   * effect like scrubber seeking). A returned action is dispatched the same
+   * as `select`/`up`; most implementations return void.
+   */
+  move?: (uv: THREE.Vector2) => VRControlAction | void | null;
   /** Trigger released over the panel (tap-to-select). */
   up?: (uv: THREE.Vector2) => VRControlAction | null;
 }
@@ -953,6 +957,8 @@ export class XRSessionManager {
         target: this.panel.hitTarget,
         hover: (uv) => this.panel.setHovered(uv),
         select: (uv) => this.panel.activate(uv),
+        move: (uv) => this.panel.pointerMove(uv),
+        up: (uv) => this.panel.pointerUp(uv),
       },
     ];
     if (this.handyPanel) {
@@ -2067,7 +2073,8 @@ export class XRSessionManager {
   /** Trigger held + dragged: forward to the pressed panel for drag-scrolling. */
   private routeSelectMove(hit: IPanelHit) {
     const h = this.hittables.find((x) => x.target === hit.object);
-    h?.move?.(hit.uv);
+    const action = h?.move?.(hit.uv);
+    if (action) this.dispatchAction(action);
   }
 
   /** Trigger released: a tap on a panel may resolve to an action (navigate). */

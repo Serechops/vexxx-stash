@@ -99,6 +99,10 @@ const RATE_STEPS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 export class VRControlPanel extends VRCanvasPanel {
   private hoverFraction: number | null = null;
   private heatmap: HTMLImageElement | null = null;
+  // Scrubber region captured on press, so a drag can keep computing fractions
+  // from its fixed x/w even if the ray's y wanders off the thin track strip —
+  // matches a real seek bar, where the pointer needn't stay glued to the line.
+  private draggingScrubber: IPanelRegion | null = null;
 
   private chapScroll = 0;
 
@@ -481,6 +485,10 @@ export class VRControlPanel extends VRCanvasPanel {
     if (!region) return null;
     const x = uv.x * this.cw;
     if (region.id === "scrubber") {
+      // Jump to the press point immediately, same as before, but also latch
+      // the region so pointerMove can keep streaming seeks for the rest of
+      // the drag (click-and-drag scrubbing rather than point-and-shoot).
+      this.draggingScrubber = region;
       const fraction = Math.min(1, Math.max(0, (x - region.x) / region.w));
       return { type: "seekFraction", fraction };
     }
@@ -489,6 +497,26 @@ export class VRControlPanel extends VRCanvasPanel {
       return { type: "setVolume", value };
     }
     return this.handleSelect(region);
+  }
+
+  /**
+   * Trigger held + dragged after a scrubber press: keep streaming seeks from
+   * the latched region's x/w, independent of regionAt (which would drop the
+   * drag the moment the ray's y wanders off the thin track strip).
+   */
+  pointerMove(uv: THREE.Vector2): VRControlAction | null {
+    if (!this.draggingScrubber) return null;
+    const region = this.draggingScrubber;
+    const x = uv.x * this.cw;
+    const fraction = Math.min(1, Math.max(0, (x - region.x) / region.w));
+    return { type: "seekFraction", fraction };
+  }
+
+  /** Trigger released: end the scrubber drag, if one was active. */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  pointerUp(_uv: THREE.Vector2): VRControlAction | null {
+    this.draggingScrubber = null;
+    return null;
   }
 
   protected handleSelect(region: IPanelRegion): VRControlAction | null {

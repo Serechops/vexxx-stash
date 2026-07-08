@@ -12,6 +12,14 @@ import { Play, Info, VolumeX, Volume2 } from "lucide-react";
 import { TruncatedText } from "../Shared/TruncatedText";
 
 const IMAGE_SLIDE_DURATION_MS = 8000;
+// Safety net: a real preview ends well before this. Guards against a preview
+// that plays but never fires `ended` (e.g. a truncated/looping segment).
+const VIDEO_MAX_DURATION_MS = 30000;
+// If a preview that we expected to play hasn't delivered a single frame within
+// this window, treat it as failed and fall back to the still image. Covers the
+// common case where `paths.preview` is a non-empty URL but no preview file
+// exists, so the <video> silently stalls on its poster without firing `error`.
+const VIDEO_STALL_TIMEOUT_MS = 6000;
 
 function formatDuration(seconds: number): string {
     if (seconds < 3600) {
@@ -64,9 +72,25 @@ export const HeroBanner: React.FC = () => {
         setVideoErrored(true);
     };
 
+    // Detect a preview that never actually starts playing (silent 404 / stall).
+    // If no frame is available after the stall window, fall back to the image.
     useEffect(() => {
-        if (!scene || hasVideo || scenes.length === 0) return;
-        const timer = window.setTimeout(handleVideoEnded, IMAGE_SLIDE_DURATION_MS);
+        if (!scene || !hasVideo) return;
+        const stall = window.setTimeout(() => {
+            const v = videoRef.current;
+            // readyState < HAVE_CURRENT_DATA (2) means nothing has decoded yet.
+            if (!v || v.readyState < 2) setVideoErrored(true);
+        }, VIDEO_STALL_TIMEOUT_MS);
+        return () => window.clearTimeout(stall);
+    }, [scene, hasVideo]);
+
+    // Always keep an advance timer running so the banner can never freeze on a
+    // slide. A playing preview advances early via `onEnded`; the still image and
+    // any silently-stuck video advance when this timer fires.
+    useEffect(() => {
+        if (!scene || scenes.length === 0) return;
+        const dwell = hasVideo ? VIDEO_MAX_DURATION_MS : IMAGE_SLIDE_DURATION_MS;
+        const timer = window.setTimeout(handleVideoEnded, dwell);
         return () => window.clearTimeout(timer);
     }, [scene, hasVideo, scenes.length]);
 

@@ -11,6 +11,8 @@ import { SFWHeroPlaceholder } from "src/components/Shared/SFWHeroPlaceholder";
 import { Play, Info, VolumeX, Volume2 } from "lucide-react";
 import { TruncatedText } from "../Shared/TruncatedText";
 
+const IMAGE_SLIDE_DURATION_MS = 8000;
+
 function formatDuration(seconds: number): string {
     if (seconds < 3600) {
         const m = Math.floor(seconds / 60);
@@ -26,6 +28,7 @@ export const HeroBanner: React.FC = () => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const [isMuted, setIsMuted] = useState(true);
     const [currentIndex, setCurrentIndex] = useState(0);
+    const [videoErrored, setVideoErrored] = useState(false);
 
     const { configuration } = useConfigurationContext();
 
@@ -41,25 +44,37 @@ export const HeroBanner: React.FC = () => {
 
     const scenes = useMemo(() => data?.findScenes.scenes || [], [data]);
     const scene = scenes[currentIndex];
+    const hasVideo = !!scene?.paths.preview && !videoErrored;
 
     const sceneQueue = useMemo(() => SceneQueue.fromListFilterModel(filter), [filter]);
 
     useEffect(() => {
+        setVideoErrored(false);
         if (videoRef.current && scene) {
             videoRef.current.load();
             videoRef.current.play().catch(() => {});
         }
     }, [scene]);
 
+    const handleVideoEnded = () => {
+        setCurrentIndex((prev) => (prev + 1) % scenes.length);
+    };
+
+    const handleVideoError = () => {
+        setVideoErrored(true);
+    };
+
+    useEffect(() => {
+        if (!scene || hasVideo || scenes.length === 0) return;
+        const timer = window.setTimeout(handleVideoEnded, IMAGE_SLIDE_DURATION_MS);
+        return () => window.clearTimeout(timer);
+    }, [scene, hasVideo, scenes.length]);
+
     const toggleMute = () => {
         if (videoRef.current) {
             videoRef.current.muted = !videoRef.current.muted;
             setIsMuted(videoRef.current.muted);
         }
-    };
-
-    const handleVideoEnded = () => {
-        setCurrentIndex((prev) => (prev + 1) % scenes.length);
     };
 
     const uiConfig = configuration?.ui as IUIConfig | undefined;
@@ -78,7 +93,7 @@ export const HeroBanner: React.FC = () => {
         <div className="relative w-screen h-[56.25vw] md:h-screen bg-black left-[calc(50%-50vw)] right-[calc(50%-50vw)]">
             {/* Background Media */}
             <div className="absolute top-0 left-0 w-full h-full animate-in fade-in duration-1000">
-                {video ? (
+                {video && !videoErrored ? (
                     <video
                         ref={videoRef}
                         className="w-full h-full object-cover"
@@ -89,6 +104,7 @@ export const HeroBanner: React.FC = () => {
                         muted={isMuted}
                         playsInline
                         onEnded={handleVideoEnded}
+                        onError={handleVideoError}
                     />
                 ) : (
                     <img

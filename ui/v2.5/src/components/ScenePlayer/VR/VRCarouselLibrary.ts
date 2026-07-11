@@ -113,15 +113,17 @@ export class VRCarouselLibrary {
             },
             scene_filter: this.sceneFilter(),
           },
-          fetchPolicy: "network-only",
+          fetchPolicy: "no-cache",
         })
         .then((r) => {
           this.totalForQuery = r.data.findScenes.count;
           return this.totalForQuery;
         })
-        .catch(() => {
-          this.totalForQuery = 0;
-          return 0;
+        .catch((e) => {
+          // Don't cache a failed count as "0 scenes" — clear the promise so
+          // the next page pull retries the query.
+          this.totalPromise = null;
+          throw e;
         });
     }
     return this.totalPromise;
@@ -147,17 +149,18 @@ export class VRCarouselLibrary {
             },
             scene_filter: this.sceneFilter(),
           },
-          fetchPolicy: "network-only",
+          fetchPolicy: "no-cache",
         })
         .then((r) => {
           const scenes = r.data.findScenes.scenes.map(mapScene);
           this.blockCache.set(blockIndex, scenes);
           return scenes;
         })
-        .catch(() => {
-          const empty: IVRSceneEntry[] = [];
-          this.blockCache.set(blockIndex, empty);
-          return empty;
+        .catch((e) => {
+          // A failed block must not be cached as an empty page — drop the
+          // in-flight promise so the next page pull retries.
+          this.blockPromises.delete(blockIndex);
+          throw e;
         });
       this.blockPromises.set(blockIndex, p);
     }

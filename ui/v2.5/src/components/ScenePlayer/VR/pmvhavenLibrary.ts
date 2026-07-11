@@ -58,8 +58,21 @@ async function getJSON<T>(path: string, params?: Record<string, string>): Promis
   return (await res.json()) as T;
 }
 
-/** PMVHaven CDN host whose assets must be proxied (it sends no CORS headers). */
-const PMV_CDN = "https://video.pmvhaven.com/";
+/**
+ * PMVHaven asset hosts whose assets must be proxied (they send no CORS headers).
+ * PMVHaven retired `video.pmvhaven.com` (its DNS no longer resolves) in favour of
+ * the OVH object store; the backend already normalises stored URLs to the live
+ * host, but both are recognised here so a URL on either host is routed through
+ * the same-origin proxy (the retired one is rewritten server-side on fetch).
+ */
+const PMV_CDN_HOSTS = [
+  "https://pmvhavencloud.s3.eu-west-par.io.cloud.ovh.net/",
+  "https://video.pmvhaven.com/",
+];
+
+function isCdnAsset(url: string): boolean {
+  return PMV_CDN_HOSTS.some((h) => url.startsWith(h));
+}
 
 /**
  * Rewrite a CDN image URL through the same-origin `/pmvhaven/thumb` proxy so a
@@ -68,7 +81,7 @@ const PMV_CDN = "https://video.pmvhaven.com/";
  */
 function proxyImg(url: string | null | undefined): string | null {
   if (!url) return null;
-  return url.startsWith(PMV_CDN) ? pmvURL("thumb", { url }) : url;
+  return isCdnAsset(url) ? pmvURL("thumb", { url }) : url;
 }
 
 /**
@@ -78,7 +91,7 @@ function proxyImg(url: string | null | undefined): string | null {
  */
 function proxyMedia(url: string | null | undefined): string | null {
   if (!url) return null;
-  return url.startsWith(PMV_CDN) ? pmvURL("media", { url }) : url;
+  return isCdnAsset(url) ? pmvURL("media", { url }) : url;
 }
 
 // ── Wire shapes returned by the Go handlers ──────────────────────────────────

@@ -47,6 +47,7 @@ import {
 import { VRScenesPanel, IVRSceneEntry } from "./VRScenesPanel";
 import { VRCarouselLibrary } from "./VRCarouselLibrary";
 import { VRHomePanel } from "./VRHomePanel";
+import { loadBrowseState, saveBrowseState } from "./vrBrowseState";
 import { VRSystemKeyboard } from "./vrKeyboard";
 import { fetchFaptapStatus } from "./faptapLibrary";
 import { fetchPmvhavenStatus } from "./pmvhavenLibrary";
@@ -76,6 +77,7 @@ import {
   IVRFilterEntry,
   VRMediaFilter,
   VRSortMode,
+  VR_SCENE_PAGE_SIZE,
 } from "./types";
 import type { IThumbnailCrop } from "./vttThumbnails";
 import { vrLog } from "./vrLog";
@@ -611,6 +613,8 @@ export class XRSessionManager {
   } | null = null;
   private mediaFilter: VRMediaFilter = "all";
   private sortMode: VRSortMode = "recent";
+  // Display label of the active homeFilter (for the pill + persistence).
+  private homeFilterLabel: string | null = null;
   // Free-text search (typed on the system keyboard), part of the live query.
   private homeSearch: string | null = null;
   // Meta Quest Browser system keyboard, summoned from the Home wall's search
@@ -859,6 +863,32 @@ export class XRSessionManager {
 
     // Flat (2D) scenes play on a bare curved screen floating in darkness — no
     // theatre dressing or glow frame (intentionally minimal for comfort).
+
+    // Restore the last persisted browse state (sort / media toggle / filter)
+    // so re-entering the lobby lands where the user last browsed. Must happen
+    // before the initial apply*Query calls below read these fields.
+    const savedBrowse = loadBrowseState();
+    if (savedBrowse.sort) {
+      this.sortMode = savedBrowse.sort;
+      home.setSortMode(savedBrowse.sort);
+    }
+    // "favorites" is a FapTap/PMVHaven-only toggle — restoring it onto the
+    // Stash scene grid would show an inexplicable empty wall.
+    if (savedBrowse.media && savedBrowse.media !== "favorites") {
+      this.mediaFilter = savedBrowse.media;
+      home.setMediaFilter(savedBrowse.media);
+    }
+    if (savedBrowse.filter) {
+      this.homeFilter = {
+        kind: savedBrowse.filter.kind,
+        id: savedBrowse.filter.id,
+      };
+      this.homeFilterLabel = savedBrowse.filter.label;
+      home.setActiveFilter(
+        savedBrowse.filter.kind !== "tag" ? savedBrowse.filter.id : null
+      );
+      home.setFilterLabel(this.homeFilterLabel);
+    }
 
     // Wire the server-backed Home library: inject the page requester, seed the
     // initial query (so counts/pages start loading) and fetch the filter rail.
@@ -1288,6 +1318,7 @@ export class XRSessionManager {
 
   /** Fetch a carousel page from the pager and append it (gen-guarded). */
   private fetchCarouselPage(pageIndex: number) {
+    const {gen} = this.carouselData;
     this.carouselData
       .getPage(pageIndex)
       .then((res) => {
@@ -1295,7 +1326,11 @@ export class XRSessionManager {
         if (res.gen !== this.carouselData.gen) return;
         this.scenesPanel?.appendPage(res.pageIndex, res.scenes, res.totalCount);
       })
-      .catch(() => undefined);
+      .catch(() => {
+        // Stale failures don't matter — the panel was reset with the query.
+        if (gen !== this.carouselData.gen) return;
+        this.scenesPanel?.pageFailed(pageIndex);
+      });
   }
 
   /** Close the Browse side panels (called after an in-VR scene switch). */
@@ -1385,13 +1420,17 @@ export class XRSessionManager {
   private fetchHomePage(pageIndex: number) {
     const ds = this.sceneData;
     if (!ds) return;
+    const {gen} = ds;
     ds.getPage(pageIndex)
       .then((res) => {
         // Drop stale results that resolve after a query change.
         if (res.gen !== ds.gen) return;
         this.homePanel?.setPageData(res.pageIndex, res.scenes, res.totalCount);
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (gen !== ds.gen) return;
+        this.homePanel?.setPageError("scenes", pageIndex);
+      });
   }
 
   // ── Galleries content mode + XR gallery viewer ──────────────────────────────
@@ -1400,6 +1439,7 @@ export class XRSessionManager {
   private fetchGalleryPage(pageIndex: number) {
     const ds = this.galleryData;
     if (!ds) return;
+    const {gen} = ds;
     ds.getGalleryPage(pageIndex)
       .then((res) => {
         if (res.gen !== ds.gen) return;
@@ -1409,7 +1449,10 @@ export class XRSessionManager {
           res.totalCount
         );
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (gen !== ds.gen) return;
+        this.homePanel?.setPageError("galleries", pageIndex);
+      });
   }
 
   /**
@@ -1433,6 +1476,7 @@ export class XRSessionManager {
   private fetchGalleryImagePage(pageIndex: number) {
     const ds = this.galleryData;
     if (!ds) return;
+    const {gen} = ds;
     ds.getImagePage(pageIndex)
       .then((res) => {
         if (res.gen !== ds.gen) return;
@@ -1442,7 +1486,10 @@ export class XRSessionManager {
           res.totalCount
         );
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (gen !== ds.gen) return;
+        this.galleryViewer?.pageFailed(pageIndex);
+      });
   }
 
   /** Open the XR gallery viewer for a gallery: scope image paging + show it. */
@@ -1476,6 +1523,7 @@ export class XRSessionManager {
   private fetchGroupPage(pageIndex: number) {
     const ds = this.groupData;
     if (!ds) return;
+    const {gen} = ds;
     ds.getGroupPage(pageIndex)
       .then((res) => {
         if (res.gen !== ds.gen) return;
@@ -1485,13 +1533,17 @@ export class XRSessionManager {
           res.totalCount
         );
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (gen !== ds.gen) return;
+        this.homePanel?.setPageError("groups", pageIndex);
+      });
   }
 
   /** Fetch a page of the active movie's scenes and push it to the Home wall. */
   private fetchGroupScenePage(pageIndex: number) {
     const ds = this.groupData;
     if (!ds) return;
+    const {gen} = ds;
     ds.getScenePage(pageIndex)
       .then((res) => {
         if (res.gen !== ds.gen) return;
@@ -1501,7 +1553,10 @@ export class XRSessionManager {
           res.totalCount
         );
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (gen !== ds.gen) return;
+        this.homePanel?.setPageError("groupScenes", pageIndex);
+      });
   }
 
   /**
@@ -1887,7 +1942,46 @@ export class XRSessionManager {
       label = list.find((e) => e.id === filter.id)?.name ?? null;
     }
     this.homePanel?.setFilterLabel(label);
+    this.homeFilterLabel = label;
     this.applyHomeQuery();
+    this.persistBrowseState();
+  }
+
+  /** Persist the device-local browse state (sort / media / filter). */
+  private persistBrowseState() {
+    saveBrowseState({
+      sort: this.sortMode,
+      media: this.mediaFilter,
+      filter: this.homeFilter
+        ? { ...this.homeFilter, label: this.homeFilterLabel }
+        : null,
+    });
+  }
+
+  /**
+   * Launch a uniformly random scene from the active (filtered/sorted) scene
+   * library. Two cheap paged fetches: page 0 (usually already cached by the
+   * wall) supplies the total, then the page holding the rolled index supplies
+   * the scene, which routes through the normal switchScene dispatch — so
+   * FapTap/PMVHaven modes shuffle correctly too.
+   */
+  private launchRandomScene() {
+    const ds = this.sceneData;
+    if (!ds) return;
+    const {gen} = ds;
+    ds.getPage(0)
+      .then((first) => {
+        if (gen !== ds.gen || first.totalCount <= 0) return;
+        const idx = Math.floor(Math.random() * first.totalCount);
+        const pageIndex = Math.floor(idx / VR_SCENE_PAGE_SIZE);
+        return ds.getPage(pageIndex).then((res) => {
+          if (gen !== ds.gen) return;
+          const scene = res.scenes[idx % VR_SCENE_PAGE_SIZE] ?? res.scenes[0];
+          if (!scene) return;
+          this.dispatchAction({ type: "switchScene", sceneId: scene.id });
+        });
+      })
+      .catch(() => undefined);
   }
 
   /**
@@ -2150,6 +2244,7 @@ export class XRSessionManager {
       this.mediaFilter = action.filter;
       this.homePanel?.setMediaFilter(action.filter);
       this.applyHomeQuery();
+      this.persistBrowseState();
       this.lastActivity = performance.now();
       return;
     }
@@ -2179,6 +2274,7 @@ export class XRSessionManager {
       this.applyHomeQuery();
       this.applyGalleryQuery();
       this.applyGroupQuery();
+      this.persistBrowseState();
       this.lastActivity = performance.now();
       return;
     }
@@ -2218,6 +2314,11 @@ export class XRSessionManager {
         this.applyHomeQuery();
         this.loadHomeRail();
       }
+      this.lastActivity = performance.now();
+      return;
+    }
+    if (action.type === "homeShuffle") {
+      this.launchRandomScene();
       this.lastActivity = performance.now();
       return;
     }

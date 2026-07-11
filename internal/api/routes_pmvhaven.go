@@ -6,18 +6,17 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"strings"
 
 	"github.com/go-chi/chi/v5"
 
 	"github.com/stashapp/stash/internal/pmvhaven"
 )
 
-// pmvhavenCDN is the only upstream host the thumb/media proxies will fetch from.
-// The PMVHaven CDN serves no Access-Control-Allow-Origin header, so its assets
-// must be re-served same-origin (see thumb/media) for the crossorigin canvas/
-// video pipeline to accept them.
-const pmvhavenCDN = "https://video.pmvhaven.com/"
+// The upstream hosts the thumb/media proxies may fetch from — and the retired→
+// live host rewrite — are defined in the pmvhaven package (IsAssetURL /
+// CanonicalAssetURL). PMVHaven's asset hosts serve no Access-Control-Allow-Origin
+// header, so their assets must be re-served same-origin (see thumb/media) for
+// the crossorigin canvas/video pipeline to accept them.
 
 // pmvhavenRoutes serves the optional PMVHaven sidecar catalog to the immersive
 // VR Home wall. Everything is read-only and gated on the database file existing;
@@ -66,11 +65,12 @@ func (rs pmvhavenRoutes) status(w http.ResponseWriter, r *http.Request) {
 // that. Only the PMVHaven CDN host is accepted.
 func (rs pmvhavenRoutes) thumb(w http.ResponseWriter, r *http.Request) {
 	rawURL := r.URL.Query().Get("url")
-	if !strings.HasPrefix(rawURL, pmvhavenCDN) {
+	if !pmvhaven.IsAssetURL(rawURL) {
 		http.Error(w, "invalid url", http.StatusBadRequest)
 		return
 	}
-	resp, err := http.Get(rawURL) //nolint:gosec // URL host is validated above
+	target := pmvhaven.CanonicalAssetURL(rawURL)
+	resp, err := http.Get(target) //nolint:gosec // URL host is validated above
 	if err != nil || resp.StatusCode != http.StatusOK {
 		if resp != nil {
 			resp.Body.Close()
@@ -99,11 +99,12 @@ func (rs pmvhavenRoutes) thumb(w http.ResponseWriter, r *http.Request) {
 // accepted.
 func (rs pmvhavenRoutes) media(w http.ResponseWriter, r *http.Request) {
 	rawURL := r.URL.Query().Get("url")
-	if !strings.HasPrefix(rawURL, pmvhavenCDN) {
+	if !pmvhaven.IsAssetURL(rawURL) {
 		http.Error(w, "invalid url", http.StatusBadRequest)
 		return
 	}
-	req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, rawURL, nil)
+	target := pmvhaven.CanonicalAssetURL(rawURL)
+	req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, target, nil)
 	if err != nil {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return

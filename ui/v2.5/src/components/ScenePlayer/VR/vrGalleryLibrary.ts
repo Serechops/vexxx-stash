@@ -170,15 +170,17 @@ export class VRGalleryLibrary implements IVRGalleryDataSource {
             filter: { per_page: 0, page: 1, q: searchQ(this.query) },
             gallery_filter: buildGalleryFilter(this.query),
           },
-          fetchPolicy: "network-only",
+          fetchPolicy: "no-cache",
         })
         .then((r) => {
           this.galleryTotal = r.data.findGalleries.count;
           return this.galleryTotal;
         })
-        .catch(() => {
-          this.galleryTotal = 0;
-          return 0;
+        .catch((e) => {
+          // Don't cache a failed count as "0 galleries" — clear the promise so
+          // a retry refetches, and propagate to the manager's page-error path.
+          this.galleryTotalPromise = null;
+          throw e;
         });
     }
     return this.galleryTotalPromise;
@@ -203,17 +205,18 @@ export class VRGalleryLibrary implements IVRGalleryDataSource {
             },
             gallery_filter: buildGalleryFilter(this.query),
           },
-          fetchPolicy: "network-only",
+          fetchPolicy: "no-cache",
         })
         .then((r) => {
           const galleries = r.data.findGalleries.galleries.map(mapGallery);
           this.galleryBlocks.set(blockIndex, galleries);
           return galleries;
         })
-        .catch(() => {
-          const empty: IVRGalleryEntry[] = [];
-          this.galleryBlocks.set(blockIndex, empty);
-          return empty;
+        .catch((e) => {
+          // A failed block must not be cached as an empty page — drop the
+          // in-flight promise so a retry refetches, and propagate the error.
+          this.galleryBlockPromises.delete(blockIndex);
+          throw e;
         });
       this.galleryBlockPromises.set(blockIndex, p);
     }
@@ -245,15 +248,17 @@ export class VRGalleryLibrary implements IVRGalleryDataSource {
               galleries: { value: [galleryId], modifier: INCLUDES },
             },
           },
-          fetchPolicy: "network-only",
+          fetchPolicy: "no-cache",
         })
         .then((r) => {
           this.imageTotal = r.data.findImages.count;
           return this.imageTotal;
         })
-        .catch(() => {
-          this.imageTotal = 0;
-          return 0;
+        .catch((e) => {
+          // Don't cache a failed count as "empty gallery" — clear the promise
+          // so a retry refetches.
+          this.imageTotalPromise = null;
+          throw e;
         });
     }
     return this.imageTotalPromise;
@@ -281,17 +286,18 @@ export class VRGalleryLibrary implements IVRGalleryDataSource {
               galleries: { value: [galleryId], modifier: INCLUDES },
             },
           },
-          fetchPolicy: "network-only",
+          fetchPolicy: "no-cache",
         })
         .then((r) => {
           const images = r.data.findImages.images.map(mapImage);
           this.imageBlocks.set(blockIndex, images);
           return images;
         })
-        .catch(() => {
-          const empty: IVRGalleryImageEntry[] = [];
-          this.imageBlocks.set(blockIndex, empty);
-          return empty;
+        .catch((e) => {
+          // A failed image block must not be cached as empty — drop the
+          // in-flight promise so a retry refetches, and propagate the error.
+          this.imageBlockPromises.delete(blockIndex);
+          throw e;
         });
       this.imageBlockPromises.set(blockIndex, p);
     }

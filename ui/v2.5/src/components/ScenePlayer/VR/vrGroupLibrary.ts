@@ -140,15 +140,17 @@ export class VRGroupLibrary implements IVRGroupDataSource {
             filter: { per_page: 0, page: 1, q: searchQ(this.query) },
             group_filter: buildGroupFilter(this.query),
           },
-          fetchPolicy: "network-only",
+          fetchPolicy: "no-cache",
         })
         .then((r) => {
           this.groupTotal = r.data.findGroups.count;
           return this.groupTotal;
         })
-        .catch(() => {
-          this.groupTotal = 0;
-          return 0;
+        .catch((e) => {
+          // Don't cache a failed count as "0 movies" — clear the promise so a
+          // retry refetches, and propagate to the manager's page-error path.
+          this.groupTotalPromise = null;
+          throw e;
         });
     }
     return this.groupTotalPromise;
@@ -173,17 +175,18 @@ export class VRGroupLibrary implements IVRGroupDataSource {
             },
             group_filter: buildGroupFilter(this.query),
           },
-          fetchPolicy: "network-only",
+          fetchPolicy: "no-cache",
         })
         .then((r) => {
           const groups = r.data.findGroups.groups.map(mapGroup);
           this.groupBlocks.set(blockIndex, groups);
           return groups;
         })
-        .catch(() => {
-          const empty: IVRGroupEntry[] = [];
-          this.groupBlocks.set(blockIndex, empty);
-          return empty;
+        .catch((e) => {
+          // A failed block must not be cached as an empty page — drop the
+          // in-flight promise so a retry refetches, and propagate the error.
+          this.groupBlockPromises.delete(blockIndex);
+          throw e;
         });
       this.groupBlockPromises.set(blockIndex, p);
     }
@@ -222,7 +225,7 @@ export class VRGroupLibrary implements IVRGroupDataSource {
               groups: { value: [groupId], modifier: INCLUDES, depth: 0 },
             },
           },
-          fetchPolicy: "network-only",
+          fetchPolicy: "no-cache",
         })
         .then((r) => {
           const raw = r.data.findScenes.scenes as SlimScene[];
@@ -244,9 +247,11 @@ export class VRGroupLibrary implements IVRGroupDataSource {
           this.sceneList = scenes;
           return scenes;
         })
-        .catch(() => {
-          this.sceneList = [];
-          return [];
+        .catch((e) => {
+          // Don't cache a failed fetch as "movie has no scenes" — clear the
+          // promise so a retry refetches, and propagate the error.
+          this.scenePromise = null;
+          throw e;
         });
     }
     return this.scenePromise;

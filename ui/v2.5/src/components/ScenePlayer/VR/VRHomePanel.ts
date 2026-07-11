@@ -299,12 +299,20 @@ const ONBOARDING_PAGES: IOnboardingPage[] = [
   },
 ];
 
+/** Which of the wall's four paged grids a page-fetch error belongs to. */
+export type VRHomeGridKind = "scenes" | "galleries" | "groups" | "groupScenes";
+
 export class VRHomePanel extends VRCanvasPanel {
   // Server-paged grid: only the current page (+ prefetched neighbours) are held
   // in memory at once. `pageCache` maps an absolute page index → up to PER_PAGE
   // card entries; `totalCount` (from the server) drives the page geometry.
   private pageCache = new Map<number, IVRSceneEntry[]>();
   private requestedPages = new Set<number>();
+  // Pages whose fetch failed, keyed "<grid>:<pageIndex>". Errored pages are
+  // excluded from ensurePagesLoaded's auto-pump (so a dead server isn't
+  // hammered once per draw) and render as a tap-to-retry card instead of
+  // skeletons that never resolve.
+  private pageErrors = new Set<string>();
   private loadedFlat: IVRSceneEntry[] = []; // flattened cached pages (hover-preview lookup)
   private totalCount = 0;
   private loaded = false; // first page/total has arrived (distinguishes loading vs empty)
@@ -402,6 +410,14 @@ export class VRHomePanel extends VRCanvasPanel {
   private animTo = 0;
   private animStart = 0;
 
+  // Pager-track scrubbing (libraries with >12 pages): press on the track and
+  // drag to preview a target page; release jumps straight to it. Fetches only
+  // happen on release, so sweeping across hundreds of pages costs nothing.
+  private scrubbing = false;
+  private scrubX0 = 0;
+  private scrubW = 0;
+  private scrubPreview = 0;
+
   // Press / drag-vs-tap resolution
   private downId: string | null = null;
   private pressActive = false;
@@ -443,6 +459,7 @@ export class VRHomePanel extends VRCanvasPanel {
   resetLibrary() {
     this.pageCache.clear();
     this.requestedPages.clear();
+    this.clearPageErrors("scenes");
     this.loadedFlat = [];
     this.totalCount = 0;
     this.loaded = false;
@@ -459,7 +476,56 @@ export class VRHomePanel extends VRCanvasPanel {
     this.totalCount = totalCount;
     this.loaded = true;
     this.rebuildLoadedFlat();
+    this.prefetchSceneThumbs(pageIndex, scenes);
     this.markDirty();
+  }
+
+  /**
+   * Warm the image cache for a page that is NOT on screen. Pages arrive via
+   * ensurePagesLoaded's current±1 prefetch; decoding their thumbnails now (off
+   * the render thread, no redraw) means a page-flip paints complete instead of
+   * popping in card by card. The on-screen page skips this — its cards go
+   * through image() during draw anyway.
+   */
+  private prefetchSceneThumbs(pageIndex: number, scenes: IVRSceneEntry[]) {
+    if (pageIndex === this.page) return;
+    for (const s of scenes) {
+      this.prefetchImage(s.thumbnailUrl);
+      this.prefetchImage(s.heatmapUrl ?? null);
+    }
+  }
+
+  /**
+   * Mark a page fetch as failed (called by the manager when the library
+   * rejects). Clears the in-flight mark so a retry tap can re-request, and
+   * flags the page so it draws as a tap-to-retry card.
+   */
+  setPageError(kind: VRHomeGridKind, pageIndex: number) {
+    this.inflightFor(kind).delete(pageIndex);
+    this.pageErrors.add(`${kind}:${pageIndex}`);
+    this.markDirty();
+  }
+
+  private inflightFor(kind: VRHomeGridKind): Set<number> {
+    if (kind === "galleries") return this.galleryRequestedPages;
+    if (kind === "groups") return this.groupRequestedPages;
+    if (kind === "groupScenes") return this.groupSceneRequestedPages;
+    return this.requestedPages;
+  }
+
+  /** The grid kind currently on screen (drives error keys + retry). */
+  private get gridKind(): VRHomeGridKind {
+    if (this.isGalleryGrid) return "galleries";
+    if (this.isGroupGrid) return "groups";
+    if (this.inGroupDetail) return "groupScenes";
+    return "scenes";
+  }
+
+  /** Forget one grid's page errors — on query change/reset they're stale. */
+  private clearPageErrors(kind: VRHomeGridKind) {
+    for (const k of this.pageErrors) {
+      if (k.startsWith(`${kind}:`)) this.pageErrors.delete(k);
+    }
   }
 
   /**
@@ -488,6 +554,7 @@ export class VRHomePanel extends VRCanvasPanel {
     const last = this.pageCount - 1;
     const want = [this.page, this.page - 1, this.page + 1];
     const pump = (
+      kind: VRHomeGridKind,
       requester: ((pageIndex: number) => void) | null,
       cache: Map<number, unknown>,
       inflight: Set<number>
@@ -496,26 +563,36 @@ export class VRHomePanel extends VRCanvasPanel {
       for (const pg of want) {
         if (pg < 0 || pg > last) continue;
         if (cache.has(pg) || inflight.has(pg)) continue;
+        // Errored pages wait for an explicit retry tap — auto-pumping them
+        // again every draw would hot-loop against an unreachable server.
+        if (this.pageErrors.has(`${kind}:${pg}`)) continue;
         inflight.add(pg);
         requester(pg);
       }
     };
     if (this.isGalleryGrid) {
       pump(
+        "galleries",
         this.galleryPageRequester,
         this.galleryPageCache,
         this.galleryRequestedPages
       );
     } else if (this.isGroupGrid) {
-      pump(this.groupPageRequester, this.groupPageCache, this.groupRequestedPages);
+      pump(
+        "groups",
+        this.groupPageRequester,
+        this.groupPageCache,
+        this.groupRequestedPages
+      );
     } else if (this.inGroupDetail) {
       pump(
+        "groupScenes",
         this.groupScenePageRequester,
         this.groupScenePageCache,
         this.groupSceneRequestedPages
       );
     } else {
-      pump(this.pageRequester, this.pageCache, this.requestedPages);
+      pump("scenes", this.pageRequester, this.pageCache, this.requestedPages);
     }
   }
 
@@ -753,6 +830,7 @@ export class VRHomePanel extends VRCanvasPanel {
   resetGalleryLibrary() {
     this.galleryPageCache.clear();
     this.galleryRequestedPages.clear();
+    this.clearPageErrors("galleries");
     this.galleryTotal = 0;
     this.galleryLoaded = false;
     if (this.contentMode === "galleries") {
@@ -773,6 +851,11 @@ export class VRHomePanel extends VRCanvasPanel {
     this.galleryRequestedPages.delete(pageIndex);
     this.galleryTotal = totalCount;
     this.galleryLoaded = true;
+    // Warm covers for off-screen (neighbour-prefetched) pages — see
+    // prefetchSceneThumbs.
+    if (pageIndex !== this.page) {
+      for (const g of galleries) this.prefetchImage(g.coverUrl);
+    }
     this.markDirty();
   }
 
@@ -861,6 +944,7 @@ export class VRHomePanel extends VRCanvasPanel {
   resetGroupLibrary() {
     this.groupPageCache.clear();
     this.groupRequestedPages.clear();
+    this.clearPageErrors("groups");
     this.groupTotal = 0;
     this.groupLoaded = false;
     if (this.isGroupGrid) {
@@ -881,6 +965,11 @@ export class VRHomePanel extends VRCanvasPanel {
     this.groupRequestedPages.delete(pageIndex);
     this.groupTotal = totalCount;
     this.groupLoaded = true;
+    // Warm posters for off-screen (neighbour-prefetched) pages — see
+    // prefetchSceneThumbs.
+    if (pageIndex !== this.page) {
+      for (const g of groups) this.prefetchImage(g.posterUrl);
+    }
     this.markDirty();
   }
 
@@ -894,6 +983,7 @@ export class VRHomePanel extends VRCanvasPanel {
     this.groupSceneRequestedPages.delete(pageIndex);
     this.groupSceneTotal = totalCount;
     this.groupSceneLoaded = true;
+    this.prefetchSceneThumbs(pageIndex, scenes);
     this.markDirty();
   }
 
@@ -914,6 +1004,7 @@ export class VRHomePanel extends VRCanvasPanel {
     this.activeGroupBackUrl = group?.backUrl ?? null;
     this.groupScenePageCache.clear();
     this.groupSceneRequestedPages.clear();
+    this.clearPageErrors("groupScenes");
     this.groupSceneTotal = 0;
     this.groupSceneLoaded = false;
     this.page = 0;
@@ -932,6 +1023,7 @@ export class VRHomePanel extends VRCanvasPanel {
     this.activeGroupBackUrl = null;
     this.groupScenePageCache.clear();
     this.groupSceneRequestedPages.clear();
+    this.clearPageErrors("groupScenes");
     this.groupSceneTotal = 0;
     this.groupSceneLoaded = false;
     this.page = 0;
@@ -947,7 +1039,15 @@ export class VRHomePanel extends VRCanvasPanel {
   activate(uv: THREE.Vector2): VRControlAction | null {
     const px = uv.x * this.cw;
     const py = (1 - uv.y) * this.ch;
-    this.downId = this.regionAt(uv)?.id ?? null;
+    const downRegion = this.regionAt(uv);
+    this.downId = downRegion?.id ?? null;
+    if (downRegion?.id === "pageTrack") {
+      this.scrubbing = true;
+      this.scrubX0 = downRegion.x;
+      this.scrubW = downRegion.w;
+      this.scrubPreview = this.pageFromTrack(px);
+      this.markDirty();
+    }
     this.pressX = px;
     this.pressY = py;
     this.pressZone = px < RAIL_W ? "rail" : "grid";
@@ -966,6 +1066,16 @@ export class VRHomePanel extends VRCanvasPanel {
     // While the settings modal or onboarding legend is open the wall behind it
     // is inert.
     if (this.settingsOpen || this.onboardingOpen) return;
+    // Pager-track scrub: track the ray along the track, previewing the target
+    // page (no settle window — the preview is cheap and instant).
+    if (this.scrubbing) {
+      const t = this.pageFromTrack(uv.x * this.cw);
+      if (t !== this.scrubPreview) {
+        this.scrubPreview = t;
+        this.markDirty();
+      }
+      return;
+    }
     // Settle window: absorb the trigger-pull kick by re-baselining the press
     // point (and the drag bases) to wherever the ray has settled, so the spike
     // never counts toward the drag delta. A drag can only begin afterwards.
@@ -1003,6 +1113,15 @@ export class VRHomePanel extends VRCanvasPanel {
   }
 
   pointerUp(uv: THREE.Vector2): VRControlAction | null {
+    if (this.scrubbing) {
+      this.scrubbing = false;
+      this.pressActive = false;
+      this.dragging = false;
+      this.downId = null;
+      this.jumpToPage(this.scrubPreview);
+      this.markDirty();
+      return null;
+    }
     const wasTap = !this.dragging && this.pressActive;
     const { downId } = this;
     this.pressActive = false;
@@ -1037,6 +1156,13 @@ export class VRHomePanel extends VRCanvasPanel {
     this.markDirty();
   }
 
+  /** Map a canvas x on the pager track to its proportional page index. */
+  private pageFromTrack(px: number): number {
+    if (this.scrubW <= 0) return this.page;
+    const frac = Math.max(0, Math.min(1, (px - this.scrubX0) / this.scrubW));
+    return Math.round(frac * (this.pageCount - 1));
+  }
+
   /** Direct jump (pager dots) — skips the slide animation, which only knows
    *  how to travel ±1 page. */
   private jumpToPage(target: number) {
@@ -1050,6 +1176,18 @@ export class VRHomePanel extends VRCanvasPanel {
 
   protected handleSelect(region: IPanelRegion): VRControlAction | null {
     const { id } = region;
+
+    // Shuffle — the manager rolls a random index and launches that scene.
+    if (id === "shuffle") return { type: "homeShuffle" };
+
+    // Retry a failed page fetch — clear the grid's error flags so
+    // ensurePagesLoaded re-requests the visible pages.
+    if (id === "retryPage") {
+      this.clearPageErrors(this.gridKind);
+      this.ensurePagesLoaded();
+      this.markDirty();
+      return null;
+    }
 
     // Settings gear + modal interactions (handled in-panel; settings changes
     // are also emitted so React can persist them and apply audio side-effects).
@@ -1326,6 +1464,7 @@ export class VRHomePanel extends VRCanvasPanel {
     this.drawHeader();
     this.drawSettingsButton();
     this.drawHelpButton();
+    this.drawShuffleButton();
     this.drawModeToggle();
     this.drawSearchPill();
     this.drawExitButton();
@@ -1372,15 +1511,43 @@ export class VRHomePanel extends VRCanvasPanel {
         : this.inGroupDetail
         ? "scenes in this movie"
         : "scenes";
+      const cx = GRID_X0 + GRID_W / 2;
+      const cy = (GRID_Y0 + GRID_Y1) / 2;
+      const bySearch = !!this.searchText && !this.inGroupDetail;
+      const byFilter = !bySearch && !!this.filterLabel;
       ctx.fillText(
-        this.searchText && !this.inGroupDetail
+        bySearch
           ? `No ${kind} matching “${this.searchText}”`
-          : this.filterLabel
+          : byFilter
           ? `No ${kind} for this filter`
           : `No ${kind} found`,
-        GRID_X0 + GRID_W / 2,
-        (GRID_Y0 + GRID_Y1) / 2
+        cx,
+        cy
       );
+      // A dead end shouldn't be a blank wall: offer the obvious way out as a
+      // tappable pill. Reuses the existing searchClear / filterAll handlers.
+      if (bySearch || byFilter) {
+        const label = bySearch ? "Clear search" : "Show everything";
+        const rid = bySearch ? "searchClear" : "filterAll";
+        const w = 260;
+        const h = 62;
+        const x = cx - w / 2;
+        const y = cy + 44;
+        const hovered = this.hoveredId === rid;
+        this.roundRect(x, y, w, h, h / 2);
+        ctx.fillStyle = hovered
+          ? `${ACCENT}0.92)`
+          : "rgba(255,255,255,0.10)";
+        ctx.fill();
+        this.roundRect(x, y, w, h, h / 2);
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = hovered ? `${ACCENT}0.7)` : "rgba(255,255,255,0.25)";
+        ctx.stroke();
+        ctx.font = "600 24px sans-serif";
+        ctx.fillStyle = hovered ? "#06121f" : "rgba(255,255,255,0.9)";
+        ctx.fillText(label, cx, y + h / 2 + 1);
+        this.regions.push({ id: rid, x, y, w, h });
+      }
       return;
     }
 
@@ -1994,6 +2161,10 @@ export class VRHomePanel extends VRCanvasPanel {
       return;
     }
     const items = this.sceneCache.get(pageIndex);
+    if (!items && this.pageErrors.has(`${this.gridKind}:${pageIndex}`)) {
+      this.drawPageLoadError(xShift, interactive);
+      return;
+    }
     if (!items) {
       // Page not fetched yet — draw placeholder skeletons (ensurePagesLoaded
       // has already queued the request). How many slots this page holds is
@@ -2028,6 +2199,10 @@ export class VRHomePanel extends VRCanvasPanel {
     interactive: boolean
   ) {
     const items = this.galleryPageCache.get(pageIndex);
+    if (!items && this.pageErrors.has(`galleries:${pageIndex}`)) {
+      this.drawPageLoadError(xShift, interactive);
+      return;
+    }
     const slots = Math.min(
       GALLERY_PER_PAGE,
       Math.max(0, this.galleryTotal - pageIndex * GALLERY_PER_PAGE)
@@ -2100,6 +2275,10 @@ export class VRHomePanel extends VRCanvasPanel {
     interactive: boolean
   ) {
     const items = this.groupPageCache.get(pageIndex);
+    if (!items && this.pageErrors.has(`groups:${pageIndex}`)) {
+      this.drawPageLoadError(xShift, interactive);
+      return;
+    }
     const posterPerPage = POSTER_COLS * POSTER_ROWS;
     const slots = Math.min(
       posterPerPage,
@@ -2114,6 +2293,44 @@ export class VRHomePanel extends VRCanvasPanel {
       const entry = items?.[i];
       if (entry) this.drawGroupCard(entry, x, y, interactive);
       else this.drawSkeletonCard(x, y, POSTER_CARD_W, POSTER_IMG_H);
+    }
+  }
+
+  /**
+   * Tap-to-retry state for a page whose fetch failed (server unreachable /
+   * network blip). Drawn in place of the card grid; tapping the pill clears
+   * the error flag so ensurePagesLoaded re-requests the page.
+   */
+  private drawPageLoadError(xShift: number, interactive: boolean) {
+    const { ctx } = this;
+    const cx = GRID_X0 + GRID_W / 2 + xShift;
+    const cy = (GRID_Y0 + GRID_Y1) / 2;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = "500 28px sans-serif";
+    ctx.fillStyle = "rgba(255,255,255,0.55)";
+    ctx.fillText("Couldn't reach the server", cx, cy - 56);
+    ctx.font = "400 22px sans-serif";
+    ctx.fillStyle = "rgba(255,255,255,0.35)";
+    ctx.fillText("Check the connection to your Vexxx server", cx, cy - 18);
+
+    const w = 240;
+    const h = 62;
+    const x = cx - w / 2;
+    const y = cy + 26;
+    const hovered = this.hoveredId === "retryPage";
+    ctx.fillStyle = hovered ? "rgba(255,255,255,0.24)" : "rgba(255,255,255,0.12)";
+    this.roundRect(x, y, w, h, h / 2);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,0.25)";
+    ctx.lineWidth = 2;
+    this.roundRect(x, y, w, h, h / 2);
+    ctx.stroke();
+    ctx.font = "600 24px sans-serif";
+    ctx.fillStyle = "rgba(255,255,255,0.9)";
+    ctx.fillText("Tap to retry", cx, y + h / 2);
+    if (interactive) {
+      this.regions.push({ id: "retryPage", x, y, w, h });
     }
   }
 
@@ -2183,6 +2400,41 @@ export class VRHomePanel extends VRCanvasPanel {
     ctx.fillStyle = active || hovered ? "#06121f" : "rgba(255,255,255,0.75)";
     ctx.fillText("?", x + w / 2, y + w / 2 + 1);
     this.regions.push({ id: "help", x, y, w, h: w });
+  }
+
+  /**
+   * Shuffle button — launches a uniformly random scene from the current
+   * filtered/sorted library (handled in-manager via [homeShuffle]). A compact
+   * round icon (matching the "?" button) sitting just left of the header search
+   * pill, so it never collides with the mode toggle in the header's left
+   * cluster. Scene grids only: hidden on the gallery/movie-poster grids and
+   * inside a movie drill-down, where "random from the whole library" would be
+   * surprising.
+   */
+  private drawShuffleButton() {
+    if (!this.isSceneGrid || this.inGroupDetail) return;
+    const { ctx } = this;
+    const w = 44;
+    // Anchor to the search pill's left edge (the search pill is always present
+    // alongside the shuffle button — both are hidden only inside a drill-down).
+    const searchX =
+      this.cw - PAD - SEARCH_EXIT_W - SEARCH_EXIT_GAP - SEARCH_W;
+    const x = searchX - 16 - w;
+    const y = 26;
+    const hovered = this.hoveredId === "shuffle";
+    this.roundRect(x, y, w, w, w / 2);
+    ctx.fillStyle = hovered ? `${ACCENT}0.92)` : "rgba(255,255,255,0.08)";
+    ctx.fill();
+    this.roundRect(x, y, w, w, w / 2);
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = hovered ? `${ACCENT}0.7)` : "rgba(255,255,255,0.2)";
+    ctx.stroke();
+    ctx.font = "600 22px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = hovered ? "#06121f" : "rgba(255,255,255,0.75)";
+    ctx.fillText("⇄", x + w / 2, y + w / 2 + 1);
+    this.regions.push({ id: "shuffle", x, y, w, h: w });
   }
 
   /**
@@ -3397,14 +3649,13 @@ export class VRHomePanel extends VRCanvasPanel {
     const DOT_STEP = 26;
     const DOT_R = 4.5;
 
-    let label = "";
     let midW: number;
     if (useDots) {
       midW = (pages - 1) * DOT_STEP + DOT_R * 2;
     } else {
-      label = `${this.page + 1} / ${pages}`;
-      ctx.font = "600 20px sans-serif";
-      midW = Math.max(220, ctx.measureText(label).width);
+      // Wide enough to scrub with reasonable precision across hundreds of
+      // pages (arrows still give exact ±1).
+      midW = 720;
     }
     let x = GRID_X0 + (GRID_W - (arrowW + gap + midW + gap + arrowW)) / 2;
 
@@ -3470,19 +3721,45 @@ export class VRHomePanel extends VRCanvasPanel {
       }
       x += midW + gap;
     } else {
+      // Scrubber: the track is a tap/drag target — press anywhere to jump
+      // proportionally, drag to sweep with a live "page / pages" preview.
+      const scrub = this.scrubbing;
+      const shown = scrub ? this.scrubPreview : this.page;
+      const hovered = scrub || this.hoveredId === "pageTrack";
       ctx.font = "600 20px sans-serif";
-      ctx.fillStyle = "rgba(255,255,255,0.75)";
+      ctx.fillStyle = scrub ? `${ACCENT}0.95)` : "rgba(255,255,255,0.75)";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText(label, x + midW / 2, cy - 7);
+      ctx.fillText(`${shown + 1} / ${pages}`, x + midW / 2, cy - 9);
       const trackY = cy + 12;
-      this.roundRect(x, trackY, midW, 4, 2);
-      ctx.fillStyle = "rgba(255,255,255,0.12)";
+      const trackH = hovered ? 6 : 4;
+      this.roundRect(x, trackY - trackH / 2, midW, trackH, trackH / 2);
+      ctx.fillStyle = hovered
+        ? "rgba(255,255,255,0.20)"
+        : "rgba(255,255,255,0.12)";
       ctx.fill();
-      const frac = this.page / (pages - 1);
-      this.roundRect(x, trackY, Math.max(8, midW * frac), 4, 2);
+      const frac = shown / (pages - 1);
+      this.roundRect(
+        x,
+        trackY - trackH / 2,
+        Math.max(8, midW * frac),
+        trackH,
+        trackH / 2
+      );
       ctx.fillStyle = `${ACCENT}0.9)`;
       ctx.fill();
+      // Thumb — reads as draggable even at rest.
+      ctx.beginPath();
+      ctx.arc(x + midW * frac, trackY, hovered ? 10 : 7, 0, Math.PI * 2);
+      ctx.fillStyle = scrub ? `${ACCENT}1)` : "rgba(255,255,255,0.85)";
+      ctx.fill();
+      this.regions.push({
+        id: "pageTrack",
+        x,
+        y: cy - PAGER_H / 2,
+        w: midW,
+        h: PAGER_H,
+      });
       x += midW + gap;
     }
 

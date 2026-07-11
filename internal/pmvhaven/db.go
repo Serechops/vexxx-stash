@@ -41,6 +41,34 @@ const driverName = "sqlite3ex"
 // not present. Callers translate this into the "locked" state on the frontend.
 var ErrUnavailable = errors.New("pmvhaven database not available")
 
+// PMVHaven retired its original asset host: video.pmvhaven.com no longer
+// resolves in DNS. Every asset (thumbnails, previews, mp4s) moved to the OVH
+// object store below under identical paths, so a stored URL is corrected by a
+// pure host swap. The sidecar DB is produced by an external scraper we do not
+// control and may still carry either host, so the rewrite is applied on read
+// (idempotent: URLs already on the live host — or any unrelated host — pass
+// through untouched).
+const (
+	RetiredCDN = "https://video.pmvhaven.com/"
+	CurrentCDN = "https://pmvhavencloud.s3.eu-west-par.io.cloud.ovh.net/"
+)
+
+// CanonicalAssetURL rewrites a stored asset URL from the retired PMVHaven host
+// to the live one; all other URLs are returned unchanged.
+func CanonicalAssetURL(u string) string {
+	if strings.HasPrefix(u, RetiredCDN) {
+		return CurrentCDN + strings.TrimPrefix(u, RetiredCDN)
+	}
+	return u
+}
+
+// IsAssetURL reports whether u targets a PMVHaven asset host the thumb/media
+// proxies may fetch. Both hosts are accepted; the retired one is meant to be
+// run through CanonicalAssetURL before the upstream fetch.
+func IsAssetURL(u string) bool {
+	return strings.HasPrefix(u, CurrentCDN) || strings.HasPrefix(u, RetiredCDN)
+}
+
 // Tag is a PMVHaven tag attached to a video card. Since the scrape has no tag
 // table the id is simply the tag name.
 type Tag struct {
@@ -306,8 +334,8 @@ func scanCard(rows *sql.Rows) (Card, error) {
 	if err := rows.Scan(&c.ID, &c.Name, &thumb, &preview, &dur, &views, &rating, &w, &h, &tags); err != nil {
 		return c, err
 	}
-	c.ThumbnailURL = thumb.String
-	c.PreviewURL = preview.String
+	c.ThumbnailURL = CanonicalAssetURL(thumb.String)
+	c.PreviewURL = CanonicalAssetURL(preview.String)
 	c.Duration = int(dur.Int64)
 	c.Views = int(views.Int64)
 	c.Rating = rating.Float64
@@ -338,8 +366,8 @@ func (d *DB) Get(id string) (*Detail, error) {
 		}
 		return nil, err
 	}
-	det.ThumbnailURL = thumb.String
-	det.PreviewURL = preview.String
+	det.ThumbnailURL = CanonicalAssetURL(thumb.String)
+	det.PreviewURL = CanonicalAssetURL(preview.String)
 	det.Duration = int(dur.Int64)
 	det.Views = int(views.Int64)
 	det.Rating = rating.Float64
@@ -395,7 +423,7 @@ func (d *DB) Sources(id string) ([]Source, error) {
 	if h.Int64 > 0 {
 		quality = fmt.Sprintf("%dp", h.Int64)
 	}
-	return []Source{{URL: url.String, Quality: quality, Format: "mp4"}}, nil
+	return []Source{{URL: CanonicalAssetURL(url.String), Quality: quality, Format: "mp4"}}, nil
 }
 
 // VideoURL returns the raw CDN mp4 url for a video (used by the funscript
@@ -413,7 +441,7 @@ func (d *DB) VideoURL(id string) (string, error) {
 		}
 		return "", err
 	}
-	return url.String, nil
+	return CanonicalAssetURL(url.String), nil
 }
 
 // CountsFor returns per-media-type counts under the active tag/star filter. All

@@ -105,6 +105,7 @@ export class VRScenesPanel extends VRCanvasPanel {
   private requestedPages = 0; // how many pages we've asked for (next index = this)
   private loading = false; // a page request is in flight
   private reachedEnd = false; // server returned an empty page → no more to load
+  private retryAt = 0; // failed-page backoff: no re-request before this timestamp
   private pageRequester: ((pageIndex: number) => void) | null = null;
 
   private scroll = 0; // vertical scroll offset, px
@@ -161,7 +162,21 @@ export class VRScenesPanel extends VRCanvasPanel {
     this.requestedPages = 0;
     this.loading = false;
     this.reachedEnd = false;
+    this.retryAt = 0;
     this.scroll = 0;
+    this.markDirty();
+  }
+
+  /**
+   * A page request failed (network blip): roll the request counter back so
+   * ensureLoaded re-asks for the same page, after a short backoff so a dead
+   * server isn't hammered once per draw. Without this `loading` stays latched
+   * and the list stalls forever.
+   */
+  pageFailed(pageIndex: number) {
+    this.loading = false;
+    this.requestedPages = Math.min(this.requestedPages, pageIndex);
+    this.retryAt = performance.now() + 4000;
     this.markDirty();
   }
 
@@ -187,6 +202,7 @@ export class VRScenesPanel extends VRCanvasPanel {
    */
   private ensureLoaded() {
     if (!this.pageRequester || this.loading || this.reachedEnd) return;
+    if (performance.now() < this.retryAt) return;
     const noneYet = this.requestedPages === 0;
     const more = this.totalCount === 0 || this.scenes.length < this.totalCount;
     const nearBottom = this.scroll >= this.maxScroll - ROW_H * 1.5;

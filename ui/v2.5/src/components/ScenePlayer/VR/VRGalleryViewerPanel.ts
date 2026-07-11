@@ -62,6 +62,7 @@ export class VRGalleryViewerPanel extends VRCanvasPanel {
 
   private pageCache = new Map<number, IVRGalleryImageEntry[]>();
   private requestedPages = new Set<number>();
+  private retryAt = 0; // failed-page backoff: no re-request before this timestamp
   private pageRequester: ((pageIndex: number) => void) | null = null;
 
   // Grid page-slide (0 = settled, +1 = next animating, −1 = prev).
@@ -113,6 +114,7 @@ export class VRGalleryViewerPanel extends VRCanvasPanel {
     this.loaded = false;
     this.pageCache.clear();
     this.requestedPages.clear();
+    this.retryAt = 0;
     this.page = 0;
     this.offset = 0;
     this.animStart = 0;
@@ -135,6 +137,18 @@ export class VRGalleryViewerPanel extends VRCanvasPanel {
     this.markDirty();
   }
 
+  /**
+   * A page request failed (network blip): release the in-flight mark so
+   * ensurePagesLoaded re-asks for it, after a short backoff so a dead server
+   * isn't hammered once per draw. Without this the page shows "Loading…"
+   * forever — the request is never considered retryable.
+   */
+  pageFailed(pageIndex: number) {
+    this.requestedPages.delete(pageIndex);
+    this.retryAt = performance.now() + 4000;
+    this.markDirty();
+  }
+
   private get pageCount(): number {
     return Math.max(1, Math.ceil(this.totalCount / PER_PAGE));
   }
@@ -149,6 +163,7 @@ export class VRGalleryViewerPanel extends VRCanvasPanel {
   /** Request the pages needed for the current view (grid neighbours or lightbox). */
   private ensurePagesLoaded() {
     if (!this.pageRequester) return;
+    if (performance.now() < this.retryAt) return;
     const last = this.pageCount - 1;
     const want = new Set<number>();
     if (this.lightboxIndex !== null) {

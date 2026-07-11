@@ -462,6 +462,39 @@ export abstract class VRCanvasPanel {
     return null;
   }
 
+  /**
+   * Warm the cache for an image that is NOT on screen yet (e.g. the next grid
+   * page's thumbnails): same load + off-thread decode path as image(), but it
+   * never schedules a redraw — the card isn't visible, so there is nothing to
+   * repaint. When the user pages over, image() hits the already-decoded entry
+   * and the page paints complete instead of popping in thumbnail by thumbnail.
+   * No-op on cache hit or known-failed URL; on a full cache it evicts the LRU
+   * entry exactly like image() (visible cards are MRU-promoted every draw, so
+   * the evictee is always an off-screen leftover).
+   */
+  protected prefetchImage(url: string | null): void {
+    if (!url || this.failed.has(url) || this.images.has(url)) return;
+    if (this.images.size >= VRCanvasPanel.MAX_IMAGES_PER_PANEL) {
+      const lru = this.imageOrder.shift();
+      if (lru) {
+        const old = this.images.get(lru);
+        if (old && old.parentNode) old.remove();
+        this.images.delete(lru);
+        this.failed.delete(lru);
+        this.decoded.delete(lru);
+      }
+    }
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.src = url;
+    img
+      .decode()
+      .then(() => this.decoded.add(url))
+      .catch(() => this.failed.add(url));
+    this.images.set(url, img);
+    this.imageOrder.push(url);
+  }
+
   protected roundRect(x: number, y: number, w: number, h: number, r: number) {
     const { ctx } = this;
     const rr = Math.min(r, w / 2, h / 2);

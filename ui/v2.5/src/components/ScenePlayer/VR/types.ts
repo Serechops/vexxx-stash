@@ -149,6 +149,12 @@ export type VRControlAction =
   /** Switch to a different scene while staying in the active XR session. */
   | { type: "switchScene"; sceneId: string }
   /**
+   * Launch a uniformly random scene from the active filtered/sorted scene
+   * library (handled in-manager: rolls an index against the total, fetches
+   * the page holding it, and routes into the normal switchScene path).
+   */
+  | { type: "homeShuffle" }
+  /**
    * Launch a FapTap (sidecar-catalog) video while staying in the active XR
    * session. Carries the bare FapTap video id; the player resolves the CDN
    * source + funscript and synthesizes a scene fragment to play it.

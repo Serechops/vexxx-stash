@@ -191,7 +191,7 @@ export class VRHomeLibrary implements IVRHomeDataSource {
             },
             scene_filter: sceneFilter,
           },
-          fetchPolicy: "network-only",
+          fetchPolicy: "no-cache",
         })
         .then((r) => {
           this.continueList = r.data.findScenes.scenes.map(mapScene);
@@ -215,15 +215,18 @@ export class VRHomeLibrary implements IVRHomeDataSource {
             filter: { per_page: 0, page: 1, q: this.searchQ },
             scene_filter: buildSceneFilter(this.query),
           },
-          fetchPolicy: "network-only",
+          fetchPolicy: "no-cache",
         })
         .then((r) => {
           this.totalForQuery = r.data.findScenes.count;
           return this.totalForQuery;
         })
-        .catch(() => {
-          this.totalForQuery = 0;
-          return 0;
+        .catch((e) => {
+          // Don't cache a failed count as "0 scenes" (the wall would render as
+          // an empty library) — clear the promise so a retry refetches, and
+          // let the error reach the manager's page-error path.
+          this.totalPromise = null;
+          throw e;
         });
     }
     return this.totalPromise;
@@ -253,17 +256,18 @@ export class VRHomeLibrary implements IVRHomeDataSource {
             },
             scene_filter: buildSceneFilter(this.query),
           },
-          fetchPolicy: "network-only",
+          fetchPolicy: "no-cache",
         })
         .then((r) => {
           const scenes = r.data.findScenes.scenes.map(mapScene);
           this.blockCache.set(blockIndex, scenes);
           return scenes;
         })
-        .catch(() => {
-          const empty: IVRSceneEntry[] = [];
-          this.blockCache.set(blockIndex, empty);
-          return empty;
+        .catch((e) => {
+          // A failed block must not be cached as an empty page — drop the
+          // in-flight promise so a retry refetches, and propagate the error.
+          this.blockPromises.delete(blockIndex);
+          throw e;
         });
       this.blockPromises.set(blockIndex, p);
     }
@@ -324,7 +328,7 @@ export class VRHomeLibrary implements IVRHomeDataSource {
             filter: { per_page: 0, page: 1, q: this.searchQ },
             scene_filter: { ...base, ...extra },
           },
-          fetchPolicy: "network-only",
+          fetchPolicy: "no-cache",
         });
         return r.data.findScenes.count;
       } catch {

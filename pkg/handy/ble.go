@@ -1,3 +1,8 @@
+//go:build linux || darwin || windows
+
+// tinygo.org/x/bluetooth only ships an Adapter implementation for these
+// three OSes; see ble_unsupported.go for the stub used everywhere else
+// (e.g. the freebsd leg of the cross-compile build).
 package handy
 
 import (

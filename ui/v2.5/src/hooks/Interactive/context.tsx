@@ -1,7 +1,8 @@
 import React, { useCallback, useContext, useEffect, useState } from "react";
 import { useConfigurationContext } from "../Config";
-import { useLocalForage } from "../LocalForage";
+import { useInterfaceLocalForage, useLocalForage } from "../LocalForage";
 import { Interactive as InteractiveAPI } from "./interactive";
+import { LocalHandyInteractive } from "./local-handy";
 import InteractiveUtils, {
   IInteractiveClient,
   IInteractiveClientProvider,
@@ -87,6 +88,14 @@ export const InteractiveProvider: React.FC = ({ children }) => {
   );
 
   const { configuration: stashConfig } = useConfigurationContext();
+  const [{ data: interfaceLocal }] = useInterfaceLocalForage();
+
+  // "cloud" = handyfeeling.com API (default); "local" = stash backend BLE
+  // bridge (/handy/ws), no cloud round-trip.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handyConnectionMode: string =
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ((interfaceLocal as any)?.handyConnectionMode as string) ?? "cloud";
 
   const [state, setState] = useState<ConnectionState>(ConnectionState.Missing);
   const [handyKey, setHandyKey] = useState<string | undefined>(undefined);
@@ -99,23 +108,43 @@ export const InteractiveProvider: React.FC = ({ children }) => {
   const [handyAppKey, setHandyAppKey] = useState<string | undefined>(undefined);
 
   const resolveInteractiveClient = useCallback(() => {
-    const interactiveClientProvider =
-      InteractiveUtils.interactiveClientProvider ??
-      defaultInteractiveClientProvider;
-
-    return interactiveClientProvider({
+    // a plugin-registered provider always wins
+    if (InteractiveUtils.interactiveClientProvider) {
+      return InteractiveUtils.interactiveClientProvider({
+        handyKey: "",
+        scriptOffset: 0,
+        defaultClientProvider: defaultInteractiveClientProvider,
+        stashConfig,
+      });
+    }
+    if (handyConnectionMode === "local") {
+      return new LocalHandyInteractive(0);
+    }
+    return defaultInteractiveClientProvider({
       handyKey: "",
       scriptOffset: 0,
       defaultClientProvider: defaultInteractiveClientProvider,
       stashConfig,
     });
-  }, [stashConfig]);
+  }, [stashConfig, handyConnectionMode]);
 
   // fetch client provider from PluginApi if not found use default provider
-  const [interactive] = useState(resolveInteractiveClient);
+  const [interactive, setInteractive] = useState(resolveInteractiveClient);
 
   const [initialised, setInitialised] = useState(false);
   const [error, setError] = useState<string | undefined>();
+
+  // switching connection mode swaps the client implementation
+  useEffect(() => {
+    const isLocal = interactive instanceof LocalHandyInteractive;
+    const wantLocal = handyConnectionMode === "local";
+    if (isLocal !== wantLocal && !InteractiveUtils.interactiveClientProvider) {
+      setInitialised(false);
+      setState(ConnectionState.Missing);
+      setInteractive(resolveInteractiveClient());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handyConnectionMode]);
 
   const initialise = useCallback(async () => {
     setError(undefined);

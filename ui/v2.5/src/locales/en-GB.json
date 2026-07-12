@@ -786,6 +786,14 @@
         "description": "Handy connection key to use for interactive scenes. Setting this key will allow Vexxx to share your current scene information with handyfeeling.com",
         "heading": "Handy Connection Key"
       },
+      "handy_connection_mode": {
+        "description": "Cloud routes commands through handyfeeling.com (requires internet, subject to API rate limits). Local connects directly to the device over Bluetooth from the Vexxx server — fully private, no rate limits. Local requires Handy firmware 4+ with Bluetooth enabled and a Bluetooth adapter on the server machine.",
+        "heading": "Handy Connection Mode",
+        "options": {
+          "cloud": "Cloud (handyfeeling.com)",
+          "local": "Local (Bluetooth via server)"
+        }
+      },
       "image_lightbox": {
         "heading": "Image Lightbox"
       },

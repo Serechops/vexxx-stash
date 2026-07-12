@@ -271,6 +271,7 @@ func Initialize() (*Server, error) {
 	r.Mount("/stashface", server.getStashFaceRoutes())
 	r.Mount("/stashtag", server.getStashTagRoutes())
 	r.Mount("/megaface", server.getMegaFaceRoutes())
+	r.Mount("/handy", server.getHandyRoutes())
 
 	// DeoVR routes — grouped under /deovr prefix so tunnel sub-paths
 	// are resolved before the catch-all /* UI handler.
@@ -673,6 +674,15 @@ func (s *Server) getSceneRoutes() chi.Router {
 		sceneFunscriptFinder: repo.Scene,
 		sceneMarkerFinder:    repo.SceneMarker,
 		tagFinder:            repo.Tag,
+	}.Routes()
+}
+
+func (s *Server) getHandyRoutes() chi.Router {
+	repo := s.manager.Repository
+	return handyRoutes{
+		routes:               routes{txnManager: repo.TxnManager},
+		sceneFinder:          repo.Scene,
+		sceneFunscriptFinder: repo.Scene,
 	}.Routes()
 }
 
@@ -1096,6 +1106,13 @@ func mediaAwareCompress(level int) func(http.Handler) http.Handler {
 					strings.Contains(p, "/preview") ||
 					strings.Contains(p, "/funscript") ||
 					strings.Contains(p, "/interactive_csv")) {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			// WebSocket upgrades need http.Hijacker, which the gzip writer
+			// does not implement — bypass compression for the Handy WS.
+			if strings.HasPrefix(p, "/handy/") {
 				next.ServeHTTP(w, r)
 				return
 			}

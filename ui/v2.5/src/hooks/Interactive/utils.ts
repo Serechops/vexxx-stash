@@ -54,7 +54,7 @@ export interface IInteractiveUtils {
   getPlayer: () => VideoJsPlayer | undefined;
   interactiveClientProvider: IInteractiveClientProvider | undefined;
 }
-const InteractiveUtils = {
+const InteractiveUtils: IInteractiveUtils = {
   // hook to allow to customize the interactive client
   interactiveClientProvider: undefined,
   // returns the active player

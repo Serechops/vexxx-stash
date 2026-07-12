@@ -105,6 +105,11 @@ export const SettingsInterfacePanel: React.FC = PatchComponent(
 
     const [interfaceLocalForage, setInterfaceLocalForage] = useInterfaceLocalForage();
 
+    const handyConnectionModeLocal =
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ((interfaceLocalForage?.data as any)?.handyConnectionMode || "cloud") ===
+      "local";
+
     function saveLightboxSettings(v: Partial<GQL.ConfigImageLightboxInput>) {
       // save in local forage as well for consistency
       setInterfaceLocalForage((prev) => ({
@@ -946,18 +951,53 @@ export const SettingsInterfacePanel: React.FC = PatchComponent(
         </SettingSection>
 
         <SettingSection headingID="config.ui.interactive_options">
-          <StringSetting
-            headingID="config.ui.handy_connection_key.heading"
-            subHeadingID="config.ui.handy_connection_key.description"
-            value={iface.handyKey ?? undefined}
-            onChange={(v) => saveInterface({ handyKey: v })}
-          />
-          <StringSetting
-            headingID="config.ui.handy_app_key.heading"
-            subHeadingID="config.ui.handy_app_key.description"
-            value={iface.handyAppKey ?? undefined}
-            onChange={(v) => saveInterface({ handyAppKey: v })}
-          />
+          <SelectSetting
+            id="handy-connection-mode"
+            headingID="config.ui.handy_connection_mode.heading"
+            subHeadingID="config.ui.handy_connection_mode.description"
+            value={
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              (interfaceLocalForage?.data as any)?.handyConnectionMode ||
+              "cloud"
+            }
+            onChange={(v) =>
+              setInterfaceLocalForage(
+                (prev) =>
+                  ({
+                    ...prev,
+                    handyConnectionMode: v,
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  } as any)
+              )
+            }
+          >
+            <option value="cloud">
+              {intl.formatMessage({
+                id: "config.ui.handy_connection_mode.options.cloud",
+              })}
+            </option>
+            <option value="local">
+              {intl.formatMessage({
+                id: "config.ui.handy_connection_mode.options.local",
+              })}
+            </option>
+          </SelectSetting>
+          {handyConnectionModeLocal ? null : (
+            <>
+              <StringSetting
+                headingID="config.ui.handy_connection_key.heading"
+                subHeadingID="config.ui.handy_connection_key.description"
+                value={iface.handyKey ?? undefined}
+                onChange={(v) => saveInterface({ handyKey: v })}
+              />
+              <StringSetting
+                headingID="config.ui.handy_app_key.heading"
+                subHeadingID="config.ui.handy_app_key.description"
+                value={iface.handyAppKey ?? undefined}
+                onChange={(v) => saveInterface({ handyAppKey: v })}
+              />
+            </>
+          )}
           {interactive.handyKey && (
             <>
               <div className="setting" id="handy-status">
@@ -1031,13 +1071,15 @@ export const SettingsInterfacePanel: React.FC = PatchComponent(
             onChange={(v) => saveInterface({ funscriptOffset: v })}
           />
 
-          <BooleanSetting
-            id="use-stash-hosted-funscript"
-            headingID="config.ui.use_stash_hosted_funscript.heading"
-            subHeadingID="config.ui.use_stash_hosted_funscript.description"
-            checked={iface.useStashHostedFunscript ?? false}
-            onChange={(v) => saveInterface({ useStashHostedFunscript: v })}
-          />
+          {!handyConnectionModeLocal && (
+            <BooleanSetting
+              id="use-stash-hosted-funscript"
+              headingID="config.ui.use_stash_hosted_funscript.heading"
+              subHeadingID="config.ui.use_stash_hosted_funscript.description"
+              checked={iface.useStashHostedFunscript ?? false}
+              onChange={(v) => saveInterface({ useStashHostedFunscript: v })}
+            />
+          )}
         </SettingSection>
       </>
     );

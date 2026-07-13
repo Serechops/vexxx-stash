@@ -56,6 +56,14 @@ export default defineConfig(() => {
           changeOrigin: true,
           secure: false,
         },
+        // local Handy Bluetooth bridge (WebSocket) — must proxy with ws:true
+        // or the dev server 404s the upgrade request
+        "/handy": {
+          target: "http://localhost:9999",
+          changeOrigin: true,
+          secure: false,
+          ws: true,
+        },
         "/graphql": {
           target: "http://localhost:9999",
           changeOrigin: true,

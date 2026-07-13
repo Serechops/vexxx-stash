@@ -14,7 +14,7 @@ interface IPendingOp {
   reject: (e: Error) => void;
 }
 
-interface IHandyStatus {
+export interface IHandyStatus {
   connected: boolean;
   deviceName?: string;
   battery?: number;
@@ -175,6 +175,36 @@ export class LocalHandyInteractive implements IInteractiveClient {
     this._connected = true;
   }
 
+  /**
+   * Attach to the backend's (possibly already-established) BLE session without
+   * initiating a scan. The bridge pushes a status snapshot the moment the WS
+   * opens, so this resolves to whether a device is currently connected server-
+   * side. Used to reflect a link that another browser/tab (e.g. the desktop
+   * Settings page) already brought up — the connection is a server-side
+   * singleton, but each client's connection *state* is local. Returns the live
+   * connected flag; never triggers the 30s scan that connect() does.
+   */
+  async attach(): Promise<boolean> {
+    await this.ensureSocket();
+    // The first status frame arrives right after the socket opens; give it a
+    // few polling ticks rather than a fixed sleep.
+    for (let i = 0; i < 12; i++) {
+      if (this._status) break;
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    return this._connected;
+  }
+
+  /** Tears down the BLE link on the backend and marks us disconnected. */
+  async disconnect(): Promise<void> {
+    try {
+      await this.send({ op: "disconnect" });
+    } finally {
+      this._connected = false;
+      this._playing = false;
+    }
+  }
+
   async configure(config: Partial<IDeviceSettings>): Promise<void> {
     if (config.scriptOffset !== undefined) {
       this._scriptOffset = config.scriptOffset;
@@ -191,25 +221,30 @@ export class LocalHandyInteractive implements IInteractiveClient {
     return 1;
   }
 
-  async uploadScript(funscriptPath: string): Promise<void> {
+  async uploadScript(funscriptPath: string, apiKey?: string): Promise<void> {
     if (!funscriptPath) return;
-    // funscriptPath is the same URL the cloud path uses:
-    //   .../scene/{id}/funscript[?funscript={index}]
-    let sceneId = 0;
-    let funscriptIndex: number | undefined;
-    try {
-      const url = new URL(funscriptPath, window.location.origin);
-      const m = url.pathname.match(/\/scene\/(\d+)\/funscript/);
-      if (m) sceneId = parseInt(m[1], 10);
-      const idx = url.searchParams.get("funscript");
-      if (idx !== null) funscriptIndex = parseInt(idx, 10);
-    } catch {
-      // fall through to error below
+    // Fetch the funscript in the browser exactly like the cloud transport does.
+    // Every content mode already serves ready funscript JSON at its own URL —
+    // regular scenes (/scene/{id}/funscript), FapTap (/faptap/videos/{id}/
+    // funscript), PMVHaven, multi-funscript index — so a single same-origin
+    // fetch handles them all without the backend needing to know the source.
+    // The backend just parses the JSON into HSP points and feeds BLE.
+    let url = funscriptPath;
+    if (apiKey) {
+      try {
+        const u = new URL(funscriptPath, window.location.origin);
+        u.searchParams.set("apikey", apiKey);
+        url = u.toString();
+      } catch {
+        // relative path with no base — leave as-is; the browser session cookie
+        // authenticates the same-origin request.
+      }
     }
-    if (!sceneId) {
-      throw new Error(`cannot determine scene from funscript path: ${funscriptPath}`);
-    }
-    await this.send({ op: "load", sceneId, funscriptIndex });
+    const funscript = await fetch(url).then((r) => {
+      if (!r.ok) throw new Error(`funscript fetch failed: ${r.status}`);
+      return r.json();
+    });
+    await this.send({ op: "load", funscript });
   }
 
   async play(position: number): Promise<void> {

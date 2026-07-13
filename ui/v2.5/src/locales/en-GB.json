@@ -774,6 +774,13 @@
       },
       "handy_connection": {
         "connect": "Connect",
+        "local": {
+          "connect": "Scan & connect",
+          "disconnect": "Disconnect",
+          "scanning": "Scanning…",
+          "searching": "Not connected — put the Handy in Bluetooth mode, then Scan & connect",
+          "status_heading": "Bluetooth Device"
+        },
         "server_offset": {
           "heading": "Server Offset"
         },

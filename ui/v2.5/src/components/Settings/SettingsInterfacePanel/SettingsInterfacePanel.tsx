@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@mui/material";
 import { FormattedMessage, useIntl } from "react-intl";
 import { DurationInput } from "src/components/Shared/DurationInput";
@@ -28,6 +28,10 @@ import {
   connectionStateLabel,
   InteractiveContext,
 } from "src/hooks/Interactive/context";
+import {
+  IHandyStatus,
+  LocalHandyInteractive,
+} from "src/hooks/Interactive/local-handy";
 import {
   defaultRatingStarPrecision,
   defaultRatingSystemOptions,
@@ -106,9 +110,29 @@ export const SettingsInterfacePanel: React.FC = PatchComponent(
     const [interfaceLocalForage, setInterfaceLocalForage] = useInterfaceLocalForage();
 
     const handyConnectionModeLocal =
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ((interfaceLocalForage?.data as any)?.handyConnectionMode || "cloud") ===
-      "local";
+      (ui.handyConnectionMode || "cloud") === "local";
+
+    // In local (Bluetooth) mode the client is a LocalHandyInteractive that
+    // pushes live device status (connected / name / battery / MTU) over the
+    // /handy/ws bridge. Subscribe so the settings panel can show real pairing
+    // state instead of just the generic ConnectionState label.
+    const localHandy =
+      handyConnectionModeLocal && interactive instanceof LocalHandyInteractive
+        ? interactive
+        : null;
+    const [localHandyStatus, setLocalHandyStatus] =
+      useState<IHandyStatus | null>(null);
+    useEffect(() => {
+      if (!localHandy) {
+        setLocalHandyStatus(null);
+        return;
+      }
+      setLocalHandyStatus(localHandy.status);
+      localHandy.onStatus = (s) => setLocalHandyStatus(s);
+      return () => {
+        localHandy.onStatus = undefined;
+      };
+    }, [localHandy]);
 
     function saveLightboxSettings(v: Partial<GQL.ConfigImageLightboxInput>) {
       // save in local forage as well for consistency
@@ -955,20 +979,9 @@ export const SettingsInterfacePanel: React.FC = PatchComponent(
             id="handy-connection-mode"
             headingID="config.ui.handy_connection_mode.heading"
             subHeadingID="config.ui.handy_connection_mode.description"
-            value={
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              (interfaceLocalForage?.data as any)?.handyConnectionMode ||
-              "cloud"
-            }
+            value={ui.handyConnectionMode || "cloud"}
             onChange={(v) =>
-              setInterfaceLocalForage(
-                (prev) =>
-                  ({
-                    ...prev,
-                    handyConnectionMode: v,
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  } as any)
-              )
+              saveUI({ handyConnectionMode: v as "cloud" | "local" })
             }
           >
             <option value="cloud">
@@ -998,7 +1011,68 @@ export const SettingsInterfacePanel: React.FC = PatchComponent(
               />
             </>
           )}
-          {interactive.handyKey && (
+          {handyConnectionModeLocal && (
+            <div className="setting" id="handy-local-status">
+              <div>
+                <h3>
+                  {intl.formatMessage({
+                    id: "config.ui.handy_connection.local.status_heading",
+                  })}
+                </h3>
+
+                <div className="value">
+                  {localHandyStatus?.connected ? (
+                    <span>
+                      {localHandyStatus.deviceName || "Handy"}
+                      {localHandyStatus.battery != null &&
+                        ` · ${localHandyStatus.battery}% battery`}
+                      {localHandyStatus.mtu
+                        ? ` · MTU ${localHandyStatus.mtu}`
+                        : ""}
+                    </span>
+                  ) : interactiveState === ConnectionState.Error ? (
+                    <FormattedMessage
+                      id={connectionStateLabel(interactiveState)}
+                    />
+                  ) : interactiveState === ConnectionState.Connecting ? (
+                    <FormattedMessage id="config.ui.handy_connection.local.scanning" />
+                  ) : (
+                    <FormattedMessage id="config.ui.handy_connection.local.searching" />
+                  )}
+                  {interactiveError && !localHandyStatus?.connected && (
+                    <span>: {interactiveError}</span>
+                  )}
+                </div>
+              </div>
+              <div>
+                {localHandyStatus?.connected ? (
+                  <Button
+                    variant="contained"
+                    color="error"
+                    onClick={() => localHandy?.disconnect()}
+                  >
+                    {intl.formatMessage({
+                      id: "config.ui.handy_connection.local.disconnect",
+                    })}
+                  </Button>
+                ) : (
+                  <Button
+                    variant="contained"
+                    disabled={
+                      interactiveState === ConnectionState.Connecting ||
+                      interactiveState === ConnectionState.Syncing
+                    }
+                    onClick={() => initialiseInteractive()}
+                  >
+                    {intl.formatMessage({
+                      id: "config.ui.handy_connection.local.connect",
+                    })}
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+          {!handyConnectionModeLocal && interactive.handyKey && (
             <>
               <div className="setting" id="handy-status">
                 <div>

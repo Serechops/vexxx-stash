@@ -2,10 +2,17 @@ package handy
 
 import (
 	"context"
+	"fmt"
 	"sync"
+	"time"
 
 	"github.com/stashapp/stash/pkg/logger"
 )
+
+// reconnectSettle is how long we wait after a failed attempt before re-scanning.
+// An immediate retry on Windows/WinRT tends to re-grab the just-dropped (dead)
+// GATT handle; a brief pause lets the OS Bluetooth stack finish tearing down.
+const reconnectSettle = 750 * time.Millisecond
 
 // Manager is the process-wide owner of the (single) local Handy connection.
 // All WebSocket clients share it.
@@ -77,46 +84,76 @@ func (m *Manager) Connect(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, connectTimeout)
 	defer cancel()
 
-	session := newSession()
-	session.NotifyFunc = m.engine.handleNotification
-
-	transport, err := connectBLE(ctx, session.handleFrame, func() {
-		logger.Warnf("[handy] BLE link lost")
-		m.dropConnection()
-	})
-	if err != nil {
-		return err
-	}
-	session.tr = transport
-
-	m.engine.mu.Lock()
-	m.engine.session = session
-	m.engine.transport = transport
-	m.engine.currentMode = 0
-	m.engine.StatusFunc = m.broadcast
-	m.engine.mu.Unlock()
-	m.session = session
-
-	if err := session.ClockSync(ctx, 10); err != nil {
-		logger.Warnf("[handy] clock sync failed (timed commands may be less accurate): %v", err)
-	}
-
-	if caps, err := session.Capabilities(ctx); err == nil && caps.BleMtu > 0 {
-		// FW4.2+ reports the true BLE MTU cap; prefer it if smaller than
-		// what the OS negotiated.
-		if int(caps.BleMtu) < transport.mtu {
-			transport.mtu = int(caps.BleMtu)
+	var lastErr error
+	for attempt := 0; attempt < 2; attempt++ {
+		if attempt > 0 {
+			select {
+			case <-time.After(reconnectSettle):
+			case <-ctx.Done():
+				return ctx.Err()
+			}
 		}
-	}
 
-	if b, err := session.Battery(ctx); err == nil {
+		session := newSession()
+		session.NotifyFunc = m.engine.handleNotification
+
+		transport, err := connectBLE(ctx, session.handleFrame, func() {
+			logger.Warnf("[handy] BLE link lost")
+			m.dropConnection()
+		})
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		session.tr = transport
+
+		// ClockSync is the first real round-trip to the device. On a flaky
+		// reconnect (common on Windows/WinRT) the GATT link can come up —
+		// connectBLE succeeds and writes return no error — while the device
+		// never actually answers. Validate the link here before publishing it
+		// as connected: a zombie link would otherwise report Connected=true and
+		// leave every later op to time out at 5s. On failure, tear it down and
+		// retry with a settle delay (or surface the error on the last attempt).
+		if err := session.ClockSync(ctx, 10); err != nil {
+			transport.close()
+			lastErr = fmt.Errorf("device connected but not responding (clock sync failed): %w", err)
+			logger.Warnf("[handy] %v", lastErr)
+			continue
+		}
+
+		// Link verified — publish the session. Assigning engine.session only on
+		// success keeps concurrent ops during the sync from racing a half-built
+		// session (they get a clean "not connected" instead).
 		m.engine.mu.Lock()
-		m.engine.battery = &b.Level
+		m.engine.session = session
+		m.engine.transport = transport
+		m.engine.currentMode = 0
+		m.engine.playing = false
+		m.engine.fedIdx = 0
+		m.engine.fedAbs = 0
+		m.engine.lastState = HspState{}
+		m.engine.StatusFunc = m.broadcast
 		m.engine.mu.Unlock()
-	}
+		m.session = session
 
-	m.broadcast(m.engine.Status())
-	return nil
+		if caps, err := session.Capabilities(ctx); err == nil && caps.BleMtu > 0 {
+			// FW4.2+ reports the true BLE MTU cap; prefer it if smaller than
+			// what the OS negotiated.
+			if int(caps.BleMtu) < transport.mtu {
+				transport.mtu = int(caps.BleMtu)
+			}
+		}
+
+		if b, err := session.Battery(ctx); err == nil {
+			m.engine.mu.Lock()
+			m.engine.battery = &b.Level
+			m.engine.mu.Unlock()
+		}
+
+		m.broadcast(m.engine.Status())
+		return nil
+	}
+	return lastErr
 }
 
 // dropConnection tears down state after a link loss (or explicit disconnect).

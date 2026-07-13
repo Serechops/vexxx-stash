@@ -26,6 +26,14 @@ func LoadFunscriptPoints(path string) ([]Point, error) {
 	if err != nil {
 		return nil, err
 	}
+	return ParseFunscriptPoints(data)
+}
+
+// ParseFunscriptPoints converts raw .funscript JSON bytes into HSP points,
+// applying the same inverted/range rules as LoadFunscriptPoints. Used by the
+// local BLE bridge, where the browser fetches the funscript (regular scene,
+// FapTap, PMVHaven, …) and forwards its JSON — no on-disk path or scene lookup.
+func ParseFunscriptPoints(data []byte) ([]Point, error) {
 	var fs funscript
 	if err := json.Unmarshal(data, &fs); err != nil {
 		return nil, fmt.Errorf("parsing funscript: %w", err)

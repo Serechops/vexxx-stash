@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"strconv"
 
@@ -40,18 +41,22 @@ var handyUpgrader = websocket.Upgrader{
 
 // handyOp is a client → server operation.
 type handyOp struct {
-	Op             string  `json:"op"`
-	Seq            int64   `json:"seq"`
-	SceneID        int     `json:"sceneId,omitempty"`
-	FunscriptIndex *int    `json:"funscriptIndex,omitempty"`
-	Position       int32   `json:"position,omitempty"` // ms
-	Rate           float32 `json:"rate,omitempty"`
-	Loop           bool    `json:"loop,omitempty"`
-	Min            float32 `json:"min,omitempty"`
-	Max            float32 `json:"max,omitempty"`
-	Velocity       float32 `json:"velocity,omitempty"`
-	Amplitude      float32 `json:"amplitude,omitempty"`
-	Frequency      uint32  `json:"frequency,omitempty"`
+	Op             string `json:"op"`
+	Seq            int64  `json:"seq"`
+	SceneID        int    `json:"sceneId,omitempty"`
+	FunscriptIndex *int   `json:"funscriptIndex,omitempty"`
+	// Funscript, when present, carries the raw .funscript JSON the browser
+	// fetched for this scene. It supersedes SceneID resolution so any content
+	// mode with its own funscript URL (FapTap, PMVHaven, …) loads locally.
+	Funscript json.RawMessage `json:"funscript,omitempty"`
+	Position  int32           `json:"position,omitempty"` // ms
+	Rate      float32         `json:"rate,omitempty"`
+	Loop      bool            `json:"loop,omitempty"`
+	Min       float32         `json:"min,omitempty"`
+	Max       float32         `json:"max,omitempty"`
+	Velocity  float32         `json:"velocity,omitempty"`
+	Amplitude float32         `json:"amplitude,omitempty"`
+	Frequency uint32          `json:"frequency,omitempty"`
 }
 
 type handyReply struct {
@@ -136,6 +141,17 @@ func (rs handyRoutes) execute(ctx context.Context, mgr *handy.Manager, op handyO
 		mgr.Disconnect()
 		return nil
 	case "load":
+		// Prefer the browser-supplied funscript (works for every content mode,
+		// incl. FapTap/PMVHaven which have no numeric stash scene). Fall back to
+		// resolving the funscript from the scene DB by ID for callers that only
+		// send a sceneId.
+		if len(op.Funscript) > 0 {
+			points, err := handy.ParseFunscriptPoints(op.Funscript)
+			if err != nil {
+				return err
+			}
+			return eng.LoadScript(ctx, points)
+		}
 		points, err := rs.loadScenePoints(ctx, op.SceneID, op.FunscriptIndex)
 		if err != nil {
 			return err

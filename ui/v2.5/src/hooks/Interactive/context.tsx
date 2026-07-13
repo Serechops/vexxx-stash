@@ -1,6 +1,7 @@
 import React, { useCallback, useContext, useEffect, useState } from "react";
 import { useConfigurationContext } from "../Config";
-import { useInterfaceLocalForage, useLocalForage } from "../LocalForage";
+import { useLocalForage } from "../LocalForage";
+import { IUIConfig } from "src/core/config";
 import { Interactive as InteractiveAPI } from "./interactive";
 import { LocalHandyInteractive } from "./local-handy";
 import InteractiveUtils, {
@@ -88,14 +89,15 @@ export const InteractiveProvider: React.FC = ({ children }) => {
   );
 
   const { configuration: stashConfig } = useConfigurationContext();
-  const [{ data: interfaceLocal }] = useInterfaceLocalForage();
 
   // "cloud" = handyfeeling.com API (default); "local" = stash backend BLE
-  // bridge (/handy/ws), no cloud round-trip.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // bridge (/handy/ws), no cloud round-trip. Read from the server-side UI
+  // config (shared across every browser/device, incl. the Quest) rather than
+  // per-browser localForage — the BLE link it selects is a server-side
+  // singleton, so an incognito window or a headset that never touched the
+  // desktop's storage still resolves the local client.
   const handyConnectionMode: string =
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ((interfaceLocal as any)?.handyConnectionMode as string) ?? "cloud";
+    (stashConfig?.ui as IUIConfig | undefined)?.handyConnectionMode ?? "cloud";
 
   const [state, setState] = useState<ConnectionState>(ConnectionState.Missing);
   const [handyKey, setHandyKey] = useState<string | undefined>(undefined);
@@ -145,6 +147,31 @@ export const InteractiveProvider: React.FC = ({ children }) => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [handyConnectionMode]);
+
+  // Local (Bluetooth) mode has no cloud handyKey to trigger the auto-connect
+  // effect below, so a browser that didn't run the scan itself (e.g. the Quest,
+  // a separate session from the desktop where the user connected in Settings)
+  // would show the device as disconnected even though the server-side BLE link
+  // is live. Attach to that existing session on mount — reflect its status
+  // without kicking off a fresh 30s scan. If nothing is connected yet, stay
+  // idle and let the user connect explicitly.
+  useEffect(() => {
+    if (handyConnectionMode !== "local") return;
+    if (!(interactive instanceof LocalHandyInteractive)) return;
+    if (initialised) return;
+    let cancelled = false;
+    interactive
+      .attach()
+      .then((connected) => {
+        if (cancelled || !connected) return;
+        setState(ConnectionState.Ready);
+        setInitialised(true);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [handyConnectionMode, interactive, initialised]);
 
   const initialise = useCallback(async () => {
     setError(undefined);

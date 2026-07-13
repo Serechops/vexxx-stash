@@ -100,6 +100,13 @@ export interface IUIConfig {
 
   vrTag?: string;
 
+  // Handy interactive device transport: "cloud" = handyfeeling.com API
+  // (default); "local" = the stash backend's Bluetooth bridge (/handy/ws).
+  // Server-side (not per-browser) so every client — including the Quest, which
+  // can't reach the desktop's localForage — shares one mode; the BLE link it
+  // selects is itself a server-side singleton.
+  handyConnectionMode?: "cloud" | "local";
+
   pinnedFilters?: Record<string, string[]>;
   tableColumns?: Record<string, string[]>;
 

@@ -83,14 +83,31 @@ func scanForHandy(ctx context.Context, adapter *bluetooth.Adapter) (bluetooth.Sc
 
 	// tinygo's Scan blocks until StopScan; run it in a goroutine.
 	scanErr := make(chan error, 1)
+	scanDone := make(chan struct{})
 	go func() {
-		err := adapter.Scan(func(a *bluetooth.Adapter, res bluetooth.ScanResult) {
+		defer close(scanDone)
+		// The scan callback runs on the OS Bluetooth event thread, so a panic
+		// there is not recoverable by whoever called Connect — it takes the
+		// whole process down. Contain it here and report it as a scan failure.
+		defer func() {
+			if r := recover(); r != nil {
+				scanErr <- fmt.Errorf("BLE scan panicked: %v", r)
+			}
+		}()
+		scanErr <- adapter.Scan(func(a *bluetooth.Adapter, res bluetooth.ScanResult) {
+			// AdvertisementPayload is an embedded interface and is left nil when
+			// the OS could not parse the advertisement (on Windows: the device
+			// went away before WinRT read it back). Every accessor below is a
+			// method on that interface, so an unguarded call panics.
+			if res.AdvertisementPayload == nil {
+				return
+			}
 			name := res.LocalName()
 			isRPC := strings.HasPrefix(name, deviceNamePrefix)
 			isLegacy := strings.HasPrefix(name, legacyDeviceNamePrefix)
 			if !isRPC && !isLegacy {
 				// also accept devices advertising the RPC service UUID
-				for _, u := range res.AdvertisementPayload.ServiceUUIDs() {
+				for _, u := range res.ServiceUUIDs() {
 					if u == serviceUUID {
 						isRPC = true
 						break
@@ -104,12 +121,9 @@ func scanForHandy(ctx context.Context, adapter *bluetooth.Adapter) (bluetooth.Sc
 				}
 			}
 		})
-		scanErr <- err
 	}()
 
-	defer func() {
-		_ = adapter.StopScan()
-	}()
+	defer stopScan(adapter, scanDone)
 
 	select {
 	case hit := <-found:
@@ -127,6 +141,38 @@ func scanForHandy(ctx context.Context, adapter *bluetooth.Adapter) (bluetooth.Sc
 		return bluetooth.ScanResult{}, fmt.Errorf("BLE scan stopped unexpectedly")
 	case <-ctx.Done():
 		return bluetooth.ScanResult{}, fmt.Errorf("no Handy found: ensure the device is powered on with Bluetooth mode enabled (%w)", ctx.Err())
+	}
+}
+
+// stopScan ends the scan and waits for adapter.Scan to actually return.
+//
+// StopScan is a no-op ("there is no scan in progress") if the OS has not
+// created the scan handle yet, which is reachable when the context expires
+// immediately after Connect: the scan goroutine would then keep running and
+// the adapter would stay in scanning state, failing every later scan with
+// "a scan is already in progress". Retry until the scan really is down.
+func stopScan(adapter *bluetooth.Adapter, scanDone <-chan struct{}) {
+	deadline := time.Now().Add(stopScanTimeout)
+	for {
+		select {
+		case <-scanDone:
+			return
+		default:
+		}
+
+		if err := adapter.StopScan(); err != nil {
+			logger.Debugf("[handy] stopping BLE scan: %v", err)
+		}
+
+		select {
+		case <-scanDone:
+			return
+		case <-time.After(50 * time.Millisecond):
+			if time.Now().After(deadline) {
+				logger.Warnf("[handy] BLE scan did not stop; the adapter may refuse the next scan")
+				return
+			}
+		}
 	}
 }
 
@@ -247,6 +293,14 @@ func (t *bleTransport) maxFrame() int {
 	return t.mtu - 3
 }
 
+// close tears the GATT link down. The transport is flagged closed first, so
+// every later write fails fast and the (adapter-global) disconnect handler
+// knows this drop was deliberate and must not trigger an auto re-link.
+//
+// The OS call itself is bounded: WinRT can sit on a dead handle, and an
+// explicit user disconnect must not hang on it. Nothing else touches the
+// transport once it is flagged closed, so leaving a straggler to finish on its
+// own goroutine is safe.
 func (t *bleTransport) close() {
 	t.closedMu.Lock()
 	if t.closed {
@@ -255,8 +309,33 @@ func (t *bleTransport) close() {
 	}
 	t.closed = true
 	t.closedMu.Unlock()
-	_ = t.device.Disconnect()
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		// Runs outside any recover up the stack; a panic in the OS Bluetooth
+		// stack here would otherwise take the server down.
+		defer func() {
+			if r := recover(); r != nil {
+				logger.Errorf("[handy] panic while disconnecting BLE transport: %v", r)
+			}
+		}()
+		_ = t.device.Disconnect()
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(closeTimeout):
+		logger.Warnf("[handy] BLE disconnect did not complete within %s; continuing", closeTimeout)
+	}
 }
 
 // connectTimeout bounds the scan+connect sequence.
 const connectTimeout = 30 * time.Second
+
+// stopScanTimeout bounds how long we wait for a scan to wind down before
+// giving up on it (and warning that the next scan may be refused).
+const stopScanTimeout = 3 * time.Second
+
+// closeTimeout bounds the OS-level GATT disconnect.
+const closeTimeout = 2 * time.Second

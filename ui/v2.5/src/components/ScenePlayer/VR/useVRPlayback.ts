@@ -18,6 +18,7 @@ import {
 } from "src/core/StashService";
 import { useConfigurationContext } from "src/hooks/Config";
 import * as GQL from "src/core/generated-graphql";
+import { isStashSceneId } from "./types";
 import { vrLog } from "./vrLog";
 
 const INTERVAL_SECONDS = 1;
@@ -178,7 +179,7 @@ export function useVRPlayback(params: {
     t.segmentStart = scene.start_point ?? 0;
     t.segmentEnd = scene.end_point ?? 0;
     t.saveActivity = async (resume, playDuration) => {
-      if (!scene.id) return;
+      if (!isStashSceneId(scene.id)) return;
       // Jitter probe: bracket the mutation so the profiler can see its cost
       // window (network + Apollo cache write + the re-render it triggers) and
       // line it up against a main-thread stall. Inert outside vrprofile=jitter.
@@ -201,7 +202,7 @@ export function useVRPlayback(params: {
       vrLog.note("activity_done", { ms: +(performance.now() - t0).toFixed(1) });
     };
     t.incrementPlayCount = async () => {
-      if (!scene.id) return;
+      if (!isStashSceneId(scene.id)) return;
       vrLog.note("playcount_send", { id: scene.id });
       await sceneIncrementPlayCount({
         variables: { id: scene.id },
@@ -257,12 +258,26 @@ export function useVRPlayback(params: {
     };
     const onWaiting = () => t.stop();
     const onEnded = () => t.stop();
+    // Drift correction: the device's script clock free-runs, so without a
+    // periodic nudge it walks away from the video over a long scene. The client
+    // throttles the sync ops itself, so this is cheap on `timeupdate`.
+    const onTimeUpdate = () => {
+      if (
+        interactiveEnabled &&
+        !video.paused &&
+        scene.interactive &&
+        interactiveReady.current
+      ) {
+        interactiveClient.ensurePlaying(video.currentTime);
+      }
+    };
 
     video.addEventListener("playing", onPlaying);
     video.addEventListener("pause", onPause);
     video.addEventListener("seeking", onSeeking);
     video.addEventListener("waiting", onWaiting);
     video.addEventListener("ended", onEnded);
+    video.addEventListener("timeupdate", onTimeUpdate);
 
     return () => {
       video.removeEventListener("playing", onPlaying);
@@ -270,6 +285,7 @@ export function useVRPlayback(params: {
       video.removeEventListener("seeking", onSeeking);
       video.removeEventListener("waiting", onWaiting);
       video.removeEventListener("ended", onEnded);
+      video.removeEventListener("timeupdate", onTimeUpdate);
       t.stop();
       interactiveClient.pause();
     };

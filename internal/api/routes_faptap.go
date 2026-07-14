@@ -136,7 +136,8 @@ func (rs faptapRoutes) sources(w http.ResponseWriter, r *http.Request) {
 }
 
 func (rs faptapRoutes) counts(w http.ResponseWriter, r *http.Request) {
-	c, err := rs.db.CountsFor(r.URL.Query().Get("tag"))
+	q := r.URL.Query()
+	c, err := rs.db.CountsFor(q.Get("tag"), q.Get("q"))
 	if err != nil {
 		faptapErr(w, err)
 		return

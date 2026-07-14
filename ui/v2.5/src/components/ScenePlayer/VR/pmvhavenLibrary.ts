@@ -278,6 +278,37 @@ export class PmvHavenFavorites {
 
 export const pmvhavenFavorites = new PmvHavenFavorites();
 
+// ── Funscript generation probe ────────────────────────────────────────────────
+
+/** The video id behind a synthesized PMVHaven scene id, or null for anything else. */
+export function pmvhavenVideoId(sceneId: string | undefined | null): string | null {
+  if (!sceneId || !sceneId.startsWith("pmvhaven:")) return null;
+  return sceneId.slice("pmvhaven:".length);
+}
+
+/**
+ * Whether opening this scene will make the backend build a funscript from
+ * scratch. PMVHaven ships no scripts: the first request for one runs an ffmpeg
+ * audio extract + beat analysis that takes tens of seconds, and the funscript
+ * endpoint simply blocks for its duration. Probing the cache first lets the
+ * player say "generating" instead of looking like it stalled.
+ *
+ * False for every other content mode (their scripts already exist) and on any
+ * error — a missing indicator is better than a wrong one.
+ */
+export async function pmvhavenFunscriptPending(
+  sceneId: string | undefined | null
+): Promise<boolean> {
+  const id = pmvhavenVideoId(sceneId);
+  if (!id) return false;
+  try {
+    const res = await getJSON<{ cached: boolean }>(`videos/${id}/funscript/status`);
+    return !res.cached;
+  } catch {
+    return false;
+  }
+}
+
 // ── Status probe ──────────────────────────────────────────────────────────────
 
 /** One-shot status probe used by the session manager to lock/unlock the tab. */
@@ -383,7 +414,14 @@ export class PmvHavenHomeLibrary implements IVRHomeDataSource {
       }
     }
     try {
-      return await getJSON<IVRHomeCounts>("counts", { tag, star });
+      // The counts drive the media-toggle chips ("All 812 · Funscript 812"), so
+      // they have to be counted under the SAME predicate as the grid — search
+      // included, or a search shows 12 cards over a whole-library total.
+      return await getJSON<IVRHomeCounts>("counts", {
+        tag,
+        star,
+        q: this.query.search?.trim() ?? "",
+      });
     } catch {
       return { all: 0, vr: 0, flat: 0, funscript: 0 };
     }

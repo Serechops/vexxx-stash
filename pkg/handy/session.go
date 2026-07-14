@@ -2,6 +2,7 @@ package handy
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"sync"
@@ -13,6 +14,20 @@ import (
 
 const defaultCallTimeout = 5 * time.Second
 
+// errSessionClosed fails calls made on (or outstanding against) a torn-down
+// session immediately, instead of letting them sit out defaultCallTimeout.
+//
+// Engine ops hold e.mu across BLE round-trips, and a feed loop issues dozens of
+// them back to back. On a dead link every one of those would block for the full
+// timeout, so an explicit Disconnect — which needs e.mu — could be stuck for
+// tens of seconds and blow past the UI's op timeout. Closing the session cuts
+// them all loose at once.
+var errSessionClosed = errors.New("handy session closed")
+
+// notifyQueueDepth bounds the notification hand-off queue. Overflow drops the
+// oldest wake-ups, which the engine's watchdog poll recovers from.
+const notifyQueueDepth = 64
+
 // Session is the RPC layer over one BLE transport: it correlates responses
 // to requests by ID and dispatches notifications.
 type Session struct {
@@ -21,20 +36,56 @@ type Session struct {
 	nextID  atomic.Uint32
 	pending sync.Map // uint32 → chan *Response
 
-	// NotifyFunc receives device notifications (called on the BLE
-	// notification goroutine; handlers must not block).
-	NotifyFunc func(*Notification)
+	// notify receives device notifications on a dedicated dispatch goroutine
+	// (never the BLE callback goroutine — see handleFrame). Handlers may block.
+	notify  func(*Notification)
+	notifCh chan *Notification
+
+	done      chan struct{}
+	closeOnce sync.Once
 
 	// clock sync results (for status/UI display)
 	syncRtdMs int32
 	synced    bool
 }
 
-func newSession() *Session {
-	return &Session{}
+func newSession(notify func(*Notification)) *Session {
+	s := &Session{
+		notify:  notify,
+		notifCh: make(chan *Notification, notifyQueueDepth),
+		done:    make(chan struct{}),
+	}
+	go s.dispatchNotifications()
+	return s
 }
 
-// handleFrame is wired as the BLE transport's onFrame callback.
+// close stops the notification dispatcher. Safe to call more than once.
+func (s *Session) close() {
+	s.closeOnce.Do(func() { close(s.done) })
+}
+
+func (s *Session) dispatchNotifications() {
+	for {
+		select {
+		case n := <-s.notifCh:
+			if s.notify != nil {
+				s.notify(n)
+			}
+		case <-s.done:
+			return
+		}
+	}
+}
+
+// handleFrame is wired as the BLE transport's onFrame callback. It runs on the
+// BLE notification goroutine, which is the *only* goroutine that delivers RPC
+// responses — so it must never block.
+//
+// Notifications are therefore queued for the dispatch goroutine rather than
+// invoked inline: the engine's handler takes the engine lock, and engine ops
+// hold that lock across BLE round-trips. Calling the handler here would block
+// the one goroutine that has to deliver the response those ops are waiting for,
+// wedging every call until its 5s timeout fires.
 func (s *Session) handleFrame(buf []byte) {
 	resp, notif, err := DecodeRpcMessage(buf)
 	if err != nil {
@@ -48,8 +99,12 @@ func (s *Session) handleFrame(buf []byte) {
 			logger.Debugf("[handy] response for unknown request id %d", resp.ID)
 		}
 	}
-	if notif != nil && s.NotifyFunc != nil {
-		s.NotifyFunc(notif)
+	if notif != nil {
+		select {
+		case s.notifCh <- notif:
+		default:
+			logger.Warnf("[handy] notification queue full; dropped field %d", notif.Field)
+		}
 	}
 }
 
@@ -58,6 +113,11 @@ func (s *Session) handleFrame(buf []byte) {
 func (s *Session) call(ctx context.Context, enc func(id uint32) []byte) (*Response, error) {
 	if s.tr == nil {
 		return nil, fmt.Errorf("not connected")
+	}
+	select {
+	case <-s.done:
+		return nil, errSessionClosed
+	default:
 	}
 	id := s.nextID.Add(1)
 	ch := make(chan *Response, 1)
@@ -80,6 +140,8 @@ func (s *Session) call(ctx context.Context, enc func(id uint32) []byte) (*Respon
 			return resp, resp.Err
 		}
 		return resp, nil
+	case <-s.done:
+		return nil, errSessionClosed
 	case <-time.After(timeout):
 		return nil, fmt.Errorf("request %d timed out after %s", id, timeout)
 	case <-ctx.Done():

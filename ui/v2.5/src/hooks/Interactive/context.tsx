@@ -1,4 +1,10 @@
-import React, { useCallback, useContext, useEffect, useState } from "react";
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useConfigurationContext } from "../Config";
 import { useLocalForage } from "../LocalForage";
 import { IUIConfig } from "src/core/config";
@@ -47,6 +53,7 @@ export interface IState {
   currentScript?: string;
   error?: string;
   initialise: () => Promise<void>;
+  disconnect: () => Promise<void>;
   uploadScript: (funscriptPath: string) => Promise<void>;
   sync: () => Promise<void>;
 }
@@ -57,6 +64,9 @@ export const InteractiveContext = React.createContext<IState>({
   serverOffset: 0,
   initialised: false,
   initialise: () => {
+    return Promise.resolve();
+  },
+  disconnect: () => {
     return Promise.resolve();
   },
   uploadScript: () => {
@@ -173,8 +183,14 @@ export const InteractiveProvider: React.FC = ({ children }) => {
     };
   }, [handyConnectionMode, interactive, initialised]);
 
+  // Set while a disconnect is tearing down a connect that is still in flight.
+  // The backend cancels the scan, so that connect rejects — an expected
+  // consequence of the user's own click, not an error worth showing them.
+  const disconnectRequested = useRef(false);
+
   const initialise = useCallback(async () => {
     setError(undefined);
+    disconnectRequested.current = false;
 
     const shouldResync =
       !config?.lastSyncTime ||
@@ -196,9 +212,11 @@ export const InteractiveProvider: React.FC = ({ children }) => {
       setState(ConnectionState.Connecting);
       try {
         await interactive.connect();
+        if (disconnectRequested.current) return;
         setState(ConnectionState.Ready);
         setInitialised(true);
       } catch (e) {
+        if (disconnectRequested.current) return;
         if (e instanceof Error) {
           setError(e.message ?? e.toString());
           setState(ConnectionState.Error);
@@ -206,6 +224,32 @@ export const InteractiveProvider: React.FC = ({ children }) => {
       }
     }
   }, [config, interactive, setConfig]);
+
+  /**
+   * Tear the device link down and return the provider to a clean, reconnectable
+   * state. Without the reset, `initialised` stayed true after a disconnect: the
+   * player would keep sending ops at a device that was gone, and the attach
+   * effect (which only runs while uninitialised) never re-ran on reconnect.
+   *
+   * The reset happens even when the op errors — the backend drops the link on
+   * intent, so a failed ack is worth reporting but must not strand the UI in a
+   * state where the only way back is a page reload.
+   */
+  const disconnect = useCallback(async () => {
+    setError(undefined);
+    disconnectRequested.current = true;
+    try {
+      await interactive.disconnect?.();
+    } catch (e) {
+      if (e instanceof Error) {
+        setError(e.message ?? e.toString());
+      }
+    } finally {
+      setInitialised(false);
+      setCurrentScript(undefined);
+      setState(ConnectionState.Disconnected);
+    }
+  }, [interactive]);
 
   useEffect(() => {
     if (!stashConfig) {
@@ -300,6 +344,7 @@ export const InteractiveProvider: React.FC = ({ children }) => {
         serverOffset: config?.serverOffset ?? 0,
         initialised,
         initialise,
+        disconnect,
         uploadScript,
         sync,
       }}

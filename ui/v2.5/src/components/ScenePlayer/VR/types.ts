@@ -38,6 +38,25 @@ export const VR_GROUP_PAGE_SIZE = VR_GROUP_GRID_COLS * VR_GROUP_GRID_ROWS;
  */
 export const VR_GALLERY_PAGE_SIZE = 20;
 
+// ── Scene identity ────────────────────────────────────────────────────────────
+
+/**
+ * True when `id` addresses a real row in the Stash `scenes` table.
+ *
+ * The sidecar content modes synthesize Scene fragments for catalogs Stash has
+ * no record of, tagging them with a namespaced id ("faptap:…", "pmvhaven:…").
+ * Those fragments are structurally Scenes and flow through the same player, but
+ * any GraphQL mutation keyed on a scene id — sceneSaveActivity,
+ * sceneIncrementPlayCount, sceneUpdate — will fail server-side on them, because
+ * the resolver parses the id as an integer.
+ *
+ * Guard every such write with this. A falsy id means the lobby (no scene
+ * loaded), which is equally not writable.
+ */
+export function isStashSceneId(id: string | undefined | null): boolean {
+  return !!id && !id.includes(":");
+}
+
 /** A snapshot of the underlying <video> element, pulled each render frame. */
 export interface IVRPlaybackState {
   paused: boolean;
@@ -66,6 +85,12 @@ export interface IVRPlaybackState {
   loopRange: { start: number; end: number } | null;
   /** True while the whole scene is set to loop on end (native `video.loop`). */
   loopSceneActive: boolean;
+  /**
+   * Transient status line for the control bar, shown in place of the chapter
+   * title while set (e.g. "Generating haptics…" while a PMVHaven scene's
+   * funscript is being built server-side). Null when there is nothing to say.
+   */
+  notice: string | null;
 }
 
 /** A scene marker projected onto the VR scrubber + chapter list. */
@@ -227,10 +252,7 @@ export type VRControlAction =
   | { type: "setVrDwellMs"; ms: number }
   // ── Galleries (immersive Home content mode + XR gallery viewer) ─────────
   /** Switch the Home wall between the Scenes, Galleries and Movies grids. */
-  | {
-      type: "setContentMode";
-      mode: "scenes" | "galleries" | "movies" | "faptap" | "pmvhaven";
-    }
+  | { type: "setContentMode"; mode: VRContentMode }
   /** Open the XR gallery viewer for a gallery (thumbnail grid sub-view). */
   | { type: "openGallery"; galleryId: string; title?: string }
   /** Close the gallery viewer and return to the Home wall. */
@@ -376,6 +398,21 @@ export const DEFAULT_VR_PASSTHROUGH_SETTINGS: IVRPassthroughSettings = {
 // server rather than loading the whole library into memory. These types are the
 // contract between the React-side pager ([VRHomeLibrary]) and the session
 // manager, which orchestrates page/rail/count requests for [VRHomePanel].
+
+/**
+ * Home-wall content tab. Each tab is fed by its OWN data source — Scenes /
+ * Galleries / Movies read the local Stash database (GraphQL), while FapTap and
+ * PMVHaven read their sidecar databases over REST. A query change (search, sort,
+ * filter) must therefore only ever be pushed to the source behind the ACTIVE tab
+ * (see the session manager's applyActiveQuery): searching with PMVHaven selected
+ * must not hit the Stash DB, and vice-versa.
+ */
+export type VRContentMode =
+  | "scenes"
+  | "galleries"
+  | "movies"
+  | "faptap"
+  | "pmvhaven";
 
 /** Home media-type toggle. "favorites" is FapTap-mode-only (localStorage-backed). */
 export type VRMediaFilter = "all" | "vr" | "flat" | "funscript" | "favorites";
@@ -598,6 +635,12 @@ export interface IVRHandyState {
     | "connecting"
     | "syncing"
     | "uploading"
+    /**
+     * The scene's funscript doesn't exist yet and is being built from its audio
+     * (PMVHaven). Not a device state — the device is fine, it just has nothing
+     * to play until the analyzer finishes.
+     */
+    | "generating"
     | "ready"
     | "error";
   /** Human-readable label, e.g. "Ready" or "Error: ..." */

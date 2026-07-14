@@ -47,6 +47,7 @@ import { ManualStateContext } from "./Help/context";
 import { SettingsButton } from "./SettingsButton";
 import {
   faBars,
+  faBolt,
   faChartColumn,
   faCompass,
   faFilm,
@@ -64,6 +65,7 @@ import {
   faUser,
   faVideo,
 } from "@fortawesome/free-solid-svg-icons";
+import { fetchFaptapStatus } from "src/components/ScenePlayer/VR/faptapLibrary";
 import { baseURL } from "src/core/createClient";
 import { PatchComponent } from "src/patch";
 import * as GQL from "src/core/generated-graphql";
@@ -135,7 +137,21 @@ const messages = defineMessages({
     id: "file-browser",
     defaultMessage: "File Browser",
   },
+  faptap: {
+    id: "faptap",
+    defaultMessage: "FapTap",
+  },
 });
+
+// Shown only when the FapTap sidecar database is available (see menuItems
+// memo), so it sits outside allMenuItems and the interface.menuItems filter.
+const faptapMenuItem: IMenuItem = {
+  name: "faptap",
+  message: messages.faptap,
+  href: "/faptap",
+  icon: faBolt,
+  hotkey: "g f",
+};
 
 const allMenuItems: IMenuItem[] = [
   {
@@ -280,25 +296,38 @@ export const MainNavbar: React.FC = () => {
   const { data: systemStatusData } = GQL.useSystemStatusQuery();
   const hardwareCodecs = systemStatusData?.systemStatus.hardwareCodecs ?? [];
 
+  // The FapTap entry appears only when the sidecar database exists — same
+  // gate the immersive Home tab uses, checked once per app load.
+  const [faptapAvailable, setFaptapAvailable] = useState(false);
+  useEffect(() => {
+    fetchFaptapStatus().then((s) => setFaptapAvailable(s.available));
+  }, []);
+
   // Show all menu items by default, unless config says otherwise
   const menuItems = useMemo(() => {
     let cfgMenuItems = configuration?.interface.menuItems;
-    if (!cfgMenuItems) {
-      return allMenuItems;
+    let items = allMenuItems;
+    if (cfgMenuItems) {
+      // translate old movies menu item to groups
+      cfgMenuItems = cfgMenuItems.map((item) => {
+        if (item === "movies") {
+          return "groups";
+        }
+        return item;
+      });
+
+      items = allMenuItems.filter((menuItem) =>
+        cfgMenuItems!.includes(menuItem.name)
+      );
     }
 
-    // translate old movies menu item to groups
-    cfgMenuItems = cfgMenuItems.map((item) => {
-      if (item === "movies") {
-        return "groups";
-      }
-      return item;
-    });
-
-    return allMenuItems.filter((menuItem) =>
-      cfgMenuItems!.includes(menuItem.name)
-    );
-  }, [configuration]);
+    // availability-gated rather than config-gated: interface.menuItems predates
+    // this entry, so filtering by it would hide FapTap for every existing config
+    if (faptapAvailable) {
+      items = [...items, faptapMenuItem];
+    }
+    return items;
+  }, [configuration, faptapAvailable]);
 
   const intl = useIntl();
 

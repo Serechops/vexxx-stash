@@ -19,6 +19,7 @@ import {
   IVRFilterEntry,
   IVRGalleryEntry,
   IVRGroupEntry,
+  VRContentMode,
   VRMediaFilter,
   VRSortMode,
   VR_SCENE_GRID_COLS,
@@ -211,7 +212,7 @@ const ORANGE = "rgba(250,140,30,";
 type FilterTab = "studios" | "performers";
 type MediaFilter = VRMediaFilter;
 type SortMode = VRSortMode;
-type ContentMode = "scenes" | "galleries" | "movies" | "faptap" | "pmvhaven";
+type ContentMode = VRContentMode;
 
 const ONBOARDING_SEEN_KEY = "vrOnboardingSeen";
 
@@ -324,9 +325,6 @@ export class VRHomePanel extends VRCanvasPanel {
   // Live free-text search (typed on the system keyboard), mirrored from the
   // manager so the pill + subtitle track keystrokes as they arrive.
   private searchText: string | null = null;
-  // Deadline for the "no VR keyboard" hint flashed on the search pill when the
-  // browser can't show the WebXR system keyboard.
-  private searchUnsupportedUntil = 0;
 
   // Content mode: the wall shows either the scene grid or the gallery grid. The
   // page-slide state (page/offset/anim) and the rail are shared — only one grid
@@ -727,13 +725,6 @@ export class VRHomePanel extends VRCanvasPanel {
       this.searchText = t;
       this.markDirty();
     }
-  }
-
-  /** Flash a "no VR keyboard" hint on the search pill (unsupported browser). */
-  showSearchUnsupported() {
-    this.searchUnsupportedUntil = performance.now() + 2500;
-    this.markDirty();
-    setTimeout(() => this.markDirty(), 2600);
   }
 
   setCurrentSceneId(id: string | null) {
@@ -2451,7 +2442,6 @@ export class VRHomePanel extends VRCanvasPanel {
     const y = SEARCH_Y;
     const x = this.cw - PAD - SEARCH_EXIT_W - SEARCH_EXIT_GAP - w;
     const active = !!this.searchText;
-    const unsupported = performance.now() < this.searchUnsupportedUntil;
     const hovered =
       this.hoveredId === "searchOpen" || this.hoveredId === "searchClear";
 
@@ -2511,10 +2501,7 @@ export class VRHomePanel extends VRCanvasPanel {
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
     let label: string;
-    if (unsupported) {
-      ctx.fillStyle = `${ORANGE}0.95)`;
-      label = "🔍  No VR keyboard";
-    } else if (active) {
+    if (active) {
       ctx.fillStyle = `${ACCENT}0.95)`;
       label = `🔍  “${this.searchText}”`;
     } else {

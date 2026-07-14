@@ -795,11 +795,25 @@ func (s *Server) getPmvhavenRoutes() chi.Router {
 		}
 		return ""
 	}
+	// ffmpeg: the configured path is only set when the user pinned one, so fall
+	// back to the binary stash itself resolved at startup (config dir, then PATH)
+	// rather than to a bare "ffmpeg" — that resolves against the working
+	// directory, where stash's own ffmpeg.exe usually sits, and Go refuses to run
+	// an executable found there (exec.ErrDot).
+	ffmpegPath := func() string {
+		if v := config.GetInstance().GetFFMpegPath(); v != "" {
+			return v
+		}
+		if s.manager.FFMpeg != nil {
+			return s.manager.FFMpeg.Path()
+		}
+		return ""
+	}
 	db := pmvhaven.New(dir)
 	gen := pmvhaven.NewGenerator(
 		db,
 		dir,
-		func() string { return config.GetInstance().GetFFMpegPath() },
+		ffmpegPath,
 		func() string { return pluginSetting("pythonPath") },
 		func() string { return pluginSetting("analyzerPath") },
 		func() string { return pluginSetting("smooth") },

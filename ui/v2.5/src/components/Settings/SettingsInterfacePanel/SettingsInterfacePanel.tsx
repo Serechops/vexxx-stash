@@ -104,6 +104,7 @@ export const SettingsInterfacePanel: React.FC = PatchComponent(
       serverOffset: interactiveServerOffset,
       initialised: interactiveInitialised,
       initialise: initialiseInteractive,
+      disconnect: disconnectInteractive,
       sync: interactiveSync,
     } = React.useContext(InteractiveContext);
 
@@ -133,6 +134,20 @@ export const SettingsInterfacePanel: React.FC = PatchComponent(
         localHandy.onStatus = undefined;
       };
     }, [localHandy]);
+
+    // Disconnecting goes through the provider (not the client directly) so the
+    // connection state resets with it; awaiting it here keeps the button
+    // disabled until the backend has actually let go of the device, and keeps a
+    // failed teardown from surfacing as an unhandled rejection.
+    const [handyDisconnecting, setHandyDisconnecting] = useState(false);
+    async function disconnectLocalHandy() {
+      setHandyDisconnecting(true);
+      try {
+        await disconnectInteractive();
+      } finally {
+        setHandyDisconnecting(false);
+      }
+    }
 
     function saveLightboxSettings(v: Partial<GQL.ConfigImageLightboxInput>) {
       // save in local forage as well for consistency
@@ -1045,21 +1060,29 @@ export const SettingsInterfacePanel: React.FC = PatchComponent(
                 </div>
               </div>
               <div>
-                {localHandyStatus?.connected ? (
+                {localHandyStatus?.connected ||
+                interactiveState === ConnectionState.Connecting ? (
+                  // The same teardown cancels an in-flight scan, so it doubles
+                  // as the way out of a scan that isn't finding the device.
                   <Button
                     variant="contained"
                     color="error"
-                    onClick={() => localHandy?.disconnect()}
+                    disabled={handyDisconnecting}
+                    onClick={() => disconnectLocalHandy()}
                   >
                     {intl.formatMessage({
-                      id: "config.ui.handy_connection.local.disconnect",
+                      id: handyDisconnecting
+                        ? "config.ui.handy_connection.local.disconnecting"
+                        : localHandyStatus?.connected
+                        ? "config.ui.handy_connection.local.disconnect"
+                        : "actions.cancel",
                     })}
                   </Button>
                 ) : (
                   <Button
                     variant="contained"
                     disabled={
-                      interactiveState === ConnectionState.Connecting ||
+                      handyDisconnecting ||
                       interactiveState === ConnectionState.Syncing
                     }
                     onClick={() => initialiseInteractive()}

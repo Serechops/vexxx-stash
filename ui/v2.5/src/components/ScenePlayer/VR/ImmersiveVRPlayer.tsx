@@ -30,7 +30,11 @@ import { IVRSceneInfo } from "./VRInfoPanels";
 import { useVRPlayback } from "./useVRPlayback";
 import { VRHomeLibrary } from "./vrHomeLibrary";
 import { FapTapHomeLibrary, buildFapSceneFragment } from "./faptapLibrary";
-import { PmvHavenHomeLibrary, buildPmvSceneFragment } from "./pmvhavenLibrary";
+import {
+  PmvHavenHomeLibrary,
+  buildPmvSceneFragment,
+  pmvhavenFunscriptPending,
+} from "./pmvhavenLibrary";
 import { getPlatformURL } from "src/core/createClient";
 import { sceneSupportsAlphaPassthrough } from "./passthrough";
 import { VRGalleryLibrary } from "./vrGalleryLibrary";
@@ -382,10 +386,29 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
   const ctxRef = useRef(interactiveCtx);
   ctxRef.current = interactiveCtx;
 
+  // Where the scene's funscript stands: "generating" while it is being built
+  // from the audio server-side (PMVHaven only — see the funscript effect, which
+  // both triggers and awaits it), "failed" if that never produced one. Read
+  // per-frame by getState/buildHandyState, so it's a ref, not state: flipping it
+  // must not re-render the immersive tree mid-session.
+  const scriptStatusRef = useRef<"idle" | "generating" | "failed">("idle");
+
   // Build the Handy connection snapshot the VR panel renders each frame. Stable
   // identity (reads through ctxRef), so it never re-creates the XR session.
   const buildHandyState = useCallback((): IVRHandyState => {
     const ctx = ctxRef.current;
+    // A script that doesn't exist yet outranks the device's own state: the
+    // device is connected and fine, it simply has nothing to play until the
+    // analyzer finishes. Reporting "Uploading…" for the minute that takes tells
+    // the user nothing about what is actually happening.
+    if (scriptStatusRef.current === "generating") {
+      return {
+        status: "generating",
+        label: "Generating haptics…",
+        configured: !!ctx.interactive.handyKey,
+        active: handyArmedRef.current,
+      };
+    }
     const status = handyStatusFor(ctx.state);
     const configured = !!ctx.interactive.handyKey;
     let label: string;
@@ -464,10 +487,20 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
     abLoopPointA: null,
     loopRange: null,
     loopSceneActive: false,
+    notice: null,
   });
   const getState = useCallback((): IVRPlaybackState => {
     const st = stateRef.current;
     const v = videoRef.current;
+    // Surfaced on the control bar's top line, where the user is already looking
+    // for playback status — the Handy panel says the same thing, but it's a
+    // panel they have to open, and this shows with no device in the picture.
+    st.notice =
+      scriptStatusRef.current === "generating"
+        ? "Generating haptics for this scene…"
+        : scriptStatusRef.current === "failed"
+        ? "Haptics unavailable — generation failed"
+        : null;
     if (!v) {
       st.paused = true;
       st.currentTime = 0;
@@ -1300,29 +1333,62 @@ const ImmersiveVRPlayer: React.FC<IImmersiveVRPlayerProps> = ({
     };
   }, [liveScene.paths.vtt]);
 
-  // Generate the funscript heatmap strip for the scrubber.
+  // Fetch the scene's funscript: it feeds the scrubber heatmap strip, and for a
+  // PMVHaven scene it is also what *creates* the script in the first place —
+  // those videos ship no authored funscript, so the endpoint builds one from the
+  // audio (ffmpeg → beat analyzer) on the first request and blocks for the tens
+  // of seconds that takes.
+  //
+  // Deliberately independent of the Handy: a script belongs to the scene, not to
+  // a device. It is generated on every launch whether or not a device is
+  // connected, armed, or even configured — so the heatmap draws for everyone,
+  // the cache is warm for a device that gets armed mid-scene, and arming later
+  // costs a cache read instead of a minute of analysis. Nothing here reads the
+  // interactive context, and the manager is only consulted when there is a
+  // heatmap to hand it: an XR session that isn't up yet must not cancel the
+  // generation, it just means nobody is drawing a strip for it.
   useEffect(() => {
-    const manager = managerRef.current;
-    if (!manager) return;
     if (!liveScene.interactive || !liveScene.paths.funscript) {
-      manager.setHeatmap(null);
+      managerRef.current?.setHeatmap(null);
       return;
     }
+    const url = liveScene.paths.funscript;
     let cancelled = false;
-    fetch(liveScene.paths.funscript)
-      .then((r) => r.json())
-      .then((data) => {
+
+    (async () => {
+      // Probe the cache first, so the HUD can say "generating" for the wait that
+      // follows rather than appearing to hang. A cache hit reports nothing and
+      // falls straight through to the fetch.
+      const generating = await pmvhavenFunscriptPending(liveScene.id);
+      if (cancelled) return;
+      scriptStatusRef.current = generating ? "generating" : "idle";
+      try {
+        const data = await fetch(url).then((r) => r.json());
         if (cancelled) return;
+        scriptStatusRef.current = "idle";
         const actions = data?.actions;
         if (Array.isArray(actions) && actions.length >= 2) {
-          manager.setHeatmap(generateFunscriptWaveform(actions));
+          managerRef.current?.setHeatmap(generateFunscriptWaveform(actions));
         }
-      })
-      .catch(() => undefined);
+      } catch {
+        if (cancelled) return;
+        // Generation is the only failure worth reporting: it depends on ffmpeg
+        // and python being reachable, and a silent failure here reads as "the
+        // haptics are just broken" with nothing to act on.
+        scriptStatusRef.current = generating ? "failed" : "idle";
+      }
+    })();
+
     return () => {
       cancelled = true;
+      scriptStatusRef.current = "idle";
     };
-  }, [liveScene.interactive, liveScene.paths.funscript, videoEl]);
+    // videoEl is a dep because the XR manager is built from it: re-running when
+    // it changes is what gets the heatmap onto a manager that didn't exist when
+    // the fetch resolved. The re-fetch that costs is a cache read (and if it
+    // lands mid-generation, the backend serializes it onto the same run rather
+    // than starting a second one).
+  }, [liveScene.id, liveScene.interactive, liveScene.paths.funscript, videoEl]);
 
   // Reset the active-funscript selection when the scene changes, seeding it
   // from this viewer's remembered pick for the scene (falling back to the

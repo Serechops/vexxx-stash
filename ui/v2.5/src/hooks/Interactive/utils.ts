@@ -26,6 +26,9 @@ export interface IInteractiveClientProvider {
  */
 export interface IInteractiveClient {
   connect(): Promise<void>;
+  // Optional: transports that own a persistent device link (local Bluetooth)
+  // can be torn down on request. The cloud API has no link to close.
+  disconnect?(): Promise<void>;
   handyKey: string;
   uploadScript: (funscriptPath: string, apiKey?: string) => Promise<void>;
   sync(): Promise<number>;

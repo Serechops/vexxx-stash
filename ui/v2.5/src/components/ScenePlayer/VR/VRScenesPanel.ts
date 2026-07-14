@@ -116,7 +116,6 @@ export class VRScenesPanel extends VRCanvasPanel {
   // actual query (VRCarouselLibrary) and pushes the live state back down.
   private searchText: string | null = null;
   private sortMode: "recent" | "rating" | "title" = "recent";
-  private searchUnsupportedUntil = 0;
 
   // Drag/tap resolution state for the current trigger press.
   private pressY: number | null = null;
@@ -239,12 +238,6 @@ export class VRScenesPanel extends VRCanvasPanel {
     }
   }
 
-  /** Flash a "no VR keyboard" hint on the search pill (unsupported browser). */
-  showSearchUnsupported() {
-    this.searchUnsupportedUntil = performance.now() + 2500;
-    this.markDirty();
-    setTimeout(() => this.markDirty(), 2600);
-  }
 
   /**
    * No-op: the row list shows a floating full-size preview via the session
@@ -412,7 +405,6 @@ export class VRScenesPanel extends VRCanvasPanel {
     const active = !!this.searchText;
     const searchHovered =
       this.hoveredId === "searchOpen" || this.hoveredId === "searchClear";
-    const unsupported = performance.now() < this.searchUnsupportedUntil;
 
     this.roundRect(sx, y, sw, h, h / 2);
     ctx.fillStyle = active
@@ -458,10 +450,8 @@ export class VRScenesPanel extends VRCanvasPanel {
     ctx.font = active ? "600 16px sans-serif" : "500 16px sans-serif";
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
-    ctx.fillStyle = unsupported ? VRT.dangerText : active ? VRT.textHi : VRT.textDim;
-    const label = unsupported
-      ? "Search unavailable"
-      : active
+    ctx.fillStyle = active ? VRT.textHi : VRT.textDim;
+    const label = active
       ? this.fitText(this.searchText!, sw - 32 - clearW)
       : "🔍  Search scenes…";
     ctx.fillText(label, sx + 16, y + h / 2 + 1);

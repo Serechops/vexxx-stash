@@ -34,7 +34,7 @@ import {
 const PER_PAGE = VR_SCENE_PAGE_SIZE;
 
 /** Build an absolute /faptap URL honouring the app base path + dev port. */
-function faptapURL(path: string, params?: Record<string, string>): string {
+export function faptapURL(path: string, params?: Record<string, string>): string {
   const url = getPlatformURL("faptap/" + path);
   if (params) {
     for (const [k, v] of Object.entries(params)) {
@@ -44,19 +44,20 @@ function faptapURL(path: string, params?: Record<string, string>): string {
   return url.toString();
 }
 
-async function getJSON<T>(path: string, params?: Record<string, string>): Promise<T> {
+export async function getJSON<T>(path: string, params?: Record<string, string>): Promise<T> {
   const res = await fetch(faptapURL(path, params), { credentials: "include" });
   if (!res.ok) throw new Error(`faptap ${path} ${res.status}`);
   return (await res.json()) as T;
 }
 
 // ── Wire shapes returned by the Go handlers ──────────────────────────────────
+// (exported for the 2D /faptap page, which talks to the same route group)
 
-interface RawTag {
+export interface RawTag {
   id: string;
   name: string;
 }
-interface RawCard {
+export interface RawCard {
   id: string;
   name: string;
   thumbnail_url: string;
@@ -68,19 +69,19 @@ interface RawCard {
   has_funscript: boolean;
   tags: RawTag[];
 }
-interface RawListResult {
+export interface RawListResult {
   videos: RawCard[];
   total: number;
 }
-interface RawDetail extends RawCard {
+export interface RawDetail extends RawCard {
   description: string;
   creator: string;
 }
-interface RawSources {
+export interface RawSources {
   stream: string;
   fallbacks: string[];
 }
-interface RawRailEntry {
+export interface RawRailEntry {
   id: string;
   name: string;
   count: number;
@@ -91,7 +92,7 @@ interface RawRailEntry {
  * browser never makes a cross-origin request (faptap.net has no CORS headers).
  * CDN URLs (BunnyCDN etc.) are returned unchanged — they already work.
  */
-function proxyIfNeeded(url: string | null | undefined): string | null {
+export function proxyIfNeeded(url: string | null | undefined): string | null {
   if (!url) return null;
   if (url.startsWith("https://faptap.net/")) {
     return faptapURL("thumb", { url });
@@ -365,7 +366,12 @@ export class FapTapHomeLibrary implements IVRHomeDataSource {
         ? this.query.filter.id
         : "";
     try {
-      return await getJSON<IVRHomeCounts>("counts", { tag });
+      // Counted under the same predicate as the grid — search included, or the
+      // media chips report whole-library totals over a searched-down wall.
+      return await getJSON<IVRHomeCounts>("counts", {
+        tag,
+        q: this.query.search?.trim() ?? "",
+      });
     } catch {
       return { all: 0, vr: 0, flat: 0, funscript: 0 };
     }

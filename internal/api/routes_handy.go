@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"runtime/debug"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
@@ -116,6 +117,18 @@ func (rs handyRoutes) WebSocket(w http.ResponseWriter, r *http.Request) {
 		// Ops run concurrently; the client serializes via per-seq acks where
 		// ordering matters. This keeps the read loop free for emergency stop.
 		go func(op handyOp) {
+			// These goroutines are outside the middleware chain's recover, so an
+			// unhandled panic anywhere in the BLE stack would take the whole
+			// server down instead of just failing the op.
+			defer func() {
+				if r := recover(); r != nil {
+					logger.Errorf("[handy] panic in op %q: %v\n%s", op.Op, r, debug.Stack())
+					select {
+					case outbound <- handyReply{Type: "error", Seq: op.Seq, Message: "internal error handling op"}:
+					case <-done:
+					}
+				}
+			}()
 			if err := rs.execute(r.Context(), mgr, op); err != nil {
 				logger.Warnf("[handy] op %q failed: %v", op.Op, err)
 				select {

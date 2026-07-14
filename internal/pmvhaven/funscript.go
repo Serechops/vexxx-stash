@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -170,6 +171,28 @@ func (g *Generator) resolve(p func() string, def string) string {
 	return def
 }
 
+// lookExe resolves an executable name to a path exec will accept.
+//
+// Go refuses to run a name that PATH resolved relative to the working directory
+// (exec.ErrDot, a security measure against a hijacked cwd). On Windows the
+// working directory is always searched, and stash's own directory typically
+// holds ffmpeg.exe — so a bare "ffmpeg" would resolve there and then be
+// rejected, which is not what the user means by "the ffmpeg next to stash".
+// Absolutise that case; leave every other lookup failure to exec, whose error
+// ("executable file not found in %PATH%") is the clearer one to report.
+func lookExe(name string) string {
+	path, err := exec.LookPath(name)
+	if errors.Is(err, exec.ErrDot) {
+		if abs, absErr := filepath.Abs(path); absErr == nil {
+			return abs
+		}
+	}
+	if err != nil {
+		return name
+	}
+	return path
+}
+
 // runCmd runs an external command with the given context. stdout, when non-nil,
 // captures the command's standard output; stderr is folded into the error.
 func runCmd(ctx context.Context, name string, args []string, stdout *bytes.Buffer) error {
@@ -177,7 +200,7 @@ func runCmd(ctx context.Context, name string, args []string, stdout *bytes.Buffe
 	cctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
 
-	cmd := exec.CommandContext(cctx, name, args...)
+	cmd := exec.CommandContext(cctx, lookExe(name), args...)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	if stdout != nil {

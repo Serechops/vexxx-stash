@@ -33,7 +33,11 @@ type ServerMessage =
   | { type: "ack"; seq: number }
   | { type: "error"; seq: number; message?: string };
 
-const OP_TIMEOUT_MS = 40000; // connect can scan for up to 30s
+// Ops are bounded client-side so a wedged backend surfaces as an error instead
+// of a spinner. Only connect is allowed to be slow — it scans for the device.
+const OP_TIMEOUT_MS = 15000;
+const CONNECT_TIMEOUT_MS = 40000; // backend scans for up to 30s
+const DISCONNECT_TIMEOUT_MS = 8000; // teardown is local to the backend; it's quick or it's broken
 const SYNC_INTERVAL_MS = 2000;
 
 function wsUrl(): string {
@@ -49,6 +53,8 @@ export class LocalHandyInteractive implements IInteractiveClient {
 
   private _connected = false;
   private _playing = false;
+  private _playInFlight: Promise<void> | null = null;
+  private _nextPlayPos: number | null = null;
   private _looping = false;
   private _scriptOffset: number;
   private _lastSyncSent = 0;
@@ -120,7 +126,15 @@ export class LocalHandyInteractive implements IInteractiveClient {
         if (msg.type === "status") {
           this._status = msg;
           this._connected = msg.connected;
-          this._playing = msg.connected && msg.playState === 1;
+          // Track the backend's playback *intent* (`playing`), not the device's
+          // instantaneous HSP state: that dips to paused/starving whenever the
+          // buffer runs dry mid-scene, and treating those blips as "stopped"
+          // made ensurePlaying re-issue a full play — a stream rebuild — each
+          // time. The backend recovers a starve on its own; it clears `playing`
+          // only when playback is genuinely over.
+          if (!this._playInFlight) {
+            this._playing = msg.connected && msg.playing;
+          }
           this.onStatus?.(msg);
           return;
         }
@@ -139,14 +153,17 @@ export class LocalHandyInteractive implements IInteractiveClient {
     return this._wsOpen;
   }
 
-  private async send(op: Record<string, unknown>): Promise<void> {
+  private async send(
+    op: Record<string, unknown>,
+    timeoutMs: number = OP_TIMEOUT_MS
+  ): Promise<void> {
     await this.ensureSocket();
     const seq = ++this._seq;
     return new Promise<void>((resolve, reject) => {
       const timer = window.setTimeout(() => {
         this._pending.delete(seq);
         reject(new Error(`Local Handy op ${String(op.op)} timed out`));
-      }, OP_TIMEOUT_MS);
+      }, timeoutMs);
       this._pending.set(seq, {
         resolve: () => {
           window.clearTimeout(timer);
@@ -171,7 +188,7 @@ export class LocalHandyInteractive implements IInteractiveClient {
   // ── IInteractiveClient ────────────────────────────────────────────────
 
   async connect(): Promise<void> {
-    await this.send({ op: "connect" });
+    await this.send({ op: "connect" }, CONNECT_TIMEOUT_MS);
     this._connected = true;
   }
 
@@ -195,14 +212,18 @@ export class LocalHandyInteractive implements IInteractiveClient {
     return this._connected;
   }
 
-  /** Tears down the BLE link on the backend and marks us disconnected. */
+  /**
+   * Tears down the BLE link on the backend and marks us disconnected.
+   *
+   * Local state is cleared up front, not in a `finally`: the backend drops the
+   * link (and suppresses auto-reconnect) the moment it sees the op, so even if
+   * the ack never comes back this client must not keep claiming a device. A
+   * rejection here is worth surfacing, but it doesn't mean we're still connected.
+   */
   async disconnect(): Promise<void> {
-    try {
-      await this.send({ op: "disconnect" });
-    } finally {
-      this._connected = false;
-      this._playing = false;
-    }
+    this._connected = false;
+    this._playing = false;
+    await this.send({ op: "disconnect" }, DISCONNECT_TIMEOUT_MS);
   }
 
   async configure(config: Partial<IDeviceSettings>): Promise<void> {
@@ -247,23 +268,66 @@ export class LocalHandyInteractive implements IInteractiveClient {
     await this.send({ op: "load", funscript });
   }
 
+  /**
+   * Start (or seek) script playback.
+   *
+   * A play op is not cheap: on a fresh stream the backend feeds the device
+   * buffer over BLE, which takes a second or more. The players call play on
+   * `playing` and `seeking` — and the 2D player deliberately fires a second one
+   * a beat later — so several can be in flight at once, each of which tears the
+   * device's stream down and rebuilds it. That pile-up is what kept the device
+   * silent for the first minute of a scene: it never finished starting.
+   *
+   * So: one play at a time. A play requested while one is in flight is folded
+   * into a single follow-up with the newest position (the older ones describe a
+   * video position that no longer exists).
+   */
   async play(position: number): Promise<void> {
-    await this.send({
-      op: "play",
-      position: Math.round(position * 1000 + this._scriptOffset),
-      rate: 1.0,
-      loop: this._looping,
-    });
-    this._playing = true;
+    this._playing = true; // intent — keeps ensurePlaying from re-arming
+    if (this._playInFlight) {
+      this._nextPlayPos = position;
+      return this._playInFlight;
+    }
+    this._playInFlight = this.runPlay(position);
+    return this._playInFlight;
+  }
+
+  private async runPlay(position: number): Promise<void> {
+    try {
+      for (;;) {
+        this._nextPlayPos = null;
+        await this.send({
+          op: "play",
+          position: Math.round(position * 1000 + this._scriptOffset),
+          rate: 1.0,
+          loop: this._looping,
+        });
+        if (this._nextPlayPos === null) return;
+        position = this._nextPlayPos;
+      }
+    } catch (e) {
+      this._playing = false;
+      throw e;
+    } finally {
+      this._playInFlight = null;
+      this._nextPlayPos = null;
+    }
   }
 
   async pause(): Promise<void> {
-    if (!this._connected) return;
-    await this.send({ op: "pause" });
+    // Drop any follow-up play the in-flight one was going to chain into: the
+    // video is stopping, and its position is stale the moment it is queued.
+    this._nextPlayPos = null;
     this._playing = false;
+    // Sent even while the device link is down: the backend treats a pause as
+    // playback *intent*, and it must land so that an auto-reconnect mid-scene
+    // doesn't resume a scene the user has since paused.
+    await this.send({ op: "pause" });
   }
 
   async ensurePlaying(position: number): Promise<void> {
+    // A play is already on its way; it carries a fresher position than we do.
+    if (this._playInFlight) return;
     if (this._playing) {
       // lightweight drift correction, throttled; the backend throttles again
       const now = Date.now();

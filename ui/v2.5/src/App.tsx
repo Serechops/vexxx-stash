@@ -108,6 +108,9 @@ const Renamer = lazyComponent(
 const FileBrowser = lazyComponent(
   () => import("./components/FileBrowser/FileBrowser")
 );
+const FapTap = lazyComponent(
+  () => import("./components/FapTap/FapTap")
+);
 
 const appleRendering = isPlatformUniquelyRenderedByApple();
 
@@ -297,6 +300,7 @@ export const App: React.FC = () => {
             <Route path="/groups" component={Groups} />
             <Route path="/playlists" component={Playlists} />
             <Route path="/discover" component={Discover} />
+            <Route path="/faptap" component={FapTap} />
             <Route path="/stats" component={Stats} />
             <ProtectedRoute adminOnly path="/settings" component={Settings} />
             <ProtectedRoute

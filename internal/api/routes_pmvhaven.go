@@ -44,6 +44,7 @@ func (rs pmvhavenRoutes) Routes() chi.Router {
 		r.Get("/", rs.video)
 		r.Get("/sources", rs.sources)
 		r.Get("/funscript", rs.funscript)
+		r.Get("/funscript/status", rs.funscriptStatus)
 	})
 
 	return r
@@ -189,7 +190,7 @@ func (rs pmvhavenRoutes) sources(w http.ResponseWriter, r *http.Request) {
 
 func (rs pmvhavenRoutes) counts(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
-	c, err := rs.db.CountsFor(q.Get("tag"), q.Get("star"))
+	c, err := rs.db.CountsFor(q.Get("tag"), q.Get("star"), q.Get("q"))
 	if err != nil {
 		pmvhavenErr(w, err)
 		return
@@ -242,6 +243,15 @@ func (rs pmvhavenRoutes) funscript(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "public, max-age=86400")
 	_, _ = io.Copy(w, f)
+}
+
+// funscriptStatus reports whether the video's funscript is already cached. The
+// funscript endpoint itself blocks for the whole ffmpeg + analyzer pipeline on a
+// miss, which is tens of seconds; the player probes this first so it can tell the
+// user a script is being generated instead of appearing to hang.
+func (rs pmvhavenRoutes) funscriptStatus(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "videoId")
+	writeJSON(w, map[string]interface{}{"cached": rs.gen.Cached(id)})
 }
 
 // pmvhavenErr maps the unavailable sentinel onto a clean "locked" payload and

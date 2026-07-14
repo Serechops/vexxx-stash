@@ -439,13 +439,16 @@ func (d *DB) FunscriptPath(id string) (string, error) {
 	return p.String, nil
 }
 
-// CountsFor returns per-media-type counts under the active tag filter.
-func (d *DB) CountsFor(tagID string) (*Counts, error) {
+// CountsFor returns per-media-type counts under the active tag filter and free-
+// text query. The query belongs here because the counts label the media-toggle
+// chips above a grid that IS search-filtered — counting without it reports
+// whole-library totals over a searched-down wall.
+func (d *DB) CountsFor(tagID, query string) (*Counts, error) {
 	db, err := d.conn()
 	if err != nil {
 		return nil, err
 	}
-	base := ListParams{TagID: tagID}
+	base := ListParams{TagID: tagID, Query: query}
 	count := func(media string) (int, error) {
 		p := base
 		p.Media = media

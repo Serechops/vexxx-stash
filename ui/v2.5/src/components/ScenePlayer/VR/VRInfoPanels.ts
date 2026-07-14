@@ -12,7 +12,12 @@
  */
 import * as THREE from "three";
 import TextUtils from "src/utils/text";
-import { VRControlAction, IVRHandyState, VRStrokeStatus } from "./types";
+import {
+  VRControlAction,
+  IVRHandyState,
+  VRStrokeStatus,
+  isStashSceneId,
+} from "./types";
 import { vrAudio } from "./vrAudio";
 import { VRT } from "./vrTheme";
 
@@ -1257,8 +1262,7 @@ export class VRInfoPanel extends VRCanvasPanel {
 
   /** True when the loaded content is a Stash scene the actions can write to. */
   private get canEditScene(): boolean {
-    const id = this.info.sceneId;
-    return !!id && !id.includes(":");
+    return isStashSceneId(this.info.sceneId);
   }
 
   /**
@@ -1589,6 +1593,7 @@ export class VRHandyPanel extends VRCanvasPanel {
       connecting: "rgba(255,193,7,0.85)",
       syncing: "rgba(255,193,7,0.85)",
       uploading: "rgba(33,150,243,0.85)",
+      generating: "rgba(156,39,176,0.85)",
       error: "rgba(244,67,54,0.85)",
       missing: "rgba(255,255,255,0.25)",
       disconnected: "rgba(255,255,255,0.25)",
@@ -1654,6 +1659,15 @@ export class VRHandyPanel extends VRCanvasPanel {
       // Armed but not yet connected — offer Connect (and a Stop to back out).
       this.drawActionBtn(this.cw - 116, 20, 96, 52, "Stop", "handyActivate", "red");
       this.drawActionBtn(this.cw - 224, 20, 96, 52, "Connect", "handyConnect");
+    } else if (hs.status === "generating") {
+      // The device is fine; the scene just has no script yet. Say what the wait
+      // is for — it runs once per video and takes a while.
+      this.drawActionBtn(this.cw - 116, 20, 96, 52, "Stop", "handyActivate", "red");
+      ctx.font = "500 18px sans-serif";
+      ctx.textAlign = "right";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "rgba(255,255,255,0.55)";
+      ctx.fillText("Analyzing audio…", this.cw - 232, 46);
     } else {
       this.drawActionBtn(this.cw - 116, 20, 96, 52, "Stop", "handyActivate", "red");
       ctx.font = "500 18px sans-serif";

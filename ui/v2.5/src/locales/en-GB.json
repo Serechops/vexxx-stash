@@ -777,6 +777,7 @@
         "local": {
           "connect": "Scan & connect",
           "disconnect": "Disconnect",
+          "disconnecting": "Disconnecting…",
           "scanning": "Scanning…",
           "searching": "Not connected — put the Handy in Bluetooth mode, then Scan & connect",
           "status_heading": "Bluetooth Device"
@@ -1305,6 +1306,7 @@
   "funscript_detect": "Detect from folder",
   "funscript_detect_success": "Funscripts detected",
   "funscripts": "Funscripts",
+  "faptap": "FapTap",
   "file-browser": "File Browser",
   "file-browser.select_folder": "Select a folder to view its contents",
   "file-browser.no_files": "No scenes, images, or galleries in this folder.",

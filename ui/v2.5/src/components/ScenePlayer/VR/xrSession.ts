@@ -48,7 +48,7 @@ import { VRScenesPanel, IVRSceneEntry } from "./VRScenesPanel";
 import { VRCarouselLibrary } from "./VRCarouselLibrary";
 import { VRHomePanel } from "./VRHomePanel";
 import { loadBrowseState, saveBrowseState } from "./vrBrowseState";
-import { VRSystemKeyboard } from "./vrKeyboard";
+import { VRKeyboardPanel, IVRKeyboardOpenOptions } from "./VRKeyboardPanel";
 import { fetchFaptapStatus } from "./faptapLibrary";
 import { fetchPmvhavenStatus } from "./pmvhavenLibrary";
 import { VRGalleryViewerPanel } from "./VRGalleryViewerPanel";
@@ -75,6 +75,7 @@ import {
   IVRGalleryDataSource,
   IVRGroupDataSource,
   IVRFilterEntry,
+  VRContentMode,
   VRMediaFilter,
   VRSortMode,
   VR_SCENE_PAGE_SIZE,
@@ -85,6 +86,18 @@ import { vrAudio } from "./vrAudio";
 import { VRStatusMonitor } from "./vrStatus";
 
 const DOME_RADIUS = 500;
+
+/**
+ * Which database backs a content tab. Scenes / Galleries / Movies all read the
+ * local Stash DB (and share its studio/performer ids); FapTap and PMVHaven each
+ * read their own sidecar. Used to gate query pushes and to decide when a carried
+ * rail filter has crossed into a source that can't understand it.
+ */
+function sourceOf(mode: VRContentMode): "stash" | "faptap" | "pmvhaven" {
+  if (mode === "faptap") return "faptap";
+  if (mode === "pmvhaven") return "pmvhaven";
+  return "stash";
+}
 
 // Opaque blackout shell radius — outside the video dome (500) and the lobby
 // sky (470) but inside the camera far plane (2000). In an immersive-ar session
@@ -552,6 +565,9 @@ export class XRSessionManager {
   private pmvhavenData: IVRHomeDataSource | null = null;
   // True while the PMVHaven content mode is showing (its source feeds the grid).
   private pmvhavenMode = false;
+  // The Home wall's active content tab. Every query change (search / sort /
+  // filter) is pushed ONLY to the source behind this tab — see applyActiveQuery.
+  private contentMode: VRContentMode = "scenes";
   // Cinema room shown when a flat (non-VR) scene is playing.
   private lobbyMode = false;
 
@@ -615,11 +631,14 @@ export class XRSessionManager {
   private sortMode: VRSortMode = "recent";
   // Display label of the active homeFilter (for the pill + persistence).
   private homeFilterLabel: string | null = null;
-  // Free-text search (typed on the system keyboard), part of the live query.
+  // Free-text search (typed on the in-scene keyboard), part of the live query.
   private homeSearch: string | null = null;
-  // Meta Quest Browser system keyboard, summoned from the Home wall's search
-  // pill. Keystrokes re-query live (debounced below).
-  private keyboard = new VRSystemKeyboard();
+  // In-scene ray-tapped keyboard, opened from the Home wall's / Scenes panel's
+  // search pill. Keystrokes re-query live (debounced below). It replaces the
+  // Meta system keyboard, which crashed the Quest browser on summon and existed
+  // on no other headset (see VRKeyboardPanel).
+  private kbPanel: VRKeyboardPanel | null = null;
+  private keyboardOpen = false;
   private searchDebounce: number | null = null;
   // Cached rail lists, kept for resolving a tapped filter's display label.
   private railStudios: IVRFilterEntry[] = [];
@@ -851,6 +870,15 @@ export class XRSessionManager {
     home.setRenderState(0);
     if (opts.homeSettings) home.setSettings(opts.homeSettings);
 
+    // In-scene keyboard — floats in front of the lower half of whatever is
+    // behind it (Home wall in the lobby, control bar during playback) while a
+    // search is being typed. Hidden and out of the raycast set otherwise.
+    const kb = new VRKeyboardPanel(() => this.closeKeyboard());
+    this.kbPanel = kb;
+    this.uiGroup.add(kb.object);
+    this.layoutKeyboardPanel(kb);
+    kb.setRenderState(0);
+
     this.lobbyMode = !!opts.lobby;
     this.homePassthrough = !!opts.homeSettings?.passthroughHome;
 
@@ -1080,6 +1108,17 @@ export class XRSessionManager {
     panel.object.rotation.set(0, -sign * angle, 0);
   }
 
+  /**
+   * Place the keyboard low and centred, pulled ~0.5 m toward the viewer so it
+   * floats clear of the Home wall's surface, and tilted up to face a downward
+   * gaze. Reachable by ray without occluding the wall's search pill (top) or
+   * the first rows of cards.
+   */
+  private layoutKeyboardPanel(panel: VRCanvasPanel) {
+    panel.object.position.set(0, PANEL_DROP - 0.95, 0.35);
+    panel.object.rotation.set(-0.42, 0, 0);
+  }
+
   /** Place the Home wall / gallery viewer centred in front of the viewer. */
   private layoutHomePanel(panel: VRCanvasPanel) {
     // uiGroup is dropped PANEL_DROP below eye level for the control bar; raise the
@@ -1096,6 +1135,17 @@ export class XRSessionManager {
    * owns those in a self-contained class.
    */
 
+  /** Hittable entry for a canvas panel (identical wiring for every panel). */
+  private hittableFor(panel: VRCanvasPanel): IHittable {
+    return {
+      target: panel.hitTarget,
+      hover: (uv: THREE.Vector2 | null) => panel.setHovered(uv),
+      select: (uv: THREE.Vector2) => panel.activate(uv),
+      move: (uv: THREE.Vector2) => panel.pointerMove(uv),
+      up: (uv: THREE.Vector2) => panel.pointerUp(uv),
+    };
+  }
+
   private rebuildBrowseHittables() {
     // Lobby mode: only the Home wall is interactable (the hidden bar/side panels
     // must leave the raycast target set — three.js raycasts invisible meshes too).
@@ -1106,17 +1156,11 @@ export class XRSessionManager {
       const active: VRCanvasPanel | null = this.galleryOpen
         ? this.galleryViewer
         : this.homePanel;
-      this.hittables = active
-        ? [
-            {
-              target: active.hitTarget,
-              hover: (uv: THREE.Vector2 | null) => active.setHovered(uv),
-              select: (uv: THREE.Vector2) => active.activate(uv),
-              move: (uv: THREE.Vector2) => active.pointerMove(uv),
-              up: (uv: THREE.Vector2) => active.pointerUp(uv),
-            },
-          ]
-        : [];
+      this.hittables = active ? [this.hittableFor(active)] : [];
+      // The keyboard floats in front of the wall while a search is being typed.
+      if (this.keyboardOpen && this.kbPanel) {
+        this.hittables.push(this.hittableFor(this.kbPanel));
+      }
       this.input.setTargets(this.hittables.map((h) => h.target));
       return;
     }
@@ -1128,15 +1172,11 @@ export class XRSessionManager {
     if (this.browseOpen) {
       for (const panel of [this.scenesPanel, this.infoPanel]) {
         if (!panel) continue;
-        const ap = panel;
-        this.hittables.push({
-          target: ap.hitTarget,
-          hover: (uv: THREE.Vector2 | null) => ap.setHovered(uv),
-          select: (uv: THREE.Vector2) => ap.activate(uv),
-          move: (uv: THREE.Vector2) => ap.pointerMove(uv),
-          up: (uv: THREE.Vector2) => ap.pointerUp(uv),
-        });
+        this.hittables.push(this.hittableFor(panel));
       }
+    }
+    if (this.keyboardOpen && this.kbPanel) {
+      this.hittables.push(this.hittableFor(this.kbPanel));
     }
     this.input.setTargets(this.hittables.map((h) => h.target));
   }
@@ -1156,9 +1196,6 @@ export class XRSessionManager {
     // into playback under compositor reprojection. Not worth the sharpness.
     await this.renderer.xr.setSession(session);
     this.input.setSession(session);
-    // System keyboard availability is a session attribute — attach now so the
-    // Home wall's search pill can summon it.
-    this.keyboard.setSession(session);
     // Camera passthrough only composites inside an immersive-ar session (the
     // Enter-VR buttons request AR-first); both toggles key off this.
     this.passthroughAvailable = isPassthroughSession(session);
@@ -1212,6 +1249,7 @@ export class XRSessionManager {
       this.ptPanel,
       this.homePanel,
       this.galleryViewer,
+      this.kbPanel,
     ]) {
       try {
         p?.prewarm(this.renderer);
@@ -1587,6 +1625,16 @@ export class XRSessionManager {
    * IVRHomeDataSource, so every scene-grid orchestration method (page / counts /
    * rail / next) routes through this transparently.
    */
+  /**
+   * False while the session is `visible-blurred` — the system keyboard, the
+   * system menu or a permission prompt is up over us. Our frames don't reach the
+   * display in that state, so per-frame GPU work (video texture uploads) is
+   * pointless; the render loop skips it.
+   */
+  private get sessionVisible(): boolean {
+    return !this.session || this.session.visibilityState === "visible";
+  }
+
   private get sceneData(): IVRHomeDataSource | null {
     if (this.faptapMode) return this.faptapData;
     if (this.pmvhavenMode) return this.pmvhavenData;
@@ -1607,10 +1655,27 @@ export class XRSessionManager {
   }
 
   /**
-   * Apply the free-text search across every grid (scenes/sidecars + galleries
-   * + movies all honour it). Live keystrokes from the system keyboard pass
-   * `debounce` so we re-query at most ~3×/s while typing; commits (keyboard
-   * dismissed, ✕ clear) apply immediately.
+   * Re-query the ONE source behind the active content tab.
+   *
+   * The wall's three grids are backed by different databases: the scene grid by
+   * Stash *or* a sidecar (FapTap / PMVHaven) depending on the tab, galleries and
+   * movies always by Stash. Only the visible grid's source is re-queried, so a
+   * search typed with PMVHaven selected never reaches the Stash DB (nor FapTap),
+   * and a search typed on the Scenes tab never hits a sidecar. The hidden tabs
+   * pick the current query up when they're selected — [setContentMode] applies it
+   * on the way in — so nothing goes stale by being skipped here.
+   */
+  private applyActiveQuery() {
+    if (this.contentMode === "galleries") this.applyGalleryQuery();
+    else if (this.contentMode === "movies") this.applyGroupQuery();
+    else this.applyHomeQuery();
+  }
+
+  /**
+   * Apply the Home wall's free-text search — to the active tab's source only
+   * ([applyActiveQuery]), never across all three. Live keystrokes from the
+   * keyboard pass `debounce` so we re-query at most ~3×/s while typing; commits
+   * (keyboard dismissed, ✕ clear) apply immediately.
    */
   private setHomeSearch(text: string, debounce: boolean) {
     const t = text.trim();
@@ -1625,9 +1690,7 @@ export class XRSessionManager {
       this.searchDebounce = null;
       if (next === this.homeSearch) return;
       this.homeSearch = next;
-      this.applyHomeQuery();
-      this.applyGalleryQuery();
-      this.applyGroupQuery();
+      this.applyActiveQuery();
     };
     if (debounce) this.searchDebounce = window.setTimeout(apply, 350);
     else apply();
@@ -1943,7 +2006,10 @@ export class XRSessionManager {
     }
     this.homePanel?.setFilterLabel(label);
     this.homeFilterLabel = label;
-    this.applyHomeQuery();
+    // Active tab only — the rail's tiles are themselves per-source (the FapTap
+    // rail lists FapTap tags, the PMVHaven rail its stars), so pushing the tap
+    // to the other sources would query them with an id that isn't theirs.
+    this.applyActiveQuery();
     this.persistBrowseState();
   }
 
@@ -2160,6 +2226,12 @@ export class XRSessionManager {
     // Audible tap to match — except on the flat screen, whose select is the
     // UI-visibility toggle and plays its own open/close motif instead.
     if (hit.object !== this.flatScreenHittable?.target) vrAudio.press();
+    // Key presses edit the keyboard's own text and dispatch no action, so they
+    // never reach the lastActivity bumps below — during playback the whole UI
+    // would fade out from under a search being typed. Count them as activity.
+    if (this.kbPanel && hit.object === this.kbPanel.hitTarget) {
+      this.lastActivity = performance.now();
+    }
     const action = h.select(hit.uv);
     if (action) this.dispatchAction(action);
   }
@@ -2179,7 +2251,37 @@ export class XRSessionManager {
     if (action) this.dispatchAction(action);
   }
 
+  /** Raise the in-scene keyboard and add it to the raycast set. */
+  private openKeyboard(opts: IVRKeyboardOpenOptions) {
+    if (!this.kbPanel) return;
+    this.kbPanel.open(opts);
+    this.keyboardOpen = true;
+    this.rebuildBrowseHittables();
+    vrAudio.open();
+  }
+
+  /** Hide the keyboard (its own ✓/✕ keys, or any other UI the user tapped). */
+  private closeKeyboard() {
+    if (!this.keyboardOpen) return;
+    this.kbPanel?.close();
+    this.keyboardOpen = false;
+    this.rebuildBrowseHittables();
+    vrAudio.close();
+  }
+
   private dispatchAction(action: VRControlAction) {
+    // The keyboard's own keys dispatch nothing (they edit its text in place and
+    // push it straight to setHomeSearch/setScenesSearch), so ANY action arriving
+    // while it is up means the user reached past it and tapped something else —
+    // a card, a tab, a chip, the pill's ✕. Dismiss it. The two open actions are
+    // the exception: they (re)seed the keyboard rather than replacing it.
+    if (
+      this.keyboardOpen &&
+      action.type !== "homeSearchOpen" &&
+      action.type !== "scenesSearchOpen"
+    ) {
+      this.closeKeyboard();
+    }
     if (action.type === "handyPanelToggle") {
       this.handyPanelOpen = !this.handyPanelOpen;
       if (this.handyPanelOpen) vrAudio.open();
@@ -2229,10 +2331,6 @@ export class XRSessionManager {
         action.kind ? { kind: action.kind, id: action.id! } : null,
         action.label
       );
-      // Galleries honour the same studio/performer/tag filter as scenes.
-      this.applyGalleryQuery();
-      // Movies honour the studio/performer filter too.
-      this.applyGroupQuery();
       // Drill-down from an info-panel chip happens during playback: surface the
       // now-filtered Home wall so the user actually sees the result. The rail's
       // own filter taps come from lobby mode, where this is a no-op.
@@ -2249,15 +2347,18 @@ export class XRSessionManager {
       return;
     }
     if (action.type === "homeSearchOpen") {
-      // Focus the hidden DOM input → Quest Browser overlays its system
-      // keyboard. Keystrokes re-query live (debounced); dismissing the
-      // keyboard commits immediately.
-      const opened = this.keyboard.open({
+      // Raise the in-scene keyboard in front of the wall. Keystrokes re-query
+      // live (debounced); ✓ / ✕ commit and close it.
+      //
+      // Stop the hover-preview <video> first: it plays behind the keyboard where
+      // it can't be seen, and a decoding preview clip is pure GPU load on the
+      // frames the user spends typing.
+      this.resetHoverPreview();
+      this.openKeyboard({
         initial: this.homeSearch ?? "",
         onInput: (text) => this.setHomeSearch(text, true),
         onCommit: (text) => this.setHomeSearch(text, false),
       });
-      if (!opened) this.homePanel?.showSearchUnsupported();
       this.lastActivity = performance.now();
       return;
     }
@@ -2269,22 +2370,20 @@ export class XRSessionManager {
     }
     if (action.type === "setHomeSort") {
       this.sortMode = action.sort;
-      // The panel already reset its page window; re-query all grids under the
-      // new sort (galleries + movies share the sort mode).
-      this.applyHomeQuery();
-      this.applyGalleryQuery();
-      this.applyGroupQuery();
+      // The panel already reset its page window; re-query the active grid under
+      // the new sort. The other tabs pick it up when they're next selected.
+      this.applyActiveQuery();
       this.persistBrowseState();
       this.lastActivity = performance.now();
       return;
     }
     if (action.type === "scenesSearchOpen") {
-      const opened = this.keyboard.open({
+      this.resetHoverPreview();
+      this.openKeyboard({
         initial: this.scenesSearch ?? "",
         onInput: (text) => this.setScenesSearch(text, true),
         onCommit: (text) => this.setScenesSearch(text, false),
       });
-      if (!opened) this.scenesPanel?.showSearchUnsupported();
       this.lastActivity = performance.now();
       return;
     }
@@ -2301,17 +2400,27 @@ export class XRSessionManager {
       return;
     }
     if (action.type === "setContentMode") {
-      // The Home panel already flipped its own mode; seed the relevant query so
-      // its grid pages start loading when switching modes.
+      // The Home panel already flipped its own mode; seed the now-active tab's
+      // query (sort + filter + search) so its grid pages start loading. This is
+      // also what keeps the tabs we deliberately skip in applyActiveQuery from
+      // going stale: whatever changed while they were hidden lands here.
+      const prevSource = sourceOf(this.contentMode);
+      this.contentMode = action.mode;
       this.faptapMode = action.mode === "faptap";
       this.pmvhavenMode = action.mode === "pmvhaven";
-      if (action.mode === "galleries") this.applyGalleryQuery();
-      else if (action.mode === "movies") this.applyGroupQuery();
-      else {
-        // Scenes, FapTap and PMVHaven share the scene grid but draw from
-        // different sources; reset + re-seed from the now-active source
-        // (this.sceneData) and refresh the rail to match.
-        this.applyHomeQuery();
+      // Rail filter ids are only meaningful to the source they came from (a
+      // Stash studio id, a FapTap tag, a PMVHaven star). Crossing databases with
+      // one still active would query the new source with an id that isn't its
+      // own — always an empty wall. Drop it; the search term (plain text) and
+      // the sort carry over fine. applyHomeFilter re-queries the active tab.
+      if (this.homeFilter && sourceOf(action.mode) !== prevSource) {
+        this.applyHomeFilter(null);
+      } else {
+        this.applyActiveQuery();
+      }
+      // Scenes, FapTap and PMVHaven share the scene grid but draw from different
+      // sources — refresh the rail so its tiles come from the new one.
+      if (action.mode !== "galleries" && action.mode !== "movies") {
         this.loadHomeRail();
       }
       this.lastActivity = performance.now();
@@ -3247,7 +3356,14 @@ export class XRSessionManager {
     // layer is active the compositor samples the <video> itself (no upload). The
     // flat screen lives in its own tilt-pivot group (not domeMeshes), so include
     // it explicitly or flat scenes freeze on the first frame.
+    //
+    // Skipped entirely while the session is `visible-blurred` (system keyboard
+    // or system menu up over the session): nothing we upload can reach the
+    // display, and the compositor is busy presenting its own overlay on the same
+    // GL context — texture traffic there buys nothing and is a plausible source
+    // of the keyboard-summon crash (see vrKeyboard).
     if (
+      this.sessionVisible &&
       (this.domeMeshes.length > 0 || this.flatScreenMesh) &&
       this.opts.video.readyState >= 2
     ) {
@@ -3400,6 +3516,7 @@ export class XRSessionManager {
       this.scenesPanel?.setRenderState(0);
       this.homePanel?.setRenderState(this.galleryOpen ? 0 : op);
       this.galleryViewer?.setRenderState(this.galleryOpen ? op : 0);
+      this.kbPanel?.setRenderState(this.keyboardOpen ? op : 0);
       this.input.setRaysVisible(true);
     } else {
       this.panel.setRenderState(op);
@@ -3415,6 +3532,7 @@ export class XRSessionManager {
       this.scenesPanel?.setRenderState(this.browseOpen ? op : 0);
       this.homePanel?.setRenderState(0);
       this.galleryViewer?.setRenderState(0);
+      this.kbPanel?.setRenderState(this.keyboardOpen ? op : 0);
     }
 
     const state = this.opts.getState();
@@ -3426,6 +3544,7 @@ export class XRSessionManager {
           ? this.galleryViewer
           : this.homePanel;
         activeWall?.update();
+        if (this.keyboardOpen) this.kbPanel?.update();
         // Drive the ambient backdrop (slow starfield drift) each lobby frame.
         // At throttle level ≥2, skip the backdrop update to save GPU work.
         if (!skipBackdrop) this.backdrop?.update();
@@ -3497,6 +3616,7 @@ export class XRSessionManager {
           this.infoPanel?.update();
           this.scenesPanel?.update();
         }
+        if (this.keyboardOpen) this.kbPanel?.update();
       }
     }
 
@@ -4155,14 +4275,12 @@ export class XRSessionManager {
       window.clearTimeout(this.searchDebounce);
       this.searchDebounce = null;
     }
-    // Removes the hidden keyboard input from the DOM (Meta docs: leaving it
-    // behind can leave the underlying 2D page scrolled/altered).
-    this.keyboard.dispose();
     vrAudio.dispose();
     this.deviceModels?.dispose();
     this.panel.dispose();
     this.handyPanel?.dispose();
     this.ptPanel?.dispose();
+    this.kbPanel?.dispose();
     this.infoPanel?.dispose();
     this.scenesPanel?.dispose();
     this.homePanel?.dispose();

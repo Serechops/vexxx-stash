@@ -444,15 +444,16 @@ func (d *DB) VideoURL(id string) (string, error) {
 	return CanonicalAssetURL(url.String), nil
 }
 
-// CountsFor returns per-media-type counts under the active tag/star filter. All
-// PMVHaven videos are flat and funscript-capable, so flat == funscript == all
-// and vr == 0.
-func (d *DB) CountsFor(tagID, starID string) (*Counts, error) {
+// CountsFor returns per-media-type counts under the active tag/star filter and
+// free-text query. All PMVHaven videos are flat and funscript-capable, so
+// flat == funscript == all and vr == 0. The query is part of the predicate: the
+// counts label the media chips above a grid that is itself search-filtered.
+func (d *DB) CountsFor(tagID, starID, query string) (*Counts, error) {
 	db, err := d.conn()
 	if err != nil {
 		return nil, err
 	}
-	where, args := buildFilter(ListParams{TagID: tagID, StarID: starID})
+	where, args := buildFilter(ListParams{TagID: tagID, StarID: starID, Query: query})
 	var all int
 	if err := db.QueryRow("SELECT COUNT(*) FROM videos"+where, args...).Scan(&all); err != nil {
 		return nil, err

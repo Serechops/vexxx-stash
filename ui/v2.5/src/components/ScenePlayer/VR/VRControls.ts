@@ -137,6 +137,7 @@ export class VRControlPanel extends VRCanvasPanel {
     ptOn: false,
     chap: null as string | null,
     cap: null as string | null,
+    notice: null as string | null,
     hov: null as string | null,
     hf: -1,
     stv: -1,
@@ -342,6 +343,7 @@ export class VRControlPanel extends VRCanvasPanel {
       pr.ptOn === ptOn &&
       pr.chap === chapterTitle &&
       pr.cap === caption &&
+      pr.notice === s.notice &&
       pr.stv === stv
     ) {
       return false;
@@ -368,6 +370,7 @@ export class VRControlPanel extends VRCanvasPanel {
     pr.ptOn = ptOn;
     pr.chap = chapterTitle;
     pr.cap = caption;
+    pr.notice = s.notice;
     pr.stv = stv;
     return true;
   }
@@ -742,10 +745,13 @@ export class VRControlPanel extends VRCanvasPanel {
       ctx.fillStyle = "rgba(255,255,255,0.95)";
       ctx.fillText(caption, CANVAS_W / 2, TITLE_Y, CANVAS_W - PAD * 2);
     } else {
+      // A notice (e.g. the funscript being generated for this scene) outranks
+      // both, and is tinted so it reads as work in progress rather than a title.
+      const { notice } = state;
+      const topText = notice ?? (state.waiting ? "Buffering…" : chapterTitle ?? "");
       ctx.font = "600 22px sans-serif";
       ctx.textAlign = "left";
-      ctx.fillStyle = "rgba(255,255,255,0.85)";
-      const topText = state.waiting ? "Buffering…" : chapterTitle ?? "";
+      ctx.fillStyle = notice ? ACCENT : "rgba(255,255,255,0.85)";
       if (topText) ctx.fillText(topText, PAD, TITLE_Y);
     }
 

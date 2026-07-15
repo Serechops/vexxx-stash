@@ -2,6 +2,270 @@
 
 ---
 
+## v1.4 — 2026-07-14
+
+**Highlights:** Immersive WebXR VR suite — spatial Home lobby with a curved, server-paged scene wall; WebXR Media Layers video path (three.js 0.184); local Bluetooth Handy control bypassing the cloud API; mixed-reality passthrough with in-headset chroma-key; multiple funscripts per scene with in-VR switching; PMVHaven 5th content mode + a flat 2D FapTap browser; in-VR canvas search keyboard; grip-drag repositioning for dome and flat screens; drag-to-scrub and A/B loop marks; controller/hand device models with ray stabilization; MovieFy cover art + manual URL write-back; HeroBanner resilience; watcher auto-identify wiring; plus a deep round of VR jitter, compositor-crash, and passthrough-flicker hardening.
+
+---
+
+Commits since 0485ec9b5c0b0cf1ba379a27f9e7daf17fc21ac6 (v1.3) up to HEAD
+
+### fix(handy): keep local BLE playback alive across starves, seeks and link drops (d93c71447)
+
+Fixes for local Bluetooth Handy playback that would silently die mid-scene and never recover, plus three bundled VR fixes.
+
+Handy BLE robustness:
+- Feeder no longer gives up on the first failed top-up; a watchdog re-polls device state every 750ms so a dropped threshold notification can't leave the buffer to drain unnoticed
+- Play/SyncTime ops take a generation ticket and drop themselves if a newer op has arrived, so queued ops can no longer tear down and refeed the stream with stale positions
+- Preload only 150 points (enough to start) before `HspPlay` instead of the full 900-point window; background feeder fills the rest — kills seconds of stillness at scene start
+- Play position projected forward by BLE setup time so the device doesn't start out behind the video
+- `Connect` runs outside the manager mutex and is cancellable, so a disconnect can abort an in-flight 30s scan
+- Unexpected link loss auto-relinks with backoff and resumes at the projected position; a deliberate disconnect suppresses it
+- Panics in the BLE stack (nil `AdvertisementPayload` on Windows, OS event threads, WS op goroutines) contained rather than taking the server down
+- Client tracks the backend's playback *intent* rather than the device's instantaneous HSP state (which dips to paused/starving on every underrun)
+
+Bundled fixes:
+- **`fix(vr): replace the Meta system keyboard with an in-scene canvas keyboard`** — the system keyboard hard-crashed the Quest browser on every content tab before a character could be typed. New `VRKeyboardPanel` draws its own keys on an ordinary `VRCanvasPanel`, hit-tested through the same controller-ray pipeline — no DOM focus, no session visibility change, no system overlay. Also gives search to every other WebXR browser
+- **`fix(vr): route Home-wall queries only to the active tab's database`** — search/sort/filter now pushed only to the source behind the active tab (Stash DB vs FapTap/PMVHaven sidecars); hidden tabs pick the query up when selected. Sidecar `/counts` endpoints take the same free-text query so chip totals match the grid
+- **`feat(pmvhaven): tell the user when a funscript is being generated`** — a `/funscript/status` probe lets the player show "Generating haptics…" / "Analyzing audio…" and report failure instead of hanging. Generation now kicked off on every scene launch (a script belongs to the scene, not a device) so the scrubber heatmap draws for everyone; arming mid-scene is a cache read. Fixes ffmpeg resolution (`exec.ErrDot` on a bare `ffmpeg` resolving to stash's own binary in cwd)
+- **`feat(faptap): add a flat 2D browse + player for the FapTap catalog`** — `/faptap` grid + player pages talking to the read-only `/faptap/*` routes, driving the Handy via the shared `InteractiveContext`; navbar entry gated on the sidecar DB being present
+- **`fix(vr): don't write playback activity for synthesized sidecar scene ids`** — FapTap/PMVHaven scenes carry namespaced ids (`pmvhaven:…`); `isStashSceneId` now guards the activity write so it isn't sent for content with no Stash row
+
+### feat(handy): drive local BLE playback for all VR content modes (2e6cdaa96)
+
+Complete local (Bluetooth) Handy control for the immersive VR player across every content mode, surviving disconnect/reconnect.
+
+- Funscripts loaded by fetching the scene's funscript URL in the browser and forwarding the JSON to the backend (mirrors the cloud transport). Handles regular scenes, FapTap, PMVHaven and the multi-funscript index uniformly, instead of resolving a numeric stash scene ID which broke addon content (`faptap:2074…` → "no script loaded"). Extracts `handy.ParseFunscriptPoints` for the WS load op
+- `handyConnectionMode` persisted in server-side UI config instead of per-browser localForage, so incognito windows and the Quest resolve the local client (the BLE link is a server-side singleton)
+- Reflect an already-established server-side BLE session on mount (`LocalHandyInteractive.attach`); Bluetooth status/connect/disconnect panel added to Settings for local mode
+- Hardened reconnection: validate the link with a first `ClockSync` round-trip before publishing the session, so a flaky WinRT reconnect that yields a live GATT handle but an unresponsive device no longer reports `Connected=true`; retry once after a settle delay; assign `engine.session` only on success
+
+### fix(handy): stub BLE transport on platforms tinygo/bluetooth doesn't support (d57069c30)
+
+`tinygo.org/x/bluetooth` only ships an `Adapter` for linux/darwin/windows, breaking the FreeBSD leg of `build-cc-all`. Gate `ble.go` to those three OSes and add a stub transport reporting BLE unsupported elsewhere. `tinygo.org/x/bluetooth` promoted to a direct dependency.
+
+### feat(handy): add local BLE control, bypassing the cloud API (1b81d565e)
+
+Fully local control path for The Handy via the vendor's `hdy_rpc` BLE protocol, so scenes drive entirely over Bluetooth through the server — no handyfeeling.com round trip, no rate limits, no funscript data leaving the LAN.
+
+- `pkg/handy`: hand-rolled protobuf codec (cross-validated against the vendor's official JS bundle via golden vectors), BLE GATT transport (`tinygo.org/x/bluetooth`), RPC session with median-filtered clock sync, HSP playback engine (buffer top-up/seek/drift correction), connection manager
+- `internal/api`: `/handy/ws` WebSocket bridge taking small JSON ops (connect/load/play/pause/sync/stroke/hdsp/hamp/hvp/estop); scenes read and fed to the device entirely server-side
+- UI: `LocalHandyInteractive` implements the existing `IInteractiveClient` interface as a drop-in, so flat and VR players work unchanged; new Settings > Interface > "Handy Connection Mode" (Cloud/Local) toggle swaps the client live
+
+### fix(vr): replace overlapping Shuffle pill with compact icon (e12dd475a)
+
+Replace the wide Shuffle pill (which overlapped the mode toggle's Scenes tab) with a 44px round ⇄ icon anchored left of the header search pill. Bundled **`fix(pmvhaven): follow CDN host migration`** — PMVHaven retired `video.pmvhaven.com` and moved assets to an OVH S3 host under identical paths; `CanonicalAssetURL`/`IsAssetURL` host-swap stored URLs on read at a single chokepoint so card JSON, `/sources`, and the ffmpeg funscript input all resolve to the live host; proxies accept both hosts.
+
+### feat(HeroBanner): stall detection, error handling, dynamic slide timing (f22fb35b3, 995e7d0ba)
+
+Add video error handling with automatic slide transition, plus stall detection and dynamic per-slide timing so a stalled or failed hero video advances instead of freezing the banner.
+
+### feat(vr): drag-to-scrub in VRControlPanel; update IHittable interface (a6f297081)
+
+Add drag-to-scrub on the VR control-panel scrubber, extending the `IHittable` interface to carry drag state through the controller-ray pipeline.
+
+### fix(sqlite): honor exclude_ids in fast-path ID queries (f4ea88916)
+
+`findIDsFast` for scenes, images, galleries and performers bypassed `FindFilterType.ExcludeIds` entirely (each is a hand-rolled perf shortcut that never inherited the slow path's exclude handling). This duplicated scenes on the VR Home wall's Recent grid, where the continue-watching prefix relies on `exclude_ids` to avoid showing in-progress scenes twice. All four fixed.
+
+### feat(vr): show A/B loop marks on the VR scrubber (cf5aaaad7)
+
+Gold tick at the pending A mark and a shaded green A–B segment with boundary ticks once the loop is armed, giving the A/B button state a visible anchor on the timeline instead of relying on button glow alone.
+
+### feat(vr): feature walkthrough page in onboarding; fix mode-toggle overlap (439c6b6d9)
+
+Split the one-time onboarding modal into two pages (gesture legend + a walkthrough of captions, interactive scripts, chapters/looping, and comfort vignette) with Back/Next nav and page dots. Fixes the mode toggle overlapping the new help "?" button.
+
+### feat(vr): search/sort parity + visual polish for in-VR Scenes panel (d87bbe43d)
+
+- Search pill and tap-to-cycle sort chip added to the peripheral Scenes browser (during playback), backed by `VRCarouselLibrary`'s new generation-guarded `setQuery({sort, search})` — independent of the Home wall's own search/sort
+- Rows get the Home wall's card-polish language (gradient background, resting hairline, two-stroke hover/now-playing glow)
+- Fix the Browse auto-hide timer eating searches (typing on the keyboard touches no controller, so the panel faded mid-search); `setScenesSearch` now refreshes `lastActivity` on every keystroke
+- Consolidate `VRHomePanel`'s hardcoded accent/gold hex onto `vrTheme.ts` (`VRT.accentRGB`/`goldRGB`); add a whole-scene loop toggle (`native video.loop`) next to the chapter A–B button
+
+### feat(vr): grow Home wall grids to fill the taller wall (cf3af6f7c, ffbca25a2)
+
+Scene grid → 4×3 (12/page); movie posters → 8×3 (24/page, narrower cards); galleries → 20/page. Grid page sizes centralized in `types.ts` (`VR_SCENE_PAGE_SIZE`, `VR_GROUP_PAGE_SIZE`, `VR_GALLERY_PAGE_SIZE`) so `VRHomePanel` and all data-source libraries can't drift out of sync. Filter rail widened for layout balance.
+
+### feat(vr): free-text search via Meta WebXR system keyboard on Home wall (e5b64fa60)
+
+Search pill on the Home wall header summons the Quest system keyboard (`VRSystemKeyboard`) and threads the typed term through `IVRHomeQuery.search` to every content source — local scenes/galleries/movies (GraphQL `q`) plus FapTap and PMVHaven sidecars (REST `q`) — with debounced live re-querying. *(The system keyboard was later replaced with an in-scene canvas keyboard — see d93c71447 — after it was found to crash the Quest browser.)*
+
+### feat(vr): instant panel dismiss, auto-hide meshes, Quest-style UI audio, polish (dca6bb4ed)
+
+- Click on empty space (or the flat screen) instantly toggles the control panels via a fast dismiss fade, independent of the inactivity timeout
+- Controller and hand meshes hide together with the panels (`VRDeviceModels.setVisible`)
+- Synthesized WebAudio UI cues (hover/press/open/close) across the control bar, side panels and hub, matching native Quest shell feedback; new "UI sound effects" toggle (default on)
+- Introduce `vrTheme.ts` token system across `VRControls`/`VRInfoPanels` for a cohesive glass/accent look with new hover states
+
+### fix(vr): eliminate passthrough panel flicker with per-frame work budget (8a99ac312)
+
+Interaction frames stacked a full panel raster + full-canvas GPU upload + thumb-popup upload on top of the mandatory per-frame video-texture upload; over transparent AR compositing the dropped frame had no opaque stale layer to reproject, so the UI blinked out against the camera feed. `VRCanvasPanel` now caps panel work at one raster-or-upload per frame across all panels during playback, staging raster (frame N) and upload (frame N+1) separately. Also: dome grip-drag signals `onDomeDragActive` for tessellation swap; scene-switch source selection consults `MediaCapabilities` to demote an undecodable direct stream ahead of playback; new `VRStatusMonitor` clock/battery cluster on the control bar.
+
+### feat(vr): grip-drag to reorient dome video, recenter matches gaze pitch (6e3731989)
+
+Grab and re-angle 180/360/fisheye video with the grip button, following the controller ray in yaw/pitch (roll pinned to preserve stereo disparity). Empty squeeze still recenters (distinguished from a drag by an angular-movement threshold on release); recenter now matches gaze pitch too, so a quick squeeze while lying down snaps the video to the ceiling. Offset shared by both video paths (shader dome + compositor equirect layer) and survives rebuilds/scene switches.
+
+### fix: ImageList lightbox nav ignores grid/list toggle (bc7c403b4)
+
+Include `filter.displayMode` in the lightbox state memo so toggling grid/list view updates lightbox navigation/filmstrip visibility.
+
+### fix(hooks): stale-closure and rules-of-hooks bugs across five components (711bdb641)
+
+- `RenamerTargetSelector`: move `useConfigurationQuery` before the early return so hook order stays consistent when the scenes query errors
+- `ScenePlayer`: track `scene.start_point`/`end_point` in the activity-sync effect so editing segment bounds mid-playback isn't ignored
+- `MovieFy`: include `isManualEntry`/`addMovieFyEntry` in `handleMovieFyQueue` deps so manual URLs reliably save
+- `Tagger`: recompute pending tag/performer counts when related config toggles change
+- `StashTagIdentification`: include `loading` in `handleAnalyze` deps so its re-entrancy guard can't run on a stale closure
+
+### feat(vr): compact Scenes panel list with floating hover preview (c9e04f0fa)
+
+Replace the two-large-card carousel in the immersive Scenes panel with a compact row list (small thumbnail + title/studio), fitting ~6 rows instead of 2. Row hover floats a larger preview above the panel, angled to match it, reusing the shared marker/chapter hover popup mechanism instead of compositing video inline.
+
+### feat(scene): support multiple funscripts per scene with in-VR switching (a9ddb0e43)
+
+Adds a `scene_funscripts` table so a scene can hold several assigned `.funscript` files, with `scenes.funscript_path` kept as a pointer to the active one. Scripts auto-detected from the video's directory on scan and via a background startup task for VR-set scenes; manually added/removed from the scene edit panel. The immersive Handy panel gains a script-switcher that re-uploads to the device and regenerates the heatmap on selection. Bumps `appSchemaVersion` so migration 99 runs; adds the missing 190° Fisheye (SBS) option to the bulk Edit Scenes VR-mode dropdown.
+
+### feat(vr): require manual activation of Handy device in immersive player (1ef4b484c)
+
+Interactive devices no longer auto-engage when a VR scene plays. The device stays idle until the user taps a green "Activate" control in the VR Handy panel; "Stop" disarms. The global `InteractiveContext` auto-connect (which the 2D desktop player relies on) is left intact; a VR-scoped arm/disarm gate (`handyArmed`) controls only whether VR playback drives the device. `interactiveEnabled` gate in `useVRPlayback` skips funscript upload and suppresses play/seek while disarmed.
+
+### feat(vr): chapter card previews with video and image fallbacks (a25a31798)
+
+Chapter cards in the immersive player now show video previews with image fallbacks.
+
+### fix(package): remove hardcoded BUILD_DATE from server script (8a5d0b846)
+
+### fix(ui): virtualized studio/tag grids blank above 40 per-page; single-card stretch (c5972e6e2)
+
+Studios/Tags pages rendered no cards once `itemsPerPage` pushed the count past the virtualization threshold (50): the virtualizers bound to `parentRef.parentElement` as the scroll container, but these pages scroll via the window/body. Switch to `useWindowVirtualizer` with `scrollMargin`. Also fix single-card grids ignoring the zoom slider — CSS Grid `auto-fit` collapses unpopulated tracks and stretches the sole card; switch to `auto-fill`.
+
+### fix(vr): surface alpha-mask edge softness as a passthrough panel control (9b5cab0b9)
+
+Expose the embedded alpha-mask's blur radius and threshold band (previously hardcoded in the fisheye shader) as a 6th "Edge softness" slider, mirroring chroma mode's "Falloff".
+
+### fix(watcher): sync scan options to backend and wire auto-identify (51a6110c9)
+
+Settings > Tasks > Scan checkboxes only persisted to browser localForage, never to the backend `defaults.scan_task` config the watcher reads — so the watcher silently skipped all post-scan generation (phash included). `LibraryTasks` now pushes scan options to the backend via `configureDefaults`, on change and once on load. Also adds the missing `ScanAutoIdentify` handling to the watcher's synchronous scan path, hardens the pending-file lock check against read-only-mounted files, and adds logging.
+
+### fix(vr): passthrough hardening — matte edge blur, panel close on hub return (713a536ae, ff6799da1)
+
+- Blur the SLR corner-packed alpha mask by averaging a 3×3 texel neighbourhood before thresholding, rounding off the macroblock-quantized staircased matte boundary (a value-only smoothstep couldn't fix the blocky shape)
+- `setLobbyMode(true)` now also resets `ptPanelOpen`, so the passthrough adjustment panel no longer stays open over the hub after exiting a scene
+
+### feat(vr): mixed-reality passthrough with in-headset chroma-key panel (6d52f381f, 679f982d8)
+
+AR-first immersive sessions (`immersive-ar` with `immersive-vr` fallback) so the hub and player can each independently show camera passthrough without touching playback. Hub gets a "Passthrough while browsing" toggle; the player gets a DeoVR-style adjustment panel (PT button) — on/off, Hue/Saturation/Brightness/Color range/Falloff sliders, a "Sample from video" matte picker, and Reset. Player passthrough prefers SLR's embedded corner-packed alpha matte for `_alpha`-tagged files, with weighted-HSV chroma-keying as a manual fallback. Opaque blackout-shell geometry occludes the camera on non-passthrough paths (AR sessions no longer get a free black void behind transparent clears).
+
+### Update README.md (896060443)
+
+### fix(moviefy): add AddMovieFyEntry mutation document to graphql source (4891e85ef)
+
+The mutation hook existed only as a manual edit to `generated-graphql.ts`, so `make generate` wiped it every run. Moving the document into `ui/v2.5/graphql/queries/MovieFy.graphql` makes codegen produce the hook permanently.
+
+### feat(moviefy): covers, AdultEmpire sort, manual URL entry + DB write-back; feat(player): fill/crop mode (f70c5494b)
+
+MovieFy: front_image covers in search results (90×126px); AdultEmpire results sorted to top; manual URL input (paste any scraper-supported URL without a DB entry); after scraping a manual URL, write the result back to `moviefy.db` via `addMovieFyEntry` (SQLite upsert-by-URL). ScenePlayer: new fill/crop mode (Z key + control bar button) toggling `object-fit:cover` to eliminate letterbox/pillarbox on SD content, via a self-contained `fill-mode.ts` videojs plugin.
+
+### feat(vr): flat media wall grip-drag repositioning with gaze snap (474d80967)
+
+Port the flat (2D) media wall onto the same grip-drag machinery as the VR Home wall. The flat screen is world-anchored (parented to the scene, not the rotated `videoGroup`) and seeded at real head eye height via `placeFlatInstant()`. Grip grabs it and rides the controller ray with auto `lookAt`; thumbstick Y pushes/pulls distance; empty squeeze recenters it in front of gaze. `VRControllerInput`'s single draggable generalized to a set. Bundled: **`fix(pmvhaven): proxy media through backend to fix CORS for flat scenes`** (a `/media` proxy with Range/ETag forwarded) and **`feat(moviefy): folder-scoped file browser for scene selection column`**.
+
+### feat(groups, scenes): redesign GroupsHero + inline URL scraping in scene list (839be46ee)
+
+GroupsHero: Ken Burns backdrop drift, Netflix-style pacing with pause-on-hover, poster art with color halo and fanned back cover, two-row ambient scene-preview carousel. SceneListTable: a "URLs" column with inline editing (commits on blur) and a per-URL scrape affordance; lazy-loaded `SceneScrapeDialog` writes resolved entity IDs back to the scene on confirm.
+
+### feat(vr): PMVHaven content mode (5th sidecar catalog) (6be5dd866)
+
+Adds PMVHaven as a new premium VR Home content mode alongside FapTap.
+- Backend: `internal/pmvhaven/` (`db.go` sidecar SQLite reader, `funscript.go` on-demand audio→funscript via ffmpeg + `analyzer.py`); `routes_pmvhaven.go` (`/pmvhaven/*` catalog/detail/sources/funscript); `pmvhaven_path` config key
+- Frontend: `pmvhavenLibrary.ts` (`PmvHavenHomeLibrary` implements `IVRHomeDataSource`); 5th "pmvhaven" content-mode tab (locked until DB present); all-flat media filter (All + ★ only); `switchPmvScene` action; flat-screen drag handle uses a `Mesh` not `Sprite` (fixes flat-scene compositor freeze from `Sprite.raycast()` needing a camera in the XR loop)
+
+### fix(faptap): proxy faptap.net thumbnails through backend to fix CORS (c29f8a05b)
+
+`faptap.net/api/assets/thumbnails/` sends no CORS headers, failing `crossOrigin="anonymous"` loads silently in the VR canvas. New `GET /faptap/thumb?url=` accepts only `faptap.net` URLs, fetches server-side, pipes through with upstream Content-Type and a 1-day cache. `proxyIfNeeded()` rewrites `faptap.net` thumbnail/preview URLs at map time; CDN URLs pass through.
+
+### fix(vr): adjust main wall panel height to eye-height (0793c7d9e)
+
+### feat(vr): movie covers, scene-card tags, bigger cards, fix movie-detail previews (b13cfa1d9)
+
+- Movie detail: front + back covers rendered side-by-side via `drawImageContain` (`backUrl` added to `IVRGroupEntry`); fix hover previews only showing one scene (`allLoadedScenes()` is now source-aware and returns the drilled-in group's scenes)
+- Scene cards: tag-chip row added to the caption (`tags` mapped into `IVRSceneEntry`); cards enlarged by dropping the scene grid 4×3 → 3×2; mode-aware `perPage` getter keeps galleries/posters at 12 while scenes use 6
+
+### VRGalleryViewerPanel / VRHomePanel: justified gallery grid, lightbox fix, slideshow relocation (411eddf90, e281cb3d1)
+
+- Fix lightbox lockup: `activate()` returned null when the lightbox was open, making prev/next/back/close-grid unreachable via trigger tap; now resolves the tapped region directly in lightbox mode
+- Replace the rigid fixed-cell gallery grids with greedy row-packing (Google Photos style): covers packed by aspect ratio to fill the grid width, row height varying by combined aspect ratio
+- Move the slideshow toggle next to the Back button, styled identically
+
+### feat(vr): server-paged carousel, tag drill-down, controller disconnect guard, rim-light (ffd988a50)
+
+- New `VRCarouselLibrary` owns lazy server-side page fetching for the VR Scenes side panel; `VRScenesPanel` converted from one-shot `setScenes()` to a `setPageRequester()`/`requestedPages`/`reachedEnd` model
+- Tag drill-down: an in-headset tag tap on the info panel drills the Home wall, matching the performer/studio path
+- `VRControllerInput`: per-controller connected/disconnected events; stale `pressController`/`pressObject` cleared on disconnect so dangling drag state can't outlive the physical controller
+- `VRDeviceModels`: rim-light fragment shader applied once per material via a `WeakSet`
+
+### feat(vr): server-paged Home wall + stabilized controller rays and device models (c0d9120b4)
+
+- Replace the ≤200-scene client-side load with full server-side paging via `VRHomeLibrary` (`IVRHomeDataSource`): `findScenes` in 12-scene blocks, authoritative `totalCount`, studios/performers rail from `findStudios`/`findPerformers` sorted by `scenes_count`, media counts via `per_page:0`. All queries generation-guarded so stale post-filter responses are dropped
+- Preserve "Continue watching": in-progress scenes (`resume_time>30`) float to the top of Recent as a virtual page-0 prefix, removed from the date stream via `exclude_ids`
+- `VRHomePanel` holds only current±1 pages (`pageCache`) + `totalCount`, drawing skeleton cards while loading; `getNextSceneId` is async so auto-advance resolves across server pages
+- Stabilize controller rays with a One-Euro adaptive low-pass filter; widen grid dead-zone and add a 90ms press settle window so selecting a card no longer shifts the grid; add `VRDeviceModels` (controller + hand meshes)
+
+### feat(vr): in-headset Handy stroke-zone slider with server confirmation (11b4ffb6d)
+
+Dual-handle range slider in the VR Handy panel to adjust the stroke-zone min/max envelope without leaving the scene. Press grabs the nearer handle, drag updates live (handles can't cross), release dispatches `setHandyStroke` once (so the device isn't flooded mid-drag), routing through `setHampStroke` which clamps both HAMP and funscript (HSSP) motion. Explicit feedback: "Saving…" chip on release → green "Range set" on resolve (auto-clears 1.6s) or red "Failed" on reject.
+
+### Responsive layout: raise mobile/desktop breakpoint to 1281px; VR entry point polish (b34e71ae3)
+
+Raise the mobile/desktop breakpoint from 992px to 1281px so the Quest 3's 1280px viewport and large tablets get the mobile drawer layout instead of a cramped desktop nav (`xl` adjusted 1200→1536px to keep MUI breakpoints ascending). `EnterVRHomeButton` gains a `prominent` full-width indigo-gradient variant for the mobile drawer footer; MUI `Vrpano` icon replaced with `public/vr.svg`; on mobile the VR button is pinned next to the nav brand. Both instances return null on non-XR browsers.
+
+### fix(vr): prevent Quest compositor crash on in-XR scene switch (b67639a80)
+
+In-VR scene switching crashed the player after 1–3 switches: `handleSwitchScene` drained the `<video>` (`removeAttribute 'src'` + `load()`) while the old WebXR media layer was still bound and sampling the element directly, triggering a synchronous compositor fault. The fault was invisible to leak checks (the surface is owned by the compositor process, so `performance.memory` and `renderer.info` stayed flat). Fix: `XRSessionManager.prepareSourceSwap()` destroys the live media layer, drops back to the shader dome, and pushes a video-less `renderState` so the compositor stops referencing the `<video>` before React drains it; `onVideoReady` then rebuilds a fresh media layer. Called before every drain site. Verified on Quest 3: 6 consecutive switches, zero crashes, heap flat at 61MB.
+
+### perf(vr): eliminate immersive-player playback and panel-interaction jitter (9575ee4a3)
+
+Diagnosed on-device (Quest 3) with the vrlog jitter profiler; steady state went from frequent hover/redraw hitches to ~84fps.
+- **Layered hover compositing:** a hover state change used to re-rasterize the entire control panel (~25ms canvas block) on the XR thread. The panel is now cached in its non-hovered state on an offscreen base canvas, rebuilt only on real content change; a hover change blits the cached base and patches only the one hovered element. A hover redraw drops from a full re-raster to one `drawImage` plus one element
+- **Activity + play-count saves off the render-critical path:** both `saveActivity` and `incrementPlayCount` ran `cache.modify` on the watched Scene query, re-rendering the whole immersive tree on the XR main thread (50–100ms longtasks, one ~288ms stall). Overridden with a no-op update in the VR path; the server still records `resume_time`/`play_duration`/`play_count`, and the 2D player keeps its optimistic cache behaviour
+- **Telemetry:** opt-in NDJSON vrlog profiler (`?vrlog=1` → `scripts/vrlog-server.mjs`) with a `?vrprofile=jitter` scope recording per-frame render/UI/input/upload cost and longtasks
+
+### feat(vr): WebXR Media Layers video path + three.js 0.184 (b8c52d76b)
+
+Render flat/180/360 immersive video through an `XRMediaBinding` composition layer (compositor samples the `<video>` directly) instead of the eye-buffer shader dome — visibly sharper/brighter and roughly halving per-frame GPU.
+- Upgrade three 0.154.0 → 0.184.0 (+ `@types/three`) for current WebXR
+- Equirect layer for 180/360 (stereo via layout + `invertStereo`), quad layer for flat; recenter rotates the equirect transform. Media layer is the default; the shader dome is retained only for fisheye190 (no composition-layer type can un-distort dual fisheye) and as an automatic fallback on devices without the Layers API
+- Insert the media layer beneath three's projection layer via `updateRenderState`; skip the per-frame `VideoTexture` upload while active
+- Fix flashing black-rectangle artifact: a transparent XR framebuffer makes the Quest compositor fill reprojected regions with black tiles; clear the projection layer transparent *only* while the media layer composites beneath it
+- Add `vrDebug` flags `nomedialayer`/`opaque` for on-device A/B
+
+### feat(vr): immersive-home settings panel, thumbstick nav, and auto-advance (5e7f2e796)
+
+In-headset settings panel on the Home wall (via a gear button replacing shuffle): toggle gaze auto-launch, configurable gaze-dwell delay (1.5/2.5/4s, default 2.5s), sound-on/muted toggle — all persisted to localStorage and applied live. Also: a "funscript" media filter with per-filter scene counts; thumbstick navigation for the scene grid and filter rail; auto-advance to the next scene when one ends. `VRTheatreEnv` removed — flat scenes now play on a bare curved screen in darkness.
+
+### feat(vr): expand immersive home with grid tiles, media filter, funscript indicators, theatre mode (d30fbbf25)
+
+- 3rd scene row; performer/studio list replaced with a 2-column tile grid (portraits/logos + count badges)
+- `[All/VR/2D]` media-type toggle (`setMediaFilter`); VR carousel filtered to VR-only in JS so studio/performer tiles reflect the full library
+- Scene cards: heatmap strip at thumbnail base when `paths.interactive_heatmap` present; orange "FS" pill when interactive + funscript attached
+- `VRTheatreEnv` (new, later removed): cinema room for flat-media playback; flat scenes get a gently curved cylindrical screen replacing the flat plane
+- Video-texture flicker fix: gate `needsUpdate` on `readyState >= 2` so a segment-boundary stall preserves the last good GPU frame
+
+### feat(vr): in-session scene switching with live browse panel (e9b1359b8)
+
+Tap a scene card in the VR browser to switch content without leaving the XR session — the video swaps, info panel updates, and Browse closes automatically. New `switchScene` action keeps taps in-session; `liveScene` state re-keys all downstream hooks (sources, markers, info, VTT, heatmap, captions) without touching the XR session or dome geometry; `updateSceneInfo` removes the old panel object from `uiGroup` before disposing it (fixing old/new title flicker); "NOW PLAYING" gold badge on the active card.
+
+### feat: add immersive VR home experience with curved scene grid and ambient backdrop (ca3741008)
+
+Introduces the full spatial home/lobby, opening directly from the navbar without an active scene.
+- `EnterVRHomeButton`: global "Enter VR" button in `MainNavbar`, portalled to `document.body`, hidden when immersive-vr is unsupported
+- `ImmersiveVRPlayer`: scene prop accepts null; `LOBBY_SCENE` sentinel; `goHome` pauses playback and returns to the lobby; auto-play on selection
+- `VRLobbyBackdrop`: calm ambient environment — deep twilight gradient sky sphere, 700-star drifting starfield with breathing opacity, faint floor grid
+- `VRHomePanel` (rewritten): single large curved panel (radius 2.65m, 2200×1000 canvas) merging a Studios/Performers filter rail with a 4×2 scene grid; `pressZone` disambiguates rail scroll from drag-pagination; eased page transitions
+
+---
+
 ## v1.3 — 2026-06-11
 
 **Highlights:** Recycle Bin, VR Theatre + DeoVR tunnel, AI Recommendations, File Browser, Smart Playlists, Analytics Dashboard, Multi-User Auth, Auto-Identify pipeline, Handy API v3 rewrite, Real-time file watcher, stash-diag CLI, memory leak fixes, Clean task speedups, backend hardening.

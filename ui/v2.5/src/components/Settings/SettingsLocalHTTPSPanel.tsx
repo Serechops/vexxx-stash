@@ -116,7 +116,7 @@ export const SettingsLocalHTTPSPanel: React.FC = () => {
   return (
     <SettingSection headingID="config.local_https.heading">
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Serve Stash over HTTPS on a second port using an auto-generated
+        Serve Vexxx over HTTPS on a second port using an auto-generated
         certificate, so the in-browser VR player (WebXR, which requires a secure
         context) works on your local network without an external tunnel. Install
         the certificate on your headset once to remove the browser warning.
@@ -268,7 +268,7 @@ export const SettingsLocalHTTPSPanel: React.FC = () => {
         </Box>
         {status?.enabled && (
           <Chip
-            label="Starts automatically with Stash"
+            label="Starts automatically with Vexxx"
             size="small"
             color="success"
             sx={{ mt: 2 }}
@@ -281,7 +281,7 @@ export const SettingsLocalHTTPSPanel: React.FC = () => {
         Setup
       </Typography>
       <Setting heading="1. Enable Local HTTPS">
-        Pick a port and click Enable. Stash generates a certificate covering
+        Pick a port and click Enable. Vexxx generates a certificate covering
         this machine&apos;s LAN addresses and starts an HTTPS listener.
       </Setting>
       <Setting heading="2. Trust the certificate on your headset">
@@ -290,7 +290,7 @@ export const SettingsLocalHTTPSPanel: React.FC = () => {
         &amp; credentials → Install a certificate → CA certificate. (You can
         also just accept the browser warning once, but installing removes it.)
       </Setting>
-      <Setting heading="3. Open Stash over HTTPS">
+      <Setting heading="3. Open Vexxx over HTTPS">
         Browse to one of the <code>https://&lt;ip&gt;:{port}</code> URLs above
         on the headset, open a scene, and tap Enter VR. Video now streams at LAN
         speed — no external tunnel.

@@ -157,6 +157,17 @@ export class VRControllerInput {
   // laser would keep being drawn from its last/stale pose — a static ray from a
   // controller that isn't there. We gate the ray + raycast on this.
   private connected = [false, false];
+  // Whether the source bound to each slot is a tracked hand (XRInputSource.hand
+  // is only populated for hand-tracking input) rather than a physical Touch
+  // controller. Used by controller-lock mode below.
+  private isHandSlot = [false, false];
+  // Controller-lock mode: while enabled, hand-tracking input is ignored for
+  // raycasting/select/squeeze/clap as long as at least one real (non-hand)
+  // controller is connected — a hand reaching for a drink or brushing past the
+  // other hand shouldn't fire a ray or a click. If both controllers go away
+  // (or were never connected), hands fall back to driving the UI so the player
+  // stays usable.
+  private controllerLockEnabled = false;
   // The XRInputSource bound to each slot (set on the `connected` event, which
   // hands us the source directly — far more reliable than trying to line up
   // `session.inputSources` order with three's controller-group indices).
@@ -224,6 +235,7 @@ export class VRControllerInput {
       scene.add(laser);
 
       const onSelectStart = () => {
+        if (this.slotLocked(i)) return;
         const hit = this.intersect(controller);
         if (hit) {
           this.activity = true;
@@ -247,6 +259,7 @@ export class VRControllerInput {
         this.pressObject = null;
       };
       const onSqueezeStart = () => {
+        if (this.slotLocked(i)) return;
         this.activity = true;
         this.beginGrabOrRecenter(controller);
       };
@@ -257,11 +270,14 @@ export class VRControllerInput {
       // and abandon any press/drag that controller owned.
       const onConnected = (event: { data: XRInputSource }) => {
         this.connected[i] = true;
+        this.isHandSlot[i] = !!event.data.hand;
         this.inputSourcesBySlot[i] = event.data;
-        if (this.lasers[i]) this.lasers[i].visible = this.raysVisible;
+        if (this.lasers[i])
+          this.lasers[i].visible = this.raysVisible && !this.slotLocked(i);
       };
       const onDisconnected = () => {
         this.connected[i] = false;
+        this.isHandSlot[i] = false;
         this.inputSourcesBySlot[i] = null;
         this.rayInit[i] = false;
         if (this.lasers[i]) this.lasers[i].visible = false;
@@ -437,10 +453,36 @@ export class VRControllerInput {
   /** Show or hide all controller laser rays (e.g. suppress when UI is hidden). */
   setRaysVisible(visible: boolean) {
     this.raysVisible = visible;
-    // Only connected slots get a visible ray; a disconnected slot stays hidden.
+    // Only connected, unlocked slots get a visible ray; a disconnected or
+    // hand-locked slot stays hidden.
     for (let i = 0; i < this.lasers.length; i++) {
-      this.lasers[i].visible = visible && this.connected[i];
+      this.lasers[i].visible = visible && this.connected[i] && !this.slotLocked(i);
     }
+  }
+
+  /** Enable/disable controller-lock mode (ignore hand-tracking input while a
+   *  real controller is connected). Takes effect immediately, next frame. */
+  setControllerLock(enabled: boolean) {
+    this.controllerLockEnabled = enabled;
+  }
+
+  /** True if at least one connected slot is a physical controller (not a
+   *  tracked hand). */
+  private hasRealControllerConnected(): boolean {
+    return (
+      (this.connected[0] && !this.isHandSlot[0]) ||
+      (this.connected[1] && !this.isHandSlot[1])
+    );
+  }
+
+  /** True if slot `i` should be ignored: lock mode is on, it's a hand, and a
+   *  real controller is present elsewhere to take over. */
+  private slotLocked(i: number): boolean {
+    return (
+      this.controllerLockEnabled &&
+      this.isHandSlot[i] &&
+      this.hasRealControllerConnected()
+    );
   }
 
   private beginGrabOrRecenter(controller: THREE.Group) {
@@ -503,7 +545,12 @@ export class VRControllerInput {
 
     for (let i = 0; i < this.controllers.length; i++) {
       // Skip disconnected slots: no live source means no ray to draw or filter.
-      if (!this.connected[i]) continue;
+      // A hand-locked slot (controller-lock mode, real controller present)
+      // is treated the same way — its laser stays hidden and unfiltered.
+      if (!this.connected[i] || this.slotLocked(i)) {
+        if (this.lasers[i]) this.lasers[i].visible = false;
+        continue;
+      }
       const c = this.controllers[i];
       c.updateMatrixWorld(true);
       this.rawOrigin.setFromMatrixPosition(c.matrixWorld);
@@ -611,8 +658,9 @@ export class VRControllerInput {
     // laser to its hit point for nicer feedback.
     let hover: IPanelHit | null = null;
     for (let i = 0; i < this.controllers.length; i++) {
-      // A disconnected slot has no ray — don't raycast or stretch its laser.
-      if (!this.connected[i]) continue;
+      // A disconnected (or hand-locked) slot has no ray — don't raycast or
+      // stretch its laser.
+      if (!this.connected[i] || this.slotLocked(i)) continue;
       const hit = this.raycastNearest(this.controllers[i]);
       this.lasers[i].scale.z = hit ? hit.distance : LASER_LENGTH;
       if (hit && !hover) hover = { object: hit.object, uv: hit.uv, controllerIndex: i };
@@ -682,7 +730,14 @@ export class VRControllerInput {
   private detectClap() {
     // A clap needs both controllers tracked; a disconnected slot's stale world
     // position could otherwise sit close to the live one and false-trigger.
-    if (!this.connected[0] || !this.connected[1]) {
+    // Hand-locked slots don't count either — a real controller reaching near a
+    // resting hand shouldn't register as a two-hand clap.
+    if (
+      !this.connected[0] ||
+      !this.connected[1] ||
+      this.slotLocked(0) ||
+      this.slotLocked(1)
+    ) {
       this.clapFrameCount = 0;
       this.clapFired = false;
       return;

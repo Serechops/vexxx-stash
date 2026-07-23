@@ -1002,6 +1002,7 @@ export class XRSessionManager {
         this.uiOpacity = 1;
       },
     });
+    this.input.setControllerLock(!!opts.homeSettings?.controllerLock);
 
     // Visible Touch controllers + tracked-hand meshes. Purely cosmetic — pointing
     // and select still flow through VRControllerInput's target-ray pipeline above
@@ -1784,6 +1785,7 @@ export class XRSessionManager {
     }
     this.comfortVignetteEnabled = !!settings.comfortVignette;
     if (!this.comfortVignetteEnabled) this.comfortVignetteActive = false;
+    this.input.setControllerLock(!!settings.controllerLock);
   }
 
   // ── Mixed-reality passthrough ────────────────────────────────────────────

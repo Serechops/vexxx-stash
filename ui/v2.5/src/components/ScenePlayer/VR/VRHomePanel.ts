@@ -385,6 +385,7 @@ export class VRHomePanel extends VRCanvasPanel {
   private uiSfx = true;
   private passthroughHome = false;
   private comfortVignette = false;
+  private controllerLock = false;
   // Whether the live session can composite camera passthrough at all
   // (immersive-ar). Gates the settings row — runtime capability, not a pref.
   private passthroughSupported = false;
@@ -632,6 +633,10 @@ export class VRHomePanel extends VRCanvasPanel {
     }
     if (!!s.comfortVignette !== this.comfortVignette) {
       this.comfortVignette = !!s.comfortVignette;
+      changed = true;
+    }
+    if (!!s.controllerLock !== this.controllerLock) {
+      this.controllerLock = !!s.controllerLock;
       changed = true;
     }
     if (changed) {
@@ -1263,6 +1268,15 @@ export class VRHomePanel extends VRCanvasPanel {
           type: "setVrSetting",
           key: "passthroughHome",
           value: this.passthroughHome,
+        };
+      }
+      if (id === "set:controllerLock") {
+        this.controllerLock = !this.controllerLock;
+        this.markDirty();
+        return {
+          type: "setVrSetting",
+          key: "controllerLock",
+          value: this.controllerLock,
         };
       }
       if (id.startsWith("dwell:")) {
@@ -2590,7 +2604,7 @@ export class VRHomePanel extends VRCanvasPanel {
 
     const mW = 760;
     // Taller when the passthrough row is present (AR session).
-    const mH = this.passthroughSupported ? 856 : 736;
+    const mH = this.passthroughSupported ? 952 : 832;
     const mX = (this.cw - mW) / 2;
     const mY = (this.ch - mH) / 2;
 
@@ -2753,7 +2767,26 @@ export class VRHomePanel extends VRCanvasPanel {
       "set:comfortVignette"
     );
 
-    // ── Row 5: Hub passthrough (only in an immersive-ar session) ────────────
+    // ── Row 5: Controller lock ────────────────────────────────────────────────
+    rowY += 96;
+    ctx.strokeStyle = "rgba(255,255,255,0.08)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(rowX, rowY);
+    ctx.lineTo(rowX + rowW, rowY);
+    ctx.stroke();
+    rowY += 24;
+    this.drawSettingRow(
+      rowX,
+      rowY,
+      rowW,
+      "Controller lock",
+      "Ignore hand tracking while a controller is connected",
+      this.controllerLock,
+      "set:controllerLock"
+    );
+
+    // ── Row 6: Hub passthrough (only in an immersive-ar session) ────────────
     if (this.passthroughSupported) {
       rowY += 96;
       ctx.strokeStyle = "rgba(255,255,255,0.08)";

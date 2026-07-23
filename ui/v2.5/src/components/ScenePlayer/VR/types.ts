@@ -225,7 +225,8 @@ export type VRControlAction =
         | "soundOnPlay"
         | "passthroughHome"
         | "uiSfx"
-        | "comfortVignette";
+        | "comfortVignette"
+        | "controllerLock";
       value: boolean;
     }
   /**
@@ -321,6 +322,13 @@ export interface IVRHomeSettings {
    * there's no locomotion in this player, so most viewers don't need it.
    */
   comfortVignette: boolean;
+  /**
+   * Ignore hand-tracking raycasts/clicks/claps while a real Touch controller
+   * is connected — a hand reaching for a drink or brushing past the other
+   * hand shouldn't fire a ray or a click. Hands take back over automatically
+   * if the controller disconnects.
+   */
+  controllerLock: boolean;
 }
 
 /** Sensible defaults — dwell deliberately slower than the old 1.4 s. */
@@ -331,6 +339,7 @@ export const DEFAULT_VR_HOME_SETTINGS: IVRHomeSettings = {
   passthroughHome: false,
   uiSfx: true,
   comfortVignette: false,
+  controllerLock: false,
 };
 
 /**

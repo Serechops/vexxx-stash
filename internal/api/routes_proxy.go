@@ -27,12 +27,88 @@ var allowedProxyDomains = map[string]bool{
 	"trailer.adultdvdempire.com":        true,
 	"internal-video.adultdvdempire.com": true,
 	"video.adultdvdempire.com":          true,
+	"www.evilangel.com":                 true,
+	"members.evilangel.com":             true,
+}
+
+// allowedProxySuffixes is a whitelist of domain suffixes that can be proxied,
+// for CDN families that shard content across numbered/lettered subdomains
+// (e.g. images03-fame.gammacdn.com, streaming-hls.gammacdn.com), or that
+// front a single logical API behind an app-id-prefixed hostname (Algolia).
+var allowedProxySuffixes = []string{
+	".gammacdn.com",
+	".algolia.net",
+	".algolianet.com",
+}
+
+// refererSpoofExact maps an exact proxied host to the Origin/Referer the
+// upstream expects instead of Stash's own origin. Kept per-exact-host rather
+// than a blanket "evilangel.com" substring match: members.evilangel.com's
+// session-validated member API checks the Referer subdomain specifically (a
+// real browser trace showed it expects the `members` referer, not `www`), so
+// spoofing the wrong one can silently fail auth even with valid cookies.
+var refererSpoofExact = map[string]string{
+	"www.evilangel.com":     "https://www.evilangel.com",
+	"members.evilangel.com": "https://members.evilangel.com",
+}
+
+// refererSpoofSuffixes handles hosts that shard across a variable prefix
+// (Algolia's app-id-prefixed subdomain). EvilAngel's Algolia search key is
+// referrer-restricted to the site's own domain, exactly like the community
+// AlgoliaAPI scraper's headers_for_homepage() works around — a browser can't
+// forge Origin/Referer itself, so this hop does it.
+var refererSpoofSuffixes = []struct{ suffix, origin string }{
+	{".algolia.net", "https://www.evilangel.com"},
+	{".algolianet.com", "https://www.evilangel.com"},
+}
+
+func refererOriginFor(host string) (string, bool) {
+	if origin, ok := refererSpoofExact[host]; ok {
+		return origin, true
+	}
+	for _, e := range refererSpoofSuffixes {
+		if strings.HasSuffix(host, e.suffix) {
+			return e.origin, true
+		}
+	}
+	return "", false
+}
+
+// forwardedRequestHeaders is the whitelist of caller-supplied headers passed
+// through verbatim to the upstream request (e.g. Algolia's auth headers).
+// Keep this narrow — anything else the plugin needs the relay to send should
+// be added explicitly, not opened up wholesale.
+var forwardedRequestHeaders = []string{
+	"Content-Type",
+	"X-Algolia-Application-Id",
+	"X-Algolia-API-Key",
+}
+
+func isAllowedProxyHost(host string) bool {
+	if allowedProxyDomains[host] {
+		return true
+	}
+	for _, suffix := range allowedProxySuffixes {
+		if strings.HasSuffix(host, suffix) {
+			return true
+		}
+	}
+	return false
+}
+
+// cookieForwardHosts is a whitelist of hosts the proxy will attach a caller-
+// supplied Cookie header to (via the X-Apihub-Cookie request header). Kept
+// separate and narrower than allowedProxyDomains so a session cookie pasted
+// for one member site can never be replayed against a CDN host.
+var cookieForwardHosts = map[string]bool{
+	"members.evilangel.com": true,
 }
 
 func (rs proxyRoutes) Routes() chi.Router {
 	r := chi.NewRouter()
 
 	r.Get("/media", rs.ProxyMedia)
+	r.Post("/media", rs.ProxyMedia)
 
 	return r
 }
@@ -66,7 +142,7 @@ func (rs proxyRoutes) ProxyMedia(w http.ResponseWriter, r *http.Request) {
 
 	// Security: Only allow whitelisted domains
 	host := strings.ToLower(parsedURL.Hostname())
-	if !allowedProxyDomains[host] {
+	if !isAllowedProxyHost(host) {
 		logger.Warnf("Proxy request blocked for domain: %s (not in whitelist)", host)
 		http.Error(w, "Domain not allowed", http.StatusForbidden)
 		return
@@ -77,7 +153,17 @@ func (rs proxyRoutes) ProxyMedia(w http.ResponseWriter, r *http.Request) {
 		Timeout: 30 * time.Second,
 	}
 
-	proxyReq, err := http.NewRequestWithContext(r.Context(), "GET", targetURLStr, nil)
+	method := r.Method
+	if method != http.MethodGet && method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var body io.Reader
+	if method == http.MethodPost {
+		body = r.Body
+	}
+	proxyReq, err := http.NewRequestWithContext(r.Context(), method, targetURLStr, body)
 	if err != nil {
 		logger.Warnf("Failed to create proxy request: %v", err)
 		http.Error(w, "Failed to create proxy request", http.StatusInternalServerError)
@@ -88,7 +174,12 @@ func (rs proxyRoutes) ProxyMedia(w http.ResponseWriter, r *http.Request) {
 	proxyReq.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 	proxyReq.Header.Set("Accept", "*/*")
 	proxyReq.Header.Set("Accept-Language", "en-US,en;q=0.9")
-	proxyReq.Header.Set("Accept-Encoding", "identity") // Don't request compressed data
+	// Deliberately not setting Accept-Encoding: some upstreams (e.g. Algolia,
+	// behind Cloudflare) compress regardless of what's requested. Leaving this
+	// unset lets Go's http.Transport negotiate gzip itself and transparently
+	// decompress the response — setting it ourselves would disable that and
+	// leave us blindly copying compressed bytes into a response that Stash's
+	// own middleware might then compress a second time.
 	proxyReq.Header.Set("Connection", "keep-alive")
 	proxyReq.Header.Set("sec-ch-ua", `"Google Chrome";v="120", "Chromium";v="120", "Not_A Brand";v="24"`)
 	proxyReq.Header.Set("sec-ch-ua-mobile", "?0")
@@ -101,6 +192,31 @@ func (rs proxyRoutes) ProxyMedia(w http.ResponseWriter, r *http.Request) {
 	if strings.Contains(host, "adultempire") {
 		proxyReq.Header.Set("Origin", "https://www.adultempire.com")
 		proxyReq.Header.Set("Referer", "https://www.adultempire.com/")
+	}
+
+	if origin, ok := refererOriginFor(host); ok {
+		proxyReq.Header.Set("Origin", origin)
+		proxyReq.Header.Set("Referer", origin+"/")
+		proxyReq.Header.Set("X-Requested-With", "XMLHttpRequest")
+	}
+
+	// Forward a narrow, explicit whitelist of caller-supplied headers (e.g.
+	// Algolia's auth headers) — never the full header set, so the plugin
+	// can't smuggle arbitrary headers through this relay.
+	for _, name := range forwardedRequestHeaders {
+		if v := r.Header.Get(name); v != "" {
+			proxyReq.Header.Set(name, v)
+		}
+	}
+
+	// Forward a caller-supplied session cookie for member-gated endpoints only.
+	// The plugin sends it as a custom header (never as the actual outgoing
+	// Cookie header, which browsers forbid scripts from setting) so this
+	// server-side hop is the only place the real Cookie header gets attached.
+	if cookieForwardHosts[host] {
+		if cookie := r.Header.Get("X-Apihub-Cookie"); cookie != "" {
+			proxyReq.Header.Set("Cookie", cookie)
+		}
 	}
 
 	resp, err := client.Do(proxyReq)
@@ -119,7 +235,7 @@ func (rs proxyRoutes) ProxyMedia(w http.ResponseWriter, r *http.Request) {
 
 	// Add CORS headers
 	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 	w.Header().Set("Access-Control-Allow-Headers", "*")
 
 	// Check if this is an HLS playlist and needs rewriting

@@ -10,6 +10,7 @@ import { HoverVideoPreview } from "./HoverVideoPreview";
 import { ResumeProgressBar } from "./ResumeProgressBar";
 import TextUtils from "src/utils/text";
 import { Play } from "lucide-react";
+import { apihubEntityLink } from "./apihubEntityLink";
 
 // ─── Card prop interface (mirrors existing card contracts) ───────────────────
 
@@ -273,7 +274,7 @@ export const CinemaCard: React.FC<ISceneCardProps> = ({
                             onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                history.push(`/studios/${scene.studio!.id}`);
+                                history.push(apihubEntityLink("studio", scene.studio!.id) ?? `/studios/${scene.studio!.id}`);
                             }}
                         >
                             {scene.studio.image_path ? (
@@ -331,7 +332,7 @@ export const CinemaCard: React.FC<ISceneCardProps> = ({
                                     onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
-                                        history.push(`/performers/${p.id}`);
+                                        history.push(apihubEntityLink("performer", p.id) ?? `/performers/${p.id}`);
                                     }}
                                 >
                                     {p.image_path ? (

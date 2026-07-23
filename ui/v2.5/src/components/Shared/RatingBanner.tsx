@@ -7,12 +7,13 @@ import {
   RatingSystemType,
 } from "src/utils/rating";
 import { useConfigurationContext } from "src/hooks/Config";
+import { PatchComponent } from "src/patch";
 
 interface IProps {
   rating?: number | null;
 }
 
-export const RatingBanner: React.FC<IProps> = ({ rating }) => {
+const RatingBannerComponent: React.FC<IProps> = ({ rating }) => {
   const { configuration: config } = useConfigurationContext();
   const ratingSystemOptions =
     config?.ui.ratingSystemOptions ?? defaultRatingSystemOptions;
@@ -39,3 +40,9 @@ export const RatingBanner: React.FC<IProps> = ({ rating }) => {
     <></>
   );
 };
+
+// Wrapped in PatchComponent so it registers into the plugin-api `components`
+// map (like SceneCard / TagLink), letting plugins reuse the host's rating
+// display via PluginApi.components.RatingBanner. Transparent passthrough —
+// existing in-app usages are unaffected.
+export const RatingBanner = PatchComponent("RatingBanner", RatingBannerComponent);

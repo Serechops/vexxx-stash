@@ -16,6 +16,7 @@ import TextUtils from "src/utils/text";
 import { useSceneIncrementO } from "src/core/StashService";
 import { useToast } from "src/hooks/Toast";
 import { ResumeProgressBar } from "./ResumeProgressBar";
+import { apihubEntityLink } from "./apihubEntityLink";
 
 
 
@@ -306,7 +307,7 @@ export const OverlayCard: React.FC<ISceneCardProps> = ({
                                     onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
-                                        history.push(`/studios/${scene.studio?.id}`);
+                                        history.push(apihubEntityLink("studio", scene.studio?.id) ?? `/studios/${scene.studio?.id}`);
                                     }}
                                     sx={{
                                         cursor: "pointer",
@@ -384,7 +385,7 @@ export const OverlayCard: React.FC<ISceneCardProps> = ({
                                         onClick={(e) => {
                                             e.preventDefault();
                                             e.stopPropagation();
-                                            history.push(`/performers/${p.id}`);
+                                            history.push(apihubEntityLink("performer", p.id) ?? `/performers/${p.id}`);
                                         }}
                                         sx={{
                                             background: "rgba(255, 255, 255, 0.2)",
@@ -424,19 +425,33 @@ export const OverlayCard: React.FC<ISceneCardProps> = ({
                                     gap: "6px",
                                 }}
                             >
-                                {scene.tags.slice(0, 3).map(t => (
-                                    <Box
-                                        component="span"
-                                        key={t.id}
-                                        className="tag-dot"
-                                        sx={{
-                                            fontSize: "0.7rem",
-                                            color: "rgba(255, 255, 255, 0.6)",
-                                        }}
-                                    >
-                                        #{t.name}
-                                    </Box>
-                                ))}
+                                {scene.tags.slice(0, 3).map(t => {
+                                    const apihubLink = apihubEntityLink("tag", t.id);
+                                    return (
+                                        <Box
+                                            component="span"
+                                            key={t.id}
+                                            className="tag-dot"
+                                            onClick={
+                                                apihubLink
+                                                    ? (e) => {
+                                                          e.preventDefault();
+                                                          e.stopPropagation();
+                                                          history.push(apihubLink);
+                                                      }
+                                                    : undefined
+                                            }
+                                            sx={{
+                                                fontSize: "0.7rem",
+                                                color: "rgba(255, 255, 255, 0.6)",
+                                                cursor: apihubLink ? "pointer" : undefined,
+                                                "&:hover": apihubLink ? { color: "rgba(255, 255, 255, 0.9)" } : undefined,
+                                            }}
+                                        >
+                                            #{t.name}
+                                        </Box>
+                                    );
+                                })}
                             </Box>
                         )}
                     </Box>

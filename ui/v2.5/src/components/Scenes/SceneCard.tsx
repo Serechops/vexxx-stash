@@ -17,6 +17,7 @@ import { FormattedMessage } from "react-intl";
 import { StashDBCard } from "./StashDBCard";
 import { OverlayCard } from "./OverlayCard";
 import { CinemaCard } from "./CinemaCard";
+import { apihubEntityLink } from "./apihubEntityLink";
 import { useInterfaceLocalForage } from "src/hooks/LocalForage";
 import InventoryIcon from "@mui/icons-material/Inventory";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
@@ -489,7 +490,10 @@ const FlipCard = PatchComponent(
                             onClick={(e) => {
                               e.stopPropagation();
                               e.preventDefault();
-                              history.push(`/studios/${props.scene.studio?.id}`);
+                              history.push(
+                                apihubEntityLink("studio", props.scene.studio?.id) ??
+                                  `/studios/${props.scene.studio?.id}`
+                              );
                             }}
                             sx={{ cursor: "pointer", opacity: 0.8, "&:hover": { opacity: 1 }, transition: "opacity 0.2s" }}
                           >
@@ -620,7 +624,7 @@ const FlipCard = PatchComponent(
                     onClick={(e) => {
                       e.stopPropagation();
                       e.nativeEvent.stopImmediatePropagation(); // Prevent flip
-                      history.push(`/performers/${p.id}`);
+                      history.push(apihubEntityLink("performer", p.id) ?? `/performers/${p.id}`);
                     }}
                     sx={{
                       display: "inline-flex",
@@ -659,11 +663,27 @@ const FlipCard = PatchComponent(
             <Box sx={{ flexGrow: 1, overflowY: "auto", borderTop: (theme) => `1px solid ${theme.palette.divider}`, pt: 1.5, overscrollBehavior: "contain" }}>
               <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, alignItems: "flex-start" }}>
                 <Typography variant="caption" sx={{ width: "100%", fontWeight: "bold", color: "text.secondary", textTransform: "uppercase", mb: 0.5 }}>Tags</Typography>
-                {props.scene.tags.map(tag => (
-                  <Box key={tag.id} component="span" sx={{ px: 1, py: 0.5, backgroundColor: "secondary.main", "&:hover": { backgroundColor: "rgba(138, 155, 168, 0.2)", color: "primary.main" }, color: "text.primary", fontSize: "10px", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.025rem", borderRadius: "2px", transition: "all 0.2s" }}>
-                    {tag.name}
-                  </Box>
-                ))}
+                {props.scene.tags.map(tag => {
+                  const apihubLink = apihubEntityLink("tag", tag.id);
+                  return (
+                    <Box
+                      key={tag.id}
+                      component="span"
+                      onClick={
+                        apihubLink
+                          ? (e) => {
+                              e.stopPropagation();
+                              e.nativeEvent.stopImmediatePropagation();
+                              history.push(apihubLink);
+                            }
+                          : undefined
+                      }
+                      sx={{ px: 1, py: 0.5, backgroundColor: "secondary.main", "&:hover": { backgroundColor: "rgba(138, 155, 168, 0.2)", color: "primary.main" }, color: "text.primary", fontSize: "10px", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.025rem", borderRadius: "2px", transition: "all 0.2s", cursor: apihubLink ? "pointer" : undefined }}
+                    >
+                      {tag.name}
+                    </Box>
+                  );
+                })}
                 {props.scene.tags.length === 0 && <Typography variant="caption" sx={{ color: "text.secondary" }}>No tags</Typography>}
               </Box>
             </Box>

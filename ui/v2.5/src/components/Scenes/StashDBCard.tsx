@@ -13,6 +13,7 @@ import { SceneQueue } from "src/models/sceneQueue";
 import { useConfigurationContext } from "src/hooks/Config";
 import TextUtils from "src/utils/text";
 import { Box, Tooltip, IconButton, Chip } from "@mui/material";
+import { apihubEntityLink } from "./apihubEntityLink";
 import { useSceneIncrementO } from "src/core/StashService";
 import { useToast } from "src/hooks/Toast";
 
@@ -269,7 +270,7 @@ export const StashDBCard: React.FC<ISceneCardProps> = ({
                                 onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
-                                    history.push(`/performers/${p.id}`);
+                                    history.push(apihubEntityLink("performer", p.id) ?? `/performers/${p.id}`);
                                 }}
                                 sx={{
                                     fontSize: "0.8rem",
@@ -306,7 +307,7 @@ export const StashDBCard: React.FC<ISceneCardProps> = ({
                                 onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
-                                    history.push(`/studios/${scene.studio?.id}`);
+                                    history.push(apihubEntityLink("studio", scene.studio?.id) ?? `/studios/${scene.studio?.id}`);
                                 }}
                                 sx={{
                                     color: "text.secondary",

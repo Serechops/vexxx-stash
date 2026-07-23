@@ -1,6 +1,12 @@
 import React from "react";
 import ReactDOM from "react-dom";
 import * as ReactRouterDOM from "react-router-dom";
+// Full @mui/material namespace forwarded to plugins so plugin UIs can be built
+// on the host's real design system (Box/Typography/Card/sx + useTheme/styled/
+// alpha) instead of hand-rolled CSS. Plugin components must consume this via
+// PluginApi.libraries.MUI (never a direct import) so they share the host's
+// single MUI instance and render inside the host ThemeProvider (see App.tsx).
+import * as MUI from "@mui/material";
 import Mousetrap from "mousetrap";
 import MousetrapPause from "mousetrap-pause";
 import NavUtils from "./utils/navigation";
@@ -71,6 +77,7 @@ export const PluginApi = {
     ReactRouterDOM,
     Apollo,
     Intl,
+    MUI,
     FontAwesomeRegular,
     FontAwesomeSolid,
     FontAwesomeBrands,
@@ -148,6 +155,7 @@ export const PluginApi = {
     PerformerSelect: () => import("./components/Performers/PerformerSelect"),
     TagLink: () => import("./components/Shared/TagLink"),
     PerformerCard: () => import("./components/Performers/PerformerCard"),
+    RatingBanner: () => import("./components/Shared/RatingBanner"),
   },
   components,
   utils: {

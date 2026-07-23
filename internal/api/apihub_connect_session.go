@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -46,6 +47,9 @@ const (
 	// when a watched cookie's VALUE changes (or a login-only cookie appears)
 	// versus that baseline.
 	connectBaselineGrace = 6 * time.Second
+	// A working saved session re-mints tokens near-instantly; a lapsed one
+	// should fail fast rather than hang, so the headless re-mint is short.
+	connectRemintTimeout = 30 * time.Second
 )
 
 type connectSession struct {
@@ -80,7 +84,32 @@ var (
 	connectSessionsMu     sync.Mutex
 	connectSessions       = map[string]*connectSession{}
 	connectActiveByTarget = map[string]string{} // targetKey -> in-flight sessionID
+
+	// One lock per target's persistent Chrome profile — Chrome can't share a
+	// user-data-dir across concurrent instances, so the interactive sign-in
+	// and the headless re-mint for the same target must not overlap.
+	profileLocks sync.Map // targetKey -> *sync.Mutex
 )
+
+func targetProfileLock(target string) *sync.Mutex {
+	m, _ := profileLocks.LoadOrStore(target, &sync.Mutex{})
+	return m.(*sync.Mutex)
+}
+
+// connectProfileDir returns (creating if needed) the PERSISTENT Chrome profile
+// directory for a target, under Stash's config dir. Persisting the profile
+// keeps the site's own long-lived "remember me"/session cookies between
+// sign-ins, so re-authentication can happen silently (the headless re-mint
+// below) without the user re-entering credentials.
+func connectProfileDir(target string) (string, error) {
+	base := config.GetInstance().GetConfigPathAbs()
+	safe := strings.NewReplacer(":", "_", "/", "_", "\\", "_").Replace(target)
+	dir := filepath.Join(base, "apihub-connect-profiles", safe)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return "", err
+	}
+	return dir, nil
+}
 
 func isRemoteCDPPath(cdpPath string) bool {
 	return strings.HasPrefix(cdpPath, "http://") ||
@@ -120,7 +149,7 @@ func startConnectSession(targetKey string) (string, error) {
 	connectActiveByTarget[targetKey] = sessionID
 	connectSessionsMu.Unlock()
 
-	go runConnectSession(ctx, sess, target, cdpPath)
+	go runConnectSession(ctx, sess, targetKey, target, cdpPath)
 	go reapConnectSession(sessionID)
 
 	return sessionID, nil
@@ -157,15 +186,21 @@ func reapConnectSession(sessionID string) {
 // cookies appears (or the session is cancelled/times out/the window is
 // closed by the user). Modeled on pkg/scraper/url.go's exec-allocator setup,
 // but headed (not headless) and long-lived rather than a single page load.
-func runConnectSession(ctx context.Context, sess *connectSession, target connectTarget, cdpPath string) {
+func runConnectSession(ctx context.Context, sess *connectSession, targetKey string, target connectTarget, cdpPath string) {
 	defer sess.cancel()
 
-	dir, err := os.MkdirTemp("", "stash-apihub-connect")
+	// Serialise access to this target's persistent profile against any
+	// concurrent headless re-mint, then reuse (not discard) the profile so the
+	// site's session survives for silent re-authentication later.
+	lock := targetProfileLock(targetKey)
+	lock.Lock()
+	defer lock.Unlock()
+
+	dir, err := connectProfileDir(targetKey)
 	if err != nil {
 		sess.setResult(connectStatusFailed, nil, fmt.Sprintf("could not create browser profile dir: %v", err))
 		return
 	}
-	defer os.RemoveAll(dir)
 
 	opts := append(chromedp.DefaultExecAllocatorOptions[:],
 		chromedp.Flag("headless", false),
@@ -257,6 +292,79 @@ func runConnectSession(ctx context.Context, sess *connectSession, target connect
 	}
 }
 
+// remintTokens silently re-authenticates a target by reusing its persistent,
+// already-logged-in Chrome profile HEADLESSLY: it opens the member/login page,
+// which the site auto-authenticates from its remembered session, and captures
+// the fresh tokens. Returns the captured cookies, or an error if the saved
+// session has lapsed (in which case the user must sign in interactively again).
+// Runs under a short timeout: a working session mints instantly, and a lapsed
+// one should fail fast rather than hang.
+func remintTokens(targetKey string) ([]cookiePair, error) {
+	target, ok := connectTargets[targetKey]
+	if !ok {
+		return nil, fmt.Errorf("unknown connect target %q", targetKey)
+	}
+
+	cdpPath := config.GetInstance().GetScraperCDPPath()
+	if isRemoteCDPPath(cdpPath) {
+		return nil, fmt.Errorf("silent re-mint needs a local Chrome — the configured scraper CDP path is a remote debugging address")
+	}
+
+	lock := targetProfileLock(targetKey)
+	lock.Lock()
+	defer lock.Unlock()
+
+	dir, err := connectProfileDir(targetKey)
+	if err != nil {
+		return nil, err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), connectRemintTimeout)
+	defer cancel()
+
+	// Headless (headless flag left at its default-on value), reusing the
+	// persistent, already-authenticated profile.
+	opts := append(chromedp.DefaultExecAllocatorOptions[:],
+		chromedp.Flag("disable-blink-features", "AutomationControlled"),
+		chromedp.UserDataDir(dir),
+	)
+	if cdpPath != "" {
+		opts = append(opts, chromedp.ExecPath(cdpPath))
+	}
+
+	allocCtx, allocCancel := chromedp.NewExecAllocator(ctx, opts...)
+	defer allocCancel()
+	browserCtx, browserCancel := chromedp.NewContext(allocCtx)
+	defer browserCancel()
+
+	if err := chromedp.Run(browserCtx, network.Enable(), chromedp.Navigate(target.loginURL)); err != nil {
+		return nil, fmt.Errorf("could not open member page for re-mint: %w", err)
+	}
+
+	ticker := time.NewTicker(connectPollInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("saved session has expired — please sign in again")
+		case <-browserCtx.Done():
+			return nil, fmt.Errorf("re-mint browser closed unexpectedly")
+		case <-ticker.C:
+			cookies, err := getCDPCookies(browserCtx)
+			if err != nil {
+				continue
+			}
+			// An authenticated profile has ALL the login-only cookies present
+			// (for Aylo the refresh token, absent from anonymous sessions, is
+			// the tell); an anonymous/lapsed one won't, and we time out.
+			if hasAllCookies(cookies, target.doneCookieNames) {
+				logger.Infof("[apihub connect] silent re-mint captured %d cookies for %s", len(cookies), targetKey)
+				return cookies, nil
+			}
+		}
+	}
+}
+
 // getCDPCookies reads the ENTIRE browser cookie jar (Storage.getCookies), not
 // just the current page's cookies (Network.getCookies) — the login flow
 // redirects across hosts (site-ma / www / auth), and the account tokens can
@@ -284,6 +392,21 @@ func cookieNames(cookies []cookiePair) string {
 		names = append(names, c.Name)
 	}
 	return strings.Join(names, ", ")
+}
+
+// hasAllCookies reports whether every named cookie is present with a non-empty
+// value — used by the silent re-mint to confirm the reused profile is actually
+// authenticated (e.g. Aylo's refresh_token_ma, absent from anonymous sessions).
+func hasAllCookies(cookies []cookiePair, names []string) bool {
+	if len(names) == 0 {
+		return false
+	}
+	for _, name := range names {
+		if v, ok := cookieValue(cookies, name); !ok || v == "" {
+			return false
+		}
+	}
+	return true
 }
 
 func cookieValue(cookies []cookiePair, name string) (string, bool) {

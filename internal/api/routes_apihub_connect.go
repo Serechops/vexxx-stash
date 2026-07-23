@@ -23,6 +23,7 @@ func (rs apihubConnectRoutes) Routes() chi.Router {
 	r.Post("/start", rs.Start)
 	r.Get("/status", rs.Status)
 	r.Post("/cancel", rs.Cancel)
+	r.Post("/refresh", rs.Refresh)
 
 	return r
 }
@@ -93,4 +94,33 @@ func (rs apihubConnectRoutes) Cancel(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+type connectRefreshRequest struct {
+	Target string `json:"target"`
+}
+
+type connectRefreshResponse struct {
+	Status  string       `json:"status"` // "success" | "failed"
+	Cookies []cookiePair `json:"cookies,omitempty"`
+	Error   string       `json:"error,omitempty"`
+}
+
+// Refresh silently re-mints a target's tokens by reusing its persistent,
+// already-logged-in Chrome profile headlessly — no visible window, no user
+// interaction. Fails (so the caller can prompt an interactive sign-in) when the
+// saved session has lapsed.
+func (rs apihubConnectRoutes) Refresh(w http.ResponseWriter, r *http.Request) {
+	var req connectRefreshRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Target == "" {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	cookies, err := remintTokens(req.Target)
+	if err != nil {
+		writeJSON(w, connectRefreshResponse{Status: "failed", Error: err.Error()})
+		return
+	}
+	writeJSON(w, connectRefreshResponse{Status: "success", Cookies: cookies})
 }

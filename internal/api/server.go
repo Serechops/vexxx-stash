@@ -442,6 +442,10 @@ func (s *Server) Start() error {
 		}
 	}
 
+	// Keep the Aylo session alive server-side, independent of any open browser
+	// tab, by silently re-minting from the persistent Chrome profile on a timer.
+	startApihubRemintScheduler()
+
 	if s.TLSConfig != nil {
 		return s.ListenAndServeTLS("", "")
 	} else {

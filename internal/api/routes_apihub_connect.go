@@ -24,6 +24,7 @@ func (rs apihubConnectRoutes) Routes() chi.Router {
 	r.Get("/status", rs.Status)
 	r.Post("/cancel", rs.Cancel)
 	r.Post("/refresh", rs.Refresh)
+	r.Post("/verify", rs.Verify)
 
 	return r
 }
@@ -123,4 +124,18 @@ func (rs apihubConnectRoutes) Refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, connectRefreshResponse{Status: "success", Cookies: cookies})
+}
+
+// Verify triggers the same re-mint-and-persist cycle the background scheduler
+// runs on its 30-minute timer, but on demand — so the user doesn't have to wait
+// for the next tick (or scan the server log) to confirm the Aylo session is
+// still alive. It resolves the connected target itself from plugin config, so
+// the request needs no body. The response mirrors the log line: status plus, on
+// success, how long each token is still valid for.
+func (rs apihubConnectRoutes) Verify(w http.ResponseWriter, r *http.Request) {
+	res := performApihubRemint()
+	// Log it too, so an on-demand check still lands in the same audit trail as
+	// the scheduled runs.
+	runApihubRemintLog(res)
+	writeJSON(w, res)
 }

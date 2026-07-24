@@ -322,9 +322,16 @@ func remintTokens(targetKey string) ([]cookiePair, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), connectRemintTimeout)
 	defer cancel()
 
-	// Headless (headless flag left at its default-on value), reusing the
-	// persistent, already-authenticated profile.
+	// Use Chrome's NEW headless (--headless=new) rather than the legacy headless
+	// that DefaultExecAllocatorOptions turns on. Old headless is trivially
+	// fingerprinted by the Cloudflare/DataDome layer these sites sit behind, so a
+	// profile that auto-authenticates perfectly in the headed sign-in would get
+	// silently challenged (and never replay its remember-me session) under old
+	// headless — the prime cause of "re-mint just times out". New headless runs
+	// the full browser stack and presents like a real Chrome. This Flag overrides
+	// the default Headless (old) flag since later same-named flags win.
 	opts := append(chromedp.DefaultExecAllocatorOptions[:],
+		chromedp.Flag("headless", "new"),
 		chromedp.Flag("disable-blink-features", "AutomationControlled"),
 		chromedp.UserDataDir(dir),
 	)

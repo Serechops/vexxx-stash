@@ -48,7 +48,7 @@ import { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 // ─── Job classification ──────────────────────────────────────────────────────
 
 type MediaType = "scene" | "image" | "gallery" | "performer" | "tag" | "studio" | "generic";
-type JobCategory = "scan" | "generate" | "identify" | "tag" | "export" | "import" | "clean" | "migrate" | "generic";
+type JobCategory = "scan" | "generate" | "identify" | "tag" | "export" | "import" | "download" | "clean" | "migrate" | "generic";
 
 interface JobClass {
   media: MediaType;
@@ -77,7 +77,8 @@ function classifyJob(description: string): JobClass {
   let categoryIcon: IconDefinition = faCog;
   let label = "Task";
 
-  if (d.includes("scan")) { category = "scan"; categoryIcon = faMagnifyingGlass; label = "Scan"; }
+  if (d.includes("download")) { category = "download"; categoryIcon = faDownload; label = "Download"; }
+  else if (d.includes("scan")) { category = "scan"; categoryIcon = faMagnifyingGlass; label = "Scan"; }
   else if (d.includes("generat") || d.includes("sprite") || d.includes("preview") || d.includes("thumbnail") || d.includes("phash")) { category = "generate"; categoryIcon = faImages; label = "Generate"; }
   else if (d.includes("identif")) { category = "identify"; categoryIcon = faWandMagicSparkles; label = "Identify"; }
   else if (d.includes("auto-tag") || d.includes("autotag")) { category = "tag"; categoryIcon = faTag; label = "Auto-tag"; }

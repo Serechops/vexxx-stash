@@ -297,6 +297,26 @@ func (s *Manager) ScanFile(ctx context.Context, input ScanFileInput) (*ScanFileR
 	}, nil
 }
 
+// GeneratePhashForFile synchronously generates a perceptual hash (phash) for a
+// single already-scanned video file if it doesn't already have one, mirroring
+// what a normal library scan does when "Generate phashes" is enabled. It's a
+// no-op when the file already carries a phash. This exists so callers outside
+// the manager package (e.g. the APIHub download importer) can guarantee a phash
+// is present before running identification — phash is fundamental to proper
+// scene matching in Stash.
+func (s *Manager) GeneratePhashForFile(ctx context.Context, f *models.VideoFile) error {
+	if f == nil {
+		return nil
+	}
+	task := GeneratePhashTask{
+		repository:          s.Repository,
+		File:                f,
+		Overwrite:           false,
+		fileNamingAlgorithm: config.GetInstance().GetVideoFileNamingAlgorithm(),
+	}
+	return task.Start(ctx)
+}
+
 type watcherImageGenerator struct {
 	paths *paths.Paths
 }

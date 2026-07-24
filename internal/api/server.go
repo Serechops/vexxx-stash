@@ -269,6 +269,7 @@ func Initialize() (*Server, error) {
 	r.Mount("/scheduled-tasks", server.getScheduledTaskRoutes())
 	r.Mount("/proxy", server.getProxyRoutes())
 	r.Mount("/apihub-connect", server.getApihubConnectRoutes())
+	r.Mount("/apihub-download", server.getApihubDownloadRoutes())
 	r.Mount("/stashface", server.getStashFaceRoutes())
 	r.Mount("/stashtag", server.getStashTagRoutes())
 	r.Mount("/megaface", server.getMegaFaceRoutes())
@@ -842,6 +843,13 @@ func (s *Server) getProxyRoutes() chi.Router {
 func (s *Server) getApihubConnectRoutes() chi.Router {
 	repo := s.manager.Repository
 	return apihubConnectRoutes{
+		routes: routes{txnManager: repo.TxnManager},
+	}.Routes()
+}
+
+func (s *Server) getApihubDownloadRoutes() chi.Router {
+	repo := s.manager.Repository
+	return apihubDownloadRoutes{
 		routes: routes{txnManager: repo.TxnManager},
 	}.Routes()
 }

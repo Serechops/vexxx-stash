@@ -43,4 +43,13 @@ var connectTargets = map[string]connectTarget{
 		loginURL:        "https://site-ma.bangbros.com/login",
 		doneCookieNames: []string{"access_token_ma", "refresh_token_ma"},
 	},
+	// Adult Time's own account/entitlement backend is AWS Cognito + AppSync
+	// (confirmed via a live HAR capture) — but the actual member-area session
+	// itself runs on the same Gamma-platform cookie scheme as EvilAngel: a live
+	// capture of authenticated members.adulttime.com traffic showed
+	// autologin_userid/autologin_hash sent on every request, same as EvilAngel.
+	"adulttime": {
+		loginURL:        "https://freetour.adulttime.com/en/login",
+		doneCookieNames: []string{"autologin_userid", "autologin_hash"},
+	},
 }

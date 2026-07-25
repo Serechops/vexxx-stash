@@ -29,6 +29,9 @@ var allowedProxyDomains = map[string]bool{
 	"video.adultdvdempire.com":          true,
 	"www.evilangel.com":                 true,
 	"members.evilangel.com":             true,
+	"www.adulttime.com":                 true,
+	"members.adulttime.com":             true,
+	"freetour.adulttime.com":            true,
 }
 
 // allowedProxySuffixes is a whitelist of domain suffixes that can be proxied,
@@ -48,23 +51,40 @@ var allowedProxySuffixes = []string{
 // real browser trace showed it expects the `members` referer, not `www`), so
 // spoofing the wrong one can silently fail auth even with valid cookies.
 var refererSpoofExact = map[string]string{
-	"www.evilangel.com":     "https://www.evilangel.com",
-	"members.evilangel.com": "https://members.evilangel.com",
+	"www.evilangel.com":      "https://www.evilangel.com",
+	"members.evilangel.com":  "https://members.evilangel.com",
+	"www.adulttime.com":      "https://members.adulttime.com",
+	"members.adulttime.com":  "https://members.adulttime.com",
+	"freetour.adulttime.com": "https://members.adulttime.com",
 }
 
-// refererSpoofSuffixes handles hosts that shard across a variable prefix
-// (Algolia's app-id-prefixed subdomain). EvilAngel's Algolia search key is
-// referrer-restricted to the site's own domain, exactly like the community
-// AlgoliaAPI scraper's headers_for_homepage() works around — a browser can't
-// forge Origin/Referer itself, so this hop does it.
+// algoliaOriginByAppID maps an Algolia application id (sent verbatim by the
+// plugin as X-Algolia-Application-Id, forwarded below) to the Referer/Origin
+// its secured/search key is restricted to. Keyed by app id rather than a
+// blanket Algolia-suffix rule because more than one network now shares this
+// relay: EvilAngel's key is restricted to its own domain, Adult Time's to
+// members.adulttime.com — spoofing the wrong one fails the upstream's
+// referrer check even with an otherwise-valid key.
+var algoliaOriginByAppID = map[string]string{
+	"TSMKFA364Q": "https://members.adulttime.com",
+}
+
+// refererSpoofSuffixes is the fallback for Algolia hosts whose app id isn't
+// (yet) in algoliaOriginByAppID above — kept defaulting to EvilAngel since it
+// was the sole Algolia consumer before Adult Time.
 var refererSpoofSuffixes = []struct{ suffix, origin string }{
 	{".algolia.net", "https://www.evilangel.com"},
 	{".algolianet.com", "https://www.evilangel.com"},
 }
 
-func refererOriginFor(host string) (string, bool) {
+func refererOriginFor(host string, algoliaAppID string) (string, bool) {
 	if origin, ok := refererSpoofExact[host]; ok {
 		return origin, true
+	}
+	if algoliaAppID != "" {
+		if origin, ok := algoliaOriginByAppID[strings.ToUpper(algoliaAppID)]; ok {
+			return origin, true
+		}
 	}
 	for _, e := range refererSpoofSuffixes {
 		if strings.HasSuffix(host, e.suffix) {
@@ -102,6 +122,7 @@ func isAllowedProxyHost(host string) bool {
 // for one member site can never be replayed against a CDN host.
 var cookieForwardHosts = map[string]bool{
 	"members.evilangel.com": true,
+	"members.adulttime.com": true,
 }
 
 func (rs proxyRoutes) Routes() chi.Router {
@@ -194,7 +215,7 @@ func (rs proxyRoutes) ProxyMedia(w http.ResponseWriter, r *http.Request) {
 		proxyReq.Header.Set("Referer", "https://www.adultempire.com/")
 	}
 
-	if origin, ok := refererOriginFor(host); ok {
+	if origin, ok := refererOriginFor(host, r.Header.Get("X-Algolia-Application-Id")); ok {
 		proxyReq.Header.Set("Origin", origin)
 		proxyReq.Header.Set("Referer", origin+"/")
 		proxyReq.Header.Set("X-Requested-With", "XMLHttpRequest")

@@ -181,6 +181,83 @@ func reapConnectSession(sessionID string) {
 	}
 }
 
+const (
+	browserStartAttempts = 3
+	browserStartBackoff  = 2 * time.Second
+)
+
+// isBrowserStartFailure reports whether err looks like Chrome failing to LAUNCH
+// (vs. a page/navigation error once it's already up). Only these are worth
+// retrying: a fresh process routinely succeeds where a previous spawn lost a
+// startup race or tripped over a leftover profile lock.
+func isBrowserStartFailure(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "failed to start") ||
+		strings.Contains(msg, "chrome failed") ||
+		strings.Contains(msg, "exec:") ||
+		strings.Contains(msg, "executable file not found")
+}
+
+// clearProfileSingletonLocks best-effort removes Chrome's per-profile "singleton"
+// lock artifacts from a persistent user-data-dir. A Chrome for this profile that
+// crashed or was killed can leave these behind, and the next launch then aborts
+// with "chrome failed to start". We only call this after a failed launch, and
+// per-target access is already serialized by targetProfileLock, so no live
+// instance should legitimately hold them.
+func clearProfileSingletonLocks(dir string) {
+	for _, name := range []string{"SingletonLock", "SingletonCookie", "SingletonSocket", "lockfile"} {
+		_ = os.Remove(filepath.Join(dir, name))
+	}
+}
+
+// launchBrowser builds an exec-allocator + browser context from opts and brings
+// Chrome up by running startupActions (typically network.Enable + Navigate),
+// retrying the LAUNCH a few times when Chrome fails to start — a transient or
+// stale-profile-lock condition — instead of giving up on the first miss. dir is
+// the persistent profile dir, whose stale singleton locks are cleared between
+// attempts. On success it returns the live browser context and a single cancel
+// that tears down both the context and the allocator (the caller owns calling
+// it). On failure every attempt's resources are released and the last error is
+// returned. A navigation error (Chrome came up, the page failed) is NOT retried,
+// nor is anything after the parent context is cancelled/expired.
+func launchBrowser(parent context.Context, opts []chromedp.ExecAllocatorOption, targetKey, dir string, startupActions ...chromedp.Action) (context.Context, context.CancelFunc, error) {
+	var lastErr error
+	for attempt := 1; attempt <= browserStartAttempts; attempt++ {
+		allocCtx, allocCancel := chromedp.NewExecAllocator(parent, opts...)
+		browserCtx, browserCancel := chromedp.NewContext(allocCtx)
+
+		err := chromedp.Run(browserCtx, startupActions...)
+		if err == nil {
+			return browserCtx, func() { browserCancel(); allocCancel() }, nil
+		}
+
+		// Release this attempt's resources before retrying or bailing.
+		browserCancel()
+		allocCancel()
+		lastErr = err
+
+		// A cancelled/expired parent means the caller gave up (timeout, user
+		// cancel) — terminal, not a flaky launch. And only relaunch for genuine
+		// start failures; respawning won't fix a page that failed to load.
+		if parent.Err() != nil || !isBrowserStartFailure(err) {
+			break
+		}
+		if attempt < browserStartAttempts {
+			clearProfileSingletonLocks(dir)
+			logger.Warnf("[apihub connect] chrome launch attempt %d/%d for %s failed (%v); cleared profile locks, retrying in %s",
+				attempt, browserStartAttempts, targetKey, err, browserStartBackoff)
+			select {
+			case <-time.After(browserStartBackoff):
+			case <-parent.Done():
+			}
+		}
+	}
+	return nil, nil, lastErr
+}
+
 // runConnectSession drives a real, visible Chrome instance to the target's
 // login page and polls its cookie jar until one of the target's "done"
 // cookies appears (or the session is cancelled/times out/the window is
@@ -211,13 +288,9 @@ func runConnectSession(ctx context.Context, sess *connectSession, targetKey stri
 		opts = append(opts, chromedp.ExecPath(cdpPath))
 	}
 
-	allocCtx, allocCancel := chromedp.NewExecAllocator(ctx, opts...)
-	defer allocCancel()
-
-	browserCtx, browserCancel := chromedp.NewContext(allocCtx)
-	defer browserCancel()
-
-	if err := chromedp.Run(browserCtx, network.Enable(), chromedp.Navigate(target.loginURL)); err != nil {
+	browserCtx, cancelBrowser, err := launchBrowser(ctx, opts, targetKey, dir,
+		network.Enable(), chromedp.Navigate(target.loginURL))
+	if err != nil {
 		if ctx.Err() != nil {
 			sess.setResult(connectStatusCancelled, nil, "sign-in was cancelled")
 		} else {
@@ -226,6 +299,7 @@ func runConnectSession(ctx context.Context, sess *connectSession, targetKey stri
 		}
 		return
 	}
+	defer cancelBrowser()
 
 	ticker := time.NewTicker(connectPollInterval)
 	defer ticker.Stop()
@@ -339,21 +413,38 @@ func remintTokens(targetKey string) ([]cookiePair, error) {
 		opts = append(opts, chromedp.ExecPath(cdpPath))
 	}
 
-	allocCtx, allocCancel := chromedp.NewExecAllocator(ctx, opts...)
-	defer allocCancel()
-	browserCtx, browserCancel := chromedp.NewContext(allocCtx)
-	defer browserCancel()
-
-	if err := chromedp.Run(browserCtx, network.Enable(), chromedp.Navigate(target.loginURL)); err != nil {
+	browserCtx, cancelBrowser, err := launchBrowser(ctx, opts, targetKey, dir,
+		network.Enable(), chromedp.Navigate(target.loginURL))
+	if err != nil {
 		return nil, fmt.Errorf("could not open member page for re-mint: %w", err)
 	}
+	defer cancelBrowser()
 
+	// An authenticated profile has ALL the login-only cookies present (for Aylo
+	// the refresh token, absent from anonymous sessions, is the tell); an
+	// anonymous/lapsed one won't, and we time out.
+	return awaitDoneCookies(ctx, browserCtx, targetKey, target.doneCookieNames,
+		"saved session has expired — please sign in again")
+}
+
+// awaitDoneCookies polls the browser's cookie jar until every one of
+// doneCookieNames is present (login succeeded) or the context deadline / browser
+// exit ends the wait. Shared by the silent profile re-mint and the credential
+// login, which differ only in how they reach the authenticated state — one
+// reuses a remember-me session, the other fills the form. timeoutErr is the
+// message returned when the deadline passes without the cookies appearing.
+func awaitDoneCookies(ctx, browserCtx context.Context, targetKey string, doneCookieNames []string, timeoutErr string) ([]cookiePair, error) {
 	ticker := time.NewTicker(connectPollInterval)
 	defer ticker.Stop()
+	// Names last seen in the jar, surfaced on timeout so a failure is diagnosable
+	// (e.g. _GRECAPTCHA present but no auth tokens = login blocked/rejected, not a
+	// wrong selector) without needing debug logging enabled.
+	var lastSeen string
 	for {
 		select {
 		case <-ctx.Done():
-			return nil, fmt.Errorf("saved session has expired — please sign in again")
+			logger.Infof("[apihub connect] %s timed out; last cookies seen: %s", targetKey, lastSeen)
+			return nil, fmt.Errorf("%s", timeoutErr)
 		case <-browserCtx.Done():
 			return nil, fmt.Errorf("re-mint browser closed unexpectedly")
 		case <-ticker.C:
@@ -361,11 +452,9 @@ func remintTokens(targetKey string) ([]cookiePair, error) {
 			if err != nil {
 				continue
 			}
-			// An authenticated profile has ALL the login-only cookies present
-			// (for Aylo the refresh token, absent from anonymous sessions, is
-			// the tell); an anonymous/lapsed one won't, and we time out.
-			if hasAllCookies(cookies, target.doneCookieNames) {
-				logger.Infof("[apihub connect] silent re-mint captured %d cookies for %s", len(cookies), targetKey)
+			lastSeen = cookieNames(cookies)
+			if hasAllCookies(cookies, doneCookieNames) {
+				logger.Infof("[apihub connect] captured %d cookies for %s", len(cookies), targetKey)
 				return cookies, nil
 			}
 		}

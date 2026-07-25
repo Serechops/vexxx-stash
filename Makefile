@@ -204,14 +204,10 @@ build-cc-macos-arm: build
 
 .PHONY: build-cc-macos
 build-cc-macos:
-	make build-cc-macos-arm
 	make build-cc-macos-intel
 
-	# Combine into universal binaries
-	lipo -create -output dist/stash-macos dist/stash-macos-intel dist/stash-macos-arm
-	rm dist/stash-macos-intel dist/stash-macos-arm
-	lipo -create -output dist/phasher-macos dist/phasher-macos-intel dist/phasher-macos-arm
-	rm dist/phasher-macos-intel dist/phasher-macos-arm
+	mv dist/stash-macos-intel dist/stash-macos
+	mv dist/phasher-macos-intel dist/phasher-macos
 
 	# Place into bundle and zip up
 	rm -rf dist/Stash.app
@@ -277,9 +273,6 @@ build-cc-all:
 	make build-cc-windows
 	make build-cc-macos
 	make build-cc-linux
-	make build-cc-linux-arm64v8
-	make build-cc-linux-arm32v7
-	make build-cc-linux-arm32v6
 	make build-cc-freebsd
 
 .PHONY: touch-ui

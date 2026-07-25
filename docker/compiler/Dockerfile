@@ -1,4 +1,4 @@
-FROM golang:1.24.3
+FROM golang:1.26
 
 LABEL maintainer="https://discord.gg/2TsNFKt"
 
@@ -26,7 +26,7 @@ RUN npm install -g pnpm
 # FreeBSD cross-compilation setup
 # https://github.com/smartmontools/docker-build/blob/6b8c92560d17d325310ba02d9f5a4b250cb0764a/Dockerfile#L66
 ENV FREEBSD_VERSION       13.4
-ENV FREEBSD_DOWNLOAD_URL  http://ftp.plusline.de/FreeBSD/releases/amd64/${FREEBSD_VERSION}-RELEASE/base.txz
+ENV FREEBSD_DOWNLOAD_URL  https://archive.freebsd.org/old-releases/amd64/${FREEBSD_VERSION}-RELEASE/base.txz
 ENV FREEBSD_SHA           8e13b0a93daba349b8d28ad246d7beb327659b2ef4fe44d89f447392daec5a7c
 
 RUN cd /tmp && \
@@ -63,6 +63,17 @@ RUN cd /tmp && \
     cp osxcross/target/lib/* /usr/lib/ && \
     mv osxcross/target /opt/osx-ndk-x86 && \
     rm -rf /tmp/osxcross
+
+# The 11.3 SDK predates macOS 12's SecTrustCopyCertificateChain, which Go's
+# crypto/x509 darwin trampoline links against unconditionally (regardless of
+# target OS version) as of the Go 1.26 toolchain. phracker/MacOSX-SDKs has
+# never published a 12.x SDK, so patch the stub symbol into Security.tbd
+# instead of sourcing a newer SDK. Runtime resolution still happens via dyld
+# on the actual machine, so this only affects link-time symbol checking.
+RUN SEC_TBD=$(find /opt/osx-ndk-x86/SDK -path '*/Security.framework/*/Security.tbd' | head -1) && \
+    test -n "$SEC_TBD" && \
+    sed -i 's/_SecTrustGetCertificateAtIndex,/_SecTrustGetCertificateAtIndex, _SecTrustCopyCertificateChain,/' "$SEC_TBD" && \
+    grep -q '_SecTrustCopyCertificateChain' "$SEC_TBD"
 
 ENV PATH /opt/osx-ndk-x86/bin:$PATH
 

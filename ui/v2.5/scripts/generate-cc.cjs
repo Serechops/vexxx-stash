@@ -177,11 +177,17 @@ if (isDryRun) {
     console.log('[Dry Run] Build steps will be skipped (printing commands only).');
 }
 
+// Vexxx bumps Go module dependencies (e.g. chromedp) ahead of upstream, so the
+// upstream stashapp/compiler image on Docker Hub can lag behind the Go toolchain
+// version required by go.mod. Build our own compiler image locally instead of
+// pulling upstream's, so it always matches this fork's go.mod.
+const COMPILER_IMAGE = 'vexxx/compiler:latest';
+
 // Commands to run relative to ui/v2.5
 const preCommands = [
     'make -C ../.. generate',
     'make -C ../.. ui',
-    'docker pull stashapp/compiler'
+    `docker build -t ${COMPILER_IMAGE} ../../docker/compiler`
 ];
 
 for (const cmd of preCommands) {
@@ -194,7 +200,7 @@ for (const cmd of preCommands) {
 
 // Docker command needs to run from the root directory
 const rootDir = path.resolve(__dirname, '../../../');
-const dockerCmd = `docker run --rm -v ".:/stash" -e STASH_VERSION -e GITHASH -e BUILD_DATE -e OFFICIAL_BUILD -e STASH_RELEASE_REPO -w /stash stashapp/compiler /bin/bash -c "make build-cc-all"`;
+const dockerCmd = `docker run --rm -v ".:/stash" -e STASH_VERSION -e GITHASH -e BUILD_DATE -e OFFICIAL_BUILD -e STASH_RELEASE_REPO -w /stash ${COMPILER_IMAGE} /bin/bash -c "make build-cc-all"`;
 
 console.log(`[Vexxx] Running Docker cross-compilation from ${rootDir}...`);
 console.log(`> ${dockerCmd}`);

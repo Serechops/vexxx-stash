@@ -34,6 +34,11 @@ var allowedProxyDomains = map[string]bool{
 	"freetour.adulttime.com":            true,
 	"api2.reptyle.com":                  true,
 	"ma-store.reptyle.com":              true,
+	// TeamSkeet/Reptyle's dedicated OAuth host. Unlike members.reptyle.com
+	// (Cloudflare JS-challenged), this one answers a plain POST, so the plugin
+	// refreshes the 30-min access token here without driving a browser — the
+	// refresh token travels in the request body, no Bearer/cookie needed.
+	"auth.reptyle.com": true,
 }
 
 // allowedProxySuffixes is a whitelist of domain suffixes that can be proxied,
@@ -60,6 +65,7 @@ var refererSpoofExact = map[string]string{
 	"freetour.adulttime.com": "https://members.adulttime.com",
 	"api2.reptyle.com":       "https://app.reptyle.com",
 	"ma-store.reptyle.com":   "https://app.reptyle.com",
+	"auth.reptyle.com":       "https://app.reptyle.com",
 }
 
 // algoliaOriginByAppID maps an Algolia application id (sent verbatim by the

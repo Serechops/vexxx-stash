@@ -401,6 +401,20 @@ func Initialize() (*Server, error) {
 		printLatestVersion(ctx)
 	}()
 
+	// Keep the Aylo (Project1) session alive server-side: its refresh token is
+	// short-lived (~30 min) and only rotates while a tab is open, so without this
+	// the session dies whenever every tab is closed and the next visit hits a
+	// reCAPTCHA-walled reconnect. See apihub_aylo_renew_scheduler.go.
+	startApihubAyloRenewScheduler()
+
+	// Keep the Gamma-platform member sessions (EvilAngel, Adult Time) warm
+	// server-side: they have no token-refresh endpoint, only a sliding session
+	// cookie the server reissues on each authenticated hit. Without this the
+	// media proxy discards those reissues and, with no tab open, the session
+	// drifts stale before the ~30-day autologin cap. See
+	// apihub_gamma_keepalive_scheduler.go.
+	startApihubGammaKeepaliveScheduler()
+
 	return server, nil
 }
 

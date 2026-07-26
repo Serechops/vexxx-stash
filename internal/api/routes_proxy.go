@@ -32,6 +32,8 @@ var allowedProxyDomains = map[string]bool{
 	"www.adulttime.com":                 true,
 	"members.adulttime.com":             true,
 	"freetour.adulttime.com":            true,
+	"api2.reptyle.com":                  true,
+	"ma-store.reptyle.com":              true,
 }
 
 // allowedProxySuffixes is a whitelist of domain suffixes that can be proxied,
@@ -56,6 +58,8 @@ var refererSpoofExact = map[string]string{
 	"www.adulttime.com":      "https://members.adulttime.com",
 	"members.adulttime.com":  "https://members.adulttime.com",
 	"freetour.adulttime.com": "https://members.adulttime.com",
+	"api2.reptyle.com":       "https://app.reptyle.com",
+	"ma-store.reptyle.com":   "https://app.reptyle.com",
 }
 
 // algoliaOriginByAppID maps an Algolia application id (sent verbatim by the
@@ -102,6 +106,10 @@ var forwardedRequestHeaders = []string{
 	"Content-Type",
 	"X-Algolia-Application-Id",
 	"X-Algolia-API-Key",
+	// TeamSkeet/Reptyle authenticates purely off a Bearer JWT (never a Cookie
+	// header) — the client already holds this token itself, so forwarding it
+	// verbatim carries the same trust level as the Algolia key headers above.
+	"Authorization",
 }
 
 func isAllowedProxyHost(host string) bool {

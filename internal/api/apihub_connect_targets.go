@@ -52,4 +52,18 @@ var connectTargets = map[string]connectTarget{
 		loginURL:        "https://freetour.adulttime.com/en/login",
 		doneCookieNames: []string{"autologin_userid", "autologin_hash"},
 	},
+	// TeamSkeet runs on a different backend entirely ("Reptyle" — the shared
+	// membership hub behind TeamSkeet/Swappz/Freeuse/Pervz/Family Strokes/MYLF).
+	// Its Bearer token is a custom-signed Firebase JWT (30-minute expiry) that
+	// only Reptyle's own backend can re-mint — confirmed by decoding the JWT
+	// used as Authorization: it's byte-identical to the `token` field POSTed to
+	// Firebase's signInWithCustomToken, not the ID token that call returns, so
+	// Firebase's public refresh endpoint can't be used to self-refresh it. This
+	// generic driven-Chrome re-mint (same mechanism as Aylo) is the fallback:
+	// reload the member area with the persisted profile and scrape the fresh
+	// access_token/refresh_token cookies straight out of the jar.
+	"teamskeet": {
+		loginURL:        "https://app.reptyle.com/login",
+		doneCookieNames: []string{"access_token", "refresh_token"},
+	},
 }

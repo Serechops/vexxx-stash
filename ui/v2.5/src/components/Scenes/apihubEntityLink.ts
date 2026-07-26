@@ -9,17 +9,28 @@
  * Returns null for ordinary numeric-id entities so callers fall back to their
  * normal /performers|/tags|/studios navigation unchanged.
  */
+// Networks whose catalog has no stable numeric id for performers/tags/studios
+// (EvilAngel/Adult Time/TeamSkeet all key their synthetic ids off the exact
+// facet name instead) — each maps its short id-prefix to the plugin's tab key.
+const NAME_BASED_NETWORKS: Record<string, string> = {
+  ea: "evilangel",
+  at: "adulttime",
+  ts: "teamskeet",
+};
+
 export function apihubEntityLink(
   kind: "performer" | "tag" | "studio",
   id: string | undefined | null
 ): string | null {
   if (!id) return null;
 
-  const eaPrefix = `apihub-ea-${kind}-`;
-  if (id.startsWith(eaPrefix)) {
-    const name = decodeURIComponent(id.slice(eaPrefix.length));
-    if (!name) return null;
-    return `/plugins/apihub?network=evilangel&${kind}=${encodeURIComponent(name)}`;
+  for (const [shortKey, network] of Object.entries(NAME_BASED_NETWORKS)) {
+    const namePrefix = `apihub-${shortKey}-${kind}-`;
+    if (id.startsWith(namePrefix)) {
+      const name = decodeURIComponent(id.slice(namePrefix.length));
+      if (!name) return null;
+      return `/plugins/apihub?network=${network}&${kind}=${encodeURIComponent(name)}`;
+    }
   }
 
   const prefix = `apihub-${kind}-`;

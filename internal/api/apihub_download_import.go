@@ -31,7 +31,10 @@ import (
 // performers are handled, tags merge, per-field IGNORE/MERGE/OVERWRITE
 // strategies apply, and missing entities are only created when the user's
 // field options allow it.
-func (j *apihubDownloadJob) importAndStamp(ctx context.Context, path string, item apihubDownloadItem) error {
+// Returns the scene the scan created, so a follow-up step (the gallery import)
+// can attach to it. The scene is returned even when there was no metadata to
+// identify against.
+func (j *apihubDownloadJob) importAndStamp(ctx context.Context, path string, item apihubDownloadItem) (*models.Scene, error) {
 	mgr := manager.GetInstance()
 
 	// A full library scan creates a Folder row for every directory as it walks
@@ -41,23 +44,23 @@ func (j *apihubDownloadJob) importAndStamp(ctx context.Context, path string, ite
 	// the containing library root down to the file's parent first.
 	libRoot := config.GetInstance().GetStashPaths().GetStashFromDirPath(path)
 	if libRoot == nil {
-		return fmt.Errorf("downloaded file %q is not inside a configured library path", path)
+		return nil, fmt.Errorf("downloaded file %q is not inside a configured library path", path)
 	}
 	if err := ensureFolderHierarchy(ctx, mgr.Repository, libRoot.Path, filepath.Dir(path)); err != nil {
-		return fmt.Errorf("preparing library folders: %w", err)
+		return nil, fmt.Errorf("preparing library folders: %w", err)
 	}
 
 	// Synchronous single-file scan — creates the scene via the same handlers the
 	// library scan uses, and returns the file (with its ID).
 	res, err := mgr.ScanFile(ctx, manager.ScanFileInput{Path: path})
 	if err != nil {
-		return fmt.Errorf("scan: %w", err)
+		return nil, fmt.Errorf("scan: %w", err)
 	}
 	if res.Error != nil {
-		return fmt.Errorf("scan: %s", *res.Error)
+		return nil, fmt.Errorf("scan: %s", *res.Error)
 	}
 	if res.File == nil || res.File.Base() == nil {
-		return fmt.Errorf("scan produced no file")
+		return nil, fmt.Errorf("scan produced no file")
 	}
 	fileID := res.File.Base().ID
 
@@ -73,14 +76,11 @@ func (j *apihubDownloadJob) importAndStamp(ctx context.Context, path string, ite
 		}
 	}
 
-	meta := item.Metadata
-	if meta == nil {
-		return nil // imported, nothing to identify against
-	}
-
 	repo := mgr.Repository
 
-	// Find the scene the scan just created for this file.
+	// Find the scene the scan just created for this file. Done before the
+	// metadata check so the scene is returned (and a gallery can still be
+	// attached to it) even when there's nothing to identify against.
 	var scene *models.Scene
 	if err := txn.WithReadTxn(ctx, repo.TxnManager, func(ctx context.Context) error {
 		scenes, err := repo.Scene.FindByFileID(ctx, fileID)
@@ -93,10 +93,60 @@ func (j *apihubDownloadJob) importAndStamp(ctx context.Context, path string, ite
 		scene = scenes[0]
 		return nil
 	}); err != nil {
-		return err
+		return nil, err
 	}
 
-	return j.identifyDownloadedScene(ctx, repo, scene, item)
+	if item.Metadata == nil {
+		return scene, nil // imported, nothing to identify against
+	}
+
+	if err := j.identifyDownloadedScene(ctx, repo, scene, item); err != nil {
+		return scene, err
+	}
+
+	// identify.SceneIdentifier.Identify writes the studio/performers/tags it
+	// resolved straight to the DB via scene.UpdateSet.Update, but discards the
+	// updated row that call returns — our `scene` pointer still reflects the
+	// blank, just-scanned state from before identify ran. A caller reading
+	// scene.StudioID (the gallery import mirrors it onto the gallery) would
+	// otherwise always see nil. Re-fetch so it reflects what was actually
+	// applied.
+	refreshed, err := reloadScene(ctx, repo, scene.ID)
+	if err != nil {
+		// The scene itself imported and was identified fine — a failure here
+		// just means the gallery (if any) won't get the studio/performers/tags
+		// mirrored onto it, not that the whole download failed.
+		logger.Warnf("[apihub-download] reloading identified scene %d: %v", scene.ID, err)
+		return scene, nil
+	}
+	return refreshed, nil
+}
+
+// reloadScene re-fetches a scene by ID along with the relationship IDs the
+// gallery import mirrors onto its gallery (performers/tags; StudioID comes
+// back as part of the base row already).
+func reloadScene(ctx context.Context, repo models.Repository, id int) (*models.Scene, error) {
+	var scene *models.Scene
+	if err := txn.WithReadTxn(ctx, repo.TxnManager, func(ctx context.Context) error {
+		s, err := repo.Scene.Find(ctx, id)
+		if err != nil {
+			return err
+		}
+		if s == nil {
+			return fmt.Errorf("scene %d no longer exists", id)
+		}
+		if err := s.LoadPerformerIDs(ctx, repo.Scene); err != nil {
+			return err
+		}
+		if err := s.LoadTagIDs(ctx, repo.Scene); err != nil {
+			return err
+		}
+		scene = s
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	return scene, nil
 }
 
 // identifyDownloadedScene applies the carried catalog metadata to the scene via
@@ -283,11 +333,25 @@ func (j *apihubDownloadJob) fetchBytes(ctx context.Context, url string, headers 
 // top-down library scan would create. ScanFile's onNewFile requires the file's
 // parent folder row to already exist, so this must run before the scan.
 func ensureFolderHierarchy(ctx context.Context, repo models.Repository, libraryRoot, dir string) error {
+	_, err := ensureFolderRow(ctx, repo, libraryRoot, dir)
+	return err
+}
+
+// ensureFolderRow is ensureFolderHierarchy, additionally returning dir's own
+// Folder row — the gallery import needs its ID to find the folder-based gallery
+// the image scan creates against it.
+func ensureFolderRow(ctx context.Context, repo models.Repository, libraryRoot, dir string) (*models.Folder, error) {
 	libraryRoot = filepath.Clean(libraryRoot)
-	return txn.WithTxn(ctx, repo.TxnManager, func(ctx context.Context) error {
-		_, err := ensureFolder(ctx, repo.Folder, libraryRoot, filepath.Clean(dir))
-		return err
+	var out *models.Folder
+	err := txn.WithTxn(ctx, repo.TxnManager, func(ctx context.Context) error {
+		f, err := ensureFolder(ctx, repo.Folder, libraryRoot, filepath.Clean(dir))
+		if err != nil {
+			return err
+		}
+		out = f
+		return nil
 	})
+	return out, err
 }
 
 // ensureFolder returns the Folder row for path, creating it (and any missing

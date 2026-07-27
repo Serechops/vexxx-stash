@@ -12,6 +12,7 @@ import (
 
 	"github.com/stashapp/stash/pkg/job"
 	"github.com/stashapp/stash/pkg/logger"
+	"github.com/stashapp/stash/pkg/models"
 )
 
 // apihubDownloadItem is one scene to fetch. The plugin has already resolved the
@@ -29,6 +30,10 @@ type apihubDownloadItem struct {
 	Title     string            `json:"title"`
 	Headers   map[string]string    `json:"headers,omitempty"`
 	Metadata  *apihubSceneMetadata `json:"metadata,omitempty"`
+	// Gallery, when present, is the accompanying photo set to download and
+	// attach to the imported scene. Nil when the user didn't opt in, or the
+	// provider has no gallery for this scene.
+	Gallery *apihubGalleryMeta `json:"gallery,omitempty"`
 }
 
 // apihubSceneMetadata is the catalog metadata the plugin already holds for a
@@ -109,11 +114,26 @@ func (j *apihubDownloadJob) Execute(ctx context.Context, progress *job.Progress)
 		// Import the freshly-downloaded file into the library and stamp its
 		// metadata. A failure here is non-fatal: the file is safely on disk, so
 		// the user can still scan it manually — we log and carry on.
+		var scene *models.Scene
 		if savedPath != "" && !job.IsCancelled(ctx) {
 			progress.ExecuteTask(fmt.Sprintf("Importing %q into library", title), func() {
-				if err := j.importAndStamp(ctx, savedPath, item); err != nil {
+				s, err := j.importAndStamp(ctx, savedPath, item)
+				scene = s
+				if err != nil {
 					logger.Errorf("[apihub-download] import %q failed: %v", title, err)
 					failures = append(failures, fmt.Sprintf("%s (import): %v", title, err))
+				}
+			})
+		}
+
+		// Photo gallery, when the user opted in and the provider has one. Also
+		// non-fatal — the scene itself is already imported, so a gallery failure
+		// shouldn't mark the whole scene as failed.
+		if scene != nil && item.Gallery != nil && !job.IsCancelled(ctx) {
+			progress.ExecuteTask(fmt.Sprintf("Downloading gallery for %q", title), func() {
+				if err := j.importGallery(ctx, savedPath, scene, item); err != nil {
+					logger.Errorf("[apihub-download] gallery for %q failed: %v", title, err)
+					failures = append(failures, fmt.Sprintf("%s (gallery): %v", title, err))
 				}
 			})
 		}

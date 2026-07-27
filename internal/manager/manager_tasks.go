@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	iofs "io/fs"
 	"path/filepath"
 	"strconv"
 	"sync"
@@ -208,33 +209,7 @@ func (s *Manager) ScanFile(ctx context.Context, input ScanFileInput) (*ScanFileR
 		}, nil
 	}
 
-	// Create scanner with minimal configuration for single file
-	scanner := &file.Scanner{
-		Repository: file.NewRepository(s.Repository),
-		FileDecorators: []file.Decorator{
-			&file.FilteredDecorator{
-				Decorator: &video.Decorator{
-					FFProbe: s.FFProbe,
-				},
-				Filter: file.FilterFunc(videoFileFilter),
-			},
-			&file.FilteredDecorator{
-				Decorator: &file_image.Decorator{
-					FFProbe: s.FFProbe,
-				},
-				Filter: file.FilterFunc(imageFileFilter),
-			},
-		},
-		FingerprintCalculator:  &fingerprintCalculator{s.Config},
-		FS:                     fs,
-		ZipFileExtensions:      cfg.GetGalleryExtensions(),
-		ScanFilters:            []file.PathFilter{newScanFilter(cfg, repo, time.Time{})},
-		HandlerRequiredFilters: []file.Filter{newHandlerRequiredFilter(cfg, repo)},
-		Rescan:                 input.Rescan,
-	}
-
-	// Create handlers - use nil task queue for synchronous operation
-	scanner.FileHandlers = getScanHandlersSync(cfg, repo, s.Paths, s.PluginCache)
+	scanner := s.newSyncScanner(cfg, repo, fs, input.Rescan)
 
 	// Create the scanned file
 	size, err := file.GetFileSize(fs, input.Path, info)
@@ -295,6 +270,151 @@ func (s *Manager) ScanFile(ctx context.Context, input ScanFileInput) (*ScanFileR
 		File:   scannedFileResult,
 		Status: status,
 	}, nil
+}
+
+// newSyncScanner builds the file.Scanner used by the synchronous single-path
+// scan operations (ScanFile / ScanZipFile), configured the same way the full
+// library ScanJob configures its own — same decorators, filters and handlers —
+// but with a nil task queue so everything runs inline.
+func (s *Manager) newSyncScanner(cfg *config.Config, repo models.Repository, fs *file.OsFS, rescan bool) *file.Scanner {
+	scanner := &file.Scanner{
+		Repository: file.NewRepository(s.Repository),
+		FileDecorators: []file.Decorator{
+			&file.FilteredDecorator{
+				Decorator: &video.Decorator{
+					FFProbe: s.FFProbe,
+				},
+				Filter: file.FilterFunc(videoFileFilter),
+			},
+			&file.FilteredDecorator{
+				Decorator: &file_image.Decorator{
+					FFProbe: s.FFProbe,
+				},
+				Filter: file.FilterFunc(imageFileFilter),
+			},
+		},
+		FingerprintCalculator:  &fingerprintCalculator{s.Config},
+		FS:                     fs,
+		ZipFileExtensions:      cfg.GetGalleryExtensions(),
+		ScanFilters:            []file.PathFilter{newScanFilter(cfg, repo, time.Time{})},
+		HandlerRequiredFilters: []file.Filter{newHandlerRequiredFilter(cfg, repo)},
+		Rescan:                 rescan,
+	}
+
+	scanner.FileHandlers = getScanHandlersSync(cfg, repo, s.Paths, s.PluginCache)
+
+	return scanner
+}
+
+// ScanZipFile synchronously scans a zip archive *and walks its contents*,
+// mirroring what ScanJob does for a zip it encounters during a library scan
+// (see ScanJob.handleFile / scanZipFile).
+//
+// ScanFile deliberately does not do this — it scans exactly one path. But a zip
+// only becomes a gallery once the images inside it exist as rows: gallery
+// scanning refuses to create an empty gallery, and it's the *image* scan
+// handler that creates the zip-based gallery (and associates it to a
+// same-named scene). So a caller importing a gallery zip needs the contents
+// walked, which is what this provides.
+//
+// Returns the result for the zip file itself. Content-scan failures are logged
+// rather than returned: the zip is already imported at that point, and a
+// partially-populated gallery is more useful than a hard failure.
+func (s *Manager) ScanZipFile(ctx context.Context, path string) (*ScanFileResult, error) {
+	res, err := s.ScanFile(ctx, ScanFileInput{Path: path})
+	if err != nil {
+		return nil, err
+	}
+	if res.File == nil || res.File.Base() == nil {
+		// Skipped/failed by the outer scan — nothing to walk into.
+		return res, nil
+	}
+
+	cfg := config.GetInstance()
+	// Not named `fs` — that would shadow the io/fs package used by the walk
+	// callback below.
+	osFS := &file.OsFS{}
+	scanner := s.newSyncScanner(cfg, s.Repository, osFS, false)
+
+	zipBase := res.File.Base()
+
+	zipFS, err := osFS.OpenZip(path, zipBase.Size)
+	if err != nil {
+		if errors.Is(err, file.ErrNotReaderAt) {
+			logger.Debugf("Skipping zip file %q as it cannot be opened for walking", path)
+			return res, nil
+		}
+		return res, fmt.Errorf("opening zip file: %w", err)
+	}
+	defer zipFS.Close()
+
+	// Matching ScanJob: cancelling midway through a zip's contents leaves a
+	// half-populated gallery, so the walk runs uncancellable once started.
+	zipCtx := context.WithoutCancel(ctx)
+
+	zipFileID := zipBase.ID
+	err = scanner.Repository.WithTxn(zipCtx, func(ctx context.Context) error {
+		return file.SymWalk(zipFS, path, func(entryPath string, d iofs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+
+			// Note the archive root is deliberately NOT skipped: the walk yields
+			// it as a directory, and scanning it creates the Folder row that the
+			// entries inside then resolve as their parent. Without it every
+			// entry fails with "parent folder doesn't exist". A zip therefore
+			// ends up with both a File row (the archive) and a Folder row (its
+			// contents) at the same path — same as a full library scan.
+			entryInfo, err := d.Info()
+			if err != nil {
+				return err
+			}
+
+			if !scanner.AcceptEntry(ctx, entryPath, entryInfo, path) {
+				if d.IsDir() {
+					return iofs.SkipDir
+				}
+				return nil
+			}
+
+			size, err := file.GetFileSize(zipFS, entryPath, entryInfo)
+			if err != nil {
+				return err
+			}
+
+			entry := file.ScannedFile{
+				BaseFile: &models.BaseFile{
+					DirEntry: models.DirEntry{
+						ModTime: file.ModTime(entryInfo),
+					},
+					Path:     entryPath,
+					Basename: filepath.Base(entryPath),
+					Size:     size,
+				},
+				FS:   zipFS,
+				Info: entryInfo,
+			}
+			// ZipFileID/ZipFile are promoted from the embedded BaseFile, so they
+			// have to be set after the literal rather than inside it.
+			entry.ZipFileID = &zipFileID
+			entry.ZipFile = res.File
+
+			if d.IsDir() {
+				_, err := scanner.ScanFolder(ctx, entry)
+				return err
+			}
+
+			_, err = scanner.ScanFile(ctx, entry)
+			return err
+		})
+	})
+	if err != nil {
+		logger.Errorf("Error scanning zip file contents %q: %v", path, err)
+	}
+
+	s.scanSubs.notify()
+
+	return res, nil
 }
 
 // GeneratePhashForFile synchronously generates a perceptual hash (phash) for a

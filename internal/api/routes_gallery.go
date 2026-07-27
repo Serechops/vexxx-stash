@@ -27,11 +27,19 @@ type GalleryImageFinder interface {
 	image.CoverQueryer
 }
 
+// GalleryCoverFinder reads a gallery's explicitly-set cover blob (cover_blob)
+// — independent of any Image row. Takes priority over GalleryImageFinder's
+// join-flag/filename-regex/first-image lookup below.
+type GalleryCoverFinder interface {
+	GetCover(ctx context.Context, galleryID int) ([]byte, error)
+}
+
 type galleryRoutes struct {
 	routes
 	imageRoutes   imageRoutes
 	galleryFinder GalleryFinder
 	imageFinder   GalleryImageFinder
+	coverFinder   GalleryCoverFinder
 	fileGetter    models.FileGetter
 }
 
@@ -50,6 +58,22 @@ func (rs galleryRoutes) Routes() chi.Router {
 
 func (rs galleryRoutes) Cover(w http.ResponseWriter, r *http.Request) {
 	g := r.Context().Value(galleryKey).(*models.Gallery)
+
+	// An explicitly-set cover (cover_blob) takes priority — it's not an Image
+	// row, so it's served as a raw blob rather than via serveThumbnail, the
+	// same way studio/performer/tag images are.
+	var coverBlob []byte
+	if rs.coverFinder != nil {
+		_ = rs.withReadTxn(r, func(ctx context.Context) error {
+			var err error
+			coverBlob, err = rs.coverFinder.GetCover(ctx, g.ID)
+			return err
+		})
+	}
+	if len(coverBlob) > 0 {
+		utils.ServeImage(w, r, coverBlob)
+		return
+	}
 
 	var i *models.Image
 	_ = rs.withReadTxn(r, func(ctx context.Context) error {

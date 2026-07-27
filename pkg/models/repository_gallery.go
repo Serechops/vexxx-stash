@@ -73,6 +73,12 @@ type GalleryReader interface {
 	FileLoader
 
 	All(ctx context.Context) ([]*Gallery, error)
+
+	// GetCover/HasCover read the gallery's explicitly-set cover (cover_blob) —
+	// independent of any Image row, unlike SetCover's galleries_images.cover
+	// flag. See GalleryWriter.UpdateCover.
+	GetCover(ctx context.Context, galleryID int) ([]byte, error)
+	HasCover(ctx context.Context, galleryID int) (bool, error)
 }
 
 // GalleryWriter provides all methods to modify galleries.
@@ -87,6 +93,14 @@ type GalleryWriter interface {
 	RemoveImages(ctx context.Context, galleryID int, imageIDs ...int) error
 	SetCover(ctx context.Context, galleryID int, coverImageID int) error
 	ResetCover(ctx context.Context, galleryID int) error
+
+	// UpdateCover sets an explicit cover image for the gallery, decoupled from
+	// its photo set — it doesn't add an Image row, so it never affects
+	// ImageCount or the gallery's image grid. Takes priority over SetCover's
+	// image-flag and FindGalleryCover's filename-regex/first-image fallback
+	// (see resolver_model_gallery.go's Cover() and routes_gallery.go's Cover
+	// handler). Passing a nil/empty image clears it.
+	UpdateCover(ctx context.Context, galleryID int, image []byte) error
 }
 
 // GalleryReaderWriter provides all gallery methods.

@@ -708,6 +708,7 @@ func (s *Server) getGalleryRoutes() chi.Router {
 		routes:        routes{txnManager: repo.TxnManager},
 		imageFinder:   repo.Image,
 		galleryFinder: repo.Gallery,
+		coverFinder:   repo.Gallery,
 		fileGetter:    repo.File,
 	}.Routes()
 }

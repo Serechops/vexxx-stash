@@ -26,6 +26,14 @@ const (
 	galleryIDColumn          = "gallery_id"
 	galleriesURLsTable       = "gallery_urls"
 	galleriesURLColumn       = "url"
+
+	// galleryCoverBlobColumn holds an explicitly-set gallery cover (mirrors
+	// scenes.cover_blob) — independent of any Image row, so setting it doesn't
+	// add a photo to the gallery's own image set/count. See CoverByGalleryID
+	// (galleries_images.cover) and FindGalleryCover's filename-regex fallback
+	// for the other two ways a gallery's displayed cover can be picked; this
+	// one takes priority over both.
+	galleryCoverBlobColumn = "cover_blob"
 )
 
 type galleryRow struct {
@@ -43,6 +51,11 @@ type galleryRow struct {
 	FolderID  null.Int  `db:"folder_id,omitempty"`
 	CreatedAt Timestamp `db:"created_at"`
 	UpdatedAt Timestamp `db:"updated_at"`
+	// CoverBlob is scanned (the query selects every galleries column) but
+	// deliberately not surfaced on models.Gallery — same as scenes'
+	// cover_blob, the cover is read/written only via GetCover/UpdateCover,
+	// never through the model struct.
+	CoverBlob zero.String `db:"cover_blob"`
 }
 
 func (r *galleryRow) fromGallery(o models.Gallery) {
@@ -192,14 +205,21 @@ var (
 )
 
 type GalleryStore struct {
+	blobJoinQueryBuilder
+
 	tableMgr *table
 
 	fileStore   *FileStore
 	folderStore *FolderStore
 }
 
-func NewGalleryStore(fileStore *FileStore, folderStore *FolderStore) *GalleryStore {
+func NewGalleryStore(fileStore *FileStore, folderStore *FolderStore, blobStore *BlobStore) *GalleryStore {
 	return &GalleryStore{
+		blobJoinQueryBuilder: blobJoinQueryBuilder{
+			blobStore: blobStore,
+			joinTable: galleryTable,
+		},
+
 		tableMgr:    galleryTableMgr,
 		fileStore:   fileStore,
 		folderStore: folderStore,
@@ -377,7 +397,36 @@ func (qb *GalleryStore) UpdatePartial(ctx context.Context, id int, partial model
 }
 
 func (qb *GalleryStore) Destroy(ctx context.Context, id int) error {
+	// must handle the cover blob checksum manually — same reason SceneStore does
+	if err := qb.destroyCover(ctx, id); err != nil {
+		return err
+	}
+
 	return qb.tableMgr.destroyExisting(ctx, []int{id})
+}
+
+// GetCover returns the gallery's explicitly-set cover image, or nil if none
+// has been set (the gallery then falls back to FindGalleryCover's
+// join-flag/filename-regex/first-image lookup — see resolver_model_gallery.go
+// and routes_gallery.go).
+func (qb *GalleryStore) GetCover(ctx context.Context, galleryID int) ([]byte, error) {
+	return qb.GetImage(ctx, galleryID, galleryCoverBlobColumn)
+}
+
+func (qb *GalleryStore) HasCover(ctx context.Context, galleryID int) (bool, error) {
+	return qb.HasImage(ctx, galleryID, galleryCoverBlobColumn)
+}
+
+// UpdateCover sets the gallery's explicit cover to image, independent of the
+// gallery's own photo set — unlike SetCover (galleries_images.cover), this
+// doesn't require (or add) an Image row, so it never affects ImageCount or
+// appears in the gallery's photo grid.
+func (qb *GalleryStore) UpdateCover(ctx context.Context, galleryID int, image []byte) error {
+	return qb.UpdateImage(ctx, galleryID, galleryCoverBlobColumn, image)
+}
+
+func (qb *GalleryStore) destroyCover(ctx context.Context, galleryID int) error {
+	return qb.DestroyImage(ctx, galleryID, galleryCoverBlobColumn)
 }
 
 func (qb *GalleryStore) GetFiles(ctx context.Context, id int) ([]models.File, error) {

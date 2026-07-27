@@ -432,6 +432,29 @@ func (_m *GalleryReaderWriter) FindUserGalleryByTitle(ctx context.Context, title
 	return r0, r1
 }
 
+// GetCover provides a mock function with given fields: ctx, galleryID
+func (_m *GalleryReaderWriter) GetCover(ctx context.Context, galleryID int) ([]byte, error) {
+	ret := _m.Called(ctx, galleryID)
+
+	var r0 []byte
+	if rf, ok := ret.Get(0).(func(context.Context, int) []byte); ok {
+		r0 = rf(ctx, galleryID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]byte)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, int) error); ok {
+		r1 = rf(ctx, galleryID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetFiles provides a mock function with given fields: ctx, relatedID
 func (_m *GalleryReaderWriter) GetFiles(ctx context.Context, relatedID int) ([]models.File, error) {
 	ret := _m.Called(ctx, relatedID)
@@ -593,6 +616,27 @@ func (_m *GalleryReaderWriter) GetURLs(ctx context.Context, relatedID int) ([]st
 	return r0, r1
 }
 
+// HasCover provides a mock function with given fields: ctx, galleryID
+func (_m *GalleryReaderWriter) HasCover(ctx context.Context, galleryID int) (bool, error) {
+	ret := _m.Called(ctx, galleryID)
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func(context.Context, int) bool); ok {
+		r0 = rf(ctx, galleryID)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, int) error); ok {
+		r1 = rf(ctx, galleryID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // Query provides a mock function with given fields: ctx, galleryFilter, findFilter
 func (_m *GalleryReaderWriter) Query(ctx context.Context, galleryFilter *models.GalleryFilterType, findFilter *models.FindFilterType) ([]*models.Gallery, int, error) {
 	ret := _m.Called(ctx, galleryFilter, findFilter)
@@ -700,6 +744,20 @@ func (_m *GalleryReaderWriter) Update(ctx context.Context, updatedGallery *model
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context, *models.Gallery) error); ok {
 		r0 = rf(ctx, updatedGallery)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// UpdateCover provides a mock function with given fields: ctx, galleryID, image
+func (_m *GalleryReaderWriter) UpdateCover(ctx context.Context, galleryID int, image []byte) error {
+	ret := _m.Called(ctx, galleryID, image)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, int, []byte) error); ok {
+		r0 = rf(ctx, galleryID, image)
 	} else {
 		r0 = ret.Error(0)
 	}

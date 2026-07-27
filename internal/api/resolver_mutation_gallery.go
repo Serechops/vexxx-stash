@@ -82,11 +82,25 @@ func (r *mutationResolver) GalleryCreate(ctx context.Context, input GalleryCreat
 		newGallery.URLs = models.NewRelatedStrings([]string{strings.TrimSpace(*input.URL)})
 	}
 
+	var coverImageData []byte
+	if input.CoverImage != nil {
+		coverImageData, err = r.processLocalOrRemoteImage(ctx, *input.CoverImage)
+		if err != nil {
+			return nil, fmt.Errorf("processing cover image: %w", err)
+		}
+	}
+
 	// Start the transaction and save the gallery
 	if err := r.withTxn(ctx, func(ctx context.Context) error {
 		qb := r.repository.Gallery
 		if err := qb.Create(ctx, &newGallery, nil); err != nil {
 			return err
+		}
+
+		if len(coverImageData) > 0 {
+			if err := qb.UpdateCover(ctx, newGallery.ID, coverImageData); err != nil {
+				return err
+			}
 		}
 
 		return nil
@@ -244,9 +258,24 @@ func (r *mutationResolver) galleryUpdate(ctx context.Context, input models.Galle
 
 	// gallery scene is set from the scene only
 
+	var coverImageData []byte
+	coverImageIncluded := translator.hasField("cover_image")
+	if input.CoverImage != nil {
+		coverImageData, err = r.processLocalOrRemoteImage(ctx, *input.CoverImage)
+		if err != nil {
+			return nil, fmt.Errorf("processing cover image: %w", err)
+		}
+	}
+
 	gallery, err := qb.UpdatePartial(ctx, galleryID, updatedGallery)
 	if err != nil {
 		return nil, err
+	}
+
+	if coverImageIncluded {
+		if err := r.galleryUpdateCoverImage(ctx, gallery, coverImageData); err != nil {
+			return nil, err
+		}
 	}
 
 	return gallery, nil
@@ -487,6 +516,17 @@ func (r *mutationResolver) RemoveGalleryImages(ctx context.Context, input Galler
 	}
 
 	return true, nil
+}
+
+func (r *mutationResolver) galleryUpdateCoverImage(ctx context.Context, g *models.Gallery, coverImageData []byte) error {
+	qb := r.repository.Gallery
+
+	// update cover - empty data will clear the cover
+	if err := qb.UpdateCover(ctx, g.ID, coverImageData); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (r *mutationResolver) SetGalleryCover(ctx context.Context, input GallerySetCoverInput) (bool, error) {

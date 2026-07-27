@@ -51,6 +51,8 @@ input GalleryCreateInput {
   studio_id: ID
   tag_ids: [ID!]
   performer_ids: [ID!]
+  "This should be a URL or a base64 encoded data URL"
+  cover_image: String
 }
 
 input GalleryUpdateInput {
@@ -72,6 +74,8 @@ input GalleryUpdateInput {
   performer_ids: [ID!]
 
   primary_file_id: ID
+  "This should be a URL or a base64 encoded data URL"
+  cover_image: String
 }
 
 input BulkGalleryUpdateInput {

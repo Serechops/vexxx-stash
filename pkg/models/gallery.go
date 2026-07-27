@@ -89,6 +89,7 @@ type GalleryUpdateInput struct {
 	TagIds           []string `json:"tag_ids"`
 	PerformerIds     []string `json:"performer_ids"`
 	PrimaryFileID    *string  `json:"primary_file_id"`
+	CoverImage       *string  `json:"cover_image"`
 
 	// deprecated
 	URL *string `json:"url"`

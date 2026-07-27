@@ -13,6 +13,7 @@ import {
   mutateReloadScrapers,
 } from "src/core/StashService";
 import { LoadingIndicator } from "src/components/Shared/LoadingIndicator";
+import { ImageInput } from "src/components/Shared/ImageInput";
 import { useToast } from "src/hooks/Toast";
 import { useFormik } from "formik";
 import { GalleryScrapeDialog } from "./GalleryScrapeDialog";
@@ -33,9 +34,11 @@ import { Scene, SceneSelect } from "src/components/Scenes/SceneSelect";
 import { useTagsEdit } from "src/hooks/tagsEdit";
 import { ScraperMenu } from "src/components/Shared/ScraperMenu";
 import { PerformersCriterion } from "src/models/list-filter/criteria/performers";
+import ImageUtils from "src/utils/image";
 
 interface IProps {
   gallery: Partial<GQL.GalleryDataFragment>;
+  initialCoverImage?: string;
   isVisible: boolean;
   onSubmit: (input: GQL.GalleryCreateInput) => Promise<void>;
   onDelete: () => void;
@@ -43,6 +46,7 @@ interface IProps {
 
 export const GalleryEditPanel: React.FC<IProps> = ({
   gallery,
+  initialCoverImage,
   isVisible,
   onSubmit,
   onDelete,
@@ -81,6 +85,7 @@ export const GalleryEditPanel: React.FC<IProps> = ({
     tag_ids: yup.array(yup.string().required()).defined(),
     scene_ids: yup.array(yup.string().required()).defined(),
     details: yup.string().ensure(),
+    cover_image: yup.string().nullable().optional(),
   });
 
   const initialValues = {
@@ -94,6 +99,7 @@ export const GalleryEditPanel: React.FC<IProps> = ({
     tag_ids: (gallery?.tags ?? []).map((t) => t.id),
     scene_ids: (gallery?.scenes ?? []).map((s) => s.id),
     details: gallery?.details ?? "",
+    cover_image: initialCoverImage,
   };
 
   type InputValues = yup.InferType<typeof schema>;
@@ -104,6 +110,29 @@ export const GalleryEditPanel: React.FC<IProps> = ({
     validate: yupFormikValidate(schema),
     onSubmit: (values) => onSave(schema.cast(values)),
   });
+
+  const encodingImage = ImageUtils.usePasteImage(onImageLoad);
+
+  function onImageLoad(imageData: string) {
+    formik.setFieldValue("cover_image", imageData);
+  }
+
+  function onCoverImageChange(event: React.FormEvent<HTMLInputElement>) {
+    ImageUtils.onImageChange(event, onImageLoad);
+  }
+
+  const coverImagePreview = useMemo(() => {
+    const galleryCover = gallery.paths?.cover;
+    const formImage = formik.values.cover_image;
+    if (formImage === null && galleryCover) {
+      const galleryCoverURL = new URL(galleryCover);
+      galleryCoverURL.searchParams.set("default", "true");
+      return galleryCoverURL.toString();
+    } else if (formImage) {
+      return formImage;
+    }
+    return galleryCover;
+  }, [formik.values.cover_image, gallery.paths?.cover]);
 
   const { tags, updateTagsStateFromScraper, tagsControl } = useTagsEdit(
     gallery.tags,
@@ -189,21 +218,27 @@ export const GalleryEditPanel: React.FC<IProps> = ({
     );
   }, [scrapers]);
 
-  const cover = useMemo(() => {
-    if (gallery?.paths?.cover) {
+  const image = useMemo(() => {
+    if (encodingImage) {
       return (
-        <div style={{ aspectRatio: '4 / 3', display: 'block', height: 'auto', width: '100%' }}>
-          <img
-            src={gallery.paths.cover}
-            alt={intl.formatMessage({ id: "cover_image" })}
-            style={{ height: 'auto', maxHeight: '100%', maxWidth: '100%', objectFit: 'contain', width: 'auto' }}
-          />
-        </div>
+        <LoadingIndicator
+          message={intl.formatMessage({ id: "actions.encoding_image" })}
+        />
+      );
+    }
+
+    if (coverImagePreview) {
+      return (
+        <img
+          style={{ display: 'block', marginBottom: 10, marginTop: 10, maxWidth: '100%' }}
+          src={coverImagePreview}
+          alt={intl.formatMessage({ id: "cover_image" })}
+        />
       );
     }
 
     return <div></div>;
-  }, [gallery?.paths?.cover, intl]);
+  }, [encodingImage, coverImagePreview, intl]);
 
   async function onSave(input: InputValues) {
     setIsLoading(true);
@@ -558,11 +593,16 @@ export const GalleryEditPanel: React.FC<IProps> = ({
           </Grid>
           <Grid size={{ lg: 5, xl: 12 }}>
             {renderDetailsField()}
-            <Box>
-              <Typography component="label" variant="body2" sx={{ mb: 1 }}>
+            <Box mb={3} id="cover_image">
+              <Typography variant="body2" color="textSecondary" gutterBottom>
                 <FormattedMessage id="cover_image" />
               </Typography>
-              {cover}
+              {image}
+              <ImageInput
+                isEditing
+                onImageChange={onCoverImageChange}
+                onImageURL={onImageLoad}
+              />
             </Box>
           </Grid>
         </Grid>

@@ -78,6 +78,21 @@ var localImagePathPatterns = []struct {
 		},
 	},
 	{
+		// /gallery/{id}/cover
+		pattern: regexp.MustCompile(`^/gallery/(\d+)/cover$`),
+		handler: func(ctx context.Context, r *Resolver, id int) ([]byte, error) {
+			var image []byte
+			if err := r.withReadTxn(ctx, func(ctx context.Context) error {
+				var err error
+				image, err = r.repository.Gallery.GetCover(ctx, id)
+				return err
+			}); err != nil {
+				return nil, err
+			}
+			return image, nil
+		},
+	},
+	{
 		// /group/{id}/frontimage
 		pattern: regexp.MustCompile(`^/group/(\d+)/frontimage$`),
 		handler: func(ctx context.Context, r *Resolver, id int) ([]byte, error) {

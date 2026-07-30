@@ -52,7 +52,19 @@ func (j *apihubDownloadJob) importAndStamp(ctx context.Context, path string, ite
 
 	// Synchronous single-file scan — creates the scene via the same handlers the
 	// library scan uses, and returns the file (with its ID).
-	res, err := mgr.ScanFile(ctx, manager.ScanFileInput{Path: path})
+	//
+	// SkipGenerate is set because this same path may also be sitting inside a
+	// watched library folder: the library watcher's own fsnotify-triggered scan
+	// wires the identical scan handlers, and its post-scan generator step runs
+	// a scan-time auto-identify (against only the user's saved default Identify
+	// sources) as soon as the scene row exists. Without SkipGenerate that step
+	// runs synchronously as part of this ScanFile call, ahead of the fuller
+	// stash-box+catalog identify below — and because Identify's default MERGE
+	// field strategy leaves a field alone once it has any value, a partial
+	// match from that first pass can silently block this function's own,
+	// better identify from filling in the rest (studio code, URL, etc.).
+	logger.Infof("[apihub-download] scanning %q into library", path)
+	res, err := mgr.ScanFile(ctx, manager.ScanFileInput{Path: path, SkipGenerate: true})
 	if err != nil {
 		return nil, fmt.Errorf("scan: %w", err)
 	}
@@ -63,6 +75,7 @@ func (j *apihubDownloadJob) importAndStamp(ctx context.Context, path string, ite
 		return nil, fmt.Errorf("scan produced no file")
 	}
 	fileID := res.File.Base().ID
+	logger.Infof("[apihub-download] scan status=%s fileID=%d for %q", res.Status, fileID, path)
 
 	// Generate the perceptual hash before identifying. ScanFile computes the
 	// standard fingerprints (oshash/md5) but not the phash — that normally only
@@ -73,6 +86,8 @@ func (j *apihubDownloadJob) importAndStamp(ctx context.Context, path string, ite
 	if vf, ok := res.File.(*models.VideoFile); ok {
 		if err := mgr.GeneratePhashForFile(ctx, vf); err != nil {
 			logger.Warnf("[apihub-download] phash generation failed for %q: %v", path, err)
+		} else {
+			logger.Debugf("[apihub-download] phash generated for %q", path)
 		}
 	}
 
@@ -97,12 +112,28 @@ func (j *apihubDownloadJob) importAndStamp(ctx context.Context, path string, ite
 	}
 
 	if item.Metadata == nil {
+		logger.Infof("[apihub-download] no catalog metadata carried for scene %d (%q); skipping identify", scene.ID, path)
 		return scene, nil // imported, nothing to identify against
 	}
 
+	// The scene row was cached by the read above, before the phash generated
+	// a few lines up was written to its file. Scene.Find serves straight from
+	// that cache (see SceneStore.Find), and LoadFiles on an already-loaded
+	// scene doesn't re-hit the DB, so a stash-box source's fingerprint lookup
+	// (identify.go -> stashboxSource.ScrapeScenes -> GetScenesFingerprints ->
+	// Scene.Find) would see the file without its phash and never match —
+	// exactly the staleness the watcher's own auto-identify already guards
+	// against (see watcherSceneGenerator.autoIdentify). Invalidate so the
+	// identify below reads the phash that's actually on disk in the DB now.
+	if mgr.Database.Caches != nil {
+		mgr.Database.Caches.InvalidateScene(scene.ID)
+	}
+
+	logger.Infof("[apihub-download] identifying scene %d (%q)", scene.ID, path)
 	if err := j.identifyDownloadedScene(ctx, repo, scene, item); err != nil {
 		return scene, err
 	}
+	logger.Infof("[apihub-download] identify finished for scene %d (%q)", scene.ID, path)
 
 	// identify.SceneIdentifier.Identify writes the studio/performers/tags it
 	// resolved straight to the DB via scene.UpdateSet.Update, but discards the
@@ -206,6 +237,12 @@ func (j *apihubDownloadJob) identifyDownloadedScene(ctx context.Context, repo mo
 		RemoteSite: endpoint,
 	})
 
+	sourceNames := make([]string, len(sources))
+	for i, s := range sources {
+		sourceNames[i] = s.Name
+	}
+	logger.Infof("[apihub-download] scene %d: trying identify sources in order: %v", scene.ID, sourceNames)
+
 	identifier := identify.SceneIdentifier{
 		TxnManager:         repo.TxnManager,
 		SceneReaderUpdater: repo.Scene,
@@ -304,10 +341,17 @@ func resolveIdentifySources() []identify.ScraperSource {
 		if err != nil {
 			logger.Warnf("[apihub-download] resolving configured identify sources: %v", err)
 		} else {
+			logger.Debugf("[apihub-download] using %d saved default identify source(s)", len(sources))
 			return sources
 		}
 	}
-	return manager.AllConfiguredStashBoxSources()
+	sources := manager.AllConfiguredStashBoxSources()
+	if len(sources) == 0 {
+		logger.Debugf("[apihub-download] no default identify sources or stash-boxes configured; falling back to catalog metadata only")
+	} else {
+		logger.Debugf("[apihub-download] no saved default identify sources; falling back to %d configured stash-box(es)", len(sources))
+	}
+	return sources
 }
 
 // effectiveIdentifyOptions returns the metadata options the identify run should

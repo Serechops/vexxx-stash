@@ -149,6 +149,17 @@ func (s *Manager) Scan(ctx context.Context, input ScanMetadataInput) (int, error
 type ScanFileInput struct {
 	Path   string `json:"path"`
 	Rescan bool   `json:"rescan"`
+	// SkipGenerate skips the post-scan watcher generation step (phash/preview/
+	// cover generation and scan-time auto-identify) for newly-created scenes.
+	// Callers that already do their own, more complete post-processing right
+	// after the scan (e.g. the APIHub download importer, which runs its own
+	// phash generation and a catalog+stash-box aware identify) should set this
+	// to avoid a redundant, competing identify pass: the watcher's generic
+	// auto-identify uses only the user's saved default Identify sources, and
+	// since Identify's default MERGE field strategy only sets a field when it
+	// isn't already set, a partial match from that first pass can silently
+	// block the caller's own, more complete identify from filling in the rest.
+	SkipGenerate bool `json:"skipGenerate"`
 }
 
 // ScanFileStatus represents the status of a scanned file
@@ -209,7 +220,7 @@ func (s *Manager) ScanFile(ctx context.Context, input ScanFileInput) (*ScanFileR
 		}, nil
 	}
 
-	scanner := s.newSyncScanner(cfg, repo, fs, input.Rescan)
+	scanner := s.newSyncScanner(cfg, repo, fs, input.Rescan, input.SkipGenerate)
 
 	// Create the scanned file
 	size, err := file.GetFileSize(fs, input.Path, info)
@@ -276,7 +287,7 @@ func (s *Manager) ScanFile(ctx context.Context, input ScanFileInput) (*ScanFileR
 // scan operations (ScanFile / ScanZipFile), configured the same way the full
 // library ScanJob configures its own — same decorators, filters and handlers —
 // but with a nil task queue so everything runs inline.
-func (s *Manager) newSyncScanner(cfg *config.Config, repo models.Repository, fs *file.OsFS, rescan bool) *file.Scanner {
+func (s *Manager) newSyncScanner(cfg *config.Config, repo models.Repository, fs *file.OsFS, rescan bool, skipGenerate bool) *file.Scanner {
 	scanner := &file.Scanner{
 		Repository: file.NewRepository(s.Repository),
 		FileDecorators: []file.Decorator{
@@ -301,7 +312,7 @@ func (s *Manager) newSyncScanner(cfg *config.Config, repo models.Repository, fs 
 		Rescan:                 rescan,
 	}
 
-	scanner.FileHandlers = getScanHandlersSync(cfg, repo, s.Paths, s.PluginCache)
+	scanner.FileHandlers = getScanHandlersSync(cfg, repo, s.Paths, s.PluginCache, skipGenerate)
 
 	return scanner
 }
@@ -334,7 +345,7 @@ func (s *Manager) ScanZipFile(ctx context.Context, path string) (*ScanFileResult
 	// Not named `fs` — that would shadow the io/fs package used by the walk
 	// callback below.
 	osFS := &file.OsFS{}
-	scanner := s.newSyncScanner(cfg, s.Repository, osFS, false)
+	scanner := s.newSyncScanner(cfg, s.Repository, osFS, false, false)
 
 	zipBase := res.File.Base()
 
@@ -612,15 +623,25 @@ func (g *watcherSceneGenerator) autoIdentify(ctx context.Context, sceneID int) {
 	logger.Infof("Library watcher: auto-identify finished for %s", dbScene.Path)
 }
 
-// getScanHandlersSync returns scan handlers for synchronous scanning (without task queue)
-func getScanHandlersSync(cfg *config.Config, repo models.Repository, paths *paths.Paths, pluginCache *plugin.Cache) []file.Handler {
+// getScanHandlersSync returns scan handlers for synchronous scanning (without
+// task queue). skipGenerate swaps in no-op generators instead of the watcher's
+// own phash/preview/cover generation and scan-time auto-identify — see
+// ScanFileInput.SkipGenerate for why a caller would want that.
+func getScanHandlersSync(cfg *config.Config, repo models.Repository, paths *paths.Paths, pluginCache *plugin.Cache, skipGenerate bool) []file.Handler {
+	var imageGenerator image.ScanGenerator = &watcherImageGenerator{paths: paths}
+	var sceneGenerator scene.ScanGenerator = &watcherSceneGenerator{paths: paths}
+	if skipGenerate {
+		imageGenerator = noopImageGenerator{}
+		sceneGenerator = noopSceneGenerator{}
+	}
+
 	return []file.Handler{
 		&file.FilteredHandler{
 			Filter: file.FilterFunc(imageFileFilter),
 			Handler: &image.ScanHandler{
 				CreatorUpdater: repo.Image,
 				GalleryFinder:  repo.Gallery,
-				ScanGenerator:  &watcherImageGenerator{paths: paths},
+				ScanGenerator:  imageGenerator,
 				ScanConfig: &scanConfig{
 					isGenerateThumbnails:       false,
 					isGenerateClipPreviews:     false,
@@ -645,12 +666,28 @@ func getScanHandlersSync(cfg *config.Config, repo models.Repository, paths *path
 				CreatorUpdater:      repo.Scene,
 				CaptionUpdater:      repo.File,
 				PluginCache:         pluginCache,
-				ScanGenerator:       &watcherSceneGenerator{paths: paths},
+				ScanGenerator:       sceneGenerator,
 				FileNamingAlgorithm: cfg.GetVideoFileNamingAlgorithm(),
 				Paths:               paths,
 			},
 		},
 	}
+}
+
+// noopSceneGenerator is the ScanGenerator used when a caller of ScanFile sets
+// SkipGenerate — it deliberately does nothing, deferring all post-scan
+// processing to the caller.
+type noopSceneGenerator struct{}
+
+func (noopSceneGenerator) Generate(ctx context.Context, s *models.Scene, f *models.VideoFile) error {
+	return nil
+}
+
+// noopImageGenerator is the image-side counterpart to noopSceneGenerator.
+type noopImageGenerator struct{}
+
+func (noopImageGenerator) Generate(ctx context.Context, i *models.Image, f models.File) error {
+	return nil
 }
 
 func (s *Manager) Import(ctx context.Context) (int, error) {

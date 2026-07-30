@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,6 +19,7 @@ import (
 	"github.com/stashapp/stash/pkg/logger"
 	"github.com/stashapp/stash/pkg/match"
 	"github.com/stashapp/stash/pkg/models"
+	"github.com/stashapp/stash/pkg/stashbox"
 	"github.com/stashapp/stash/pkg/txn"
 )
 
@@ -59,7 +61,7 @@ func (j *apihubDownloadJob) importAndStamp(ctx context.Context, path string, ite
 	// a scan-time auto-identify (against only the user's saved default Identify
 	// sources) as soon as the scene row exists. Without SkipGenerate that step
 	// runs synchronously as part of this ScanFile call, ahead of the fuller
-	// stash-box+catalog identify below — and because Identify's default MERGE
+	// URL+phash+catalog identify below — and because Identify's default MERGE
 	// field strategy leaves a field alone once it has any value, a partial
 	// match from that first pass can silently block this function's own,
 	// better identify from filling in the rest (studio code, URL, etc.).
@@ -80,9 +82,9 @@ func (j *apihubDownloadJob) importAndStamp(ctx context.Context, path string, ite
 	// Generate the perceptual hash before identifying. ScanFile computes the
 	// standard fingerprints (oshash/md5) but not the phash — that normally only
 	// happens in the scan's generate step when "Generate phashes" is enabled.
-	// phash is fundamental to proper scene matching in Stash, so force it here
-	// before identification runs (best-effort — a phash failure shouldn't block
-	// the rest of the import).
+	// phash is the fallback identify source (see identifyDownloadedScene), so
+	// force it here before identification runs (best-effort — a phash failure
+	// shouldn't block the rest of the import).
 	if vf, ok := res.File.(*models.VideoFile); ok {
 		if err := mgr.GeneratePhashForFile(ctx, vf); err != nil {
 			logger.Warnf("[apihub-download] phash generation failed for %q: %v", path, err)
@@ -134,6 +136,29 @@ func (j *apihubDownloadJob) importAndStamp(ctx context.Context, path string, ite
 		return scene, err
 	}
 	logger.Infof("[apihub-download] identify finished for scene %d (%q)", scene.ID, path)
+
+	// vr_mode is never something identify.SceneIdentifier can fill in — no
+	// stash-box or scraper source carries it, and (unlike title/studio/tags)
+	// the provider catalogs don't reliably expose it either: at best Aylo/
+	// EvilAngel/AdultTime flag a release as VR with a plain yes/no, never the
+	// actual projection layout, and TeamSkeet has no VR data at all. So this
+	// is only ever what the user explicitly chose in the download cart —
+	// stamped verbatim, never guessed.
+	if item.Metadata.VRMode != "" {
+		vrMode := models.VRMode(item.Metadata.VRMode)
+		if !vrMode.IsValid() {
+			logger.Warnf("[apihub-download] ignoring unrecognised vrMode %q for scene %d", item.Metadata.VRMode, scene.ID)
+		} else if err := txn.WithTxn(ctx, repo.TxnManager, func(ctx context.Context) error {
+			_, err := repo.Scene.UpdatePartial(ctx, scene.ID, models.ScenePartial{
+				VRMode: models.NewOptionalString(string(vrMode)),
+			})
+			return err
+		}); err != nil {
+			logger.Warnf("[apihub-download] setting vr_mode for scene %d: %v", scene.ID, err)
+		} else {
+			logger.Infof("[apihub-download] scene %d vr_mode set to %s", scene.ID, vrMode)
+		}
+	}
 
 	// identify.SceneIdentifier.Identify writes the studio/performers/tags it
 	// resolved straight to the DB via scene.UpdateSet.Update, but discards the
@@ -224,13 +249,20 @@ func (j *apihubDownloadJob) identifyDownloadedScene(ctx context.Context, repo mo
 	// no stash-box is configured — the provider metadata alone is used, as before.
 	endpoint := enrichUnmatchedEntities(ctx, scraped)
 
-	// Try the real stash-box (fingerprint/phash-based) identify sources first,
-	// falling back to the catalog metadata only for scenes stash-box doesn't
-	// recognise. SceneIdentifier tries Sources in order and stops at the first
-	// one that returns a match, so a stash-box hit takes priority and picks up
-	// its StashID, canonical scene URL, studio code, etc.; the catalog source
-	// still applies whenever stash-box has nothing for this scene.
-	sources := resolveIdentifySources()
+	// Source order matters — SceneIdentifier stops at the first source that
+	// returns a match:
+	//
+	//  1. stash-box by URL. The provider told us the canonical scene page this
+	//     file came from, so asking stash-box "which scene has this URL?" is an
+	//     identity lookup, not a guess. When it hits, it's right.
+	//  2. stash-box by fingerprint (phash). Only reached when no stash-box knows
+	//     the URL. phash matching is similarity-based and can return a false
+	//     positive, so it deliberately runs second.
+	//  3. the provider's own catalog metadata, for scenes stash-box has never
+	//     seen at all.
+	var sources []identify.ScraperSource
+	sources = append(sources, urlIdentifySources(meta.URL)...)
+	sources = append(sources, resolveIdentifySources()...)
 	sources = append(sources, identify.ScraperSource{
 		Name:       "APIHub catalog",
 		Scraper:    staticSceneScraper{scene: scraped},
@@ -261,6 +293,94 @@ func (j *apihubDownloadJob) identifyDownloadedScene(ctx context.Context, repo mo
 	return nil
 }
 
+// urlIdentifySources returns one identify source per configured stash-box that
+// looks the scene up by its provider URL. Returns nil when the plugin carried
+// no URL (nothing to match on) or no stash-box is configured.
+func urlIdentifySources(sceneURL string) []identify.ScraperSource {
+	sceneURL = strings.TrimSpace(sceneURL)
+	if sceneURL == "" {
+		return nil
+	}
+
+	boxes := config.GetInstance().GetStashBoxes()
+	if len(boxes) == 0 {
+		return nil
+	}
+
+	excludeTags := manager.GetInstance().Config.GetScraperExcludeTagPatterns()
+	ret := make([]identify.ScraperSource, 0, len(boxes))
+	for _, sb := range boxes {
+		ret = append(ret, identify.ScraperSource{
+			Name: "stash-box by URL: " + sb.Endpoint,
+			Scraper: urlSceneScraper{
+				client: stashbox.NewClient(*sb, stashbox.ExcludeTagPatterns(excludeTags)),
+				url:    sceneURL,
+			},
+			RemoteSite: sb.Endpoint,
+		})
+	}
+	return ret
+}
+
+// urlSceneScraper is an identify.SceneScraper that resolves a scene by looking
+// its provider URL up on a stash-box, instead of by fingerprint.
+type urlSceneScraper struct {
+	client *stashbox.Client
+	url    string
+}
+
+func (s urlSceneScraper) ScrapeScenes(ctx context.Context, sceneID int) ([]*models.ScrapedScene, error) {
+	for _, q := range urlLookupCandidates(s.url) {
+		scenes, err := s.client.FindSceneByURL(ctx, q)
+		if err != nil {
+			// Don't fail the whole identify run over one unreachable box — log and
+			// let the next source (phash, then catalog) have a go.
+			logger.Warnf("[apihub-download] stash-box URL lookup for %q failed: %v", q, err)
+			return nil, nil
+		}
+
+		// stash-box's url filter is a substring ("like") match, so a short or
+		// query-string-bearing URL can pull back more than one scene. Multiple hits
+		// means we can't be certain which is right — exactly the ambiguity this
+		// source exists to avoid, so bail and let a later source decide.
+		if len(scenes) > 1 {
+			logger.Infof("[apihub-download] stash-box URL lookup for %q returned %d scenes; too ambiguous to use", q, len(scenes))
+			return nil, nil
+		}
+		if len(scenes) == 1 {
+			return scenes, nil
+		}
+	}
+	return nil, nil
+}
+
+// urlLookupCandidates turns a provider scene URL into the strings worth asking
+// stash-box about, most-specific first.
+//
+// The catalogs hand us member-area URLs (members.adulttime.com/…), but stash-box
+// records the public page (www.adulttime.com/…), so matching on the full URL
+// alone would miss every time. Since stash-box's url filter is a substring
+// match, dropping the scheme+host and querying just the path finds the scene
+// whichever host it was submitted under. The path still carries the site, the
+// title slug and the numeric clip id, so it's specific enough that a false hit
+// is implausible — and the caller's >1 guard catches it if one ever happens.
+func urlLookupCandidates(raw string) []string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil
+	}
+	candidates := []string{raw}
+
+	if u, err := url.Parse(raw); err == nil {
+		// Path only — no query string, which is per-session junk on these sites
+		// and would stop a substring match dead.
+		if p := strings.TrimSuffix(u.Path, "/"); len(p) > 1 && p != raw {
+			candidates = append(candidates, p)
+		}
+	}
+	return candidates
+}
+
 // staticSceneScraper is an identify.SceneScraper that always returns a single,
 // already-built scraped scene. It lets us drive the identify pipeline with the
 // catalog metadata we already hold instead of hitting a remote scraper.
@@ -284,14 +404,14 @@ func buildScrapedScene(meta *apihubSceneMetadata, coverDataURL string) *models.S
 	if v := strings.TrimSpace(meta.Details); v != "" {
 		s.Details = &v
 	}
+	if v := strings.TrimSpace(meta.Code); v != "" {
+		s.Code = &v
+	}
 	if v := strings.TrimSpace(meta.Date); v != "" {
 		s.Date = &v
 	}
 	if v := strings.TrimSpace(meta.URL); v != "" {
 		s.URLs = []string{v}
-	}
-	if coverDataURL != "" {
-		s.Image = &coverDataURL
 	}
 	if v := strings.TrimSpace(meta.Studio); v != "" {
 		s.Studio = &models.ScrapedStudio{Name: v}
@@ -329,12 +449,11 @@ func buildScrapedScene(meta *apihubSceneMetadata, coverDataURL string) *models.S
 	return s
 }
 
-// resolveIdentifySources returns the real identify sources to try before the
-// APIHub catalog fallback, so a downloaded scene gets matched against
-// stash-box by fingerprint rather than relying solely on the provider's own
-// scraped fields. Prefers the user's saved default Identify sources
-// (respecting their configured order and per-source options); when none are
-// saved, falls back to every configured stash-box in order.
+// resolveIdentifySources returns the fingerprint-based identify sources to try
+// after the URL lookup and before the APIHub catalog fallback. Prefers the
+// user's saved default Identify sources (respecting their configured order and
+// per-source options); when none are saved, falls back to every configured
+// stash-box in order.
 func resolveIdentifySources() []identify.ScraperSource {
 	if saved := config.GetInstance().GetDefaultIdentifySettings(); saved != nil && len(saved.Sources) > 0 {
 		sources, err := manager.BuildIdentifySources(saved.Sources)

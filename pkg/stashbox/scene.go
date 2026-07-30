@@ -44,6 +44,53 @@ func (c Client) QueryScene(ctx context.Context, queryStr string) ([]*models.Scra
 	return ret, nil
 }
 
+// FindSceneByURL queries stash-box for scenes carrying the given URL.
+//
+// Unlike a fingerprint lookup this is an identity match on the scene's own
+// canonical page rather than a similarity comparison, so it can't produce the
+// false positives a phash can. Note that stash-box treats the url filter as a
+// "like" query, so a short URL may match more than one scene — callers that
+// need certainty should treat a multi-result response as inconclusive.
+func (c Client) FindSceneByURL(ctx context.Context, url string) ([]*models.ScrapedScene, error) {
+	res, err := c.client.QueryScenes(ctx, graphql.SceneQueryInput{
+		URL: &url,
+		// One page is plenty: a caller can't act on an ambiguous result set
+		// anyway, it only needs to know whether there's exactly one match.
+		Page:    1,
+		PerPage: 5,
+		// sort/direction are non-nullable on stash-box's SceneQueryInput, so
+		// they have to be set explicitly — leaving them at Go's zero value
+		// sends an empty string and the query is rejected outright.
+		Sort:      graphql.SceneSortEnumDate,
+		Direction: graphql.SortDirectionEnumDesc,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if res == nil || res.GetQueryScenes() == nil {
+		return nil, nil
+	}
+
+	var ret []*models.ScrapedScene
+	var ignoredTags []string
+	for _, s := range res.GetQueryScenes().Scenes {
+		ss, err := c.sceneFragmentToScrapedScene(ctx, s, true)
+		if err != nil {
+			return nil, err
+		}
+
+		var thisIgnoredTags []string
+		ss.Tags, thisIgnoredTags = scraper.FilterTags(c.excludeTagRE, ss.Tags)
+		ignoredTags = sliceutil.AppendUniques(ignoredTags, thisIgnoredTags)
+
+		ret = append(ret, ss)
+	}
+
+	scraper.LogIgnoredTags(ignoredTags)
+
+	return ret, nil
+}
+
 // FindStashBoxScenesByFingerprints queries stash-box for a scene using the
 // scene's MD5/OSHASH checksum, or PHash.
 func (c Client) FindSceneByFingerprints(ctx context.Context, fps models.Fingerprints) ([]*models.ScrapedScene, error) {

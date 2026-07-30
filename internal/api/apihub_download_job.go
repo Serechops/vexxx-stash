@@ -40,14 +40,27 @@ type apihubDownloadItem struct {
 // scene, carried alongside the download so the backend can stamp it onto the
 // scene the post-download scan creates. All fields are optional.
 type apihubSceneMetadata struct {
-	Title      string   `json:"title"`
-	Date       string   `json:"date"` // YYYY-MM-DD
-	Details    string   `json:"details"`
-	URL        string   `json:"url"`
+	Title   string `json:"title"`
+	Date    string `json:"date"` // YYYY-MM-DD
+	Details string `json:"details"`
+	// URL is the scene's canonical page on the provider's own site. Beyond
+	// being stamped onto the scene, it's what the first identify source looks
+	// the scene up by on stash-box — an identity match, unlike a phash.
+	URL string `json:"url"`
+	// Code is the scene's ID on the source site, stamped as Stash's studio
+	// code (the studio's own identifier for the scene). Only used when no
+	// stash-box source supplied one.
+	Code       string                `json:"code"`
 	Studio     string                `json:"studio"`
 	Performers []apihubPerformerMeta `json:"performers"`
 	Tags       []string              `json:"tags"`
 	CoverURL   string                `json:"coverUrl"`
+	// VRMode is a models.VRMode value ("LR180" | "TB360" | "MONO360" |
+	// "FISHEYE190") the user explicitly picked in the download cart, or empty
+	// for a flat scene. The provider catalogs never expose the real projection
+	// layout (at best a yes/no VR hint), so this is never auto-detected — see
+	// importAndStamp for where it gets stamped onto scene.vr_mode as-is.
+	VRMode string `json:"vrMode,omitempty"`
 }
 
 // apihubPerformerMeta is a catalog performer carried with a download. Gender is

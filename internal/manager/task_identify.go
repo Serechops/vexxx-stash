@@ -179,6 +179,50 @@ func (j *IdentifyJob) identifyScene(ctx context.Context, s *models.Scene, source
 	}
 }
 
+// BuildIdentifySources resolves an ordered list of Identify source references
+// (stash-box or scraper) into ready-to-use ScraperSources, exactly as the
+// Identify task itself does. Exported so callers outside this package (e.g.
+// the APIHub download importer) can drive identify.SceneIdentifier against
+// the user's configured default Identify sources without duplicating this
+// resolution logic.
+func BuildIdentifySources(sources []*identify.Source) ([]identify.ScraperSource, error) {
+	j := &IdentifyJob{
+		input:      identify.Options{Sources: sources},
+		stashBoxes: instance.Config.GetStashBoxes(),
+	}
+	return j.getSources()
+}
+
+// AllConfiguredStashBoxSources returns a ScraperSource for every stash-box
+// configured in Settings > Metadata Providers, in configured order, each
+// performing a real fingerprint/phash-based scene lookup (the same mechanism
+// getSources builds for an explicit stash-box Source). Used as a fallback by
+// callers that want to identify against stash-box even when the user hasn't
+// saved default Identify sources.
+func AllConfiguredStashBoxSources() []identify.ScraperSource {
+	boxes := instance.Config.GetStashBoxes()
+	ret := make([]identify.ScraperSource, 0, len(boxes))
+	matcher := match.SceneRelationships{
+		PerformerFinder: instance.Repository.Performer,
+		TagFinder:       instance.Repository.Tag,
+		StudioFinder:    instance.Repository.Studio,
+	}
+	for _, sb := range boxes {
+		ret = append(ret, identify.ScraperSource{
+			Name: "stash-box: " + sb.Endpoint,
+			Scraper: stashboxSource{
+				Client:                 stashbox.NewClient(*sb, stashbox.ExcludeTagPatterns(instance.Config.GetScraperExcludeTagPatterns())),
+				endpoint:               sb.Endpoint,
+				txnManager:             instance.Repository.TxnManager,
+				sceneFingerprintGetter: instance.SceneService,
+				matcher:                matcher,
+			},
+			RemoteSite: sb.Endpoint,
+		})
+	}
+	return ret
+}
+
 func (j *IdentifyJob) getSources() ([]identify.ScraperSource, error) {
 	var ret []identify.ScraperSource
 	for _, source := range j.input.Sources {

@@ -193,6 +193,19 @@ func (j *apihubDownloadJob) identifyDownloadedScene(ctx context.Context, repo mo
 	// no stash-box is configured — the provider metadata alone is used, as before.
 	endpoint := enrichUnmatchedEntities(ctx, scraped)
 
+	// Try the real stash-box (fingerprint/phash-based) identify sources first,
+	// falling back to the catalog metadata only for scenes stash-box doesn't
+	// recognise. SceneIdentifier tries Sources in order and stops at the first
+	// one that returns a match, so a stash-box hit takes priority and picks up
+	// its StashID, canonical scene URL, studio code, etc.; the catalog source
+	// still applies whenever stash-box has nothing for this scene.
+	sources := resolveIdentifySources()
+	sources = append(sources, identify.ScraperSource{
+		Name:       "APIHub catalog",
+		Scraper:    staticSceneScraper{scene: scraped},
+		RemoteSite: endpoint,
+	})
+
 	identifier := identify.SceneIdentifier{
 		TxnManager:         repo.TxnManager,
 		SceneReaderUpdater: repo.Scene,
@@ -200,14 +213,8 @@ func (j *apihubDownloadJob) identifyDownloadedScene(ctx context.Context, repo mo
 		PerformerCreator:   repo.Performer,
 		TagFinderCreator:   repo.Tag,
 
-		DefaultOptions: effectiveIdentifyOptions(),
-		Sources: []identify.ScraperSource{
-			{
-				Name:       "APIHub catalog",
-				Scraper:    staticSceneScraper{scene: scraped},
-				RemoteSite: endpoint,
-			},
-		},
+		DefaultOptions:              effectiveIdentifyOptions(),
+		Sources:                     sources,
 		SceneUpdatePostHookExecutor: manager.GetInstance().PluginCache,
 	}
 
@@ -283,6 +290,24 @@ func buildScrapedScene(meta *apihubSceneMetadata, coverDataURL string) *models.S
 	}
 
 	return s
+}
+
+// resolveIdentifySources returns the real identify sources to try before the
+// APIHub catalog fallback, so a downloaded scene gets matched against
+// stash-box by fingerprint rather than relying solely on the provider's own
+// scraped fields. Prefers the user's saved default Identify sources
+// (respecting their configured order and per-source options); when none are
+// saved, falls back to every configured stash-box in order.
+func resolveIdentifySources() []identify.ScraperSource {
+	if saved := config.GetInstance().GetDefaultIdentifySettings(); saved != nil && len(saved.Sources) > 0 {
+		sources, err := manager.BuildIdentifySources(saved.Sources)
+		if err != nil {
+			logger.Warnf("[apihub-download] resolving configured identify sources: %v", err)
+		} else {
+			return sources
+		}
+	}
+	return manager.AllConfiguredStashBoxSources()
 }
 
 // effectiveIdentifyOptions returns the metadata options the identify run should

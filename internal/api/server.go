@@ -864,8 +864,15 @@ func (s *Server) getApihubConnectRoutes() chi.Router {
 
 func (s *Server) getApihubDownloadRoutes() chi.Router {
 	repo := s.manager.Repository
+	// The history sidecar lives under <config>/apihub — resolved lazily so a
+	// config path change takes effect without a restart, same as the FapTap/
+	// PMVHaven data-dir closures above.
+	historyDir := func() string {
+		return filepath.Join(config.GetInstance().GetConfigPath(), "apihub")
+	}
 	return apihubDownloadRoutes{
-		routes: routes{txnManager: repo.TxnManager},
+		routes:  routes{txnManager: repo.TxnManager},
+		history: newApihubHistoryStore(historyDir),
 	}.Routes()
 }
 

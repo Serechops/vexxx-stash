@@ -21,12 +21,16 @@ import (
 // transfer surfaces in the Tasks JobTable with live progress and a stop button.
 type apihubDownloadRoutes struct {
 	routes
+	history *apihubHistoryStore
 }
 
 func (rs apihubDownloadRoutes) Routes() chi.Router {
 	r := chi.NewRouter()
 
 	r.Post("/start", rs.Start)
+	r.Get("/history", rs.History)
+	r.Delete("/history", rs.ClearHistory)
+	r.Delete("/history/{id}", rs.DeleteHistoryEntry)
 
 	return r
 }
@@ -60,9 +64,10 @@ func (rs apihubDownloadRoutes) Start(w http.ResponseWriter, r *http.Request) {
 	}
 
 	j := &apihubDownloadJob{
-		items:  req.Items,
-		root:   root,
-		client: &http.Client{},
+		items:   req.Items,
+		root:    root,
+		client:  &http.Client{},
+		history: rs.history,
 	}
 
 	desc := fmt.Sprintf("Downloading %s to library", pluralScenes(len(req.Items)))
@@ -72,6 +77,50 @@ func (rs apihubDownloadRoutes) Start(w http.ResponseWriter, r *http.Request) {
 	jobID := manager.GetInstance().JobManager.Add(r.Context(), desc, j)
 
 	writeJSON(w, apihubDownloadStartResponse{JobID: strconv.Itoa(jobID)})
+}
+
+// History returns a page of past downloads, most recent first. Query params:
+// limit, offset, status ("success" | "partial" | "failed"), q (title/studio
+// substring search).
+func (rs apihubDownloadRoutes) History(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	limit, _ := strconv.Atoi(q.Get("limit"))
+	offset, _ := strconv.Atoi(q.Get("offset"))
+
+	result, err := rs.history.list(apihubHistoryListParams{
+		Limit:  limit,
+		Offset: offset,
+		Status: strings.TrimSpace(q.Get("status")),
+		Query:  q.Get("q"),
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, result)
+}
+
+// ClearHistory deletes every recorded download-history entry.
+func (rs apihubDownloadRoutes) ClearHistory(w http.ResponseWriter, r *http.Request) {
+	if err := rs.history.clear(); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// DeleteHistoryEntry deletes a single download-history entry by id.
+func (rs apihubDownloadRoutes) DeleteHistoryEntry(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		http.Error(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+	if err := rs.history.deleteEntry(id); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func pluralScenes(n int) string {

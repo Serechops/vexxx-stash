@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -28,6 +29,10 @@ type apihubDownloadItem struct {
 	Studio    string            `json:"studio"`
 	Performer string            `json:"performer"`
 	Title     string            `json:"title"`
+	// Quality is the human-readable rendition label the user picked in the
+	// cart (e.g. "1080p"), carried along purely for display in the download
+	// history — it plays no part in the download itself.
+	Quality   string               `json:"quality,omitempty"`
 	Headers   map[string]string    `json:"headers,omitempty"`
 	Metadata  *apihubSceneMetadata `json:"metadata,omitempty"`
 	// Gallery, when present, is the accompanying photo set to download and
@@ -75,9 +80,10 @@ type apihubPerformerMeta struct {
 // apihubDownloadJob streams a batch of scenes into the library's download root,
 // reporting progress to the JobManager so it surfaces in the Tasks JobTable.
 type apihubDownloadJob struct {
-	items  []apihubDownloadItem
-	root   string
-	client *http.Client
+	items   []apihubDownloadItem
+	root    string
+	client  *http.Client
+	history *apihubHistoryStore
 }
 
 func (j *apihubDownloadJob) Execute(ctx context.Context, progress *job.Progress) error {
@@ -121,8 +127,14 @@ func (j *apihubDownloadJob) Execute(ctx context.Context, progress *job.Progress)
 			}
 			logger.Errorf("[apihub-download] %q failed: %v", title, dlErr)
 			failures = append(failures, fmt.Sprintf("%s: %v", title, dlErr))
+			j.recordHistory(item, apihubHistoryFailed, dlErr.Error(), "")
 			continue
 		}
+
+		// itemErrs collects failures scoped to this item (import/gallery) so the
+		// history entry below can distinguish "downloaded but not fully wired
+		// up" from a clean success, independent of the job-wide failures slice.
+		var itemErrs []string
 
 		// Import the freshly-downloaded file into the library and stamp its
 		// metadata. A failure here is non-fatal: the file is safely on disk, so
@@ -134,7 +146,9 @@ func (j *apihubDownloadJob) Execute(ctx context.Context, progress *job.Progress)
 				scene = s
 				if err != nil {
 					logger.Errorf("[apihub-download] import %q failed: %v", title, err)
-					failures = append(failures, fmt.Sprintf("%s (import): %v", title, err))
+					msg := fmt.Sprintf("%s (import): %v", title, err)
+					failures = append(failures, msg)
+					itemErrs = append(itemErrs, msg)
 				}
 			})
 		}
@@ -146,9 +160,21 @@ func (j *apihubDownloadJob) Execute(ctx context.Context, progress *job.Progress)
 			progress.ExecuteTask(fmt.Sprintf("Downloading gallery for %q", title), func() {
 				if err := j.importGallery(ctx, savedPath, scene, item); err != nil {
 					logger.Errorf("[apihub-download] gallery for %q failed: %v", title, err)
-					failures = append(failures, fmt.Sprintf("%s (gallery): %v", title, err))
+					msg := fmt.Sprintf("%s (gallery): %v", title, err)
+					failures = append(failures, msg)
+					itemErrs = append(itemErrs, msg)
 				}
 			})
+		}
+
+		var sceneID string
+		if scene != nil {
+			sceneID = strconv.Itoa(scene.ID)
+		}
+		if len(itemErrs) > 0 {
+			j.recordHistory(item, apihubHistoryPartial, strings.Join(itemErrs, "; "), sceneID)
+		} else {
+			j.recordHistory(item, apihubHistorySuccess, "", sceneID)
 		}
 
 		progress.SetPercent(float64(idx+1) / float64(total))
@@ -161,6 +187,47 @@ func (j *apihubDownloadJob) Execute(ctx context.Context, progress *job.Progress)
 		return fmt.Errorf("%d of %d download(s) failed: %s", len(failures), total, strings.Join(failures, "; "))
 	}
 	return nil
+}
+
+// recordHistory best-effort records the outcome of one item to the history
+// sidecar. A write failure here must never affect the download itself, so
+// it's only logged.
+func (j *apihubDownloadJob) recordHistory(item apihubDownloadItem, status apihubHistoryStatus, errMsg, sceneID string) {
+	if j.history == nil {
+		return
+	}
+	title := item.Title
+	studio := item.Studio
+	var vrMode, sourceURL, coverURL string
+	if item.Metadata != nil {
+		if title == "" {
+			title = item.Metadata.Title
+		}
+		if studio == "" {
+			studio = item.Metadata.Studio
+		}
+		vrMode = item.Metadata.VRMode
+		sourceURL = item.Metadata.URL
+		coverURL = item.Metadata.CoverURL
+	}
+	if title == "" {
+		title = item.Filename
+	}
+	if err := j.history.record(apihubHistoryEntry{
+		Title:     title,
+		Studio:    studio,
+		Performer: item.Performer,
+		Provider:  item.Provider,
+		CoverURL:  coverURL,
+		SourceURL: sourceURL,
+		Quality:   item.Quality,
+		VRMode:    vrMode,
+		Status:    status,
+		Error:     errMsg,
+		SceneID:   sceneID,
+	}); err != nil {
+		logger.Errorf("[apihub-download] recording history for %q failed: %v", title, err)
+	}
 }
 
 // download streams a single item straight into the download root as a flat

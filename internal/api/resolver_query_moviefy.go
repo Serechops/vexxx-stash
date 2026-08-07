@@ -146,6 +146,10 @@ func (r *queryResolver) SearchMovieFyDatabase(ctx context.Context, input MovieFy
 		movies = append(movies, m)
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating movie rows: %w", err)
+	}
+
 	pages := int(math.Ceil(float64(total) / float64(perPage)))
 
 	return &MovieFySearchResult{

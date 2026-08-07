@@ -274,6 +274,7 @@ func Initialize() (*Server, error) {
 	r.Mount("/stashtag", server.getStashTagRoutes())
 	r.Mount("/megaface", server.getMegaFaceRoutes())
 	r.Mount("/handy", server.getHandyRoutes())
+	r.Mount("/iptv", server.getIPTVRoutes())
 
 	// DeoVR routes — grouped under /deovr prefix so tunnel sub-paths
 	// are resolved before the catch-all /* UI handler.
@@ -556,11 +557,15 @@ func (s *Server) shutdownHTTPSLocked() {
 	}
 }
 
-// httpsURLs returns the https://<ip>:<port> URLs the headset can use, one per
-// non-loopback LAN address.
-func (s *Server) httpsURLs() []string {
-	port := strconv.Itoa(s.httpsPort)
-	var urls []string
+// lanHosts returns this machine's non-loopback addresses, already bracketed
+// where IPv6 requires it, ready to be dropped into a URL authority.
+//
+// Shared by the WebXR HTTPS listener (which needs a URL to type into a headset)
+// and the IPTV routes (which need one to type into a TV) — both are answering
+// the same question: "which address can another device on this network reach
+// this server at?"
+func lanHosts() []string {
+	var hosts []string
 	addrs, _ := net.InterfaceAddrs()
 	for _, a := range addrs {
 		var ip net.IP
@@ -577,6 +582,17 @@ func (s *Server) httpsURLs() []string {
 		if ip.To4() == nil {
 			host = "[" + host + "]" // bracket IPv6
 		}
+		hosts = append(hosts, host)
+	}
+	return hosts
+}
+
+// httpsURLs returns the https://<ip>:<port> URLs the headset can use, one per
+// non-loopback LAN address.
+func (s *Server) httpsURLs() []string {
+	port := strconv.Itoa(s.httpsPort)
+	var urls []string
+	for _, host := range lanHosts() {
 		urls = append(urls, "https://"+host+":"+port+"/")
 	}
 	return urls
@@ -700,6 +716,14 @@ func (s *Server) getHandyRoutes() chi.Router {
 		sceneFinder:          repo.Scene,
 		sceneFunscriptFinder: repo.Scene,
 	}.Routes()
+}
+
+// getIPTVRoutes serves the library as 24/7 linear TV channels for IPTV clients.
+// The route group is constructed once (rather than per request like most of the
+// others) because it owns the schedule and channel-lineup caches, which must
+// outlive individual requests to be worth anything.
+func (s *Server) getIPTVRoutes() chi.Router {
+	return newIPTVRoutes(&s.manager.Repository, s.manager.Config).Routes()
 }
 
 func (s *Server) getGalleryRoutes() chi.Router {

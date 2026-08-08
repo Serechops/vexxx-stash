@@ -592,6 +592,8 @@ func newIPTVNetworks() iptvNetworks {
 	return iptvNetworks{
 		newIPTVNetworkState(ayloNetwork{}),
 		newIPTVNetworkState(adultTimeNetwork{}),
+		newIPTVNetworkState(evilAngelNetwork{}),
+		newIPTVNetworkState(teamSkeetNetwork{}),
 	}
 }
 

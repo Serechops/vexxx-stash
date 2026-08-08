@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/stashapp/stash/pkg/iptv"
 )
@@ -27,13 +26,13 @@ import (
 //     release date and rendition codecs, so playability is decided at schedule
 //     time rather than discovered at play time.
 //
-// Nothing here mints or refreshes a credential — see apihub_adulttime_catalog.go.
+// Nothing here mints or refreshes a credential — see apihub_gamma_catalog.go.
 
 const (
 	iptvSourceAdultTime = "adulttime"
 
 	// iptvAdultTimeKeyPrefix namespaces these channel ids away from studio ids
-	// and from Aylo's, so all three can share one route.
+	// and from the other providers', so they can all share one route.
 	iptvAdultTimeKeyPrefix = "at-"
 
 	// adultTimeBrandSlug and adultTimeBrandLabel put every Adult Time channel in
@@ -63,7 +62,7 @@ func (adultTimeNetwork) IsNoSession(err error) bool { return errors.Is(err, errA
 // is no id to key on instead, so the alternative would be inventing one and
 // storing a mapping; a rename is rare enough not to be worth that.
 func adultTimeChannelKey(name string) string {
-	return iptvAdultTimeKeyPrefix + adultTimeSlug(name)
+	return iptvAdultTimeKeyPrefix + gammaSlug(name)
 }
 
 // adultTimeNetworkChannelKey names the network-wide channel.
@@ -72,28 +71,10 @@ func adultTimeChannelKey(name string) string {
 // because its children are distinguished by a numeric id; here a child is
 // identified by its slugged name, so a studio actually called "All" would land
 // on the same key as the umbrella channel and silently replace it. A slug never
-// contains two dashes in a row (adultTimeSlug collapses runs), so this is the
-// one shape no studio name can ever produce.
+// contains two dashes in a row (gammaSlug collapses runs), so this is the one
+// shape no studio name can ever produce.
 func adultTimeNetworkChannelKey() string {
 	return iptvAdultTimeKeyPrefix + "-all"
-}
-
-// adultTimeSlug reduces a studio name to something safe in a URL and stable
-// across refreshes.
-func adultTimeSlug(name string) string {
-	var b strings.Builder
-	lastDash := true // suppresses a leading dash
-	for _, r := range strings.ToLower(name) {
-		switch {
-		case (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9'):
-			b.WriteRune(r)
-			lastDash = false
-		case !lastDash:
-			b.WriteByte('-')
-			lastDash = true
-		}
-	}
-	return strings.Trim(b.String(), "-")
 }
 
 // ─── discovery ────────────────────────────────────────────────────────────────
@@ -151,22 +132,17 @@ func adultTimeSpec(spec iptvNetChannelSpec) iptvNetChannelSpec {
 // history, then shuffles them with the channel's stable seed so the rotation
 // survives a restart.
 func (adultTimeNetwork) Programs(ctx context.Context, spec iptvNetChannelSpec, want int, seed uint64) ([]iptv.SceneEntry, error) {
-	hits, err := adultTimeSampleScenes(ctx, adultTimeSelector{channel: spec.Collection}, want, seed)
+	sel, err := adultTimeSelectorFor(spec)
 	if err != nil {
 		return nil, err
 	}
 
-	entries := make([]iptv.SceneEntry, 0, len(hits))
-	for _, hit := range hits {
-		entries = append(entries, iptv.SceneEntry{
-			SceneID:  hit.ClipID,
-			Title:    hit.Title,
-			Details:  hit.Description,
-			Date:     hit.ReleaseDate,
-			Duration: float64(hit.Length),
-		})
+	hits, err := gammaSampleScenes(ctx, adultTimeSite, sel.gamma(), want, seed)
+	if err != nil {
+		return nil, err
 	}
 
+	entries := gammaEntries(hits)
 	iptv.StableShuffle(entries, iptv.ShuffleSeed(int(seed)))
 	return entries, nil
 }
@@ -177,25 +153,7 @@ func (adultTimeNetwork) Programs(ctx context.Context, spec iptvNetChannelSpec, w
 // every programme boundary: the signed URL is short-lived, so it is never held
 // in a schedule.
 func (adultTimeNetwork) ProgramSource(ctx context.Context, clipID int) (programSource, error) {
-	stream, err := adultTimeResolveStream(ctx, clipID)
-	if err != nil {
-		return programSource{}, err
-	}
-
-	return programSource{
-		Path: stream.URL,
-		// Measured as h264 across every era sampled, and the schedule already
-		// dropped anything whose rendition list said otherwise. Naming it lets
-		// ChooseMode pick a remux without probing the stream first.
-		VideoCodec: "h264",
-		// Left empty on purpose, as for Aylo: ChooseMode reads empty as "no
-		// audio track", which remuxes, and ffmpeg's optional `-map 0:a:0?`
-		// copies the AAC track when there is one. Either way no re-encode,
-		// which a guessed codec could have triggered.
-		AudioCodec: "",
-		Height:     adultTimeHeight(stream.Format),
-		Remote:     true,
-	}, nil
+	return gammaProgramSource(ctx, adultTimeSite, clipID)
 }
 
 // adultTimeSelectorFor is the inverse of the spec: which slice of catalog a

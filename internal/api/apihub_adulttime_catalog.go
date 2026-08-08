@@ -37,11 +37,16 @@ import (
 //
 //   - Every members.adulttime.com path 302s to /en/interstitial on a first
 //     visit, and that page redirects to itself. It is a promotional gate, not
-//     an auth wall — EvilAngel's working session does exactly the same — and it
-//     is dismissed by handing back the three cookies the redirect itself sets.
-//     See adultTimeInterstitialCookies.
+//     an auth wall — EvilAngel's working session does exactly the same.
 //   - The JSON endpoints answer 403 to a plain GET and 200 to the identical
 //     request carrying X-Requested-With: XMLHttpRequest.
+//
+// Both symptoms look exactly like a dead session and neither is one, which is
+// the trap. Measured across the two endpoints, the XHR header alone is
+// sufficient for both: it satisfies the JSON endpoints *and* stops the
+// interstitial firing. The gate cookies are kept only for the members-page
+// scrape below, which deliberately asks for HTML as a browser would and so
+// meets the gate honestly rather than sidestepping it.
 
 const (
 	adultTimeMemberBase = "https://members.adulttime.com"

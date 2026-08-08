@@ -116,6 +116,13 @@ var forwardedRequestHeaders = []string{
 	// header) — the client already holds this token itself, so forwarding it
 	// verbatim carries the same trust level as the Algolia key headers above.
 	"Authorization",
+	// Adult Time's member area answers 403 to a plain GET of its JSON
+	// endpoints and 200 to the identical request carrying this header; the
+	// members page additionally serves a promotional interstitial redirect to
+	// anything that does not look like an in-page fetch. Measured across both:
+	// this header alone is what makes them behave, which is why it has to
+	// survive the relay rather than being set here for one host.
+	"X-Requested-With",
 }
 
 func isAllowedProxyHost(host string) bool {

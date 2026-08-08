@@ -297,3 +297,118 @@ func TestShuffleSeedIsStableAndDistinct(t *testing.T) {
 		seen[s] = id
 	}
 }
+
+// ─── stable shuffle ───────────────────────────────────────────────────────────
+
+func shuffleInput(n int) []SceneEntry {
+	entries := make([]SceneEntry, n)
+	for i := range entries {
+		entries[i] = SceneEntry{SceneID: i + 1, Duration: 600}
+	}
+	return entries
+}
+
+func ids(entries []SceneEntry) []int {
+	out := make([]int, len(entries))
+	for i, e := range entries {
+		out[i] = e.SceneID
+	}
+	return out
+}
+
+// The whole point of the seed: a channel's rotation has to survive a restart,
+// so the same seed must produce the same order every time.
+func TestStableShuffleIsReproducible(t *testing.T) {
+	a, b := shuffleInput(50), shuffleInput(50)
+
+	StableShuffle(a, 12345)
+	StableShuffle(b, 12345)
+
+	for i := range a {
+		if a[i].SceneID != b[i].SceneID {
+			t.Fatalf("same seed produced different orders at index %d: %v vs %v", i, ids(a), ids(b))
+		}
+	}
+}
+
+// Sorting by id first is what makes the result independent of the order the
+// upstream API happened to return — otherwise a catalog that came back in a
+// different order would silently reshuffle a live channel.
+func TestStableShuffleIgnoresInputOrder(t *testing.T) {
+	forward := shuffleInput(50)
+
+	reversed := shuffleInput(50)
+	for i, j := 0, len(reversed)-1; i < j; i, j = i+1, j-1 {
+		reversed[i], reversed[j] = reversed[j], reversed[i]
+	}
+
+	StableShuffle(forward, 999)
+	StableShuffle(reversed, 999)
+
+	for i := range forward {
+		if forward[i].SceneID != reversed[i].SceneID {
+			t.Fatalf("input order leaked into the result at index %d", i)
+		}
+	}
+}
+
+func TestStableShuffleIsAPermutation(t *testing.T) {
+	entries := shuffleInput(200)
+	StableShuffle(entries, 777)
+
+	seen := make(map[int]bool, len(entries))
+	for _, e := range entries {
+		if seen[e.SceneID] {
+			t.Fatalf("scene %d appears more than once", e.SceneID)
+		}
+		seen[e.SceneID] = true
+	}
+	if len(seen) != 200 {
+		t.Errorf("got %d distinct entries, want 200 — the shuffle dropped some", len(seen))
+	}
+}
+
+func TestStableShuffleActuallyReorders(t *testing.T) {
+	entries := shuffleInput(100)
+	StableShuffle(entries, 4242)
+
+	inPlace := 0
+	for i, e := range entries {
+		if e.SceneID == i+1 {
+			inPlace++
+		}
+	}
+	// A real shuffle of 100 leaves ~1 element in place; sorted output would
+	// leave all 100, which is the failure this guards against.
+	if inPlace > 20 {
+		t.Errorf("%d of 100 entries kept their original position — this is not shuffling", inPlace)
+	}
+}
+
+func TestStableShuffleDiffersBySeed(t *testing.T) {
+	a, b := shuffleInput(100), shuffleInput(100)
+
+	StableShuffle(a, 1)
+	StableShuffle(b, 2)
+
+	same := 0
+	for i := range a {
+		if a[i].SceneID == b[i].SceneID {
+			same++
+		}
+	}
+	if same > 20 {
+		t.Errorf("two seeds agreed on %d of 100 positions; the seed is barely being used", same)
+	}
+}
+
+func TestStableShuffleHandlesTrivialInput(t *testing.T) {
+	StableShuffle(nil, 1)
+	StableShuffle([]SceneEntry{}, 1)
+
+	one := []SceneEntry{{SceneID: 9}}
+	StableShuffle(one, 1)
+	if len(one) != 1 || one[0].SceneID != 9 {
+		t.Error("a single entry should survive untouched")
+	}
+}

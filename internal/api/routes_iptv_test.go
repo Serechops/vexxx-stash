@@ -332,29 +332,29 @@ func TestURLAppendsAPIKeyOnlyWhenSet(t *testing.T) {
 // ─── channel logos ────────────────────────────────────────────────────────────
 
 func testLogoRoutes() iptvRoutes {
-	return iptvRoutes{logos: &iptvLogoCache{entries: make(map[int]iptvLogoEntry)}}
+	return iptvRoutes{logos: &iptvLogoCache{entries: make(map[string]iptvLogoEntry)}}
 }
 
 func TestLogoCacheReturnsFreshEntries(t *testing.T) {
 	rs := testLogoRoutes()
-	rs.logos.entries[3] = iptvLogoEntry{data: []byte("x"), contentType: "image/png", built: time.Now()}
+	rs.logos.entries["3"] = iptvLogoEntry{data: []byte("x"), contentType: "image/png", built: time.Now()}
 
-	if _, ok := rs.cachedLogo(3); !ok {
+	if _, ok := rs.cachedLogo("3"); !ok {
 		t.Error("a just-built logo should come back from the cache")
 	}
-	if _, ok := rs.cachedLogo(4); ok {
+	if _, ok := rs.cachedLogo("4"); ok {
 		t.Error("an unknown studio should miss")
 	}
 }
 
 func TestLogoCacheExpires(t *testing.T) {
 	rs := testLogoRoutes()
-	rs.logos.entries[3] = iptvLogoEntry{
+	rs.logos.entries["3"] = iptvLogoEntry{
 		data:  []byte("x"),
 		built: time.Now().Add(-iptvLogoTTL - time.Minute),
 	}
 
-	if _, ok := rs.cachedLogo(3); ok {
+	if _, ok := rs.cachedLogo("3"); ok {
 		t.Error("an entry past its TTL should miss so a changed logo eventually appears")
 	}
 }

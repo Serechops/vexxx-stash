@@ -93,6 +93,43 @@ func ShuffleSeed(channelID int) uint64 {
 	return h.Sum64() % 1e8
 }
 
+// StableShuffle deterministically permutes entries in place.
+//
+// Library channels get their rotation from Stash's `random_<seed>` SQL sort,
+// which sources outside the database cannot use. This is the equivalent for
+// them: same guarantee — the same seed yields the same order across restarts,
+// so a channel's rotation is a property of the channel rather than of when it
+// was built.
+//
+// Entries are sorted by id before shuffling so the result does not depend on
+// the order an upstream API happened to return, and the PRNG is written out
+// here rather than taken from math/rand so the permutation is pinned to this
+// code instead of to a standard-library implementation detail.
+func StableShuffle(entries []SceneEntry, seed uint64) {
+	if len(entries) < 2 {
+		return
+	}
+
+	sort.SliceStable(entries, func(i, j int) bool {
+		return entries[i].SceneID < entries[j].SceneID
+	})
+
+	state := seed
+	next := func() uint64 {
+		// splitmix64 — small, well-distributed, and fully specified here.
+		state += 0x9e3779b97f4a7c15
+		z := state
+		z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9
+		z = (z ^ (z >> 27)) * 0x94d049bb133111eb
+		return z ^ (z >> 31)
+	}
+
+	for i := len(entries) - 1; i > 0; i-- {
+		j := int(next() % uint64(i+1))
+		entries[i], entries[j] = entries[j], entries[i]
+	}
+}
+
 // BuildCycle quantises scenes onto the segment grid, preserving input order.
 //
 // Scenes shorter than one segment are dropped: they would occupy zero segments

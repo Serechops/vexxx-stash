@@ -48,6 +48,7 @@ type iptvRoutes struct {
 	cycles   *iptvCycleCache
 	channels *iptvChannelCache
 	logos    *iptvLogoCache
+	networks iptvNetworks
 }
 
 const (
@@ -94,6 +95,12 @@ const (
 	iptvMaxEPGEntries = 400
 
 	iptvXMLTVTimeFormat = "20060102150405 -0700"
+
+	// Sent by ffmpeg when a programme's source is a URL. The CDNs fronting the
+	// API Hub catalogs reject the default Lavf/… agent, so this is required for
+	// a network channel to play at all.
+	iptvRemoteUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
+		"AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
 )
 
 func newIPTVRoutes(repo *models.Repository, cfg *config.Config) iptvRoutes {
@@ -101,9 +108,10 @@ func newIPTVRoutes(repo *models.Repository, cfg *config.Config) iptvRoutes {
 		routes:     routes{txnManager: repo.TxnManager},
 		repository: repo,
 		config:     cfg,
-		cycles:     &iptvCycleCache{entries: make(map[int]*iptvCycleEntry)},
+		cycles:     &iptvCycleCache{entries: make(map[string]*iptvCycleEntry)},
 		channels:   &iptvChannelCache{},
-		logos:      &iptvLogoCache{entries: make(map[int]iptvLogoEntry)},
+		logos:      &iptvLogoCache{entries: make(map[string]iptvLogoEntry)},
+		networks:   newIPTVNetworks(),
 	}
 }
 
@@ -137,15 +145,25 @@ type iptvSettings struct {
 	Resolution  string
 	GroupTitle  string
 	EPGHours    int
+
+	// NetworkMinScenes is the smallest catalog worth its own network channel,
+	// and NetworkPrograms how many programmes such a channel's rotation holds.
+	// They are separate from the library equivalents above because the costs are
+	// not comparable: a library programme is a row already in the database,
+	// while a network one is ~53KB fetched over the internet.
+	NetworkMinScenes int
+	NetworkPrograms  int
 }
 
 func (rs iptvRoutes) settings() iptvSettings {
 	s := iptvSettings{
-		MinScenes:   iptvDefaultMinScenes,
-		MaxPrograms: iptvDefaultMaxPrograms,
-		Resolution:  string(models.StreamingResolutionEnumStandardHd),
-		GroupTitle:  iptvDefaultGroupTitle,
-		EPGHours:    iptvDefaultEPGHours,
+		MinScenes:        iptvDefaultMinScenes,
+		MaxPrograms:      iptvDefaultMaxPrograms,
+		Resolution:       string(models.StreamingResolutionEnumStandardHd),
+		GroupTitle:       iptvDefaultGroupTitle,
+		EPGHours:         iptvDefaultEPGHours,
+		NetworkMinScenes: iptvNetMinReleases,
+		NetworkPrograms:  iptvNetDefaultPrograms,
 	}
 
 	pc := rs.config.GetPluginConfiguration(iptvPluginID)
@@ -161,6 +179,12 @@ func (rs iptvRoutes) settings() iptvSettings {
 	}
 	if v, ok := iptvSettingInt(pc["epgHours"]); ok && v > 0 {
 		s.EPGHours = v
+	}
+	if v, ok := iptvSettingInt(pc["networkMinScenes"]); ok && v > 0 {
+		s.NetworkMinScenes = v
+	}
+	if v, ok := iptvSettingInt(pc["networkPrograms"]); ok && v > 0 {
+		s.NetworkPrograms = v
 	}
 	if v, ok := pc["groupTitle"].(string); ok && v != "" {
 		s.GroupTitle = v
@@ -195,34 +219,90 @@ func iptvSettingInt(v interface{}) (int, bool) {
 
 // ─── channel list ─────────────────────────────────────────────────────────────
 
+// iptvChannel is one entry in the lineup. A channel is either a library studio
+// or an API Hub network, distinguished by Source; Key is what appears in URLs
+// and is the only identifier the rest of the pipeline needs.
 type iptvChannel struct {
-	Number     int    `json:"number"`
-	StudioID   int    `json:"studio_id"`
-	TvgID      string `json:"tvg_id"`
-	Name       string `json:"name"`
-	SceneCount int    `json:"scene_count"`
+	Number int `json:"number"`
+	// Source is iptvSourceLibrary or iptvSourceAylo.
+	Source string `json:"source"`
+	// Key identifies the channel in a URL. Library channels keep their bare
+	// studio id so playlists configured before networks existed keep working.
+	Key string `json:"key"`
+	// StudioID is set for library channels only.
+	StudioID int `json:"studio_id"`
+	// BrandSlug, BrandLabel and CollectionID are set for API Hub channels only.
+	// CollectionID names the child studio this channel airs; zero means the
+	// brand-wide channel.
+	BrandSlug    string `json:"brand_slug,omitempty"`
+	BrandLabel   string `json:"brand_label,omitempty"`
+	CollectionID int    `json:"collection_id,omitempty"`
+	// LogoStudioID is the studio whose image represents this channel, which for
+	// a network is the matching library studio when one exists. Zero means fall
+	// back to the placeholder.
+	LogoStudioID int    `json:"-"`
+	TvgID        string `json:"tvg_id"`
+	Name         string `json:"name"`
+	SceneCount   int    `json:"scene_count"`
+}
+
+// isNetwork reports a channel whose content is a provider's catalog rather than
+// a file on disk. Asked in several places — programme caps, guide icons, how a
+// programme is resolved — and always for the same underlying reason, so it is
+// one predicate rather than a comparison against each provider in turn.
+func (ch iptvChannel) isNetwork() bool {
+	return ch.Source != "" && ch.Source != iptvSourceLibrary
 }
 
 type iptvChannelCache struct {
-	mu     sync.Mutex
-	list   []iptvChannel
-	byID   map[int]iptvChannel
-	built  time.Time
-	minSc  int
+	mu    sync.Mutex
+	list  []iptvChannel
+	byKey map[string]iptvChannel
+	built time.Time
+	minSc int
+	// networks records whether the cached lineup was built while API Hub had a
+	// live session. A lineup built without one is missing every network channel,
+	// and there is nothing about connecting an account that invalidates this
+	// cache — so without this flag a reconnect appears to do nothing for up to a
+	// full TTL, which reads as a broken feature rather than a stale cache.
+	networks bool
+	// netGen is the combined API Hub directory generation this lineup was built from.
+	// Network discovery runs in the background, so the lineup a request is
+	// served may be missing channels that have since been found; comparing
+	// generations is how a background refresh becomes visible without the
+	// warmer having to reach into this cache.
+	netGen uint64
 	loaded bool
 }
 
 // channelList returns the lineup, rebuilding it at most once per TTL. Channel
 // numbers are assigned by studio name so that adding a studio shifts numbers
 // predictably instead of reshuffling the whole lineup.
-func (rs iptvRoutes) channelList(r *http.Request, s iptvSettings) ([]iptvChannel, map[int]iptvChannel, error) {
+func (rs iptvRoutes) channelList(r *http.Request, s iptvSettings) ([]iptvChannel, map[string]iptvChannel, error) {
 	c := rs.channels
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if c.loaded && c.minSc == s.MinScenes && time.Since(c.built) < iptvChannelTTL {
-		return c.list, c.byID, nil
+	// A lineup that predates a reconnect, or one built before the background
+	// warmer found more network channels, is rebuilt immediately rather than
+	// waiting out its TTL. Both checks are local — a config read and an integer
+	// compare — so they cost nothing on the hot path.
+	fresh := time.Since(c.built) < iptvChannelTTL
+	if c.loaded && fresh {
+		if !c.networks && rs.networks.anySessionLive() {
+			fresh = false
+		}
+		if c.netGen != rs.networks.generation() {
+			fresh = false
+		}
 	}
+	if c.loaded && c.minSc == s.MinScenes && fresh {
+		return c.list, c.byKey, nil
+	}
+
+	// Read before building, not after: a background warm that finishes mid-build
+	// must leave this lineup looking stale, or its new channels wait for the TTL.
+	netGen := rs.networks.generation()
 
 	var studios []*models.Studio
 	if err := rs.withReadTxn(r, func(ctx context.Context) error {
@@ -241,8 +321,11 @@ func (rs iptvRoutes) channelList(r *http.Request, s iptvSettings) ([]iptvChannel
 	}
 
 	list := make([]iptvChannel, 0, len(studios))
+	studioByName := make(map[string]int, len(studios))
 	if err := rs.withReadTxn(r, func(ctx context.Context) error {
 		for _, st := range studios {
+			studioByName[strings.ToLower(st.Name)] = st.ID
+
 			count, err := rs.studioSceneCount(ctx, st.ID)
 			if err != nil {
 				return err
@@ -251,10 +334,13 @@ func (rs iptvRoutes) channelList(r *http.Request, s iptvSettings) ([]iptvChannel
 				continue
 			}
 			list = append(list, iptvChannel{
-				StudioID:   st.ID,
-				TvgID:      fmt.Sprintf("vexxx-studio-%d", st.ID),
-				Name:       st.Name,
-				SceneCount: count,
+				Source:       iptvSourceLibrary,
+				Key:          strconv.Itoa(st.ID),
+				StudioID:     st.ID,
+				LogoStudioID: st.ID,
+				TvgID:        fmt.Sprintf("vexxx-studio-%d", st.ID),
+				Name:         st.Name,
+				SceneCount:   count,
 			})
 		}
 		return nil
@@ -266,14 +352,54 @@ func (rs iptvRoutes) channelList(r *http.Request, s iptvSettings) ([]iptvChannel
 		return strings.ToLower(list[i].Name) < strings.ToLower(list[j].Name)
 	})
 
-	byID := make(map[int]iptvChannel, len(list))
+	// Network channels are appended after the library rather than sorted in
+	// among it, so they occupy a stable block at the end of the lineup: adding
+	// or losing one cannot renumber every studio channel on the TV.
+	list = append(list, rs.networks.channels(s, studioByName)...)
+
+	byKey := make(map[string]iptvChannel, len(list))
 	for i := range list {
 		list[i].Number = i + 1
-		byID[list[i].StudioID] = list[i]
+		byKey[list[i].Key] = list[i]
 	}
 
-	c.list, c.byID, c.built, c.minSc, c.loaded = list, byID, time.Now(), s.MinScenes, true
-	return list, byID, nil
+	c.list, c.byKey, c.built, c.minSc, c.loaded = list, byKey, time.Now(), s.MinScenes, true
+	c.networks = ayloSessionLive()
+	c.netGen = netGen
+	return list, byKey, nil
+}
+
+// channelByKey resolves a URL channel id to its lineup entry. A nil channel
+// with a nil error means the id is simply not in the lineup.
+func (rs iptvRoutes) channelByKey(r *http.Request, key string, s iptvSettings) (*iptvChannel, error) {
+	_, byKey, err := rs.channelList(r, s)
+	if err != nil {
+		return nil, err
+	}
+	ch, ok := byKey[key]
+	if !ok {
+		return nil, nil
+	}
+	return &ch, nil
+}
+
+// iptvGroupTitle keeps network channels in their own category. Clients render
+// groups as top-level folders, so mixing a handful of streamed network channels
+// in among hundreds of library ones would bury them — and the two behave
+// differently enough (one plays offline, one needs a live session) that telling
+// them apart at a glance is worth a folder.
+func iptvGroupTitle(ch iptvChannel, s iptvSettings) string {
+	if !ch.isNetwork() {
+		return s.GroupTitle
+	}
+	// One group per brand, not a single "Networks" folder. A brand contributes
+	// dozens of child-studio channels, and clients render a group as a top-level
+	// folder — so lumping them together buries the library's own channels under
+	// a hundred-entry list, while per-brand folders stay navigable with a remote.
+	if ch.BrandLabel != "" {
+		return s.GroupTitle + " " + ch.BrandLabel
+	}
+	return s.GroupTitle + " Networks"
 }
 
 func (rs iptvRoutes) studioSceneCount(ctx context.Context, studioID int) (int, error) {
@@ -311,7 +437,7 @@ type iptvCycleEntry struct {
 
 type iptvCycleCache struct {
 	mu      sync.Mutex
-	entries map[int]*iptvCycleEntry
+	entries map[string]*iptvCycleEntry
 }
 
 // cycle returns a channel's schedule, rebuilding it at most once per TTL.
@@ -319,17 +445,42 @@ type iptvCycleCache struct {
 // The TTL matters more than it looks: a rebuild can change what is on air, so
 // keeping it long makes the schedule feel stable, while still letting newly
 // scanned scenes join the rotation without a restart.
-func (rs iptvRoutes) cycle(r *http.Request, studioID int, s iptvSettings) (*iptv.Cycle, error) {
+// allowFetch is passed through to network channels, where building a schedule
+// may mean going to the internet. Only a caller serving one channel should set
+// it — see ayloCycleEntries.
+func (rs iptvRoutes) cycle(r *http.Request, ch iptvChannel, s iptvSettings, allowFetch bool) (*iptv.Cycle, error) {
 	c := rs.cycles
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if e, ok := c.entries[studioID]; ok && e.max == s.MaxPrograms && time.Since(e.built) < iptvCycleTTL {
+	// Network channels are sized by their own setting; the library's programme
+	// cap is about query cost, theirs about bandwidth.
+	max := s.MaxPrograms
+	if ch.isNetwork() {
+		max = s.NetworkPrograms
+	}
+
+	if e, ok := c.entries[ch.Key]; ok && e.max == max && time.Since(e.built) < iptvCycleTTL {
 		return e.cycle, nil
 	}
 
 	var scenes []iptv.SceneEntry
-	if err := rs.withReadTxn(r, func(ctx context.Context) error {
+
+	if ns := rs.networks.bySource(ch.Source); ns != nil {
+		entries, err := ns.cycleEntries(r.Context(), ch.Key, s, allowFetch)
+		if err != nil {
+			return nil, err
+		}
+		if len(entries) == 0 {
+			// The schedule has not been fetched yet. Returning an empty cycle is
+			// right — the guide simply has nothing for this channel yet — but
+			// caching it is not, or the channel would stay blank for a full cycle
+			// TTL after the background warm has already filled it in.
+			return &iptv.Cycle{}, nil
+		}
+		scenes = entries
+	} else if err := rs.withReadTxn(r, func(ctx context.Context) error {
+		studioID := ch.StudioID
 		// Stash's `random_<seed>` sort is a deterministic function of the row id,
 		// so a fixed per-channel seed gives a stable shuffle that also survives
 		// the LIMIT — letting us cap the rotation without reading the whole
@@ -381,11 +532,15 @@ func (rs iptvRoutes) cycle(r *http.Request, studioID int, s iptvSettings) (*iptv
 		return nil, err
 	}
 
-	cycle := iptv.BuildCycle(studioID, scenes)
-	c.entries[studioID] = &iptvCycleEntry{cycle: cycle, built: time.Now(), max: s.MaxPrograms}
+	channelID := ch.StudioID
+	if ch.isNetwork() {
+		channelID = iptvNetChannelSeed(ch.Key)
+	}
+	cycle := iptv.BuildCycle(channelID, scenes)
+	c.entries[ch.Key] = &iptvCycleEntry{cycle: cycle, built: time.Now(), max: max}
 
-	logger.Debugf("[iptv] built schedule for studio %d: %d programmes, %d segments (%s)",
-		studioID, len(cycle.Programs), cycle.TotalSegs,
+	logger.Debugf("[iptv] built schedule for channel %s (%s): %d programmes, %d segments (%s)",
+		ch.Key, ch.Name, len(cycle.Programs), cycle.TotalSegs,
 		(time.Duration(cycle.TotalSegs) * iptv.SegmentSeconds * time.Second).Round(time.Minute))
 
 	return cycle, nil
@@ -417,8 +572,8 @@ func (rs iptvRoutes) Playlist(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(&b, "#EXTM3U x-tvg-url=%q\n", iptvURL(base, "/iptv/xmltv.xml", apiKey))
 
 	for _, ch := range channels {
-		streamURL := iptvURL(base, fmt.Sprintf("/iptv/ch/%d.ts", ch.StudioID), apiKey)
-		logoURL := iptvURL(base, fmt.Sprintf("/iptv/logo/%d.png", ch.StudioID), apiKey)
+		streamURL := iptvURL(base, fmt.Sprintf("/iptv/ch/%s.ts", ch.Key), apiKey)
+		logoURL := iptvURL(base, fmt.Sprintf("/iptv/logo/%s.png", ch.Key), apiKey)
 
 		// A raw MPEG-TS body needs no adaptive-manifest hints — every one of
 		// these clients demuxes TS natively. All it wants is a little buffer,
@@ -431,7 +586,7 @@ func (rs iptvRoutes) Playlist(w http.ResponseWriter, r *http.Request) {
 			strconv.Itoa(ch.Number),
 			iptvEscapeAttr(ch.Name),
 			logoURL,
-			iptvEscapeAttr(s.GroupTitle),
+			iptvEscapeAttr(iptvGroupTitle(ch, s)),
 			iptvEscapeAttr(ch.Name),
 		)
 		b.WriteString(streamURL)
@@ -464,16 +619,25 @@ func (rs iptvRoutes) Playlist(w http.ResponseWriter, r *http.Request) {
 // frames at playback speed instead of letting a client drain a whole scene in
 // seconds and run ahead of the schedule.
 func (rs iptvRoutes) ChannelStream(w http.ResponseWriter, r *http.Request) {
-	studioID, err := strconv.Atoi(chi.URLParam(r, "channelId"))
+	s := rs.settings()
+
+	ch, err := rs.channelByKey(r, chi.URLParam(r, "channelId"), s)
 	if err != nil {
-		http.Error(w, "invalid channel", http.StatusBadRequest)
+		logger.Errorf("[iptv] resolving channel: %v", err)
+		http.Error(w, "error resolving channel", http.StatusInternalServerError)
+		return
+	}
+	if ch == nil {
+		http.Error(w, "unknown channel", http.StatusNotFound)
 		return
 	}
 
-	s := rs.settings()
-	cycle, err := rs.cycle(r, studioID, s)
+	// The one caller that may go to the network: a viewer tuning in can wait a
+	// moment, and refusing to play because a schedule had not been warmed yet
+	// would just be a broken channel.
+	cycle, err := rs.cycle(r, *ch, s, true)
 	if err != nil {
-		logger.Errorf("[iptv] building schedule for studio %d: %v", studioID, err)
+		logger.Errorf("[iptv] building schedule for channel %s: %v", ch.Key, err)
 		http.Error(w, "error building schedule", http.StatusInternalServerError)
 		return
 	}
@@ -525,7 +689,7 @@ func (rs iptvRoutes) ChannelStream(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		written, err := rs.pipeProgram(ctx, ff, out, r, program, offset, remaining, s)
+		written, err := rs.pipeProgram(ctx, ff, out, r, *ch, program, offset, remaining, s)
 		if ctx.Err() != nil {
 			return // client hung up; not an error
 		}
@@ -536,15 +700,16 @@ func (rs iptvRoutes) ChannelStream(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// A programme that produced almost nothing means a missing or unreadable
-		// file. Retrying immediately would spin on it, so back off — and give up
-		// after a few so a broken run of scenes cannot pin a core forever. The
+		// file — or, on a network channel, a lapsed session or a release that
+		// stopped resolving. Retrying immediately would spin on it, so back off —
+		// and give up after a few so a broken run cannot pin a core forever. The
 		// client re-tunes, and by then the schedule has moved on.
 		failures++
-		logger.Warnf("[iptv] channel %d: scene %d produced %d bytes (attempt %d): %v",
-			studioID, program.SceneID, written, failures, err)
+		logger.Warnf("[iptv] channel %s: programme %d produced %d bytes (attempt %d): %v",
+			ch.Key, program.SceneID, written, failures, err)
 
 		if failures >= iptvMaxConsecutiveFailures {
-			logger.Errorf("[iptv] channel %d: giving up after %d failed programmes", studioID, failures)
+			logger.Errorf("[iptv] channel %s: giving up after %d failed programmes", ch.Key, failures)
 			return
 		}
 
@@ -588,6 +753,18 @@ type programSource struct {
 	VideoCodec string
 	AudioCodec string
 	Height     int
+	// Remote marks Path as a URL rather than a file, which changes the input
+	// flags ffmpeg needs — see iptvStreamArgs.
+	Remote bool
+}
+
+// channelProgramSource resolves a programme to something ffmpeg can open,
+// dispatching on where the channel's content lives.
+func (rs iptvRoutes) channelProgramSource(r *http.Request, ch iptvChannel, programID int) (programSource, error) {
+	if ns := rs.networks.bySource(ch.Source); ns != nil {
+		return ns.net.ProgramSource(r.Context(), programID)
+	}
+	return rs.programSource(r, programID)
 }
 
 func (rs iptvRoutes) programSource(r *http.Request, sceneID int) (programSource, error) {
@@ -630,19 +807,20 @@ func (rs iptvRoutes) pipeProgram(
 	ff *ffmpeg.FFMpeg,
 	out io.Writer,
 	r *http.Request,
+	ch iptvChannel,
 	program iptv.Program,
 	offset float64,
 	remaining float64,
 	s iptvSettings,
 ) (int64, error) {
-	src, err := rs.programSource(r, program.SceneID)
+	src, err := rs.channelProgramSource(r, ch, program.SceneID)
 	if err != nil {
 		return 0, err
 	}
 
 	mode := iptv.ChooseMode(src.VideoCodec, src.AudioCodec)
 	if mode != iptv.ModeCopy {
-		logger.Debugf("[iptv] scene %d needs %s (%s/%s)",
+		logger.Debugf("[iptv] programme %d needs %s (%s/%s)",
 			program.SceneID, mode, src.VideoCodec, src.AudioCodec)
 	}
 
@@ -707,10 +885,30 @@ func iptvStreamArgs(src programSource, offset, duration float64, mode iptv.Strea
 		"-re",
 	}
 
+	if src.Remote {
+		// Input options for a URL, all of which must precede -i.
+		//
+		// A remote source can stall or drop in ways a local file cannot, and a
+		// dropped read mid-programme would otherwise end the slot early and count
+		// as a channel failure — so let ffmpeg re-establish the connection and
+		// carry on. The browser user-agent is not cosmetic: CDNs in front of these
+		// catalogs reject the default Lavf/… agent outright.
+		args = append(args,
+			"-reconnect", "1",
+			"-reconnect_streamed", "1",
+			"-reconnect_on_network_error", "1",
+			"-reconnect_delay_max", "5",
+			"-multiple_requests", "1",
+			"-user_agent", iptvRemoteUserAgent,
+		)
+	}
+
 	if offset > 0 {
 		// Placed before -i so ffmpeg seeks by index instead of decoding and
 		// discarding everything up to the offset — the difference between
-		// tuning in instantly and grinding through half an hour of video.
+		// tuning in instantly and grinding through half an hour of video. For a
+		// remote input this becomes a range request (progressive) or a jump to
+		// the right segment (HLS) rather than a file seek, so it stays cheap.
 		args = append(args, "-ss", strconv.FormatFloat(offset, 'f', 3, 64))
 	}
 
@@ -780,10 +978,10 @@ type iptvLogoEntry struct {
 
 type iptvLogoCache struct {
 	mu      sync.Mutex
-	entries map[int]iptvLogoEntry
+	entries map[string]iptvLogoEntry
 }
 
-// ChannelLogo serves a studio's logo in a format a TV client can actually
+// ChannelLogo serves a channel's logo in a format a TV client can actually
 // decode.
 //
 // This exists rather than pointing tvg-logo straight at /studio/{id}/image
@@ -792,25 +990,33 @@ type iptvLogoCache struct {
 // Smarters and OTT Navigator all load images through Glide or Coil, neither of
 // which has an SVG decoder — so those channels simply show a blank tile with
 // nothing logged anywhere. iptv.LogoImage rasterises them first.
+//
+// Network channels have no studio of their own, so they borrow the image of the
+// like-named library studio when one exists (LogoStudioID) and fall back to the
+// same placeholder a logo-less studio gets.
 func (rs iptvRoutes) ChannelLogo(w http.ResponseWriter, r *http.Request) {
-	studioID, err := strconv.Atoi(chi.URLParam(r, "channelId"))
-	if err != nil {
-		http.Error(w, "invalid channel", http.StatusBadRequest)
-		return
-	}
+	key := chi.URLParam(r, "channelId")
 
-	if entry, ok := rs.cachedLogo(studioID); ok {
+	if entry, ok := rs.cachedLogo(key); ok {
 		iptvWriteLogo(w, entry)
 		return
 	}
 
+	ch, err := rs.channelByKey(r, key, rs.settings())
+	if err != nil {
+		logger.Warnf("[iptv] resolving channel %s for logo: %v", key, err)
+	}
+
 	var stored []byte
-	if err := rs.withReadTxn(r, func(ctx context.Context) error {
-		var err error
-		stored, err = rs.repository.Studio.GetImage(ctx, studioID)
-		return err
-	}); err != nil {
-		logger.Warnf("[iptv] reading logo for studio %d: %v", studioID, err)
+	if ch != nil && ch.LogoStudioID > 0 {
+		studioID := ch.LogoStudioID
+		if err := rs.withReadTxn(r, func(ctx context.Context) error {
+			var err error
+			stored, err = rs.repository.Studio.GetImage(ctx, studioID)
+			return err
+		}); err != nil {
+			logger.Warnf("[iptv] reading logo for studio %d: %v", studioID, err)
+		}
 	}
 
 	data, contentType, err := iptv.LogoImage(stored, iptv.LogoMaxDim)
@@ -820,7 +1026,7 @@ func (rs iptvRoutes) ChannelLogo(w http.ResponseWriter, r *http.Request) {
 		// at least looks deliberate. It is itself an SVG, so it goes through the
 		// same conversion.
 		if len(stored) > 0 {
-			logger.Debugf("[iptv] studio %d logo unusable (%v), falling back to the default", studioID, err)
+			logger.Debugf("[iptv] channel %s logo unusable (%v), falling back to the default", key, err)
 		}
 		data, contentType, err = iptv.LogoImage(static.ReadAll(static.DefaultStudioImage), iptv.LogoMaxDim)
 		if err != nil {
@@ -832,17 +1038,17 @@ func (rs iptvRoutes) ChannelLogo(w http.ResponseWriter, r *http.Request) {
 	entry := iptvLogoEntry{data: data, contentType: contentType, built: time.Now()}
 
 	rs.logos.mu.Lock()
-	rs.logos.entries[studioID] = entry
+	rs.logos.entries[key] = entry
 	rs.logos.mu.Unlock()
 
 	iptvWriteLogo(w, entry)
 }
 
-func (rs iptvRoutes) cachedLogo(studioID int) (iptvLogoEntry, bool) {
+func (rs iptvRoutes) cachedLogo(key string) (iptvLogoEntry, bool) {
 	rs.logos.mu.Lock()
 	defer rs.logos.mu.Unlock()
 
-	entry, ok := rs.logos.entries[studioID]
+	entry, ok := rs.logos.entries[key]
 	if !ok || time.Since(entry.built) >= iptvLogoTTL {
 		return iptvLogoEntry{}, false
 	}
@@ -885,12 +1091,16 @@ func (rs iptvRoutes) XMLTV(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(&b, "    <display-name>%s</display-name>\n", iptvEscapeXML(ch.Name))
 		fmt.Fprintf(&b, "    <display-name>%d</display-name>\n", ch.Number)
 		fmt.Fprintf(&b, "    <icon src=%q />\n",
-			iptvURL(base, fmt.Sprintf("/iptv/logo/%d.png", ch.StudioID), apiKey))
+			iptvURL(base, fmt.Sprintf("/iptv/logo/%s.png", ch.Key), apiKey))
 		b.WriteString("  </channel>\n")
 	}
 
 	for _, ch := range channels {
-		cycle, err := rs.cycle(r, ch.StudioID, s)
+		// Guide generation walks the whole lineup, so it never fetches: a
+		// hundred-odd network catalogs read synchronously is minutes of stall.
+		// Channels whose schedule is still warming are simply left out of this
+		// guide and appear in the next one.
+		cycle, err := rs.cycle(r, ch, s, false)
 		if err != nil || cycle.Empty() {
 			continue
 		}
@@ -910,8 +1120,14 @@ func (rs iptvRoutes) XMLTV(w http.ResponseWriter, r *http.Request) {
 			if a.Program.Details != "" {
 				fmt.Fprintf(&b, "    <desc>%s</desc>\n", iptvEscapeXML(a.Program.Details))
 			}
-			fmt.Fprintf(&b, "    <icon src=%q />\n",
-				iptvURL(base, fmt.Sprintf("/scene/%d/screenshot", a.Program.SceneID), apiKey))
+			// Only library programmes have a local screenshot. A network
+			// programme's id belongs to the provider's catalog, so pointing at
+			// /scene/{id}/screenshot would either 404 or — worse — resolve to an
+			// unrelated scene that happens to share the number.
+			if !ch.isNetwork() {
+				fmt.Fprintf(&b, "    <icon src=%q />\n",
+					iptvURL(base, fmt.Sprintf("/scene/%d/screenshot", a.Program.SceneID), apiKey))
+			}
 			if a.Program.Date != "" {
 				fmt.Fprintf(&b, "    <date>%s</date>\n",
 					iptvEscapeXML(strings.ReplaceAll(a.Program.Date, "-", "")))
@@ -963,10 +1179,13 @@ func (rs iptvRoutes) ChannelsJSON(w http.ResponseWriter, r *http.Request) {
 			iptvChannel: ch,
 			// Same converted logo the TVs get, so the panel is a preview of the
 			// real lineup rather than a second rendering path.
-			LogoURL: iptvURL(base, fmt.Sprintf("/iptv/logo/%d.png", ch.StudioID), apiKey),
+			LogoURL: iptvURL(base, fmt.Sprintf("/iptv/logo/%s.png", ch.Key), apiKey),
 		}
 
-		cycle, err := rs.cycle(r, ch.StudioID, s)
+		// Same reasoning as the guide: the panel lists every channel, so a
+		// channel still warming shows without now-playing rather than blocking
+		// the whole page on its catalog.
+		cycle, err := rs.cycle(r, ch, s, false)
 		if err == nil && !cycle.Empty() {
 			entry.Programs = len(cycle.Programs)
 			entry.CycleSecs = cycle.TotalSegs * iptv.SegmentSeconds

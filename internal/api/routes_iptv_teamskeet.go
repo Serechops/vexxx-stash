@@ -28,11 +28,17 @@ import (
 //     measured from its DASH manifest and cached permanently.
 //
 // The second one leaks into this file, because a channel cannot be scheduled
-// until enough of its scenes have been measured. Rather than pretending an
-// unmeasured channel is empty — which would take it off air for a day — Programs
-// reports errTeamSkeetWarming, which the generic layer retries on its short
-// backoff. The practical effect is a lineup that grows over the first couple of
-// hours and is then stable.
+// until enough of its scenes have been measured. Two things follow.
+//
+// Prepare sweeps the whole catalog in the background, measuring every scene once
+// — that is what actually fills the lineup, and it is done for the provider as a
+// whole rather than per channel so that a channel nobody has tuned still gets
+// measured. Programs then builds from what the store already knows, measuring a
+// bounded few itself only for a channel being built right now.
+//
+// A channel that still cannot fill a rotation reports errTeamSkeetWarming rather
+// than pretending to be empty, which would take it off air for a day; and one
+// that can half fill it goes on air at ten programmes and keeps growing.
 
 const (
 	iptvSourceTeamSkeet = "teamskeet"
@@ -52,8 +58,9 @@ const (
 	teamSkeetCandidateLimit = 1000
 
 	// teamSkeetPerChannelMeasure caps how many durations one channel may measure
-	// in a single pass, so an early channel cannot swallow the whole budget and
-	// starve every later one of any progress at all.
+	// for itself in a single pass, so a channel being built cannot monopolise the
+	// six request slots this provider gets while the sweep and every other
+	// channel wait behind it.
 	teamSkeetPerChannelMeasure = 60
 )
 
@@ -144,13 +151,13 @@ func teamSkeetSpec(spec iptvNetChannelSpec) iptvNetChannelSpec {
 
 // ─── programmes ───────────────────────────────────────────────────────────────
 
-// Programs builds one channel's rotation, measuring durations as the budget
-// allows.
+// Programs builds one channel's rotation from measured runtimes, measuring a
+// bounded few itself for anything still missing.
 //
 // The sequence matters. Candidates are shuffled with the channel's own stable
-// seed *before* anything is measured, so the scenes a channel spends its budget
-// on are the ones it would have aired anyway — and so the same channel keeps the
-// same rotation across restarts rather than reshuffling into a different set of
+// seed *before* anything is measured, so the scenes it spends requests on are
+// the ones it would have aired anyway — and so the same channel keeps the same
+// rotation across restarts rather than reshuffling into a different set of
 // already-measured scenes.
 func (teamSkeetNetwork) Programs(ctx context.Context, spec iptvNetChannelSpec, want int, seed uint64) ([]iptv.SceneEntry, error) {
 	if spec.Source != iptvSourceTeamSkeet {
@@ -183,8 +190,8 @@ func (teamSkeetNetwork) Programs(ctx context.Context, spec iptvNetChannelSpec, w
 	}
 	known := teamSkeetDurations.lookup(ids)
 
-	// Walk the running order, taking known durations and measuring the rest until
-	// the channel is full, the candidates run out, or the budget does.
+	// Walk the running order, taking known durations and collecting the rest to
+	// measure, until the channel is full or the candidates run out.
 	var (
 		out     []iptv.SceneEntry
 		pending []int
@@ -222,15 +229,163 @@ func (teamSkeetNetwork) Programs(ctx context.Context, spec iptvNetChannelSpec, w
 		}
 	}
 
-	// Still short, with scenes left unmeasured: report warming rather than
-	// handing back a thin rotation that would then be cached for a day.
-	if len(out) < want && len(measured) < len(pending) {
-		if len(out) == 0 {
-			return nil, errTeamSkeetWarming
-		}
-		return nil, fmt.Errorf("%w (%d of %d programmes ready)", errTeamSkeetWarming, len(out), want)
+	// Everything that could be measured was, or the channel is full: a finished
+	// answer, cached for the day.
+	if len(out) >= want || len(measured) >= len(pending) {
+		return out, nil
 	}
-	return out, nil
+
+	// Short, with scenes left unmeasured. Whether that is worth airing depends
+	// on how short.
+	//
+	// Enough for a rotation, so it goes out now and keeps growing — the same
+	// threshold that decides whether a collection deserves a channel at all,
+	// because it is the same question: is this long enough to feel like a
+	// channel rather than a loop. Roughly seven hours of television at ten
+	// programmes, which beats an error by a distance.
+	if len(out) >= iptvNetMinReleases {
+		return out, fmt.Errorf("%w — %d of %d programmes measured so far", errIPTVNetIncomplete, len(out), want)
+	}
+	// Not enough to air. Reported as warming rather than as an empty schedule,
+	// which would read as "nothing to show here" and take the channel off the
+	// lineup for a day over what is really a few minutes of arithmetic.
+	if len(out) == 0 {
+		return nil, errTeamSkeetWarming
+	}
+	return nil, fmt.Errorf("%w (%d of %d programmes ready)", errTeamSkeetWarming, len(out), want)
+}
+
+// ─── preparation, reported ────────────────────────────────────────────────────
+//
+// TeamSkeet is the only provider that implements iptvNetPreparer, because it is
+// the only one with work to do before a channel can exist. See the header.
+
+// IsWarming distinguishes "not ready yet" from "broken", which is the whole
+// reason the generic layer cannot make this call itself.
+func (teamSkeetNetwork) IsWarming(err error) bool { return errors.Is(err, errTeamSkeetWarming) }
+
+// Prepare starts a sweep of the whole catalog, if one is not already running.
+// Returns immediately; the work continues in the background until it is done.
+func (teamSkeetNetwork) Prepare(ctx context.Context) {
+	if !teamSkeetSweep.begin() {
+		return
+	}
+	go teamSkeetRunSweep(ctx)
+}
+
+// teamSkeetRunSweep measures every scene in the catalog that has no runtime yet.
+//
+// The whole catalog in one list rather than channel by channel. Scenes appear in
+// several channels — every one of them is also on the network-wide channel — so
+// walking channels would measure the same scene repeatedly, and any channel
+// nobody had asked for would never be measured at all. This visits each scene
+// exactly once, and its results are what let the schedules build.
+func teamSkeetRunSweep(ctx context.Context) {
+	var err error
+	defer func() { teamSkeetSweep.end(err) }()
+
+	ids, total, err := teamSkeetAllMovieIDs(ctx)
+	if err != nil {
+		// Not worth a warning: no session is the ordinary state for anyone who
+		// has not connected TeamSkeet, and the sweep is retried on the next warm.
+		logger.Debugf("[iptv] API Hub: could not list TeamSkeet scenes to measure: %v", err)
+		return
+	}
+	if total > len(ids) {
+		logger.Warnf("[iptv] API Hub: TeamSkeet reports %d scenes but only %d fit in one query; the remainder will have no runtimes",
+			total, len(ids))
+	}
+
+	known := teamSkeetDurations.lookup(ids)
+	pending := make([]int, 0, len(ids)-len(known))
+	for _, id := range ids {
+		if _, ok := known[id]; !ok {
+			pending = append(pending, id)
+		}
+	}
+
+	teamSkeetSweep.setTotal(len(pending))
+	if len(pending) == 0 {
+		return
+	}
+
+	logger.Infof("[iptv] API Hub: measuring %d TeamSkeet scene runtimes (%d already known). This is a one-time cost — runtimes never change, so they are kept for good.",
+		len(pending), len(known))
+
+	work := make(chan int)
+	var wg sync.WaitGroup
+	for i := 0; i < teamSkeetSweepWorkers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for id := range work {
+				if ctx.Err() != nil {
+					return
+				}
+				_, ok := teamSkeetMeasureOne(ctx, id)
+				teamSkeetSweep.record(ok)
+			}
+		}()
+	}
+	for _, id := range pending {
+		if ctx.Err() != nil {
+			break
+		}
+		work <- id
+	}
+	close(work)
+	wg.Wait()
+
+	_, done, _, failed := teamSkeetSweep.progress()
+	logger.Infof("[iptv] API Hub: measured %d TeamSkeet scene runtimes (%d could not be read); %d known in total",
+		done, failed, teamSkeetDurations.count())
+}
+
+// teamSkeetMeasureOne measures and stores one scene's runtime.
+func teamSkeetMeasureOne(ctx context.Context, id int) (float64, bool) {
+	seconds, err := teamSkeetMeasureDuration(ctx, id)
+	if err != nil {
+		// A lapsed session explains every other failure around it and must not be
+		// mistaken for this scene being unmeasurable.
+		if !errors.Is(err, errTeamSkeetNoSession) {
+			teamSkeetDurations.noteFailure(id)
+		}
+		logger.Debugf("[iptv] API Hub: could not measure TeamSkeet scene %d: %v", id, err)
+		return 0, false
+	}
+
+	if err := teamSkeetDurations.record(id, seconds); err != nil {
+		// Worth a line: without the store this still works but re-measures the
+		// same scenes on every sweep, which is the expensive failure.
+		logger.Warnf("[iptv] API Hub: could not cache TeamSkeet duration for scene %d: %v", id, err)
+	}
+	return seconds, true
+}
+
+// PrepNote explains what the lineup is waiting on, in one sentence for the panel.
+//
+// It reports the sweep's own progress rather than the size of the store, because
+// a total that only ever creeps up by a fraction of a percent reads as a stall.
+// "1,204 of 8,772 scenes" moves visibly and answers the actual question.
+func (teamSkeetNetwork) PrepNote() string {
+	running, done, total, failed := teamSkeetSweep.progress()
+
+	const why = "TeamSkeet publishes no runtimes, so each is read from the scene's own manifest and kept for good."
+
+	if running && total > 0 {
+		note := fmt.Sprintf("Measuring scene runtimes: %d of %d. %s", done, total, why)
+		if failed > 0 {
+			note += fmt.Sprintf(" %d could not be read and are left out.", failed)
+		}
+		return note
+	}
+	if running {
+		return "Looking up which TeamSkeet scenes still need a runtime measured. " + why
+	}
+	// Not sweeping: every runtime is known and the remaining channels are simply
+	// waiting their turn to have a schedule built, which is quick.
+	return fmt.Sprintf("%d scene runtimes measured. Remaining channels are building their schedules.",
+		teamSkeetDurations.count())
 }
 
 // teamSkeetEntry builds one schedule entry. The description is HTML in the
@@ -262,28 +417,26 @@ func teamSkeetPlainText(html string) string {
 	return strings.Join(strings.Fields(text), " ")
 }
 
-// teamSkeetMeasureBatch measures as many of the given scenes as the budget allows
-// and returns what it learned, recording each result so it is never measured
-// again.
+// teamSkeetMeasureBatch measures the given scenes and returns what it learned,
+// recording each result so it is never measured again.
 //
-// It stops early once `need` durations are in hand: a channel asked to fill 50
-// slots that already has 40 should not measure 60 more scenes just because they
-// were pending.
+// This is the impatient path, for a channel being built right now — the sweep is
+// what measures the catalog as a whole. It stops at `need`: a channel asked to
+// fill 50 slots that already has 40 should not measure 60 more scenes just
+// because they were pending.
 func teamSkeetMeasureBatch(ctx context.Context, ids []int, need int) map[int]float64 {
 	if need <= 0 || len(ids) == 0 {
 		return nil
 	}
 
-	budget := need
-	if budget > teamSkeetPerChannelMeasure {
-		budget = teamSkeetPerChannelMeasure
+	// Capped per channel so one long series cannot monopolise the six request
+	// slots this provider gets while every other channel waits behind it.
+	limit := need
+	if limit > teamSkeetPerChannelMeasure {
+		limit = teamSkeetPerChannelMeasure
 	}
-	granted := teamSkeetBudget.take(budget)
-	if granted == 0 {
-		return nil
-	}
-	if granted < len(ids) {
-		ids = ids[:granted]
+	if limit < len(ids) {
+		ids = ids[:limit]
 	}
 
 	var (
@@ -301,25 +454,10 @@ func teamSkeetMeasureBatch(ctx context.Context, ids []int, need int) map[int]flo
 			if ctx.Err() != nil {
 				return
 			}
-
-			seconds, err := teamSkeetMeasureDuration(ctx, id)
-			if err != nil {
-				// A lapsed session explains every other failure in the batch and
-				// must not be mistaken for this scene being unmeasurable, so it is
-				// not written to the failure cooldown.
-				if !errors.Is(err, errTeamSkeetNoSession) {
-					teamSkeetDurations.noteFailure(id)
-				}
-				logger.Debugf("[iptv] API Hub: could not measure TeamSkeet scene %d: %v", id, err)
+			seconds, ok := teamSkeetMeasureOne(ctx, id)
+			if !ok {
 				return
 			}
-
-			if err := teamSkeetDurations.record(id, seconds); err != nil {
-				// Worth a line: without the store this works but re-measures the
-				// same scenes on every refresh, which is the expensive failure.
-				logger.Warnf("[iptv] API Hub: could not cache TeamSkeet duration for scene %d: %v", id, err)
-			}
-
 			mu.Lock()
 			out[id] = seconds
 			mu.Unlock()

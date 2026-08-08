@@ -489,6 +489,37 @@ func teamSkeetMovieQuery(series string) string {
 	return strings.Join(clauses, " AND ")
 }
 
+// teamSkeetIDFields asks for nothing but the id, for the duration sweep. The
+// full movie field list carries a description apiece, which across the whole
+// catalog is megabytes of prose to reach ten thousand integers.
+const teamSkeetIDFields = "id"
+
+// teamSkeetAllMovieIDs returns every entitled, released scene in the catalog.
+//
+// One request: the whole catalog is around 9,900 scenes, inside Elasticsearch's
+// 10,000 result window, so no paging is needed. Should it ever grow past that
+// the window truncates rather than errors, and the sweep simply covers the first
+// 10,000 — which is why this reports the true total separately, so the shortfall
+// is visible instead of silently becoming "finished".
+func teamSkeetAllMovieIDs(ctx context.Context) (ids []int, total int, err error) {
+	res, err := teamSkeetSearch(ctx, teamSkeetMovieQuery(""), teamSkeetIDFields, teamSkeetResultWindow, 0, "")
+	if err != nil {
+		return nil, 0, err
+	}
+
+	ids = make([]int, 0, len(res.Hits.Hits))
+	for _, h := range res.Hits.Hits {
+		var m struct {
+			ID int `json:"id"`
+		}
+		if err := json.Unmarshal(h.Source, &m); err != nil || m.ID == 0 {
+			continue
+		}
+		ids = append(ids, m.ID)
+	}
+	return ids, res.Hits.Total.Value, nil
+}
+
 func teamSkeetCountMovies(ctx context.Context, series string) (int, error) {
 	res, err := teamSkeetSearch(ctx, teamSkeetMovieQuery(series), teamSkeetMovieFields, 0, 0, "")
 	if err != nil {

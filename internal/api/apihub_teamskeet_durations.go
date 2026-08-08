@@ -71,7 +71,20 @@ type teamSkeetDurationStore struct {
 // threaded through the routes), so a provider method can use it without plumbing.
 var teamSkeetDurations = &teamSkeetDurationStore{failed: map[int]time.Time{}}
 
-func (s *teamSkeetDurationStore) dbPath() string {
+// dbPath resolves the sidecar's location, or "" when there is no configuration
+// to resolve it against.
+//
+// config.GetInstance panics rather than returning nil, and this store is now
+// reached from an HTTP handler — the panel asks how many runtimes are known
+// every time it refreshes. Taking the whole page down over an uninitialised
+// config would be a poor trade for a progress number, so the panic is contained
+// here and reported as "no store", which every caller below already degrades on.
+func (s *teamSkeetDurationStore) dbPath() (path string) {
+	defer func() {
+		if recover() != nil {
+			path = ""
+		}
+	}()
 	return filepath.Join(config.GetInstance().GetConfigPath(), "apihub", "teamskeet_durations.db")
 }
 
@@ -79,6 +92,9 @@ func (s *teamSkeetDurationStore) dbPath() string {
 // directory changed since the last call, and running schema init on first open.
 func (s *teamSkeetDurationStore) conn() (*sql.DB, error) {
 	path := s.dbPath()
+	if path == "" {
+		return nil, fmt.Errorf("no configuration, so no duration cache")
+	}
 	if s.handle != nil && s.openedP == path {
 		return s.handle, nil
 	}
@@ -214,49 +230,133 @@ func (s *teamSkeetDurationStore) count() int {
 	return n
 }
 
-// ─── discovery budget ─────────────────────────────────────────────────────────
+// ─── the sweep ────────────────────────────────────────────────────────────────
 
-// teamSkeetBudget rations duration measurements process-wide.
+// teamSkeetSweep measures the whole entitled catalog, once, in the background.
 //
-// Without it a cold start would try to measure every scene of every channel at
-// once — around 14,000 requests, which is both a bad neighbour and far more than
-// a warm's timeout allows. With it, each warm measures a bounded slice and the
-// channels earlier in the lineup complete first, so the lineup grows a few whole
-// channels at a time rather than showing a hundred half-built ones.
-type teamSkeetBudgetLimiter struct {
-	mu     sync.Mutex
-	limit  int
-	window time.Duration
-	used   int
-	since  time.Time
+// It replaces a ration of 800 measurements per ten minutes. The ration was meant
+// to keep a cold start from firing ~14,000 requests at once, but it was solving
+// a problem that was already solved: teamSkeetFetchSem bounds this provider to
+// six requests in flight at any moment, whatever asks for them. All the window
+// added was idle time — the peak load was identical either way, so pausing after
+// 800 did not make the burst gentler, it just made it last all afternoon. Worse,
+// the measuring was smeared across channel schedule builds, so a channel nobody
+// had asked for never measured anything, and the lineup crawled in whatever
+// order channels happened to be tuned.
+//
+// Sweeping instead is both faster and simpler to reason about: one pass over
+// every scene id, measuring the ones not already known, at the same six in
+// flight. Around 14,000 requests at roughly six concurrent is on the order of
+// twenty minutes, paid once for the life of the install — after which the store
+// answers everything and later sweeps find only new releases.
+const (
+	// teamSkeetSweepWorkers is how many measurements are offered at once. The
+	// real throttle is teamSkeetFetchSem; this only needs to be comfortably
+	// above it so the semaphore is the thing deciding the pace.
+	teamSkeetSweepWorkers = 12
+
+	// teamSkeetSweepIdle is how long after a completed sweep before another is
+	// worth starting. Long, because a finished sweep means every scene in the
+	// catalog has a runtime and only new releases can change that.
+	teamSkeetSweepIdle = 6 * time.Hour
+
+	// teamSkeetSweepRetry is the wait after a sweep that *failed*, which is a
+	// different thing entirely and must not inherit the idle period. A sweep
+	// that cannot list the catalog ends in milliseconds; treating that as "the
+	// catalog is measured, come back in six hours" would stop the lineup dead
+	// over a momentary network error. Short, but not so short that a provider
+	// which is properly down is asked again on every request.
+	teamSkeetSweepRetry = 5 * time.Minute
+)
+
+type teamSkeetSweepState struct {
+	mu sync.Mutex
+
+	running   bool
+	startedAt time.Time
+
+	// endedAt is set only by a run that *completed*, and retryAt only by one that
+	// failed. Kept apart on purpose — see teamSkeetSweepRetry.
+	endedAt time.Time
+	retryAt time.Time
+
+	// total is how many scenes this run found unmeasured, and done how many of
+	// them it has since measured. Both are about the run in progress, so the
+	// panel reports movement rather than a ratio that barely changes.
+	total int
+	done  int
+
+	// failed counts scenes this run could not measure. Reported, because a sweep
+	// that finishes with a large number here explains a lineup that is complete
+	// but thinner than expected.
+	failed int
+
+	lastErr error
 }
 
-// 800 measurements per 10 minutes ≈ 1,600 scenes an hour, so a first pass over
-// ~6,850 scheduled scenes settles in a few hours and then effectively stops,
-// since only new releases need measuring afterwards.
-var teamSkeetBudget = &teamSkeetBudgetLimiter{limit: 800, window: 10 * time.Minute}
+var teamSkeetSweep = &teamSkeetSweepState{}
 
-// take grants up to n measurements, returning how many were actually allowed.
-func (b *teamSkeetBudgetLimiter) take(n int) int {
-	if n <= 0 {
-		return 0
+// begin claims the right to run a sweep, and reports whether one is worth
+// running at all.
+func (s *teamSkeetSweepState) begin() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.running {
+		return false
+	}
+	if time.Now().Before(s.retryAt) {
+		return false
+	}
+	if !s.endedAt.IsZero() && time.Since(s.endedAt) < teamSkeetSweepIdle {
+		return false
 	}
 
-	b.mu.Lock()
-	defer b.mu.Unlock()
+	s.running = true
+	s.startedAt = time.Now()
+	s.total, s.done, s.failed, s.lastErr = 0, 0, 0, nil
+	return true
+}
 
-	if b.since.IsZero() || time.Since(b.since) >= b.window {
-		b.since = time.Now()
-		b.used = 0
-	}
+func (s *teamSkeetSweepState) end(err error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-	remaining := b.limit - b.used
-	if remaining <= 0 {
-		return 0
+	s.running = false
+	s.lastErr = err
+
+	if err != nil {
+		// Failed, so nothing was measured and the long idle period would be a
+		// lie. Held off briefly instead, then tried again.
+		s.retryAt = time.Now().Add(teamSkeetSweepRetry)
+		return
 	}
-	if n > remaining {
-		n = remaining
+	s.endedAt = time.Now()
+	s.retryAt = time.Time{}
+}
+
+// setTotal records how much work this run found. A run that finds nothing left
+// to do is not held against the idle timer as a real sweep, since it did not
+// actually visit anything.
+func (s *teamSkeetSweepState) setTotal(n int) {
+	s.mu.Lock()
+	s.total = n
+	s.mu.Unlock()
+}
+
+func (s *teamSkeetSweepState) record(ok bool) {
+	s.mu.Lock()
+	if ok {
+		s.done++
+	} else {
+		s.failed++
 	}
-	b.used += n
-	return n
+	s.mu.Unlock()
+}
+
+// progress reports the run in flight, for the panel.
+func (s *teamSkeetSweepState) progress() (running bool, done, total, failed int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.running, s.done, s.total, s.failed
 }

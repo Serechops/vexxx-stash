@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -330,47 +331,101 @@ func TestDescriptionsAreStrippedOfMarkupForTheGuide(t *testing.T) {
 	}
 }
 
-// ─── discovery budget ─────────────────────────────────────────────────────────
+// ─── the sweep ────────────────────────────────────────────────────────────────
 
-func TestBudgetGrantsUpToItsLimitThenRefuses(t *testing.T) {
-	// Without a ration a cold start would try to measure ~14,000 scenes at once.
-	b := &teamSkeetBudgetLimiter{limit: 10, window: time.Hour}
+func TestOnlyOneSweepRunsAtATime(t *testing.T) {
+	// A second concurrent sweep would measure the same scenes over again, which
+	// is the one thing the permanent store exists to avoid.
+	s := &teamSkeetSweepState{}
 
-	if got := b.take(4); got != 4 {
-		t.Errorf("first take = %d, want 4", got)
+	if !s.begin() {
+		t.Fatal("the first sweep should be allowed to start")
 	}
-	// Asking for more than remains grants what remains, rather than refusing
-	// outright — a channel should make partial progress.
-	if got := b.take(20); got != 6 {
-		t.Errorf("second take = %d, want the remaining 6", got)
+	if s.begin() {
+		t.Error("a second sweep started while the first was still running")
 	}
-	if got := b.take(1); got != 0 {
-		t.Errorf("take past the limit = %d, want 0", got)
-	}
-}
 
-func TestBudgetRefillsWhenTheWindowPasses(t *testing.T) {
-	b := &teamSkeetBudgetLimiter{limit: 5, window: time.Hour}
-	b.take(5)
-
-	// Pretend the window elapsed rather than sleeping through it.
-	b.since = time.Now().Add(-2 * time.Hour)
-
-	if got := b.take(5); got != 5 {
-		t.Errorf("take after the window = %d, want a full refill of 5", got)
+	s.end(nil)
+	if s.begin() {
+		t.Error("a sweep restarted immediately after one finished; every scene it would visit was just measured")
 	}
 }
 
-func TestBudgetIgnoresNonPositiveRequests(t *testing.T) {
-	b := &teamSkeetBudgetLimiter{limit: 5, window: time.Hour}
-	if got := b.take(0); got != 0 {
-		t.Errorf("take(0) = %d", got)
+func TestASweepIsWorthRunningAgainOnceItsResultsCanHaveAged(t *testing.T) {
+	s := &teamSkeetSweepState{}
+	s.begin()
+	s.end(nil)
+
+	// Pretend the idle period elapsed rather than sleeping through it. New
+	// releases are the only thing a later sweep can find.
+	s.endedAt = time.Now().Add(-2 * teamSkeetSweepIdle)
+
+	if !s.begin() {
+		t.Error("a sweep should run again once enough time has passed for new releases to exist")
 	}
-	if got := b.take(-3); got != 0 {
-		t.Errorf("take(-3) = %d", got)
+}
+
+func TestAFailedSweepIsRetriedSoonNotTreatedAsFinished(t *testing.T) {
+	// A sweep that cannot reach the catalog ends in milliseconds having measured
+	// nothing. Stamping that with the six-hour idle period would read as "the
+	// catalog is fully measured" and stop the lineup dead over a blip.
+	s := &teamSkeetSweepState{}
+	s.begin()
+	s.end(errors.New("could not list scenes"))
+
+	if s.begin() {
+		t.Error("a failed sweep restarted immediately; a provider that is properly down would be asked on every request")
 	}
-	if got := b.take(5); got != 5 {
-		t.Errorf("the limit was consumed by a non-positive request: got %d", got)
+
+	s.retryAt = time.Now().Add(-time.Second)
+	if !s.begin() {
+		t.Error("a failed sweep must be retried on its short cooldown, not held for the idle period")
+	}
+
+	// And a run that succeeds clears the failure cooldown rather than leaving it
+	// to expire underneath the idle timer.
+	s.end(nil)
+	if !s.retryAt.IsZero() {
+		t.Error("a successful sweep left a stale retry deadline behind")
+	}
+}
+
+func TestSweepProgressReportsTheRunNotTheStore(t *testing.T) {
+	// The panel shows this, and a number that creeps by fractions of a percent
+	// reads as a stall — so it counts what this run has to do, not the catalog.
+	s := &teamSkeetSweepState{}
+	s.begin()
+	s.setTotal(100)
+
+	for i := 0; i < 30; i++ {
+		s.record(true)
+	}
+	s.record(false)
+
+	running, done, total, failed := s.progress()
+	if !running {
+		t.Error("the sweep is still going")
+	}
+	if done != 30 || total != 100 || failed != 1 {
+		t.Errorf("progress = %d of %d with %d failed, want 30 of 100 with 1 failed", done, total, failed)
+	}
+}
+
+func TestEachSweepStartsItsCountersFromZero(t *testing.T) {
+	// Carrying a previous run's totals forward would make the second sweep of an
+	// install open at "8,000 of 12" and never make sense again.
+	s := &teamSkeetSweepState{}
+	s.begin()
+	s.setTotal(50)
+	s.record(true)
+	s.record(false)
+	s.end(nil)
+
+	s.endedAt = time.Now().Add(-2 * teamSkeetSweepIdle)
+	s.begin()
+
+	if _, done, total, failed := s.progress(); done != 0 || total != 0 || failed != 0 {
+		t.Errorf("second sweep opened at %d of %d with %d failed, want zeroes", done, total, failed)
 	}
 }
 

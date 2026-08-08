@@ -72,6 +72,14 @@ const (
 	iptvNetRetryBase = 2 * time.Minute
 	iptvNetRetryMax  = 30 * time.Minute
 
+	// A channel that is still *preparing* is retried on this flat cadence
+	// instead, and never backs off. The distinction matters: a failure repeating
+	// is evidence the channel is broken, so waiting longer each time is right;
+	// preparation repeating is evidence it is working, since every attempt
+	// finishes more of the job. Backing that off would make a lineup that is
+	// visibly filling in slow to a crawl exactly as it neared completion.
+	iptvNetPrepRetry = 3 * time.Minute
+
 	// How many channel schedules are built at once. Distinct from a provider's
 	// own HTTP concurrency limit: this bounds memory, since every channel in
 	// flight holds several decoded catalog pages.
@@ -121,6 +129,52 @@ type iptvNetwork interface {
 	// schedule, if there ever was one, expired long ago.
 	ProgramSource(ctx context.Context, programID int) (programSource, error)
 }
+
+// iptvNetPreparer is the optional half of the contract, implemented only by a
+// provider whose channels need one-time work before they can be scheduled at
+// all. TeamSkeet is the only one so far: nothing in Reptyle's catalog says how
+// long a scene is, so every runtime has to be measured before a rotation can be
+// laid out (see apihub_teamskeet_catalog.go).
+//
+// Optional rather than part of iptvNetwork because for the other three there is
+// nothing to say — a channel is either built or it failed — and a provider that
+// has to answer a question that does not apply to it tends to answer it wrongly.
+type iptvNetPreparer interface {
+	// IsWarming reports an error that means "not ready yet", as opposed to
+	// "broken". The two are cached and retried differently, and only the
+	// provider can tell them apart.
+	IsWarming(err error) bool
+
+	// Prepare starts or continues the bulk work the provider's channels depend
+	// on. Called at the top of every warm.
+	//
+	// It must return immediately and be safe to call repeatedly — it is invoked
+	// on a request-driven cadence, so it is expected to do its own single-flight
+	// and simply return when the work is already running or already finished.
+	//
+	// This exists so the work is not smeared across the channels that happen to
+	// need it. Doing it per channel means each one discovers the same thing
+	// separately, and a channel that has not been asked for yet never starts;
+	// doing it once, up front, for the whole provider, means the lineup fills in
+	// as a body rather than in whatever order channels were tuned.
+	Prepare(ctx context.Context)
+
+	// PrepNote is one sentence for the UI describing how the preparation is
+	// going — what has been done and what is holding the rest up. Called on the
+	// panel's refresh, so it must stay cheap.
+	PrepNote() string
+}
+
+// errIPTVNetIncomplete marks a schedule that is worth airing but has not
+// finished filling in.
+//
+// Providers return it *alongside* the programmes they did manage to build, and
+// the difference from a plain failure is the whole point: a channel with 15 of
+// its 50 programmes ready can go on air now — 15 scenes is still hours of
+// television — instead of showing an error until the last one lands. It is
+// cached only until the next preparation pass rather than for the catalog TTL,
+// so it keeps growing to full.
+var errIPTVNetIncomplete = errors.New("schedule is still filling in")
 
 // ─── channel specs ────────────────────────────────────────────────────────────
 
@@ -185,6 +239,16 @@ type iptvNetCatalogEntry struct {
 	// where built and the catalog TTL decide freshness instead.
 	attempts int
 	retryAt  time.Time
+
+	// partial marks a schedule that is airable but unfinished, and warming one
+	// that has nothing airable yet. Both are kept only until retryAt so the
+	// channel is picked up again by the next preparation pass; a partial entry
+	// differs only in that it serves its programmes in the meantime.
+	partial bool
+	warming bool
+
+	// note explains the preparation state in one line, for the panel.
+	note string
 }
 
 // dead reports a channel with nothing to air: its catalog was read successfully
@@ -196,12 +260,15 @@ type iptvNetCatalogEntry struct {
 // This is distinct from a failure precisely because it is an answer: a dead
 // channel is dropped, a failed one is retried.
 func (e iptvNetCatalogEntry) dead() bool {
-	return e.err == nil && len(e.programs) == 0
+	return e.err == nil && !e.partial && len(e.programs) == 0
 }
 
 // current reports whether an entry can keep serving, i.e. no refetch is due.
 func (e iptvNetCatalogEntry) current(ttl time.Duration) bool {
-	if e.err != nil {
+	// An unfinished schedule expires on its own short deadline no matter how
+	// recently it was built — the catalog TTL describes how long a *finished*
+	// rotation stays interesting, which is a different question entirely.
+	if e.err != nil || e.partial || e.warming {
 		return time.Now().Before(e.retryAt)
 	}
 	return time.Since(e.built) < ttl
@@ -366,6 +433,13 @@ func (ns *iptvNetworkState) warm(s iptvSettings) {
 		if _, fresh := ns.dir.snapshot(s.NetworkMinScenes); !fresh {
 			ns.refreshDirectory(ctx, s)
 		}
+
+		// Before the schedules, and on its own context rather than this one:
+		// bulk preparation outlives any single warm, so tying it to a fifteen
+		// minute timeout would abandon it partway through and restart it from
+		// the top on the next pass.
+		ns.prepare(context.Background())
+
 		ns.refreshCatalogs(ctx, s)
 	}()
 }
@@ -441,14 +515,18 @@ func (ns *iptvNetworkState) refreshCatalogs(ctx context.Context, s iptvSettings)
 
 // fetchCatalog reads one channel's programmes and caches the result.
 //
-// What gets cached, and for how long, is the whole point of this function. Four
-// outcomes, four lifetimes:
+// What gets cached, and for how long, is the whole point of this function. Six
+// outcomes, six lifetimes:
 //
 //   - success — kept for the catalog TTL, a day
 //   - nothing schedulable — also kept for the day, and the channel leaves the
 //     lineup; the collection is genuinely unairable, not broken
 //   - a lapsed session — not cached at all, because it is not a fact about this
 //     channel; the next request rebuilds it against a renewed session
+//   - airable but unfinished — the programmes are kept and served, but only
+//     until the next preparation pass, so the rotation grows to full
+//   - not ready yet — nothing to serve, retried on the same flat cadence; the
+//     channel stays in the lineup because it is going to work shortly
 //   - any other failure — cached only until a short, backing-off retry deadline
 //
 // The session case is called out because getting it wrong was a real outage: a
@@ -464,6 +542,19 @@ func (ns *iptvNetworkState) fetchCatalog(ctx context.Context, spec iptvNetChanne
 	}
 
 	switch {
+	case errors.Is(entry.err, errIPTVNetIncomplete) && len(entry.programs) > 0:
+		// Airable, so it is not a failure — the programmes are kept and the
+		// error demoted to a note. Deliberately not counted as an attempt: the
+		// backoff exists to stop a broken channel costing requests forever, and
+		// this one is not broken, it is halfway done.
+		entry.partial = true
+		entry.note = entry.err.Error()
+		entry.err = nil
+		entry.retryAt = time.Now().Add(iptvNetPrepRetry)
+	case ns.isWarming(entry.err):
+		entry.warming = true
+		entry.note = entry.err.Error()
+		entry.retryAt = time.Now().Add(iptvNetPrepRetry)
 	case entry.err != nil:
 		prev, _ := ns.dir.catalog(spec.Key, want)
 		entry.attempts = prev.attempts + 1
@@ -479,6 +570,126 @@ func (ns *iptvNetworkState) fetchCatalog(ctx context.Context, spec iptvNetChanne
 
 	ns.dir.putCatalog(spec.Key, entry)
 	return entry
+}
+
+// isWarming asks the provider whether an error means "not ready yet". A
+// provider that has no preparation work to do never says yes, which is why the
+// interface is optional rather than a method every one of them must answer.
+func (ns *iptvNetworkState) isWarming(err error) bool {
+	if err == nil {
+		return false
+	}
+	p, ok := ns.net.(iptvNetPreparer)
+	return ok && p.IsWarming(err)
+}
+
+// prepare kicks the provider's bulk work along, if it has any.
+func (ns *iptvNetworkState) prepare(ctx context.Context) {
+	if p, ok := ns.net.(iptvNetPreparer); ok {
+		p.Prepare(ctx)
+	}
+}
+
+// ─── progress, for the panel ──────────────────────────────────────────────────
+
+// Channel states as the UI sees them. Deliberately coarser than the cache entry:
+// the panel needs to answer "is this working, will it work, or is it broken",
+// and everything below collapses onto one of those three.
+const (
+	// iptvChanReady: has a schedule and is airing it.
+	iptvChanReady = "ready"
+	// iptvChanPartial: airing, but its rotation is still growing.
+	iptvChanPartial = "partial"
+	// iptvChanWarming: nothing to air yet, and that is expected.
+	iptvChanWarming = "warming"
+	// iptvChanPending: nothing fetched yet — the ordinary state for the first
+	// minute after a cold start.
+	iptvChanPending = "pending"
+	// iptvChanFailed: tried and could not, and will be retried on a backoff.
+	iptvChanFailed = "failed"
+)
+
+// iptvNetStatus is one provider's preparation state, for the panel.
+type iptvNetStatus struct {
+	Source    string `json:"source"`
+	Label     string `json:"label"`
+	Connected bool   `json:"connected"`
+
+	Channels int `json:"channels"`
+	Ready    int `json:"ready"`
+	Partial  int `json:"partial"`
+	Warming  int `json:"warming"`
+	Pending  int `json:"pending"`
+	Failed   int `json:"failed"`
+
+	// Note explains what the provider is waiting on, when it has anything to
+	// say. Empty for a provider with no preparation work, and for one that has
+	// finished it.
+	Note string `json:"note,omitempty"`
+}
+
+// Preparing reports a provider with channels not yet in their final state, which
+// is what decides whether the panel shows a progress banner at all.
+func (st iptvNetStatus) Preparing() bool {
+	return st.Partial+st.Warming+st.Pending > 0
+}
+
+// channelStatus classifies one channel. Its second result is a human sentence,
+// which is empty unless there is something worth saying.
+func (ns *iptvNetworkState) channelStatus(key string, s iptvSettings) (state, detail string) {
+	entry, ok := ns.dir.catalog(key, s.NetworkPrograms)
+	switch {
+	case !ok:
+		return iptvChanPending, ""
+	case entry.warming:
+		return iptvChanWarming, entry.note
+	case entry.partial:
+		return iptvChanPartial, entry.note
+	case entry.err != nil:
+		return iptvChanFailed, entry.err.Error()
+	default:
+		return iptvChanReady, ""
+	}
+}
+
+// status summarises the provider for the panel.
+func (ns *iptvNetworkState) status(s iptvSettings) iptvNetStatus {
+	out := iptvNetStatus{
+		Source:    ns.net.Source(),
+		Label:     ns.net.Label(),
+		Connected: ns.net.SessionLive(),
+	}
+
+	specs, _ := ns.dir.snapshot(s.NetworkMinScenes)
+	for _, spec := range specs {
+		// Dead channels are not in the lineup, so counting them here would make
+		// the panel's totals disagree with the list right below it.
+		if ns.dir.isDead(spec.Key, s.NetworkPrograms) {
+			continue
+		}
+		out.Channels++
+
+		switch state, _ := ns.channelStatus(spec.Key, s); state {
+		case iptvChanReady:
+			out.Ready++
+		case iptvChanPartial:
+			out.Partial++
+		case iptvChanWarming:
+			out.Warming++
+		case iptvChanFailed:
+			out.Failed++
+		default:
+			out.Pending++
+		}
+	}
+
+	// Only ask the provider what it is waiting on if something is still waiting;
+	// the note usually costs a database read, and a finished provider has
+	// nothing to report anyway.
+	if p, ok := ns.net.(iptvNetPreparer); ok && out.Preparing() {
+		out.Note = p.PrepNote()
+	}
+	return out
 }
 
 // spec looks up one channel's spec by key.
@@ -506,11 +717,10 @@ func (ns *iptvNetworkState) channels(s iptvSettings, studioByName map[string]int
 		return nil
 	}
 
-	specs, fresh := ns.dir.snapshot(s.NetworkMinScenes)
-	if !fresh {
-		// Serve whatever is known now and refresh behind the request.
-		ns.warm(s)
-	}
+	// Note there is no warm here. The lineup is warmed by channelList, above
+	// this in the call chain and above its own cache check, because a trigger
+	// that sits behind a cache only fires when that cache misses.
+	specs, _ := ns.dir.snapshot(s.NetworkMinScenes)
 
 	out := make([]iptvChannel, 0, len(specs))
 	for _, spec := range specs {
@@ -552,33 +762,43 @@ func iptvNetLogoStudio(spec iptvNetChannelSpec, studioByName map[string]int) int
 // synchronous catalog reads inside one request is exactly the stall this design
 // exists to avoid. They get an empty schedule and a background warm instead, so
 // the guide fills in over the following minute.
-func (ns *iptvNetworkState) cycleEntries(ctx context.Context, key string, s iptvSettings, allowFetch bool) ([]iptv.SceneEntry, error) {
+// The partial result tells the caller not to hold this schedule long: it is
+// still growing, so caching it for a full cycle TTL would pin the channel to a
+// short rotation for half an hour after it had finished filling in.
+func (ns *iptvNetworkState) cycleEntries(ctx context.Context, key string, s iptvSettings, allowFetch bool) (entries []iptv.SceneEntry, partial bool, err error) {
 	entry, ok := ns.dir.catalog(key, s.NetworkPrograms)
 
 	// A viewer tuning in is worth one retry of a cached failure: the usual cause
 	// is a session gap that has since closed, and the alternative is handing back
 	// a stale error for as long as it is cached. The guide does not get this —
 	// it walks every channel, so it would retry every failure on every refresh.
-	if ok && entry.err != nil && allowFetch {
+	//
+	// A channel that is merely still preparing is worth a retry too, and for a
+	// better reason: every attempt finishes more of the preparation, so a viewer
+	// pressing the button twice is not being ignored — the second press has a
+	// real chance of finding the channel ready.
+	if ok && (entry.err != nil || entry.warming) && allowFetch {
 		ok = false
 	}
 
 	if !ok {
 		if !allowFetch {
 			ns.warm(s)
-			return nil, nil
+			return nil, false, nil
 		}
 
 		spec, found := ns.spec(key, s)
 		if !found {
-			return nil, fmt.Errorf("unknown %s channel %q", ns.net.Label(), key)
+			return nil, false, fmt.Errorf("unknown %s channel %q", ns.net.Label(), key)
 		}
 		entry = ns.fetchCatalog(ctx, spec, s.NetworkPrograms)
 	}
+	// A warming entry keeps its error, so the caller can tell "come back in a
+	// minute" apart from "this channel is broken" and answer accordingly.
 	if entry.err != nil {
-		return nil, entry.err
+		return nil, false, entry.err
 	}
-	return entry.programs, nil
+	return entry.programs, entry.partial, nil
 }
 
 // ─── the set of providers ─────────────────────────────────────────────────────
@@ -630,6 +850,37 @@ func (ns iptvNetworks) anySessionLive() bool {
 		}
 	}
 	return false
+}
+
+// warmAll kicks every provider along. Single-flight per provider, so this is
+// safe and nearly free to call on every request that touches the lineup — which
+// is the point: it is what keeps background work moving.
+func (ns iptvNetworks) warmAll(s iptvSettings) {
+	for _, st := range ns {
+		st.warm(s)
+	}
+}
+
+// statuses reports every connected provider's preparation state, in lineup
+// order. Providers with no session are left out entirely: the panel is telling
+// the user how their lineup is coming along, and a network they have not
+// connected has no lineup to be coming along.
+func (ns iptvNetworks) statuses(s iptvSettings) []iptvNetStatus {
+	out := make([]iptvNetStatus, 0, len(ns))
+	for _, st := range ns {
+		if !st.net.SessionLive() {
+			continue
+		}
+		out = append(out, st.status(s))
+	}
+	return out
+}
+
+// isWarming reports an error from the named provider that means its channel is
+// still being prepared rather than broken.
+func (ns iptvNetworks) isWarming(source string, err error) bool {
+	st := ns.bySource(source)
+	return st != nil && st.isWarming(err)
 }
 
 // channels collects every provider's channels, in provider order.

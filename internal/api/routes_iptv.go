@@ -279,6 +279,21 @@ type iptvChannelCache struct {
 // numbers are assigned by studio name so that adding a studio shifts numbers
 // predictably instead of reshuffling the whole lineup.
 func (rs iptvRoutes) channelList(r *http.Request, s iptvSettings) ([]iptvChannel, map[string]iptvChannel, error) {
+	// Before the cache check, not after, and this is the drive loop for every
+	// provider's background work.
+	//
+	// Putting it below would mean it only ran when this lineup was rebuilt —
+	// which is once per half hour at best, and in practice not at all: a lineup
+	// is only rebuilt when a provider's cache generation moves, and the
+	// generation only moves when a warm does something. A settled lineup would
+	// therefore never warm again, and a provider with work left would sit at
+	// whatever it had reached. That is exactly how a half-built TeamSkeet lineup
+	// came to stall at 34 of 138 channels with its whole ration unspent.
+	//
+	// Every warm is single-flight and skips whatever is current, so calling this
+	// on every playlist, guide and panel request costs a goroutine per provider.
+	rs.networks.warmAll(s)
+
 	c := rs.channels
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -464,13 +479,20 @@ func (rs iptvRoutes) cycle(r *http.Request, ch iptvChannel, s iptvSettings, allo
 		return e.cycle, nil
 	}
 
-	var scenes []iptv.SceneEntry
+	var (
+		scenes []iptv.SceneEntry
+		// A schedule that is still filling in is built and served but never
+		// cached: it will be a longer rotation in a few minutes, and pinning the
+		// short one for a cycle TTL would waste the work of finishing it.
+		volatile bool
+	)
 
 	if ns := rs.networks.bySource(ch.Source); ns != nil {
-		entries, err := ns.cycleEntries(r.Context(), ch.Key, s, allowFetch)
+		entries, partial, err := ns.cycleEntries(r.Context(), ch.Key, s, allowFetch)
 		if err != nil {
 			return nil, err
 		}
+		volatile = partial
 		if len(entries) == 0 {
 			// The schedule has not been fetched yet. Returning an empty cycle is
 			// right — the guide simply has nothing for this channel yet — but
@@ -537,7 +559,9 @@ func (rs iptvRoutes) cycle(r *http.Request, ch iptvChannel, s iptvSettings, allo
 		channelID = iptvNetChannelSeed(ch.Key)
 	}
 	cycle := iptv.BuildCycle(channelID, scenes)
-	c.entries[ch.Key] = &iptvCycleEntry{cycle: cycle, built: time.Now(), max: max}
+	if !volatile {
+		c.entries[ch.Key] = &iptvCycleEntry{cycle: cycle, built: time.Now(), max: max}
+	}
 
 	logger.Debugf("[iptv] built schedule for channel %s (%s): %d programmes, %d segments (%s)",
 		ch.Key, ch.Name, len(cycle.Programs), cycle.TotalSegs,
@@ -637,6 +661,18 @@ func (rs iptvRoutes) ChannelStream(w http.ResponseWriter, r *http.Request) {
 	// would just be a broken channel.
 	cycle, err := rs.cycle(r, *ch, s, true)
 	if err != nil {
+		// A channel that is still being prepared has not failed, and saying so
+		// with a 500 is actively misleading — both to whoever reads the log and
+		// to the player, which reasonably treats a server error as a reason to
+		// give up on the channel. 503 with a Retry-After is the honest answer:
+		// come back shortly, this is going to work.
+		if rs.networks.isWarming(ch.Source, err) {
+			logger.Debugf("[iptv] channel %s is not ready yet: %v", ch.Key, err)
+			w.Header().Set("Retry-After", strconv.Itoa(int(iptvNetPrepRetry.Seconds())))
+			http.Error(w, "channel is still being prepared", http.StatusServiceUnavailable)
+			return
+		}
+
 		logger.Errorf("[iptv] building schedule for channel %s: %v", ch.Key, err)
 		http.Error(w, "error building schedule", http.StatusInternalServerError)
 		return
@@ -1157,6 +1193,13 @@ type iptvNowPlaying struct {
 	StartedAt string `json:"started_at,omitempty"`
 	EndsAt    string `json:"ends_at,omitempty"`
 	Progress  int    `json:"progress_percent"`
+
+	// Status and StatusDetail explain a channel that is not showing anything.
+	// Without them the panel has one blank state for four quite different
+	// situations — building, still preparing, broken, and genuinely empty — and
+	// the user cannot tell whether to wait or to go and fix something.
+	Status       string `json:"status,omitempty"`
+	StatusDetail string `json:"status_detail,omitempty"`
 }
 
 func (rs iptvRoutes) ChannelsJSON(w http.ResponseWriter, r *http.Request) {
@@ -1180,6 +1223,10 @@ func (rs iptvRoutes) ChannelsJSON(w http.ResponseWriter, r *http.Request) {
 			// Same converted logo the TVs get, so the panel is a preview of the
 			// real lineup rather than a second rendering path.
 			LogoURL: iptvURL(base, fmt.Sprintf("/iptv/logo/%s.png", ch.Key), apiKey),
+		}
+
+		if ns := rs.networks.bySource(ch.Source); ns != nil {
+			entry.Status, entry.StatusDetail = ns.channelStatus(ch.Key, s)
 		}
 
 		// Same reasoning as the guide: the panel lists every channel, so a
@@ -1212,6 +1259,7 @@ func (rs iptvRoutes) ChannelsJSON(w http.ResponseWriter, r *http.Request) {
 		"epg_url":      iptvURL(base, "/iptv/xmltv.xml", apiKey),
 		"lan_urls":     iptvLANPlaylistURLs(r, apiKey),
 		"resolution":   s.Resolution,
+		"networks":     rs.networks.statuses(s),
 		"channels":     out,
 	})
 }

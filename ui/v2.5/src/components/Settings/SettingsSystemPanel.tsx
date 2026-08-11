@@ -556,6 +556,14 @@ export const SettingsConfigurationPanel: React.FC = () => {
           onChange={(v) => saveGeneral({ nativeGeneration: v })}
         />
         <BooleanSetting
+          id="native-phash-generation"
+          headingID="config.general.native_phash_generation"
+          subHeadingID="config.general.native_phash_generation_desc"
+          disabled={!nativeBackend || !general.nativeGeneration}
+          checked={general.nativePhashGeneration ?? true}
+          onChange={(v) => saveGeneral({ nativePhashGeneration: v })}
+        />
+        <BooleanSetting
           advanced
           id="native-marker-generation"
           headingID="config.general.native_marker_generation"

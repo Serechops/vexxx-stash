@@ -478,6 +478,8 @@
       "native_generation_unavailable": "No supported GPU backend was found on this machine, so generation will use ffmpeg.",
       "native_marker_generation": "Include scene markers",
       "native_marker_generation_desc": "Generate marker previews and screenshots natively too. Off by default: a marker is a single segment from a fixed point, which ffmpeg is measurably faster at than the native pipeline.",
+      "native_phash_generation": "Include perceptual hashes",
+      "native_phash_generation_desc": "Compute scene phashes on the GPU too. On by default, because both backends decode the same frames and scale them the same way, and their hashes have been verified equal to the bit — so this changes how long hashing takes and not what it produces. Turn it off to pin phashing to ffmpeg, which is the path every existing library was hashed with.",
       "number_of_parallel_task_for_scan_generation_desc": "Set to 0 for auto-detection. Warning running more tasks than is required to achieve 100% cpu utilisation will decrease performance and potentially cause other issues.",
       "number_of_parallel_task_for_scan_generation_head": "Number of parallel task for scan/generation",
       "parallel_scan_head": "Parallel Scan/Generation",

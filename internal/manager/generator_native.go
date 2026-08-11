@@ -50,6 +50,25 @@ func nativeMarkerGenerationEnabled() bool {
 	return instance.Config.GetNativeMarkerGeneration()
 }
 
+// NativePhashEnabled reports whether phashes should be computed by the native
+// pipeline rather than by ffmpeg.
+//
+// Exported, unlike its siblings, because phashing is asked for from two places:
+// the generate task here, and the single-file GeneratePhash mutation in package
+// api. Both have to answer this the same way, so there is one answer rather than
+// a duplicated pair of conditions.
+//
+// Note the two conditions are deliberately not equivalent to what pkg/videophash
+// checks. This is whether the native path is wanted; whether it can be used on a
+// given file — codec, container, colour tags — is that package's decision, and it
+// falls back to ffmpeg silently when the answer is no.
+func NativePhashEnabled() bool {
+	if !nativeGenerationEnabled() {
+		return false
+	}
+	return instance.Config.GetNativePhashGeneration()
+}
+
 // writeNativeFile writes a generated asset through a temporary file in the same
 // directory, then moves it into place.
 //

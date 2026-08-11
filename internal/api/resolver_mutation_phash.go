@@ -40,7 +40,7 @@ func (r *mutationResolver) GeneratePhash(ctx context.Context, fileID string, sta
 		return "", err
 	}
 
-	options := videophash.PhashOptions{}
+	options := videophash.PhashOptions{Native: manager.NativePhashEnabled()}
 	if probe := manager.GetInstance().FFProbe; probe != nil {
 		options.FFProbePath = probe.Path()
 	}

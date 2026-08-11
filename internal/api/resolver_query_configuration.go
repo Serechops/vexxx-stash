@@ -290,6 +290,7 @@ func makeConfigGeneralResult() *ConfigGeneralResult {
 		TranscodeHardwareAcceleration: config.GetTranscodeHardwareAcceleration(),
 		NativeGeneration:              config.GetNativeGeneration(),
 		NativeMarkerGeneration:        config.GetNativeMarkerGeneration(),
+		NativePhashGeneration:         config.GetNativePhashGeneration(),
 		MaxTranscodeSize:              &maxTranscodeSize,
 		MaxStreamingTranscodeSize:     &maxStreamingTranscodeSize,
 		WriteImageThumbnails:          config.IsWriteImageThumbnails(),

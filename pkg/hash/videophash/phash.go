@@ -55,6 +55,16 @@ type PhashOptions struct {
 	// the source's colour tags. Empty falls back to looking on PATH, and a probe
 	// that cannot be run makes the native path decline rather than guess.
 	FFProbePath string
+
+	// Native opts this hash in to decoding its frames on the GPU.
+	//
+	// The zero value is the ffmpeg path, which is the one every existing library
+	// was hashed with, so a caller that has no opinion gets the reference
+	// behaviour rather than the fast one. It is a request and not an instruction:
+	// a file the native path cannot handle is hashed by ffmpeg regardless, and the
+	// two agree bit-for-bit, so this changes how long a hash takes and not what it
+	// comes out as.
+	Native bool
 }
 
 func Generate(encoder *ffmpeg.FFMpeg, videoFile *models.VideoFile, options PhashOptions) (*uint64, error) {
@@ -91,27 +101,31 @@ func generateSprite(encoder *ffmpeg.FFMpeg, videoFile *models.VideoFile, options
 		times[i] = options.Start + offset + (float64(i) * stepSize)
 	}
 
-	// Try the native (AMF) path first: decode the exact frames on the GPU and pipe
-	// them through one ffmpeg process, so swscale does the scaling and the pixels
-	// are the ones the ffmpeg path below would produce. Falls back to the batched
-	// ffmpeg path on any error.
+	// Try the native (AMF) path first when it is asked for: decode the exact frames
+	// on the GPU and pipe them through one ffmpeg process, so swscale does the
+	// scaling and the pixels are the ones the ffmpeg path below would produce.
+	// Falls back to the batched ffmpeg path on any error.
 	//
 	// Which backend ran is logged either way, and at info in both cases. The two
 	// produce the same hash and differ only in time, so a silent fallback is
 	// indistinguishable from a slow success -- there is no wrong output to notice.
-	started := time.Now()
-	images, err := tryNativePhash(encoder, videoFile, times, options.FFProbePath)
-	if err == nil {
-		logger.Infof("[generator] native phash decoded %d frames for %s in %v",
-			len(images), videoFile.Path, time.Since(started).Round(time.Millisecond))
-		return combineImages(images), nil
+	// Not being asked is not logged as a fallback, though: that is a setting doing
+	// what it says, not a file the native path could not handle.
+	if options.Native {
+		started := time.Now()
+		images, err := tryNativePhash(encoder, videoFile, times, options.FFProbePath)
+		if err == nil {
+			logger.Infof("[generator] native phash decoded %d frames for %s in %v",
+				len(images), videoFile.Path, time.Since(started).Round(time.Millisecond))
+			return combineImages(images), nil
+		}
+		logger.Infof("[generator] native phash declined for %s, using ffmpeg: %v", videoFile.Path, err)
 	}
-	logger.Infof("[generator] native phash declined for %s, using ffmpeg: %v", videoFile.Path, err)
 
 	// Several seeks per ffmpeg process rather than one, which changes no pixel
 	// of the result -- see phash_batch.go for why that is safe and why the batch
 	// size depends on the frame size.
-	images, err = generateSpriteScreenshots(encoder, videoFile.Path, times,
+	images, err := generateSpriteScreenshots(encoder, videoFile.Path, times,
 		batchSizeFor(videoFile.Width, videoFile.Height))
 	if err != nil {
 		return nil, fmt.Errorf("generating sprite screenshot: %w", err)

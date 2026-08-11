@@ -38,8 +38,15 @@ import (
 // that finds the set busy still decodes, on a context of its own, because the
 // alternative is waiting out somebody else's whole file (a preview holds its
 // decoders for the length of the scene) for a share of an engine that contending
-// would have given it anyway. A real cap wants a per-segment admission
-// semaphore, not a device pool.
+// would have given it anyway.
+//
+// That used to read as an admission for a cap yet to be built. It has since been
+// measured and there is nothing to build: throughput plateaus at about 2.5x
+// serial from four concurrent sheets out to sixteen and never degrades, and
+// sixteen concurrent 8K HEVC sessions neither exhausted VRAM nor were refused by
+// the driver. A cap at decodeDeviceCount would have held the whole pipeline at
+// two-way's 1.66x instead, so the semaphore would have cost a third of the
+// throughput it was meant to protect. See concurrency_real_test.go.
 
 // decodeDeviceCount is how many devices the set holds.
 //

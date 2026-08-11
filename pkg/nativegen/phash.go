@@ -44,6 +44,13 @@ import (
 // pictures the bitstream marks as intra and can report a keyframe interval
 // several times shorter than the one either backend can actually seek to.
 //
+// About half of that run-up does not have to be decoded at all. A picture nothing
+// else is predicted from cannot affect the target's reconstruction, and both
+// codecs mark which pictures those are: 50.6% of the run-up frames over a
+// seventeen-file library measured disposable, and skipping them is 1.9x on an 8K
+// walk and up to 3x on a short-GOP one, with the frames still pixel-identical. See
+// disposable.go.
+//
 // # Why the walk is split across decoders
 //
 // Because ffmpeg is not the slow thing it looks like. Its software decode is
@@ -56,10 +63,20 @@ import (
 //
 // Splitting the targets across both of the hardware's decode engines is what
 // makes the win hold at either end, because it is the axis ffmpeg has already
-// spent and this path had not. Measured after doing so: 26.3s against ffmpeg's
-// 40.2s on the file above, 6.0s against 16.9s on the 8K one, 559ms against 1.7s
-// on a 768x432 file. See phashDecoders for the split and devices.go for what
-// makes it land on two engines rather than one.
+// spent and this path had not. See phashDecoders for the split and devices.go for
+// what makes it land on two engines rather than one.
+//
+// Measured after the split, and again after the disposable-frame skip:
+//
+//	file                                    ffmpeg    split    + skip
+//	7680x3840 HEVC 41 Mbps, 6.00s GOP        38.1s    26.3s     16.5s
+//	8000x4000 HEVC 123 Mbps, 1.00s GOP       16.9s     6.0s        --
+//	1280x720 H.264, 2.00s GOP                 1.9s       --      340ms
+//	1280x720 H.264, 0.48s GOP                 1.9s       --      584ms
+//
+// The dashes are combinations not measured on the same file rather than results
+// withheld: the short-GOP files were below the split's threshold, and the 123 Mbps
+// file has not been re-measured since the skip landed.
 //
 // # What pixels this returns
 //
@@ -533,10 +550,25 @@ func feedExactFrames(ctx context.Context, f *mp4.File, dec *amf.Decoder, wanted 
 		return flush()
 	}}
 
-	step := func(i int) error {
+	// About half of every run-up measured is pictures nothing is predicted from,
+	// and those cost a decode each while contributing nothing to the target's
+	// reconstruction. The test is nil for any stream whose structure does not
+	// establish that safely, and then nothing is skipped. See disposable.go.
+	var skippable disposableTest
+	if disposableSkipEnabled {
+		skippable = newDisposableTest(track, f.SampleAnnexB)
+	}
+
+	// step submits one sample. When mayskip is set and the sample turns out to be
+	// disposable it is read, classified and dropped rather than decoded — the read
+	// happens either way, so classifying costs nothing that was not already spent.
+	step := func(i int, mayskip bool) error {
 		data, err := f.SampleAnnexB(i)
 		if err != nil {
 			return err
+		}
+		if mayskip && skippable != nil && skippable(data) {
+			return nil
 		}
 		if err := p.submit(data, int64(i)); err != nil {
 			return fmt.Errorf("nativegen: sample %d: %w", i, err)
@@ -556,20 +588,26 @@ func feedExactFrames(ctx context.Context, f *mp4.File, dec *amf.Decoder, wanted 
 			start = high + 1
 		}
 		for i := start; i <= wf.sample; i++ {
-			if err := step(i); err != nil {
+			// Everything before the target may be skipped if it is disposable. The
+			// target may not: it is the frame being walked to, and a target is
+			// itself often a non-reference picture.
+			if err := step(i, i != wf.sample); err != nil {
 				return err
 			}
 			high = i
 		}
 
 		// A frame held for reordering only comes out once enough of what follows
-		// it has been submitted, so push past it until it appears.
+		// it has been submitted, so push past it until it appears. Nothing is
+		// skipped here — these samples are submitted precisely to move the
+		// decoder's output along, which is the one job a disposable picture still
+		// does.
 		for pushed := 0; !produced(wf.slot) && pushed < maxReorderPush; pushed++ {
 			nextSample := high + 1
 			if nextSample >= len(track.Samples) {
 				break
 			}
-			if err := step(nextSample); err != nil {
+			if err := step(nextSample, false); err != nil {
 				return err
 			}
 			high = nextSample

@@ -34,6 +34,7 @@ func (t *GeneratePhashTask) Start(ctx context.Context) error {
 	if instance.FFProbe != nil {
 		options.FFProbePath = instance.FFProbe.Path()
 	}
+	options.Native = NativePhashEnabled()
 	isSegment := false
 	if t.Scene != nil && (t.Scene.StartPoint != nil || t.Scene.EndPoint != nil) {
 		isSegment = true

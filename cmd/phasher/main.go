@@ -20,7 +20,7 @@ func customUsage() {
 	flag.PrintDefaults()
 }
 
-func printPhash(ff *ffmpeg.FFMpeg, ffp *ffmpeg.FFProbe, inputfile string, quiet *bool, start float64, duration float64) error {
+func printPhash(ff *ffmpeg.FFMpeg, ffp *ffmpeg.FFProbe, inputfile string, quiet *bool, start float64, duration float64, native bool) error {
 	// Determine if this is a video or image file based on extension
 	ext := filepath.Ext(inputfile)
 	ext = ext[1:] // remove the leading dot
@@ -34,10 +34,10 @@ func printPhash(ff *ffmpeg.FFMpeg, ffp *ffmpeg.FFProbe, inputfile string, quiet 
 		return printImagePhash(ff, inputfile, quiet)
 	}
 
-	return printVideoPhash(ff, ffp, inputfile, quiet, start, duration)
+	return printVideoPhash(ff, ffp, inputfile, quiet, start, duration, native)
 }
 
-func printVideoPhash(ff *ffmpeg.FFMpeg, ffp *ffmpeg.FFProbe, inputfile string, quiet *bool, start float64, duration float64) error {
+func printVideoPhash(ff *ffmpeg.FFMpeg, ffp *ffmpeg.FFProbe, inputfile string, quiet *bool, start float64, duration float64, native bool) error {
 	ffvideoFile, err := ffp.NewVideoFile(inputfile)
 	if err != nil {
 		return err
@@ -53,8 +53,10 @@ func printVideoPhash(ff *ffmpeg.FFMpeg, ffp *ffmpeg.FFProbe, inputfile string, q
 	}
 
 	options := videophash.PhashOptions{
-		Start:    start,
-		Duration: duration,
+		Start:       start,
+		Duration:    duration,
+		Native:      native,
+		FFProbePath: ffp.Path(),
 	}
 
 	phash, err := videophash.Generate(ff, vf, options)
@@ -100,6 +102,10 @@ func main() {
 	quiet := flag.BoolP("quiet", "q", false, "print only the phash")
 	start := flag.Float64("start", 0, "start time in seconds")
 	duration := flag.Float64("duration", 0, "duration in seconds")
+	// Off by default because this tool's job is to say what a file's phash is, and
+	// the answer of record is ffmpeg's. The two backends have been verified equal
+	// to the bit, so the flag is how that keeps being checked.
+	native := flag.Bool("native", false, "decode frames on the GPU instead of with ffmpeg")
 	help := flag.BoolP("help", "h", false, "print this help output")
 	flag.Parse()
 
@@ -127,7 +133,7 @@ func main() {
 	ffprobe := ffmpeg.NewFFProbe(ffprobePath)
 
 	for _, item := range args {
-		if err := printPhash(encoder, ffprobe, item, quiet, *start, *duration); err != nil {
+		if err := printPhash(encoder, ffprobe, item, quiet, *start, *duration, *native); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 	}

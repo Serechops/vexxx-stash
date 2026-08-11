@@ -127,6 +127,8 @@ input ConfigGeneralInput {
   nativeGeneration: Boolean
   "Extend native generation to scene markers, which ffmpeg is faster at"
   nativeMarkerGeneration: Boolean
+  "Compute phashes natively, which produces the same hash as ffmpeg does"
+  nativePhashGeneration: Boolean
   "Max generated transcode size"
   maxTranscodeSize: StreamingResolutionEnum
   "Max streaming transcode size"
@@ -269,6 +271,8 @@ type ConfigGeneralResult {
   nativeGeneration: Boolean!
   "Extend native generation to scene markers, which ffmpeg is faster at"
   nativeMarkerGeneration: Boolean!
+  "Compute phashes natively, which produces the same hash as ffmpeg does"
+  nativePhashGeneration: Boolean!
   "Max generated transcode size"
   maxTranscodeSize: StreamingResolutionEnum
   "Max streaming transcode size"

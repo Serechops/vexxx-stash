@@ -16,10 +16,12 @@ import (
 //
 //   - how the budget divides between the groups, since a split that hands one
 //     group most of the frames cannot go faster than that group
+//
 //   - reading the samples with no decoding at all, which is the disk's share
+//
 //   - the whole walk on one decoder and then on two
 //
-//	STASH_NATIVEGEN_TEST_MP4="vr.mp4" go test ./pkg/nativegen/ -run PhashParallelBreakdown -v -timeout 30m
+//     STASH_NATIVEGEN_TEST_MP4="vr.mp4" go test ./pkg/nativegen/ -run PhashParallelBreakdown -v -timeout 30m
 func TestPhashParallelBreakdownRealFile(t *testing.T) {
 	path := os.Getenv("STASH_NATIVEGEN_TEST_MP4")
 	if path == "" {

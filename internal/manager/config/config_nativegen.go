@@ -16,15 +16,42 @@ const (
 	// the one job the native path measurably loses: a marker is a single
 	// twenty-second segment from a fixed point, which can use neither of the two
 	// things the native path wins with — spreading segments across both media
-	// engines, and moving a segment onto the keyframe nearest it. Measured on a
-	// 5400x2700 HEVC film, ffmpeg takes 6.0s to native's 13.7s for the preview
-	// and 1.4s to 2.2s for the still.
+	// engines, and moving a segment onto the keyframe nearest it.
+	//
+	// Measured on a 5400x2700 HEVC film, ffmpeg takes 6.0s to native's 13.7s for
+	// the preview. The still used to lose too, at 1.4s against 2.2s, and no longer
+	// does: skipping disposable pictures in the run-up brought it to 1.17s. That
+	// changes which half is the problem without changing the answer, because the
+	// preview is the larger half and the skip cannot touch it — a preview wants
+	// every frame in its span decoded, so none of them is disposable.
 	//
 	// It remains available because that comparison is this machine's, not every
 	// machine's, and because it is the only way to generate markers on a build
 	// without ffmpeg.
 	NativeMarkerGeneration        = "nativegen.markers"
 	nativeMarkerGenerationDefault = false
+
+	// NativePhashGeneration selects which backend computes perceptual hashes. It
+	// is a separate switch, and the one that defaults on, because a phash is the
+	// only generated asset whose correctness can be stated exactly rather than
+	// judged: both backends decode the same twenty-five frames and scale them
+	// with the same swscale, and the resulting hashes have been verified equal to
+	// the bit on every file tried. There is nothing to prefer ffmpeg for except
+	// time, and the native path takes 16.5s where ffmpeg takes 38.1s on a
+	// 7680x3840 file.
+	//
+	// It exists anyway because a phash is a fingerprint shared with stash-box and
+	// with other people's libraries, which makes it the asset a user is most
+	// entitled to be conservative about: a wrong sprite is visibly wrong and
+	// regenerated in seconds, where a wrong phash is invisible and propagates.
+	// Turning this off pins hashing to the path every existing library was built
+	// with.
+	//
+	// Note that "native" here does not mean ffmpeg-free: the native phash decodes
+	// on the GPU but pipes the frames through ffmpeg for scaling, precisely so the
+	// pixels are the ones the ffmpeg path would have produced.
+	NativePhashGeneration        = "nativegen.phash"
+	nativePhashGenerationDefault = true
 )
 
 // GetNativeGeneration reports whether generators should try the native pipeline
@@ -47,4 +74,14 @@ func (i *Config) GetNativeGeneration() bool {
 // off and on again does not lose what markers were set to.
 func (i *Config) GetNativeMarkerGeneration() bool {
 	return i.getBoolDefault(NativeMarkerGeneration, nativeMarkerGenerationDefault)
+}
+
+// GetNativePhashGeneration reports whether phashes have been left with the
+// native pipeline.
+//
+// Like markers this is the setting as stored and not the decision — phashing is
+// subordinate to GetNativeGeneration too, so turning the pipeline off returns
+// hashing to ffmpeg along with everything else.
+func (i *Config) GetNativePhashGeneration() bool {
+	return i.getBoolDefault(NativePhashGeneration, nativePhashGenerationDefault)
 }

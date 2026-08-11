@@ -35,6 +35,7 @@ fragment ConfigGeneralData on ConfigGeneralResult {
   transcodeHardwareAcceleration
   nativeGeneration
   nativeMarkerGeneration
+  nativePhashGeneration
   maxTranscodeSize
   maxStreamingTranscodeSize
   writeImageThumbnails

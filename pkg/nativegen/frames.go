@@ -287,10 +287,21 @@ func decodeExact(ctx context.Context, f *mp4.File, dec *amf.Decoder, wanted []wa
 		return nil
 	}}
 
-	step := func(i int) error {
+	// The same halving the phash walk gets: about half of what a run-up decodes is
+	// pictures nothing is predicted from, and leaving those out cannot change the
+	// target's pixels. See disposable.go.
+	var skippable disposableTest
+	if disposableSkipEnabled {
+		skippable = newDisposableTest(track, f.SampleAnnexB)
+	}
+
+	step := func(i int, mayskip bool) error {
 		data, err := f.SampleAnnexB(i)
 		if err != nil {
 			return err
+		}
+		if mayskip && skippable != nil && skippable(data) {
+			return nil
 		}
 		if err := p.submit(data, int64(i)); err != nil {
 			return fmt.Errorf("nativegen: sample %d: %w", i, err)
@@ -307,7 +318,8 @@ func decodeExact(ctx context.Context, f *mp4.File, dec *amf.Decoder, wanted []wa
 		}
 
 		for i := next; i <= w.sample; i++ {
-			if err := step(i); err != nil {
+			// The target is always decoded; only what precedes it is a candidate.
+			if err := step(i, i != w.sample); err != nil {
 				return nil, err
 			}
 		}
@@ -324,7 +336,9 @@ func decodeExact(ctx context.Context, f *mp4.File, dec *amf.Decoder, wanted []wa
 			if next >= len(track.Samples) {
 				break
 			}
-			if err := step(next); err != nil {
+			// Not skipped: these are submitted to move the decoder's output along,
+			// which a disposable picture still does.
+			if err := step(next, false); err != nil {
 				return nil, err
 			}
 			next++

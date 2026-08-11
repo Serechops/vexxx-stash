@@ -13,5 +13,6 @@ query SystemStatus {
     vipsPath
     isDocker
     hardwareCodecs
+    nativeGenerationBackend
   }
 }

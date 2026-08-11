@@ -288,6 +288,8 @@ func makeConfigGeneralResult() *ConfigGeneralResult {
 		PreviewExcludeEnd:             config.GetPreviewExcludeEnd(),
 		PreviewPreset:                 config.GetPreviewPreset(),
 		TranscodeHardwareAcceleration: config.GetTranscodeHardwareAcceleration(),
+		NativeGeneration:              config.GetNativeGeneration(),
+		NativeMarkerGeneration:        config.GetNativeMarkerGeneration(),
 		MaxTranscodeSize:              &maxTranscodeSize,
 		MaxStreamingTranscodeSize:     &maxStreamingTranscodeSize,
 		WriteImageThumbnails:          config.IsWriteImageThumbnails(),

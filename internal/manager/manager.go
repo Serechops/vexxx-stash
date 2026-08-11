@@ -521,6 +521,8 @@ func (s *Manager) GetSystemStatus() *SystemStatus {
 		VipsPath:       &vipsPath,
 		IsDocker:       isDockerized(),
 		HardwareCodecs: hardwareCodecs,
+
+		NativeGenerationBackend: nativeGenerationBackend(),
 	}
 }
 

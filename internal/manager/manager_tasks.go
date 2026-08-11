@@ -439,9 +439,18 @@ func (s *Manager) GeneratePhashForFile(ctx context.Context, f *models.VideoFile)
 	if f == nil {
 		return nil
 	}
+	// Try to find the scene for VR mode detection.
+	var scene *models.Scene
+	scenes, err := s.Repository.Scene.FindByFileID(ctx, f.Base().ID)
+	if err == nil && len(scenes) > 0 {
+		scene = scenes[0]
+	} else if err != nil {
+		logger.Warnf("Error finding scene for phash VR mode: %v", err)
+	}
 	task := GeneratePhashTask{
 		repository:          s.Repository,
 		File:                f,
+		Scene:               scene,
 		Overwrite:           false,
 		fileNamingAlgorithm: config.GetInstance().GetVideoFileNamingAlgorithm(),
 	}
@@ -523,6 +532,7 @@ func (g *watcherSceneGenerator) Generate(ctx context.Context, s *models.Scene, f
 		taskPhash := GeneratePhashTask{
 			repository:          mgr.Repository,
 			File:                f,
+			Scene:               s,
 			Overwrite:           overwrite,
 			fileNamingAlgorithm: cfg.GetVideoFileNamingAlgorithm(),
 		}

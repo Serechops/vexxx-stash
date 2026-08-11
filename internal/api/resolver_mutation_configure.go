@@ -289,6 +289,8 @@ func (r *mutationResolver) ConfigureGeneral(ctx context.Context, input ConfigGen
 	}
 
 	r.setConfigBool(config.TranscodeHardwareAcceleration, input.TranscodeHardwareAcceleration)
+	r.setConfigBool(config.NativeGeneration, input.NativeGeneration)
+	r.setConfigBool(config.NativeMarkerGeneration, input.NativeMarkerGeneration)
 	if input.MaxTranscodeSize != nil {
 		c.SetString(config.MaxTranscodeSize, input.MaxTranscodeSize.String())
 	}

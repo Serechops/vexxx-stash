@@ -472,6 +472,12 @@
         "description": "Directory location used when performing a full export or import",
         "heading": "Metadata Path"
       },
+      "native_generation": "Native Generation",
+      "native_generation_enabled": "Generate without ffmpeg",
+      "native_generation_enabled_desc": "Generate sprites and previews on the GPU using {backend} instead of ffmpeg. Any file the native pipeline cannot handle falls back to ffmpeg automatically.",
+      "native_generation_unavailable": "No supported GPU backend was found on this machine, so generation will use ffmpeg.",
+      "native_marker_generation": "Include scene markers",
+      "native_marker_generation_desc": "Generate marker previews and screenshots natively too. Off by default: a marker is a single segment from a fixed point, which ffmpeg is measurably faster at than the native pipeline.",
       "number_of_parallel_task_for_scan_generation_desc": "Set to 0 for auto-detection. Warning running more tasks than is required to achieve 100% cpu utilisation will decrease performance and potentially cause other issues.",
       "number_of_parallel_task_for_scan_generation_head": "Number of parallel task for scan/generation",
       "parallel_scan_head": "Parallel Scan/Generation",

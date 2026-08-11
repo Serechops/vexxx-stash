@@ -41,6 +41,9 @@ func (r *mutationResolver) GeneratePhash(ctx context.Context, fileID string, sta
 	}
 
 	options := videophash.PhashOptions{}
+	if probe := manager.GetInstance().FFProbe; probe != nil {
+		options.FFProbePath = probe.Path()
+	}
 	if start != nil {
 		options.Start = *start
 	}

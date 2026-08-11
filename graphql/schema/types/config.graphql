@@ -123,6 +123,10 @@ input ConfigGeneralInput {
   previewPreset: PreviewPreset
   "Transcode Hardware Acceleration"
   transcodeHardwareAcceleration: Boolean
+  "Generate sprites and previews without ffmpeg, on the GPU"
+  nativeGeneration: Boolean
+  "Extend native generation to scene markers, which ffmpeg is faster at"
+  nativeMarkerGeneration: Boolean
   "Max generated transcode size"
   maxTranscodeSize: StreamingResolutionEnum
   "Max streaming transcode size"
@@ -261,6 +265,10 @@ type ConfigGeneralResult {
   previewPreset: PreviewPreset!
   "Transcode Hardware Acceleration"
   transcodeHardwareAcceleration: Boolean!
+  "Generate sprites and previews without ffmpeg, on the GPU"
+  nativeGeneration: Boolean!
+  "Extend native generation to scene markers, which ffmpeg is faster at"
+  nativeMarkerGeneration: Boolean!
   "Max generated transcode size"
   maxTranscodeSize: StreamingResolutionEnum
   "Max streaming transcode size"

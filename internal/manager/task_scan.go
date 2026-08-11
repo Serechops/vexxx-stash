@@ -96,7 +96,8 @@ func (j *ScanJob) Execute(ctx context.Context, progress *job.Progress) error {
 				if err != nil {
 					logger.Errorf("Sequential identify: error resolving sources: %v", err)
 					// Drain channel if sources can't be resolved
-					for range identifyChan {}
+					for range identifyChan {
+					}
 					return
 				}
 
@@ -915,6 +916,7 @@ func (g *sceneGenerators) Generate(ctx context.Context, s *models.Scene, f *mode
 			taskPhash := GeneratePhashTask{
 				repository:          mgr.Repository,
 				File:                f,
+				Scene:               s,
 				Overwrite:           overwrite,
 				fileNamingAlgorithm: g.fileNamingAlgorithm,
 			}

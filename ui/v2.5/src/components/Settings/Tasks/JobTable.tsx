@@ -152,16 +152,18 @@ const Task: React.FC<IJob> = ({ job }) => {
   useEffect(() => {
     if (job.subTasks && job.subTasks.length > 0) {
       setSubTaskHistory((prev) => {
-        let updated = [...prev];
+        const seen = new Set(prev);
         let changed = false;
-        job.subTasks!.forEach((t) => {
-          if (t && (updated.length === 0 || updated[updated.length - 1] !== t)) {
+        const updated = [...prev];
+        for (const t of job.subTasks!) {
+          if (t && !seen.has(t)) {
             updated.push(t);
+            seen.add(t);
             changed = true;
           }
-        });
+        }
         if (!changed) return prev;
-        if (updated.length > 500) updated = updated.slice(updated.length - 500);
+        if (updated.length > 500) return updated.slice(updated.length - 500);
         return updated;
       });
     }

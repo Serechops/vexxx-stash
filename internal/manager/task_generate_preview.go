@@ -99,6 +99,22 @@ func (t *GeneratePreviewTask) generateVideo(ctx context.Context, videoChecksum s
 		vrModeStr = string(*t.Scene.VRMode)
 	}
 
+	// The native pipeline is tried first when it is enabled, and declines any
+	// file or option it cannot reproduce exactly. Declining costs a demux and
+	// nothing else, so the ffmpeg path below is reached no slower than before.
+	if t.previewVideo(ctx, previewRequest{
+		path:     videoFilename,
+		output:   t.generator.ScenePaths.GetVideoPreviewPath(videoChecksum),
+		starts:   previewSegmentStarts(t.Options, videoDuration),
+		duration: generate.PreviewSegmentDuration(t.Options),
+		width:    generate.PreviewWidth,
+		vrMode:   vrModeStr,
+		audio:    t.Options.Audio,
+		single:   generate.PreviewIsSingleSegment(t.Options, videoDuration),
+	}) {
+		return nil
+	}
+
 	if err := t.generator.PreviewVideo(ctx, videoFilename, videoDuration, videoChecksum, t.Options, vrModeStr, false, useVsync2); err != nil {
 		logger.Warnf("[generator] failed generating scene preview, trying fallback")
 		if err := t.generator.PreviewVideo(ctx, videoFilename, videoDuration, videoChecksum, t.Options, vrModeStr, true, useVsync2); err != nil {

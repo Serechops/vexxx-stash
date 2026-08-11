@@ -31,6 +31,9 @@ func (t *GeneratePhashTask) Start(ctx context.Context) error {
 
 	// Check if this is a segment
 	var options videophash.PhashOptions
+	if instance.FFProbe != nil {
+		options.FFProbePath = instance.FFProbe.Path()
+	}
 	isSegment := false
 	if t.Scene != nil && (t.Scene.StartPoint != nil || t.Scene.EndPoint != nil) {
 		isSegment = true
@@ -45,7 +48,6 @@ func (t *GeneratePhashTask) Start(ctx context.Context) error {
 		options.Start = start
 		options.Duration = duration
 	}
-
 	// #4393 - if there is a file with the same oshash, we can use the same phash
 	// only use this if we're not overwriting AND not generating for a segment
 	if !t.Overwrite && !isSegment {

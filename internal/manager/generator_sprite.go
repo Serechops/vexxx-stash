@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"image"
-	"math"
 
 	"github.com/disintegration/imaging"
 
@@ -105,42 +103,9 @@ func (g *SpriteGenerator) generateSpriteImage(ctx context.Context) error {
 		return nil
 	}
 
-	var images []image.Image
-
-	if !g.SlowSeek {
-		logger.Infof("[generator] generating sprite image for %s", g.Info.VideoFile.Path)
-		duration := g.Info.VideoFile.VideoStreamDuration
-		if g.Duration > 0 {
-			duration = g.Duration
-		}
-
-		stepSize := duration / float64(g.Info.ChunkCount)
-
-		for i := 0; i < g.Info.ChunkCount; i++ {
-			time := g.StartOffset + (float64(i) * stepSize)
-			img, err := g.g.SpriteScreenshot(ctx, g.Info.VideoFile.Path, time, g.VRMode)
-			if err != nil {
-				return fmt.Errorf("sprite screenshot at index %d: %w", i, err)
-			}
-			images = append(images, img)
-		}
-	} else {
-		logger.Infof("[generator] generating sprite image for %s (%d frames)", g.Info.VideoFile.Path, g.Info.VideoFile.FrameCount)
-
-		stepFrame := float64(g.Info.VideoFile.FrameCount-1) / float64(g.Info.ChunkCount)
-
-		for i := 0; i < g.Info.ChunkCount; i++ {
-			frame := math.Round(float64(i) * stepFrame)
-			if frame >= math.MaxInt || frame <= math.MinInt {
-				return errors.New("invalid frame number conversion")
-			}
-
-			img, err := g.g.SpriteScreenshotSlow(ctx, g.Info.VideoFile.Path, int(frame), g.VRMode)
-			if err != nil {
-				return fmt.Errorf("sprite screenshot (slow) at index %d: %w", i, err)
-			}
-			images = append(images, img)
-		}
+	images, err := g.spriteTiles(ctx)
+	if err != nil {
+		return err
 	}
 
 	if len(images) == 0 {

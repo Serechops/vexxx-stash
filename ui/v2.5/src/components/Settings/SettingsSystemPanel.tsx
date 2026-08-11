@@ -57,6 +57,10 @@ export const SettingsConfigurationPanel: React.FC = () => {
   const { data: systemStatusData } = GQL.useSystemStatusQuery();
   const vipsPath = systemStatusData?.systemStatus.vipsPath;
 
+  // Empty when no GPU backend was found, in which case turning native
+  // generation on would change nothing and the toggle says so instead.
+  const nativeBackend = systemStatusData?.systemStatus.nativeGenerationBackend;
+
   const transcodeQualities = [
     GQL.StreamingResolutionEnum.Low,
     GQL.StreamingResolutionEnum.Standard,
@@ -530,6 +534,35 @@ export const SettingsConfigurationPanel: React.FC = () => {
           renderValue={() => {
             return <></>;
           }}
+        />
+      </SettingSection>
+
+      <SettingSection headingID="config.general.native_generation">
+        <BooleanSetting
+          id="native-generation"
+          headingID="config.general.native_generation_enabled"
+          subHeading={
+            nativeBackend
+              ? intl.formatMessage(
+                  { id: "config.general.native_generation_enabled_desc" },
+                  { backend: nativeBackend }
+                )
+              : intl.formatMessage({
+                  id: "config.general.native_generation_unavailable",
+                })
+          }
+          disabled={!nativeBackend}
+          checked={general.nativeGeneration ?? false}
+          onChange={(v) => saveGeneral({ nativeGeneration: v })}
+        />
+        <BooleanSetting
+          advanced
+          id="native-marker-generation"
+          headingID="config.general.native_marker_generation"
+          subHeadingID="config.general.native_marker_generation_desc"
+          disabled={!nativeBackend || !general.nativeGeneration}
+          checked={general.nativeMarkerGeneration ?? false}
+          onChange={(v) => saveGeneral({ nativeMarkerGeneration: v })}
         />
       </SettingSection>
 

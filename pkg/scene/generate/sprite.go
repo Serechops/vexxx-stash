@@ -34,6 +34,15 @@ func spriteWidth(vrMode string) int {
 	return spriteScreenshotWidth
 }
 
+// SpriteTileWidth returns the width sprite tiles are generated at.
+//
+// Exported so that an alternative sprite backend can produce tiles the same
+// size as this one; the two must agree, because a sheet is assembled from
+// whichever backend produced it but the VTT that indexes it is not.
+func SpriteTileWidth(vrMode string) int {
+	return spriteWidth(vrMode)
+}
+
 func (g Generator) SpriteScreenshot(ctx context.Context, input string, seconds float64, vrMode string) (image.Image, error) {
 	lockCtx := g.LockManager.ReadLock(ctx, input)
 	defer lockCtx.Cancel()

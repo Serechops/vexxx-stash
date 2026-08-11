@@ -400,6 +400,12 @@ type SystemStatus {
   isDocker: Boolean!
   "List of detected hardware encoder names (e.g., 'H264 NVENC', 'H264 AMF')"
   hardwareCodecs: [String!]!
+  """
+  Name of the backend the ffmpeg-free generation pipeline would use, e.g.
+  'AMD AMF 1.5.2.0'. Empty when this machine has none, in which case turning
+  native generation on has no effect.
+  """
+  nativeGenerationBackend: String!
 }
 
 "Disk capacity and usage details for a configured library path"

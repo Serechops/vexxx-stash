@@ -18,6 +18,12 @@ type SystemStatus struct {
 	VipsPath       *string          `json:"vipsPath"`
 	IsDocker       bool             `json:"isDocker"`
 	HardwareCodecs []string         `json:"hardwareCodecs"`
+
+	// NativeGenerationBackend names the backend pkg/nativegen would use here,
+	// and is empty when there is none. It sits beside VipsPath and
+	// HardwareCodecs because it answers the same kind of question: what this
+	// machine can actually do, as opposed to what it has been asked to do.
+	NativeGenerationBackend string `json:"nativeGenerationBackend"`
 }
 
 type SetupInput struct {

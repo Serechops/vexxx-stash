@@ -559,14 +559,29 @@ func teamSkeetListMovies(ctx context.Context, series string, limit int) ([]teamS
 // entry is the only one used: vp9 and av1 would both need a re-encode to reach
 // MPEG-TS, which for a remote source costs a download *and* a transcode per
 // viewer.
+type teamSkeetStream2 struct {
+	AVC struct {
+		Dash     string `json:"dash"`
+		HLS      string `json:"hls"`
+		Fallback string `json:"fallback"`
+	} `json:"avc"`
+}
+
+func (s *teamSkeetStream2) UnmarshalJSON(data []byte) error {
+	if len(data) == 0 || string(data) == "[]" || string(data) == "null" {
+		return nil
+	}
+	type Alias teamSkeetStream2
+	var aux Alias
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return nil
+	}
+	*s = teamSkeetStream2(aux)
+	return nil
+}
+
 type teamSkeetWatch struct {
-	Stream2 struct {
-		AVC struct {
-			Dash     string `json:"dash"`
-			HLS      string `json:"hls"`
-			Fallback string `json:"fallback"`
-		} `json:"avc"`
-	} `json:"stream2"`
+	Stream2 teamSkeetStream2 `json:"stream2"`
 }
 
 func teamSkeetGetWatch(ctx context.Context, movieID int) (teamSkeetWatch, error) {

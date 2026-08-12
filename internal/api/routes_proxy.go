@@ -47,7 +47,8 @@ var allowedProxyDomains = map[string]bool{
 	// pre-signed URLs (validfrom/validto/hash query params) consumed directly
 	// by <video>/<img> in the browser — no proxying needed for those, so they
 	// are deliberately NOT listed here.
-	"newsensations.com": true,
+	"newsensations.com":          true,
+	"site-api.project1service.com": true,
 }
 
 // allowedProxySuffixes is a whitelist of domain suffixes that can be proxied,
@@ -67,14 +68,15 @@ var allowedProxySuffixes = []string{
 // real browser trace showed it expects the `members` referer, not `www`), so
 // spoofing the wrong one can silently fail auth even with valid cookies.
 var refererSpoofExact = map[string]string{
-	"www.evilangel.com":      "https://www.evilangel.com",
-	"members.evilangel.com":  "https://members.evilangel.com",
-	"www.adulttime.com":      "https://members.adulttime.com",
-	"members.adulttime.com":  "https://members.adulttime.com",
-	"freetour.adulttime.com": "https://members.adulttime.com",
-	"api2.reptyle.com":       "https://app.reptyle.com",
-	"ma-store.reptyle.com":   "https://app.reptyle.com",
-	"auth.reptyle.com":       "https://app.reptyle.com",
+	"www.evilangel.com":            "https://www.evilangel.com",
+	"members.evilangel.com":        "https://members.evilangel.com",
+	"www.adulttime.com":            "https://members.adulttime.com",
+	"members.adulttime.com":        "https://members.adulttime.com",
+	"freetour.adulttime.com":       "https://members.adulttime.com",
+	"api2.reptyle.com":             "https://app.reptyle.com",
+	"ma-store.reptyle.com":         "https://app.reptyle.com",
+	"auth.reptyle.com":             "https://app.reptyle.com",
+	"site-api.project1service.com": "https://www.brazzers.com",
 }
 
 // algoliaOriginByAppID maps an Algolia application id (sent verbatim by the
@@ -132,6 +134,9 @@ var forwardedRequestHeaders = []string{
 	// this header alone is what makes them behave, which is why it has to
 	// survive the relay rather than being set here for one host.
 	"X-Requested-With",
+	// Aylo authentication headers
+	"instance",
+	"x-instance",
 }
 
 func isAllowedProxyHost(host string) bool {

@@ -77,3 +77,5 @@ docs/# Meta Design Graphic Rendering Pipeline.md
 # main repo. The compiled Go route + baked-in VR code ship in the build; only the
 # plugin manifest/settings surface lives here and is distributed separately.
 /plugins/
+/scratch/
+scratch/

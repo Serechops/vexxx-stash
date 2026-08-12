@@ -4,8 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"sort"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/stashapp/stash/pkg/iptv"
 	"github.com/stashapp/stash/pkg/logger"
@@ -205,13 +208,14 @@ func (nsNetwork) Programs(ctx context.Context, spec iptvNetChannelSpec, want int
 
 	sceneEntries := make([]iptv.SceneEntry, 0, len(scenes))
 	for _, s := range scenes {
-		if s.DurationSeconds <= 0 {
-			continue
+		dur := s.DurationSeconds
+		if dur <= 0 {
+			dur = 1800 // 30 minutes fallback if scene duration is unpopulated
 		}
 		sceneEntries = append(sceneEntries, iptv.SceneEntry{
 			SceneID:  s.ID,
 			Title:    s.Title,
-			Duration: s.DurationSeconds,
+			Duration: dur,
 		})
 	}
 
@@ -233,22 +237,45 @@ func (nsNetwork) Programs(ctx context.Context, spec iptvNetChannelSpec, want int
 
 // ─── playback ─────────────────────────────────────────────────────────────────
 
-// ProgramSource reads the video URL from the SQLite store. If missing or empty,
-// it performs an on-demand single-page fetch (gallery.php, ~200ms) using the connected
-// session cookie to get a fresh pre-signed video URL at playback time.
+func isNSVideoURLExpired(urlStr string) bool {
+	if urlStr == "" {
+		return true
+	}
+	u, err := url.Parse(urlStr)
+	if err != nil {
+		return true
+	}
+	validTo := u.Query().Get("validto")
+	if validTo == "" {
+		return false
+	}
+	exp, err := strconv.ParseInt(validTo, 10, 64)
+	if err != nil {
+		return false
+	}
+	// Expired if current time is past validto minus 5 minutes buffer (300 seconds)
+	return time.Now().Unix() > (exp - 300)
+}
+
+// ProgramSource reads the video URL from the SQLite store. If missing, empty,
+// or expired (validto timestamp passed), it performs an on-demand single-page
+// fetch (gallery.php, ~200ms) using the connected session cookie to get a
+// fresh pre-signed video URL at stream playback time.
 func (nsNetwork) ProgramSource(ctx context.Context, programID int) (programSource, error) {
 	cached := nsCatalog.lookupScene(programID)
 
 	videoURL := ""
 	height := 1080
 
-	if cached != nil && cached.VideoURL != "" {
+	if cached != nil && cached.VideoURL != "" && !isNSVideoURLExpired(cached.VideoURL) {
 		videoURL = cached.VideoURL
 		if cached.VideoHeight > 0 {
 			height = cached.VideoHeight
 		}
-	} else if nsSessionHasCookie() {
-		logger.Infof("[iptv] NS: on-demand fetching fresh video URL for scene %d", programID)
+	}
+
+	if videoURL == "" && nsSessionHasCookie() {
+		logger.Infof("[iptv] NS: fetching fresh pre-signed video URL for scene %d (expired or uncached)", programID)
 		fresh, err := nsFetchSingleSceneVideoURL(ctx, programID)
 		if err == nil && fresh.VideoURL != "" {
 			videoURL = fresh.VideoURL

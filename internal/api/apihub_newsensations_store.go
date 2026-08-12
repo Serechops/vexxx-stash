@@ -56,6 +56,15 @@ CREATE TABLE IF NOT EXISTS ns_scenes (
 );
 
 CREATE INDEX IF NOT EXISTS idx_ns_scenes_series ON ns_scenes(series_id);
+
+CREATE TABLE IF NOT EXISTS ns_series_scenes (
+	series_id TEXT NOT NULL,
+	scene_id INTEGER NOT NULL,
+	PRIMARY KEY (series_id, scene_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ns_series_scenes_series ON ns_series_scenes(series_id);
+CREATE INDEX IF NOT EXISTS idx_ns_series_scenes_scene ON ns_series_scenes(scene_id);
 `
 
 // nsCatalogStore persists scraped NewSensations catalog data.
@@ -109,6 +118,14 @@ func (s *nsCatalogStore) conn() (*sql.DB, error) {
 		_ = h.Close()
 		return nil, fmt.Errorf("init NS catalog schema: %w", err)
 	}
+
+	// Auto-migrate any existing series_id column values into the junction table
+	_, _ = h.Exec(`
+		INSERT INTO ns_series_scenes (series_id, scene_id)
+		SELECT series_id, id FROM ns_scenes
+		WHERE series_id IS NOT NULL AND series_id != ''
+		ON CONFLICT(series_id, scene_id) DO NOTHING;
+	`)
 
 	s.handle = h
 	s.openedP = path
@@ -208,7 +225,10 @@ func (s *nsCatalogStore) listScenes(seriesID string, limit int) []nsStoredScene 
 		return nil
 	}
 
-	q := "SELECT id, title, COALESCE(poster_url, ''), COALESCE(duration_seconds, 0), COALESCE(video_url, ''), COALESCE(video_codec, ''), COALESCE(video_height, 0), COALESCE(series_id, '') FROM ns_scenes WHERE series_id = ? ORDER BY id"
+	q := `SELECT s.id, s.title, COALESCE(s.poster_url, ''), COALESCE(s.duration_seconds, 0), COALESCE(s.video_url, ''), COALESCE(s.video_codec, ''), COALESCE(s.video_height, 0), COALESCE(s.series_id, '')
+	      FROM ns_scenes s
+	      JOIN ns_series_scenes ss ON s.id = ss.scene_id
+	      WHERE ss.series_id = ? ORDER BY s.id`
 	args := []any{seriesID}
 	if limit > 0 {
 		q += " LIMIT ?"
@@ -232,6 +252,27 @@ func (s *nsCatalogStore) listScenes(seriesID string, limit int) []nsStoredScene 
 	if err := rows.Err(); err != nil {
 		return nil
 	}
+
+	// Fallback to legacy single-column query if junction query returned 0 rows
+	if len(out) == 0 {
+		qFB := "SELECT id, title, COALESCE(poster_url, ''), COALESCE(duration_seconds, 0), COALESCE(video_url, ''), COALESCE(video_codec, ''), COALESCE(video_height, 0), COALESCE(series_id, '') FROM ns_scenes WHERE series_id = ? ORDER BY id"
+		argsFB := []any{seriesID}
+		if limit > 0 {
+			qFB += " LIMIT ?"
+			argsFB = append(argsFB, limit)
+		}
+		rowsFB, errFB := db.Query(qFB, argsFB...)
+		if errFB == nil {
+			defer rowsFB.Close()
+			for rowsFB.Next() {
+				var r nsStoredScene
+				if err := rowsFB.Scan(&r.ID, &r.Title, &r.PosterURL, &r.DurationSeconds, &r.VideoURL, &r.VideoCodec, &r.VideoHeight, &r.SeriesID); err == nil {
+					out = append(out, r)
+				}
+			}
+		}
+	}
+
 	return out
 }
 
@@ -295,8 +336,7 @@ func (s *nsCatalogStore) lookupScene(id int) *nsStoredScene {
 	return &r
 }
 
-// scenesWithDurationForSeries returns how many scenes in a series have a known
-// duration.
+// scenesWithDurationForSeries returns the count of scenes stored for a series.
 func (s *nsCatalogStore) scenesWithDurationForSeries(seriesID string) int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -306,11 +346,14 @@ func (s *nsCatalogStore) scenesWithDurationForSeries(seriesID string) int {
 		return 0
 	}
 	var n int
-	_ = db.QueryRow("SELECT COUNT(*) FROM ns_scenes WHERE series_id = ? AND duration_seconds > 0", seriesID).Scan(&n)
+	_ = db.QueryRow(`SELECT COUNT(*) FROM ns_series_scenes WHERE series_id = ?`, seriesID).Scan(&n)
+	if n == 0 {
+		_ = db.QueryRow("SELECT COUNT(*) FROM ns_scenes WHERE series_id = ?", seriesID).Scan(&n)
+	}
 	return n
 }
 
-// updateSeriesIDForScenes sets the series_id column for the given scene IDs.
+// updateSeriesIDForScenes maps the given scene IDs to the series in the junction table.
 func (s *nsCatalogStore) updateSeriesIDForScenes(sceneIDs []int, seriesID string) error {
 	if len(sceneIDs) == 0 || seriesID == "" {
 		return nil
@@ -324,16 +367,33 @@ func (s *nsCatalogStore) updateSeriesIDForScenes(sceneIDs []int, seriesID string
 		return err
 	}
 
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	stmt, err := tx.Prepare("INSERT INTO ns_series_scenes (series_id, scene_id) VALUES (?, ?) ON CONFLICT(series_id, scene_id) DO NOTHING")
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	for _, id := range sceneIDs {
+		_, _ = stmt.Exec(seriesID, id)
+	}
+
 	list := make([]string, 0, len(sceneIDs))
 	for _, id := range sceneIDs {
 		list = append(list, strconv.Itoa(id))
 	}
 
-	_, err = db.Exec(
-		fmt.Sprintf("UPDATE ns_scenes SET series_id = ? WHERE id IN (%s)", strings.Join(list, ",")),
+	_, _ = tx.Exec(
+		fmt.Sprintf("UPDATE ns_scenes SET series_id = ? WHERE (series_id IS NULL OR series_id = '') AND id IN (%s)", strings.Join(list, ",")),
 		seriesID,
 	)
-	return err
+
+	return tx.Commit()
 }
 
 // ─── bulk upsert ──────────────────────────────────────────────────────────────
@@ -365,15 +425,23 @@ func (s *nsCatalogStore) upsertScenes(scenes []nsStoredScene) error {
 		   title = excluded.title, poster_url = excluded.poster_url,
 		   duration_seconds = excluded.duration_seconds, video_url = excluded.video_url,
 		   video_codec = excluded.video_codec, video_height = excluded.video_height,
-		   series_id = excluded.series_id, scraped_at = excluded.scraped_at`)
+		   series_id = COALESCE(NULLIF(excluded.series_id, ''), ns_scenes.series_id), scraped_at = excluded.scraped_at`)
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
 
+	jStmt, jErr := tx.Prepare("INSERT INTO ns_series_scenes (series_id, scene_id) VALUES (?, ?) ON CONFLICT(series_id, scene_id) DO NOTHING")
+	if jErr == nil {
+		defer jStmt.Close()
+	}
+
 	for _, r := range scenes {
 		if _, err := stmt.Exec(r.ID, r.Title, r.PosterURL, r.DurationSeconds, r.VideoURL, r.VideoCodec, r.VideoHeight, r.SeriesID); err != nil {
 			return err
+		}
+		if r.SeriesID != "" && jStmt != nil {
+			_, _ = jStmt.Exec(r.SeriesID, r.ID)
 		}
 	}
 

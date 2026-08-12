@@ -209,24 +209,20 @@ func nsParseIDFromURL(u string) string {
 	return m[1]
 }
 
-// nsParseMinibiteGrid extracts scene tile IDs from .ex-minibite elements.
-// Returns a list of scene IDs found on the page.
-var nsMinibiteRe = regexp.MustCompile(`(?i)class\s*=\s*["'][^"']*ex-minibite[^"']*["'][^>]*data-url\s*=\s*["']gallery\.php\?id=(\d+)[^"']*["']`)
-var nsMinibiteRe2 = regexp.MustCompile(`(?i)data-url\s*=\s*["']gallery\.php\?id=(\d+)[^"']*["'][^>]*class\s*=\s*["'][^"']*ex-minibite`)
+// nsParseSceneIDs extracts scene tile IDs (gallery.php?id=N) from series grid HTML.
+var nsGalleryIDRe = regexp.MustCompile(`(?i)gallery\.php\?id=(\d+)`)
 
 func nsParseSceneIDs(html string) []int {
-	seen := make(map[int]bool)
+	matches := nsGalleryIDRe.FindAllStringSubmatch(html, -1)
+	seen := make(map[int]bool, len(matches))
 	var ids []int
-
-	for _, re := range []*regexp.Regexp{nsMinibiteRe, nsMinibiteRe2} {
-		for _, m := range re.FindAllStringSubmatch(html, -1) {
-			id, err := strconv.Atoi(m[1])
-			if err != nil || seen[id] {
-				continue
-			}
-			seen[id] = true
-			ids = append(ids, id)
+	for _, m := range matches {
+		id, err := strconv.Atoi(m[1])
+		if err != nil || seen[id] {
+			continue
 		}
+		seen[id] = true
+		ids = append(ids, id)
 	}
 	return ids
 }
@@ -814,19 +810,34 @@ func nsRunSweep(ctx context.Context) {
 
 	logger.Infof("[apihub] NS scraper: starting scene detail scraping across %d series (~%d scenes)", len(series), totalScenes)
 
-	for _, s := range series {
-		if ctx.Err() != nil {
-			err = ctx.Err()
-			return
+	// Process series in concurrent batches of nsBatchSize (16) for ~3 second total sweep speed.
+	for i := 0; i < len(series); i += nsBatchSize {
+		end := i + nsBatchSize
+		if end > len(series) {
+			end = len(series)
 		}
-		scraped, sceneErr := nsScrapeSeriesScenes(ctx, s.ID, s.SceneCount)
-		if sceneErr != nil {
-			logger.Debugf("[apihub] NS scraper: failed to scrape scenes for series %s (%s): %v", s.ID, s.Name, sceneErr)
-			continue
+		batch := series[i:end]
+
+		var wg sync.WaitGroup
+		for _, ser := range batch {
+			if ctx.Err() != nil {
+				err = ctx.Err()
+				break
+			}
+			wg.Add(1)
+			go func(s nsStoredSeries) {
+				defer wg.Done()
+				scraped, sceneErr := nsScrapeSeriesScenes(ctx, s.ID, s.SceneCount)
+				if sceneErr != nil {
+					logger.Debugf("[apihub] NS scraper: failed to scrape scenes for series %s (%s): %v", s.ID, s.Name, sceneErr)
+					return
+				}
+				if scraped > 0 {
+					logger.Debugf("[apihub] NS scraper: %d scenes scraped for series %s (%s)", scraped, s.ID, s.Name)
+				}
+			}(ser)
 		}
-		if scraped > 0 {
-			logger.Debugf("[apihub] NS scraper: %d scenes scraped for series %s (%s)", scraped, s.ID, s.Name)
-		}
+		wg.Wait()
 	}
 
 	running, _, _, _, sceneDone, _, sceneFailed := nsSweep.progress()

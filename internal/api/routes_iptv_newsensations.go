@@ -2,11 +2,13 @@ package api
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
 
 	"github.com/stashapp/stash/pkg/iptv"
+	"github.com/stashapp/stash/pkg/logger"
 )
 
 // NewSensations as network channels.
@@ -15,14 +17,15 @@ import (
 // generic. The lineup is one network-wide channel plus one per series with
 // enough scenes to sustain a rotation.
 //
-// This provider is PUSH-based: an external scraper writes data to the SQLite
-// sidecar (apihub_newsensations_store.go), and this provider reads from that
-// store exclusively — it never makes live HTTP requests. The import endpoint
-// (POST /apihub-newsensations/import) is available for the scraper to push
-// data, or the scraper can write to the SQLite file directly.
+// The catalog data lives in a SQLite sidecar (apihub_newsensations_store.go).
+// It is populated automatically by a Go-side HTML scraper
+// (apihub_newsensations_scraper.go) that runs during the IPTV warm cycle via
+// the iptvNetPreparer interface — the same contract TeamSkeet uses. The
+// scraper reads the member session cookie from the apihub plugin config
+// (key "newsensationsCookie") and scrapes newsensations.com/members/ HTML.
 //
-// The store must be populated before this provider produces channels. The
-// IPTV panel will show "New Sensations" as absent until data is imported.
+// The import endpoint (POST /apihub-newsensations/import) is still available
+// as a manual alternative.
 
 const (
 	iptvSourceNewSensations = "newsensations"
@@ -41,19 +44,74 @@ const (
 	nsMaxHeight = 1080
 )
 
-// nsNetwork implements iptvNetwork — read-only from the SQLite store.
+// nsNetwork implements iptvNetwork and iptvNetPreparer — the catalog is
+// scraped from the Go backend during Prepare(), and read from the SQLite
+// store for channel discovery and scheduling.
 type nsNetwork struct{}
 
 func (nsNetwork) Source() string { return iptvSourceNewSensations }
 func (nsNetwork) Label() string  { return nsBrandLabel }
 
-// SessionLive reports whether the store has any series data. The store must
-// be populated by an external scraper before this provider produces channels.
+// SessionLive reports whether API Hub holds a NewSensations session cookie.
+// This checks cookie presence, not store contents — the store may be empty
+// because the scrape has not run yet, which is not the same as "not connected".
 func (nsNetwork) SessionLive() bool {
-	return nsCatalog.seriesCount() > 0
+	return nsSessionHasCookie()
 }
 
 func (nsNetwork) IsNoSession(err error) bool { return false }
+
+// ─── preparation (iptvNetPreparer) ────────────────────────────────────────────
+//
+// NewSensations is the second provider (after TeamSkeet) that implements
+// iptvNetPreparer. The catalog must be scraped from HTML before channels
+// can be built — unlike the Gamma/Aylo providers that have JSON APIs.
+
+// IsWarming reports whether an error means the catalog scrape is still running,
+// as opposed to the channel being broken.
+func (nsNetwork) IsWarming(err error) bool { return errors.Is(err, errNSWarming) }
+
+// Prepare starts (or continues) the background catalog scrape. Called at the
+// top of every warm. Returns immediately; the work runs in its own goroutine.
+// Single-flighted: calling it while a scrape is already running is a no-op.
+func (nsNetwork) Prepare(ctx context.Context) {
+	if !nsSweep.begin() {
+		return
+	}
+	go nsRunSweep(ctx)
+}
+
+// PrepNote explains what the scraper is doing, in one sentence for the panel.
+func (nsNetwork) PrepNote() string {
+	running, phase, seriesDone, seriesTotal, sceneDone, sceneTotal, sceneFailed := nsSweep.progress()
+
+	if running {
+		switch phase {
+		case "series":
+			if seriesTotal > 0 {
+				return fmt.Sprintf("Discovering series: %d of %d resolved. NewSensations has no API, so every series is scraped from HTML.", seriesDone, seriesTotal)
+			}
+			return "Discovering series from the NewSensations catalog. This is a one-time scrape from HTML — no API available."
+		case "scenes":
+			note := fmt.Sprintf("Scraping scene details: %d of %d.", sceneDone, sceneTotal)
+			if sceneFailed > 0 {
+				note += fmt.Sprintf(" %d could not be read.", sceneFailed)
+			}
+			note += " Video URLs and durations are read from each scene page and kept permanently."
+			return note
+		default:
+			return "Starting NewSensations catalog scrape."
+		}
+	}
+
+	// Not running: report the store's current state.
+	seriesCount := nsCatalog.seriesCount()
+	sceneCount := nsCatalog.sceneCount()
+	if seriesCount > 0 {
+		return fmt.Sprintf("%d series, %d scenes in the catalog. Remaining channels are building their schedules.", seriesCount, sceneCount)
+	}
+	return "Waiting for the catalog scrape to begin."
+}
 
 // ─── channel keys ─────────────────────────────────────────────────────────────
 
@@ -68,10 +126,18 @@ func nsNetworkChannelKey() string {
 // ─── discovery ────────────────────────────────────────────────────────────────
 
 // ListChannels reads all series from the SQLite store and builds the lineup.
-// Returns nil (no channels) when the store is empty — the background sweep
-// will populate it.
+// If the store has no series yet, it runs the fast series index scrape (Phase 1)
+// so channel specs are populated immediately on first warm.
 func (nsNetwork) ListChannels(ctx context.Context, minScenes int) ([]iptvNetChannelSpec, error) {
 	stored := nsCatalog.listSeries()
+	if len(stored) == 0 && nsSessionHasCookie() {
+		var err error
+		stored, err = nsScrapeSeriesIndex(ctx)
+		if err != nil {
+			logger.Warnf("[iptv] NS scraper: failed to scrape series index in ListChannels: %v", err)
+			return nil, nil
+		}
+	}
 	if len(stored) == 0 {
 		return nil, nil
 	}
@@ -149,31 +215,64 @@ func (nsNetwork) Programs(ctx context.Context, spec iptvNetChannelSpec, want int
 		})
 	}
 
+	if len(sceneEntries) == 0 {
+		// If no schedulable scenes are stored yet, but a cookie is connected,
+		// return errNSWarming. Returning (nil, nil) causes fetchCatalog to treat
+		// the channel as dead and drop it from the lineup! Returning errNSWarming
+		// keeps it in the lineup as "warming" while the background scraper populates
+		// scene details.
+		if nsSessionHasCookie() {
+			return nil, errNSWarming
+		}
+		return nil, nil
+	}
+
 	iptv.StableShuffle(sceneEntries, iptv.ShuffleSeed(int(seed)))
 	return sceneEntries, nil
 }
 
 // ─── playback ─────────────────────────────────────────────────────────────────
 
-// ProgramSource reads the video URL from the SQLite store. Never makes live
-// HTTP requests — the background sweep or import endpoint must populate the
-// store first.
+// ProgramSource reads the video URL from the SQLite store. If missing or empty,
+// it performs an on-demand single-page fetch (gallery.php, ~200ms) using the connected
+// session cookie to get a fresh pre-signed video URL at playback time.
 func (nsNetwork) ProgramSource(ctx context.Context, programID int) (programSource, error) {
 	cached := nsCatalog.lookupScene(programID)
-	if cached == nil || cached.VideoURL == "" {
-		return programSource{}, fmt.Errorf("scene %d has no cached video URL; import scene data first", programID)
+
+	videoURL := ""
+	height := 1080
+
+	if cached != nil && cached.VideoURL != "" {
+		videoURL = cached.VideoURL
+		if cached.VideoHeight > 0 {
+			height = cached.VideoHeight
+		}
+	} else if nsSessionHasCookie() {
+		logger.Infof("[iptv] NS: on-demand fetching fresh video URL for scene %d", programID)
+		fresh, err := nsFetchSingleSceneVideoURL(ctx, programID)
+		if err == nil && fresh.VideoURL != "" {
+			videoURL = fresh.VideoURL
+			if fresh.VideoHeight > 0 {
+				height = fresh.VideoHeight
+			}
+		} else {
+			logger.Warnf("[iptv] NS: on-demand fetch for scene %d failed: %v", programID, err)
+		}
 	}
 
-	h := cached.VideoHeight
-	if h > nsMaxHeight {
-		h = nsMaxHeight
+	if videoURL == "" {
+		return programSource{}, fmt.Errorf("scene %d has no playable video URL", programID)
+	}
+
+	if height > nsMaxHeight {
+		height = nsMaxHeight
 	}
 
 	return programSource{
-		Path:       cached.VideoURL,
+		Path:       videoURL,
 		VideoCodec: "h264",
 		AudioCodec: "aac",
-		Height:     h,
+		Height:     height,
 		Remote:     true,
 	}, nil
 }

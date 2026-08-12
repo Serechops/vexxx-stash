@@ -296,6 +296,13 @@ type teamSkeetSweepState struct {
 
 var teamSkeetSweep = &teamSkeetSweepState{}
 
+func (s *teamSkeetSweepState) forceReset() {
+	s.mu.Lock()
+	s.endedAt = time.Time{}
+	s.retryAt = time.Time{}
+	s.mu.Unlock()
+}
+
 // begin claims the right to run a sweep, and reports whether one is worth
 // running at all.
 func (s *teamSkeetSweepState) begin() bool {

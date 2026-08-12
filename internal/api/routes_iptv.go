@@ -122,6 +122,8 @@ func (rs iptvRoutes) Routes() chi.Router {
 	r.Get("/playlist.m3u8", rs.Playlist)
 	r.Get("/xmltv.xml", rs.XMLTV)
 	r.Get("/channels.json", rs.ChannelsJSON)
+	r.Get("/rewarm", rs.Rewarm)
+	r.Post("/rewarm", rs.Rewarm)
 
 	// A channel is a single continuous MPEG-TS body. The .ts alias exists
 	// because some clients decide how to demux from the URL suffix rather than
@@ -901,7 +903,10 @@ func (rs iptvRoutes) pipeProgram(
 		if copyErr != nil {
 			return written, copyErr
 		}
-		return written, waitErr
+		if waitErr != nil {
+			return written, waitErr
+		}
+		return written, fmt.Errorf("stream ended early after %d bytes (slot remaining: %.1fs)", written, remaining)
 	}
 
 	return written, nil
@@ -936,6 +941,7 @@ func iptvStreamArgs(src programSource, offset, duration float64, mode iptv.Strea
 			"-reconnect_delay_max", "5",
 			"-multiple_requests", "1",
 			"-user_agent", iptvRemoteUserAgent,
+			"-headers", "Referer: https://newsensations.com/\r\n",
 		)
 	}
 
@@ -1262,6 +1268,20 @@ func (rs iptvRoutes) ChannelsJSON(w http.ResponseWriter, r *http.Request) {
 		"networks":     rs.networks.statuses(s),
 		"channels":     out,
 	})
+}
+
+// Rewarm triggers an immediate forced re-warm/re-scrape for specified network sources (or all networks) and returns updated channel status.
+func (rs iptvRoutes) Rewarm(w http.ResponseWriter, r *http.Request) {
+	source := r.URL.Query().Get("source")
+	s := rs.settings()
+	rs.networks.forceWarm(s, source)
+
+	rs.channels.mu.Lock()
+	rs.channels.loaded = false
+	rs.channels.mu.Unlock()
+
+	logger.Infof("[iptv] forced re-warm triggered for network source %q", source)
+	rs.ChannelsJSON(w, r)
 }
 
 // iptvLANPlaylistURLs offers the playlist at each of this machine's LAN

@@ -265,11 +265,13 @@ func (e iptvNetCatalogEntry) dead() bool {
 
 // current reports whether an entry can keep serving, i.e. no refetch is due.
 func (e iptvNetCatalogEntry) current(ttl time.Duration) bool {
-	// An unfinished schedule expires on its own short deadline no matter how
-	// recently it was built — the catalog TTL describes how long a *finished*
-	// rotation stays interesting, which is a different question entirely.
-	if e.err != nil || e.partial || e.warming {
+	if e.err != nil || e.partial {
 		return time.Now().Before(e.retryAt)
+	}
+	if e.warming {
+		// A warming entry expires if retryAt is past OR if 10s have elapsed since built,
+		// so ready channels appear promptly as background preparation completes.
+		return time.Now().Before(e.retryAt) && time.Since(e.built) < 10*time.Second
 	}
 	return time.Since(e.built) < ttl
 }
@@ -374,6 +376,14 @@ func (d *iptvNetDirectory) putCatalog(key string, entry iptvNetCatalogEntry) {
 	d.gen++
 }
 
+func (d *iptvNetDirectory) forceStale() {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.specsAt = time.Time{}
+	d.catalogs = make(map[string]*iptvNetCatalogEntry)
+	d.gen++
+}
+
 // beginWarm claims the right to run a background refresh. Only one runs at a
 // time: a second would duplicate every request for no benefit, and a cold start
 // can otherwise trigger one per in-flight client.
@@ -430,18 +440,36 @@ func (ns *iptvNetworkState) warm(s iptvSettings) {
 		ctx, cancel := context.WithTimeout(context.Background(), iptvNetWarmTimeout)
 		defer cancel()
 
-		if _, fresh := ns.dir.snapshot(s.NetworkMinScenes); !fresh {
-			ns.refreshDirectory(ctx, s)
-		}
-
-		// Before the schedules, and on its own context rather than this one:
+		// Before directory discovery and schedules, and on its own context:
 		// bulk preparation outlives any single warm, so tying it to a fifteen
 		// minute timeout would abandon it partway through and restart it from
 		// the top on the next pass.
 		ns.prepare(context.Background())
 
+		if _, fresh := ns.dir.snapshot(s.NetworkMinScenes); !fresh {
+			ns.refreshDirectory(ctx, s)
+		}
+
 		ns.refreshCatalogs(ctx, s)
 	}()
+}
+
+// forceWarm invalidates current cached specs and catalog entries, resets any provider sweep state, and forces an immediate background warm pass.
+func (ns *iptvNetworkState) forceWarm(s iptvSettings) {
+	if !ns.net.SessionLive() {
+		return
+	}
+	ns.dir.forceStale()
+	if ns.net.Source() == iptvSourceNewSensations {
+		nsSweep.forceReset()
+	} else if ns.net.Source() == iptvSourceTeamSkeet {
+		teamSkeetSweep.forceReset()
+	}
+	ns.dir.mu.Lock()
+	ns.dir.warming = false
+	ns.dir.mu.Unlock()
+
+	ns.warm(s)
 }
 
 // refreshDirectory rediscovers which channels exist.
@@ -859,6 +887,15 @@ func (ns iptvNetworks) anySessionLive() bool {
 func (ns iptvNetworks) warmAll(s iptvSettings) {
 	for _, st := range ns {
 		st.warm(s)
+	}
+}
+
+// forceWarm triggers an immediate forced re-warm and re-scrape pass for the specified provider (or all providers if source is empty or "all").
+func (ns iptvNetworks) forceWarm(s iptvSettings, source string) {
+	for _, st := range ns {
+		if source == "" || source == "all" || st.net.Source() == source {
+			st.forceWarm(s)
+		}
 	}
 }
 

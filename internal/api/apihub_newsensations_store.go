@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/stashapp/stash/internal/manager/config"
@@ -167,7 +169,22 @@ func (s *nsCatalogStore) seriesCount() int {
 	return n
 }
 
+// sceneCount returns how many scenes are known.
+func (s *nsCatalogStore) sceneCount() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	db, err := s.conn()
+	if err != nil {
+		return 0
+	}
+	var n int
+	_ = db.QueryRow("SELECT COUNT(*) FROM ns_scenes").Scan(&n)
+	return n
+}
+
 // ─── scenes ───────────────────────────────────────────────────────────────────
+
 
 // nsStoredScene is a scene record from the store.
 type nsStoredScene struct {
@@ -291,6 +308,32 @@ func (s *nsCatalogStore) scenesWithDurationForSeries(seriesID string) int {
 	var n int
 	_ = db.QueryRow("SELECT COUNT(*) FROM ns_scenes WHERE series_id = ? AND duration_seconds > 0", seriesID).Scan(&n)
 	return n
+}
+
+// updateSeriesIDForScenes sets the series_id column for the given scene IDs.
+func (s *nsCatalogStore) updateSeriesIDForScenes(sceneIDs []int, seriesID string) error {
+	if len(sceneIDs) == 0 || seriesID == "" {
+		return nil
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	db, err := s.conn()
+	if err != nil {
+		return err
+	}
+
+	list := make([]string, 0, len(sceneIDs))
+	for _, id := range sceneIDs {
+		list = append(list, strconv.Itoa(id))
+	}
+
+	_, err = db.Exec(
+		fmt.Sprintf("UPDATE ns_scenes SET series_id = ? WHERE id IN (%s)", strings.Join(list, ",")),
+		seriesID,
+	)
+	return err
 }
 
 // ─── bulk upsert ──────────────────────────────────────────────────────────────

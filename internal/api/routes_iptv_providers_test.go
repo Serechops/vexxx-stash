@@ -28,6 +28,7 @@ var iptvTestProviders = []struct {
 	{iptvSourceAdultTime, iptvAdultTimeKeyPrefix, adultTimeNetworkChannelKey()},
 	{iptvSourceEvilAngel, iptvEvilAngelKeyPrefix, evilAngelNetworkChannelKey()},
 	{iptvSourceTeamSkeet, iptvTeamSkeetKeyPrefix, teamSkeetNetworkChannelKey()},
+	{iptvSourceNewSensations, iptvNSKeyPrefix, nsNetworkChannelKey()},
 }
 
 func TestEveryProviderIsRegisteredAndReachableByItsSource(t *testing.T) {
@@ -188,5 +189,8 @@ func TestEveryProviderRejectsAnotherProvidersSpec(t *testing.T) {
 	}
 	if _, ok := ayloSelectorFor(foreign); ok {
 		t.Error("Aylo accepted a foreign spec")
+	}
+	if _, err := (nsNetwork{}).Programs(nil, foreign, 10, 1); err == nil {
+		t.Error("NewSensations accepted a foreign spec")
 	}
 }

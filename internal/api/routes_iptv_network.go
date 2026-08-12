@@ -814,6 +814,7 @@ func newIPTVNetworks() iptvNetworks {
 		newIPTVNetworkState(adultTimeNetwork{}),
 		newIPTVNetworkState(evilAngelNetwork{}),
 		newIPTVNetworkState(teamSkeetNetwork{}),
+		newIPTVNetworkState(nsNetwork{}),
 	}
 }
 

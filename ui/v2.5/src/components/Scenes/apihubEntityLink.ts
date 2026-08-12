@@ -9,13 +9,18 @@
  * Returns null for ordinary numeric-id entities so callers fall back to their
  * normal /performers|/tags|/studios navigation unchanged.
  */
-// Networks whose catalog has no stable numeric id for performers/tags/studios
-// (EvilAngel/Adult Time/TeamSkeet all key their synthetic ids off the exact
-// facet name instead) — each maps its short id-prefix to the plugin's tab key.
+// Networks whose synthetic ids don't fit the generic "apihub-<kind>-<brandKey>-
+// <numId>" shape below — EvilAngel/Adult Time/TeamSkeet key off the exact facet
+// name (no stable numeric id), while NewSensations ("ns") keys off a real
+// numeric id but with its short prefix at the front instead of a brandKey in
+// the middle ("apihub-ns-tag-123", not "apihub-tag-newsensations-123") — same
+// decode either way (strip the prefix, keep whatever's left as the `id`/`tag`/
+// `performer`/`studio` query value), so it reuses this branch too.
 const NAME_BASED_NETWORKS: Record<string, string> = {
   ea: "evilangel",
   at: "adulttime",
   ts: "teamskeet",
+  ns: "newsensations",
 };
 
 export function apihubEntityLink(

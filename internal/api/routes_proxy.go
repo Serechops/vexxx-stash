@@ -39,6 +39,15 @@ var allowedProxyDomains = map[string]bool{
 	// refreshes the 30-min access token here without driving a browser — the
 	// refresh token travels in the request body, no Bearer/cookie needed.
 	"auth.reptyle.com": true,
+	// NewSensations — a legacy server-rendered PHP site (category.php/
+	// gallery.php/sets.php/advancedsearch.php), unlike every other network's
+	// JSON API. The plugin scrapes these pages' HTML through this relay with
+	// the member cookie attached (see cookieForwardHosts below). Its video/
+	// image CDN (nsnetwork{members,tour,thumbs}.newsensations.com) serves
+	// pre-signed URLs (validfrom/validto/hash query params) consumed directly
+	// by <video>/<img> in the browser — no proxying needed for those, so they
+	// are deliberately NOT listed here.
+	"newsensations.com": true,
 }
 
 // allowedProxySuffixes is a whitelist of domain suffixes that can be proxied,
@@ -144,6 +153,7 @@ func isAllowedProxyHost(host string) bool {
 var cookieForwardHosts = map[string]bool{
 	"members.evilangel.com": true,
 	"members.adulttime.com": true,
+	"newsensations.com":     true,
 }
 
 func (rs proxyRoutes) Routes() chi.Router {
@@ -269,6 +279,15 @@ func (rs proxyRoutes) ProxyMedia(w http.ResponseWriter, r *http.Request) {
 	}
 	defer resp.Body.Close()
 
+	// Expose the final URL after any redirects — the plugin needs this to
+	// discover the resolved series id for NewSensations banner-track redirects
+	// (bannerload.php?track=XXXX → category.php?id=YYYY). The Go http.Client
+	// follows redirects automatically, so the caller's fetch API sees only the
+	// proxy URL; this header bridges that gap.
+	if resp.Request.URL != nil {
+		w.Header().Set("X-Final-URL", resp.Request.URL.String())
+	}
+
 	if resp.StatusCode != http.StatusOK {
 		logger.Warnf("Upstream server returned status: %d for URL: %s", resp.StatusCode, targetURLStr)
 		http.Error(w, fmt.Sprintf("Upstream server error: %d", resp.StatusCode), resp.StatusCode)
@@ -279,6 +298,7 @@ func (rs proxyRoutes) ProxyMedia(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 	w.Header().Set("Access-Control-Allow-Headers", "*")
+	w.Header().Set("Access-Control-Expose-Headers", "Content-Security-Policy, Location, X-Final-URL")
 
 	// Check if this is an HLS playlist and needs rewriting
 	isHLS := strings.Contains(targetURLStr, ".m3u8")

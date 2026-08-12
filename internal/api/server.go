@@ -270,6 +270,7 @@ func Initialize() (*Server, error) {
 	r.Mount("/proxy", server.getProxyRoutes())
 	r.Mount("/apihub-connect", server.getApihubConnectRoutes())
 	r.Mount("/apihub-download", server.getApihubDownloadRoutes())
+	r.Mount("/apihub-newsensations", server.getApihubNewSensationsRoutes())
 	r.Mount("/stashface", server.getStashFaceRoutes())
 	r.Mount("/stashtag", server.getStashTagRoutes())
 	r.Mount("/megaface", server.getMegaFaceRoutes())
@@ -898,6 +899,12 @@ func (s *Server) getApihubDownloadRoutes() chi.Router {
 		routes:  routes{txnManager: repo.TxnManager},
 		history: newApihubHistoryStore(historyDir),
 	}.Routes()
+}
+
+func (s *Server) getApihubNewSensationsRoutes() chi.Router {
+	r := chi.NewRouter()
+	r.Post("/import", ImportNewSensationsCatalog)
+	return r
 }
 
 func (s *Server) getStashFaceRoutes() chi.Router {

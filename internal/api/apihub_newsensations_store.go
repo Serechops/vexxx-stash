@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/stashapp/stash/internal/manager/config"
+	"github.com/stashapp/stash/pkg/logger"
 
 	_ "github.com/stashapp/stash/pkg/sqlite"
 )
@@ -78,22 +79,43 @@ type nsCatalogStore struct {
 // TeamSkeet durations pattern.
 var nsCatalog = &nsCatalogStore{}
 
-// dbPath resolves the sidecar's location, or "" when there is no configuration.
+// dbPath resolves the catalog database location inside the apihub plugin directory,
+// falling back to the apihub data directory in the config folder.
 func (s *nsCatalogStore) dbPath() (path string) {
 	defer func() {
 		if recover() != nil {
 			path = ""
 		}
 	}()
-	primary := filepath.Join(config.GetInstance().GetConfigPath(), "apihub", "newsensations_catalog.db")
-	if _, err := os.Stat(primary); err == nil {
-		return primary
+
+	cfgPath := config.GetInstance().GetConfigPath()
+
+	pluginDB := filepath.Join(cfgPath, "plugins", "apihub", "newsensations_catalog.db")
+	rootDB := filepath.Join(cfgPath, "apihub", "newsensations_catalog.db")
+
+	pluginInfo, pluginErr := os.Stat(pluginDB)
+	rootInfo, rootErr := os.Stat(rootDB)
+
+	// If both exist, pick the populated database file with the larger size
+	if pluginErr == nil && rootErr == nil {
+		if pluginInfo.Size() >= rootInfo.Size() {
+			return pluginDB
+		}
+		return rootDB
 	}
-	pluginPath := filepath.Join(config.GetInstance().GetConfigPath(), "plugins", "apihub", "newsensations_catalog.db")
-	if _, err := os.Stat(pluginPath); err == nil {
-		return pluginPath
+
+	// 1. Primary location: inside the plugin directory (plugins/apihub/newsensations_catalog.db)
+	if pluginErr == nil {
+		return pluginDB
 	}
-	return primary
+
+	// 2. Secondary location: root apihub data directory (apihub/newsensations_catalog.db)
+	if rootErr == nil {
+		return rootDB
+	}
+
+	// Default to pluginDB path if neither exists yet
+	return pluginDB
 }
 
 // conn returns an open read-write handle, (re)opening it if the configured
@@ -110,6 +132,8 @@ func (s *nsCatalogStore) conn() (*sql.DB, error) {
 		_ = s.handle.Close()
 		s.handle = nil
 	}
+
+	logger.Infof("[apihub] NS catalog store: using database at %s", path)
 
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return nil, fmt.Errorf("create apihub data dir: %w", err)

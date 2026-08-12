@@ -85,7 +85,15 @@ func (s *nsCatalogStore) dbPath() (path string) {
 			path = ""
 		}
 	}()
-	return filepath.Join(config.GetInstance().GetConfigPath(), "apihub", "newsensations_catalog.db")
+	primary := filepath.Join(config.GetInstance().GetConfigPath(), "apihub", "newsensations_catalog.db")
+	if _, err := os.Stat(primary); err == nil {
+		return primary
+	}
+	pluginPath := filepath.Join(config.GetInstance().GetConfigPath(), "plugins", "apihub", "newsensations_catalog.db")
+	if _, err := os.Stat(pluginPath); err == nil {
+		return pluginPath
+	}
+	return primary
 }
 
 // conn returns an open read-write handle, (re)opening it if the configured

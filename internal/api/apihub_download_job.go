@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/stashapp/stash/internal/manager"
 	"github.com/stashapp/stash/pkg/job"
 	"github.com/stashapp/stash/pkg/logger"
 	"github.com/stashapp/stash/pkg/models"
@@ -67,6 +68,18 @@ type apihubSceneMetadata struct {
 	// layout (at best a yes/no VR hint), so this is never auto-detected — see
 	// importAndStamp for where it gets stamped onto scene.vr_mode as-is.
 	VRMode string `json:"vrMode,omitempty"`
+	// Markers are position/action timestamps the provider's own catalog
+	// carried for this scene (Adult Time's action_tags, some Aylo releases'
+	// timeTags) — not something Stash or this plugin infers. Empty when the
+	// provider gave none. See importMarkers.
+	Markers []apihubMarkerMeta `json:"markers,omitempty"`
+}
+
+// apihubMarkerMeta is one native provider marker: a label and its timestamp
+// in seconds from the start of the scene.
+type apihubMarkerMeta struct {
+	Title   string  `json:"title"`
+	Seconds float64 `json:"seconds"`
 }
 
 // apihubPerformerMeta is a catalog performer carried with a download. Gender is
@@ -167,6 +180,20 @@ func (j *apihubDownloadJob) Execute(ctx context.Context, progress *job.Progress)
 					itemErrs = append(itemErrs, msg)
 				} else {
 					gallerySucceeded = true
+				}
+			})
+		}
+
+		// Native provider markers (position/action timestamps), when the
+		// catalog carried any for this scene. Also non-fatal, for the same
+		// reason as the gallery step above.
+		if scene != nil && !job.IsCancelled(ctx) {
+			progress.ExecuteTask(fmt.Sprintf("Adding markers for %q", title), func() {
+				if err := j.importMarkers(ctx, manager.GetInstance().Repository, scene, item); err != nil {
+					logger.Errorf("[apihub-download] markers for %q failed: %v", title, err)
+					msg := fmt.Sprintf("%s (markers): %v", title, err)
+					failures = append(failures, msg)
+					itemErrs = append(itemErrs, msg)
 				}
 			})
 		}

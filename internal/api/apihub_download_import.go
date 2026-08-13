@@ -178,6 +178,81 @@ func (j *apihubDownloadJob) importAndStamp(ctx context.Context, path string, ite
 	return refreshed, nil
 }
 
+// importMarkers creates a Stash scene marker for each native provider marker
+// carried with this download (Adult Time's action_tags, some Aylo releases'
+// timeTags — see cart.ts's CartItem.markers on the frontend). A provider only
+// ever gives us a label and a timestamp, never a category, so each marker's
+// label becomes its own primary tag (matched case-insensitively by name, or
+// created — mirroring how identify creates missing tags). Markers already
+// present at the same timestamp are left alone, so re-running this (a
+// relink, or a re-download of the same scene) never duplicates them.
+func (j *apihubDownloadJob) importMarkers(ctx context.Context, repo models.Repository, scene *models.Scene, item apihubDownloadItem) error {
+	if item.Metadata == nil || len(item.Metadata.Markers) == 0 {
+		return nil
+	}
+
+	var errs []string
+	for _, m := range item.Metadata.Markers {
+		title := strings.TrimSpace(m.Title)
+		if title == "" || m.Seconds < 0 {
+			continue
+		}
+
+		if err := txn.WithTxn(ctx, repo.TxnManager, func(ctx context.Context) error {
+			existing, err := repo.SceneMarker.FindBySceneID(ctx, scene.ID)
+			if err != nil {
+				return fmt.Errorf("checking existing markers: %w", err)
+			}
+			for _, e := range existing {
+				if e.Seconds == m.Seconds {
+					return nil // already imported
+				}
+			}
+
+			tag, err := findOrCreateTag(ctx, repo.Tag, title)
+			if err != nil {
+				return fmt.Errorf("resolving tag %q: %w", title, err)
+			}
+
+			newMarker := models.NewSceneMarker()
+			newMarker.Seconds = m.Seconds
+			newMarker.PrimaryTagID = &tag.ID
+			newMarker.SceneID = scene.ID
+
+			if err := repo.SceneMarker.Create(ctx, &newMarker); err != nil {
+				return fmt.Errorf("creating marker %q at %.0fs: %w", title, m.Seconds, err)
+			}
+			return nil
+		}); err != nil {
+			errs = append(errs, err.Error())
+		}
+	}
+
+	if len(errs) > 0 {
+		return fmt.Errorf("%d of %d marker(s) failed: %s", len(errs), len(item.Metadata.Markers), strings.Join(errs, "; "))
+	}
+	return nil
+}
+
+// findOrCreateTag resolves a tag by name (case-insensitively), creating it if
+// no tag with that name exists yet.
+func findOrCreateTag(ctx context.Context, tagWriter models.TagFinderCreator, name string) (*models.Tag, error) {
+	existing, err := tagWriter.FindByNames(ctx, []string{name}, true)
+	if err != nil {
+		return nil, err
+	}
+	if len(existing) > 0 {
+		return existing[0], nil
+	}
+
+	newTag := models.NewTag()
+	newTag.Name = name
+	if err := tagWriter.Create(ctx, &newTag); err != nil {
+		return nil, err
+	}
+	return &newTag, nil
+}
+
 // reloadScene re-fetches a scene by ID along with the relationship IDs the
 // gallery import mirrors onto its gallery (performers/tags; StudioID and
 // OSHash come back as part of the base row already), plus the StashIDs that

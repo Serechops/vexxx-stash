@@ -456,6 +456,30 @@ type gammaResult struct {
 	Facets  map[string]map[string]int `json:"facets"`
 }
 
+// gammaFlexInt decodes from either a JSON number or a numeric JSON string —
+// see gammaHit.Upcoming for why this is necessary rather than a plain int.
+type gammaFlexInt int
+
+func (n *gammaFlexInt) UnmarshalJSON(b []byte) error {
+	s := strings.Trim(string(b), `"`)
+	if s == "" || s == "null" || s == "0" {
+		*n = 0
+		return nil
+	}
+	if v, err := strconv.Atoi(s); err == nil {
+		*n = gammaFlexInt(v)
+		return nil
+	}
+	// Some records carry a non-numeric truthy value instead of "1" — e.g. the
+	// movies index's `upcoming` holds a future release date ("2026-09-12")
+	// rather than a flag when the title genuinely is upcoming. Any non-"0"
+	// value is still truthy either way, and this must never error: gammaSearch
+	// decodes an entire multi-query response in one shot, so one unparseable
+	// field would fail every sub-query's results, not just this hit's.
+	*n = 1
+	return nil
+}
+
 // gammaHit is the subset of a scene hit that scheduling needs. The index carries
 // far more (actors, categories, ratings); everything unused is left out so the
 // decode cost of a 100-hit page stays small.
@@ -468,9 +492,33 @@ type gammaHit struct {
 	// as populated on both sites for every sampled scene.
 	Length      int    `json:"length"`
 	ReleaseDate string `json:"release_date"`
-	Upcoming    int    `json:"upcoming"`
+	// Upcoming is a real number on the scenes index but a numeric *string*
+	// ("0"/"1") on the movies index (all_movies_latest_desc) — both decode
+	// into this same struct (see MovieID below), and gammaSearch decodes a
+	// whole multi-query response in one shot, so one mismatched field type
+	// anywhere in the batch fails every sub-query's results, not just the
+	// offending one. gammaFlexInt tolerates either shape.
+	Upcoming gammaFlexInt `json:"upcoming"`
 	// IsVR is 0/1, not a boolean — see gammaBaseFilter.
 	IsVR int `json:"isVR"`
+	// MovieID is non-zero when the scene belongs to a DVD/movie collection —
+	// used only by the VOD catalog (apihub_adulttime_vod.go), not scheduling.
+	// CoverPath is set on movies-index hits only (empty on scene hits) — see
+	// gammaMovieCoverURL. Both share this struct rather than a second decode
+	// type since gammaSearch's multi-query response has one hit shape.
+	MovieID   int    `json:"movie_id"`
+	CoverPath string `json:"cover_path"`
+	// Pictures carries the resolved thumbnail path, same field the browser
+	// plugin reads (adulttime/models.ts atThumbnailUrl) — NSFW preferred, SFW
+	// as fallback. Also VOD-only.
+	Pictures struct {
+		NSFW struct {
+			Top map[string]string `json:"top"`
+		} `json:"nsfw"`
+		SFW struct {
+			Top map[string]string `json:"top"`
+		} `json:"sfw"`
+	} `json:"pictures"`
 
 	// VideoFormats lists the available renditions and their codecs, so a
 	// programme's playability is known at schedule time rather than needing a
@@ -805,6 +853,144 @@ func gammaEntries(hits []gammaHit) []iptv.SceneEntry {
 		})
 	}
 	return entries
+}
+
+// gammaImageCDN serves scene thumbnails, keyed off the path in a hit's
+// `pictures` object — confirmed against the browser plugin's atThumbnailUrl
+// (adulttime/models.ts), same CDN for every Gamma site.
+const gammaImageCDN = "https://images04-fame.gammacdn.com"
+
+// gammaThumbnailURL resolves a scene's best available thumbnail, NSFW
+// preferred over SFW — same preference the browser plugin uses.
+func gammaThumbnailURL(hit gammaHit) string {
+	path := gammaFirstPictureValue(hit.Pictures.NSFW.Top)
+	if path == "" {
+		path = gammaFirstPictureValue(hit.Pictures.SFW.Top)
+	}
+	if path == "" {
+		return ""
+	}
+	return gammaImageCDN + "/movies" + path
+}
+
+// gammaFirstPictureValue returns an arbitrary value from a pictures.top map —
+// the map has a single entry in practice (one resolution per hit), and Go's
+// map iteration order is what the plugin's Object.values()[0] equivalent
+// would pick anyway.
+func gammaFirstPictureValue(m map[string]string) string {
+	for _, v := range m {
+		return v
+	}
+	return ""
+}
+
+// ─── movies (VOD) ─────────────────────────────────────────────────────────────
+
+// gammaMoviesIndex is Adult Time's DVD/collection catalog — a separate
+// Algolia index from scenes but the same application/key (confirmed live off
+// members.adulttime.com's own movies-listing request; see the browser
+// plugin's adulttime/client.ts, which queries the same index).
+const gammaMoviesIndex = "all_movies_latest_desc"
+
+// gammaMovieCoverURL mirrors the browser plugin's atMovieCoverUrl
+// (adulttime/models.ts) — a different CDN from scene thumbnails, a
+// resize-on-the-fly transform host with a fixed size suffix. Takes a
+// movies-index hit (identified by CoverPath being set — see gammaHit).
+func gammaMovieCoverURL(movieHit gammaHit) string {
+	if movieHit.CoverPath == "" {
+		return ""
+	}
+	return fmt.Sprintf("https://transform.gammacdn.com/movies%s_front_400x625.jpg?width=350&height=490&format=webp", movieHit.CoverPath)
+}
+
+// gammaMovieVODEntry is one playable VOD item: a single scene, grouped under
+// its parent movie as an Xtream category. There is no single file that "is"
+// the movie — see routes_iptv_xtream.go for why a scene is the VOD unit.
+type gammaMovieVODEntry struct {
+	MovieID      int
+	MovieTitle   string
+	MovieCover   string
+	ClipID       int
+	SceneTitle   string
+	Description  string
+	Length       int
+	ReleaseDate  string
+	ThumbnailURL string
+}
+
+// gammaListMovieScenes returns every scene that belongs to a movie
+// collection, labelled with its parent movie's title and cover art.
+//
+// Two things in one batched request: the movies index (titles/covers, one
+// page — Adult Time's movie catalog comfortably fits under Algolia's 1000-hit
+// cap) and the scenes index banded by date exactly as gammaSampleScenes bands
+// a channel's rotation, since the same 1000-offset ceiling applies here and
+// the full attached-to-a-movie scene set can exceed it. Unlike
+// gammaSampleScenes this wants everything, not a seeded sample, so each band
+// is fetched in full (up to its own 1000-hit share) rather than sized first.
+//
+// Scenes whose movie_id has no matching movies-index entry are dropped —
+// movies-index excludes single-scene "collections" (see the filter below),
+// so this keeps VOD movies consistent with what's browsable in the plugin.
+func gammaListMovieScenes(ctx context.Context, site gammaSite) ([]gammaMovieVODEntry, error) {
+	bands := gammaBands(time.Now().Year())
+
+	queries := make([]gammaQuery, 0, len(bands)+1)
+	queries = append(queries, gammaQuery{
+		IndexName:   gammaMoviesIndex,
+		HitsPerPage: 1000,
+		// Matches the browser plugin's searchMovies filter exactly — a
+		// single-scene "movie" is a cataloguing artifact of the scene
+		// itself, not a real collection.
+		Filters: "NOT nb_of_scenes:'1'",
+	})
+	for _, b := range bands {
+		queries = append(queries, gammaQuery{
+			IndexName:   gammaIndex,
+			HitsPerPage: 1000,
+			Filters:     fmt.Sprintf("%s AND movie_id > 0", b.filter()),
+		})
+	}
+
+	results, err := gammaSearch(ctx, site, queries)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) != len(queries) {
+		return nil, fmt.Errorf("%s: asked for %d movie queries, got %d", site.Label, len(queries), len(results))
+	}
+
+	movies := make(map[int]gammaHit, results[0].NbHits)
+	for _, m := range results[0].Hits {
+		movies[m.MovieID] = m
+	}
+
+	seen := make(map[int]bool, len(movies)*4)
+	var out []gammaMovieVODEntry
+	for _, r := range results[1:] {
+		for _, hit := range r.Hits {
+			if hit.Upcoming != 0 || hit.IsVR != 0 || hit.MovieID == 0 {
+				continue
+			}
+			movie, ok := movies[hit.MovieID]
+			if !ok || seen[hit.ClipID] {
+				continue
+			}
+			seen[hit.ClipID] = true
+			out = append(out, gammaMovieVODEntry{
+				MovieID:      hit.MovieID,
+				MovieTitle:   movie.Title,
+				MovieCover:   gammaMovieCoverURL(movie),
+				ClipID:       hit.ClipID,
+				SceneTitle:   hit.Title,
+				Description:  hit.Description,
+				Length:       hit.Length,
+				ReleaseDate:  hit.ReleaseDate,
+				ThumbnailURL: gammaThumbnailURL(hit),
+			})
+		}
+	}
+	return out, nil
 }
 
 // ─── playback ─────────────────────────────────────────────────────────────────

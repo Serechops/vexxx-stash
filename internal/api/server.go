@@ -14,6 +14,7 @@ import (
 	"path"
 	"path/filepath"
 	"runtime/debug"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -157,6 +158,11 @@ func Initialize() (*Server, error) {
 
 	r.Use(middleware.Heartbeat("/healthz"))
 	r.Use(cors.AllowAll().Handler)
+	// Must run before authenticateHandler: Xtream clients (TiviMate's Series
+	// tab, see routes_iptv_xtream.go) have no field for a raw apikey query
+	// param, only username/password, so this bridges their password into the
+	// apikey param the auth handler already knows how to check.
+	r.Use(iptvXtreamAuthBridge)
 	r.Use(authenticateHandler())
 	visitedPluginHandler := mgr.SessionStore.VisitedPluginHandler()
 	r.Use(visitedPluginHandler)
@@ -277,6 +283,11 @@ func Initialize() (*Server, error) {
 	r.Mount("/megaface", server.getMegaFaceRoutes())
 	r.Mount("/handy", server.getHandyRoutes())
 	r.Mount("/iptv", server.getIPTVRoutes())
+	// Adult Time movies as Xtream Codes Series (movie = series, scene =
+	// episode), registered at root — Xtream client apps construct
+	// /player_api.php and /series/... literally, not under any prefix. See
+	// routes_iptv_xtream.go.
+	newIPTVXtreamRoutes().Register(r)
 
 	// DeoVR routes — grouped under /deovr prefix so tunnel sub-paths
 	// are resolved before the catch-all /* UI handler.
@@ -560,33 +571,87 @@ func (s *Server) shutdownHTTPSLocked() {
 }
 
 // lanHosts returns this machine's non-loopback addresses, already bracketed
-// where IPv6 requires it, ready to be dropped into a URL authority.
+// where IPv6 requires it, ready to be dropped into a URL authority. Ordered
+// so a plausible physical-LAN address comes first.
 //
 // Shared by the WebXR HTTPS listener (which needs a URL to type into a headset)
 // and the IPTV routes (which need one to type into a TV) — both are answering
 // the same question: "which address can another device on this network reach
-// this server at?"
+// this server at?", and for both the answer is almost never a VPN tunnel or a
+// hypervisor's internal switch. A device on the same physical network is the
+// overwhelmingly common case, but net.InterfaceAddrs() has no concept of
+// that — a Tailscale or Hyper-V/WSL adapter is just another entry, and can
+// easily sort ahead of the real NIC. Left unordered, the first address (the
+// one every caller defaults to before a user picks a different one) can
+// silently be a URL that only works from inside a VPN — which is exactly
+// what happened with a Tailscale IPv6 address landing first on a box that
+// also has an ordinary 192.168.x.x LAN adapter.
 func lanHosts() []string {
-	var hosts []string
-	addrs, _ := net.InterfaceAddrs()
-	for _, a := range addrs {
-		var ip net.IP
-		switch v := a.(type) {
-		case *net.IPNet:
-			ip = v.IP
-		case *net.IPAddr:
-			ip = v.IP
-		}
-		if ip == nil || ip.IsLoopback() || ip.IsLinkLocalUnicast() {
+	type candidate struct {
+		host string
+		rank int
+	}
+	var candidates []candidate
+
+	ifaces, _ := net.Interfaces()
+	for _, iface := range ifaces {
+		addrs, err := iface.Addrs()
+		if err != nil {
 			continue
 		}
-		host := ip.String()
-		if ip.To4() == nil {
-			host = "[" + host + "]" // bracket IPv6
+		rank := lanInterfaceRank(iface.Name)
+		for _, a := range addrs {
+			var ip net.IP
+			switch v := a.(type) {
+			case *net.IPNet:
+				ip = v.IP
+			case *net.IPAddr:
+				ip = v.IP
+			}
+			if ip == nil || ip.IsLoopback() || ip.IsLinkLocalUnicast() {
+				continue
+			}
+			host := ip.String()
+			if ip.To4() == nil {
+				host = "[" + host + "]" // bracket IPv6
+			}
+			candidates = append(candidates, candidate{host: host, rank: rank})
 		}
-		hosts = append(hosts, host)
+	}
+
+	// Stable, so within a rank the OS's own enumeration order is preserved
+	// rather than shuffled on every call.
+	sort.SliceStable(candidates, func(i, j int) bool { return candidates[i].rank < candidates[j].rank })
+
+	hosts := make([]string, len(candidates))
+	for i, c := range candidates {
+		hosts[i] = c.host
 	}
 	return hosts
+}
+
+// lanInterfaceRank sorts a plausible physical adapter first (Ethernet,
+// Wi-Fi — anything not otherwise recognised) and deprioritises anything that
+// is reachable from this machine but is not "this machine's local network":
+// a VPN/mesh tunnel below a hypervisor's or WSL's internal switch, which is
+// reachable from nowhere but this machine's own other software. Matched by
+// interface name rather than address range deliberately — Hyper-V/WSL
+// virtual switches hand out perfectly ordinary-looking private IPv4, so
+// there is no way to tell them apart from a real LAN by IP alone.
+//
+// Nothing is ever dropped, only reordered: a VPN address is still the right
+// answer for someone who really is watching over Tailscale, so it stays in
+// the list — just not as the silent default.
+func lanInterfaceRank(name string) int {
+	lower := strings.ToLower(name)
+	switch {
+	case strings.Contains(lower, "tailscale") || strings.Contains(lower, "zerotier") || strings.Contains(lower, "wireguard") || strings.Contains(lower, "vpn"):
+		return 2
+	case strings.Contains(lower, "vethernet") || strings.Contains(lower, "wsl") || strings.Contains(lower, "hyper-v") || strings.Contains(lower, "virtual") || strings.Contains(lower, "bluetooth") || strings.Contains(lower, "loopback"):
+		return 3
+	default:
+		return 1
+	}
 }
 
 // httpsURLs returns the https://<ip>:<port> URLs the headset can use, one per

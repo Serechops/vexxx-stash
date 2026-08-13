@@ -179,8 +179,10 @@ func (j *apihubDownloadJob) importAndStamp(ctx context.Context, path string, ite
 }
 
 // reloadScene re-fetches a scene by ID along with the relationship IDs the
-// gallery import mirrors onto its gallery (performers/tags; StudioID comes
-// back as part of the base row already).
+// gallery import mirrors onto its gallery (performers/tags; StudioID and
+// OSHash come back as part of the base row already), plus the StashIDs that
+// the download manifest (apihub_download_metadata.go) stamps onto the item's
+// apihub.json sidecar.
 func reloadScene(ctx context.Context, repo models.Repository, id int) (*models.Scene, error) {
 	var scene *models.Scene
 	if err := txn.WithReadTxn(ctx, repo.TxnManager, func(ctx context.Context) error {
@@ -195,6 +197,9 @@ func reloadScene(ctx context.Context, repo models.Repository, id int) (*models.S
 			return err
 		}
 		if err := s.LoadTagIDs(ctx, repo.Scene); err != nil {
+			return err
+		}
+		if err := s.LoadStashIDs(ctx, repo.Scene); err != nil {
 			return err
 		}
 		scene = s

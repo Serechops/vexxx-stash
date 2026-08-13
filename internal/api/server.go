@@ -271,6 +271,7 @@ func Initialize() (*Server, error) {
 	r.Mount("/apihub-connect", server.getApihubConnectRoutes())
 	r.Mount("/apihub-download", server.getApihubDownloadRoutes())
 	r.Mount("/apihub-newsensations", server.getApihubNewSensationsRoutes())
+	r.Mount("/apihub-banners", server.getApihubBannerRoutes())
 	r.Mount("/stashface", server.getStashFaceRoutes())
 	r.Mount("/stashtag", server.getStashTagRoutes())
 	r.Mount("/megaface", server.getMegaFaceRoutes())
@@ -904,6 +905,12 @@ func (s *Server) getApihubDownloadRoutes() chi.Router {
 func (s *Server) getApihubNewSensationsRoutes() chi.Router {
 	r := chi.NewRouter()
 	r.Post("/import", ImportNewSensationsCatalog)
+	return r
+}
+
+func (s *Server) getApihubBannerRoutes() chi.Router {
+	r := chi.NewRouter()
+	r.Get("/{network}/{id}", ServeCachedBanner)
 	return r
 }
 

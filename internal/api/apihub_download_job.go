@@ -20,8 +20,9 @@ import (
 // direct download URL client-side (Aylo signed MP4, or an EvilAngel relay URL),
 // so the backend never needs the account tokens — it just fetches a URL and,
 // when the CDN requires them, applies whatever per-request headers the plugin
-// attached. Studio/Performer drive the on-disk folder layout; Metadata is
-// carried for the Phase 2 scan-and-stamp step and unused while streaming.
+// attached. Studio/Performer feed the on-disk filename (see
+// buildDownloadFilename); Metadata is carried for the Phase 2 scan-and-stamp
+// step and unused while streaming.
 type apihubDownloadItem struct {
 	Provider  string            `json:"provider"`
 	URL       string            `json:"url"`
@@ -156,6 +157,7 @@ func (j *apihubDownloadJob) Execute(ctx context.Context, progress *job.Progress)
 		// Photo gallery, when the user opted in and the provider has one. Also
 		// non-fatal — the scene itself is already imported, so a gallery failure
 		// shouldn't mark the whole scene as failed.
+		gallerySucceeded := false
 		if scene != nil && item.Gallery != nil && !job.IsCancelled(ctx) {
 			progress.ExecuteTask(fmt.Sprintf("Downloading gallery for %q", title), func() {
 				if err := j.importGallery(ctx, savedPath, scene, item); err != nil {
@@ -163,8 +165,17 @@ func (j *apihubDownloadJob) Execute(ctx context.Context, progress *job.Progress)
 					msg := fmt.Sprintf("%s (gallery): %v", title, err)
 					failures = append(failures, msg)
 					itemErrs = append(itemErrs, msg)
+				} else {
+					gallerySucceeded = true
 				}
 			})
+		}
+
+		// Portable identifier sidecar — see apihub_download_metadata.go. Written
+		// whenever the scene imported, even if the gallery step failed or wasn't
+		// requested, so the relink task can still restore this scene's StashIDs.
+		if scene != nil {
+			j.writeManifest(filepath.Dir(savedPath), scene, item, gallerySucceeded)
 		}
 
 		var sceneID string
@@ -230,10 +241,23 @@ func (j *apihubDownloadJob) recordHistory(item apihubDownloadItem, status apihub
 	}
 }
 
-// download streams a single item straight into the download root as a flat
-// file named "Studio - Date - Title.ext" (see buildDownloadFilename), writing
-// to a .part file and renaming atomically on success so a cancelled or failed
-// transfer never leaves a half-written file the scan would import.
+// download streams a single item into its own subdirectory of the download
+// root, named "Studio - Date - Title" (see buildDownloadFilename) with the
+// video itself as "<same name>.ext" inside it — e.g.
+//
+//	APIHub Downloads/
+//	  Brazzers - 2026-07-24 - Title/
+//	    Brazzers - 2026-07-24 - Title.mp4
+//	    Brazzers - 2026-07-24 - Title.zip   (gallery, if downloaded)
+//	    apihub.json                          (portable link/identifier, see
+//	                                           apihub_download_metadata.go)
+//
+// Grouping each pairing into its own folder keeps the download root
+// organized, and — as importantly — gives the relink task a stable scope to
+// match within that survives either file being renamed later: it looks at
+// what's actually in the folder rather than at filenames recorded elsewhere.
+// Writes to a .part file and renames atomically on success so a cancelled or
+// failed transfer never leaves a half-written file the scan would import.
 func (j *apihubDownloadJob) download(ctx context.Context, item apihubDownloadItem, onProgress func(float64)) (string, error) {
 	name := buildDownloadFilename(item)
 	if name == "" {
@@ -244,10 +268,15 @@ func (j *apihubDownloadJob) download(ctx context.Context, item apihubDownloadIte
 		return "", fmt.Errorf("create folder: %w", err)
 	}
 
-	// Flat layout — everything lands directly in the download root. Guard
-	// against clobbering an unrelated existing file by appending " (n)" when a
-	// name already exists.
-	dest := uniqueDest(j.root, name)
+	// One subdirectory per item, named after its own filename (sans
+	// extension). Guard against colliding with an existing folder (e.g. a
+	// re-download of the same scene) by appending " (n)".
+	itemDir := uniqueDir(j.root, strings.TrimSuffix(name, filepath.Ext(name)))
+	if err := os.MkdirAll(itemDir, 0o755); err != nil {
+		return "", fmt.Errorf("create item folder: %w", err)
+	}
+
+	dest := filepath.Join(itemDir, name)
 	part := dest + ".part"
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, item.URL, nil)
@@ -316,6 +345,23 @@ func (p *progressReader) Read(b []byte) (int, error) {
 		}
 	}
 	return n, err
+}
+
+// uniqueDir returns a not-yet-existing subdirectory of dir named name,
+// appending " (2)", " (3)", … on collision — the directory equivalent of
+// uniqueDest, used to give each downloaded item its own folder.
+func uniqueDir(dir, name string) string {
+	candidate := filepath.Join(dir, name)
+	if _, err := os.Stat(candidate); os.IsNotExist(err) {
+		return candidate
+	}
+	for i := 2; i < 1000; i++ {
+		c := filepath.Join(dir, fmt.Sprintf("%s (%d)", name, i))
+		if _, err := os.Stat(c); os.IsNotExist(err) {
+			return c
+		}
+	}
+	return candidate
 }
 
 // sanitizePathComponent makes a single folder/file name safe on disk: strips

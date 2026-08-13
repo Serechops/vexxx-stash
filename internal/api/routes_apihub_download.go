@@ -28,6 +28,7 @@ func (rs apihubDownloadRoutes) Routes() chi.Router {
 	r := chi.NewRouter()
 
 	r.Post("/start", rs.Start)
+	r.Post("/relink", rs.Relink)
 	r.Get("/history", rs.History)
 	r.Delete("/history", rs.ClearHistory)
 	r.Delete("/history/{id}", rs.DeleteHistoryEntry)
@@ -76,6 +77,17 @@ func (rs apihubDownloadRoutes) Start(w http.ResponseWriter, r *http.Request) {
 	// so the job outlives this request, while the stop button still cancels it.
 	jobID := manager.GetInstance().JobManager.Add(r.Context(), desc, j)
 
+	writeJSON(w, apihubDownloadStartResponse{JobID: strconv.Itoa(jobID)})
+}
+
+// Relink starts a job that walks the configured library paths for apihub.json
+// manifests (see apihub_download_metadata.go, apihub_relink_job.go) and
+// restores each one's StashIDs/gallery attachment from disk — the recovery
+// path for a moved library or a fresh Stash install where the DB has nothing
+// left to go on. Run a normal library Scan first if the files haven't been
+// (re)imported yet; this job only patches rows that already exist.
+func (rs apihubDownloadRoutes) Relink(w http.ResponseWriter, r *http.Request) {
+	jobID := manager.GetInstance().JobManager.Add(r.Context(), "APIHub: relinking scenes/galleries from manifests", &apihubRelinkJob{})
 	writeJSON(w, apihubDownloadStartResponse{JobID: strconv.Itoa(jobID)})
 }
 

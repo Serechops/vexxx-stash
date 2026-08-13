@@ -34,8 +34,8 @@ func testFrame(w, h, n int) *image.RGBA {
 	return img
 }
 
-// encodeFrames runs n synthetic frames through an encoder and returns the
-// packets, which is the sequence every other test here works from.
+// encodeFrames runs n synthetic frames through a freshly created encoder and
+// returns the packets, which is the sequence most tests here work from.
 func encodeFrames(t *testing.T, cfg EncoderConfig, n int) []*Packet {
 	t.Helper()
 
@@ -47,6 +47,14 @@ func encodeFrames(t *testing.T, cfg EncoderConfig, n int) []*Packet {
 		t.Fatalf("NewEncoder: %v", err)
 	}
 	defer enc.Close()
+
+	return encodeFramesWith(t, enc, cfg, n)
+}
+
+// encodeFramesWith is encodeFrames against an encoder the caller already
+// built and still owns, for tests exercising NewEncoderOn's device sharing.
+func encodeFramesWith(t *testing.T, enc *Encoder, cfg EncoderConfig, n int) []*Packet {
+	t.Helper()
 
 	var packets []*Packet
 	collect := func() {
@@ -184,6 +192,155 @@ func TestEncoderFirstPacketIsAKeyframe(t *testing.T) {
 		}
 	}
 	t.Logf("%d packets, %d keyframes", len(packets), keys)
+}
+
+// TestEncoderOnSharedDeviceReusesContext is the correctness check behind
+// NewEncoderOn: an encoder built on a Device must not tear the Device's
+// context down when it closes, so a second encoder built on the same Device
+// afterward still works. A bug in the ownCtx guard would either crash on the
+// second NewEncoderOn (context already terminated) or, worse, appear to work
+// while double-releasing a COM object AMF is still holding.
+func TestEncoderOnSharedDeviceReusesContext(t *testing.T) {
+	dev, err := NewDevice()
+	if err != nil {
+		if errors.Is(err, ErrUnavailable) {
+			t.Skipf("no AMF device on this machine: %v", err)
+		}
+		t.Fatalf("NewDevice: %v", err)
+	}
+	defer dev.Close()
+
+	cfg := testEncoderConfig()
+
+	enc1, err := NewEncoderOn(dev, cfg)
+	if err != nil {
+		t.Fatalf("NewEncoderOn (first): %v", err)
+	}
+	packets1 := encodeFramesWith(t, enc1, cfg, 10)
+	if err := enc1.Close(); err != nil {
+		t.Fatalf("closing first encoder: %v", err)
+	}
+	if !packets1[0].Keyframe {
+		t.Error("first encoder's first packet is not a keyframe")
+	}
+
+	// The device must still be usable for a second, independent encoder — the
+	// point of sharing it at all.
+	enc2, err := NewEncoderOn(dev, cfg)
+	if err != nil {
+		t.Fatalf("NewEncoderOn (second, after first closed): %v", err)
+	}
+	defer enc2.Close()
+	packets2 := encodeFramesWith(t, enc2, cfg, 10)
+	if !packets2[0].Keyframe {
+		t.Error("second encoder's first packet is not a keyframe")
+	}
+
+	if len(enc2.ExtraData()) == 0 {
+		t.Error("second encoder produced no parameter sets")
+	}
+}
+
+// TestNewEncoderOnRejectsNilDevice checks the guard NewEncoderOn adds over
+// newEncoder: a nil Device is a caller error, not "create a context of my
+// own," which is what passing dev through unchecked would silently do.
+func TestNewEncoderOnRejectsNilDevice(t *testing.T) {
+	if _, err := NewEncoderOn(nil, testEncoderConfig()); !errors.Is(err, ErrUnavailable) {
+		t.Errorf("NewEncoderOn(nil, ...) = %v, want an ErrUnavailable", err)
+	}
+}
+
+// TestEncoderOnClosedDeviceFails checks that closing the Device first is
+// reported rather than crashing into a freed context.
+func TestEncoderOnClosedDeviceFails(t *testing.T) {
+	dev, err := NewDevice()
+	if err != nil {
+		if errors.Is(err, ErrUnavailable) {
+			t.Skipf("no AMF device on this machine: %v", err)
+		}
+		t.Fatalf("NewDevice: %v", err)
+	}
+	if err := dev.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+
+	if _, err := NewEncoderOn(dev, testEncoderConfig()); err == nil {
+		t.Error("NewEncoderOn on a closed device succeeded")
+	}
+}
+
+// TestEncoderOnSharedDeviceIsFaster measures what NewEncoderOn is for: how
+// much of NewEncoder's cost is the context it creates for itself.
+//
+// This is the number behind config_nativegen.go's marker measurements — the
+// ffmpeg path beating native by 7.7s on a single twenty-second, already-small
+// preview is disproportionate to the actual decode and encode work involved,
+// and an unshared encoder context stood up and torn down per marker is the
+// leading suspect.
+func TestEncoderOnSharedDeviceIsFaster(t *testing.T) {
+	const rounds = 8
+	cfg := testEncoderConfig()
+
+	fresh := func() (time.Duration, error) {
+		start := time.Now()
+		enc, err := NewEncoder(cfg)
+		if err != nil {
+			return 0, err
+		}
+		defer enc.Close()
+		return time.Since(start), nil
+	}
+
+	if _, err := fresh(); err != nil {
+		if errors.Is(err, ErrUnavailable) {
+			t.Skipf("no AMF encoder on this machine: %v", err)
+		}
+		t.Fatalf("NewEncoder: %v", err)
+	}
+
+	var freshTotal time.Duration
+	for i := 0; i < rounds; i++ {
+		d, err := fresh()
+		if err != nil {
+			t.Fatalf("NewEncoder: %v", err)
+		}
+		freshTotal += d
+	}
+
+	dev, err := NewDevice()
+	if err != nil {
+		t.Fatalf("NewDevice: %v", err)
+	}
+	defer dev.Close()
+
+	// One warm-up so the device's own first-use cost (its own InitDX11) is not
+	// charged to the shared runs, matching how a marker batch's device is
+	// already open before the first marker's encoder is built on it.
+	if enc, err := NewEncoderOn(dev, cfg); err != nil {
+		t.Fatalf("NewEncoderOn (warm-up): %v", err)
+	} else {
+		enc.Close()
+	}
+
+	var sharedTotal time.Duration
+	for i := 0; i < rounds; i++ {
+		start := time.Now()
+		enc, err := NewEncoderOn(dev, cfg)
+		if err != nil {
+			t.Fatalf("NewEncoderOn: %v", err)
+		}
+		sharedTotal += time.Since(start)
+		enc.Close()
+	}
+
+	freshAvg := freshTotal / rounds
+	sharedAvg := sharedTotal / rounds
+	t.Logf("encoder init: %v/call with its own context, %v/call on a shared device (%d rounds each)",
+		freshAvg, sharedAvg, rounds)
+
+	if sharedAvg >= freshAvg {
+		t.Errorf("sharing the device was not faster: %v/call fresh vs %v/call shared", freshAvg, sharedAvg)
+	}
 }
 
 func TestEncoderRejectsAFrameOfTheWrongSize(t *testing.T) {

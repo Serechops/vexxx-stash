@@ -4,12 +4,39 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"sync"
 
 	"github.com/stashapp/stash/pkg/fsutil"
 	"github.com/stashapp/stash/pkg/logger"
 	"github.com/stashapp/stash/pkg/models"
 	"github.com/stashapp/stash/pkg/scene/generate"
 )
+
+// markerConcurrency bounds how many markers of one scene are generated at
+// once, each on its own goroutine.
+//
+// Screenshots are already decoded for the whole scene in a single pass ahead
+// of this (see generateNativeMarkerScreenshots), so what is left running per
+// marker is overwhelmingly the preview video: its own decoder, its own
+// encoder, its own output file, nothing shared with any other marker's run
+// except the open source file (mp4.File.ReadSample is safe for concurrent
+// callers — a fresh io.SectionReader per call, backed by os.File.ReadAt,
+// which is itself safe for concurrent use) and the two device pools in
+// pkg/nativegen (channel-based, built for concurrent acquire).
+//
+// Four rather than two: pkg/nativegen/concurrency_real_test.go already found
+// that decode-only concurrency keeps paying off well past the two-device
+// pool size — up to sixteen concurrent 8K sessions, with throughput
+// plateauing around 2.5x rather than degrading — and capping at the pool
+// size there would have cost a third of that. This is a different shape of
+// work (decode and encode together, not decode alone, and a marker preview
+// decodes at a few hundred pixels wide rather than 8K) so that number does
+// not transfer directly, but it is evidence against matching the pool size
+// out of caution. Four is a starting point for measurement, not a settled
+// answer — a caller beyond what the pools hold falls back to an unpooled
+// context per generator.go's decoderOn/encoderOn, which costs placement, not
+// correctness, so getting this number wrong costs speed, not safety.
+const markerConcurrency = 4
 
 type GenerateMarkersTask struct {
 	repository          models.Repository
@@ -66,7 +93,12 @@ func (t *GenerateMarkersTask) Start(ctx context.Context) error {
 			return nil
 		}
 
-		t.generateMarker(ctx, videoFile, scene, t.Marker)
+		// A single marker still asks for two assets (preview, screenshot), so
+		// opening once here still saves a redundant reparse between them.
+		native := openNativeMarkerSession(ctx, videoFile.Path)
+		defer native.close()
+
+		t.generateMarker(ctx, videoFile, scene, t.Marker, native, false)
 	}
 	return nil
 }
@@ -97,15 +129,46 @@ func (t *GenerateMarkersTask) generateSceneMarkers(ctx context.Context) {
 		logger.Warnf("could not create the markers folder (%v): %v", markersFolder, err)
 	}
 
+	// Opened once for every marker cut from this scene, rather than once per
+	// marker per asset. See nativeMarkerSession.
+	native := openNativeMarkerSession(ctx, videoFile.Path)
+	defer native.close()
+
+	// Screenshots are decoded for the whole scene in one pass, ahead of the
+	// per-marker loop below, so a marker whose screenshot this already wrote
+	// can skip it. See generateNativeMarkerScreenshots.
+	var nativeScreenshots map[int]bool
+	if t.Screenshot {
+		nativeScreenshots = t.generateNativeMarkerScreenshots(ctx, videoFile, t.Scene, sceneMarkers, sceneHash, native)
+	}
+
+	// Bounded rather than one goroutine per marker: a scene can carry far more
+	// markers than there is any GPU session capacity for, and the semaphore
+	// caps how many run at once without capping how many exist.
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, markerConcurrency)
+
 	for i, sceneMarker := range sceneMarkers {
 		index := i + 1
-		logger.Progressf("[generator] <%s> scene marker %d of %d", sceneHash, index, len(sceneMarkers))
 
-		t.generateMarker(ctx, videoFile, t.Scene, sceneMarker)
+		sem <- struct{}{}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			defer func() { <-sem }()
+
+			// Marker order in this log is now start order, not finish order —
+			// several run at once, so which one lands first depends on the
+			// scheduler rather than the list.
+			logger.Progressf("[generator] <%s> scene marker %d of %d", sceneHash, index, len(sceneMarkers))
+
+			t.generateMarker(ctx, videoFile, t.Scene, sceneMarker, native, nativeScreenshots[sceneMarker.ID])
+		}()
 	}
+	wg.Wait()
 }
 
-func (t *GenerateMarkersTask) generateMarker(ctx context.Context, videoFile *models.VideoFile, scene *models.Scene, sceneMarker *models.SceneMarker) {
+func (t *GenerateMarkersTask) generateMarker(ctx context.Context, videoFile *models.VideoFile, scene *models.Scene, sceneMarker *models.SceneMarker, native *nativeMarkerSession, screenshotDone bool) {
 	sceneHash := scene.GetHash(t.fileNamingAlgorithm)
 	seconds := float64(sceneMarker.Seconds)
 
@@ -130,6 +193,7 @@ func (t *GenerateMarkersTask) generateMarker(ctx context.Context, videoFile *mod
 		path:    videoFile.Path,
 		seconds: seconds,
 		vrMode:  vrModeStr,
+		native:  native,
 	}
 
 	if t.VideoPreview {
@@ -154,7 +218,7 @@ func (t *GenerateMarkersTask) generateMarker(ctx context.Context, videoFile *mod
 		}
 	}
 
-	if t.Screenshot {
+	if t.Screenshot && !screenshotDone {
 		shotReq := req
 		shotReq.output = g.MarkerPaths.GetScreenshotPath(sceneHash, int(seconds))
 		shotReq.width = videoFile.Width

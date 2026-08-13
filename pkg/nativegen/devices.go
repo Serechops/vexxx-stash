@@ -48,7 +48,7 @@ import (
 // two-way's 1.66x instead, so the semaphore would have cost a third of the
 // throughput it was meant to protect. See concurrency_real_test.go.
 
-// decodeDeviceCount is how many devices the set holds.
+// decodeDeviceCount is how many devices the decode set holds.
 //
 // Two, because that is the number of fixed-function decode engines on the
 // hardware this was built for, and a device buys nothing except the engine
@@ -57,6 +57,17 @@ import (
 // engine reachable only by luck.
 const decodeDeviceCount = 2
 
+// encodeDeviceCount is how many devices the encode set holds.
+//
+// It is sized the same as the decode set for the same structural reason — a
+// caller with one engine free should not have to wait behind another caller's
+// whole job — but nothing here has measured whether this hardware's encode
+// block actually has room for two independent sessions the way its decode
+// block does. Wrong in either direction costs less than decode getting it
+// wrong: too many devices leaves the extras idle rather than contended, and too
+// few only reintroduces the coin flip acquire already tolerates.
+const encodeDeviceCount = 2
+
 // deviceSet is a fixed set of AMF devices, created once and kept for the life of
 // the process.
 //
@@ -64,6 +75,10 @@ const decodeDeviceCount = 2
 // per frame, and releasing it between jobs would redraw exactly the placement
 // that keeping it exists to preserve.
 type deviceSet struct {
+	// count is how many devices this set holds. Set at declaration, since it
+	// differs between the decode and encode sets below.
+	count int
+
 	once sync.Once
 	devs []*amf.Device
 
@@ -73,14 +88,25 @@ type deviceSet struct {
 	free chan int
 }
 
-// decodeDevices is the process-wide set. Generators take devices from it while
-// they need them and give them back; nothing else creates devices.
-var decodeDevices deviceSet
+// decodeDevices and encodeDevices are the process-wide sets. Generators take
+// devices from whichever one matches the component they are building and give
+// them back; nothing else creates devices.
+//
+// The two are separate pools rather than one shared set: decode and encode are
+// different fixed-function blocks, so a decoder and an encoder sharing one
+// Device would not be contending for anything real, but nothing here has
+// exercised that combination, and getting it wrong would be a session wedged
+// against another session's traffic rather than a merely slow one. Keeping
+// them apart costs one extra context per pool and nothing else.
+var (
+	decodeDevices = deviceSet{count: decodeDeviceCount}
+	encodeDevices = deviceSet{count: encodeDeviceCount}
+)
 
 func (s *deviceSet) init() {
 	s.once.Do(func() {
-		devs := make([]*amf.Device, 0, decodeDeviceCount)
-		for i := 0; i < decodeDeviceCount; i++ {
+		devs := make([]*amf.Device, 0, s.count)
+		for i := 0; i < s.count; i++ {
 			dev, err := amf.NewDevice()
 			if err != nil {
 				// Nothing is kept if the set cannot be built whole: an odd number
@@ -159,4 +185,13 @@ func decoderOn(devs []*amf.Device, i int, cfg amf.Config) (*amf.Decoder, error) 
 		return amf.NewDecoderOn(devs[i], cfg)
 	}
 	return amf.NewDecoder(cfg)
+}
+
+// encoderOn is decoderOn's mirror for encoders, backed by encodeDevices rather
+// than decodeDevices.
+func encoderOn(devs []*amf.Device, i int, cfg amf.EncoderConfig) (*amf.Encoder, error) {
+	if i < len(devs) {
+		return amf.NewEncoderOn(devs[i], cfg)
+	}
+	return amf.NewEncoder(cfg)
 }

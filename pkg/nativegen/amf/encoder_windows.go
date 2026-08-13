@@ -23,24 +23,47 @@ import (
 //
 // An Encoder is not safe for concurrent use.
 type Encoder struct {
-	mu   sync.Mutex
-	cfg  EncoderConfig
-	ctx  unsafe.Pointer // AMFContext*
-	conv unsafe.Pointer // AMFComponent*, BGRA -> NV12
-	enc  unsafe.Pointer // AMFComponent*, the AVC encoder
+	mu     sync.Mutex
+	cfg    EncoderConfig
+	ctx    unsafe.Pointer // AMFContext*
+	ownCtx bool           // whether Close tears ctx down, or merely a Device backing it
+	conv   unsafe.Pointer // AMFComponent*, BGRA -> NV12
+	enc    unsafe.Pointer // AMFComponent*, the AVC encoder
 
 	extraData []byte
 	drained   bool
 	closed    bool
 }
 
-// NewEncoder starts an encode session on the GPU.
+// NewEncoder starts an encode session on the GPU, on a context of its own.
 //
 // It fails with an error wrapping ErrUnavailable when AMF is missing or this GPU
 // has no encode engine. Callers should fall back to ffmpeg on that error: every
 // AMD part that can decode can also encode H.264, but a machine can have the
 // runtime installed with no usable device behind it.
 func NewEncoder(cfg EncoderConfig) (*Encoder, error) {
+	return newEncoder(nil, cfg)
+}
+
+// NewEncoderOn starts an encode session on an existing Device, rather than on a
+// context of its own.
+//
+// Creating the context is most of what NewEncoder costs — the AMF component
+// underneath it is comparatively cheap to stand up and tear down. A caller
+// that opens and closes many short encoders in a row, as a scene's markers do
+// one file each, should share a Device between them the way decoders already
+// do; see devices.go.
+//
+// Closing the returned encoder releases its components and leaves the device
+// alone, so one device can outlive any number of encoders built on it.
+func NewEncoderOn(dev *Device, cfg EncoderConfig) (*Encoder, error) {
+	if dev == nil {
+		return nil, fmt.Errorf("%w: nil device", ErrUnavailable)
+	}
+	return newEncoder(dev, cfg)
+}
+
+func newEncoder(dev *Device, cfg EncoderConfig) (*Encoder, error) {
 	if err := cfg.validate(); err != nil {
 		return nil, err
 	}
@@ -49,7 +72,7 @@ func NewEncoder(cfg EncoderConfig) (*Encoder, error) {
 		return nil, rt.err
 	}
 
-	e := &Encoder{cfg: cfg}
+	e := &Encoder{cfg: cfg, ownCtx: dev == nil}
 
 	ok := false
 	defer func() {
@@ -58,13 +81,23 @@ func NewEncoder(cfg EncoderConfig) (*Encoder, error) {
 		}
 	}()
 
-	if err := check("CreateContext", vres(rt.factory, iFacCreateContext,
-		uintptr(unsafe.Pointer(&e.ctx)))); err != nil {
-		return nil, err
-	}
-	if code := vres(e.ctx, iCtxInitDX11, 0, dx11_1); code != resOK {
-		if code2 := vres(e.ctx, iCtxInitDX11, 0, dx11_0); code2 != resOK {
-			return nil, fmt.Errorf("%w: %v", ErrUnavailable, check("InitDX11", code))
+	if dev != nil {
+		dev.mu.Lock()
+		closed := dev.closed
+		e.ctx = dev.ctx
+		dev.mu.Unlock()
+		if closed || e.ctx == nil {
+			return nil, fmt.Errorf("%w: device is closed", ErrUnavailable)
+		}
+	} else {
+		if err := check("CreateContext", vres(rt.factory, iFacCreateContext,
+			uintptr(unsafe.Pointer(&e.ctx)))); err != nil {
+			return nil, err
+		}
+		if code := vres(e.ctx, iCtxInitDX11, 0, dx11_1); code != resOK {
+			if code2 := vres(e.ctx, iCtxInitDX11, 0, dx11_0); code2 != resOK {
+				return nil, fmt.Errorf("%w: %v", ErrUnavailable, check("InitDX11", code))
+			}
 		}
 	}
 	if err := e.initConverter(); err != nil {
@@ -449,9 +482,11 @@ func (e *Encoder) destroy() {
 			*c = nil
 		}
 	}
-	if e.ctx != nil {
+	// A context borrowed from a Device outlives this encoder; only one this
+	// encoder created for itself is torn down here.
+	if e.ownCtx && e.ctx != nil {
 		vcall(e.ctx, iCtxTerminate)
 		release(e.ctx)
-		e.ctx = nil
 	}
+	e.ctx = nil
 }

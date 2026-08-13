@@ -52,6 +52,9 @@ type Encoder struct{}
 // NewEncoder always fails on this platform.
 func NewEncoder(cfg EncoderConfig) (*Encoder, error) { return nil, unavailable() }
 
+// NewEncoderOn always fails on this platform.
+func NewEncoderOn(dev *Device, cfg EncoderConfig) (*Encoder, error) { return nil, unavailable() }
+
 func (e *Encoder) Submit(img *image.RGBA) error { return unavailable() }
 func (e *Encoder) Receive() (*Packet, error)    { return nil, unavailable() }
 func (e *Encoder) ExtraData() []byte            { return nil }

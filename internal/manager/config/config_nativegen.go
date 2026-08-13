@@ -12,22 +12,29 @@ const (
 	nativeGenerationDefault = false
 
 	// NativeMarkerGeneration extends the native pipeline to scene markers. It
-	// is a separate switch, and off even when the pipeline is on, because it is
-	// the one job the native path measurably loses: a marker is a single
-	// twenty-second segment from a fixed point, which can use neither of the two
-	// things the native path wins with — spreading segments across both media
-	// engines, and moving a segment onto the keyframe nearest it.
+	// is a separate switch, and still off by default even when the pipeline is
+	// on, though not for the reason it used to be.
 	//
-	// Measured on a 5400x2700 HEVC film, ffmpeg takes 6.0s to native's 13.7s for
-	// the preview. The still used to lose too, at 1.4s against 2.2s, and no longer
-	// does: skipping disposable pictures in the run-up brought it to 1.17s. That
-	// changes which half is the problem without changing the answer, because the
-	// preview is the larger half and the skip cannot touch it — a preview wants
-	// every frame in its span decoded, so none of them is disposable.
+	// It used to lose outright: measured on a 5400x2700 HEVC film, ffmpeg took
+	// 6.0s to native's 13.7s for the preview, and 1.4s to native's 1.17s for the
+	// still (after the disposable-picture skip fixed that half). The obvious
+	// read of those numbers — decode and encode are just slower on this path for
+	// a single twenty-second segment, which can use neither of the two things
+	// the native path otherwise wins with (spreading segments across both media
+	// engines, snapping a segment onto the nearest keyframe) — was wrong. Almost
+	// none of the gap was decode or encode work. It was session setup: every
+	// marker reopened and reparsed the file from scratch and stood up a fresh
+	// AMF encoder context from scratch, both fixed costs paid once per marker
+	// instead of once per scene. Amortising them across a scene's markers
+	// (nativeMarkerSession in internal/manager, and the encodeDevices pool
+	// mirroring decode's) turned the comparison around: a 75-marker scene, both
+	// preview and still, ran at ~2.7s/marker native against ffmpeg's own ~7.4s/
+	// marker on the same numbers above — roughly 2.7x faster, not slower.
 	//
-	// It remains available because that comparison is this machine's, not every
-	// machine's, and because it is the only way to generate markers on a build
-	// without ffmpeg.
+	// The default stays off anyway, for now: that is one scene on one machine,
+	// and every other switch here earned its default from measurements across
+	// more than that. Flip it once markers of different codecs, resolutions and
+	// VR modes have borne out the same result.
 	NativeMarkerGeneration        = "nativegen.markers"
 	nativeMarkerGenerationDefault = false
 

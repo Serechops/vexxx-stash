@@ -26,6 +26,14 @@ type PreviewOptions struct {
 	// Path is the video file to read.
 	Path string
 
+	// File is an already-opened demux of Path, for a caller generating several
+	// previews from the same file in a row — a scene's markers, one file each —
+	// that would otherwise pay to reparse the same sample tables every time.
+	// Path is still required and is used for error messages and nothing else
+	// when File is set. The caller keeps ownership and must Close it; this
+	// function never does.
+	File *mp4.File
+
 	// Starts are the times each segment begins at, in seconds. The caller works
 	// these out, so that this backend and the ffmpeg one cut at exactly the same
 	// places.
@@ -84,11 +92,15 @@ func Preview(ctx context.Context, opts PreviewOptions, w io.Writer) error {
 		return fmt.Errorf("nativegen: invalid preview width %d", opts.Width)
 	}
 
-	f, err := mp4.Open(opts.Path)
-	if err != nil {
-		return err
+	f := opts.File
+	if f == nil {
+		var err error
+		f, err = mp4.Open(opts.Path)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
 	}
-	defer f.Close()
 
 	track := f.Video()
 	if track == nil {
@@ -147,7 +159,16 @@ func Preview(ctx context.Context, opts PreviewOptions, w io.Writer) error {
 		LowLatency: false,
 	}
 
-	enc, err := amf.NewEncoder(amf.EncoderConfig{
+	// A kept device where one is free, as decode takes from its own pool below.
+	// What this buys is the context and D3D11 device the AMF component sits on
+	// — the expensive part of standing up an encoder — reused across calls
+	// instead of rebuilt per preview. See devices.go.
+	edevs, erelease := encodeDevices.acquire(1)
+	if erelease != nil {
+		defer erelease()
+	}
+
+	enc, err := encoderOn(edevs, 0, amf.EncoderConfig{
 		Width: outW, Height: outH,
 		FrameRateNum: rateNum, FrameRateDen: rateDen,
 		QP: opts.QP,

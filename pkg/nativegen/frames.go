@@ -56,6 +56,11 @@ type FrameOptions struct {
 	// returned per entry, in the order given.
 	Times []float64
 
+	// File is an already-opened demux of Path, on the same terms as
+	// PreviewOptions.File: the caller keeps ownership, and Path is still used
+	// for error messages.
+	File *mp4.File
+
 	// Width is the width frames are scaled to. The height follows from the
 	// source's coded aspect ratio, or from the flattened view's 16:9 for VR
 	// footage.
@@ -84,11 +89,15 @@ func Frames(ctx context.Context, opts FrameOptions) ([]image.Image, error) {
 		return nil, fmt.Errorf("nativegen: invalid frame width %d", opts.Width)
 	}
 
-	f, err := mp4.Open(opts.Path)
-	if err != nil {
-		return nil, err
+	f := opts.File
+	if f == nil {
+		var err error
+		f, err = mp4.Open(opts.Path)
+		if err != nil {
+			return nil, err
+		}
+		defer f.Close()
 	}
-	defer f.Close()
 
 	track := f.Video()
 	if track == nil {

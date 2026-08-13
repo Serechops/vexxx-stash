@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/stashapp/stash/internal/manager"
@@ -32,6 +33,7 @@ func (rs apihubDownloadRoutes) Routes() chi.Router {
 	r.Get("/history", rs.History)
 	r.Delete("/history", rs.ClearHistory)
 	r.Delete("/history/{id}", rs.DeleteHistoryEntry)
+	r.Post("/test-webhook", rs.TestWebhook)
 
 	return r
 }
@@ -130,6 +132,38 @@ func (rs apihubDownloadRoutes) DeleteHistoryEntry(w http.ResponseWriter, r *http
 	}
 	if err := rs.history.deleteEntry(id); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+type apihubTestWebhookRequest struct {
+	WebhookURL string `json:"webhookUrl"`
+}
+
+// TestWebhook sends a one-off Discord message to the URL the user is
+// currently editing in Settings, so they can confirm it's wired up correctly
+// before (or without) saving it. Independent of the saved `discordWebhookUrl`
+// plugin setting that notifyDiscordJobComplete reads at the end of a real
+// download batch.
+func (rs apihubDownloadRoutes) TestWebhook(w http.ResponseWriter, r *http.Request) {
+	var req apihubTestWebhookRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || strings.TrimSpace(req.WebhookURL) == "" {
+		http.Error(w, "webhookUrl is required", http.StatusBadRequest)
+		return
+	}
+
+	err := sendDiscordWebhook(strings.TrimSpace(req.WebhookURL), discordWebhookPayload{
+		Username: "Stash — API Hub",
+		Embeds: []discordEmbed{{
+			Title:       "API Hub test notification",
+			Description: "If you can see this, your Discord webhook is configured correctly.",
+			Color:       0x5865f2, // Discord blurple
+			Timestamp:   time.Now().UTC().Format(time.RFC3339),
+		}},
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

@@ -107,6 +107,9 @@ func (j *apihubDownloadJob) Execute(ctx context.Context, progress *job.Progress)
 	}
 
 	var failures []string
+	// results feeds the end-of-batch Discord summary (see
+	// notifyDiscordJobComplete) — one entry per recordHistory call below.
+	var results []apihubDownloadResult
 
 	for i, item := range j.items {
 		if job.IsCancelled(ctx) {
@@ -142,6 +145,7 @@ func (j *apihubDownloadJob) Execute(ctx context.Context, progress *job.Progress)
 			logger.Errorf("[apihub-download] %q failed: %v", title, dlErr)
 			failures = append(failures, fmt.Sprintf("%s: %v", title, dlErr))
 			j.recordHistory(item, apihubHistoryFailed, dlErr.Error(), "")
+			results = append(results, apihubDownloadResult{Title: title, Status: apihubHistoryFailed, Error: dlErr.Error()})
 			continue
 		}
 
@@ -210,9 +214,12 @@ func (j *apihubDownloadJob) Execute(ctx context.Context, progress *job.Progress)
 			sceneID = strconv.Itoa(scene.ID)
 		}
 		if len(itemErrs) > 0 {
-			j.recordHistory(item, apihubHistoryPartial, strings.Join(itemErrs, "; "), sceneID)
+			errMsg := strings.Join(itemErrs, "; ")
+			j.recordHistory(item, apihubHistoryPartial, errMsg, sceneID)
+			results = append(results, apihubDownloadResult{Title: title, Status: apihubHistoryPartial, Error: errMsg})
 		} else {
 			j.recordHistory(item, apihubHistorySuccess, "", sceneID)
+			results = append(results, apihubDownloadResult{Title: title, Status: apihubHistorySuccess})
 		}
 
 		progress.SetPercent(float64(idx+1) / float64(total))
@@ -221,6 +228,9 @@ func (j *apihubDownloadJob) Execute(ctx context.Context, progress *job.Progress)
 	if job.IsCancelled(ctx) {
 		return nil
 	}
+
+	notifyDiscordJobComplete(results)
+
 	if len(failures) > 0 {
 		return fmt.Errorf("%d of %d download(s) failed: %s", len(failures), total, strings.Join(failures, "; "))
 	}

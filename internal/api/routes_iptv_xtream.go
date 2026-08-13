@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net"
@@ -41,6 +42,8 @@ import (
 const (
 	iptvXtreamPlayerAPIPath    = "/player_api.php"
 	iptvXtreamSeriesPathPrefix = "/series/"
+	iptvXtreamLivePathPrefix   = "/live/"
+	iptvXtreamXMLTVPath        = "/xmltv.php"
 
 	// adultTimeSeriesCategoryID is the one category every movie/series lives
 	// in. There's nothing meaningful to group movies by beyond "Adult Time"
@@ -95,15 +98,19 @@ func iptvXtreamAuthBridge(next http.Handler) http.Handler {
 }
 
 // iptvXtreamCredential extracts the Xtream "password" field from whichever of
-// the two request shapes this is.
+// three request shapes this is: a query param (player_api.php, xmltv.php) or
+// a path segment (/series/..., /live/...).
 func iptvXtreamCredential(r *http.Request) string {
-	if r.URL.Path == iptvXtreamPlayerAPIPath {
+	if r.URL.Path == iptvXtreamPlayerAPIPath || r.URL.Path == iptvXtreamXMLTVPath {
 		return r.URL.Query().Get("password")
 	}
-	if rest, ok := strings.CutPrefix(r.URL.Path, iptvXtreamSeriesPathPrefix); ok {
-		parts := strings.SplitN(rest, "/", 3)
-		if len(parts) >= 2 {
-			return parts[1]
+	for _, prefix := range [...]string{iptvXtreamSeriesPathPrefix, iptvXtreamLivePathPrefix} {
+		if rest, ok := strings.CutPrefix(r.URL.Path, prefix); ok {
+			parts := strings.SplitN(rest, "/", 3)
+			if len(parts) >= 2 {
+				return parts[1]
+			}
+			break
 		}
 	}
 	return ""
@@ -111,9 +118,15 @@ func iptvXtreamCredential(r *http.Request) string {
 
 // ─── routes ─────────────────────────────────────────────────────────────────
 
-type iptvXtreamRoutes struct{}
+// iptvXtreamRoutes holds the same iptvRoutes the /iptv mount uses, so live
+// channels are the exact lineup, schedule cache and streaming pipeline the
+// M3U/EPG/channel-stream endpoints already have — not a second copy warming
+// its own background scrapes of every network catalog.
+type iptvXtreamRoutes struct {
+	iptv iptvRoutes
+}
 
-func newIPTVXtreamRoutes() iptvXtreamRoutes { return iptvXtreamRoutes{} }
+func newIPTVXtreamRoutes(iptv iptvRoutes) iptvXtreamRoutes { return iptvXtreamRoutes{iptv: iptv} }
 
 // Register adds the Xtream endpoints directly to the root router. Not a
 // chi.Mount: a mounted sub-router adds its own prefix, and these paths must
@@ -121,6 +134,18 @@ func newIPTVXtreamRoutes() iptvXtreamRoutes { return iptvXtreamRoutes{} }
 func (rs iptvXtreamRoutes) Register(r chi.Router) {
 	r.Get(iptvXtreamPlayerAPIPath, rs.PlayerAPI)
 	r.Get(iptvXtreamSeriesPathPrefix+"{username}/{password}/{episodeId}", rs.SeriesEpisodeStream)
+	// No required extension: confirmed live that TiviMate ignores
+	// direct_source for live channels and reconstructs the URL itself from
+	// the numeric stream_id with no container_extension appended at all
+	// (unlike series episodes, where it happened to line up either way — see
+	// LiveChannelStream for why live needs its own handler rather than
+	// reusing ChannelStream directly).
+	r.Get(iptvXtreamLivePathPrefix+"{username}/{password}/{streamId}", rs.LiveChannelStream)
+	// The standard Xtream EPG endpoint — TiviMate requests this
+	// unconditionally for any Xtream playlist. Answered with the exact same
+	// guide /iptv/xmltv.xml already generates rather than a stub, so live
+	// channels get a real programme guide through Xtream too.
+	r.Get(iptvXtreamXMLTVPath, rs.iptv.XMLTV)
 }
 
 // PlayerAPI answers every `player_api.php` action this panel supports.
@@ -132,6 +157,10 @@ func (rs iptvXtreamRoutes) PlayerAPI(w http.ResponseWriter, r *http.Request) {
 	switch r.URL.Query().Get("action") {
 	case "":
 		rs.accountInfo(w, r)
+	case "get_live_categories":
+		rs.liveCategories(w, r)
+	case "get_live_streams":
+		rs.liveStreams(w, r)
 	case "get_series_categories":
 		rs.seriesCategories(w, r)
 	case "get_series":
@@ -200,6 +229,103 @@ func (rs iptvXtreamRoutes) accountInfo(w http.ResponseWriter, r *http.Request) {
 			TimeNow:        now.UTC().Format("2006-01-02 15:04:05"),
 		},
 	})
+}
+
+// ─── live channels ──────────────────────────────────────────────────────────
+//
+// The exact lineup, schedule cache and MPEG-TS pipeline /iptv/playlist.m3u
+// and /iptv/ch/{id}.ts already use (rs.iptv) — this is a JSON reshape of the
+// same data, not a second implementation of any of it.
+
+type xtreamLiveCategory struct {
+	CategoryID   string `json:"category_id"`
+	CategoryName string `json:"category_name"`
+	ParentID     int    `json:"parent_id"`
+}
+
+func (rs iptvXtreamRoutes) liveCategories(w http.ResponseWriter, r *http.Request) {
+	s := rs.iptv.settings()
+	channels, _, err := rs.iptv.channelList(r, s)
+	if err != nil {
+		logger.Warnf("[iptv] xtream: building channel list: %v", err)
+		writeJSON(w, []interface{}{})
+		return
+	}
+
+	seen := make(map[string]bool, len(channels))
+	out := make([]xtreamLiveCategory, 0, len(channels))
+	for _, ch := range channels {
+		name := iptvGroupTitle(ch, s)
+		if seen[name] {
+			continue
+		}
+		seen[name] = true
+		out = append(out, xtreamLiveCategory{
+			// iptvNetChannelSeed just needs to turn a string into a stable
+			// positive int — already used for exactly that (network channel
+			// ids), unrelated to what it's named for here.
+			CategoryID:   strconv.Itoa(iptvNetChannelSeed(name)),
+			CategoryName: name,
+		})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].CategoryName < out[j].CategoryName })
+	writeJSON(w, out)
+}
+
+type xtreamLiveStream struct {
+	Num                int    `json:"num"`
+	Name               string `json:"name"`
+	StreamType         string `json:"stream_type"`
+	StreamID           int    `json:"stream_id"`
+	StreamIcon         string `json:"stream_icon"`
+	EPGChannelID       string `json:"epg_channel_id"`
+	CategoryID         string `json:"category_id"`
+	TvArchive          int    `json:"tv_archive"`
+	ContainerExtension string `json:"container_extension"`
+	DirectSource       string `json:"direct_source"`
+}
+
+func (rs iptvXtreamRoutes) liveStreams(w http.ResponseWriter, r *http.Request) {
+	s := rs.iptv.settings()
+	channels, _, err := rs.iptv.channelList(r, s)
+	if err != nil {
+		logger.Warnf("[iptv] xtream: building channel list: %v", err)
+		writeJSON(w, []interface{}{})
+		return
+	}
+
+	categoryID := r.URL.Query().Get("category_id")
+	base := iptvBaseURL(r)
+	username := r.URL.Query().Get("username")
+	password := r.URL.Query().Get("password")
+
+	out := make([]xtreamLiveStream, 0, len(channels))
+	for _, ch := range channels {
+		name := iptvGroupTitle(ch, s)
+		cid := strconv.Itoa(iptvNetChannelSeed(name))
+		if categoryID != "" && categoryID != "0" && categoryID != cid {
+			continue
+		}
+		out = append(out, xtreamLiveStream{
+			Num:        ch.Number,
+			Name:       ch.Name,
+			StreamType: "live",
+			// A synthetic numeric id — only there because the Xtream schema
+			// expects stream_id to be a number, and TiviMate turns out to
+			// reconstruct the play URL from this (plus ContainerExtension)
+			// rather than using DirectSource verbatim — confirmed live, it
+			// requested /live/{user}/{pass}/{this number} with no extension.
+			// LiveChannelStream reverses the same hash back to the real
+			// channel key.
+			StreamID:           iptvNetChannelSeed(ch.Key),
+			StreamIcon:         iptvURL(base, fmt.Sprintf("/iptv/logo/%s.png", ch.Key), ""),
+			EPGChannelID:       ch.TvgID,
+			CategoryID:         cid,
+			ContainerExtension: "ts",
+			DirectSource:       iptvXtreamLiveURL(base, username, password, ch.Key),
+		})
+	}
+	writeJSON(w, out)
 }
 
 // ─── series catalog ─────────────────────────────────────────────────────────
@@ -386,6 +512,58 @@ func (rs iptvXtreamRoutes) seriesInfo(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, info)
 }
 
+// ─── live stream ────────────────────────────────────────────────────────────
+
+// LiveChannelStream resolves a synthetic numeric stream id (see liveStreams)
+// back to the channel's real key and hands off to the exact same handler
+// /iptv/ch/{channelId}.ts uses — not a reimplementation, a redirect at the Go
+// level. ChannelStream reads the channel key via chi.URLParam(r, "channelId"),
+// so this constructs a fresh chi route context carrying that param instead of
+// duplicating everything after key resolution (schedule lookup, ffmpeg pipe,
+// failure backoff — all of it).
+//
+// This exists as a separate handler (rather than registering ChannelStream
+// directly, which the M3U-facing /iptv/ch/ route can do because it always
+// writes its own URLs) because a channel key is frequently non-numeric
+// ("aylo-bangbros-115261"), while Xtream's schema requires stream_id to be a
+// number — so a synthetic id has to exist somewhere, and this is where it's
+// reversed.
+func (rs iptvXtreamRoutes) LiveChannelStream(w http.ResponseWriter, r *http.Request) {
+	raw := chi.URLParam(r, "streamId")
+	raw = strings.TrimSuffix(raw, path.Ext(raw))
+	numID, err := strconv.Atoi(raw)
+	if err != nil {
+		http.Error(w, "invalid stream id", http.StatusBadRequest)
+		return
+	}
+
+	s := rs.iptv.settings()
+	channels, _, err := rs.iptv.channelList(r, s)
+	if err != nil {
+		logger.Errorf("[iptv] xtream: building channel list: %v", err)
+		http.Error(w, "error building channel list", http.StatusInternalServerError)
+		return
+	}
+
+	var key string
+	for _, ch := range channels {
+		if iptvNetChannelSeed(ch.Key) == numID {
+			key = ch.Key
+			break
+		}
+	}
+	if key == "" {
+		http.Error(w, "unknown channel", http.StatusNotFound)
+		return
+	}
+
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("channelId", key)
+	r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rctx))
+
+	rs.iptv.ChannelStream(w, r)
+}
+
 // ─── stream proxy ───────────────────────────────────────────────────────────
 
 // SeriesEpisodeStream proxies a single scene's signed CDN URL, forwarding
@@ -509,4 +687,17 @@ func iptvXtreamEpisodeURL(base, username, password string, clipID int) string {
 		username = "vexxx"
 	}
 	return fmt.Sprintf("%s/series/%s/%s/%d.mp4", base, url.PathEscape(username), url.PathEscape(password), clipID)
+}
+
+// iptvXtreamLiveURL builds a channel's stream URL keyed by its real Key
+// (which the /live/{user}/{pass}/{channelId}.ts route reads as "channelId" —
+// the same param name and lookup ChannelStream already uses for
+// /iptv/ch/{channelId}.ts). Not URL-escaped: a channel key is always
+// alphanumeric-with-hyphens (see adultTimeChannelKey/gammaSlug and library
+// keys, which are just a studio's numeric id), never anything that needs it.
+func iptvXtreamLiveURL(base, username, password, channelKey string) string {
+	if username == "" {
+		username = "vexxx"
+	}
+	return fmt.Sprintf("%s/live/%s/%s/%s.ts", base, url.PathEscape(username), url.PathEscape(password), channelKey)
 }

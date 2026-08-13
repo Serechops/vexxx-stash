@@ -282,12 +282,19 @@ func Initialize() (*Server, error) {
 	r.Mount("/stashtag", server.getStashTagRoutes())
 	r.Mount("/megaface", server.getMegaFaceRoutes())
 	r.Mount("/handy", server.getHandyRoutes())
-	r.Mount("/iptv", server.getIPTVRoutes())
-	// Adult Time movies as Xtream Codes Series (movie = series, scene =
-	// episode), registered at root — Xtream client apps construct
-	// /player_api.php and /series/... literally, not under any prefix. See
-	// routes_iptv_xtream.go.
-	newIPTVXtreamRoutes().Register(r)
+	// Constructed once and shared with the Xtream routes below rather than
+	// each building its own: iptvRoutes owns the channel-lineup and schedule
+	// caches, and two independent instances would mean two independent
+	// background warms of every network catalog for the same lineup.
+	iptvRts := newIPTVRoutes(&repo, cfg)
+	r.Mount("/iptv", iptvRts.Routes())
+	// Xtream Codes API alongside the M3U/EPG above, registered at root —
+	// client apps construct /player_api.php, /live/..., /series/... literally,
+	// not under any prefix. Live channels are the same lineup and stream
+	// pipeline as /iptv/playlist.m3u and /iptv/ch/...; Adult Time movies are
+	// Series (movie = series, scene = episode — see routes_iptv_xtream.go for
+	// why VOD/Movies has no good answer for a multi-scene collection).
+	newIPTVXtreamRoutes(iptvRts).Register(r)
 
 	// DeoVR routes — grouped under /deovr prefix so tunnel sub-paths
 	// are resolved before the catch-all /* UI handler.
@@ -783,14 +790,6 @@ func (s *Server) getHandyRoutes() chi.Router {
 		sceneFinder:          repo.Scene,
 		sceneFunscriptFinder: repo.Scene,
 	}.Routes()
-}
-
-// getIPTVRoutes serves the library as 24/7 linear TV channels for IPTV clients.
-// The route group is constructed once (rather than per request like most of the
-// others) because it owns the schedule and channel-lineup caches, which must
-// outlive individual requests to be worth anything.
-func (s *Server) getIPTVRoutes() chi.Router {
-	return newIPTVRoutes(&s.manager.Repository, s.manager.Config).Routes()
 }
 
 func (s *Server) getGalleryRoutes() chi.Router {

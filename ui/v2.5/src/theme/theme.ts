@@ -54,6 +54,55 @@ const shadows = {
     elevated: `0 10px 15px -3px ${alpha("#000", 0.1)}, 0 4px 6px -4px ${alpha("#000", 0.1)}`,
 };
 
+// The single palette this app uses, under both "dark" and "light" scheme
+// names — see the colorSchemes comment below for why both need it.
+const appPalette = {
+    primary: {
+        main: colors.accent.primary,
+        light: colors.accent.primaryHover,
+        dark: colors.accent.primaryDark,
+        contrastText: "#ffffff",
+    },
+    secondary: {
+        main: colors.accent.secondary,
+        light: colors.accent.secondaryHover,
+        dark: colors.zinc[800],
+        contrastText: colors.zinc[50],
+    },
+    error: {
+        main: colors.error,
+        contrastText: "#ffffff",
+    },
+    warning: {
+        main: colors.warning,
+        contrastText: "#000000",
+    },
+    info: {
+        main: colors.info,
+        contrastText: "#ffffff",
+    },
+    success: {
+        main: colors.success,
+        contrastText: "#ffffff",
+    },
+    background: {
+        default: colors.zinc[950],
+        paper: colors.zinc[900],
+    },
+    text: {
+        primary: colors.zinc[50],
+        secondary: colors.zinc[400],
+    },
+    divider: colors.zinc[700],
+    action: {
+        active: colors.zinc[400],
+        hover: "rgba(255, 255, 255, 0.08)",
+        selected: "rgba(99, 102, 241, 0.16)",
+        disabled: colors.zinc[600],
+        disabledBackground: colors.zinc[800],
+    },
+};
+
 const baseTheme = createTheme({
     cssVariables: true,
     // Align MUI breakpoints with Bootstrap for consistent responsive behavior
@@ -129,55 +178,21 @@ const baseTheme = createTheme({
     shape: {
         borderRadius: 8,
     },
+    // This app has no light/dark toggle — it is dark-only by design — but MUI's
+    // cssVariables mode still resolves an active scheme from the browser's own
+    // prefers-color-scheme (defaultMode on ThemeProvider is only a starting
+    // preference, not a hard pin). Registering just "dark" left "light"
+    // undefined, so a user whose system resolves to light silently fell back to
+    // MUI's stock light-theme text colors — near-black — composited over this
+    // theme's unconditionally-dark MuiCssBaseline background, which is exactly
+    // black-on-black. Any component pulling color from the theme instead of
+    // hardcoding it (Inputs.tsx's Setting rows use bare Typography, no color
+    // prop) inherited the wrong scheme; anything with its own hardcoded color
+    // was unaffected, which is why only some text was ever illegible. Giving
+    // "light" the identical palette makes which scheme resolves not matter.
     colorSchemes: {
-        dark: {
-            palette: {
-                primary: {
-                    main: colors.accent.primary,
-                    light: colors.accent.primaryHover,
-                    dark: colors.accent.primaryDark,
-                    contrastText: "#ffffff",
-                },
-                secondary: {
-                    main: colors.accent.secondary,
-                    light: colors.accent.secondaryHover,
-                    dark: colors.zinc[800],
-                    contrastText: colors.zinc[50],
-                },
-                error: {
-                    main: colors.error,
-                    contrastText: "#ffffff",
-                },
-                warning: {
-                    main: colors.warning,
-                    contrastText: "#000000",
-                },
-                info: {
-                    main: colors.info,
-                    contrastText: "#ffffff",
-                },
-                success: {
-                    main: colors.success,
-                    contrastText: "#ffffff",
-                },
-                background: {
-                    default: colors.zinc[950],
-                    paper: colors.zinc[900],
-                },
-                text: {
-                    primary: colors.zinc[50],
-                    secondary: colors.zinc[400],
-                },
-                divider: colors.zinc[700],
-                action: {
-                    active: colors.zinc[400],
-                    hover: "rgba(255, 255, 255, 0.08)",
-                    selected: "rgba(99, 102, 241, 0.16)",
-                    disabled: colors.zinc[600],
-                    disabledBackground: colors.zinc[800],
-                },
-            },
-        },
+        dark: { palette: appPalette },
+        light: { palette: appPalette },
     },
     components: {
         MuiCssBaseline: {

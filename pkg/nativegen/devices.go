@@ -68,6 +68,23 @@ const decodeDeviceCount = 2
 // few only reintroduces the coin flip acquire already tolerates.
 const encodeDeviceCount = 2
 
+// DevicePoolSize reports how many independent decode-and-encode pipelines can
+// run at once without either pool falling back to an unpooled context.
+//
+// A caller that runs more sessions than this concurrently is not wrong —
+// acquire hands out an unpooled context rather than blocking, and every
+// generator in this package already tolerates that as a placement cost, not a
+// correctness one. But an unpooled context is a full CreateContext/InitDX11
+// stood up and torn down for that one session alone, and doing that
+// repeatedly across a long-running batch (many markers across many scenes,
+// for instance) churns GPU contexts at a rate nothing here has measured the
+// driver against. A caller deciding its own concurrency and wanting to stay
+// inside pooled placement entirely should size itself to this rather than to
+// a guess.
+func DevicePoolSize() int {
+	return min(decodeDeviceCount, encodeDeviceCount)
+}
+
 // deviceSet is a fixed set of AMF devices, created once and kept for the life of
 // the process.
 //

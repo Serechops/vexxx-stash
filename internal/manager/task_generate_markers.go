@@ -9,6 +9,7 @@ import (
 	"github.com/stashapp/stash/pkg/fsutil"
 	"github.com/stashapp/stash/pkg/logger"
 	"github.com/stashapp/stash/pkg/models"
+	"github.com/stashapp/stash/pkg/nativegen"
 	"github.com/stashapp/stash/pkg/scene/generate"
 )
 
@@ -24,19 +25,18 @@ import (
 // which is itself safe for concurrent use) and the two device pools in
 // pkg/nativegen (channel-based, built for concurrent acquire).
 //
-// Four rather than two: pkg/nativegen/concurrency_real_test.go already found
-// that decode-only concurrency keeps paying off well past the two-device
-// pool size — up to sixteen concurrent 8K sessions, with throughput
-// plateauing around 2.5x rather than degrading — and capping at the pool
-// size there would have cost a third of that. This is a different shape of
-// work (decode and encode together, not decode alone, and a marker preview
-// decodes at a few hundred pixels wide rather than 8K) so that number does
-// not transfer directly, but it is evidence against matching the pool size
-// out of caution. Four is a starting point for measurement, not a settled
-// answer — a caller beyond what the pools hold falls back to an unpooled
-// context per generator.go's decoderOn/encoderOn, which costs placement, not
-// correctness, so getting this number wrong costs speed, not safety.
-const markerConcurrency = 4
+// This used to be a flat 4, on the reasoning that pkg/nativegen's own
+// concurrency test found decode-only throughput scaling well past the
+// two-device pool size with no cliff. That test measured a short, bounded
+// run; it never exercised what a long batch of markers across many scenes
+// does when concurrency exceeds the pool, which is fall back to an unpooled
+// context — a full CreateContext/InitDX11 — per session over the pool's
+// limit, repeatedly, for as long as the batch runs. Whether the driver
+// reclaims those promptly or not is not something Go's GC can see or wait
+// for: it has no pressure signal from GPU VRAM, only from its own heap. Tying
+// this to DevicePoolSize keeps every concurrent marker inside pooled
+// placement instead of gambling on that.
+var markerConcurrency = nativegen.DevicePoolSize()
 
 type GenerateMarkersTask struct {
 	repository          models.Repository

@@ -26,6 +26,13 @@ var connectTargets = map[string]connectTarget{
 		loginURL:        "https://www.evilangel.com/en/login",
 		doneCookieNames: []string{"autologin_userid", "autologin_hash"},
 	},
+	// DFXtra — a third site on the same Gamma-platform cookie scheme (see
+	// apihub_dfxtra_catalog.go); confirmed live that its member API accepts the
+	// same session cookies EvilAngel/Adult Time use.
+	"dfxtra": {
+		loginURL:        "https://www.dfxtra.com/en/login",
+		doneCookieNames: []string{"autologin_userid", "autologin_hash"},
+	},
 	// Watch the two tokens that change/appear on authentication: the anonymous
 	// access_token_ma is replaced with the user's on login, and refresh_token_ma
 	// is issued only on login. instance_token is a long-lived device token

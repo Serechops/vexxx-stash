@@ -10,8 +10,8 @@ import (
 	"github.com/stashapp/stash/pkg/logger"
 )
 
-// Server-side keepalive for the Gamma-platform member sessions (EvilAngel and
-// Adult Time).
+// Server-side keepalive for the Gamma-platform member sessions (EvilAngel,
+// Adult Time, and DFXtra).
 //
 // Unlike Aylo (Keycloak refresh token) and TeamSkeet (Reptyle OAuth), these two
 // networks have NO token-refresh endpoint. They run on a plain cookie session:
@@ -68,6 +68,12 @@ var gammaKeepaliveNetworks = []gammaKeepaliveNetwork{
 		configKey:  "adulttimeCookie",
 		probeURL:   "https://members.adulttime.com/en",
 		loginHosts: []string{"freetour.adulttime.com", "www.adulttime.com"},
+	},
+	{
+		label:      "DFXtra",
+		configKey:  "dfxtraCookie",
+		probeURL:   "https://members.dfxtra.com/",
+		loginHosts: []string{"www.dfxtra.com", "dfxtra.com"},
 	},
 }
 

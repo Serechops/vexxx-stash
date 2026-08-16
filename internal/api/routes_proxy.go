@@ -32,6 +32,12 @@ var allowedProxyDomains = map[string]bool{
 	"www.adulttime.com":                 true,
 	"members.adulttime.com":             true,
 	"freetour.adulttime.com":            true,
+	// DFXtra — third site on the same Gamma platform (see
+	// apihub_dfxtra_catalog.go). Public homepage like EvilAngel's, so both
+	// hosts are needed: www for the window.env key scrape, members for
+	// streaming/photoset/download.
+	"www.dfxtra.com":     true,
+	"members.dfxtra.com": true,
 	"api2.reptyle.com":                  true,
 	"ma-store.reptyle.com":              true,
 	// TeamSkeet/Reptyle's dedicated OAuth host. Unlike members.reptyle.com
@@ -73,6 +79,8 @@ var refererSpoofExact = map[string]string{
 	"www.adulttime.com":            "https://members.adulttime.com",
 	"members.adulttime.com":        "https://members.adulttime.com",
 	"freetour.adulttime.com":       "https://members.adulttime.com",
+	"www.dfxtra.com":               "https://www.dfxtra.com",
+	"members.dfxtra.com":           "https://members.dfxtra.com",
 	"api2.reptyle.com":             "https://app.reptyle.com",
 	"ma-store.reptyle.com":         "https://app.reptyle.com",
 	"auth.reptyle.com":             "https://app.reptyle.com",
@@ -159,6 +167,7 @@ var cookieForwardHosts = map[string]bool{
 	"members.evilangel.com": true,
 	"members.adulttime.com": true,
 	"newsensations.com":     true,
+	"members.dfxtra.com":    true,
 }
 
 func (rs proxyRoutes) Routes() chi.Router {

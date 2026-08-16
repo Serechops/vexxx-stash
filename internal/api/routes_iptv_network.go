@@ -843,6 +843,7 @@ func newIPTVNetworks() iptvNetworks {
 		newIPTVNetworkState(evilAngelNetwork{}),
 		newIPTVNetworkState(teamSkeetNetwork{}),
 		newIPTVNetworkState(nsNetwork{}),
+		newIPTVNetworkState(dfxtraNetwork{}),
 	}
 }
 

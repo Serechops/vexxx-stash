@@ -173,6 +173,12 @@ var bannerAllowedNetworks = map[string]bool{
 	"newsensations": true,
 	"teamskeet":     true,
 	"adulttime":     true,
+	// Gamma channel/series hero banners (see ApiHubGammaChannelPage.tsx) —
+	// served off Contentful (images.ctfassets.net), not the *-fame.gammacdn.com
+	// scene CDN, but downloadBanner's SSRF check is host-agnostic (any public
+	// https host), so no separate allowlist entry is needed for the CDN itself.
+	"evilangel": true,
+	"dfxtra":    true,
 }
 
 // bannerMaxBytes caps a single banner download — these are small tile
